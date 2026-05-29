@@ -1,0 +1,270 @@
+# Instructions agents - Hahitantsoa / Titan ERP
+
+Ce fichier définit les règles de travail obligatoires pour tout agent intervenant sur le repository ERP Hahitantsoa / Titan.
+
+Le repository est actuellement en phase **Foundation documentaire**. Cette phase sert à fixer les décisions, les règles métier et la structure documentaire. Elle ne doit pas introduire de code applicatif ni de configuration opérationnelle.
+
+## 1. Sources de vérité et ordre de priorité
+
+En cas de contradiction, appliquer l’ordre de priorité suivant :
+
+1. Les décisions validées dans `docs/decisions/`.
+2. Les ADR acceptées dans `docs/adr/`.
+3. Le CDC fonctionnel et technique consolidé v3.2, lorsqu’il est fourni ou référencé dans `docs/references/source/`.
+4. Les invariants métier listés dans ce fichier et dans `docs/business-rules/`.
+5. La documentation d’architecture dans `docs/architecture/`.
+6. `PLANS.md`.
+7. Les runbooks dans `docs/runbooks/`.
+8. Les notes de référence dans `docs/references/source/`.
+9. Les demandes ponctuelles, uniquement si elles ne contredisent aucune source de priorité supérieure.
+
+La décision Titan validée est prioritaire sur toute ambiguïté historique, tout ancien guide et toute interprétation contraire.
+
+## 2. Périmètres métier
+
+### Hahitantsoa
+
+Hahitantsoa correspond à l’événement complet.
+
+Son périmètre peut inclure :
+
+- local, salle ou lieu ;
+- matériels et articles ;
+- mobilier ;
+- services événementiels annexes éventuels ;
+- documents commerciaux, logistiques et financiers liés à l’événement.
+
+### Titan
+
+Titan correspond uniquement à la location pure de matériels/articles et de packs matériels.
+
+Titan ne doit jamais permettre :
+
+- local ;
+- salle ;
+- lieu ;
+- service événementiel ;
+- service annexe ;
+- option commerciale ou technique qui rendrait ces catégories disponibles.
+
+Aucun flag, paramètre, variable d’environnement, champ, permission, réglage d’administration, feature flag ou configuration ne doit permettre local, salle, lieu ou service dans Titan.
+
+Conséquences obligatoires pour les futures implémentations :
+
+- l’API devra refuser toute ligne Titan de type local, salle, lieu ou service ;
+- le frontend Titan ne devra jamais présenter local, salle, lieu ou service ;
+- les tests devront vérifier qu’une tentative d’ajouter local, salle, lieu ou service dans Titan échoue ;
+- les matériels sont partagés entre Hahitantsoa et Titan : une réservation confirmée dans un volet rend le matériel indisponible dans l’autre.
+
+## 3. Invariants métier
+
+- INV-001 : un proforma est une estimation et ne confirme pas définitivement une réservation.
+- INV-002 : une réservation est confirmée uniquement après contrat signé, acompte reçu et revalidation réussie des disponibilités.
+- INV-003 : la confirmation et le contrôle des disponibilités devront être transactionnels afin d’éviter les doubles allocations.
+- INV-004 : les matériels sont partagés entre Hahitantsoa et Titan.
+- INV-005 : Titan autorise uniquement articles, matériels et packs matériels ; jamais local ni service.
+- INV-006 : un contrat signé est immuable ; toute modification passe par proforma de modification puis avenant.
+- INV-007 : moyens de paiement acceptés : Cash, MVola, Chèque et Virement.
+- INV-008 : chaque paiement validé génère un reçu.
+- INV-009 : échéances : 50 % du reste à payer à J-30, puis solde final et caution à J-10.
+- INV-010 : le bon de sortie est un document interne de préparation.
+- INV-011 : le bon de livraison est le document de passation destiné au client.
+- INV-012 : les retours distinguent intact, cassé et manquant.
+- INV-013 : casse ou perte imputable à la caution ; dépassement restant dû par le client.
+- INV-014 : gestion des consommables, seuils bas, fournisseurs et bons de commande.
+- INV-015 : caisse individualisée par utilisateur habilité avec ouverture, mouvements, comptage, clôture, justification et exports.
+- INV-016 : agenda visiteurs/prospects et conversion en client.
+- INV-017 : documents CIN, NIF, STAT, RCS et justificatifs conservés de manière privée avec accès contrôlé.
+- INV-018 : audit obligatoire des actions sensibles.
+
+## 4. Architecture cible
+
+L’architecture cible documentée est la suivante :
+
+- monorepo Git ;
+- backend : Python 3.13, Django 5.2 LTS, Django REST Framework ;
+- frontend : React, TypeScript strict, Vite ;
+- base de données : PostgreSQL ;
+- async : Celery, Redis et Celery Beat ;
+- temps réel : Django Channels et Redis ;
+- monitoring : Flower, non exposé publiquement ;
+- proxy / HTTPS : Nginx ;
+- exécution applicative : serveur ASGI ;
+- déploiement retenu : Docker Compose ;
+- API : OpenAPI avec drf-spectacular ;
+- documentation : README, ADR, dossiers `business-rules`, `architecture`, `references/source` et `runbooks` ;
+- tests prévus : pytest, pytest-django, factory_boy, Vitest, React Testing Library et Playwright ;
+- qualité prévue : Black, Ruff, mypy, ESLint, Prettier et TypeScript strict.
+
+Django + HTMX ne doit pas être proposé comme remplacement de React.
+
+### Clarification Docker
+
+La Foundation actuelle est documentaire uniquement.
+
+Docker Compose est l’architecture de déploiement retenue, mais sa configuration ne doit être créée que lors d’une tâche d’implémentation explicitement approuvée après la Foundation documentaire.
+
+Pendant la mission documentaire actuelle, ne pas créer de `compose.yaml`, `compose.yml`, `compose.prod.yaml`, `Dockerfile` ou fichier Docker opérationnel.
+
+## 5. Règles backend
+
+Les règles métier ne doivent pas être dispersées dans les vues, serializers ou composants frontend.
+
+### Services
+
+- Placer les écritures métier et transitions d’état dans des services applicatifs explicites.
+- Les services doivent porter les règles de confirmation, paiement, logistique, caisse, audit et documents sensibles.
+- Les services doivent refuser les états impossibles au plus près du backend.
+- Les services liés à Titan doivent interdire local, salle, lieu et service sans option de contournement.
+
+### Selectors
+
+- Placer les lectures métier complexes dans des selectors dédiés.
+- Les selectors doivent centraliser les règles de visibilité, disponibilité et filtrage métier.
+- Les selectors Titan ne doivent jamais retourner local, salle, lieu ou service comme éléments disponibles.
+
+### Transactions et verrouillage
+
+- Toute confirmation de réservation doit utiliser `transaction.atomic()`.
+- Le contrôle de disponibilité et l’allocation doivent être exécutés dans la même transaction.
+- Les lignes représentant des stocks, allocations, réservations ou ressources critiques devront être verrouillées lorsque nécessaire, par exemple avec `select_for_update()`.
+- Les doubles allocations entre Hahitantsoa et Titan doivent être empêchées au niveau transactionnel.
+- Les effets externes ou différés après commit doivent passer par `transaction.on_commit()`.
+- Aucun email, notification, tâche Celery ou génération documentaire définitive ne doit être déclenché avant la réussite effective du commit.
+
+### API
+
+- L’API devra refuser les mutations contraires aux invariants métier.
+- Les erreurs métier devront être explicites, testables et stables.
+- La documentation OpenAPI devra refléter les contraintes métier importantes.
+
+## 6. Règles frontend
+
+- Le frontend cible est React avec TypeScript strict et Vite.
+- Le frontend ne doit pas être la seule barrière de sécurité.
+- Les écrans Titan ne doivent jamais afficher local, salle, lieu, service événementiel ou service annexe.
+- Les formulaires Titan ne doivent pas contenir de champ permettant de sélectionner ou injecter ces catégories.
+- Les états d’erreur retournés par l’API doivent être affichés clairement lorsque l’utilisateur tente une action refusée.
+- Les interfaces manipulant documents sensibles, caisse, paiements, contrats et audit doivent respecter les permissions reçues du backend.
+
+## 7. Autorisation, sessions et audit
+
+- Les permissions doivent être contrôlées côté backend.
+- Les sessions Django sont le socle d’authentification retenu.
+- Le frontend peut masquer des actions, mais ne remplace jamais une autorisation backend.
+- Les actions sensibles doivent être auditées.
+- Les journaux d’audit doivent permettre de comprendre qui a fait quoi, quand, sur quelle ressource et avec quel résultat.
+- Les opérations de caisse, paiement, contrat, avenant, document sensible, confirmation de réservation, annulation, retour, casse et perte sont sensibles.
+
+## 8. Sécurité des fichiers privés
+
+Les documents CIN, NIF, STAT, RCS et justificatifs sont privés.
+
+Règles obligatoires :
+
+- ne jamais servir les fichiers sensibles depuis un stockage public non contrôlé ;
+- ne jamais exposer d’URL publique permanente vers un document sensible ;
+- vérifier les permissions backend avant tout accès, téléchargement ou aperçu ;
+- journaliser les accès sensibles lorsque cela est pertinent ;
+- séparer les métadonnées métier de l’objet fichier lorsque c’est utile ;
+- prévoir une politique de conservation validée par le client ;
+- ne jamais commiter de document réel, pièce d’identité, justificatif ou secret dans le repository ;
+- utiliser des fixtures anonymisées ou synthétiques pour les tests futurs.
+
+## 9. Tests métier critiques
+
+Les futures implémentations devront couvrir au minimum les scénarios suivants :
+
+- un proforma ne confirme pas une réservation ;
+- une réservation ne peut être confirmée sans contrat signé ;
+- une réservation ne peut être confirmée sans acompte reçu ;
+- une réservation ne peut être confirmée sans revalidation réussie des disponibilités ;
+- deux confirmations concurrentes ne peuvent pas allouer le même matériel ;
+- une réservation Hahitantsoa confirmée rend le matériel indisponible dans Titan ;
+- une réservation Titan confirmée rend le matériel indisponible dans Hahitantsoa ;
+- Titan refuse toute ligne local, salle ou lieu ;
+- Titan refuse toute ligne service événementiel ou service annexe ;
+- le frontend Titan ne présente pas local, salle, lieu ou service ;
+- un contrat signé ne peut pas être modifié directement ;
+- une modification après signature passe par proforma de modification puis avenant ;
+- seuls Cash, MVola, Chèque et Virement sont acceptés comme moyens de paiement ;
+- chaque paiement validé génère un reçu ;
+- les échéances J-30 et J-10 sont calculées selon les règles validées ;
+- les retours distinguent intact, cassé et manquant ;
+- casse et perte s’imputent à la caution, avec reste dû si dépassement ;
+- les consommables déclenchent les contrôles de seuil bas ;
+- les mouvements de caisse nécessitent un utilisateur habilité ;
+- ouverture, mouvements, comptage, clôture et justification de caisse sont tracés ;
+- les documents sensibles nécessitent des permissions ;
+- les actions sensibles produisent un audit.
+
+## 10. Qualité et review
+
+Les changements futurs devront rester cohérents avec la stack cible et les conventions du repository.
+
+Les reviews Codex doivent vérifier :
+
+- respect des sources de vérité ;
+- respect des invariants métier ;
+- absence de contournement de la règle Titan ;
+- transactionnalité des confirmations de réservation ;
+- usage correct des services et selectors ;
+- usage correct de `transaction.atomic()`, du verrouillage de lignes et de `transaction.on_commit()` ;
+- couverture des tests métier critiques ;
+- contrôle backend des permissions ;
+- protection des fichiers privés ;
+- audit des actions sensibles ;
+- absence d’exposition publique de Flower ;
+- absence de secret commité ;
+- absence de dépendance ou configuration opérationnelle non approuvée.
+
+## 11. Procédure obligatoire de travail Codex
+
+Avant toute modification :
+
+1. Inspecter le répertoire courant.
+2. Vérifier l’état Git.
+3. Identifier les fichiers concernés.
+4. Présenter un plan court lorsque la demande implique plusieurs fichiers ou une décision structurante.
+5. Attendre l’approbation si l’utilisateur l’a demandée ou si la tâche peut modifier des décisions métier.
+
+Pendant la modification :
+
+- limiter les changements au périmètre demandé ;
+- ne pas réécrire des fichiers sans nécessité ;
+- ne pas corriger des sujets non demandés ;
+- ne pas supprimer des changements utilisateur ;
+- privilégier les conventions déjà présentes ;
+- documenter les décisions structurantes dans ADR ou `docs/decisions/` lorsque nécessaire.
+
+Après la modification :
+
+- afficher les fichiers modifiés ;
+- résumer les changements ;
+- exécuter les vérifications pertinentes ;
+- signaler ce qui n’a pas pu être testé ;
+- faire une auto-review du diff.
+
+## 12. Interdictions pendant la Foundation documentaire
+
+Pendant cette mission documentaire, il est interdit de créer :
+
+- code Django ;
+- code React ;
+- projet Vite ;
+- dépendance logicielle ;
+- `package.json` ;
+- `pyproject.toml` ;
+- `requirements.txt` ;
+- `manage.py` ;
+- projet Django ;
+- migration ;
+- endpoint API ;
+- fichier Docker ;
+- fichier Docker Compose opérationnel ;
+- configuration CI exécutable ;
+- modèle métier applicatif ;
+- tâche Celery ;
+- configuration applicative opérationnelle.
+
+La seule production autorisée pendant cette phase est documentaire et structurelle.
