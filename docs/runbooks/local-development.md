@@ -8,6 +8,7 @@ La mise en route des conteneurs ne doit etre effectuee qu'apres revue du diff et
 
 ## Prerequis
 
+- Python 3.14 pour le backend Django minimal Foundation.
 - Docker installe localement.
 - Docker Compose disponible via `docker compose`.
 - Acces au repository depuis un terminal positionne a la racine du projet.
@@ -57,3 +58,36 @@ Commande prevue pour verifier Redis depuis le conteneur :
 ```sh
 docker compose --env-file .env exec redis sh -lc 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli ping'
 ```
+
+## Backend Django minimal
+
+Le backend Django minimal F5 se verifie localement depuis la racine du repository.
+
+Creer ulterieurement l'environnement virtuel local :
+
+```sh
+python3 -m venv .venv
+```
+
+Installer le projet en mode editable :
+
+```sh
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e .
+```
+
+Charger temporairement les variables locales depuis `.env` dans le shell courant :
+
+```sh
+set -a && source .env && set +a
+```
+
+Executer la verification Django minimale :
+
+```sh
+.venv/bin/python backend/manage.py check
+```
+
+Ne pas executer `migrate` avant validation explicite d'une phase ulterieure.
+
+Ne jamais commiter `.env`. Seul `.env.example` doit rester versionne.

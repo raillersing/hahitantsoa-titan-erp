@@ -2,11 +2,13 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **Foundation documentaire terminee**.
+Statut actuel : **F5 backend Django minimal en cours**.
 
-Aucun composant applicatif n'est encore cree. Il n'existe pas encore de backend Django, de frontend React, de CI executable, de dependance logicielle, de migration ou d'endpoint API.
+La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
-La premiere infrastructure locale PostgreSQL/Redis est en cours d'implementation sur une branche dediee. Elle ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
+F5 initialise uniquement un backend Django minimal et verifiable avec Python 3.14 comme version locale de developpement Foundation. Les modules metier Hahitantsoa/Titan ne sont pas encore implementes. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
+
+L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 
 Le runbook local est disponible dans [docs/runbooks/local-development.md](docs/runbooks/local-development.md).
 
