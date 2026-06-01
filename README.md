@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F12 readiness PostgreSQL minimal en cours**.
+Statut actuel : **F13 structure backend des domaines applicatifs en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -20,7 +20,9 @@ F10 a ajoute un healthcheck Docker Compose au service backend pour refleter la d
 
 F11 a valide l'application controlee des migrations Django standards en base PostgreSQL locale. Cela concerne uniquement les apps integrees `admin`, `auth`, `contenttypes` et `sessions`; ce ne sont pas des migrations metier.
 
-F12 ajoute un readiness endpoint PostgreSQL minimal `GET /readyz/`. `/healthz/` reste un liveness check sans acces base de donnees, tandis que `/readyz/` verifie uniquement l'acces PostgreSQL avec une requete minimale. Redis n'est pas encore teste. Cela reste une configuration de developpement local. Le projet n'est pas production-ready. Les modules metier Hahitantsoa/Titan ne sont pas encore implementes. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
+F12 a ajoute un readiness endpoint PostgreSQL minimal `GET /readyz/`. `/healthz/` reste un liveness check sans acces base de donnees, tandis que `/readyz/` verifie uniquement l'acces PostgreSQL avec une requete minimale. Redis n'est pas encore teste.
+
+F13 ajoute une structure de packages de domaines backend sous `backend/apps/`. Ces packages ne sont pas encore des apps Django activees et ne sont pas ajoutes a `INSTALLED_APPS`. Cela reste une preparation structurelle. Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 

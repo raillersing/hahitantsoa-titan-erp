@@ -108,3 +108,19 @@ Les migrations Django standards peuvent etre appliquees dans la base PostgreSQL 
 - `sessions`
 
 Cette etape ne cree aucune app metier, aucun modele metier Hahitantsoa/Titan et aucune migration metier.
+
+## Domain packages
+
+`backend/apps/` prepare les futurs domaines applicatifs backend :
+
+- `common`
+- `identity`
+- `inventory`
+- `reservations`
+- `billing`
+- `logistics`
+- `audit`
+
+Ces dossiers sont des packages Python preparatoires. Ils ne sont pas encore ajoutes a `INSTALLED_APPS` et ne sont pas encore des applications Django actives.
+
+F13 ne cree aucun modele, migration, serializer, viewset ou endpoint metier.

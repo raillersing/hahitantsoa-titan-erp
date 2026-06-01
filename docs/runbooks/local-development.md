@@ -237,6 +237,43 @@ Arreter les services Compose locaux :
 docker compose --env-file .env down
 ```
 
+## Structure des packages de domaines backend
+
+F13 ajoute uniquement une structure de packages Python preparatoires sous `backend/apps/`.
+
+Verifier les fichiers crees :
+
+```sh
+find backend/apps -maxdepth 3 -type f | sort
+```
+
+Verifier qu'aucun fichier applicatif metier interdit n'a ete cree :
+
+```sh
+find backend/apps \
+  \( -name "models.py" \
+     -o -name "serializers.py" \
+     -o -name "views.py" \
+     -o -name "viewsets.py" \
+     -o -name "urls.py" \
+     -o -name "apps.py" \
+     -o -name "admin.py" \
+     -o -name "tests.py" \
+     -o -path "*/migrations/*" \) \
+  -type f -print | sort
+```
+
+Executer les controles habituels :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Aucune migration ne doit etre creee en F13.
+
 Ne pas utiliser `docker compose down -v` sans decision explicite : cela supprimerait les volumes PostgreSQL/Redis.
 
 Cette etape n'ajoute aucune migration metier.

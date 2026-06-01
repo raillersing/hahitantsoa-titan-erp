@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F12 - Readiness PostgreSQL minimal**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F13 - Structure backend domain packages**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -187,7 +187,9 @@ F10 terminee : healthcheck Docker Compose du service backend base sur `/healthz/
 
 F11 terminee : application controlee des migrations Django standards locales pour `admin`, `auth`, `contenttypes` et `sessions`, sans migration metier.
 
-F12 en cours : endpoint readiness PostgreSQL minimal `GET /readyz/`, sans test Redis et sans logique metier.
+F12 terminee : endpoint readiness PostgreSQL minimal `GET /readyz/`, sans test Redis et sans logique metier.
+
+F13 en cours : structure de packages backend pour les futurs domaines applicatifs, sans activation Django, sans modele, sans migration et sans endpoint metier.
 
 ### Objectifs futurs
 
