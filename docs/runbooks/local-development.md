@@ -363,6 +363,56 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 
 Aucune migration ne doit etre creee en F15.
 
+## Activation minimale de l'app inventory
+
+F16 active uniquement `apps.inventory.apps.InventoryConfig` dans `INSTALLED_APPS`.
+
+Verifier l'activation dans les settings :
+
+```sh
+grep -Rni "apps.inventory.apps.InventoryConfig" backend/config/settings.py
+```
+
+Verifier les fichiers du domaine inventory :
+
+```sh
+find backend/apps/inventory -maxdepth 2 -type f | sort
+```
+
+Verifier qu'aucun fichier applicatif metier interdit n'a ete cree :
+
+```sh
+find backend/apps \
+  \( -path "backend/apps/common/models.py" -o -path "backend/apps/inventory/apps.py" \) -prune \
+  -o \( -name "models.py" \
+     -o -name "serializers.py" \
+     -o -name "views.py" \
+     -o -name "viewsets.py" \
+     -o -name "urls.py" \
+     -o -name "admin.py" \
+     -o -name "tests.py" \
+     -o -path "*/migrations/*" \) \
+  -type f -print | sort
+```
+
+Verifier l'absence de migrations inventory :
+
+```sh
+find backend/apps -path "*/migrations/*" -print | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Executer les controles habituels :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Aucune migration ne doit etre creee en F16.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

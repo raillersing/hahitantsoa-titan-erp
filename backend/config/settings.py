@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "apps.common.apps.CommonConfig",
+    "apps.inventory.apps.InventoryConfig",
     "rest_framework",
     "drf_spectacular",
 ]
