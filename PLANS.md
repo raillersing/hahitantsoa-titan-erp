@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F7 - Backend settings hardening minimal**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F8 - Backend health endpoint minimal**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -163,7 +163,7 @@ Planifiée uniquement après validation du socle backend initial.
 
 F6 terminee : qualite backend minimale avec Ruff, pytest, pytest-django et test de demarrage Django Foundation.
 
-F7 en cours : durcissement minimal des settings Django, sans module metier, sans endpoint API metier et sans objectif production-ready.
+F7 terminee : durcissement minimal des settings Django, sans module metier, sans endpoint API metier et sans objectif production-ready.
 
 ### Objectifs futurs
 
@@ -179,7 +179,7 @@ F7 en cours : durcissement minimal des settings Django, sans module metier, sans
 
 ### Statut
 
-Planifiée uniquement après création effective des services techniques.
+En cours avec F8 : endpoint backend de sante minimal `GET /healthz/`, sans acces PostgreSQL/Redis et sans readiness check complet.
 
 ### Objectifs futurs
 
