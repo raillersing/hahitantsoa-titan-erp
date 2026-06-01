@@ -274,6 +274,48 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 
 Aucune migration ne doit etre creee en F13.
 
+## Activation minimale de l'app common
+
+F14 active uniquement `apps.common.apps.CommonConfig` dans `INSTALLED_APPS`.
+
+Verifier l'activation dans les settings :
+
+```sh
+grep -Rni "backend.apps.*apps.*Config" backend/config/settings.py
+```
+
+Verifier les fichiers du domaine common :
+
+```sh
+find backend/apps/common -maxdepth 2 -type f | sort
+```
+
+Verifier qu'aucun fichier applicatif metier interdit n'a ete cree :
+
+```sh
+find backend/apps \
+  \( -name "models.py" \
+     -o -name "serializers.py" \
+     -o -name "views.py" \
+     -o -name "viewsets.py" \
+     -o -name "urls.py" \
+     -o -name "admin.py" \
+     -o -name "tests.py" \
+     -o -path "*/migrations/*" \) \
+  -type f -print | sort
+```
+
+Executer les controles habituels :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Aucune migration ne doit etre creee en F14.
+
 Ne pas utiliser `docker compose down -v` sans decision explicite : cela supprimerait les volumes PostgreSQL/Redis.
 
 Cette etape n'ajoute aucune migration metier.

@@ -124,3 +124,11 @@ Cette etape ne cree aucune app metier, aucun modele metier Hahitantsoa/Titan et 
 Ces dossiers sont des packages Python preparatoires. Ils ne sont pas encore ajoutes a `INSTALLED_APPS` et ne sont pas encore des applications Django actives.
 
 F13 ne cree aucun modele, migration, serializer, viewset ou endpoint metier.
+
+## Common Django app
+
+`apps.common` est la premiere app Django activee dans `INSTALLED_APPS`.
+
+Elle sert uniquement a valider le pattern `AppConfig` pour les futurs domaines techniques et transversaux. Elle ne contient aucun modele, aucune migration et aucun endpoint.
+
+Les autres domaines restent des packages preparatoires non actives.

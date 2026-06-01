@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F13 structure backend des domaines applicatifs en cours**.
+Statut actuel : **F14 activation minimale de l'app Django common en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -22,7 +22,9 @@ F11 a valide l'application controlee des migrations Django standards en base Pos
 
 F12 a ajoute un readiness endpoint PostgreSQL minimal `GET /readyz/`. `/healthz/` reste un liveness check sans acces base de donnees, tandis que `/readyz/` verifie uniquement l'acces PostgreSQL avec une requete minimale. Redis n'est pas encore teste.
 
-F13 ajoute une structure de packages de domaines backend sous `backend/apps/`. Ces packages ne sont pas encore des apps Django activees et ne sont pas ajoutes a `INSTALLED_APPS`. Cela reste une preparation structurelle. Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
+F13 a ajoute une structure de packages de domaines backend sous `backend/apps/`.
+
+F14 active uniquement l'app Django technique `apps.common`. Les autres domaines restent des packages preparatoires non actives dans `INSTALLED_APPS`. Cela reste une preparation structurelle. Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 
