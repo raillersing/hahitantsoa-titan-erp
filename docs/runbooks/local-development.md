@@ -152,3 +152,51 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 ```
 
 Ne pas documenter de test `curl` tant qu'aucun serveur Django local n'est demarre dans cette phase.
+
+## Backend Docker Compose service
+
+F9 ajoute un service Compose `backend` pour le developpement local. Il utilise Django `runserver` et n'est pas destine a la production.
+
+Valider la configuration Compose sans demarrer les services :
+
+```sh
+docker compose --env-file .env config --quiet
+```
+
+Construire l'image backend locale apres revue du diff :
+
+```sh
+docker compose --env-file .env build backend
+```
+
+Demarrer PostgreSQL et le backend local :
+
+```sh
+docker compose --env-file .env up -d db backend
+```
+
+Verifier l'etat des services :
+
+```sh
+docker compose --env-file .env ps
+```
+
+Tester le liveness check minimal :
+
+```sh
+curl -sS http://127.0.0.1:8000/healthz/
+```
+
+Consulter les logs backend :
+
+```sh
+docker compose --env-file .env logs --tail=80 backend
+```
+
+Arreter et nettoyer les services Compose locaux :
+
+```sh
+docker compose --env-file .env down
+```
+
+Ne pas executer `migrate` pendant F9.

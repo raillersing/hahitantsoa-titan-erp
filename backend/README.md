@@ -59,3 +59,23 @@ En developpement local, les options secure restent a `False` sauf test explicite
 ```
 
 Cet endpoint est un liveness check minimal. Il ne consulte ni PostgreSQL ni Redis et ne doit pas etre considere comme un readiness check complet.
+
+## Service Docker Compose backend
+
+F9 ajoute un service `backend` Docker Compose pour le developpement local.
+
+Le conteneur installe le projet depuis `pyproject.toml` et lance :
+
+```sh
+python backend/manage.py runserver 0.0.0.0:8000
+```
+
+`runserver` est strictement reserve au developpement local et ne doit pas etre utilise en production.
+
+Apres demarrage du service Compose, le liveness check minimal est accessible sur :
+
+```text
+http://127.0.0.1:8000/healthz/
+```
+
+Ce service ne cree aucun module metier et ne lance aucune migration.
