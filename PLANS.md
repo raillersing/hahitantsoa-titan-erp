@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F13 - Structure backend domain packages**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F14 - Activation minimale de l'app Django common**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -189,7 +189,9 @@ F11 terminee : application controlee des migrations Django standards locales pou
 
 F12 terminee : endpoint readiness PostgreSQL minimal `GET /readyz/`, sans test Redis et sans logique metier.
 
-F13 en cours : structure de packages backend pour les futurs domaines applicatifs, sans activation Django, sans modele, sans migration et sans endpoint metier.
+F13 terminee : structure de packages backend pour les futurs domaines applicatifs, sans activation Django, sans modele, sans migration et sans endpoint metier.
+
+F14 en cours : activation minimale de l'app Django technique `common`, sans modele, sans migration, sans endpoint et sans logique metier.
 
 ### Objectifs futurs
 
