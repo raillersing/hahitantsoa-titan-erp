@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F10 - Backend Compose healthcheck minimal**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F11 - Migrations Django standards controlees**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -183,7 +183,9 @@ F8 terminee : endpoint backend de sante minimal `GET /healthz/`, sans acces Post
 
 F9 terminee : service backend Docker Compose local avec Django `runserver`, sans production hardening, sans migration et sans logique metier.
 
-F10 en cours : healthcheck Docker Compose du service backend base sur `/healthz/`, sans changement applicatif et sans logique metier.
+F10 terminee : healthcheck Docker Compose du service backend base sur `/healthz/`, sans changement applicatif et sans logique metier.
+
+F11 en cours : application controlee des migrations Django standards locales pour `admin`, `auth`, `contenttypes` et `sessions`, sans migration metier.
 
 ### Objectifs futurs
 
