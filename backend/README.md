@@ -79,3 +79,7 @@ http://127.0.0.1:8000/healthz/
 ```
 
 Ce service ne cree aucun module metier et ne lance aucune migration.
+
+Le service Compose `backend` dispose d'un healthcheck interne base sur `/healthz/`. Il verifie la disponibilite HTTP du liveness check depuis le conteneur backend.
+
+`runserver` reste strictement local et reserve au developpement.

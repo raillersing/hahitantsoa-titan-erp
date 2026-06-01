@@ -181,10 +181,12 @@ Verifier l'etat des services :
 docker compose --env-file .env ps
 ```
 
+Pendant les premieres secondes de demarrage, le service `backend` peut apparaitre en etat `starting`. Attendre qu'il passe en `healthy` avant de conclure que le liveness check est disponible.
+
 Tester le liveness check minimal :
 
 ```sh
-curl -sS http://127.0.0.1:8000/healthz/
+curl -i http://127.0.0.1:8000/healthz/
 ```
 
 Consulter les logs backend :
