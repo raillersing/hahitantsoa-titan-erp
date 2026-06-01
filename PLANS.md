@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F5 - Initialisation backend Django minimal**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F6 - Qualite backend minimale**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -128,7 +128,7 @@ Le checkpoint documentaire GitHub de la Foundation est termine. F4 a ajoute l'in
 
 ### Statut
 
-En cours avec F5 : initialisation d'un backend Django minimal, sans module metier, sans endpoint API metier et sans exposition publique du schema OpenAPI.
+F5 terminee : backend Django minimal initialise, sans module metier, sans endpoint API metier et sans exposition publique du schema OpenAPI.
 
 ### Objectifs futurs
 
@@ -161,7 +161,7 @@ Planifiée uniquement après validation du socle backend initial.
 
 ### Statut
 
-Planifiée uniquement après création des composants concernés.
+En cours avec F6 : qualite backend minimale avec Ruff, pytest, pytest-django et test de demarrage Django Foundation.
 
 ### Objectifs futurs
 
