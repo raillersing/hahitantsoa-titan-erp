@@ -17,6 +17,21 @@ services:
     networks:
       - erp_internal
 
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    command: python backend/manage.py runserver 0.0.0.0:8000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    networks:
+      - erp_internal
+
   redis:
     image: redis:7.4.9-alpine
     environment:
