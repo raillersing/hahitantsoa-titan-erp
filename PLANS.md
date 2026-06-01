@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F17 - Garde-fou Titan inventory en Python pur**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F18 - Premier modele concret InventoryItem**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -197,7 +197,9 @@ F15 terminee : socle commun abstrait dans `apps.common`, sans modele concret, sa
 
 F16 terminee : activation minimale de l'app Django `inventory`, sans modele, sans migration, sans endpoint et sans logique metier.
 
-F17 en cours : garde-fou pur Python du perimetre Titan dans `inventory`, sans modele, sans table, sans migration et sans endpoint metier.
+F17 terminee : garde-fou pur Python du perimetre Titan dans `inventory`, sans modele, sans table, sans migration et sans endpoint metier.
+
+F18 en cours : premier modele concret minimal `InventoryItem` et migration initiale inventory controlee, sans endpoint API, serializer, viewset, admin, stock, reservation, facturation ou logistique.
 
 ### Objectifs futurs
 

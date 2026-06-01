@@ -153,3 +153,7 @@ Le domaine `inventory` preparera plus tard les materiels, articles, packs materi
 F17 ajoute un premier garde-fou pur Python du perimetre Titan dans `apps.inventory`.
 
 Ce garde-fou formalise les types d'elements autorises pour Titan sans creer de table, de modele inventory, de migration, de serializer, de viewset ou d'endpoint.
+
+F18 ajoute `InventoryItem`, premier modele concret minimal du domaine inventory.
+
+Le modele reste limite a l'identification d'un element inventory et a son type autorise pour Titan. Aucun endpoint, serializer, viewset ou admin n'est cree.
