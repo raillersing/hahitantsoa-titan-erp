@@ -4,8 +4,8 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La tâche actuellement autorisée est exclusivement la **Foundation documentaire**.
-Les phases techniques suivantes sont planifiées, mais ne doivent être exécutées qu’après validation explicite.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F5 - Initialisation backend Django minimal**.
+Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
 
@@ -99,9 +99,9 @@ La Phase 0 est validable uniquement si :
 
 ### Statut
 
-En demarrage limite sur branche dediee pour la premiere infrastructure Docker Compose PostgreSQL/Redis.
+Terminee.
 
-Le checkpoint documentaire GitHub de la Foundation est termine. La tache Docker Compose PostgreSQL/Redis est en cours et reste en attente de validation technique avant demarrage des conteneurs.
+Le checkpoint documentaire GitHub de la Foundation est termine. F4 a ajoute l'infrastructure Docker Compose locale PostgreSQL/Redis et les conteneurs ont ete valides comme fonctionnels.
 
 ### Objectifs futurs
 
@@ -128,11 +128,11 @@ Le checkpoint documentaire GitHub de la Foundation est termine. La tache Docker 
 
 ### Statut
 
-Planifiée uniquement après validation de la Phase 1.
+En cours avec F5 : initialisation d'un backend Django minimal, sans module metier, sans endpoint API metier et sans exposition publique du schema OpenAPI.
 
 ### Objectifs futurs
 
-* créer le socle Python 3.13 / Django 5.2 LTS ;
+* créer le socle Python 3.14 / Django 5.2 LTS ;
 * intégrer Django REST Framework ;
 * intégrer drf-spectacular et le schéma OpenAPI ;
 * préparer l’authentification, les sessions, les permissions backend et l’audit ;
