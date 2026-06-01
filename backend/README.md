@@ -49,3 +49,13 @@ Variables de securite configurables localement :
 - `DJANGO_CSRF_COOKIE_SECURE`
 
 En developpement local, les options secure restent a `False` sauf test explicite. Les valeurs de production ne sont pas definies en F7.
+
+## Health endpoint
+
+`GET /healthz/` retourne :
+
+```json
+{"status": "ok"}
+```
+
+Cet endpoint est un liveness check minimal. Il ne consulte ni PostgreSQL ni Redis et ne doit pas etre considere comme un readiness check complet.

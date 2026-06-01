@@ -138,3 +138,17 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 Ne pas executer `migrate` ou `makemigrations` pendant les phases Foundation F6/F7.
 
 Ne jamais commiter `.env`.
+
+## Health endpoint backend
+
+F8 ajoute `GET /healthz/` comme liveness check backend minimal.
+
+Ce endpoint retourne uniquement `{"status": "ok"}`. Il ne teste pas PostgreSQL, Redis, les taches asynchrones ou un readiness applicatif complet.
+
+Le test local du health endpoint se fait via pytest :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Ne pas documenter de test `curl` tant qu'aucun serveur Django local n'est demarre dans cette phase.
