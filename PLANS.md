@@ -99,8 +99,9 @@ La Phase 0 est validable uniquement si :
 
 ### Statut
 
-Planifiée uniquement.
-Interdite tant qu’elle n’a pas été explicitement approuvée après validation de la Foundation documentaire.
+En demarrage limite sur branche dediee pour la premiere infrastructure Docker Compose PostgreSQL/Redis.
+
+Le checkpoint documentaire GitHub de la Foundation est termine. La tache Docker Compose PostgreSQL/Redis est en cours et reste en attente de validation technique avant demarrage des conteneurs.
 
 ### Objectifs futurs
 
