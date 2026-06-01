@@ -240,3 +240,33 @@ docker compose --env-file .env down
 Ne pas utiliser `docker compose down -v` sans decision explicite : cela supprimerait les volumes PostgreSQL/Redis.
 
 Cette etape n'ajoute aucune migration metier.
+
+## Readiness PostgreSQL backend
+
+F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.
+
+`/healthz/` reste un liveness check sans acces base de donnees. `/readyz/` verifie uniquement PostgreSQL. Redis n'est pas encore couvert par `/readyz/`.
+
+Demarrer PostgreSQL et le backend local :
+
+```sh
+docker compose --env-file .env up -d db backend
+```
+
+Verifier l'etat des services et attendre le backend `healthy` :
+
+```sh
+docker compose --env-file .env ps
+```
+
+Tester le readiness check PostgreSQL minimal :
+
+```sh
+curl -i http://127.0.0.1:8000/readyz/
+```
+
+Arreter les services Compose locaux :
+
+```sh
+docker compose --env-file .env down
+```
