@@ -129,6 +129,15 @@ F13 ne cree aucun modele, migration, serializer, viewset ou endpoint metier.
 
 `apps.common` est la premiere app Django activee dans `INSTALLED_APPS`.
 
-Elle sert uniquement a valider le pattern `AppConfig` pour les futurs domaines techniques et transversaux. Elle ne contient aucun modele, aucune migration et aucun endpoint.
+Elle sert de socle technique transversal pour les futurs domaines backend.
+
+F15 y ajoute des modeles abstraits techniques :
+
+- `UUIDModel`
+- `TimestampedModel`
+- `SoftDeleteModel`
+- `AuditableModel`
+
+Ces classes sont abstraites uniquement. Elles ne creent aucune table, aucun modele metier Hahitantsoa/Titan et aucune migration metier.
 
 Les autres domaines restent des packages preparatoires non actives.

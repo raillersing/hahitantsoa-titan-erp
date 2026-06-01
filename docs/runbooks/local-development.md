@@ -320,6 +320,49 @@ Ne pas utiliser `docker compose down -v` sans decision explicite : cela supprime
 
 Cette etape n'ajoute aucune migration metier.
 
+## Socle commun abstrait
+
+F15 ajoute uniquement des modeles abstraits techniques dans `apps.common`.
+
+Verifier les fichiers du domaine common :
+
+```sh
+find backend/apps/common -maxdepth 2 -type f | sort
+```
+
+Verifier qu'aucun fichier applicatif metier interdit n'a ete cree en dehors du modele abstrait common autorise :
+
+```sh
+find backend/apps \
+  \( -path "backend/apps/common/models.py" \) -prune \
+  -o \( -name "serializers.py" \
+     -o -name "views.py" \
+     -o -name "viewsets.py" \
+     -o -name "urls.py" \
+     -o -name "admin.py" \
+     -o -name "tests.py" \
+     -o -path "*/migrations/*" \) \
+  -type f -print | sort
+```
+
+Verifier l'absence de migrations :
+
+```sh
+find backend/apps -path "*/migrations/*" -print | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations common --check --dry-run
+```
+
+Executer les controles habituels :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Aucune migration ne doit etre creee en F15.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.
