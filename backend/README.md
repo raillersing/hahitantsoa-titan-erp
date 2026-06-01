@@ -60,6 +60,20 @@ En developpement local, les options secure restent a `False` sauf test explicite
 
 Cet endpoint est un liveness check minimal. Il ne consulte ni PostgreSQL ni Redis et ne doit pas etre considere comme un readiness check complet.
 
+`GET /readyz/` retourne `200` lorsque PostgreSQL est accessible :
+
+```json
+{"status": "ready", "checks": {"database": "ok"}}
+```
+
+En cas d'indisponibilite PostgreSQL, il retourne `503` sans exposer l'erreur interne :
+
+```json
+{"status": "not_ready", "checks": {"database": "error"}}
+```
+
+`/readyz/` verifie seulement PostgreSQL. Redis n'est pas teste en F12. Aucune logique metier Hahitantsoa/Titan n'existe encore.
+
 ## Service Docker Compose backend
 
 F9 ajoute un service `backend` Docker Compose pour le developpement local.
