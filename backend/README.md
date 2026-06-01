@@ -18,3 +18,21 @@ set -a && source .env && set +a && .venv/bin/python backend/manage.py check
 ```
 
 Ne pas executer les migrations avant validation explicite d'une phase ulterieure.
+
+## Qualite backend
+
+Installer les dependances de developpement :
+
+```sh
+.venv/bin/python -m pip install -e ".[dev]"
+```
+
+Executer le format check Ruff, le lint Ruff et les tests Foundation :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Ces controles restent techniques. Aucun module metier Hahitantsoa/Titan n'est encore cree.

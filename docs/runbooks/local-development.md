@@ -91,3 +91,39 @@ Executer la verification Django minimale :
 Ne pas executer `migrate` avant validation explicite d'une phase ulterieure.
 
 Ne jamais commiter `.env`. Seul `.env.example` doit rester versionne.
+
+## Qualite backend locale
+
+Installer les dependances backend de developpement :
+
+```sh
+.venv/bin/python -m pip install -e ".[dev]"
+```
+
+Verifier le formatage Python avec Ruff :
+
+```sh
+.venv/bin/python -m ruff format --check .
+```
+
+Executer le lint Python avec Ruff :
+
+```sh
+.venv/bin/python -m ruff check .
+```
+
+Executer le system check Django avec les variables locales chargees temporairement :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+```
+
+Executer les tests Foundation avec les variables locales chargees temporairement :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Ne pas executer `migrate` ou `makemigrations` pendant F6.
+
+Ne jamais commiter `.env`.
