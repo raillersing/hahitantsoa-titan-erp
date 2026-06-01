@@ -27,3 +27,30 @@ Titan ne doit jamais accepter :
 Hors perimetre F17 : aucune logique de stock, reservation, facturation ou disponibilite n'est creee.
 
 Aucun modele, migration, serializer, viewset, endpoint ou table n'est cree dans ce domaine en F17.
+
+## InventoryItem
+
+F18 ajoute `InventoryItem`, premier modele concret minimal du domaine inventory.
+
+Champs principaux :
+
+- `name` ;
+- `kind` ;
+- `description` ;
+- `is_active`.
+
+`kind` autorise uniquement :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan ne doit jamais accepter :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F18 ne cree ni stock movement, ni disponibilite, ni reservation, ni facturation, ni logistique, ni endpoint API, ni serializer, ni viewset, ni admin.

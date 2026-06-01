@@ -457,6 +457,67 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 
 Aucune migration ne doit etre creee en F17.
 
+## Modele InventoryItem
+
+F18 ajoute le premier modele concret minimal `InventoryItem` et une migration initiale inventory controlee.
+
+Verifier les fichiers crees :
+
+```sh
+find backend/apps/inventory -maxdepth 3 -type f | sort
+```
+
+Verifier la migration creee :
+
+```sh
+find backend/apps/inventory -path "*/migrations/*" -type f | sort
+```
+
+Verifier qu'aucun fichier applicatif metier interdit n'a ete cree :
+
+```sh
+find backend/apps \
+  \( -path "backend/apps/common/models.py" \
+     -o -path "backend/apps/inventory/apps.py" \
+     -o -path "backend/apps/inventory/scope.py" \
+     -o -path "backend/apps/inventory/models.py" \) -prune \
+  -o \( -name "serializers.py" \
+     -o -name "views.py" \
+     -o -name "viewsets.py" \
+     -o -name "urls.py" \
+     -o -name "admin.py" \
+     -o -name "tests.py" \) \
+  -type f -print | sort
+```
+
+Verifier qu'aucune nouvelle migration inventory n'est necessaire apres creation de la migration initiale :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Executer les controles habituels :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Valider la migration dans PostgreSQL local via Compose :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env exec backend python backend/manage.py migrate --noinput
+docker compose --env-file .env exec backend python backend/manage.py showmigrations inventory
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F18 ne cree aucun endpoint API, serializer, viewset, admin, stock movement, disponibilite, reservation, facturation ou logique logistique.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.
