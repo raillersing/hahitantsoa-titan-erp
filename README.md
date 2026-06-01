@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F10 backend Compose healthcheck minimal en cours**.
+Statut actuel : **F11 migrations Django standards controlees en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -16,7 +16,9 @@ F8 a ajoute un endpoint backend de sante minimal `GET /healthz/`. Ce liveness ch
 
 F9 a ajoute un service backend Docker Compose local. Il utilise Django `runserver` uniquement pour le developpement et expose `http://127.0.0.1:8000/healthz/` apres demarrage.
 
-F10 ajoute un healthcheck Docker Compose au service backend pour refleter la disponibilite reelle de `/healthz/`. Cela reste une configuration de developpement local. Le projet n'est pas production-ready. Les modules metier Hahitantsoa/Titan ne sont pas encore implementes. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
+F10 a ajoute un healthcheck Docker Compose au service backend pour refleter la disponibilite reelle de `/healthz/`.
+
+F11 valide l'application controlee des migrations Django standards en base PostgreSQL locale. Cela concerne uniquement les apps integrees `admin`, `auth`, `contenttypes` et `sessions`; ce ne sont pas des migrations metier. Cela reste une configuration de developpement local. Le projet n'est pas production-ready. Les modules metier Hahitantsoa/Titan ne sont pas encore implementes. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 

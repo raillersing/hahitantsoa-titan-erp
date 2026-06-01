@@ -202,3 +202,41 @@ docker compose --env-file .env down
 ```
 
 Ne pas executer `migrate` pendant F9.
+
+## Migrations Django standards locales
+
+F11 valide uniquement les migrations Django standards des apps integrees `admin`, `auth`, `contenttypes` et `sessions` dans PostgreSQL local.
+
+Demarrer PostgreSQL et le backend local :
+
+```sh
+docker compose --env-file .env up -d db backend
+```
+
+Appliquer les migrations Django standards :
+
+```sh
+docker compose --env-file .env exec backend python backend/manage.py migrate --noinput
+```
+
+Afficher l'etat des migrations :
+
+```sh
+docker compose --env-file .env exec backend python backend/manage.py showmigrations
+```
+
+Consulter les logs backend :
+
+```sh
+docker compose --env-file .env logs --tail=80 backend
+```
+
+Arreter les services Compose locaux :
+
+```sh
+docker compose --env-file .env down
+```
+
+Ne pas utiliser `docker compose down -v` sans decision explicite : cela supprimerait les volumes PostgreSQL/Redis.
+
+Cette etape n'ajoute aucune migration metier.

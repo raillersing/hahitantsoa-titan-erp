@@ -83,3 +83,14 @@ Ce service ne cree aucun module metier et ne lance aucune migration.
 Le service Compose `backend` dispose d'un healthcheck interne base sur `/healthz/`. Il verifie la disponibilite HTTP du liveness check depuis le conteneur backend.
 
 `runserver` reste strictement local et reserve au developpement.
+
+## Migrations Django standards
+
+Les migrations Django standards peuvent etre appliquees dans la base PostgreSQL locale pour initialiser les tables techniques des apps integrees :
+
+- `admin`
+- `auth`
+- `contenttypes`
+- `sessions`
+
+Cette etape ne cree aucune app metier, aucun modele metier Hahitantsoa/Titan et aucune migration metier.
