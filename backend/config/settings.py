@@ -1,23 +1,23 @@
-import os
 from pathlib import Path
+
+from config.env import get_bool_env, get_csv_env, get_env
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get(
+SECRET_KEY = get_env(
     "DJANGO_SECRET_KEY",
     "non-production-fallback-secret-key-replace-before-use",
 )
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "False").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
+DEBUG = get_bool_env("DJANGO_DEBUG", default=False)
 
-ALLOWED_HOSTS = [
-    host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()
-]
+ALLOWED_HOSTS = get_csv_env("DJANGO_ALLOWED_HOSTS")
+
+CSRF_TRUSTED_ORIGINS = get_csv_env("DJANGO_CSRF_TRUSTED_ORIGINS")
+
+SECURE_SSL_REDIRECT = get_bool_env("DJANGO_SECURE_SSL_REDIRECT", default=False)
+SESSION_COOKIE_SECURE = get_bool_env("DJANGO_SESSION_COOKIE_SECURE", default=False)
+CSRF_COOKIE_SECURE = get_bool_env("DJANGO_CSRF_COOKIE_SECURE", default=False)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -62,11 +62,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", ""),
-        "USER": os.environ.get("POSTGRES_USER", ""),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
-        "HOST": os.environ.get("POSTGRES_HOST", "db"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "NAME": get_env("POSTGRES_DB"),
+        "USER": get_env("POSTGRES_USER"),
+        "PASSWORD": get_env("POSTGRES_PASSWORD"),
+        "HOST": get_env("POSTGRES_HOST", "db"),
+        "PORT": get_env("POSTGRES_PORT", "5432"),
     }
 }
 

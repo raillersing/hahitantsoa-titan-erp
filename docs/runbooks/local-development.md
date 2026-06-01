@@ -25,6 +25,17 @@ Remplacer les mots de passe d'exemple dans `.env` par des valeurs locales.
 
 Ne jamais commiter `.env`. Seul `.env.example` doit rester versionne.
 
+Variables Django supplementaires a completer ou conserver localement selon le besoin :
+
+```sh
+DJANGO_CSRF_TRUSTED_ORIGINS=
+DJANGO_SECURE_SSL_REDIRECT=False
+DJANGO_SESSION_COOKIE_SECURE=False
+DJANGO_CSRF_COOKIE_SECURE=False
+```
+
+Les options secure restent a `False` en local sauf test explicite. Ne pas ajouter de domaine de production dans `.env.example`.
+
 ## Validation de la configuration
 
 Commande prevue pour valider la configuration Compose sans demarrer les services :
@@ -124,6 +135,6 @@ Executer les tests Foundation avec les variables locales chargees temporairement
 set -a && source .env && set +a && .venv/bin/python -m pytest
 ```
 
-Ne pas executer `migrate` ou `makemigrations` pendant F6.
+Ne pas executer `migrate` ou `makemigrations` pendant les phases Foundation F6/F7.
 
 Ne jamais commiter `.env`.
