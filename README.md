@@ -2,13 +2,15 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F6 qualite backend minimale en cours**.
+Statut actuel : **F7 backend settings hardening minimal en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
 F5 a initialise uniquement un backend Django minimal et verifiable avec Python 3.14 comme version locale de developpement Foundation.
 
-F6 ajoute la qualite backend minimale : Ruff, Ruff format, pytest, pytest-django et un test de demarrage Django Foundation. Les modules metier Hahitantsoa/Titan ne sont pas encore implementes. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
+F6 a ajoute la qualite backend minimale : Ruff, Ruff format, pytest, pytest-django et un test de demarrage Django Foundation.
+
+F7 durcit minimalement la configuration Django Foundation : lecture centralisee des variables d'environnement, conversions booleennes strictes, listes CSV et premiers reglages de securite configurables par environnement. Le projet n'est pas production-ready. Les modules metier Hahitantsoa/Titan ne sont pas encore implementes. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 

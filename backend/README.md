@@ -36,3 +36,16 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 ```
 
 Ces controles restent techniques. Aucun module metier Hahitantsoa/Titan n'est encore cree.
+
+## Configuration environnement
+
+La configuration Django lit les variables d'environnement via des helpers Python purs dans `backend/config/env.py`. Ces helpers centralisent les chaines, booleens stricts et listes separees par virgules.
+
+Variables de securite configurables localement :
+
+- `DJANGO_CSRF_TRUSTED_ORIGINS`
+- `DJANGO_SECURE_SSL_REDIRECT`
+- `DJANGO_SESSION_COOKIE_SECURE`
+- `DJANGO_CSRF_COOKIE_SECURE`
+
+En developpement local, les options secure restent a `False` sauf test explicite. Les valeurs de production ne sont pas definies en F7.
