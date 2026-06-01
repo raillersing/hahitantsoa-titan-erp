@@ -149,3 +149,7 @@ Les autres domaines restent des packages preparatoires non actives.
 Cette app ne contient aucun modele, aucune migration, aucun endpoint, aucun serializer et aucun viewset.
 
 Le domaine `inventory` preparera plus tard les materiels, articles, packs materiels et le stock partage.
+
+F17 ajoute un premier garde-fou pur Python du perimetre Titan dans `apps.inventory`.
+
+Ce garde-fou formalise les types d'elements autorises pour Titan sans creer de table, de modele inventory, de migration, de serializer, de viewset ou d'endpoint.

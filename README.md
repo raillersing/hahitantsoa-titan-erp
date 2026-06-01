@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F16 activation minimale de l'app Django inventory en cours**.
+Statut actuel : **F17 garde-fou pur Python du perimetre Titan dans inventory en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -28,7 +28,9 @@ F14 a active uniquement l'app Django technique `apps.common`. Les autres domaine
 
 F15 a ajoute des modeles abstraits techniques dans `apps.common` pour preparer les futurs modeles backend. Ces modeles sont abstraits uniquement : ils ne creent aucune table, aucune migration metier et aucun modele metier Hahitantsoa/Titan.
 
-F16 active uniquement l'app Django `apps.inventory` pour valider le pattern AppConfig du futur domaine inventory. `inventory` ne contient encore aucun modele metier, aucune migration, aucun endpoint API metier, aucun serializer et aucun viewset.
+F16 a active uniquement l'app Django `apps.inventory` pour valider le pattern AppConfig du futur domaine inventory. `inventory` ne contient encore aucun modele metier, aucune migration, aucun endpoint API metier, aucun serializer et aucun viewset.
+
+F17 ajoute un garde-fou pur Python dans `apps.inventory` pour formaliser les types d'elements autorises pour Titan. Cette etape ne cree aucun modele, aucune table, aucune migration, aucun endpoint, aucun serializer et aucun viewset.
 
 Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
