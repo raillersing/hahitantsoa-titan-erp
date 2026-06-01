@@ -141,3 +141,11 @@ F15 y ajoute des modeles abstraits techniques :
 Ces classes sont abstraites uniquement. Elles ne creent aucune table, aucun modele metier Hahitantsoa/Titan et aucune migration metier.
 
 Les autres domaines restent des packages preparatoires non actives.
+
+## Inventory Django app
+
+`apps.inventory` est maintenant activee comme app Django pour preparer le futur domaine inventory.
+
+Cette app ne contient aucun modele, aucune migration, aucun endpoint, aucun serializer et aucun viewset.
+
+Le domaine `inventory` preparera plus tard les materiels, articles, packs materiels et le stock partage.

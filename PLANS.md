@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F15 - Socle commun abstrait sans table metier**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F16 - Activation minimale de l'app Django inventory**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -193,7 +193,9 @@ F13 terminee : structure de packages backend pour les futurs domaines applicatif
 
 F14 terminee : activation minimale de l'app Django technique `common`, sans modele, sans migration, sans endpoint et sans logique metier.
 
-F15 en cours : socle commun abstrait dans `apps.common`, sans modele concret, sans table, sans migration et sans endpoint metier.
+F15 terminee : socle commun abstrait dans `apps.common`, sans modele concret, sans table, sans migration et sans endpoint metier.
+
+F16 en cours : activation minimale de l'app Django `inventory`, sans modele, sans migration, sans endpoint et sans logique metier.
 
 ### Objectifs futurs
 
