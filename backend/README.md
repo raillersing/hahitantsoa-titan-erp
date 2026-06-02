@@ -203,3 +203,14 @@ Endpoints publics conserves :
 - `GET /api/docs/redoc/`
 
 Aucun role metier avance, permission custom, endpoint d'ecriture, viewset, router ou admin n'est encore implemente.
+
+## Session DRF dev/local
+
+F24 ajoute les routes DRF de session pour la Browsable API :
+
+- `GET /api-auth/login/`
+- `POST /api-auth/logout/`
+
+Ces routes servent aux tests manuels et au developpement local. Elles ne constituent pas une strategie finale d'authentification production.
+
+L'API inventory reste protegee par authentification. Aucun JWT, token auth, role metier avance, endpoint d'ecriture, viewset, router ou admin n'est cree.

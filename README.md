@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F23 authentification API inventory en cours**.
+Statut actuel : **F24 login/logout session DRF en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -48,7 +48,7 @@ F22 a ajoute une documentation OpenAPI minimale avec drf-spectacular pour usage 
 
 F22 ne cree aucune migration et aucun endpoint d'ecriture.
 
-F23 protege l'API inventory read-only par authentification DRF standard. Les endpoints inventory exigent un utilisateur authentifie.
+F23 a protege l'API inventory read-only par authentification DRF standard. Les endpoints inventory exigent un utilisateur authentifie.
 
 Les endpoints suivants restent publics :
 
@@ -59,6 +59,13 @@ Les endpoints suivants restent publics :
 - `/api/docs/redoc/`
 
 F23 ne cree aucune migration et aucun endpoint d'ecriture.
+
+F24 ajoute les routes DRF session login/logout pour usage dev/local avec la Browsable API :
+
+- `/api-auth/login/`
+- `/api-auth/logout/`
+
+L'API inventory reste protegee. Aucun JWT, token auth, role metier, migration ou endpoint d'ecriture n'est cree.
 
 Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
