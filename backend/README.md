@@ -161,3 +161,7 @@ Le modele reste limite a l'identification d'un element inventory et a son type a
 F19 ajoute des tests de persistance DB pour `InventoryItem`.
 
 Ces tests couvrent la persistance des valeurs autorisees, la validation applicative des valeurs interdites et la contrainte DB `inventory_item_kind_allowed_for_titan`. Aucun endpoint, serializer, viewset ou admin n'est cree.
+
+F20 ajoute `InventoryItemSerializer`.
+
+Ce serializer prepare la future couche API en exposant les champs techniques de `InventoryItem` et en validant `kind` avec le garde-fou Titan existant. Aucun endpoint, URL, viewset ou admin n'est cree.
