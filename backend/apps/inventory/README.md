@@ -129,3 +129,26 @@ Titan ne doit jamais accepter :
 - service evenementiel.
 
 F21 ne cree ni endpoint de stock, ni reservation, ni facturation, ni endpoint d'ecriture, ni viewset, ni router, ni admin.
+
+## OpenAPI
+
+F22 rend les endpoints inventory read-only visibles dans le schema OpenAPI :
+
+- `GET /api/v1/inventory/items/`
+- `GET /api/v1/inventory/items/<uuid:pk>/`
+
+Seuls les items actifs et non supprimes sont exposes.
+
+`kind` reste limite a :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan ne doit jamais accepter :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.

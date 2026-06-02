@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F21 - API read-only InventoryItem**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F22 - Documentation OpenAPI minimale**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -205,7 +205,9 @@ F19 terminee : validation de persistance PostgreSQL pour `InventoryItem`, sans n
 
 F20 terminee : serializer DRF minimal pour `InventoryItem`, sans endpoint API expose, sans URL, sans view, sans viewset, sans admin et sans migration.
 
-F21 en cours : API read-only minimale pour `InventoryItem`, exposee en liste et detail uniquement, sans ecriture, sans viewset, sans router, sans admin, sans stock, reservation, facturation ou frontend.
+F21 terminee : API read-only minimale pour `InventoryItem`, exposee en liste et detail uniquement, sans ecriture, sans viewset, sans router, sans admin, sans stock, reservation, facturation ou frontend.
+
+F22 en cours : documentation OpenAPI minimale avec drf-spectacular, schema JSON, Swagger UI et ReDoc pour usage local/dev, sans migration, sans endpoint d'ecriture, sans viewset, sans router et sans admin.
 
 ### Objectifs futurs
 

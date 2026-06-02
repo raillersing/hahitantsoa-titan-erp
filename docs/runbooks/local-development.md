@@ -710,6 +710,77 @@ docker compose --env-file .env down
 
 F21 ne cree aucune migration, aucun modele, aucun serializer supplementaire, aucun viewset, aucun router et aucun admin.
 
+## Documentation OpenAPI minimale
+
+F22 ajoute un schema OpenAPI avec drf-spectacular pour usage local/dev.
+
+Verifier les fichiers config et tests :
+
+```sh
+find backend/config -maxdepth 2 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier qu'aucune migration nouvelle n'est creee :
+
+```sh
+find backend/apps/inventory -path "*/migrations/*" -type f | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Verifier qu'aucun viewset ou admin n'a ete cree :
+
+```sh
+find backend/apps \
+  \( -path "backend/apps/common/models.py" \
+     -o -path "backend/apps/inventory/apps.py" \
+     -o -path "backend/apps/inventory/scope.py" \
+     -o -path "backend/apps/inventory/models.py" \
+     -o -path "backend/apps/inventory/serializers.py" \
+     -o -path "backend/apps/inventory/views.py" \
+     -o -path "backend/apps/inventory/urls.py" \) -prune \
+  -o \( -name "viewsets.py" \
+     -o -name "admin.py" \) \
+  -type f -print | sort
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+```
+
+Executer pytest dans un conteneur backend temporaire :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python -m pip install --no-cache-dir pytest pytest-django &&
+    python backend/manage.py makemigrations inventory --check --dry-run &&
+    python backend/manage.py migrate --noinput &&
+    python backend/manage.py showmigrations inventory &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier OpenAPI puis readiness :
+
+```sh
+docker compose --env-file .env up -d backend --force-recreate
+curl -i http://127.0.0.1:8000/api/schema/?format=json
+curl -i http://127.0.0.1:8000/api/docs/swagger/
+curl -i http://127.0.0.1:8000/api/docs/redoc/
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F22 ne cree aucune migration, aucun endpoint d'ecriture, aucun viewset, aucun router et aucun admin.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.
