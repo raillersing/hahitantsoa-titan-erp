@@ -24,6 +24,33 @@ Titan ne doit jamais accepter :
 - service annexe ;
 - service evenementiel.
 
+## Authentification
+
+F23 protege les endpoints inventory read-only par la permission DRF standard `IsAuthenticated`.
+
+Endpoints proteges :
+
+- `GET /api/v1/inventory/items/`
+- `GET /api/v1/inventory/items/<uuid:pk>/`
+
+Seuls les items actifs et non supprimes sont exposes.
+
+`kind` reste limite a :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan ne doit jamais accepter :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F23 ne cree ni RBAC avance, ni permission custom, ni stock, ni reservation, ni facturation, ni endpoint d'ecriture.
+
 Hors perimetre F17 : aucune logique de stock, reservation, facturation ou disponibilite n'est creee.
 
 Aucun modele, migration, serializer, viewset, endpoint ou table n'est cree dans ce domaine en F17.
