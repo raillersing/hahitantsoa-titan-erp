@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F26 seed local de donnees InventoryItem de demonstration en cours**.
+Statut actuel : **F27 smoke test inventory authentifie en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -77,7 +77,7 @@ Elle lit `DJANGO_DEV_USERNAME`, `DJANGO_DEV_PASSWORD` et `DJANGO_DEV_EMAIL` depu
 
 Cette commande est destinee au local/dev uniquement. Elle refuse de s'executer lorsque `DEBUG=False`, cree ou met a jour un utilisateur standard non staff et non superuser, et permet de tester `/api-auth/login/` en session locale. F25 ne cree aucune migration, aucun modele, aucun endpoint, aucun JWT/token et aucun role metier.
 
-F26 ajoute une commande locale de seed de donnees `InventoryItem` de demonstration :
+F26 a ajoute une commande locale de seed de donnees `InventoryItem` de demonstration :
 
 ```sh
 python backend/manage.py seed_demo_inventory
@@ -86,6 +86,10 @@ python backend/manage.py seed_demo_inventory
 Cette commande est destinee au local/dev uniquement et refuse `DEBUG=False`. Elle cree uniquement des donnees conformes Titan avec les kinds `material`, `article` et `material_pack`.
 
 Elle ne cree jamais de local, salle, lieu, service annexe ou service evenementiel. F26 ne cree aucune migration, aucun modele, serializer, view, endpoint, JWT/token ou role metier.
+
+F27 ajoute un smoke test authentifie du parcours inventory. Le test couvre le seed d'un utilisateur dev, le seed des donnees demo inventory, le login session Django/DRF, `GET /api/v1/inventory/items/` authentifie et la validation des kinds Titan autorises.
+
+Le smoke test attend uniquement `material`, `article` et `material_pack`, et verifie l'absence de `venue`, `local`, `room`, `service` et `event_service`.
 
 Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
