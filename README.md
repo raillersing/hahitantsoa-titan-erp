@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F27 smoke test inventory authentifie en cours**.
+Statut actuel : **F28 smoke test detail inventory read-only en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -87,9 +87,11 @@ Cette commande est destinee au local/dev uniquement et refuse `DEBUG=False`. Ell
 
 Elle ne cree jamais de local, salle, lieu, service annexe ou service evenementiel. F26 ne cree aucune migration, aucun modele, serializer, view, endpoint, JWT/token ou role metier.
 
-F27 ajoute un smoke test authentifie du parcours inventory. Le test couvre le seed d'un utilisateur dev, le seed des donnees demo inventory, le login session Django/DRF, `GET /api/v1/inventory/items/` authentifie et la validation des kinds Titan autorises.
+F27 a ajoute un smoke test authentifie du parcours inventory. Le test couvre le seed d'un utilisateur dev, le seed des donnees demo inventory, le login session Django/DRF, `GET /api/v1/inventory/items/` authentifie et la validation des kinds Titan autorises.
 
 Le smoke test attend uniquement `material`, `article` et `material_pack`, et verifie l'absence de `venue`, `local`, `room`, `service` et `event_service`.
+
+F28 ajoute un smoke test du detail inventory authentifie et confirme que l'API inventory reste read-only. Le test couvre le seed dev user, le seed demo inventory, le login session, `GET /api/v1/inventory/items/`, `GET /api/v1/inventory/items/<id>/`, le refus de POST, PUT, PATCH et DELETE, et la validation des kinds Titan.
 
 Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 
