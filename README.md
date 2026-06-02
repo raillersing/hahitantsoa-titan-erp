@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F21 API read-only InventoryItem en cours**.
+Statut actuel : **F22 documentation OpenAPI minimale en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -38,7 +38,15 @@ F19 a ajoute des tests DB pour `InventoryItem`. Ces tests valident la persistanc
 
 F20 a ajoute un serializer DRF minimal pour `InventoryItem`. Il prepare la validation de la future couche API sans creer d'endpoint, d'URL, de view, de viewset, d'admin ou de migration.
 
-F21 ajoute une API read-only minimale pour `InventoryItem`. Elle expose uniquement la liste et le detail des items actifs et non supprimes. Aucune ecriture API n'est autorisee et aucune migration n'est creee.
+F21 a ajoute une API read-only minimale pour `InventoryItem`. Elle expose uniquement la liste et le detail des items actifs et non supprimes. Aucune ecriture API n'est autorisee et aucune migration n'est creee.
+
+F22 ajoute une documentation OpenAPI minimale avec drf-spectacular pour usage local/dev :
+
+- `/api/schema/`
+- `/api/docs/swagger/`
+- `/api/docs/redoc/`
+
+F22 ne cree aucune migration et aucun endpoint d'ecriture.
 
 Le projet n'est pas production-ready. Aucun modele metier Hahitantsoa/Titan n'existe encore. Il n'existe pas encore de frontend React, de CI executable, de migration metier ou d'endpoint API metier.
 

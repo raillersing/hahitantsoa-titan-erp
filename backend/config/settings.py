@@ -104,7 +104,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Hahitantsoa / Titan ERP API",
-    "DESCRIPTION": "Technical foundation schema settings. No business API is exposed yet.",
+    "TITLE": "Hahitantsoa Titan ERP API",
+    "DESCRIPTION": "Foundation API schema for the Hahitantsoa/Titan ERP project.",
     "VERSION": "0.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }

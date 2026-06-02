@@ -172,3 +172,15 @@ F21 expose une API read-only minimale pour `InventoryItem` :
 - `GET /api/v1/inventory/items/<uuid:pk>/`
 
 Seuls les items actifs et non supprimes sont exposes. Les methodes POST, PUT, PATCH et DELETE ne sont pas autorisees. Aucun endpoint d'ecriture, viewset, router ou admin n'existe encore.
+
+## OpenAPI
+
+F22 expose un schema OpenAPI minimal avec drf-spectacular :
+
+- `GET /api/schema/`
+- `GET /api/docs/swagger/`
+- `GET /api/docs/redoc/`
+
+Swagger UI et ReDoc servent uniquement a explorer la documentation API en local/dev.
+
+L'API inventory reste read-only. Aucun endpoint d'ecriture, viewset, router ou admin n'existe encore.
