@@ -234,3 +234,23 @@ Variables d'environnement lues par la commande :
 La commande utilise uniquement l'environnement deja charge par Django. Elle ne lit pas `.env` directement et ne doit jamais afficher le mot de passe.
 
 Lorsque `DEBUG=False`, la commande refuse de creer ou mettre a jour l'utilisateur. Elle force un utilisateur standard actif, non staff et non superuser. Elle ne cree aucun role metier, groupe, permission custom, JWT, token auth, endpoint ou migration.
+
+## Seed demo inventory local
+
+F26 ajoute la commande technique locale :
+
+```sh
+python backend/manage.py seed_demo_inventory
+```
+
+Elle sert a creer ou mettre a jour un petit jeu de donnees `InventoryItem` pour tester manuellement l'API inventory read-only.
+
+La commande refuse de s'executer lorsque `DEBUG=False`.
+
+Elle cree uniquement des donnees conformes au perimetre Titan :
+
+- `material`
+- `article`
+- `material_pack`
+
+Elle ne cree aucun local, salle, lieu, service annexe ou service evenementiel. Elle ne cree aucun endpoint d'ecriture, aucun modele, serializer, view, viewset, router, admin, JWT/token, role metier ou migration.

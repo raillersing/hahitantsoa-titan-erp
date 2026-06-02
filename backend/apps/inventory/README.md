@@ -194,3 +194,35 @@ Titan ne doit jamais accepter :
 - lieu ;
 - service annexe ;
 - service evenementiel.
+
+## Commande seed_demo_inventory
+
+F26 ajoute la commande technique `seed_demo_inventory` dans `apps.inventory` :
+
+```sh
+python backend/manage.py seed_demo_inventory
+```
+
+Elle sert au developpement local et aux tests manuels de l'API inventory read-only avec des donnees de demonstration `InventoryItem`.
+
+La commande refuse `DEBUG=False` et cree uniquement des items conformes Titan :
+
+- materiels ;
+- articles ;
+- packs materiels.
+
+Titan reste strictement limite a :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+La commande ne doit jamais creer :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F26 ne cree aucun endpoint d'ecriture, modele supplementaire, serializer, view, viewset, router, admin, role metier, JWT/token ou migration.

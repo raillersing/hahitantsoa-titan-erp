@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F25 - Seed local d'un utilisateur de developpement**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F26 - Seed local de donnees InventoryItem de demonstration**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -213,7 +213,9 @@ F23 terminee : securisation minimale de l'API inventory read-only par `IsAuthent
 
 F24 terminee : routes DRF session login/logout pour la Browsable API et les tests dev/local, sans JWT, sans token auth, sans role metier, sans migration et sans endpoint d'ecriture inventory.
 
-F25 en cours : commande Django `seed_dev_user` pour creer ou mettre a jour un utilisateur standard local/dev depuis variables d'environnement, sans mot de passe commite ou affiche, sans migration, sans modele, sans endpoint, sans JWT/token et sans role metier.
+F25 terminee : commande Django `seed_dev_user` pour creer ou mettre a jour un utilisateur standard local/dev depuis variables d'environnement, sans mot de passe commite ou affiche, sans migration, sans modele, sans endpoint, sans JWT/token et sans role metier.
+
+F26 en cours : commande Django `seed_demo_inventory` pour creer ou mettre a jour des donnees `InventoryItem` de demonstration conformes Titan, sans migration, sans modification de modele, sans serializer, sans endpoint d'ecriture, sans JWT/token et sans role metier.
 
 ### Objectifs futurs
 
