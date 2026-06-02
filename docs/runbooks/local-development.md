@@ -518,6 +518,62 @@ docker compose --env-file .env down
 
 F18 ne cree aucun endpoint API, serializer, viewset, admin, stock movement, disponibilite, reservation, facturation ou logique logistique.
 
+## Validation DB InventoryItem
+
+F19 ajoute des tests de persistance DB pour `InventoryItem` sans nouvelle migration.
+
+Verifier les fichiers crees :
+
+```sh
+find backend/apps/inventory -maxdepth 3 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier qu'aucune migration nouvelle n'est creee :
+
+```sh
+find backend/apps/inventory -path "*/migrations/*" -type f | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Verifier qu'aucun fichier applicatif metier interdit n'a ete cree :
+
+```sh
+find backend/apps \
+  \( -path "backend/apps/common/models.py" \
+     -o -path "backend/apps/inventory/apps.py" \
+     -o -path "backend/apps/inventory/scope.py" \
+     -o -path "backend/apps/inventory/models.py" \) -prune \
+  -o \( -name "serializers.py" \
+     -o -name "views.py" \
+     -o -name "viewsets.py" \
+     -o -name "urls.py" \
+     -o -name "admin.py" \) \
+  -type f -print | sort
+```
+
+Executer les controles habituels :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Relancer une validation Docker avec migration et readiness :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env exec backend python backend/manage.py migrate --noinput
+docker compose --env-file .env exec backend python backend/manage.py showmigrations inventory
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F19 ne cree aucun endpoint API, serializer, viewset, admin, modele ou migration nouvelle.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

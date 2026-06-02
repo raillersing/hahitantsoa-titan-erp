@@ -157,3 +157,7 @@ Ce garde-fou formalise les types d'elements autorises pour Titan sans creer de t
 F18 ajoute `InventoryItem`, premier modele concret minimal du domaine inventory.
 
 Le modele reste limite a l'identification d'un element inventory et a son type autorise pour Titan. Aucun endpoint, serializer, viewset ou admin n'est cree.
+
+F19 ajoute des tests de persistance DB pour `InventoryItem`.
+
+Ces tests couvrent la persistance des valeurs autorisees, la validation applicative des valeurs interdites et la contrainte DB `inventory_item_kind_allowed_for_titan`. Aucun endpoint, serializer, viewset ou admin n'est cree.

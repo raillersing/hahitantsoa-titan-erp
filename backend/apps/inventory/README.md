@@ -54,3 +54,17 @@ Titan ne doit jamais accepter :
 - service evenementiel.
 
 F18 ne cree ni stock movement, ni disponibilite, ni reservation, ni facturation, ni logistique, ni endpoint API, ni serializer, ni viewset, ni admin.
+
+## Validation DB
+
+F19 ajoute des tests de persistance DB pour `InventoryItem`.
+
+Les valeurs autorisees sont persistables :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Les valeurs interdites sont rejetees par la validation applicative et par la contrainte DB `inventory_item_kind_allowed_for_titan`.
+
+Titan reste limite a `material`, `article` et `material_pack`.
