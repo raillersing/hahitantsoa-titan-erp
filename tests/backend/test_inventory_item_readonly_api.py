@@ -19,8 +19,18 @@ INVENTORY_ITEM_FIELDS = {
 }
 
 
+@pytest.fixture
+def authenticated_client(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="inventory-reader",
+        password="test-password",
+    )
+    client.force_login(user)
+    return client
+
+
 @pytest.mark.django_db
-def test_inventory_item_list_returns_only_active_not_deleted_items(client) -> None:
+def test_inventory_item_list_returns_only_active_not_deleted_items(authenticated_client) -> None:
     visible_item = InventoryItem.objects.create(
         name="Camera",
         kind="material",
@@ -29,7 +39,7 @@ def test_inventory_item_list_returns_only_active_not_deleted_items(client) -> No
     InventoryItem.objects.create(name="Inactive item", kind="article", is_active=False)
     InventoryItem.objects.create(name="Deleted item", kind="material_pack", is_deleted=True)
 
-    response = client.get("/api/v1/inventory/items/")
+    response = authenticated_client.get("/api/v1/inventory/items/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -44,10 +54,10 @@ def test_inventory_item_list_returns_only_active_not_deleted_items(client) -> No
 
 
 @pytest.mark.django_db
-def test_inventory_item_detail_returns_active_not_deleted_item(client) -> None:
+def test_inventory_item_detail_returns_active_not_deleted_item(authenticated_client) -> None:
     item = InventoryItem.objects.create(name="Speaker", kind="article")
 
-    response = client.get(f"/api/v1/inventory/items/{item.pk}/")
+    response = authenticated_client.get(f"/api/v1/inventory/items/{item.pk}/")
 
     assert response.status_code == 200
     payload = response.json()
@@ -65,24 +75,27 @@ def test_inventory_item_detail_returns_active_not_deleted_item(client) -> None:
         {"name": "Deleted item", "kind": "article", "is_deleted": True},
     ],
 )
-def test_inventory_item_detail_returns_404_for_hidden_items(client, item_kwargs: dict) -> None:
+def test_inventory_item_detail_returns_404_for_hidden_items(
+    authenticated_client,
+    item_kwargs: dict,
+) -> None:
     item = InventoryItem.objects.create(**item_kwargs)
 
-    response = client.get(f"/api/v1/inventory/items/{item.pk}/")
+    response = authenticated_client.get(f"/api/v1/inventory/items/{item.pk}/")
 
     assert response.status_code == 404
 
 
 @pytest.mark.django_db
-def test_inventory_item_detail_returns_404_for_unknown_uuid(client) -> None:
-    response = client.get(f"/api/v1/inventory/items/{uuid.uuid4()}/")
+def test_inventory_item_detail_returns_404_for_unknown_uuid(authenticated_client) -> None:
+    response = authenticated_client.get(f"/api/v1/inventory/items/{uuid.uuid4()}/")
 
     assert response.status_code == 404
 
 
 @pytest.mark.django_db
-def test_inventory_item_list_rejects_post(client) -> None:
-    response = client.post(
+def test_inventory_item_list_rejects_post(authenticated_client) -> None:
+    response = authenticated_client.post(
         "/api/v1/inventory/items/",
         data={"name": "Camera", "kind": "material"},
     )
@@ -92,9 +105,9 @@ def test_inventory_item_list_rejects_post(client) -> None:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("method", ["put", "patch", "delete"])
-def test_inventory_item_detail_rejects_write_methods(client, method: str) -> None:
+def test_inventory_item_detail_rejects_write_methods(authenticated_client, method: str) -> None:
     item = InventoryItem.objects.create(name="Camera", kind="material")
-    request_method = getattr(client, method)
+    request_method = getattr(authenticated_client, method)
 
     response = request_method(
         f"/api/v1/inventory/items/{item.pk}/",

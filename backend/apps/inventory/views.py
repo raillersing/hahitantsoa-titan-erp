@@ -1,4 +1,5 @@
 from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
 
 from apps.inventory.models import InventoryItem
 from apps.inventory.serializers import InventoryItemSerializer
@@ -9,6 +10,7 @@ def active_inventory_items():
 
 
 class InventoryItemListAPIView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = InventoryItemSerializer
 
     def get_queryset(self):
@@ -16,6 +18,7 @@ class InventoryItemListAPIView(generics.ListAPIView):
 
 
 class InventoryItemRetrieveAPIView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = InventoryItemSerializer
     lookup_field = "pk"
 

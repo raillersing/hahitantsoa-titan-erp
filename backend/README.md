@@ -184,3 +184,22 @@ F22 expose un schema OpenAPI minimal avec drf-spectacular :
 Swagger UI et ReDoc servent uniquement a explorer la documentation API en local/dev.
 
 L'API inventory reste read-only. Aucun endpoint d'ecriture, viewset, router ou admin n'existe encore.
+
+## Authentification API inventory
+
+F23 protege l'API inventory read-only avec la permission DRF standard `IsAuthenticated`.
+
+Endpoints proteges :
+
+- `GET /api/v1/inventory/items/`
+- `GET /api/v1/inventory/items/<uuid:pk>/`
+
+Endpoints publics conserves :
+
+- `GET /healthz/`
+- `GET /readyz/`
+- `GET /api/schema/`
+- `GET /api/docs/swagger/`
+- `GET /api/docs/redoc/`
+
+Aucun role metier avance, permission custom, endpoint d'ecriture, viewset, router ou admin n'est encore implemente.
