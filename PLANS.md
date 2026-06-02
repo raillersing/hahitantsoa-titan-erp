@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F26 - Seed local de donnees InventoryItem de demonstration**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F27 - Smoke test inventory authentifie avec donnees de demonstration**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -215,7 +215,9 @@ F24 terminee : routes DRF session login/logout pour la Browsable API et les test
 
 F25 terminee : commande Django `seed_dev_user` pour creer ou mettre a jour un utilisateur standard local/dev depuis variables d'environnement, sans mot de passe commite ou affiche, sans migration, sans modele, sans endpoint, sans JWT/token et sans role metier.
 
-F26 en cours : commande Django `seed_demo_inventory` pour creer ou mettre a jour des donnees `InventoryItem` de demonstration conformes Titan, sans migration, sans modification de modele, sans serializer, sans endpoint d'ecriture, sans JWT/token et sans role metier.
+F26 terminee : commande Django `seed_demo_inventory` pour creer ou mettre a jour des donnees `InventoryItem` de demonstration conformes Titan, sans migration, sans modification de modele, sans serializer, sans endpoint d'ecriture, sans JWT/token et sans role metier.
+
+F27 en cours : smoke test authentifie du parcours inventory avec `seed_dev_user`, `seed_demo_inventory`, login session Django/DRF et lecture `GET /api/v1/inventory/items/`, sans migration, sans modele, sans serializer, sans endpoint d'ecriture, sans JWT/token et sans role metier.
 
 ### Objectifs futurs
 

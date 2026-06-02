@@ -254,3 +254,18 @@ Elle cree uniquement des donnees conformes au perimetre Titan :
 - `material_pack`
 
 Elle ne cree aucun local, salle, lieu, service annexe ou service evenementiel. Elle ne cree aucun endpoint d'ecriture, aucun modele, serializer, view, viewset, router, admin, JWT/token, role metier ou migration.
+
+## Smoke test inventory authentifie
+
+F27 couvre ensemble les commandes locales `seed_dev_user` et `seed_demo_inventory` dans un smoke test authentifie.
+
+Le test valide le parcours suivant :
+
+- seed d'un utilisateur dev local ;
+- seed des donnees demo `InventoryItem` ;
+- login session Django/DRF ;
+- `GET /api/v1/inventory/items/` avec utilisateur authentifie ;
+- presence des kinds Titan autorises ;
+- absence des kinds interdits.
+
+Ce test ne cree aucun endpoint d'ecriture, modele, serializer, view, viewset, router, admin, JWT/token, role metier ou migration.
