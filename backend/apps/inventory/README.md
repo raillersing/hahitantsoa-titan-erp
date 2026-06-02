@@ -51,6 +51,21 @@ Titan ne doit jamais accepter :
 
 F23 ne cree ni RBAC avance, ni permission custom, ni stock, ni reservation, ni facturation, ni endpoint d'ecriture.
 
+Les tests et usages dev/local peuvent utiliser les routes de session DRF ajoutees en F24 :
+
+- `/api-auth/login/`
+- `/api-auth/logout/`
+
+L'API inventory reste protegee par authentification. Seuls les items actifs et non supprimes sont exposes.
+
+Titan autorise uniquement :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan ne doit jamais accepter local, salle, lieu, service annexe ou service evenementiel.
+
 Hors perimetre F17 : aucune logique de stock, reservation, facturation ou disponibilite n'est creee.
 
 Aucun modele, migration, serializer, viewset, endpoint ou table n'est cree dans ce domaine en F17.
