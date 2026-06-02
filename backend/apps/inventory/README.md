@@ -68,3 +68,37 @@ Les valeurs autorisees sont persistables :
 Les valeurs interdites sont rejetees par la validation applicative et par la contrainte DB `inventory_item_kind_allowed_for_titan`.
 
 Titan reste limite a `material`, `article` et `material_pack`.
+
+## InventoryItemSerializer
+
+F20 ajoute `InventoryItemSerializer` pour preparer la future couche API sans exposer de route.
+
+Champs exposes :
+
+- `id` ;
+- `name` ;
+- `kind` ;
+- `description` ;
+- `is_active` ;
+- `created_at` ;
+- `updated_at` ;
+- `is_deleted` ;
+- `deleted_at` ;
+- `created_by` ;
+- `updated_by`.
+
+`kind` reste limite a :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan ne doit jamais accepter :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F20 ne cree ni endpoint, ni route, ni view, ni viewset, ni admin, ni migration.

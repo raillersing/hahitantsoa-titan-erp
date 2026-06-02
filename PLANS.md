@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F19 - Validation DB InventoryItem**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F20 - Serializer InventoryItem minimal**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -201,7 +201,9 @@ F17 terminee : garde-fou pur Python du perimetre Titan dans `inventory`, sans mo
 
 F18 terminee : premier modele concret minimal `InventoryItem` et migration initiale inventory controlee, sans endpoint API, serializer, viewset, admin, stock, reservation, facturation ou logistique.
 
-F19 en cours : validation de persistance PostgreSQL pour `InventoryItem`, sans nouvelle migration, sans endpoint API, sans serializer, sans viewset et sans admin.
+F19 terminee : validation de persistance PostgreSQL pour `InventoryItem`, sans nouvelle migration, sans endpoint API, sans serializer, sans viewset et sans admin.
+
+F20 en cours : serializer DRF minimal pour `InventoryItem`, sans endpoint API expose, sans URL, sans view, sans viewset, sans admin et sans migration.
 
 ### Objectifs futurs
 
