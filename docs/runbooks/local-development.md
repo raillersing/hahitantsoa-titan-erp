@@ -1020,6 +1020,77 @@ Sans authentification, `/api/v1/inventory/items/` doit rester refuse. `/api-auth
 
 F25 ne cree aucune migration, aucun modele, aucun serializer, aucune view, aucun endpoint, aucun JWT/token, aucun role metier, aucun groupe metier et aucune permission custom.
 
+## Seed demo inventory local
+
+F26 ajoute une commande Django locale pour creer ou mettre a jour des donnees `InventoryItem` de demonstration conformes Titan :
+
+```sh
+python backend/manage.py seed_demo_inventory
+```
+
+Verifier la structure des fichiers :
+
+```sh
+find backend/apps/inventory -maxdepth 5 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier l'absence de migration nouvelle :
+
+```sh
+find backend/apps/inventory -path "*/migrations/*" -type f | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Executer la commande de seed demo inventory :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py seed_demo_inventory
+```
+
+Si `.env` pointe PostgreSQL vers l'hote Compose `db`, cette commande doit etre executee depuis le conteneur backend ou avec une base locale resoluble depuis l'hote.
+
+Executer pytest dans un conteneur backend temporaire :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python -m pip install --no-cache-dir pytest pytest-django &&
+    python backend/manage.py makemigrations inventory --check --dry-run &&
+    python backend/manage.py migrate --noinput &&
+    python backend/manage.py seed_demo_inventory &&
+    python backend/manage.py showmigrations inventory &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier les routes utiles :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/api-auth/login/
+curl -i http://127.0.0.1:8000/api/v1/inventory/items/
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+Sans authentification, `/api/v1/inventory/items/` doit rester refuse. Les donnees de demonstration ne doivent contenir que `material`, `article` et `material_pack`, jamais local, salle, lieu, service annexe ou service evenementiel.
+
+F26 ne cree aucune migration, aucun modele, aucun serializer, aucune view, aucun endpoint, aucun endpoint d'ecriture inventory, aucun JWT/token, aucun role metier, aucun groupe metier et aucune permission custom.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.
