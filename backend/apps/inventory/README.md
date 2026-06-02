@@ -102,3 +102,30 @@ Titan ne doit jamais accepter :
 - service evenementiel.
 
 F20 ne cree ni endpoint, ni route, ni view, ni viewset, ni admin, ni migration.
+
+## API read-only
+
+F21 expose une API minimale en lecture seule :
+
+- `GET /api/v1/inventory/items/`
+- `GET /api/v1/inventory/items/<uuid:pk>/`
+
+Seuls les items actifs et non supprimes sont exposes.
+
+Les ecritures API ne sont pas autorisees : POST, PUT, PATCH et DELETE retournent `405`.
+
+`kind` reste limite a :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan ne doit jamais accepter :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F21 ne cree ni endpoint de stock, ni reservation, ni facturation, ni endpoint d'ecriture, ni viewset, ni router, ni admin.

@@ -165,3 +165,10 @@ Ces tests couvrent la persistance des valeurs autorisees, la validation applicat
 F20 ajoute `InventoryItemSerializer`.
 
 Ce serializer prepare la future couche API en exposant les champs techniques de `InventoryItem` et en validant `kind` avec le garde-fou Titan existant. Aucun endpoint, URL, viewset ou admin n'est cree.
+
+F21 expose une API read-only minimale pour `InventoryItem` :
+
+- `GET /api/v1/inventory/items/`
+- `GET /api/v1/inventory/items/<uuid:pk>/`
+
+Seuls les items actifs et non supprimes sont exposes. Les methodes POST, PUT, PATCH et DELETE ne sont pas autorisees. Aucun endpoint d'ecriture, viewset, router ou admin n'existe encore.
