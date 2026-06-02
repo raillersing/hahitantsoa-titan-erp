@@ -1,6 +1,6 @@
 from django.apps import apps
 
-from apps.inventory.models import InventoryItem
+from apps.inventory.models import InventoryAvailability, InventoryItem
 
 
 def test_inventory_app_is_installed() -> None:
@@ -14,5 +14,8 @@ def test_inventory_app_config() -> None:
     assert app_config.verbose_name == "Inventory"
 
 
-def test_inventory_app_registry_contains_inventory_item() -> None:
-    assert list(apps.get_app_config("inventory").get_models()) == [InventoryItem]
+def test_inventory_app_registry_contains_inventory_models() -> None:
+    inventory_models = set(apps.get_app_config("inventory").get_models())
+
+    assert InventoryItem in inventory_models
+    assert InventoryAvailability in inventory_models

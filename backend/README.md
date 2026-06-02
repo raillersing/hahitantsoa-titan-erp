@@ -279,3 +279,24 @@ Le test valide aussi :
 - le refus de POST, PUT, PATCH et DELETE sur l'API inventory.
 
 L'API inventory reste read-only. F28 ne cree aucun modele, serializer, view, endpoint, viewset, router, admin, JWT/token, role metier ou migration.
+
+## Inventory availability groundwork
+
+F29 ajoute `InventoryAvailability` comme socle minimal pour representer une periode pendant laquelle un `InventoryItem` est indisponible ou reserve pour un usage futur.
+
+Champs principaux :
+
+- `inventory_item` ;
+- `status` ;
+- `start_at` ;
+- `end_at` ;
+- `notes`.
+
+Les statuts initiaux sont :
+
+- `blocked` ;
+- `reserved`.
+
+La base protege les periodes avec une contrainte `end_at > start_at` et limite les statuts aux valeurs autorisees.
+
+Ce socle ne cree pas encore de module complet de reservation, location, planning, contrat, facture, paiement ou client. L'API inventory reste read-only : aucun serializer, view, URL, endpoint d'ecriture, viewset, router ou admin n'est ajoute en F29.
