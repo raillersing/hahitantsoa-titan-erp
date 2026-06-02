@@ -1204,6 +1204,67 @@ Sans authentification, `/api/v1/inventory/items/` doit rester refuse. Le smoke t
 
 F28 ne cree aucune migration, aucun modele, aucun serializer, aucune view, aucun endpoint, aucun endpoint d'ecriture inventory, aucun JWT/token, aucun role metier, aucun groupe metier et aucune permission custom.
 
+## Socle disponibilite inventory
+
+F29 ajoute le modele `InventoryAvailability` pour preparer les futures periodes d'indisponibilite ou de reservation d'un `InventoryItem`.
+
+Verifier la structure des fichiers :
+
+```sh
+find backend/apps/inventory -maxdepth 3 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier la migration creee :
+
+```sh
+find backend/apps/inventory/migrations -maxdepth 1 -type f | sort
+sed -n '1,220p' backend/apps/inventory/migrations/0002_inventoryavailability.py
+```
+
+Verifier qu'aucune migration supplementaire n'est necessaire apres creation de `0002_inventoryavailability.py` :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_model.py tests/backend/test_inventory_availability_persistence.py
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Appliquer les migrations dans Docker Compose pour valider PostgreSQL local :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python -m pip install --no-cache-dir pytest pytest-django &&
+    python backend/manage.py makemigrations inventory --check --dry-run &&
+    python backend/manage.py migrate --noinput &&
+    python backend/manage.py showmigrations inventory &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier readiness :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F29 ne cree aucun serializer, view, URL, endpoint API, endpoint d'ecriture inventory, viewset, router, admin, JWT/token, role metier, groupe metier ou permission custom. F29 ne cree pas de module complet de reservation, contrat, facture, paiement, client, planning ou frontend.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

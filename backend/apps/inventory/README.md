@@ -226,3 +226,34 @@ La commande ne doit jamais creer :
 - service evenementiel.
 
 F26 ne cree aucun endpoint d'ecriture, modele supplementaire, serializer, view, viewset, router, admin, role metier, JWT/token ou migration.
+
+## InventoryAvailability
+
+F29 ajoute `InventoryAvailability` comme modele minimal de socle pour les futures periodes d'indisponibilite ou de reservation d'un `InventoryItem`.
+
+Champs principaux :
+
+- `inventory_item` ;
+- `status` ;
+- `start_at` ;
+- `end_at` ;
+- `notes`.
+
+Statuts autorises :
+
+- `blocked` ;
+- `reserved`.
+
+La periode doit respecter `end_at > start_at`. Les statuts sont limites aux valeurs autorisees par une contrainte DB.
+
+Rappel strict Titan : Titan autorise uniquement materiels, articles et packs materiels.
+
+Titan exclut definitivement :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F29 ne cree pas encore le module complet de location ou de reservation. F29 ne cree aucun contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier.

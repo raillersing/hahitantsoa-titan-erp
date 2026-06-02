@@ -15,6 +15,16 @@ INVENTORY_ITEM_KIND_CHOICES = [
 INVENTORY_ITEM_KIND_VALUES = [item_kind.value for item_kind in InventoryItemKind]
 
 
+class InventoryAvailabilityStatus(models.TextChoices):
+    BLOCKED = "blocked", "blocked"
+    RESERVED = "reserved", "reserved"
+
+
+INVENTORY_AVAILABILITY_STATUS_VALUES = [
+    availability_status.value for availability_status in InventoryAvailabilityStatus
+]
+
+
 class InventoryItem(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
     name = models.CharField(max_length=255)
     kind = models.CharField(max_length=32, choices=INVENTORY_ITEM_KIND_CHOICES)
@@ -44,3 +54,33 @@ class InventoryItem(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel
 
     def __str__(self) -> str:
         return self.name
+
+
+class InventoryAvailability(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
+    inventory_item = models.ForeignKey(
+        InventoryItem,
+        on_delete=models.CASCADE,
+        related_name="availability_periods",
+    )
+    status = models.CharField(max_length=32, choices=InventoryAvailabilityStatus.choices)
+    start_at = models.DateTimeField()
+    end_at = models.DateTimeField()
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["start_at", "end_at"]
+        verbose_name = "Inventory availability"
+        verbose_name_plural = "Inventory availabilities"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status__in=INVENTORY_AVAILABILITY_STATUS_VALUES),
+                name="inventory_availability_status_allowed",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end_at__gt=models.F("start_at")),
+                name="inventory_availability_end_after_start",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.inventory_item} {self.status} from {self.start_at} to {self.end_at}"
