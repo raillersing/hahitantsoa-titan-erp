@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F24 - Login/logout session DRF dev/local**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F25 - Seed local d'un utilisateur de developpement**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -211,7 +211,9 @@ F22 terminee : documentation OpenAPI minimale avec drf-spectacular, schema JSON,
 
 F23 terminee : securisation minimale de l'API inventory read-only par `IsAuthenticated`, sans role metier avance, sans permission custom, sans migration, sans endpoint d'ecriture, sans viewset, sans router et sans admin.
 
-F24 en cours : routes DRF session login/logout pour la Browsable API et les tests dev/local, sans JWT, sans token auth, sans role metier, sans migration et sans endpoint d'ecriture inventory.
+F24 terminee : routes DRF session login/logout pour la Browsable API et les tests dev/local, sans JWT, sans token auth, sans role metier, sans migration et sans endpoint d'ecriture inventory.
+
+F25 en cours : commande Django `seed_dev_user` pour creer ou mettre a jour un utilisateur standard local/dev depuis variables d'environnement, sans mot de passe commite ou affiche, sans migration, sans modele, sans endpoint, sans JWT/token et sans role metier.
 
 ### Objectifs futurs
 
