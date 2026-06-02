@@ -1147,6 +1147,63 @@ Sans authentification, `/api/v1/inventory/items/` doit rester refuse. Le smoke t
 
 F27 ne cree aucune migration, aucun modele, aucun serializer, aucune view, aucun endpoint, aucun endpoint d'ecriture inventory, aucun JWT/token, aucun role metier, aucun groupe metier et aucune permission custom.
 
+## Smoke test detail inventory read-only
+
+F28 ajoute un smoke test du detail inventory authentifie et confirme que l'API inventory reste read-only.
+
+Verifier la structure des tests :
+
+```sh
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier l'absence de migration nouvelle :
+
+```sh
+find backend/apps/inventory -path "*/migrations/*" -type f | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_detail_readonly_smoke.py
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Executer pytest dans un conteneur backend temporaire :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python -m pip install --no-cache-dir pytest pytest-django &&
+    python backend/manage.py makemigrations inventory --check --dry-run &&
+    python backend/manage.py migrate --noinput &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier les routes utiles :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/api-auth/login/
+curl -i http://127.0.0.1:8000/api/v1/inventory/items/
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+Sans authentification, `/api/v1/inventory/items/` doit rester refuse. Le smoke test F28 valide separement que l'utilisateur seed local authentifie obtient `HTTP 200` sur la liste et le detail, et que POST, PUT, PATCH et DELETE restent refuses.
+
+F28 ne cree aucune migration, aucun modele, aucun serializer, aucune view, aucun endpoint, aucun endpoint d'ecriture inventory, aucun JWT/token, aucun role metier, aucun groupe metier et aucune permission custom.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

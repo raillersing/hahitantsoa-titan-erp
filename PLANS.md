@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F27 - Smoke test inventory authentifie avec donnees de demonstration**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F28 - Smoke test detail inventory authentifie et read-only**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -217,7 +217,9 @@ F25 terminee : commande Django `seed_dev_user` pour creer ou mettre a jour un ut
 
 F26 terminee : commande Django `seed_demo_inventory` pour creer ou mettre a jour des donnees `InventoryItem` de demonstration conformes Titan, sans migration, sans modification de modele, sans serializer, sans endpoint d'ecriture, sans JWT/token et sans role metier.
 
-F27 en cours : smoke test authentifie du parcours inventory avec `seed_dev_user`, `seed_demo_inventory`, login session Django/DRF et lecture `GET /api/v1/inventory/items/`, sans migration, sans modele, sans serializer, sans endpoint d'ecriture, sans JWT/token et sans role metier.
+F27 terminee : smoke test authentifie du parcours inventory avec `seed_dev_user`, `seed_demo_inventory`, login session Django/DRF et lecture `GET /api/v1/inventory/items/`, sans migration, sans modele, sans serializer, sans endpoint d'ecriture, sans JWT/token et sans role metier.
+
+F28 en cours : smoke test du detail inventory authentifie et read-only avec `seed_dev_user`, `seed_demo_inventory`, lecture liste, lecture detail et refus de POST, PUT, PATCH et DELETE, sans migration, sans modele, sans serializer, sans view, sans endpoint d'ecriture, sans JWT/token et sans role metier.
 
 ### Objectifs futurs
 

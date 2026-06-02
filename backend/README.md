@@ -269,3 +269,13 @@ Le test valide le parcours suivant :
 - absence des kinds interdits.
 
 Ce test ne cree aucun endpoint d'ecriture, modele, serializer, view, viewset, router, admin, JWT/token, role metier ou migration.
+
+F28 complete ce parcours avec un smoke test authentifie du detail inventory read-only.
+
+Le test valide aussi :
+
+- `GET /api/v1/inventory/items/<uuid:pk>/` avec utilisateur authentifie ;
+- la coherence du detail retourne avec l'item issu de la liste ;
+- le refus de POST, PUT, PATCH et DELETE sur l'API inventory.
+
+L'API inventory reste read-only. F28 ne cree aucun modele, serializer, view, endpoint, viewset, router, admin, JWT/token, role metier ou migration.
