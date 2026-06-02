@@ -938,6 +938,88 @@ docker compose --env-file .env down
 
 F24 ne cree aucun JWT, token auth, role metier, groupe metier, permission custom, endpoint d'ecriture, viewset, router, admin ou migration.
 
+## Seed dev user local
+
+F25 ajoute une commande Django locale pour creer ou mettre a jour un utilisateur standard de developpement :
+
+```sh
+python backend/manage.py seed_dev_user
+```
+
+La commande lit `DJANGO_DEV_USERNAME`, `DJANGO_DEV_PASSWORD` et `DJANGO_DEV_EMAIL` depuis l'environnement. `DJANGO_DEV_EMAIL` est optionnel. Ne jamais commiter de mot de passe local.
+
+Verifier la structure des fichiers :
+
+```sh
+find backend/apps/common -maxdepth 5 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier l'absence de migration nouvelle :
+
+```sh
+find backend/apps -path "*/migrations/*" -type f | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+```
+
+Verifier le comportement avec variables manquantes :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py seed_dev_user || true
+```
+
+Verifier le comportement avec variables presentes :
+
+```sh
+set -a && source .env && set +a && \
+DJANGO_DEV_USERNAME=dev.local \
+DJANGO_DEV_PASSWORD='<mot-de-passe-local-non-commite>' \
+DJANGO_DEV_EMAIL='dev.local@example.test' \
+.venv/bin/python backend/manage.py seed_dev_user
+```
+
+Si `.env` pointe PostgreSQL vers l'hote Compose `db`, cette commande doit etre executee depuis le conteneur backend ou avec une base locale resoluble depuis l'hote.
+
+Executer pytest dans un conteneur backend temporaire :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python -m pip install --no-cache-dir pytest pytest-django &&
+    python backend/manage.py makemigrations inventory --check --dry-run &&
+    python backend/manage.py migrate --noinput &&
+    DJANGO_DEV_USERNAME=dev.local DJANGO_DEV_PASSWORD="<mot-de-passe-local-non-commite>" DJANGO_DEV_EMAIL="dev.local@example.test" python backend/manage.py seed_dev_user &&
+    python backend/manage.py showmigrations inventory &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier les routes utiles :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/api-auth/login/
+curl -i http://127.0.0.1:8000/api/v1/inventory/items/
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+Sans authentification, `/api/v1/inventory/items/` doit rester refuse. `/api-auth/login/` et `/readyz/` restent utiles pour valider le parcours local/dev.
+
+F25 ne cree aucune migration, aucun modele, aucun serializer, aucune view, aucun endpoint, aucun JWT/token, aucun role metier, aucun groupe metier et aucune permission custom.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

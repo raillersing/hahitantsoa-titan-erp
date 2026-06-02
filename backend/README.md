@@ -214,3 +214,23 @@ F24 ajoute les routes DRF de session pour la Browsable API :
 Ces routes servent aux tests manuels et au developpement local. Elles ne constituent pas une strategie finale d'authentification production.
 
 L'API inventory reste protegee par authentification. Aucun JWT, token auth, role metier avance, endpoint d'ecriture, viewset, router ou admin n'est cree.
+
+## Seed dev user local
+
+F25 ajoute la commande technique locale :
+
+```sh
+python backend/manage.py seed_dev_user
+```
+
+Elle sert a creer ou mettre a jour un utilisateur standard local pour tester `/api-auth/login/` et la Browsable API.
+
+Variables d'environnement lues par la commande :
+
+- `DJANGO_DEV_USERNAME`
+- `DJANGO_DEV_PASSWORD`
+- `DJANGO_DEV_EMAIL` optionnel
+
+La commande utilise uniquement l'environnement deja charge par Django. Elle ne lit pas `.env` directement et ne doit jamais afficher le mot de passe.
+
+Lorsque `DEBUG=False`, la commande refuse de creer ou mettre a jour l'utilisateur. Elle force un utilisateur standard actif, non staff et non superuser. Elle ne cree aucun role metier, groupe, permission custom, JWT, token auth, endpoint ou migration.
