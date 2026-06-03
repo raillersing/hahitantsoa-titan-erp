@@ -349,3 +349,19 @@ Ce garde-fou pur Python formalise les kinds `InventoryItem` reservables par les 
 Les kinds `venue`, `local`, `room`, `service`, `event_service` et les kinds inconnus ne sont pas reservables.
 
 Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
+
+F35 ajoute `backend/apps/reservations/periods.py`.
+
+Ce module fournit un value object immuable `ReservationPeriod` et des helpers purs Python pour valider les futures periodes de reservation, sans acces DB :
+
+- `is_aware_datetime` ;
+- `validate_reservation_period` ;
+- `make_reservation_period`.
+
+Les bornes `start_at` et `end_at` doivent etre des datetimes timezone-aware.
+
+La periode est valide uniquement si `end_at > start_at`.
+
+Les periodes sont interpretees comme des intervalles demi-ouverts `[start_at, end_at)`, en coherence avec les regles de disponibilite inventory.
+
+Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
