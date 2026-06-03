@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "apps.common.apps.CommonConfig",
     "apps.inventory.apps.InventoryConfig",
+    "apps.reservations.apps.ReservationsConfig",
     "rest_framework",
     "drf_spectacular",
 ]
