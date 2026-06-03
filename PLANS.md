@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F33 - Squelette domaine reservations**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F34 - Reservation scope guard**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -229,7 +229,9 @@ F31 terminee : smoke test interne validant que `seed_demo_inventory` fonctionne 
 
 F32 terminee : document de decision `DEC-002-inventory-availability-domain.md` formalisant les regles du domaine disponibilite inventory avant le futur module reservation/location, sans code applicatif, sans migration, sans modele, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans test, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
-F33 en cours : squelette du domaine `reservations` et activation de l'app Django `apps.reservations`, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+F33 terminee : squelette du domaine `reservations` et activation de l'app Django `apps.reservations`, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+
+F34 en cours : garde-fou pur Python du scope reservations pour autoriser uniquement `material`, `article` et `material_pack` dans les futures reservations Titan, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
 ### Objectifs futurs
 

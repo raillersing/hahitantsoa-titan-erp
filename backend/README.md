@@ -337,3 +337,15 @@ F33 ajoute le package `backend/apps/reservations` et active l'app Django `apps.r
 Ce package est uniquement le squelette du futur domaine reservation/location. Il devra s'appuyer plus tard sur les regles de disponibilite documentees dans `DEC-002-inventory-availability-domain.md`.
 
 Aucun modele metier n'est encore cree dans `reservations`. F33 ne cree aucune migration, serializer, view, URL, endpoint d'ecriture, admin, service metier complet, contrat, facture, paiement, client ou frontend.
+
+F34 ajoute `backend/apps/reservations/scope.py`.
+
+Ce garde-fou pur Python formalise les kinds `InventoryItem` reservables par les futures reservations Titan, sans acces DB :
+
+- `material`
+- `article`
+- `material_pack`
+
+Les kinds `venue`, `local`, `room`, `service`, `event_service` et les kinds inconnus ne sont pas reservables.
+
+Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.

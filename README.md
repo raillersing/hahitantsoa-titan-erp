@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F33 squelette domaine reservations en cours**.
+Statut actuel : **F34 garde-fou scope reservations en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -109,9 +109,21 @@ F32 a ajoute un document de decision sur le domaine de disponibilite inventory :
 
 F32 ne modifie aucun code applicatif. Aucune migration, aucun modele, serializer, view, endpoint, test ou module complet de reservation n'est cree. L'API inventory reste read-only.
 
-F33 ajoute le squelette du domaine `reservations` et installe l'app Django `apps.reservations`.
+F33 a ajoute le squelette du domaine `reservations` et installe l'app Django `apps.reservations`.
 
 F33 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
+
+F34 ajoute un garde-fou pur Python dans `apps.reservations` pour formaliser les kinds `InventoryItem` reservables par les futures reservations Titan.
+
+Seuls les kinds suivants sont reservables :
+
+- `material`
+- `article`
+- `material_pack`
+
+Les kinds `venue`, `local`, `room`, `service`, `event_service` et les kinds inconnus sont refuses.
+
+F34 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
