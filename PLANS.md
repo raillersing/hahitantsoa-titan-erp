@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F35 - Reservation period value object / pure validation helpers**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F36 - Reservation item validation helper**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -233,7 +233,9 @@ F33 terminee : squelette du domaine `reservations` et activation de l'app Django
 
 F34 terminee : garde-fou pur Python du scope reservations pour autoriser uniquement `material`, `article` et `material_pack` dans les futures reservations Titan, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
-F35 en cours : value object immuable `ReservationPeriod` et helpers purs Python de validation des periodes reservations avec datetimes timezone-aware, `end_at > start_at` et intervalle `[start_at, end_at)`, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+F35 terminee : value object immuable `ReservationPeriod` et helpers purs Python de validation des periodes reservations avec datetimes timezone-aware, `end_at > start_at` et intervalle `[start_at, end_at)`, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+
+F36 en cours : helper pur Python de validation d'une future demande de reservation item + periode, combinant kind reservable et periode valide, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
 ### Objectifs futurs
 
