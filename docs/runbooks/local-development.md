@@ -1414,6 +1414,67 @@ docker compose --env-file .env down
 
 F32 ne modifie aucun code applicatif. F32 ne cree aucune migration, aucun modele, serializer, view, URL, endpoint API, endpoint d'ecriture inventory, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, test, module complet de reservation, contrat, facture, paiement, client, planning ou frontend.
 
+## Squelette domaine reservations
+
+F33 ajoute le squelette du domaine `reservations` et active l'app Django `apps.reservations`.
+
+Verifier la structure du package :
+
+```sh
+find backend/apps/reservations -maxdepth 2 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier l'activation dans les settings :
+
+```sh
+grep -Rni "apps.reservations.apps.ReservationsConfig" backend/config/settings.py
+```
+
+Verifier qu'aucune migration n'est necessaire :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Executer Django check dans un conteneur backend temporaire :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python backend/manage.py makemigrations reservations --check --dry-run &&
+    python backend/manage.py makemigrations --check --dry-run &&
+    python backend/manage.py check &&
+    python -m pytest tests/backend/test_reservations_app_config.py &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier readiness :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F33 ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, fixture, commande management, service metier complet, module complet de reservation, contrat, facture, paiement, client ou frontend.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

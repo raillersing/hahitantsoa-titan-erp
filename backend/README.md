@@ -329,3 +329,11 @@ F32 formalise les regles de disponibilite inventory dans [DEC-002-inventory-avai
 Cette decision consolide `InventoryAvailability`, les statuts `blocked` et `reserved`, la contrainte `end_at > start_at`, les intervalles `[start_at, end_at)` et les helpers internes de disponibilite.
 
 Le document confirme aussi que l'API inventory reste read-only et que les helpers restent internes au backend.
+
+## Reservations Django app
+
+F33 ajoute le package `backend/apps/reservations` et active l'app Django `apps.reservations`.
+
+Ce package est uniquement le squelette du futur domaine reservation/location. Il devra s'appuyer plus tard sur les regles de disponibilite documentees dans `DEC-002-inventory-availability-domain.md`.
+
+Aucun modele metier n'est encore cree dans `reservations`. F33 ne cree aucune migration, serializer, view, URL, endpoint d'ecriture, admin, service metier complet, contrat, facture, paiement, client ou frontend.
