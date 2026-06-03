@@ -73,3 +73,30 @@ Les kinds inconnus sont egalement refuses.
 Ce garde-fou devra etre utilise plus tard par le futur module reservation/location avant toute creation ou confirmation de reservation Titan.
 
 F34 ne cree aucune reservation. F34 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.
+
+## Reservation periods
+
+F35 ajoute `periods.py` comme socle de validation pure Python pour les futures periodes de reservation/location.
+
+`ReservationPeriod` est une dataclass immuable qui porte :
+
+- `start_at` ;
+- `end_at`.
+
+Helpers exposes :
+
+- `is_aware_datetime(value)` ;
+- `validate_reservation_period(start_at, end_at)` ;
+- `make_reservation_period(start_at, end_at)`.
+
+Regles de validation :
+
+- `start_at` est obligatoire ;
+- `end_at` est obligatoire ;
+- `start_at` doit etre un datetime timezone-aware ;
+- `end_at` doit etre un datetime timezone-aware ;
+- `end_at` doit etre strictement superieur a `start_at`.
+
+Les periodes sont interpretees comme des intervalles demi-ouverts `[start_at, end_at)`, en coherence avec [DEC-002-inventory-availability-domain.md](../../../docs/decisions/DEC-002-inventory-availability-domain.md).
+
+F35 ne cree aucune reservation. F35 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.
