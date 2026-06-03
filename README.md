@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F30 helpers internes disponibilite inventory en cours**.
+Statut actuel : **F31 smoke test seed demo inventory + availability helpers en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -97,9 +97,13 @@ F29 a ajoute le socle de domaine `InventoryAvailability` pour representer de fut
 
 L'API inventory reste read-only et aucun endpoint d'ecriture n'est cree.
 
-F30 ajoute des helpers internes pour detecter les conflits de disponibilite inventory sur une periode donnee. Ces helpers utilisent les periodes `blocked` et `reserved` et traitent les intervalles comme `[start_at, end_at)`.
+F30 a ajoute des helpers internes pour detecter les conflits de disponibilite inventory sur une periode donnee. Ces helpers utilisent les periodes `blocked` et `reserved` et traitent les intervalles comme `[start_at, end_at)`.
 
 F30 ne cree aucune API, aucun serializer, aucune view, aucune URL, aucun endpoint d'ecriture et aucun module complet de reservation.
+
+F31 ajoute un smoke test interne qui valide que les donnees creees par `seed_demo_inventory` peuvent etre utilisees avec `InventoryAvailability` et les helpers internes de disponibilite.
+
+F31 ne cree aucune API, aucun serializer, aucune view, aucune URL, aucun endpoint d'ecriture et aucun module complet de reservation. L'API inventory reste read-only.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
