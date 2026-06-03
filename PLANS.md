@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F36 - Reservation item validation helper**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **OP1 - Codex prompt optimization layer**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -235,7 +235,11 @@ F34 terminee : garde-fou pur Python du scope reservations pour autoriser uniquem
 
 F35 terminee : value object immuable `ReservationPeriod` et helpers purs Python de validation des periodes reservations avec datetimes timezone-aware, `end_at > start_at` et intervalle `[start_at, end_at)`, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
-F36 en cours : helper pur Python de validation d'une future demande de reservation item + periode, combinant kind reservable et periode valide, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+F36 terminee : helper pur Python de validation d'une future demande de reservation item + periode, combinant kind reservable et periode valide, sans modele, sans migration, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans admin, sans service metier complet, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+
+OP1 en cours : couche documentaire d'optimisation des prompts Codex avec template de tache, politique de reasoning et checklist de validation, sans modification de code applicatif backend, sans modele, migration, serializer, view, URL, endpoint, admin ou frontend.
+
+OP1-b en cours : formalisation du workflow Codex en deux temps `PLAN ONLY` puis `IMPLEMENT APPROVED PLAN`, pour separer l'analyse approuvee de l'execution controlee, sans modification de code applicatif backend, sans modele, migration, serializer, view, URL, endpoint, admin ou frontend.
 
 ### Objectifs futurs
 

@@ -1700,6 +1700,49 @@ docker compose --env-file .env down
 
 F36 ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, fixture, commande management, service metier complet, module complet de reservation, contrat, facture, paiement, client ou frontend.
 
+## Workflow prompts Codex
+
+OP1 ajoute une couche documentaire pour reduire les prompts repetitifs Codex tout en conservant les validations strictes.
+
+Le workflow recommande pour les taches sensibles ou explicitement soumises a approbation est en deux temps :
+
+1. `PLAN ONLY` : lire les fichiers necessaires, analyser la tache, proposer un plan court, lister les fichiers a creer ou modifier, lister les validations prevues, ne modifier aucun fichier.
+2. `IMPLEMENT APPROVED PLAN` : appliquer uniquement le plan approuve, modifier uniquement les fichiers approuves, executer uniquement les validations approuvees ou pertinentes, produire un rapport final.
+
+Aucun des deux modes ne doit executer `git add`, `git commit` ou `git push` sauf demande explicite.
+
+Verifier les fichiers Codex crees :
+
+```sh
+find docs/codex -maxdepth 1 -type f | sort
+```
+
+Verifier l'etat Git et le diff documentaire :
+
+```sh
+git branch --show-current
+git status --short
+git diff --name-status
+git diff --stat
+```
+
+Verifier que les fichiers applicatifs et decisions protegees ne sont pas modifies :
+
+```sh
+git diff --name-only -- backend/apps backend/config compose.yaml pyproject.toml .env .env.example docs/decisions/DEC-001-titan-scope-validated.md docs/decisions/DEC-002-inventory-availability-domain.md
+```
+
+Verifier que `.env` n'est ni tracke ni stage :
+
+```sh
+git status --short -- .env
+git ls-files .env
+```
+
+OP1 est documentaire. Aucun test lourd n'est requis sauf si un formatteur Markdown est ajoute au projet.
+
+OP1 ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, frontend ou code applicatif backend.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

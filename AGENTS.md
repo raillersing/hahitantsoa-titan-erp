@@ -220,6 +220,43 @@ Les reviews Codex doivent vérifier :
 
 ## 11. Procédure obligatoire de travail Codex
 
+### Regles permanentes Codex
+
+- Une tache = une branche = une PR.
+- Toujours verifier la branche active et l'etat Git avant modification.
+- Toujours proposer un plan court avant modification lorsque la tache touche plusieurs fichiers ou une regle structurante.
+- Attendre l'approbation explicite lorsque la tache le demande.
+- Ne jamais afficher, modifier ou commiter `.env`.
+- Respecter `docs/decisions/DEC-001-titan-scope-validated.md`.
+- Respecter `docs/decisions/DEC-002-inventory-availability-domain.md` lorsque la disponibilite, les periodes ou les reservations sont concernees.
+- Titan autorise uniquement `material`, `article` et `material_pack`.
+- Titan interdit `venue`, `local`, `room`, `service` et `event_service`.
+- L'API inventory reste read-only tant qu'une tache ne valide pas explicitement le contraire.
+- Ne jamais creer de modele, migration, API, admin ou frontend hors portee explicite.
+- Ne jamais faire `git add`, `git commit` ou `git push` sauf demande explicite.
+
+### Workflow Codex en deux temps
+
+Pour les taches sensibles, structurantes ou explicitement encadrees, utiliser un workflow en deux temps.
+
+Mode 1 : `PLAN ONLY`
+
+- Lire les fichiers necessaires.
+- Analyser la tache et les sources de verite.
+- Proposer un plan court.
+- Lister les fichiers a creer ou modifier.
+- Lister les validations prevues.
+- Ne modifier aucun fichier.
+- Ne pas faire `git add`, `git commit` ou `git push`.
+
+Mode 2 : `IMPLEMENT APPROVED PLAN`
+
+- Appliquer uniquement le plan approuve.
+- Modifier uniquement les fichiers approuves.
+- Executer uniquement les validations approuvees ou strictement pertinentes.
+- Produire un rapport final avec fichiers, validations et points a verifier.
+- Ne pas faire `git add`, `git commit` ou `git push`.
+
 Avant toute modification :
 
 1. Inspecter le répertoire courant.
