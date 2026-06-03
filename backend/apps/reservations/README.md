@@ -100,3 +100,33 @@ Regles de validation :
 Les periodes sont interpretees comme des intervalles demi-ouverts `[start_at, end_at)`, en coherence avec [DEC-002-inventory-availability-domain.md](../../../docs/decisions/DEC-002-inventory-availability-domain.md).
 
 F35 ne cree aucune reservation. F35 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.
+
+## Reservation item validation
+
+F36 ajoute `validation.py` comme helper pur Python pour valider une future demande de reservation item + periode.
+
+`ReservationItemValidation` est une dataclass immuable qui porte :
+
+- `inventory_item_kind` ;
+- `period`.
+
+Fonction exposee :
+
+- `validate_reservation_item_request(inventory_item_kind, start_at, end_at)`.
+
+Cette validation combine :
+
+- `assert_reservable_inventory_item_kind` pour refuser tout kind non reservable ;
+- `make_reservation_period` pour valider la periode.
+
+Kinds autorises :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+`start_at` et `end_at` doivent etre des datetimes timezone-aware.
+
+La periode doit respecter `end_at > start_at` et reste interpretee comme un intervalle demi-ouvert `[start_at, end_at)`.
+
+F36 ne cree aucune reservation. F36 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.

@@ -350,6 +350,17 @@ Les kinds `venue`, `local`, `room`, `service`, `event_service` et les kinds inco
 
 Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
 
+F36 ajoute `backend/apps/reservations/validation.py`.
+
+Ce helper pur Python valide une future demande de reservation item + periode, sans acces DB.
+
+Il combine :
+
+- `assert_reservable_inventory_item_kind` pour verifier que le kind inventory est reservable dans Titan ;
+- `make_reservation_period` pour valider `start_at`, `end_at`, `end_at > start_at` et l'intervalle `[start_at, end_at)`.
+
+Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
+
 F35 ajoute `backend/apps/reservations/periods.py`.
 
 Ce module fournit un value object immuable `ReservationPeriod` et des helpers purs Python pour valider les futures periodes de reservation, sans acces DB :
