@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F31 smoke test seed demo inventory + availability helpers en cours**.
+Statut actuel : **F32 decision availability domain en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -101,9 +101,13 @@ F30 a ajoute des helpers internes pour detecter les conflits de disponibilite in
 
 F30 ne cree aucune API, aucun serializer, aucune view, aucune URL, aucun endpoint d'ecriture et aucun module complet de reservation.
 
-F31 ajoute un smoke test interne qui valide que les donnees creees par `seed_demo_inventory` peuvent etre utilisees avec `InventoryAvailability` et les helpers internes de disponibilite.
+F31 a ajoute un smoke test interne qui valide que les donnees creees par `seed_demo_inventory` peuvent etre utilisees avec `InventoryAvailability` et les helpers internes de disponibilite.
 
 F31 ne cree aucune API, aucun serializer, aucune view, aucune URL, aucun endpoint d'ecriture et aucun module complet de reservation. L'API inventory reste read-only.
+
+F32 ajoute un document de decision sur le domaine de disponibilite inventory : `docs/decisions/DEC-002-inventory-availability-domain.md`.
+
+F32 ne modifie aucun code applicatif. Aucune migration, aucun modele, serializer, view, endpoint, test ou module complet de reservation n'est cree. L'API inventory reste read-only.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
@@ -126,10 +130,11 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 1. [AGENTS.md](AGENTS.md)
 2. [PLANS.md](PLANS.md)
 3. [docs/decisions/DEC-001-titan-scope-validated.md](docs/decisions/DEC-001-titan-scope-validated.md)
-4. [docs/adr/ADR-006-titan-excludes-venues-and-services.md](docs/adr/ADR-006-titan-excludes-venues-and-services.md)
-5. [docs/business-rules/scope.md](docs/business-rules/scope.md)
-6. [docs/architecture/foundation-plan.md](docs/architecture/foundation-plan.md)
-7. [docs/runbooks/local-development.md](docs/runbooks/local-development.md)
+4. [docs/decisions/DEC-002-inventory-availability-domain.md](docs/decisions/DEC-002-inventory-availability-domain.md)
+5. [docs/adr/ADR-006-titan-excludes-venues-and-services.md](docs/adr/ADR-006-titan-excludes-venues-and-services.md)
+6. [docs/business-rules/scope.md](docs/business-rules/scope.md)
+7. [docs/architecture/foundation-plan.md](docs/architecture/foundation-plan.md)
+8. [docs/runbooks/local-development.md](docs/runbooks/local-development.md)
 
 ## Perimetre fonctionnel cible
 

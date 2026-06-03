@@ -321,3 +321,11 @@ F31 ajoute un smoke test interne qui combine les donnees locales creees par `see
 Le test valide que les items demo conformes Titan peuvent etre controles par `get_inventory_availability_conflicts` et `is_inventory_item_available`, sans passer par l'API HTTP et sans creer d'utilisateur ou de logique d'authentification.
 
 Ce controle reste interne au backend. L'API inventory reste read-only et aucun serializer, view, URL, endpoint d'ecriture, viewset, router, admin, module complet de reservation, contrat, facture, paiement ou client n'est ajoute.
+
+## Inventory availability decision
+
+F32 formalise les regles de disponibilite inventory dans [DEC-002-inventory-availability-domain.md](../docs/decisions/DEC-002-inventory-availability-domain.md).
+
+Cette decision consolide `InventoryAvailability`, les statuts `blocked` et `reserved`, la contrainte `end_at > start_at`, les intervalles `[start_at, end_at)` et les helpers internes de disponibilite.
+
+Le document confirme aussi que l'API inventory reste read-only et que les helpers restent internes au backend.

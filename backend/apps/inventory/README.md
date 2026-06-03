@@ -301,3 +301,18 @@ Il ne doit jamais produire :
 Le test F31 verifie la disponibilite avant conflit, l'indisponibilite apres une periode `blocked` ou `reserved`, l'absence de blocage par une periode liee a un autre item, et la regle d'intervalles `[start_at, end_at)`.
 
 F31 ne cree pas de reservation complete, contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier. L'API inventory reste read-only.
+
+## Decision disponibilite inventory
+
+F32 formalise les regles du domaine disponibilite inventory dans [DEC-002-inventory-availability-domain.md](../../../docs/decisions/DEC-002-inventory-availability-domain.md).
+
+Regles principales :
+
+- les statuts qui rendent un item indisponible sont `blocked` et `reserved` ;
+- une periode doit respecter `end_at > start_at` ;
+- les intervalles sont traites comme `[start_at, end_at)` ;
+- une periode existante chevauche une periode demandee si `existing.start_at < requested_end_at` et `existing.end_at > requested_start_at` ;
+- les periodes d'un autre `InventoryItem` ne bloquent pas l'item demande ;
+- l'API inventory reste read-only.
+
+Cette decision ne cree pas de reservation complete, contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier.

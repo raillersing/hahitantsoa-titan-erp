@@ -1372,6 +1372,48 @@ docker compose --env-file .env down
 
 F31 ne cree aucune migration, aucun modele, serializer, view, URL, endpoint API, endpoint d'ecriture inventory, viewset, router, admin, JWT/token, role metier, groupe metier ou permission custom. F31 ne cree pas de module complet de reservation, contrat, facture, paiement, client, planning ou frontend.
 
+## Decision domaine disponibilite inventory
+
+F32 ajoute le document de decision `docs/decisions/DEC-002-inventory-availability-domain.md`.
+
+Verifier le document de decision :
+
+```sh
+sed -n '1,220p' docs/decisions/DEC-002-inventory-availability-domain.md
+```
+
+Verifier qu'aucune migration nouvelle n'est creee :
+
+```sh
+find backend/apps/inventory/migrations -maxdepth 1 -type f | sort
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Verifier qu'aucun fichier API inventory n'a ete modifie :
+
+```sh
+git diff --name-only -- backend/apps/inventory/serializers.py backend/apps/inventory/views.py backend/apps/inventory/urls.py
+```
+
+Executer les controles applicables :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+```
+
+Relancer le backend et verifier readiness :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F32 ne modifie aucun code applicatif. F32 ne cree aucune migration, aucun modele, serializer, view, URL, endpoint API, endpoint d'ecriture inventory, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, test, module complet de reservation, contrat, facture, paiement, client, planning ou frontend.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

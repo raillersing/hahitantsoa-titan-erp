@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F31 - Smoke test seed demo inventory + availability helpers**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F32 - Decision domaine disponibilite inventory**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -225,7 +225,9 @@ F29 terminee : socle de domaine `InventoryAvailability` pour preparer les future
 
 F30 terminee : helpers internes de disponibilite inventory pour detecter les conflits sur une periode `[start_at, end_at)`, sans migration, sans modele, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
-F31 en cours : smoke test interne validant que `seed_demo_inventory` fonctionne avec `InventoryAvailability` et les helpers de disponibilite F30, sans API, sans migration, sans modele, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+F31 terminee : smoke test interne validant que `seed_demo_inventory` fonctionne avec `InventoryAvailability` et les helpers de disponibilite F30, sans API, sans migration, sans modele, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
+
+F32 en cours : document de decision `DEC-002-inventory-availability-domain.md` formalisant les regles du domaine disponibilite inventory avant le futur module reservation/location, sans code applicatif, sans migration, sans modele, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans test, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
 ### Objectifs futurs
 
