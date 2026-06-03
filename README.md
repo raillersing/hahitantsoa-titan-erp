@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F36 validation pure Python item + periode reservations en cours**.
+Statut actuel : **OP1 optimisation des prompts Codex en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -133,11 +133,26 @@ Les periodes sont interpretees comme des intervalles demi-ouverts `[start_at, en
 
 F35 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
 
-F36 ajoute un helper pur Python de validation d'une future demande de reservation item + periode.
+F36 a ajoute un helper pur Python de validation d'une future demande de reservation item + periode.
 
 Cette validation combine le kind reservable via `assert_reservable_inventory_item_kind` et la periode valide via `make_reservation_period`.
 
 F36 ne cree aucune reservation persistante, aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
+
+OP1 ajoute une couche documentaire d'optimisation des prompts Codex pour reduire les prompts repetitifs tout en conservant les garde-fous senior :
+
+- `docs/codex/task-prompt-template.md` ;
+- `docs/codex/reasoning-policy.md` ;
+- `docs/codex/validation-checklist.md`.
+
+Le workflow OP1 standardise les prompts courts par tache Fxx, le choix du niveau de reasoning et les validations de fin de tache. Il ne modifie aucun code applicatif backend, ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend, et ne change pas les decisions Titan.
+
+OP1-b formalise le workflow Codex en deux temps :
+
+1. `PLAN ONLY` : lire, analyser, proposer le plan, lister les fichiers et validations, sans modifier de fichier.
+2. `IMPLEMENT APPROVED PLAN` : appliquer uniquement le plan approuve, executer les validations pertinentes et produire le rapport final.
+
+Ce workflow vise les taches sensibles, structurantes ou explicitement soumises a approbation.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
@@ -165,6 +180,17 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 6. [docs/business-rules/scope.md](docs/business-rules/scope.md)
 7. [docs/architecture/foundation-plan.md](docs/architecture/foundation-plan.md)
 8. [docs/runbooks/local-development.md](docs/runbooks/local-development.md)
+
+## Workflow Codex
+
+Les prompts courts Codex sont documentes dans `docs/codex/`.
+
+- Utiliser `docs/codex/task-prompt-template.md` pour cadrer les futures taches Fxx.
+- Utiliser `docs/codex/reasoning-policy.md` pour choisir Low, Medium ou High selon le risque.
+- Utiliser `docs/codex/validation-checklist.md` pour preparer le rapport final et les validations.
+- Utiliser `PLAN ONLY` puis `IMPLEMENT APPROVED PLAN` pour les taches sensibles ou explicitement soumises a approbation.
+
+Ces documents ne remplacent pas les sources de verite. `AGENTS.md`, `DEC-001` et `DEC-002` restent prioritaires.
 
 ## Perimetre fonctionnel cible
 
