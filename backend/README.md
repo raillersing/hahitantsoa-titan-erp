@@ -313,3 +313,11 @@ Il fournit des helpers metier pour detecter les conflits de disponibilite d'un `
 Les conflits sont calcules avec des intervalles demi-ouverts `[start_at, end_at)`. Une periode existante entre en conflit lorsque `existing.start_at < requested_end_at` et `existing.end_at > requested_start_at`.
 
 Les statuts `blocked` et `reserved` rendent l'item indisponible. F30 ne cree aucune API, aucun serializer, view, URL, endpoint d'ecriture, viewset, router, admin, module complet de reservation, contrat, facture, paiement ou client.
+
+## Inventory availability seed smoke
+
+F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.
+
+Le test valide que les items demo conformes Titan peuvent etre controles par `get_inventory_availability_conflicts` et `is_inventory_item_available`, sans passer par l'API HTTP et sans creer d'utilisateur ou de logique d'authentification.
+
+Ce controle reste interne au backend. L'API inventory reste read-only et aucun serializer, view, URL, endpoint d'ecriture, viewset, router, admin, module complet de reservation, contrat, facture, paiement ou client n'est ajoute.

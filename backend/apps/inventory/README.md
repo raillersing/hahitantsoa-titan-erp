@@ -279,3 +279,25 @@ Ainsi, une periode qui se termine exactement au debut de la demande ne bloque pa
 Les statuts `blocked` et `reserved` rendent un item indisponible.
 
 F30 ne cree pas de reservation complete, contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier. L'API inventory reste read-only.
+
+## Smoke test seed demo + disponibilite
+
+F31 ajoute un smoke test interne pour valider que les donnees creees par `seed_demo_inventory` peuvent etre utilisees avec le modele `InventoryAvailability` et les helpers de disponibilite.
+
+`seed_demo_inventory` doit continuer a produire uniquement :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Il ne doit jamais produire :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+Le test F31 verifie la disponibilite avant conflit, l'indisponibilite apres une periode `blocked` ou `reserved`, l'absence de blocage par une periode liee a un autre item, et la regle d'intervalles `[start_at, end_at)`.
+
+F31 ne cree pas de reservation complete, contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier. L'API inventory reste read-only.
