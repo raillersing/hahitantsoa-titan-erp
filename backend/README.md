@@ -300,3 +300,16 @@ Les statuts initiaux sont :
 La base protege les periodes avec une contrainte `end_at > start_at` et limite les statuts aux valeurs autorisees.
 
 Ce socle ne cree pas encore de module complet de reservation, location, planning, contrat, facture, paiement ou client. L'API inventory reste read-only : aucun serializer, view, URL, endpoint d'ecriture, viewset, router ou admin n'est ajoute en F29.
+
+## Inventory availability helpers
+
+F30 ajoute le module interne `backend/apps/inventory/availability.py`.
+
+Il fournit des helpers metier pour detecter les conflits de disponibilite d'un `InventoryItem` sur une periode donnee :
+
+- `get_inventory_availability_conflicts` ;
+- `is_inventory_item_available`.
+
+Les conflits sont calcules avec des intervalles demi-ouverts `[start_at, end_at)`. Une periode existante entre en conflit lorsque `existing.start_at < requested_end_at` et `existing.end_at > requested_start_at`.
+
+Les statuts `blocked` et `reserved` rendent l'item indisponible. F30 ne cree aucune API, aucun serializer, view, URL, endpoint d'ecriture, viewset, router, admin, module complet de reservation, contrat, facture, paiement ou client.

@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F29 - Socle disponibilite inventory**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F30 - Helpers internes disponibilite inventory**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -221,7 +221,9 @@ F27 terminee : smoke test authentifie du parcours inventory avec `seed_dev_user`
 
 F28 terminee : smoke test du detail inventory authentifie et read-only avec `seed_dev_user`, `seed_demo_inventory`, lecture liste, lecture detail et refus de POST, PUT, PATCH et DELETE, sans migration, sans modele, sans serializer, sans view, sans endpoint d'ecriture, sans JWT/token et sans role metier.
 
-F29 en cours : socle de domaine `InventoryAvailability` pour preparer les futures periodes d'indisponibilite ou de reservation d'un `InventoryItem`, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client, sans serializer, sans view, sans endpoint d'ecriture et sans changement de l'API read-only.
+F29 terminee : socle de domaine `InventoryAvailability` pour preparer les futures periodes d'indisponibilite ou de reservation d'un `InventoryItem`, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client, sans serializer, sans view, sans endpoint d'ecriture et sans changement de l'API read-only.
+
+F30 en cours : helpers internes de disponibilite inventory pour detecter les conflits sur une periode `[start_at, end_at)`, sans migration, sans modele, sans serializer, sans view, sans URL, sans endpoint d'ecriture, sans module complet de reservation, sans contrat, sans facture, sans paiement, sans client et sans frontend.
 
 ### Objectifs futurs
 

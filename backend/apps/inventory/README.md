@@ -257,3 +257,25 @@ Titan exclut definitivement :
 - service evenementiel.
 
 F29 ne cree pas encore le module complet de location ou de reservation. F29 ne cree aucun contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier.
+
+## Helpers de disponibilite
+
+F30 ajoute le module interne `availability.py`.
+
+Fonctions disponibles :
+
+- `get_inventory_availability_conflicts` ;
+- `is_inventory_item_available`.
+
+La regle de chevauchement utilise des intervalles demi-ouverts `[start_at, end_at)`.
+
+Une periode existante entre en conflit avec une periode demandee lorsque :
+
+- `existing.start_at < requested_end_at` ;
+- `existing.end_at > requested_start_at`.
+
+Ainsi, une periode qui se termine exactement au debut de la demande ne bloque pas, et une periode qui commence exactement a la fin de la demande ne bloque pas.
+
+Les statuts `blocked` et `reserved` rendent un item indisponible.
+
+F30 ne cree pas de reservation complete, contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier. L'API inventory reste read-only.
