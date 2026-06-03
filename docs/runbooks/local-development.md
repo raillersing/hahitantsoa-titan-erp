@@ -1265,6 +1265,59 @@ docker compose --env-file .env down
 
 F29 ne cree aucun serializer, view, URL, endpoint API, endpoint d'ecriture inventory, viewset, router, admin, JWT/token, role metier, groupe metier ou permission custom. F29 ne cree pas de module complet de reservation, contrat, facture, paiement, client, planning ou frontend.
 
+## Helpers disponibilite inventory
+
+F30 ajoute des helpers internes pour detecter les conflits de disponibilite d'un `InventoryItem`.
+
+Verifier la structure des fichiers :
+
+```sh
+find backend/apps/inventory -maxdepth 2 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier qu'aucune migration nouvelle n'est necessaire :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Executer pytest dans un conteneur backend temporaire :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python -m pip install --no-cache-dir pytest pytest-django &&
+    python backend/manage.py makemigrations inventory --check --dry-run &&
+    python backend/manage.py migrate --noinput &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier readiness :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F30 ne cree aucune migration, aucun modele, serializer, view, URL, endpoint API, endpoint d'ecriture inventory, viewset, router, admin, JWT/token, role metier, groupe metier ou permission custom. F30 ne cree pas de module complet de reservation, contrat, facture, paiement, client, planning ou frontend.
+
 ## Readiness PostgreSQL backend
 
 F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.

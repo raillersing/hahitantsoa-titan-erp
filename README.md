@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F29 socle disponibilite inventory en cours**.
+Statut actuel : **F30 helpers internes disponibilite inventory en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -93,9 +93,13 @@ Le smoke test attend uniquement `material`, `article` et `material_pack`, et ver
 
 F28 a ajoute un smoke test du detail inventory authentifie et confirme que l'API inventory reste read-only. Le test couvre le seed dev user, le seed demo inventory, le login session, `GET /api/v1/inventory/items/`, `GET /api/v1/inventory/items/<id>/`, le refus de POST, PUT, PATCH et DELETE, et la validation des kinds Titan.
 
-F29 ajoute le socle de domaine `InventoryAvailability` pour representer de futures periodes d'indisponibilite ou de reservation d'un `InventoryItem`. Ce n'est pas encore un module complet de reservation, planning, contrat, facture, paiement ou client.
+F29 a ajoute le socle de domaine `InventoryAvailability` pour representer de futures periodes d'indisponibilite ou de reservation d'un `InventoryItem`. Ce n'est pas encore un module complet de reservation, planning, contrat, facture, paiement ou client.
 
 L'API inventory reste read-only et aucun endpoint d'ecriture n'est cree.
+
+F30 ajoute des helpers internes pour detecter les conflits de disponibilite inventory sur une periode donnee. Ces helpers utilisent les periodes `blocked` et `reserved` et traitent les intervalles comme `[start_at, end_at)`.
+
+F30 ne cree aucune API, aucun serializer, aucune view, aucune URL, aucun endpoint d'ecriture et aucun module complet de reservation.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
