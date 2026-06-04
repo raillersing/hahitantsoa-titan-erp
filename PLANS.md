@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F39 - Backend Docker test environment**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F40 - Reservation preview service layer**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -245,7 +245,9 @@ F37 terminee : helper backend interne de validation de disponibilite d'une futur
 
 F38 terminee : value object interne de preview d'une future demande de reservation item, compose F37 sans double requete DB et sans ecriture DB, sans calcul commercial, sans reservation persistante, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou service metier complet.
 
-F39 en cours : standardisation de l'environnement Docker backend pour executer les tests backend reproductiblement, avec dependances dev installees dans l'image locale et dossier `tests/` disponible dans le conteneur, sans changement de logique metier, sans modele, migration, serializer, view, URL, endpoint, admin ou frontend.
+F39 terminee : standardisation de l'environnement Docker backend pour executer les tests backend reproductiblement, avec dependances dev installees dans l'image locale et dossier `tests/` disponible dans le conteneur, sans changement de logique metier, sans modele, migration, serializer, view, URL, endpoint, admin ou frontend.
+
+F40 en cours : couche service interne de preview de reservation item au-dessus de F38, sans duplication de logique, sans double requete DB, sans ecriture DB, sans reservation persistante, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou workflow commercial complet.
 
 ### Objectifs futurs
 

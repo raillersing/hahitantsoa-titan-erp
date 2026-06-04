@@ -177,6 +177,20 @@ Titan exclut toujours :
 
 F37 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.
 
+## Reservation preview service
+
+F40 ajoute `services.py` comme couche service interne mince pour orchestrer la preview de reservation item.
+
+Fonction exposee :
+
+- `preview_reservation_item_service`.
+
+Le service delegue a `preview_reservation_item_request` et ne duplique pas la logique F38.
+
+Il ne cree aucune reservation persistante, n'ecrit jamais en DB et ne cree aucun endpoint API.
+
+F40 ne cree aucun modele, migration, serializer, view, URL, admin, service metier complet, contrat, facture, paiement, client ou frontend.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

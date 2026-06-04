@@ -1874,6 +1874,29 @@ docker compose --env-file .env down
 
 F38 ne cree aucune reservation persistante, n'ecrit jamais en DB, ne fait aucun calcul commercial et ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, fixture, commande management, service metier complet, module complet de reservation, contrat, facture, paiement, client ou frontend.
 
+## Service preview reservation item
+
+F40 ajoute `backend/apps/reservations/services.py` comme couche service interne au-dessus de la preview F38.
+
+Verifier la structure du package :
+
+```sh
+find backend/apps/reservations -maxdepth 2 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Executer les validations Docker standardisees depuis F39 :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend
+docker compose --env-file .env exec backend python -m pytest tests/backend/test_reservations_preview.py -q
+docker compose --env-file .env exec backend python -m pytest tests/backend/test_reservations_preview_service.py -q
+docker compose --env-file .env exec backend python -m pytest tests/backend -q
+```
+
+F40 ne cree aucune reservation persistante, n'ecrit jamais en DB et ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, fixture, commande management, service metier complet, module complet de reservation, contrat, facture, paiement, client ou frontend.
+
 ## Workflow prompts Codex
 
 OP1 ajoute une couche documentaire pour reduire les prompts repetitifs Codex tout en conservant les validations strictes.
