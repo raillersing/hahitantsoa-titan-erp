@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F45 - Documenter la matrice de sante Foundation**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F46 - Nettoyage documentaire apres F45**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -257,7 +257,9 @@ F43 terminee : standardisation du workflow local de logs terminal pour les valid
 
 F44 terminee : nettoyage documentaire de statut post-merge F43 et clarification du workflow standard de logs terminal pour les validations locales importantes, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
-F45 en cours : documentation de la matrice de sante Foundation pour clarifier `/healthz/`, `/readyz/`, les checks PostgreSQL et Redis existants, les controles futurs non implementes et les exclusions de scope, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+F45 terminee : documentation de la matrice de sante Foundation pour clarifier `/healthz/`, `/readyz/`, les checks PostgreSQL et Redis existants, les controles futurs non implementes et les exclusions de scope, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+
+F46 en cours : nettoyage documentaire de statut apres F45, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
 ### Objectifs futurs
 
