@@ -98,6 +98,16 @@ Le service Compose `backend` dispose d'un healthcheck interne base sur `/healthz
 
 `runserver` reste strictement local et reserve au developpement.
 
+L'image backend locale installe aussi les dependances de developpement Python declarees dans `pyproject.toml` et embarque le dossier `tests/`.
+
+Apres build et demarrage de `db` + `backend`, la commande officielle de test backend Docker est :
+
+```sh
+docker compose exec backend python -m pytest tests/backend -q
+```
+
+Cette commande ne necessite ni installation `pip` manuelle dans un conteneur deja demarre, ni copie manuelle de `tests/` avec `docker compose cp`.
+
 ## Migrations Django standards
 
 Les migrations Django standards peuvent etre appliquees dans la base PostgreSQL locale pour initialiser les tables techniques des apps integrees :

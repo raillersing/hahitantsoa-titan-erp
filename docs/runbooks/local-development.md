@@ -189,6 +189,19 @@ Tester le liveness check minimal :
 curl -i http://127.0.0.1:8000/healthz/
 ```
 
+Verifier que les tests backend sont disponibles dans le conteneur :
+
+```sh
+docker compose --env-file .env exec backend test -d /app/tests/backend
+docker compose --env-file .env exec backend python -m pytest --version
+```
+
+Lancer les tests backend depuis le conteneur backend :
+
+```sh
+docker compose --env-file .env exec backend python -m pytest tests/backend -q
+```
+
 Consulter les logs backend :
 
 ```sh
