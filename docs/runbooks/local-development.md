@@ -172,7 +172,7 @@ docker compose --env-file .env build backend
 Demarrer PostgreSQL et le backend local :
 
 ```sh
-docker compose --env-file .env up -d db backend
+docker compose --env-file .env up -d db redis backend
 ```
 
 Verifier l'etat des services :
@@ -223,7 +223,7 @@ F11 valide uniquement les migrations Django standards des apps integrees `admin`
 Demarrer PostgreSQL et le backend local :
 
 ```sh
-docker compose --env-file .env up -d db backend
+docker compose --env-file .env up -d db redis backend
 ```
 
 Appliquer les migrations Django standards :
@@ -249,6 +249,12 @@ Arreter les services Compose locaux :
 ```sh
 docker compose --env-file .env down
 ```
+
+## Validation documentaire F42
+
+F41 est terminee et validee post-merge. F42 met uniquement a jour les statuts documentaires apres l'ajout du check Redis dans `/readyz/`.
+
+Cette tache ne modifie aucun code backend, test, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin ou frontend.
 
 ## Structure des packages de domaines backend
 
@@ -522,7 +528,7 @@ Valider la migration dans PostgreSQL local via Compose :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 docker compose --env-file .env exec backend python backend/manage.py migrate --noinput
 docker compose --env-file .env exec backend python backend/manage.py showmigrations inventory
 curl -i http://127.0.0.1:8000/readyz/
@@ -578,7 +584,7 @@ Relancer une validation Docker avec migration et readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 docker compose --env-file .env exec backend python backend/manage.py migrate --noinput
 docker compose --env-file .env exec backend python backend/manage.py showmigrations inventory
 curl -i http://127.0.0.1:8000/readyz/
@@ -856,7 +862,7 @@ Relancer le backend et verifier l'authentification minimale :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/api/v1/inventory/items/
 curl -i http://127.0.0.1:8000/api/schema/?format=json
 curl -i http://127.0.0.1:8000/api/docs/swagger/
@@ -935,7 +941,7 @@ Relancer le backend et verifier les routes publiques et protegees :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/api-auth/login/
 curl -i http://127.0.0.1:8000/api-auth/logout/
 curl -i http://127.0.0.1:8000/api/v1/inventory/items/
@@ -1022,7 +1028,7 @@ Relancer le backend et verifier les routes utiles :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/api-auth/login/
 curl -i http://127.0.0.1:8000/api/v1/inventory/items/
 curl -i http://127.0.0.1:8000/readyz/
@@ -1093,7 +1099,7 @@ Relancer le backend et verifier les routes utiles :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/api-auth/login/
 curl -i http://127.0.0.1:8000/api/v1/inventory/items/
 curl -i http://127.0.0.1:8000/readyz/
@@ -1149,7 +1155,7 @@ Relancer le backend et verifier les routes utiles :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/api-auth/login/
 curl -i http://127.0.0.1:8000/api/v1/inventory/items/
 curl -i http://127.0.0.1:8000/readyz/
@@ -1206,7 +1212,7 @@ Relancer le backend et verifier les routes utiles :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/api-auth/login/
 curl -i http://127.0.0.1:8000/api/v1/inventory/items/
 curl -i http://127.0.0.1:8000/readyz/
@@ -1271,7 +1277,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1324,7 +1330,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1378,7 +1384,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1420,7 +1426,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1481,7 +1487,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1554,7 +1560,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1629,7 +1635,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1706,7 +1712,7 @@ Relancer le backend et verifier readiness :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1785,7 +1791,7 @@ Relancer le backend et verifier readiness si le backend est demarre :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1867,7 +1873,7 @@ Relancer le backend et verifier readiness si le backend est demarre :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend --force-recreate
+docker compose --env-file .env up -d db redis backend --force-recreate
 curl -i http://127.0.0.1:8000/readyz/
 docker compose --env-file .env down
 ```
@@ -1889,7 +1895,7 @@ Executer les validations Docker standardisees depuis F39 :
 
 ```sh
 docker compose --env-file .env build backend
-docker compose --env-file .env up -d db backend
+docker compose --env-file .env up -d db redis backend
 docker compose --env-file .env exec backend python -m pytest tests/backend/test_reservations_preview.py -q
 docker compose --env-file .env exec backend python -m pytest tests/backend/test_reservations_preview_service.py -q
 docker compose --env-file .env exec backend python -m pytest tests/backend -q

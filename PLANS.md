@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F41 - Readiness Redis minimal dans /readyz/**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F42 - Documentation status cleanup after F41**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -249,7 +249,9 @@ F39 terminee : standardisation de l'environnement Docker backend pour executer l
 
 F40 terminee : couche service interne de preview de reservation item au-dessus de F38, sans duplication de logique, sans double requete DB, sans ecriture DB, sans reservation persistante, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou workflow commercial complet.
 
-F41 en cours : readiness Redis minimal dans `GET /readyz/`, en complement du check PostgreSQL existant, sans modifier `/healthz/`, sans dependance Python Redis, sans modele, migration, serializer, view metier, URL metier, endpoint metier, endpoint d'ecriture, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+F41 terminee : readiness Redis minimal dans `GET /readyz/`, en complement du check PostgreSQL existant, sans modifier `/healthz/`, sans dependance Python Redis, sans modele, migration, serializer, view metier, URL metier, endpoint metier, endpoint d'ecriture, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+
+F42 en cours : nettoyage documentaire de statut apres F41, sans code backend, sans test, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
 ### Objectifs futurs
 
