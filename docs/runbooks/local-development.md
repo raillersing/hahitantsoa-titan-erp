@@ -256,6 +256,27 @@ F41 est terminee et validee post-merge. F42 met uniquement a jour les statuts do
 
 Cette tache ne modifie aucun code backend, test, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin ou frontend.
 
+## Logs terminal locaux pour validations
+
+F43 standardise un wrapper local/dev pour conserver les sorties completes des validations importantes :
+
+```sh
+scripts/dev/erp-logged-run nom-de-tache <<'EOF'
+echo ok
+git status --short
+EOF
+```
+
+Le wrapper :
+
+- cree un log horodate dans `logs/terminal/` ;
+- affiche la sortie avec `tee` pendant l'execution ;
+- copie le log dans le presse-papiers Windows si `clip.exe` est disponible ;
+- affiche le chemin du log si `clip.exe` n'est pas disponible ;
+- retourne le code de sortie de la commande executee.
+
+Ne jamais utiliser ce wrapper pour lancer une commande qui affiche `.env`, mots de passe, tokens ou secrets. Les logs sont locaux, destines au developpement, et `logs/` est ignore par Git.
+
 ## Structure des packages de domaines backend
 
 F13 ajoute uniquement une structure de packages Python preparatoires sous `backend/apps/`.

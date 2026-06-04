@@ -15,6 +15,16 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 
 ## Git and scope
 
+- [ ] Use the logged terminal wrapper for long or important local validations when useful:
+
+  ```sh
+  scripts/dev/erp-logged-run <task-name> <<'EOF'
+  <commands>
+  EOF
+  ```
+
+- [ ] Confirm no command in a logged run prints `.env`, passwords, tokens or secrets.
+
 - [ ] Confirm active branch:
 
   ```sh

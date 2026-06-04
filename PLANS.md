@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F42 - Documentation status cleanup after F41**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F43 - Standardiser le workflow de logs terminal pour les validations locales**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -251,7 +251,9 @@ F40 terminee : couche service interne de preview de reservation item au-dessus d
 
 F41 terminee : readiness Redis minimal dans `GET /readyz/`, en complement du check PostgreSQL existant, sans modifier `/healthz/`, sans dependance Python Redis, sans modele, migration, serializer, view metier, URL metier, endpoint metier, endpoint d'ecriture, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
-F42 en cours : nettoyage documentaire de statut apres F41, sans code backend, sans test, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+F42 terminee : nettoyage documentaire de statut apres F41, sans code backend, sans test, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+
+F43 en cours : standardisation du workflow local de logs terminal pour les validations importantes, avec script local/dev versionne, logs ignores par Git et copie optionnelle vers le presse-papiers Windows, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
 ### Objectifs futurs
 
