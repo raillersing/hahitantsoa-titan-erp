@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F40 couche service preview reservation en cours**.
+Statut actuel : **F41 readiness Redis minimal en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -190,6 +190,16 @@ F40 ajoute une couche service interne de preview de reservation item.
 Le service `preview_reservation_item_service` orchestre la preview F38 sans dupliquer la logique, sans double lecture DB et sans ecriture DB. Il ne cree aucune reservation persistante et ne cree aucun endpoint API.
 
 F40 ne modifie aucune logique metier inventory, availability ou preview. F40 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou workflow commercial complet.
+
+F41 ajoute un controle Redis minimal au readiness endpoint `GET /readyz/`.
+
+`/healthz/` reste un liveness check minimal sans acces PostgreSQL ou Redis. `/readyz/` verifie maintenant PostgreSQL et Redis, et retourne un detail stable par check :
+
+```json
+{"status": "ready", "checks": {"database": "ok", "redis": "ok"}}
+```
+
+F41 n'ajoute pas de dependance Python Redis. Le check Redis utilise une verification minimale via la stdlib Python et ne cree aucun modele, migration, serializer, view metier, URL metier, endpoint metier, endpoint d'ecriture, admin ou frontend.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
