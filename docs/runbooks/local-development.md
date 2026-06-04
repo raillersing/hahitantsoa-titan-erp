@@ -277,6 +277,12 @@ Le wrapper :
 
 Ne jamais utiliser ce wrapper pour lancer une commande qui affiche `.env`, mots de passe, tokens ou secrets. Les logs sont locaux, destines au developpement, et `logs/` est ignore par Git.
 
+## Workflow documentaire integre
+
+Les taches futures doivent integrer les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable. Cela inclut notamment les statuts `README.md` et `PLANS.md`, les runbooks et les documents Codex touches par le changement.
+
+Les PR de nettoyage documentaire separees ne sont plus systematiques. Elles restent utiles pour une grosse relecture documentaire, un oubli de mise a jour, un changement de decision workflow ou la creation d'un runbook, d'une matrice ou d'une documentation structurante.
+
 ## Matrice de sante Foundation
 
 La strategie Foundation des controles `/healthz/`, `/readyz/`, PostgreSQL, Redis et Docker Compose est documentee dans [health-readiness-matrix.md](health-readiness-matrix.md).
