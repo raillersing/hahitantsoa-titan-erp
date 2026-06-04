@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F46 nettoyage documentaire en cours apres F45**.
+Statut actuel : **F47 workflow documentaire integre en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -209,6 +209,10 @@ F44 a nettoye les statuts documentaires apres F43. F44 ne modifie aucun code bac
 
 F45 documente la matrice de sante Foundation dans `docs/runbooks/health-readiness-matrix.md`. Cette matrice clarifie `/healthz/` comme liveness minimal, `/readyz/` comme readiness PostgreSQL + Redis, les controles futurs non implementes et les exclusions de scope. F45 ne modifie aucun comportement technique.
 
+F46 a nettoye les statuts documentaires apres F45. F46 ne modifie aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin ou frontend.
+
+F47 formalise le workflow documentaire integre : les futures taches doivent inclure les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable, au lieu de creer systematiquement une PR de nettoyage documentaire separee. F47 ne modifie aucun comportement technique.
+
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
@@ -244,6 +248,7 @@ Les prompts courts Codex sont documentes dans `docs/codex/`.
 - Utiliser `docs/codex/reasoning-policy.md` pour choisir Low, Medium ou High selon le risque.
 - Utiliser `docs/codex/validation-checklist.md` pour preparer le rapport final et les validations.
 - Utiliser `PLAN ONLY` puis `IMPLEMENT APPROVED PLAN` pour les taches sensibles ou explicitement soumises a approbation.
+- Integrer les mises a jour documentaires utiles dans la meme PR que la tache quand c'est raisonnable.
 
 Ces documents ne remplacent pas les sources de verite. `AGENTS.md`, `DEC-001` et `DEC-002` restent prioritaires.
 

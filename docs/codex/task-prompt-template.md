@@ -25,6 +25,8 @@ Objectif :
 
 Contexte a respecter :
 - <sources de verite et contraintes metier>
+- Integrer les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable.
+- Utiliser une PR documentaire separee uniquement pour une grosse relecture documentaire, un oubli, un changement de workflow ou une documentation structurante.
 - Ne jamais afficher, modifier ou commiter .env.
 - Ne pas faire git add, commit ou push.
 
@@ -79,14 +81,16 @@ Travail demande :
 1. Re-verifier la branche active et le working tree.
 2. Appliquer uniquement le plan approuve.
 3. Modifier uniquement les fichiers approuves.
-4. Executer uniquement les validations approuvees ou strictement pertinentes.
-5. Produire un rapport final.
-6. Ne pas faire git add, commit ou push.
+4. Integrer les mises a jour documentaires approuvees dans la meme PR quand c'est raisonnable.
+5. Executer uniquement les validations approuvees ou strictement pertinentes.
+6. Produire un rapport final.
+7. Ne pas faire git add, commit ou push.
 
 Rapport final attendu :
 - branche active
 - fichiers crees
 - fichiers modifies
+- documentation mise a jour ou justification si aucune mise a jour documentaire n'etait necessaire
 - confirmations de non-regression de portee
 - validations executees et resultats
 - points a valider avant commit
@@ -109,6 +113,8 @@ Objectif :
 
 Contexte a respecter :
 - Fxx precedent termine : <resume court>.
+- Inclure les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable.
+- Ne creer une PR documentaire separee que pour une grosse relecture documentaire, un oubli, un changement de workflow ou une documentation structurante.
 - DEC-001 Titan est prioritaire.
 - DEC-002 availability s'applique si disponibilite/periode/reservation est concernee.
 - Titan autorise uniquement : material, article, material_pack.
@@ -139,6 +145,7 @@ Travail demande :
 3. Proposer un plan court.
 4. Attendre approbation explicite avant modification si demande.
 5. Implementer uniquement la portee approuvee.
+6. Mettre a jour la documentation utile dans la meme PR quand c'est raisonnable.
 
 Validations attendues :
 - git branch --show-current
@@ -156,6 +163,7 @@ Rapport final attendu :
 - branche active
 - fichiers crees
 - fichiers modifies
+- documentation mise a jour ou justification si aucune mise a jour documentaire n'etait necessaire
 - confirmations de non-regression de portee
 - validations executees et resultats
 - points a valider avant commit

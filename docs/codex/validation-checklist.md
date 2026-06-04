@@ -11,6 +11,8 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 - [ ] Confirm implementation started only after explicit approval.
 - [ ] Confirm implementation followed `IMPLEMENT APPROVED PLAN`.
 - [ ] Confirm no files outside the approved scope were changed.
+- [ ] Confirm useful documentation updates were included in the same PR when necessary and reasonable.
+- [ ] Confirm any separate documentation PR is justified by a large documentation review, a missed update, a workflow decision change, or a structural runbook/matrix/documentation change.
 - [ ] Confirm no `git add`, commit or push was executed.
 
 ## Git and scope

@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F46 - Nettoyage documentaire apres F45**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F47 - Formaliser le workflow documentaire integre**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -259,7 +259,9 @@ F44 terminee : nettoyage documentaire de statut post-merge F43 et clarification 
 
 F45 terminee : documentation de la matrice de sante Foundation pour clarifier `/healthz/`, `/readyz/`, les checks PostgreSQL et Redis existants, les controles futurs non implementes et les exclusions de scope, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
-F46 en cours : nettoyage documentaire de statut apres F45, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+F46 terminee : nettoyage documentaire de statut apres F45, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+
+F47 en cours : formalisation du workflow documentaire integre pour inclure les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable, et reserver les PR documentaires separees aux besoins reels comme une grosse relecture documentaire, un oubli, un changement de workflow ou une documentation structurante. F47 ne cree aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
 ### Objectifs futurs
 
