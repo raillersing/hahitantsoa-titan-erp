@@ -277,6 +277,12 @@ Le wrapper :
 
 Ne jamais utiliser ce wrapper pour lancer une commande qui affiche `.env`, mots de passe, tokens ou secrets. Les logs sont locaux, destines au developpement, et `logs/` est ignore par Git.
 
+## Matrice de sante Foundation
+
+La strategie Foundation des controles `/healthz/`, `/readyz/`, PostgreSQL, Redis et Docker Compose est documentee dans [health-readiness-matrix.md](health-readiness-matrix.md).
+
+Utiliser `scripts/dev/erp-logged-run` pour les validations locales importantes ou longues liees a cette matrice, sans jamais logger `.env`, mots de passe, tokens ou secrets.
+
 ## Structure des packages de domaines backend
 
 F13 ajoute uniquement une structure de packages Python preparatoires sous `backend/apps/`.
