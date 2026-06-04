@@ -130,3 +130,49 @@ Kinds autorises :
 La periode doit respecter `end_at > start_at` et reste interpretee comme un intervalle demi-ouvert `[start_at, end_at)`.
 
 F36 ne cree aucune reservation. F36 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.
+
+## Reservation availability validation
+
+F37 ajoute `availability.py` comme helper interne pour valider une future demande de reservation item + periode et verifier sa disponibilite.
+
+Dataclasses exposees :
+
+- `ReservationItemAvailabilityDetails` ;
+- `ReservationItemAvailabilityValidation`.
+
+Fonction exposee :
+
+- `validate_reservation_item_availability_request(inventory_item, inventory_item_kind, start_at, end_at)`.
+
+Cette validation combine :
+
+- `validate_reservation_item_request` pour valider le kind reservable et la periode ;
+- `get_inventory_availability_conflicts` pour lire les conflits `InventoryAvailability` existants.
+
+Le helper retourne :
+
+- `valid` ;
+- `available` ;
+- `errors` ;
+- `inventory_unit_count` ;
+- `details`.
+
+`inventory_unit_count` reste `None` en F37, car aucun champ quantite, unite ou stock n'existe encore sur `InventoryItem`.
+
+Le helper lit la DB uniquement pour verifier les conflits de disponibilite. Il ne cree aucune reservation et n'ecrit jamais en DB.
+
+Kinds reservables :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan exclut toujours :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F37 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.

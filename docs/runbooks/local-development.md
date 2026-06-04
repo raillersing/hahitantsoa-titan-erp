@@ -1700,6 +1700,85 @@ docker compose --env-file .env down
 
 F36 ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, fixture, commande management, service metier complet, module complet de reservation, contrat, facture, paiement, client ou frontend.
 
+## Validation disponibilite reservations
+
+F37 ajoute `backend/apps/reservations/availability.py` comme helper backend interne pour valider une future demande de reservation item + periode et lire les conflits `InventoryAvailability` existants.
+
+Verifier la structure du package :
+
+```sh
+find backend/apps/reservations -maxdepth 2 -type f | sort
+find tests/backend -maxdepth 1 -type f | sort
+```
+
+Verifier qu'aucun fichier applicatif interdit n'a ete cree dans `reservations` :
+
+```sh
+find backend/apps/reservations \
+  \( -name "models.py" \
+     -o -name "serializers.py" \
+     -o -name "views.py" \
+     -o -name "viewsets.py" \
+     -o -name "urls.py" \
+     -o -name "admin.py" \
+     -o -path "*/migrations/*" \
+     -o -path "*/management/*" \) \
+  -type f -print | sort
+```
+
+Verifier qu'aucune migration n'est necessaire :
+
+```sh
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+```
+
+Executer les controles locaux :
+
+```sh
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_availability.py
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_validation.py
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_periods.py
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_scope.py
+set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
+set -a && source .env && set +a && .venv/bin/python -m pytest
+```
+
+Executer Django check et pytest dans un conteneur backend temporaire si la DB locale hors Docker ne resout pas le host Compose :
+
+```sh
+docker compose --env-file .env up -d db
+docker compose --env-file .env run --rm \
+  -v "$PWD:/app" \
+  backend \
+  sh -lc '
+    python -m pip install --no-cache-dir pytest pytest-django &&
+    python backend/manage.py makemigrations reservations --check --dry-run &&
+    python backend/manage.py makemigrations --check --dry-run &&
+    python backend/manage.py check &&
+    python -m pytest tests/backend/test_reservations_availability.py &&
+    python -m pytest tests/backend/test_reservations_validation.py &&
+    python -m pytest tests/backend/test_reservations_periods.py &&
+    python -m pytest tests/backend/test_reservations_scope.py &&
+    python -m pytest tests/backend/test_inventory_availability_queries.py &&
+    python -m pytest
+  '
+```
+
+Relancer le backend et verifier readiness si le backend est demarre :
+
+```sh
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db backend --force-recreate
+curl -i http://127.0.0.1:8000/readyz/
+docker compose --env-file .env down
+```
+
+F37 ne cree aucune reservation persistante, n'ecrit jamais en DB et ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, fixture, commande management, service metier complet, module complet de reservation, contrat, facture, paiement, client ou frontend.
+
 ## Workflow prompts Codex
 
 OP1 ajoute une couche documentaire pour reduire les prompts repetitifs Codex tout en conservant les validations strictes.

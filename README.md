@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **OP1 optimisation des prompts Codex en cours**.
+Statut actuel : **F37 validation disponibilite reservations en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -153,6 +153,17 @@ OP1-b formalise le workflow Codex en deux temps :
 2. `IMPLEMENT APPROVED PLAN` : appliquer uniquement le plan approuve, executer les validations pertinentes et produire le rapport final.
 
 Ce workflow vise les taches sensibles, structurantes ou explicitement soumises a approbation.
+
+F37 ajoute un helper backend interne de validation de disponibilite pour une future demande de reservation item + periode.
+
+Ce helper combine :
+
+- la validation F36 du kind reservable et de la periode ;
+- les helpers internes F30 `InventoryAvailability` pour lire les conflits existants.
+
+F37 lit la DB uniquement pour verifier les conflits de disponibilite, ne cree aucune reservation persistante, n'ecrit jamais en DB et laisse `inventory_unit_count` a `None` tant qu'aucun champ quantite/unite/stock n'est valide sur `InventoryItem`.
+
+F37 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
