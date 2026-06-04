@@ -100,7 +100,7 @@ Le service Compose `backend` dispose d'un healthcheck interne base sur `/healthz
 
 L'image backend locale installe aussi les dependances de developpement Python declarees dans `pyproject.toml` et embarque le dossier `tests/`.
 
-Apres build et demarrage de `db` + `backend`, la commande officielle de test backend Docker est :
+Apres build et demarrage de `db` + `redis` + `backend`, la commande officielle de test backend Docker est :
 
 ```sh
 docker compose exec backend python -m pytest tests/backend -q
