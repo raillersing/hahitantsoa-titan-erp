@@ -403,6 +403,16 @@ La preview compose uniquement `validate_reservation_item_availability_request` e
 
 F38 ne fait aucun calcul commercial, n'ecrit jamais en DB, ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, contrat, facture, paiement, client ou frontend.
 
+F40 ajoute `backend/apps/reservations/services.py`.
+
+Ce module fournit une couche service interne mince pour orchestrer la preview de reservation item :
+
+- `preview_reservation_item_service`.
+
+Le service delegue a `preview_reservation_item_request` et ne duplique pas la logique F38. Il ne cree aucune reservation persistante, n'ecrit jamais en DB et ne cree aucun endpoint API.
+
+F40 ne cree aucun modele, migration, serializer, view, URL, admin, contrat, facture, paiement, client ou frontend.
+
 F35 ajoute `backend/apps/reservations/periods.py`.
 
 Ce module fournit un value object immuable `ReservationPeriod` et des helpers purs Python pour valider les futures periodes de reservation, sans acces DB :

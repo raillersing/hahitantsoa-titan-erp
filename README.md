@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F39 environnement Docker backend de test en cours**.
+Statut actuel : **F40 couche service preview reservation en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -184,6 +184,12 @@ docker compose exec backend python -m pytest tests/backend -q
 ```
 
 Le backend continue de demarrer avec Django `runserver` via `docker compose up -d`. F39 ne modifie aucune logique metier, aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend.
+
+F40 ajoute une couche service interne de preview de reservation item.
+
+Le service `preview_reservation_item_service` orchestre la preview F38 sans dupliquer la logique, sans double lecture DB et sans ecriture DB. Il ne cree aucune reservation persistante et ne cree aucun endpoint API.
+
+F40 ne modifie aucune logique metier inventory, availability ou preview. F40 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou workflow commercial complet.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
