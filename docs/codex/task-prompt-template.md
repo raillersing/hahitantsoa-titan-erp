@@ -145,7 +145,7 @@ Validations attendues :
 - git status --short
 - git diff --name-status
 - verification des fichiers interdits
-- utiliser scripts/dev/erp-logged-run pour les validations longues ou importantes si pertinent
+- utiliser scripts/dev/erp-logged-run comme workflow standard pour les validations longues ou importantes si pertinent
 - ruff format/check si Python modifie
 - tests cibles si code modifie
 - makemigrations <app> --check --dry-run si modeles/apps Django concernes

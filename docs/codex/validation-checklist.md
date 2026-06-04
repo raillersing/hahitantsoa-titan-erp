@@ -15,7 +15,7 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 
 ## Git and scope
 
-- [ ] Use the logged terminal wrapper for long or important local validations when useful:
+- [ ] Use the logged terminal wrapper as the standard workflow for long or important local validations; trivial one-off commands may still run directly:
 
   ```sh
   scripts/dev/erp-logged-run <task-name> <<'EOF'
