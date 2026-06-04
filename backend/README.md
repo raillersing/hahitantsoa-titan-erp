@@ -74,6 +74,8 @@ En cas d'indisponibilite PostgreSQL ou Redis, il retourne `503` sans exposer l'e
 
 Le check Redis F41 utilise une verification minimale via la stdlib Python et ne depend pas d'un client Python Redis. Aucune logique metier Hahitantsoa/Titan n'est executee par `/readyz/`.
 
+La matrice de sante Foundation detaillee est documentee dans [docs/runbooks/health-readiness-matrix.md](../docs/runbooks/health-readiness-matrix.md).
+
 ## Service Docker Compose backend
 
 F9 ajoute un service `backend` Docker Compose pour le developpement local.
