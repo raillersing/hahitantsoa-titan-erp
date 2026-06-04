@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **OP1 - Codex prompt optimization layer**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F37 - Reservation availability validation helper**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -240,6 +240,8 @@ F36 terminee : helper pur Python de validation d'une future demande de reservati
 OP1 en cours : couche documentaire d'optimisation des prompts Codex avec template de tache, politique de reasoning et checklist de validation, sans modification de code applicatif backend, sans modele, migration, serializer, view, URL, endpoint, admin ou frontend.
 
 OP1-b en cours : formalisation du workflow Codex en deux temps `PLAN ONLY` puis `IMPLEMENT APPROVED PLAN`, pour separer l'analyse approuvee de l'execution controlee, sans modification de code applicatif backend, sans modele, migration, serializer, view, URL, endpoint, admin ou frontend.
+
+F37 en cours : helper backend interne de validation de disponibilite d'une future demande de reservation item + periode, combinant F36 et les helpers `InventoryAvailability` F30 en lecture seule, sans reservation persistante, sans ecriture DB, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou service metier complet.
 
 ### Objectifs futurs
 

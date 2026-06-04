@@ -278,6 +278,10 @@ Ainsi, une periode qui se termine exactement au debut de la demande ne bloque pa
 
 Les statuts `blocked` et `reserved` rendent un item indisponible.
 
+F37 consomme ces helpers depuis `apps.reservations` pour valider en lecture seule la disponibilite d'une future demande de reservation.
+
+Cette consommation ne modifie pas `inventory`, ne cree aucun endpoint d'ecriture et ne change pas l'API inventory read-only.
+
 F30 ne cree pas de reservation complete, contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier. L'API inventory reste read-only.
 
 ## Smoke test seed demo + disponibilite

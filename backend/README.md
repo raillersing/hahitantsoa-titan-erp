@@ -361,6 +361,22 @@ Il combine :
 
 Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
 
+F37 ajoute `backend/apps/reservations/availability.py`.
+
+Ce helper interne valide une future demande de reservation item + periode puis lit les conflits `InventoryAvailability` existants via les helpers inventory F30.
+
+Il retourne une dataclass immuable avec :
+
+- `valid` ;
+- `available` ;
+- `errors` ;
+- `inventory_unit_count` ;
+- `details`.
+
+`inventory_unit_count` reste `None` en F37 car `InventoryItem` ne contient pas encore de champ quantite, unite ou stock valide.
+
+F37 ne cree aucune reservation persistante, n'ecrit jamais en DB, ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, contrat, facture, paiement, client ou frontend.
+
 F35 ajoute `backend/apps/reservations/periods.py`.
 
 Ce module fournit un value object immuable `ReservationPeriod` et des helpers purs Python pour valider les futures periodes de reservation, sans acces DB :
