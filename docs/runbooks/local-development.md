@@ -289,6 +289,100 @@ La strategie Foundation des controles `/healthz/`, `/readyz/`, PostgreSQL, Redis
 
 Utiliser `scripts/dev/erp-logged-run` pour les validations locales importantes ou longues liees a cette matrice, sans jamais logger `.env`, mots de passe, tokens ou secrets.
 
+## Smoke test Foundation local
+
+Ce smoke test documente le scenario minimal de validation locale de la Foundation. Il verifie que Docker Compose demarre les dependances techniques, que le backend repond au liveness `/healthz/`, que le readiness `/readyz/` voit PostgreSQL et Redis, et que Django passe son system check.
+
+F48 cadre ce scenario mais ne l'automatise pas. Elle ne cree aucun script executable, aucune CI et aucun changement technique.
+
+Preconditions :
+
+- se placer a la racine du repository ;
+- disposer d'un `.env` local valide, sans jamais l'afficher dans les logs ;
+- avoir Docker et Docker Compose disponibles ;
+- garder `scripts/dev/erp-logged-run` pour conserver la sortie complete de validation ;
+- ne jamais lancer de commande qui affiche `.env`, mots de passe, tokens, cles API ou secrets.
+
+Commande documentee :
+
+```sh
+scripts/dev/erp-logged-run foundation-smoke-local <<'EOF'
+echo "============================================================"
+echo "1. BUILD BACKEND"
+echo "============================================================"
+docker compose --env-file .env build backend
+
+echo
+echo "============================================================"
+echo "2. DEMARRAGE DB REDIS BACKEND"
+echo "============================================================"
+docker compose --env-file .env up -d db redis backend
+
+echo
+echo "============================================================"
+echo "3. ETAT COMPOSE"
+echo "============================================================"
+docker compose --env-file .env ps
+
+echo
+echo "============================================================"
+echo "4. ATTENTE BACKEND HEALTHY"
+echo "============================================================"
+for i in $(seq 1 30); do
+  BACKEND_CONTAINER_ID="$(docker compose --env-file .env ps -q backend)"
+  BACKEND_HEALTH_STATUS="$(docker inspect "$BACKEND_CONTAINER_ID" --format "{{.State.Health.Status}}" 2>/dev/null || echo "unknown")"
+
+  echo "Tentative $i : backend health = $BACKEND_HEALTH_STATUS"
+
+  if [ "$BACKEND_HEALTH_STATUS" = "healthy" ]; then
+    echo "OK : backend est healthy."
+    break
+  fi
+
+  sleep 2
+done
+
+echo
+echo "============================================================"
+echo "5. HEALTHZ"
+echo "============================================================"
+curl -i http://127.0.0.1:8000/healthz/
+
+echo
+echo "============================================================"
+echo "6. READYZ"
+echo "============================================================"
+curl -i http://127.0.0.1:8000/readyz/
+
+echo
+echo "============================================================"
+echo "7. DJANGO CHECK"
+echo "============================================================"
+docker compose --env-file .env exec backend python backend/manage.py check
+EOF
+```
+
+Resultats attendus :
+
+- `docker compose ps` affiche `db`, `redis` et `backend` demarres ;
+- le backend finit par passer `healthy` ;
+- `/healthz/` retourne `200` avec `{"status": "ok"}` ;
+- `/readyz/` retourne `200` avec `{"status": "ready", "checks": {"database": "ok", "redis": "ok"}}` ;
+- `backend/manage.py check` indique qu'aucun probleme systeme Django n'est detecte.
+
+Erreurs courantes non sensibles :
+
+- backend encore `starting` : attendre quelques secondes puis relancer le check ;
+- `/readyz/` en `503` : verifier que `db` et `redis` sont demarres et healthy ;
+- port `8000` indisponible : verifier qu'aucun autre service local n'utilise ce port ;
+- erreur Django check : lire le message technique sans afficher de secret ou de fichier `.env`.
+
+Arreter les services lorsque la validation locale est terminee :
+
+```sh
+docker compose --env-file .env down
+```
+
 ## Structure des packages de domaines backend
 
 F13 ajoute uniquement une structure de packages Python preparatoires sous `backend/apps/`.

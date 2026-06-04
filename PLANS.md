@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F47 - Formaliser le workflow documentaire integre**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F48 - Cadrer le smoke test Foundation local**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -261,7 +261,9 @@ F45 terminee : documentation de la matrice de sante Foundation pour clarifier `/
 
 F46 terminee : nettoyage documentaire de statut apres F45, sans code backend, sans test backend, sans Dockerfile, sans Compose, sans `.env.example`, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
 
-F47 en cours : formalisation du workflow documentaire integre pour inclure les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable, et reserver les PR documentaires separees aux besoins reels comme une grosse relecture documentaire, un oubli, un changement de workflow ou une documentation structurante. F47 ne cree aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+F47 terminee : formalisation du workflow documentaire integre pour inclure les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable, et reserver les PR documentaires separees aux besoins reels comme une grosse relecture documentaire, un oubli, un changement de workflow ou une documentation structurante. F47 ne cree aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement ou client.
+
+F48 en cours : cadrage documentaire du smoke test Foundation local pour valider le demarrage Docker Compose, le liveness `/healthz/`, le readiness PostgreSQL + Redis `/readyz/`, le Django system check et les controles de non-exposition des secrets. F48 ne cree aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, CI ou script executable.
 
 ### Objectifs futurs
 
