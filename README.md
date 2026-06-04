@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F43 terminal validation log workflow en cours**.
+Statut actuel : **F44 nettoyage documentaire en cours apres F43**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -203,7 +203,7 @@ F41 n'ajoute pas de dependance Python Redis. Le check Redis utilise une verifica
 
 F42 a nettoye les statuts documentaires apres la validation post-merge de F41. F42 ne modifie aucun code backend, test, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin ou frontend.
 
-F43 standardise le workflow local de logs terminal pour les validations importantes. Le script `scripts/dev/erp-logged-run` enregistre les sorties dans `logs/terminal/`, affiche la sortie via `tee`, copie le log vers le presse-papiers Windows si `clip.exe` est disponible, et propage le code retour de la commande executee.
+F43 a standardise le workflow local de logs terminal pour les validations importantes. Le script `scripts/dev/erp-logged-run` enregistre les sorties dans `logs/terminal/`, affiche la sortie via `tee`, copie le log vers le presse-papiers Windows si `clip.exe` est disponible, et propage le code retour de la commande executee.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 

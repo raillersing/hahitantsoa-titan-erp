@@ -258,7 +258,7 @@ Cette tache ne modifie aucun code backend, test, Dockerfile, Compose, `.env.exam
 
 ## Logs terminal locaux pour validations
 
-F43 standardise un wrapper local/dev pour conserver les sorties completes des validations importantes :
+F43 standardise `scripts/dev/erp-logged-run` comme workflow local/dev pour conserver les sorties completes des validations importantes ou longues. Les commandes triviales peuvent rester lancees directement lorsque le log complet n'apporte pas de valeur.
 
 ```sh
 scripts/dev/erp-logged-run nom-de-tache <<'EOF'
