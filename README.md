@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F37 validation disponibilite reservations en cours**.
+Statut actuel : **F38 preview reservation item en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -164,6 +164,16 @@ Ce helper combine :
 F37 lit la DB uniquement pour verifier les conflits de disponibilite, ne cree aucune reservation persistante, n'ecrit jamais en DB et laisse `inventory_unit_count` a `None` tant qu'aucun champ quantite/unite/stock n'est valide sur `InventoryItem`.
 
 F37 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
+
+F38 ajoute un value object interne de preview d'une future demande de reservation item.
+
+Cette preview compose le helper F37 `validate_reservation_item_availability_request` et expose un statut interne :
+
+- `invalid` ;
+- `unavailable` ;
+- `available`.
+
+F38 ne fait aucun calcul commercial, ne cree aucun devis, n'ecrit jamais en DB et ne cree aucune reservation persistante. F38 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 

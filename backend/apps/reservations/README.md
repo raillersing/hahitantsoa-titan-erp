@@ -176,3 +176,41 @@ Titan exclut toujours :
 - service evenementiel.
 
 F37 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.
+
+## Reservation item preview
+
+F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.
+
+Objets exposes :
+
+- `ReservationItemPreviewStatus` ;
+- `ReservationItemPreview` ;
+- `preview_reservation_item_request`.
+
+Les statuts possibles sont :
+
+- `invalid` ;
+- `unavailable` ;
+- `available`.
+
+La preview compose uniquement le helper F37 `validate_reservation_item_availability_request`. Elle n'appelle pas directement les helpers inventory de conflits et ne double pas la lecture DB.
+
+`period` vaut `None` lorsque la validation F37 echoue. `conflicts` vaut `()` lorsque F37 ne retourne pas de details. `inventory_unit_count` reste `None` tant qu'aucun champ quantite, unite ou stock n'existe sur `InventoryItem`.
+
+F38 ne cree aucune reservation persistante, n'ecrit jamais en DB, ne fait aucun calcul commercial et ne cree aucun devis.
+
+Titan reste strictement limite a :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Titan exclut toujours :
+
+- local ;
+- salle ;
+- lieu ;
+- service annexe ;
+- service evenementiel.
+
+F38 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.

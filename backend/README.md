@@ -377,6 +377,22 @@ Il retourne une dataclass immuable avec :
 
 F37 ne cree aucune reservation persistante, n'ecrit jamais en DB, ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, contrat, facture, paiement, client ou frontend.
 
+F38 ajoute `backend/apps/reservations/preview.py`.
+
+Ce module fournit un value object interne `ReservationItemPreview` pour preparer une future demande de reservation item sans creer de reservation persistante.
+
+Le helper expose :
+
+- `preview_reservation_item_request`.
+
+La preview compose uniquement `validate_reservation_item_availability_request` et expose un statut interne :
+
+- `invalid` ;
+- `unavailable` ;
+- `available`.
+
+F38 ne fait aucun calcul commercial, n'ecrit jamais en DB, ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, contrat, facture, paiement, client ou frontend.
+
 F35 ajoute `backend/apps/reservations/periods.py`.
 
 Ce module fournit un value object immuable `ReservationPeriod` et des helpers purs Python pour valider les futures periodes de reservation, sans acces DB :
