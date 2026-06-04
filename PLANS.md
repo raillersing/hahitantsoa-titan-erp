@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F38 - Reservation preview value object**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F39 - Backend Docker test environment**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -243,7 +243,9 @@ OP1-b en cours : formalisation du workflow Codex en deux temps `PLAN ONLY` puis 
 
 F37 terminee : helper backend interne de validation de disponibilite d'une future demande de reservation item + periode, combinant F36 et les helpers `InventoryAvailability` F30 en lecture seule, sans reservation persistante, sans ecriture DB, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou service metier complet.
 
-F38 en cours : value object interne de preview d'une future demande de reservation item, compose F37 sans double requete DB et sans ecriture DB, sans calcul commercial, sans reservation persistante, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou service metier complet.
+F38 terminee : value object interne de preview d'une future demande de reservation item, compose F37 sans double requete DB et sans ecriture DB, sans calcul commercial, sans reservation persistante, sans modele, migration, serializer, view, URL, endpoint, admin, frontend, contrat, facture, paiement, client ou service metier complet.
+
+F39 en cours : standardisation de l'environnement Docker backend pour executer les tests backend reproductiblement, avec dependances dev installees dans l'image locale et dossier `tests/` disponible dans le conteneur, sans changement de logique metier, sans modele, migration, serializer, view, URL, endpoint, admin ou frontend.
 
 ### Objectifs futurs
 
