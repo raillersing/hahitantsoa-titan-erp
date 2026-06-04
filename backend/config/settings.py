@@ -73,6 +73,10 @@ DATABASES = {
     }
 }
 
+REDIS_HOST = get_env("REDIS_HOST", "redis")
+REDIS_PORT = int(get_env("REDIS_PORT", "6379"))
+REDIS_PASSWORD = get_env("REDIS_PASSWORD")
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",

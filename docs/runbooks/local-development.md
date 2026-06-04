@@ -1940,16 +1940,16 @@ OP1 est documentaire. Aucun test lourd n'est requis sauf si un formatteur Markdo
 
 OP1 ne cree aucun modele, migration, serializer, view, URL, endpoint API, endpoint d'ecriture, viewset, router, admin, JWT/token, role metier, groupe metier, permission custom, frontend ou code applicatif backend.
 
-## Readiness PostgreSQL backend
+## Readiness PostgreSQL et Redis backend
 
-F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal.
+F12 ajoute `GET /readyz/` comme readiness check PostgreSQL minimal. F41 etend ce readiness check a Redis.
 
-`/healthz/` reste un liveness check sans acces base de donnees. `/readyz/` verifie uniquement PostgreSQL. Redis n'est pas encore couvert par `/readyz/`.
+`/healthz/` reste un liveness check sans acces base de donnees ou Redis. `/readyz/` verifie PostgreSQL et Redis.
 
-Demarrer PostgreSQL et le backend local :
+Demarrer PostgreSQL, Redis et le backend local :
 
 ```sh
-docker compose --env-file .env up -d db backend
+docker compose --env-file .env up -d db redis backend
 ```
 
 Verifier l'etat des services et attendre le backend `healthy` :
@@ -1958,10 +1958,16 @@ Verifier l'etat des services et attendre le backend `healthy` :
 docker compose --env-file .env ps
 ```
 
-Tester le readiness check PostgreSQL minimal :
+Tester le readiness check PostgreSQL + Redis :
 
 ```sh
 curl -i http://127.0.0.1:8000/readyz/
+```
+
+Lancer les tests du readiness endpoint :
+
+```sh
+docker compose --env-file .env exec backend python -m pytest tests/backend/test_health_endpoint.py -q
 ```
 
 Arreter les services Compose locaux :
