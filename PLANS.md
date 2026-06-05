@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F51 - Reservations available items selector interne**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F52 - Reservations available items options service**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -269,7 +269,9 @@ F49 terminee : validation operationnelle du smoke test Foundation local document
 
 F50 terminee : selector interne inventory availability pour retourner les `InventoryItem` actifs, non supprimes, conformes Titan et disponibles sur une periode `[start_at, end_at)`, sans conflit `blocked` ou `reserved`. F50 ne cree aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite ou ecriture DB.
 
-F51 en cours : selector interne reservations pour lister les items Titan disponibles pour une future reservation en composant le selector inventory F50, sans dupliquer la logique d'overlap `InventoryAvailability`. F51 ne cree aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite ou ecriture DB.
+F51 terminee : selector interne reservations pour lister les items Titan disponibles pour une future reservation en composant le selector inventory F50, sans dupliquer la logique d'overlap `InventoryAvailability`. F51 ne cree aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite ou ecriture DB.
+
+F52 en cours : service interne reservations pour preparer une liste structuree d'items Titan disponibles sur une periode en composant le selector F51. F52 materialise les items en tuple, expose un compteur et reste read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
 ### Objectifs futurs
 

@@ -340,6 +340,14 @@ Le selector `get_available_reservation_inventory_items_for_period` valide la per
 
 Il ne duplique pas la logique d'overlap `InventoryAvailability`, reste read-only et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock ou quantite.
 
+## Reservations available items options service
+
+F52 ajoute un service interne dans `backend/apps/reservations/services.py`.
+
+Le service `get_reservation_available_items_options_service` valide la periode reservations, delegue au selector F51 et retourne une structure `ReservationAvailableItemsOptions` contenant la periode, les items disponibles materialises en tuple et leur compteur.
+
+La logique d'overlap reste centralisee dans inventory/F50. F52 reste read-only et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.

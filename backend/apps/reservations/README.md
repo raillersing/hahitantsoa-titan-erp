@@ -210,6 +210,30 @@ Elle retourne directement le `QuerySet[InventoryItem]` du selector inventory. El
 
 F51 reste read-only. Elle ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite ou ecriture DB.
 
+## Reservation available items options service
+
+F52 ajoute un service interne dans `services.py` pour preparer une liste structuree d'items Titan disponibles pour une future reservation.
+
+Dataclass exposee :
+
+- `ReservationAvailableItemsOptions`.
+
+Champs exposes :
+
+- `period` ;
+- `items` ;
+- `count`.
+
+Fonction exposee :
+
+- `get_reservation_available_items_options_service`.
+
+La fonction valide la periode avec `make_reservation_period`, delegue au selector F51 `get_available_reservation_inventory_items_for_period`, materialise le resultat en `tuple[InventoryItem, ...]` et expose `count = len(items)`.
+
+La logique d'overlap `InventoryAvailability` reste dans inventory/F50. F52 ne l'implemente pas et n'appelle pas directement le selector inventory.
+
+F52 reste read-only. Elle ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.
