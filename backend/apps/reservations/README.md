@@ -361,6 +361,34 @@ Les tests existants couvrent ces garde-fous :
 
 F60 ne cree pas de test doublon. F60 ne change aucun comportement metier et ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
+## Reservation availability summary API
+
+F61 ajoute la premiere surface API reservations explicitement autorisee.
+
+Endpoint expose :
+
+- `GET /api/v1/reservations/availability-summary/`
+
+Fichiers API autorises uniquement pour cet endpoint read-only :
+
+- `serializers.py` ;
+- `views.py` ;
+- `urls.py`.
+
+L'endpoint exige une session authentifiee, valide `start_at` et `end_at` comme datetimes ISO timezone-aware, puis appelle `get_reservation_availability_summary_service`.
+
+La reponse reste volontairement minimale :
+
+- `start_at` ;
+- `end_at` ;
+- `available_item_count` ;
+- `available_preview_count` ;
+- `available_item_kinds`.
+
+F61 ne cree aucun `models.py`, aucun `admin.py`, aucun dossier `migrations/`, aucune reservation persistante et aucune API d'ecriture.
+
+F61 ne cree aucun contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation, logique Titan local/salle/venue/room/hall/service/event-service ou workflow commercial.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

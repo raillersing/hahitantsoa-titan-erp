@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F60 - MVP API/frontend roadmap + reservations guard documentation**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F61 - MVP read-only availability API + frontend inventory bootstrap**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -287,7 +287,7 @@ F58 terminee : tests de contrat public interne pour les services reservations, c
 
 F59 terminee : durcissement des tests de contrat interne reservations pour verifier l'immutabilite et la structure stable des dataclasses publiques, puis coherence du resume de disponibilite avec les options et previews disponibles. F59 reste test-only et documentaire, sans changement de comportement metier, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
 
-F60 en cours : clarification documentaire de la trajectoire MVP API/frontend et des garde-fous reservations existants. F60 est documentaire uniquement, sans changement de comportement applicatif, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation ou ecriture DB metier.
+F60 terminee : clarification documentaire de la trajectoire MVP API/frontend et des garde-fous reservations existants. F60 est documentaire uniquement, sans changement de comportement applicatif, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation ou ecriture DB metier.
 
 Trajectoire MVP envisagee apres F60 :
 
@@ -298,6 +298,8 @@ Trajectoire MVP envisagee apres F60 :
 - F65 : affiner le parcours de demo locale, les notes UX et le runbook MVP.
 
 Cette trajectoire n'autorise pas de contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation, logique Titan local/salle/venue/room/hall/service/event-service, ni API d'ecriture sans autorisation explicite.
+
+F61 en cours : premiere API read-only reservations explicitement autorisee avec `GET /api/v1/reservations/availability-summary/`, plus bootstrap frontend React/Vite/TypeScript consommant l'API inventory read-only existante. F61 ne cree aucun modele reservations, aucune migration reservations, aucun admin, aucune API d'ecriture, aucune reservation persistante, aucun workflow frontend de reservation, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
 
 ### Objectifs futurs
 

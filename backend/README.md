@@ -412,6 +412,36 @@ La prochaine exposition API read-only devra etre definie et autorisee explicitem
 
 F60 ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation ou ecriture DB metier.
 
+## Reservations availability summary API
+
+F61 ajoute le premier endpoint read-only reservations explicitement autorise :
+
+- `GET /api/v1/reservations/availability-summary/`
+
+L'endpoint exige une session authentifiee et accepte uniquement les query params `start_at` et `end_at` en datetimes ISO timezone-aware.
+
+La reponse expose uniquement :
+
+- `start_at` ;
+- `end_at` ;
+- `available_item_count` ;
+- `available_preview_count` ;
+- `available_item_kinds`.
+
+L'endpoint compose le service interne `get_reservation_availability_summary_service`. Il ne cree aucune reservation, n'ecrit jamais en DB, n'expose pas les details d'items et refuse les methodes d'ecriture.
+
+F61 ne cree aucun modele reservations, aucune migration reservations, aucun admin, aucune reservation persistante, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
+
+## Frontend MVP bootstrap
+
+F61 ajoute aussi un bootstrap frontend React/Vite/TypeScript sous `frontend/`.
+
+La premiere page consomme uniquement l'API inventory read-only existante :
+
+- `GET /api/v1/inventory/items/`
+
+Le frontend utilise `credentials: "include"` et suppose que le developpeur local s'est connecte au backend via `/api-auth/login/`. Aucun workflow frontend de login, reservation ou commerce n'est cree.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.

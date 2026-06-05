@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F60 MVP API/frontend roadmap + reservations guard documentation en cours**.
+Statut actuel : **F61 MVP read-only availability API + frontend inventory bootstrap en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -261,7 +261,17 @@ Cette trajectoire n'autorise pas de contrat, facture, paiement, client, stock, q
 
 F60 ne change aucun comportement applicatif et ne cree aucune API, modele, migration, serializer, view, URL, admin, frontend, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB metier.
 
-Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
+F61 ajoute la premiere surface API read-only reservations explicitement autorisee :
+
+- `GET /api/v1/reservations/availability-summary/`
+
+Cet endpoint authentifie retourne uniquement un resume de disponibilite pour une periode : bornes, nombre d'items disponibles, nombre de previews disponibles et kinds disponibles. Il ne cree aucune reservation, n'ecrit jamais en DB et n'expose pas de detail d'item.
+
+F61 ajoute aussi le premier bootstrap frontend React/Vite/TypeScript. La page initiale consomme uniquement l'API inventory read-only existante `GET /api/v1/inventory/items/` avec la session Django locale existante.
+
+F61 ne cree aucun modele reservations, aucune migration reservations, aucun admin, aucune API d'ecriture, aucune reservation persistante, aucun workflow frontend de reservation, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
+
+Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React F61 reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 

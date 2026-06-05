@@ -210,13 +210,18 @@ def test_reservations_domain_does_not_expose_api_files_or_business_migrations() 
     reservations_app_path = Path("backend/apps/reservations")
     forbidden_api_files = (
         "models.py",
+        "admin.py",
+    )
+    allowed_read_only_api_files = (
         "serializers.py",
         "views.py",
         "urls.py",
-        "admin.py",
     )
 
     assert all(
         not (reservations_app_path / file_name).exists() for file_name in forbidden_api_files
+    )
+    assert all(
+        (reservations_app_path / file_name).exists() for file_name in allowed_read_only_api_files
     )
     assert not (reservations_app_path / "migrations").exists()
