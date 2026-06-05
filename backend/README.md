@@ -372,6 +372,14 @@ Ces tests verifient que les services refusent les bornes naives, refusent `end_a
 
 F55 reste interne et read-only. F55 ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
 
+## Reservations availability summary service
+
+F56 ajoute `get_reservation_availability_summary_service` dans `backend/apps/reservations/services.py`.
+
+Ce service interne compose le service d'options disponibles F52 et le service batch de previews F54 pour retourner un resume de disponibilite : periode, nombre d'items disponibles, nombre de previews disponibles et kinds disponibles.
+
+F56 reste read-only. F56 ne cree aucun compteur par kind, reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.

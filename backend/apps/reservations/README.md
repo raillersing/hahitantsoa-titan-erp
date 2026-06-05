@@ -285,6 +285,22 @@ Les services doivent refuser les bornes naives, refuser `end_at <= start_at`, re
 
 F55 ne cree pas de service de resume de disponibilite. F55 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
 
+## Reservation availability summary service
+
+F56 ajoute un service interne de resume de disponibilite reservations.
+
+Dataclass exposee :
+
+- `ReservationAvailabilitySummary`.
+
+Fonction exposee :
+
+- `get_reservation_availability_summary_service`.
+
+Le service compose `get_reservation_available_items_options_service` et `get_reservation_available_item_previews_service`. Il expose la periode, le nombre d'items disponibles, le nombre de previews disponibles et les kinds disponibles dans l'ordre stable herite de F55.
+
+F56 ne cree pas de compteur par kind. F56 reste interne et read-only. F56 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

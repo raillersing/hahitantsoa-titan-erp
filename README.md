@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F55 reservations service time rules and ordering en cours**.
+Statut actuel : **F56 reservations availability summary service en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -227,9 +227,13 @@ F53 ajoute des tests de coherence entre les services reservations F40 et F52. Ce
 
 F54 a ajoute un service interne batch qui genere les previews des items disponibles en s'appuyant sur F52 et F40. F54 ajoute aussi des tests de garde-fou Titan scope sur les services reservations. Cela reste interne, read-only, sans API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
 
-F55 ajoute des tests de robustesse temporelle et d'ordre deterministe pour les services reservations disponibles. Les services doivent respecter les periodes timezone-aware, les intervalles demi-ouverts `[start_at, end_at)` et retourner les items disponibles dans un ordre stable.
+F55 a ajoute des tests de robustesse temporelle et d'ordre deterministe pour les services reservations disponibles. Les services doivent respecter les periodes timezone-aware, les intervalles demi-ouverts `[start_at, end_at)` et retourner les items disponibles dans un ordre stable.
 
 F55 ne cree aucun service de resume de disponibilite, aucune API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
+
+F56 ajoute un service interne de resume de disponibilite reservations base sur les services F52 et F54. Ce resume expose la periode, le nombre d'items disponibles, le nombre de previews disponibles et les kinds disponibles dans l'ordre stable herite de F55.
+
+F56 reste interne et read-only. F56 ne cree aucun compteur par kind, aucune API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
