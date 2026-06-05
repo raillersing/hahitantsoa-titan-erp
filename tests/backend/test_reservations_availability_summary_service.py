@@ -156,28 +156,34 @@ def test_summary_service_does_not_create_availability_or_reservations() -> None:
     assert _reservations_model_counts() == reservation_counts
 
 
-def test_reservation_availability_summary_service_delegates_to_options_and_previews(
+def test_reservation_availability_summary_service_reuses_options_without_public_previews(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     start_at, end_at = _valid_period_bounds()
     period = make_reservation_period(start_at=start_at, end_at=end_at)
     first_item = InventoryItem(name="Unsaved camera", kind="material")
     second_item = InventoryItem(name="Unsaved article", kind="article")
+    options = ReservationAvailableItemsOptions(
+        period=period,
+        items=(first_item, second_item),
+        count=2,
+    )
     options_calls: list[dict[str, Any]] = []
-    preview_calls: list[dict[str, Any]] = []
+    builder_calls: list[ReservationAvailableItemsOptions] = []
 
     def fake_get_reservation_available_items_options_service(
         **kwargs: Any,
     ) -> ReservationAvailableItemsOptions:
         options_calls.append(kwargs)
-        return ReservationAvailableItemsOptions(
-            period=period,
-            items=(first_item, second_item),
-            count=2,
-        )
+        return options
 
     def fake_get_reservation_available_item_previews_service(**kwargs: Any) -> tuple[Any, ...]:
-        preview_calls.append(kwargs)
+        raise AssertionError("Summary service must reuse options instead of public previews.")
+
+    def fake_build_reservation_available_item_previews_from_options(
+        **kwargs: ReservationAvailableItemsOptions,
+    ) -> tuple[Any, ...]:
+        builder_calls.append(kwargs["options"])
         return (
             type(
                 "FakePreview",
@@ -207,6 +213,11 @@ def test_reservation_availability_summary_service_delegates_to_options_and_previ
         "get_reservation_available_item_previews_service",
         fake_get_reservation_available_item_previews_service,
     )
+    monkeypatch.setattr(
+        reservation_services,
+        "_build_reservation_available_item_previews_from_options",
+        fake_build_reservation_available_item_previews_from_options,
+    )
 
     summary = get_reservation_availability_summary_service(
         start_at=start_at,
@@ -220,7 +231,7 @@ def test_reservation_availability_summary_service_delegates_to_options_and_previ
         available_item_kinds=("material", "article"),
     )
     assert options_calls == [{"start_at": start_at, "end_at": end_at}]
-    assert preview_calls == [{"start_at": start_at, "end_at": end_at}]
+    assert builder_calls == [options]
 
 
 def test_reservation_availability_summary_service_does_not_expose_count_by_kind() -> None:

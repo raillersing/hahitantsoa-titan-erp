@@ -380,6 +380,14 @@ Ce service interne compose le service d'options disponibles F52 et le service ba
 
 F56 reste read-only. F56 ne cree aucun compteur par kind, reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
 
+## Reservations service composition optimization
+
+F57 optimise la composition interne des services reservations disponibles.
+
+Le service de resume F56 reutilise maintenant les options disponibles deja calculees pour construire les previews, au lieu de repasser par le service public de previews qui recalculait ces options.
+
+F57 ne change pas le comportement metier et ne change aucune signature publique. F57 reste interne et read-only, sans reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.

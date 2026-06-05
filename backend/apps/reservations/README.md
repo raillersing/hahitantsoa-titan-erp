@@ -301,6 +301,14 @@ Le service compose `get_reservation_available_items_options_service` et `get_res
 
 F56 ne cree pas de compteur par kind. F56 reste interne et read-only. F56 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
 
+## Reservation service composition optimization
+
+F57 optimise la composition interne des services reservations disponibles.
+
+Un helper prive construit les previews a partir d'un `ReservationAvailableItemsOptions` deja calcule. Le service public de previews conserve son comportement F54, et le service de resume F56 evite de recalculer les options disponibles.
+
+F57 ne change pas le comportement metier et ne change aucune signature publique. F57 reste interne, read-only, sans API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

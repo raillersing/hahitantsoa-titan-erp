@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F56 reservations availability summary service en cours**.
+Statut actuel : **F57 reservations service composition optimization en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -231,9 +231,13 @@ F55 a ajoute des tests de robustesse temporelle et d'ordre deterministe pour les
 
 F55 ne cree aucun service de resume de disponibilite, aucune API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
 
-F56 ajoute un service interne de resume de disponibilite reservations base sur les services F52 et F54. Ce resume expose la periode, le nombre d'items disponibles, le nombre de previews disponibles et les kinds disponibles dans l'ordre stable herite de F55.
+F56 a ajoute un service interne de resume de disponibilite reservations base sur les services F52 et F54. Ce resume expose la periode, le nombre d'items disponibles, le nombre de previews disponibles et les kinds disponibles dans l'ordre stable herite de F55.
 
 F56 reste interne et read-only. F56 ne cree aucun compteur par kind, aucune API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
+
+F57 optimise la composition interne des services reservations disponibles pour eviter un double calcul des options disponibles dans le service de resume F56.
+
+F57 ne change pas le comportement metier, ne change aucune signature publique et reste interne, read-only, sans API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
