@@ -326,6 +326,12 @@ Les conflits sont calcules avec des intervalles demi-ouverts `[start_at, end_at)
 
 Les statuts `blocked` et `reserved` rendent l'item indisponible. F30 ne cree aucune API, aucun serializer, view, URL, endpoint d'ecriture, viewset, router, admin, module complet de reservation, contrat, facture, paiement ou client.
 
+F50 ajoute le selector interne `get_available_inventory_items_for_period`.
+
+Ce selector retourne les `InventoryItem` actifs, non supprimes, conformes Titan et disponibles sur une periode `[start_at, end_at)`.
+
+Il exclut les items ayant un conflit `InventoryAvailability` avec un statut `blocked` ou `reserved`. Il reste une lecture backend interne : aucune API, serializer, view, URL, endpoint d'ecriture, admin, frontend, modele, migration, logique de stock, quantite ou ecriture DB n'est ajoutee.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.
