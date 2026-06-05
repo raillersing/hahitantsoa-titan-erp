@@ -326,6 +326,20 @@ F58 ne change pas le comportement metier, ne teste pas directement le helper pri
 
 F58 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
 
+## Reservation internal contract hardening
+
+F59 durcit les tests de contrat interne des services reservations.
+
+Les tests couvrent :
+
+- l'immutabilite des dataclasses publiques `ReservationAvailableItemsOptions` et `ReservationAvailabilitySummary` ;
+- la structure stable de leurs champs publics ;
+- la coherence entre options disponibles, previews disponibles et resume de disponibilite.
+
+F59 ne change aucun comportement metier, ne teste pas directement le helper prive F57 et ne cree aucun compteur par kind.
+
+F59 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

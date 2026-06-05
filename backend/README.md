@@ -396,6 +396,14 @@ Ces tests verifient les types de retour, les signatures keyword-only, le caracte
 
 F58 ne modifie aucun comportement metier et ne cree aucun service, dataclass publique, reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite, pricing ou compteur par kind.
 
+## Reservations internal contract hardening
+
+F59 durcit les tests internes des services reservations.
+
+Les tests verifient l'immutabilite et la structure stable des dataclasses publiques `ReservationAvailableItemsOptions` et `ReservationAvailabilitySummary`, puis confirment que le resume de disponibilite reste coherent avec les options disponibles et les previews disponibles.
+
+F59 reste test-only. F59 ne modifie aucun comportement metier et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.

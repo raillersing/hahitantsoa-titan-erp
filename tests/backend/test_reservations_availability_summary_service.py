@@ -17,6 +17,8 @@ from apps.reservations.services import (
     ReservationAvailabilitySummary,
     ReservationAvailableItemsOptions,
     get_reservation_availability_summary_service,
+    get_reservation_available_item_previews_service,
+    get_reservation_available_items_options_service,
 )
 
 pytestmark = pytest.mark.django_db
@@ -91,6 +93,47 @@ def test_reservation_availability_summary_service_returns_counts_and_kinds_in_st
 
     assert summary.available_item_count == 3
     assert summary.available_preview_count == 3
+    assert summary.available_item_kinds == (
+        "material",
+        "article",
+        "material_pack",
+    )
+
+
+def test_reservation_availability_summary_matches_options_and_previews() -> None:
+    start_at, end_at = _valid_period_bounds()
+    alpha_material = _create_inventory_item(name="Alpha material", kind="material")
+    beta_article = _create_inventory_item(name="Beta article", kind="article")
+    gamma_pack = _create_inventory_item(name="Gamma pack", kind="material_pack")
+    unavailable_item = _create_inventory_item(name="Unavailable material", kind="material")
+    _create_availability(
+        inventory_item=unavailable_item,
+        status=InventoryAvailabilityStatus.BLOCKED,
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    options = get_reservation_available_items_options_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+    previews = get_reservation_available_item_previews_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+    summary = get_reservation_availability_summary_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert options.items == (alpha_material, beta_article, gamma_pack)
+    assert unavailable_item not in options.items
+    assert unavailable_item not in tuple(preview.inventory_item for preview in previews)
+    assert summary.available_item_count == options.count
+    assert summary.available_preview_count == len(previews)
+    assert summary.available_item_kinds == tuple(
+        preview.inventory_item_kind for preview in previews
+    )
     assert summary.available_item_kinds == (
         "material",
         "article",
