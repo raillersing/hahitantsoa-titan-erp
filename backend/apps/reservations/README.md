@@ -340,6 +340,27 @@ F59 ne change aucun comportement metier, ne teste pas directement le helper priv
 
 F59 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
+## Reservation MVP guard documentation
+
+F60 clarifie que le domaine `reservations` reste interne et read-only avant toute autorisation explicite d'API ou de frontend.
+
+Le domaine reservations ne contient toujours pas :
+
+- `models.py` ;
+- `serializers.py` ;
+- `views.py` ;
+- `urls.py` ;
+- `admin.py` ;
+- dossier de migrations metier ;
+- reservation persistante.
+
+Les tests existants couvrent ces garde-fous :
+
+- `tests/backend/test_reservations_services_public_contract.py` verifie l'absence de fichiers API reservations et de migrations reservations ;
+- `tests/backend/test_reservations_app_config.py` verifie que l'app reservations n'expose aucun modele Django.
+
+F60 ne cree pas de test doublon. F60 ne change aucun comportement metier et ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

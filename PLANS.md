@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F59 - Reservations internal contract hardening**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F60 - MVP API/frontend roadmap + reservations guard documentation**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -285,7 +285,19 @@ F57 terminee : optimisation de la composition interne des services reservations 
 
 F58 terminee : tests de contrat public interne pour les services reservations, couvrant les types de retour, signatures keyword-only, controles read-only, scope Titan et absence d'API reservations. F58 ne change pas le comportement metier, ne cree aucun nouveau service, aucune dataclass publique, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
 
-F59 en cours : durcissement des tests de contrat interne reservations pour verifier l'immutabilite et la structure stable des dataclasses publiques, puis coherence du resume de disponibilite avec les options et previews disponibles. F59 reste test-only et documentaire, sans changement de comportement metier, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
+F59 terminee : durcissement des tests de contrat interne reservations pour verifier l'immutabilite et la structure stable des dataclasses publiques, puis coherence du resume de disponibilite avec les options et previews disponibles. F59 reste test-only et documentaire, sans changement de comportement metier, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
+
+F60 en cours : clarification documentaire de la trajectoire MVP API/frontend et des garde-fous reservations existants. F60 est documentaire uniquement, sans changement de comportement applicatif, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation ou ecriture DB metier.
+
+Trajectoire MVP envisagee apres F60 :
+
+- F61 : definir et autoriser explicitement la plus petite exposition API read-only utile au MVP ;
+- F62 : implementer uniquement l'API read-only approuvee, apres autorisation explicite ;
+- F63 : bootstrap frontend seulement apres autorisation explicite, avec une page minimale consommant les endpoints read-only approuves ;
+- F64 : ajouter une validation smoke backend/frontend MVP ;
+- F65 : affiner le parcours de demo locale, les notes UX et le runbook MVP.
+
+Cette trajectoire n'autorise pas de contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation, logique Titan local/salle/venue/room/hall/service/event-service, ni API d'ecriture sans autorisation explicite.
 
 ### Objectifs futurs
 

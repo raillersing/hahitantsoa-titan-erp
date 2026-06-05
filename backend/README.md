@@ -404,6 +404,14 @@ Les tests verifient l'immutabilite et la structure stable des dataclasses publiq
 
 F59 reste test-only. F59 ne modifie aucun comportement metier et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
 
+## MVP API/frontend roadmap
+
+F60 clarifie la trajectoire MVP sans modifier le backend.
+
+La prochaine exposition API read-only devra etre definie et autorisee explicitement avant implementation. Le bootstrap frontend devra aussi etre autorise explicitement et se limiter aux endpoints read-only approuves.
+
+F60 ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation ou ecriture DB metier.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.
