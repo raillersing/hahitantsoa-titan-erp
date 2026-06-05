@@ -19,6 +19,14 @@ class ReservationAvailableItemsOptions:
     count: int
 
 
+@dataclass(frozen=True)
+class ReservationAvailabilitySummary:
+    period: ReservationPeriod
+    available_item_count: int
+    available_preview_count: int
+    available_item_kinds: tuple[str, ...]
+
+
 def preview_reservation_item_service(
     *,
     inventory_item: InventoryItem,
@@ -72,4 +80,26 @@ def get_reservation_available_item_previews_service(
             end_at=options.period.end_at,
         )
         for item in options.items
+    )
+
+
+def get_reservation_availability_summary_service(
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> ReservationAvailabilitySummary:
+    options = get_reservation_available_items_options_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+    previews = get_reservation_available_item_previews_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    return ReservationAvailabilitySummary(
+        period=options.period,
+        available_item_count=options.count,
+        available_preview_count=len(previews),
+        available_item_kinds=tuple(preview.inventory_item_kind for preview in previews),
     )
