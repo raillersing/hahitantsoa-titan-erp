@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F59 reservations internal contract hardening en cours**.
+Statut actuel : **F60 MVP API/frontend roadmap + reservations guard documentation en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -246,6 +246,20 @@ F58 ne change pas le comportement metier, ne cree aucun service, aucune dataclas
 F59 durcit les tests de contrat interne reservations en couvrant l'immutabilite et la structure stable des dataclasses publiques, puis ajoute un test de coherence entre options disponibles, previews et resume de disponibilite.
 
 F59 reste test-only et documentaire. F59 ne change aucun comportement metier, ne cree aucune API, modele, migration, reservation persistante, stock, quantite, unite, pricing, contrat, facture, paiement ou client.
+
+F60 clarifie la prochaine trajectoire MVP API/frontend et documente les garde-fous reservations existants. F60 est documentaire uniquement.
+
+Trajectoire MVP envisagee :
+
+- F61 : definir et autoriser explicitement la plus petite exposition API read-only utile au MVP ;
+- F62 : implementer uniquement l'API read-only approuvee, apres autorisation explicite ;
+- F63 : bootstrap frontend seulement apres autorisation explicite, avec une page minimale consommant les endpoints read-only approuves ;
+- F64 : ajouter une validation smoke backend/frontend MVP ;
+- F65 : affiner le parcours de demo locale, les notes UX et le runbook MVP.
+
+Cette trajectoire n'autorise pas de contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation, logique Titan local/salle/venue/room/hall/service/event-service, ni API d'ecriture sans autorisation explicite.
+
+F60 ne change aucun comportement applicatif et ne cree aucune API, modele, migration, serializer, view, URL, admin, frontend, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB metier.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
