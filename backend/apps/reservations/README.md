@@ -191,6 +191,25 @@ Il ne cree aucune reservation persistante, n'ecrit jamais en DB et ne cree aucun
 
 F40 ne cree aucun modele, migration, serializer, view, URL, admin, service metier complet, contrat, facture, paiement, client ou frontend.
 
+## Reservation available items selector
+
+F51 ajoute `selectors.py` comme couche interne de lecture pour lister les items inventory disponibles pour une future reservation.
+
+Fonction exposee :
+
+- `get_available_reservation_inventory_items_for_period`.
+
+La fonction valide la periode avec `make_reservation_period`, puis delegue au selector inventory F50 `get_available_inventory_items_for_period`.
+
+Elle retourne directement le `QuerySet[InventoryItem]` du selector inventory. Elle ne duplique pas la logique d'overlap `InventoryAvailability` et conserve les regles Titan deja appliquees par inventory :
+
+- items actifs ;
+- items non supprimes ;
+- kinds `material`, `article`, `material_pack` ;
+- exclusion des conflits `blocked` ou `reserved` sur `[start_at, end_at)`.
+
+F51 reste read-only. Elle ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite ou ecriture DB.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

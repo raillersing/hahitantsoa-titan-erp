@@ -332,6 +332,14 @@ Ce selector retourne les `InventoryItem` actifs, non supprimes, conformes Titan 
 
 Il exclut les items ayant un conflit `InventoryAvailability` avec un statut `blocked` ou `reserved`. Il reste une lecture backend interne : aucune API, serializer, view, URL, endpoint d'ecriture, admin, frontend, modele, migration, logique de stock, quantite ou ecriture DB n'est ajoutee.
 
+## Reservations available items selector
+
+F51 ajoute `backend/apps/reservations/selectors.py`.
+
+Le selector `get_available_reservation_inventory_items_for_period` valide la periode avec les regles reservations, puis delegue au selector inventory F50 pour retourner les `InventoryItem` disponibles.
+
+Il ne duplique pas la logique d'overlap `InventoryAvailability`, reste read-only et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock ou quantite.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.
