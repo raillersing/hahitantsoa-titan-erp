@@ -258,6 +258,21 @@ Titan exclut definitivement :
 
 F29 ne cree pas encore le module complet de location ou de reservation. F29 ne cree aucun contrat, facture, paiement, client, serializer, view, URL, endpoint d'ecriture, viewset, router, admin, JWT/token ou role metier.
 
+## Inventory availability selectors
+
+F50 ajoute le selector interne `get_available_inventory_items_for_period`.
+
+Ce selector retourne uniquement les `InventoryItem` :
+
+- actifs ;
+- non supprimes ;
+- conformes Titan avec `material`, `article` ou `material_pack` ;
+- disponibles sur une periode `[start_at, end_at)`.
+
+Les items ayant un conflit `InventoryAvailability` sur la periode demandee avec un statut `blocked` ou `reserved` sont exclus.
+
+F50 reste strictement interne au backend. Aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite ou ecriture DB n'est cree.
+
 ## Helpers de disponibilite
 
 F30 ajoute le module interne `availability.py`.

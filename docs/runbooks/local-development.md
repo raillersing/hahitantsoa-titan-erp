@@ -385,6 +385,27 @@ Arreter les services lorsque la validation locale est terminee :
 docker compose --env-file .env down
 ```
 
+## Validation F50 - Inventory availability selector interne
+
+F50 ajoute un selector backend interne pour lister les `InventoryItem` actifs, non supprimes, conformes Titan et disponibles sur une periode `[start_at, end_at)`.
+
+Valider uniquement dans Docker Compose lorsque `.env` utilise les hôtes Compose comme `db`.
+
+```sh
+scripts/dev/erp-logged-run f50-inventory-availability-selector-validation <<'EOF'
+.venv/bin/python -m ruff format --check .
+.venv/bin/python -m ruff check .
+docker compose --env-file .env build backend
+docker compose --env-file .env up -d db redis backend
+docker compose --env-file .env exec backend python backend/manage.py check
+docker compose --env-file .env exec backend python -m pytest tests/backend/test_inventory_availability_selectors.py -q
+docker compose --env-file .env exec backend python -m pytest tests/backend/test_inventory_availability_queries.py -q
+docker compose --env-file .env down
+EOF
+```
+
+Ne pas lancer de tests DB depuis l'hote lorsque les variables locales pointent vers des services Compose non resolubles hors Docker. Ne jamais afficher `.env`, mots de passe, tokens, cles API ou parametres de connexion.
+
 ## Structure des packages de domaines backend
 
 F13 ajoute uniquement une structure de packages Python preparatoires sous `backend/apps/`.

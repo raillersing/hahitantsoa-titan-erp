@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F49 - Valider le smoke test Foundation local**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F50 - Inventory availability selector interne**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -265,7 +265,9 @@ F47 terminee : formalisation du workflow documentaire integre pour inclure les m
 
 F48 terminee : cadrage documentaire du smoke test Foundation local pour valider le demarrage Docker Compose, le liveness `/healthz/`, le readiness PostgreSQL + Redis `/readyz/`, le Django system check et les controles de non-exposition des secrets. F48 ne cree aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, CI ou script executable.
 
-F49 en cours : validation operationnelle du smoke test Foundation local documente en F48, avec build backend OK, services `db`/`redis`/`backend` OK, backend healthy, `/healthz/` 200, `/readyz/` 200, Django check OK et arret propre. F49 ne cree aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, CI ou script executable.
+F49 terminee : validation operationnelle du smoke test Foundation local documente en F48, avec build backend OK, services `db`/`redis`/`backend` OK, backend healthy, `/healthz/` 200, `/readyz/` 200, Django check OK et arret propre. F49 ne cree aucun code backend, test backend, Dockerfile, Compose, `.env.example`, modele, migration, serializer, view, URL, endpoint, admin, frontend, reservation persistante, contrat, facture, paiement, client, CI ou script executable.
+
+F50 en cours : selector interne inventory availability pour retourner les `InventoryItem` actifs, non supprimes, conformes Titan et disponibles sur une periode `[start_at, end_at)`, sans conflit `blocked` ou `reserved`. F50 ne cree aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite ou ecriture DB.
 
 ### Objectifs futurs
 
