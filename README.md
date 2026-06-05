@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F57 reservations service composition optimization en cours**.
+Statut actuel : **F58 reservations services public contract tests en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -238,6 +238,10 @@ F56 reste interne et read-only. F56 ne cree aucun compteur par kind, aucune API,
 F57 optimise la composition interne des services reservations disponibles pour eviter un double calcul des options disponibles dans le service de resume F56.
 
 F57 ne change pas le comportement metier, ne change aucune signature publique et reste interne, read-only, sans API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
+
+F58 ajoute des tests de contrat public interne pour les services reservations. Ces tests verifient les types de retour, les signatures keyword-only, le caractere read-only, le scope Titan et l'absence d'API reservations.
+
+F58 ne change pas le comportement metier, ne cree aucun service, aucune dataclass publique, API, modele, migration, reservation persistante, stock, quantite, unite, pricing ou compteur par kind.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 

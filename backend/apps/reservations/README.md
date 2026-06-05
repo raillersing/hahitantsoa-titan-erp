@@ -309,6 +309,23 @@ Un helper prive construit les previews a partir d'un `ReservationAvailableItemsO
 
 F57 ne change pas le comportement metier et ne change aucune signature publique. F57 reste interne, read-only, sans API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
 
+## Reservation services public contract
+
+F58 ajoute des tests de contrat public interne pour les services reservations.
+
+Services couverts :
+
+- `preview_reservation_item_service` ;
+- `get_reservation_available_items_options_service` ;
+- `get_reservation_available_item_previews_service` ;
+- `get_reservation_availability_summary_service`.
+
+Les tests verifient les types de retour, les signatures keyword-only, le caractere read-only, le scope Titan et l'absence d'API reservations.
+
+F58 ne change pas le comportement metier, ne teste pas directement le helper prive F57 et ne cree aucun compteur par kind.
+
+F58 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

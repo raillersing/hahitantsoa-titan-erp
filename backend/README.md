@@ -388,6 +388,14 @@ Le service de resume F56 reutilise maintenant les options disponibles deja calcu
 
 F57 ne change pas le comportement metier et ne change aucune signature publique. F57 reste interne et read-only, sans reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
 
+## Reservations services public contract tests
+
+F58 ajoute des tests de contrat public interne pour les services reservations exposes par `backend/apps/reservations/services.py`.
+
+Ces tests verifient les types de retour, les signatures keyword-only, le caractere read-only, le scope Titan et l'absence de fichiers API reservations.
+
+F58 ne modifie aucun comportement metier et ne cree aucun service, dataclass publique, reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite, pricing ou compteur par kind.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.

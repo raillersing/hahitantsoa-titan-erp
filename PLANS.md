@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F57 - Reservations service composition optimization**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F58 - Reservations services public contract tests**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -281,7 +281,9 @@ F55 terminee : tests de robustesse temporelle et d'ordre deterministe pour les s
 
 F56 terminee : service interne de resume de disponibilite reservations base sur F52 et F54. F56 expose la periode, le nombre d'items disponibles, le nombre de previews disponibles et les kinds disponibles dans l'ordre stable herite de F55. F56 ne cree aucun compteur par kind, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
-F57 en cours : optimisation de la composition interne des services reservations disponibles pour eviter un double calcul des options disponibles dans le service de resume F56. F57 ne change pas le comportement metier, ne change aucune signature publique et reste interne, read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+F57 terminee : optimisation de la composition interne des services reservations disponibles pour eviter un double calcul des options disponibles dans le service de resume F56. F57 ne change pas le comportement metier, ne change aucune signature publique et reste interne, read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
+F58 en cours : tests de contrat public interne pour les services reservations, couvrant les types de retour, signatures keyword-only, controles read-only, scope Titan et absence d'API reservations. F58 ne change pas le comportement metier, ne cree aucun nouveau service, aucune dataclass publique, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
 
 ### Objectifs futurs
 
