@@ -277,6 +277,14 @@ Les kinds suivants restent interdits ou invalides :
 
 F54 reste interne et read-only. F54 ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
+## Reservation service time rules and ordering
+
+F55 ajoute des tests de robustesse temporelle et d'ordre deterministe pour les services reservations disponibles.
+
+Les services doivent refuser les bornes naives, refuser `end_at <= start_at`, respecter les intervalles demi-ouverts `[start_at, end_at)` et conserver un ordre stable des items disponibles par `name` puis `id`.
+
+F55 ne cree pas de service de resume de disponibilite. F55 ne cree aucune API, modele, migration, serializer, view, URL, endpoint, admin, frontend ou reservation persistante.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

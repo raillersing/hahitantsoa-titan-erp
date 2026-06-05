@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F54 - Reservations batch preview service et scope guards**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F55 - Reservations service time rules and ordering**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -275,7 +275,9 @@ F52 terminee : service interne reservations pour preparer une liste structuree d
 
 F53 terminee : tests de coherence transversale des services reservations F40 et F52 pour verifier que la preview et les options d'items disponibles restent alignees sur les memes regles Titan de disponibilite. F53 ne modifie aucun code metier, ne cree aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
-F54 en cours : service interne batch pour generer les previews des items disponibles via F52 et F40, plus tests de garde-fou Titan scope sur les services reservations. F54 reste interne et read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+F54 terminee : service interne batch pour generer les previews des items disponibles via F52 et F40, plus tests de garde-fou Titan scope sur les services reservations. F54 reste interne et read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
+F55 en cours : tests de robustesse temporelle et d'ordre deterministe pour les services reservations disponibles. F55 verifie les periodes timezone-aware, les intervalles demi-ouverts `[start_at, end_at)`, l'ordre stable par `name` puis `id`, et l'absence de creation de disponibilite ou de reservation persistante. F55 ne cree aucun service de resume de disponibilite, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
 ### Objectifs futurs
 

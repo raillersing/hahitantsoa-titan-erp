@@ -38,5 +38,5 @@ def get_available_inventory_items_for_period(
         )
         .annotate(has_availability_conflict=Exists(conflicting_periods))
         .filter(has_availability_conflict=False)
-        .order_by("name")
+        .order_by("name", "id")
     )

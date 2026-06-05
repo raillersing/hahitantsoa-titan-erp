@@ -364,6 +364,14 @@ F54 ajoute aussi des tests de garde-fou Titan scope sur les services reservation
 
 F54 ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
 
+## Reservations service time rules and ordering
+
+F55 ajoute des tests de robustesse temporelle et d'ordre stable pour les services reservations disponibles.
+
+Ces tests verifient que les services refusent les bornes naives, refusent `end_at <= start_at`, respectent les intervalles demi-ouverts `[start_at, end_at)` et conservent un ordre deterministe des items disponibles par `name` puis `id`.
+
+F55 reste interne et read-only. F55 ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.
