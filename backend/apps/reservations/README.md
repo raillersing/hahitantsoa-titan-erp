@@ -234,6 +234,17 @@ La logique d'overlap `InventoryAvailability` reste dans inventory/F50. F52 ne l'
 
 F52 reste read-only. Elle ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
+## Reservation service consistency
+
+F53 ajoute des tests de coherence entre :
+
+- `preview_reservation_item_service` ;
+- `get_reservation_available_items_options_service`.
+
+Ces tests verifient que les chemins internes F40 et F52 restent alignes sur les memes regles Titan de disponibilite pour les items disponibles, les conflits `blocked` ou `reserved`, les kinds interdits et les periodes invalides.
+
+F53 ne modifie pas la logique metier. F53 ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.
