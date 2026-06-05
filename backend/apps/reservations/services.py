@@ -62,16 +62,10 @@ def get_reservation_available_items_options_service(
     )
 
 
-def get_reservation_available_item_previews_service(
+def _build_reservation_available_item_previews_from_options(
     *,
-    start_at: datetime,
-    end_at: datetime,
+    options: ReservationAvailableItemsOptions,
 ) -> tuple[ReservationItemPreview, ...]:
-    options = get_reservation_available_items_options_service(
-        start_at=start_at,
-        end_at=end_at,
-    )
-
     return tuple(
         preview_reservation_item_service(
             inventory_item=item,
@@ -83,6 +77,19 @@ def get_reservation_available_item_previews_service(
     )
 
 
+def get_reservation_available_item_previews_service(
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> tuple[ReservationItemPreview, ...]:
+    options = get_reservation_available_items_options_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    return _build_reservation_available_item_previews_from_options(options=options)
+
+
 def get_reservation_availability_summary_service(
     *,
     start_at: datetime,
@@ -92,10 +99,7 @@ def get_reservation_availability_summary_service(
         start_at=start_at,
         end_at=end_at,
     )
-    previews = get_reservation_available_item_previews_service(
-        start_at=start_at,
-        end_at=end_at,
-    )
+    previews = _build_reservation_available_item_previews_from_options(options=options)
 
     return ReservationAvailabilitySummary(
         period=options.period,

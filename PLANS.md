@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F56 - Reservations availability summary service**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F57 - Reservations service composition optimization**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -279,7 +279,9 @@ F54 terminee : service interne batch pour generer les previews des items disponi
 
 F55 terminee : tests de robustesse temporelle et d'ordre deterministe pour les services reservations disponibles. F55 verifie les periodes timezone-aware, les intervalles demi-ouverts `[start_at, end_at)`, l'ordre stable par `name` puis `id`, et l'absence de creation de disponibilite ou de reservation persistante. F55 ne cree aucun service de resume de disponibilite, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
-F56 en cours : service interne de resume de disponibilite reservations base sur F52 et F54. F56 expose la periode, le nombre d'items disponibles, le nombre de previews disponibles et les kinds disponibles dans l'ordre stable herite de F55. F56 ne cree aucun compteur par kind, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+F56 terminee : service interne de resume de disponibilite reservations base sur F52 et F54. F56 expose la periode, le nombre d'items disponibles, le nombre de previews disponibles et les kinds disponibles dans l'ordre stable herite de F55. F56 ne cree aucun compteur par kind, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
+F57 en cours : optimisation de la composition interne des services reservations disponibles pour eviter un double calcul des options disponibles dans le service de resume F56. F57 ne change pas le comportement metier, ne change aucune signature publique et reste interne, read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
 ### Objectifs futurs
 

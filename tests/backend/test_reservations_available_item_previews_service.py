@@ -214,3 +214,45 @@ def test_available_item_previews_service_delegates_to_options_and_preview_servic
             "end_at": end_at,
         },
     ]
+
+
+def test_available_item_previews_service_delegates_to_private_options_builder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    start_at, end_at = _valid_period_bounds()
+    period = make_reservation_period(start_at=start_at, end_at=end_at)
+    item = InventoryItem(name="Unsaved camera", kind="material")
+    options = ReservationAvailableItemsOptions(period=period, items=(item,), count=1)
+    calls: list[ReservationAvailableItemsOptions] = []
+    expected_previews = (object(),)
+
+    def fake_get_reservation_available_items_options_service(
+        **kwargs: Any,
+    ) -> ReservationAvailableItemsOptions:
+        assert kwargs == {"start_at": start_at, "end_at": end_at}
+        return options
+
+    def fake_build_reservation_available_item_previews_from_options(
+        **kwargs: ReservationAvailableItemsOptions,
+    ) -> tuple[object, ...]:
+        calls.append(kwargs["options"])
+        return expected_previews
+
+    monkeypatch.setattr(
+        reservation_services,
+        "get_reservation_available_items_options_service",
+        fake_get_reservation_available_items_options_service,
+    )
+    monkeypatch.setattr(
+        reservation_services,
+        "_build_reservation_available_item_previews_from_options",
+        fake_build_reservation_available_item_previews_from_options,
+    )
+
+    previews = get_reservation_available_item_previews_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert previews == expected_previews
+    assert calls == [options]
