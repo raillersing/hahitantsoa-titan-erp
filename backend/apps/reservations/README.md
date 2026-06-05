@@ -245,6 +245,38 @@ Ces tests verifient que les chemins internes F40 et F52 restent alignes sur les 
 
 F53 ne modifie pas la logique metier. F53 ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
+## Reservation available item previews service
+
+F54 ajoute un service interne batch dans `services.py`.
+
+Fonction exposee :
+
+- `get_reservation_available_item_previews_service`.
+
+La fonction appelle `get_reservation_available_items_options_service`, parcourt uniquement les `items` disponibles retournes par F52, puis appelle `preview_reservation_item_service` pour chaque item avec `inventory_item_kind=item.kind`.
+
+Elle retourne un `tuple[ReservationItemPreview, ...]`. Elle ne duplique pas la logique d'overlap `InventoryAvailability` et n'appelle pas directement le selector inventory F50.
+
+## Reservation service scope guards
+
+F54 ajoute des tests de garde-fou Titan scope sur les services reservations.
+
+Les services reservations doivent traiter comme reservables uniquement :
+
+- `material` ;
+- `article` ;
+- `material_pack`.
+
+Les kinds suivants restent interdits ou invalides :
+
+- `venue` ;
+- `local` ;
+- `room` ;
+- `service` ;
+- `event_service`.
+
+F54 reste interne et read-only. F54 ne cree aucune API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

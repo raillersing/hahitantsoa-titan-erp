@@ -354,6 +354,16 @@ F53 ajoute un test de coherence transversal entre le service de preview F40 et l
 
 Ce test verifie que les deux chemins internes restent alignes sur les memes regles Titan de disponibilite pour les items disponibles, indisponibles et les kinds interdits. F53 ne modifie pas la logique metier et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele ou migration.
 
+## Reservations batch preview service and scope guards
+
+F54 ajoute `get_reservation_available_item_previews_service` dans `backend/apps/reservations/services.py`.
+
+Ce service batch s'appuie sur le service d'options F52 pour recuperer uniquement les items disponibles, puis appelle le service de preview F40 pour chaque item. Il ne duplique pas la logique d'overlap, n'appelle pas directement le selector inventory F50 et reste read-only.
+
+F54 ajoute aussi des tests de garde-fou Titan scope sur les services reservations pour verifier que seuls `material`, `article` et `material_pack` sont traites comme reservables. Les kinds `venue`, `local`, `room`, `service` et `event_service` restent exclus ou invalides.
+
+F54 ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.

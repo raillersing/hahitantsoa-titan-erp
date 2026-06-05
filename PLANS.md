@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F53 - Reservations service consistency tests**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F54 - Reservations batch preview service et scope guards**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -273,7 +273,9 @@ F51 terminee : selector interne reservations pour lister les items Titan disponi
 
 F52 terminee : service interne reservations pour preparer une liste structuree d'items Titan disponibles sur une periode en composant le selector F51. F52 materialise les items en tuple, expose un compteur et reste read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
-F53 en cours : tests de coherence transversale des services reservations F40 et F52 pour verifier que la preview et les options d'items disponibles restent alignees sur les memes regles Titan de disponibilite. F53 ne modifie aucun code metier, ne cree aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+F53 terminee : tests de coherence transversale des services reservations F40 et F52 pour verifier que la preview et les options d'items disponibles restent alignees sur les memes regles Titan de disponibilite. F53 ne modifie aucun code metier, ne cree aucun endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
+
+F54 en cours : service interne batch pour generer les previews des items disponibles via F52 et F40, plus tests de garde-fou Titan scope sur les services reservations. F54 reste interne et read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
 ### Objectifs futurs
 

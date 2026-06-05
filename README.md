@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F53 reservations service consistency tests en cours**.
+Statut actuel : **F54 reservations batch preview service et scope guards en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -224,6 +224,8 @@ F51 ajoute un selector interne reservations pour lister les items Titan disponib
 F52 ajoute un service interne reservations pour preparer une liste structuree d'items Titan disponibles pour une periode. Il s'appuie sur le selector F51, materialise les items en tuple et retourne un compteur, sans dupliquer la logique d'overlap inventory, sans ecriture DB et sans reservation persistante.
 
 F53 ajoute des tests de coherence entre les services reservations F40 et F52. Ces tests verifient que la preview et les options d'items disponibles restent alignees sur les memes regles Titan de disponibilite, sans modifier la logique metier et sans creer de reservation persistante.
+
+F54 ajoute un service interne batch qui genere les previews des items disponibles en s'appuyant sur F52 et F40. F54 ajoute aussi des tests de garde-fou Titan scope sur les services reservations. Cela reste interne, read-only, sans API, modele, migration, reservation persistante, stock, quantite, unite ou pricing.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 

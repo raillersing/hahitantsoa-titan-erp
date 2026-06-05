@@ -52,3 +52,24 @@ def get_reservation_available_items_options_service(
         items=items,
         count=len(items),
     )
+
+
+def get_reservation_available_item_previews_service(
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> tuple[ReservationItemPreview, ...]:
+    options = get_reservation_available_items_options_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    return tuple(
+        preview_reservation_item_service(
+            inventory_item=item,
+            inventory_item_kind=item.kind,
+            start_at=options.period.start_at,
+            end_at=options.period.end_at,
+        )
+        for item in options.items
+    )
