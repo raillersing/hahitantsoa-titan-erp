@@ -1,3 +1,4 @@
+from dataclasses import FrozenInstanceError, fields, is_dataclass
 from datetime import datetime, timedelta
 from inspect import Parameter, signature
 from pathlib import Path
@@ -114,6 +115,49 @@ def test_reservations_public_services_return_contract_types() -> None:
     assert isinstance(previews, tuple)
     assert all(isinstance(item_preview, ReservationItemPreview) for item_preview in previews)
     assert isinstance(summary, ReservationAvailabilitySummary)
+
+
+def test_reservation_available_items_options_dataclass_contract_is_stable() -> None:
+    start_at, end_at = _valid_period_bounds()
+    item = _create_inventory_item(name="Available camera")
+    options = get_reservation_available_items_options_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert is_dataclass(ReservationAvailableItemsOptions)
+    assert ReservationAvailableItemsOptions.__dataclass_params__.frozen is True
+    assert tuple(field.name for field in fields(ReservationAvailableItemsOptions)) == (
+        "period",
+        "items",
+        "count",
+    )
+    assert options.items == (item,)
+
+    with pytest.raises(FrozenInstanceError):
+        options.count = 2  # type: ignore[misc]
+
+
+def test_reservation_availability_summary_dataclass_contract_is_stable() -> None:
+    start_at, end_at = _valid_period_bounds()
+    _create_inventory_item(name="Available camera")
+    summary = get_reservation_availability_summary_service(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert is_dataclass(ReservationAvailabilitySummary)
+    assert ReservationAvailabilitySummary.__dataclass_params__.frozen is True
+    assert tuple(field.name for field in fields(ReservationAvailabilitySummary)) == (
+        "period",
+        "available_item_count",
+        "available_preview_count",
+        "available_item_kinds",
+    )
+    assert summary.available_item_count == 1
+
+    with pytest.raises(FrozenInstanceError):
+        summary.available_item_count = 2  # type: ignore[misc]
 
 
 def test_reservations_public_services_are_read_only() -> None:

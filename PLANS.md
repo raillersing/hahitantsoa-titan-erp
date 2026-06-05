@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F58 - Reservations services public contract tests**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F59 - Reservations internal contract hardening**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -283,7 +283,9 @@ F56 terminee : service interne de resume de disponibilite reservations base sur 
 
 F57 terminee : optimisation de la composition interne des services reservations disponibles pour eviter un double calcul des options disponibles dans le service de resume F56. F57 ne change pas le comportement metier, ne change aucune signature publique et reste interne, read-only, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing ou ecriture DB.
 
-F58 en cours : tests de contrat public interne pour les services reservations, couvrant les types de retour, signatures keyword-only, controles read-only, scope Titan et absence d'API reservations. F58 ne change pas le comportement metier, ne cree aucun nouveau service, aucune dataclass publique, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
+F58 terminee : tests de contrat public interne pour les services reservations, couvrant les types de retour, signatures keyword-only, controles read-only, scope Titan et absence d'API reservations. F58 ne change pas le comportement metier, ne cree aucun nouveau service, aucune dataclass publique, endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
+
+F59 en cours : durcissement des tests de contrat interne reservations pour verifier l'immutabilite et la structure stable des dataclasses publiques, puis coherence du resume de disponibilite avec les options et previews disponibles. F59 reste test-only et documentaire, sans changement de comportement metier, sans endpoint API, serializer, view, URL, admin, frontend, modele, migration, reservation persistante, contrat, facture, paiement, client, stock, quantite, unite, pricing, compteur par kind ou ecriture DB.
 
 ### Objectifs futurs
 
