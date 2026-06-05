@@ -295,6 +295,8 @@ Ce smoke test documente le scenario minimal de validation locale de la Foundatio
 
 F48 cadre ce scenario mais ne l'automatise pas. Elle ne cree aucun script executable, aucune CI et aucun changement technique.
 
+Validation F49 : le scenario a ete execute avec succes. Les resultats non sensibles valides sont : build backend OK, services `db`/`redis`/`backend` OK, backend healthy, `/healthz/` HTTP 200, `/readyz/` HTTP 200 avec PostgreSQL + Redis, Django check OK et arret propre des services.
+
 Preconditions :
 
 - se placer a la racine du repository ;

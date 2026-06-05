@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F48 smoke test Foundation local en cours**.
+Statut actuel : **F49 validation smoke test Foundation local en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -214,6 +214,8 @@ F46 a nettoye les statuts documentaires apres F45. F46 ne modifie aucun code bac
 F47 formalise le workflow documentaire integre : les futures taches doivent inclure les mises a jour documentaires necessaires dans la meme PR quand c'est raisonnable, au lieu de creer systematiquement une PR de nettoyage documentaire separee. F47 ne modifie aucun comportement technique.
 
 F48 cadre le smoke test Foundation local dans la documentation. Cette tache documente le scenario minimal de validation locale avec Docker Compose, `/healthz/`, `/readyz/` et Django check, sans creer de script, CI, code backend ou changement technique.
+
+F49 valide operationnellement le smoke test Foundation local documente en F48. Le build backend, le demarrage `db`/`redis`/`backend`, le backend healthy, `/healthz/` en HTTP 200, `/readyz/` en HTTP 200 avec PostgreSQL + Redis, le Django check et l'arret propre des services ont ete verifies sans creer de script, CI, code backend ou changement technique.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Il n'existe pas encore de frontend React, de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
