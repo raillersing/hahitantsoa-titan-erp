@@ -348,6 +348,12 @@ Le service `get_reservation_available_items_options_service` valide la periode r
 
 La logique d'overlap reste centralisee dans inventory/F50. F52 reste read-only et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele, migration, contrat, facture, paiement, client, stock, quantite, unite ou pricing.
 
+## Reservations service consistency
+
+F53 ajoute un test de coherence transversal entre le service de preview F40 et le service d'options d'items disponibles F52.
+
+Ce test verifie que les deux chemins internes restent alignes sur les memes regles Titan de disponibilite pour les items disponibles, indisponibles et les kinds interdits. F53 ne modifie pas la logique metier et ne cree aucune reservation persistante, API, serializer, view, URL, admin, frontend, modele ou migration.
+
 ## Inventory availability seed smoke
 
 F31 ajoute un smoke test interne qui combine les donnees locales creees par `seed_demo_inventory` avec `InventoryAvailability` et les helpers de disponibilite.
