@@ -21,3 +21,12 @@ into Titan, which remains limited to `material`, `article` and `material_pack`.
 
 These guards do not authorize persistence, reservation, allocation, selector, catalogue, API,
 frontend, pricing, payment, invoice, customer or commercial workflow behavior.
+
+F74 adds `HahitantsoaDiscoveryItem`, a minimal immutable pure-Python value object with:
+
+- a `concept` normalized and validated through the F73 scope guard;
+- a non-empty trimmed `label` used only for display.
+
+This value object is not a catalogue, selector, model, API or workflow. It contains no
+persistence identifier, metadata, status, lifecycle, availability, pricing, stock, quantity,
+unit, reservation or commercial fields.
