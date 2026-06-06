@@ -6,8 +6,13 @@ from rest_framework.views import APIView
 from apps.reservations.serializers import (
     ReservationAvailabilitySummaryQuerySerializer,
     ReservationAvailabilitySummarySerializer,
+    ReservationAvailableItemPreviewSerializer,
+    ReservationPeriodQuerySerializer,
 )
-from apps.reservations.services import get_reservation_availability_summary_service
+from apps.reservations.services import (
+    get_reservation_availability_summary_service,
+    get_reservation_available_item_previews_service,
+)
 
 
 class ReservationAvailabilitySummaryAPIView(APIView):
@@ -27,4 +32,24 @@ class ReservationAvailabilitySummaryAPIView(APIView):
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
         response_serializer = ReservationAvailabilitySummarySerializer(summary)
+        return Response(response_serializer.data)
+
+
+class ReservationAvailableItemPreviewsAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query_serializer = ReservationPeriodQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+
+        try:
+            previews = get_reservation_available_item_previews_service(
+                start_at=query_serializer.validated_data["start_at"],
+                end_at=query_serializer.validated_data["end_at"],
+            )
+        except (TypeError, ValueError) as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_serializer = ReservationAvailableItemPreviewSerializer(previews, many=True)
         return Response(response_serializer.data)
