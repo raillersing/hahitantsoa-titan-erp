@@ -487,6 +487,26 @@ F63 consomme depuis le frontend MVP les APIs reservations read-only existantes :
 
 F63 ne modifie aucun comportement backend, endpoint, serializer, view, URL ou test backend. Les endpoints restent authentifies, GET-only et sans creation de reservation persistante.
 
+## Item availability preview API
+
+F69 ajoute une surface backend authentifiee et read-only :
+
+- `GET /api/v1/reservations/items/<uuid:inventory_item_id>/availability-preview/`
+
+Les query parameters obligatoires `start_at` et `end_at` doivent etre des datetimes ISO timezone-aware et respecter `end_at > start_at`.
+
+La reponse expose uniquement :
+
+- `inventory_item_id` ;
+- `inventory_item_name` ;
+- `inventory_item_kind` ;
+- `start_at` ;
+- `end_at` ;
+- `status` ;
+- `conflict_count`.
+
+L'endpoint retourne `404` pour un item inconnu, inactif ou supprime logiquement. Il reste GET-only, n'expose aucun detail interne de conflit et ne cree aucune reservation persistante ou ecriture DB. F69 n'ajoute aucune integration frontend.
+
 ## MVP local demo availability seed
 
 F65 ajoute la commande locale/dev :
