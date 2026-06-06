@@ -86,7 +86,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Inventory unavailable");
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "A local backend session may be required.",
+      "The requested data could not be loaded.",
     );
   });
 
@@ -98,13 +98,15 @@ describe("App", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Network unavailable");
   });
 
-  it("does not expose login or reservation creation controls", async () => {
+  it("renders availability without login or reservation creation controls", async () => {
     mockInventoryResponse([]);
 
     render(<App />);
 
     await screen.findByText("No inventory items are currently visible.");
-    expect(screen.queryByRole("form")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Availability" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check availability" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /log in|sign in/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reserve|book/i })).not.toBeInTheDocument();
   });
 });

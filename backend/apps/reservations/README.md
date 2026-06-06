@@ -410,6 +410,12 @@ L'endpoint n'expose ni conflits ni objets de validation internes. Il reste GET-o
 
 F62 ne cree aucun `models.py`, aucun `admin.py`, aucun dossier `migrations/`, aucune API d'ecriture, aucun workflow frontend de reservation ou de login, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial.
 
+## Frontend availability consumption
+
+F63 ajoute uniquement un panneau frontend qui consomme les endpoints read-only F61 et F62. F63 ne modifie aucun serializer, view, URL, service ou comportement backend reservations.
+
+Le panneau affiche une consultation de disponibilite et ne cree aucune reservation persistante. Il ne cree aucune API d'ecriture, logique de login frontend, workflow de reservation, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

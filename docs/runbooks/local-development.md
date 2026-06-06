@@ -214,6 +214,16 @@ Arreter et nettoyer les services Compose locaux :
 docker compose --env-file .env down
 ```
 
+## Validation smoke MVP locale
+
+F63 documente une validation smoke locale reproductible pour le backend read-only et le frontend MVP.
+
+Utiliser le runbook [mvp-local-smoke-validation.md](mvp-local-smoke-validation.md) avec `scripts/dev/erp-logged-run`.
+
+Le runbook couvre le build et le demarrage backend, Django check, les tests API read-only cibles, le build et les tests frontend, les garde-fous reservations et le diff Git.
+
+Ne jamais ajouter a la validation une commande qui affiche `.env`, des mots de passe, des tokens ou d'autres secrets.
+
 Ne pas executer `migrate` pendant F9.
 
 ## Migrations Django standards locales

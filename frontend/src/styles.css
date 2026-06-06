@@ -84,7 +84,8 @@ h3 {
 }
 
 .notice,
-.inventory-section {
+.inventory-section,
+.availability-section {
   border: 1px solid #d6dfdb;
   border-radius: 8px;
   background: #ffffff;
@@ -96,6 +97,11 @@ h3 {
 
 .inventory-section {
   overflow: hidden;
+}
+
+.availability-section {
+  margin-top: 28px;
+  margin-bottom: 28px;
 }
 
 .section-heading {
@@ -157,9 +163,125 @@ h3 {
   white-space: nowrap;
 }
 
+.availability-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  gap: 16px;
+  align-items: end;
+  padding: 20px;
+}
+
+.availability-form label {
+  display: grid;
+  gap: 6px;
+  color: #34463e;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.availability-form input,
+.availability-form button {
+  min-height: 42px;
+  border: 1px solid #b7c9c0;
+  border-radius: 6px;
+}
+
+.availability-form input {
+  width: 100%;
+  padding: 0 10px;
+  color: #172026;
+  background: #ffffff;
+}
+
+.availability-form button {
+  padding: 0 16px;
+  border-color: #22483a;
+  background: #22483a;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.availability-form button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.availability-section > .status,
+.availability-notice {
+  margin: 0 20px 20px;
+}
+
+.availability-results {
+  border-top: 1px solid #d6dfdb;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  background: #d6dfdb;
+}
+
+.summary-grid div {
+  padding: 16px;
+  background: #f8faf9;
+}
+
+.summary-grid dt {
+  color: #5b6870;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.summary-grid dd {
+  margin: 4px 0 0;
+  font-weight: 700;
+}
+
+.availability-kinds,
+.preview-list-section {
+  padding: 18px 20px;
+}
+
+.availability-kinds {
+  border-bottom: 1px solid #e6ece9;
+}
+
+.availability-kinds p {
+  margin-bottom: 0;
+  color: #5b6870;
+}
+
+.preview-list {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 12px 0 0;
+  list-style: none;
+}
+
+.preview-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid #e6ece9;
+}
+
+.preview-list li span:nth-child(2),
+.preview-list strong {
+  color: #4b6358;
+}
+
 @media (max-width: 640px) {
   .app-header,
-  .inventory-row {
+  .inventory-row,
+  .availability-form,
+  .summary-grid,
+  .preview-list li {
     grid-template-columns: 1fr;
   }
 

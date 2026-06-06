@@ -41,9 +41,22 @@ npm test
 
 The tests cover the existing inventory page loading, successful rendering, empty state, request contract and error states. They do not add or test a frontend login workflow or reservation creation workflow.
 
+## Availability panel
+
+F63 adds a read-only availability panel that calls the existing authenticated APIs:
+
+```text
+GET /api/v1/reservations/availability-summary/
+GET /api/v1/reservations/available-item-previews/
+```
+
+The panel accepts a local start and end datetime, converts both values to timezone-aware ISO datetimes, and displays the summary and available item previews.
+
+Frontend API calls and response contracts are kept in `src/api.ts` and `src/types.ts`. Native `fetch` and the existing Django session remain the only request mechanism.
+
 ## Scope
 
-F61 and F62 do not add a frontend login workflow, reservation form, availability UI,
+F61 through F63 do not add a frontend login workflow, reservation creation form,
 router, state management library, design system or commercial workflow.
 
 Titan remains limited to materials, articles and material packs. F61 does not
