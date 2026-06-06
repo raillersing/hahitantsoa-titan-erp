@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
 
-type InventoryItem = {
-  id: string;
-  name: string;
-  kind: "material" | "article" | "material_pack";
-  description: string;
-};
+import { getInventoryItems } from "./api";
+import AvailabilityPanel from "./AvailabilityPanel";
+import type { InventoryItem } from "./types";
 
 type InventoryState =
   | { status: "loading" }
@@ -30,18 +27,7 @@ function App() {
 
     async function loadInventoryItems() {
       try {
-        const response = await fetch("/api/v1/inventory/items/", {
-          credentials: "include",
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            "Inventory could not be loaded. A local backend session may be required.",
-          );
-        }
-
-        const items = (await response.json()) as InventoryItem[];
+        const items = await getInventoryItems(controller.signal);
         setInventoryState({ status: "loaded", items });
       } catch (error) {
         if (controller.signal.aborted) {
@@ -53,7 +39,7 @@ function App() {
           message:
             error instanceof Error
               ? error.message
-              : "Inventory could not be loaded.",
+              : "The requested data could not be loaded.",
         });
       }
     }
@@ -109,6 +95,8 @@ function App() {
           )}
         </section>
       ) : null}
+
+      <AvailabilityPanel />
     </main>
   );
 }

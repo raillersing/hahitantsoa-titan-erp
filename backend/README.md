@@ -478,6 +478,15 @@ Les kinds `venue`, `local`, `room`, `service`, `event_service` et les kinds inco
 
 Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
 
+## Frontend availability consumption
+
+F63 consomme depuis le frontend MVP les APIs reservations read-only existantes :
+
+- `GET /api/v1/reservations/availability-summary/` ;
+- `GET /api/v1/reservations/available-item-previews/`.
+
+F63 ne modifie aucun comportement backend, endpoint, serializer, view, URL ou test backend. Les endpoints restent authentifies, GET-only et sans creation de reservation persistante.
+
 ## Reservations read-only APIs
 
 Les surfaces reservations explicitement autorisees restent authentifiees et read-only :
