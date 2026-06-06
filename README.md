@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F70 clarification du scope MVP Hahitantsoa et roadmap globale en cours**.
+Statut actuel : **F71 workflow Codex a deux agents en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -317,6 +317,8 @@ F70 clarifie le plus petit scope MVP Hahitantsoa et la roadmap globale Hahitants
 
 F70 ne modifie aucun comportement applicatif. Le resultat d'acceptation locale Titan reste `PASS`, mais le projet complet n'est pas production-ready.
 
+F71 formalise un workflow Codex a deux agents pour les changements qui beneficient d'une revue independante : Agent A implemente le plan approuve, puis Agent B realise une revue critique sans modifier les fichiers. Les operations Git de publication et de merge restent manuelles. Voir [docs/codex/two-agent-workflow.md](docs/codex/two-agent-workflow.md).
+
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
@@ -352,7 +354,9 @@ Les prompts courts Codex sont documentes dans `docs/codex/`.
 - Utiliser `docs/codex/task-prompt-template.md` pour cadrer les futures taches Fxx.
 - Utiliser `docs/codex/reasoning-policy.md` pour choisir Low, Medium ou High selon le risque.
 - Utiliser `docs/codex/validation-checklist.md` pour preparer le rapport final et les validations.
+- Utiliser `docs/codex/two-agent-workflow.md` lorsqu'une implementation doit etre suivie d'une revue independante.
 - Utiliser `PLAN ONLY` puis `IMPLEMENT APPROVED PLAN` pour les taches sensibles ou explicitement soumises a approbation.
+- Les agents ne font ni commit, ni push, ni creation de PR, ni merge ; ces operations restent manuelles.
 - Integrer les mises a jour documentaires utiles dans la meme PR que la tache quand c'est raisonnable.
 
 Ces documents ne remplacent pas les sources de verite. `AGENTS.md`, `DEC-001` et `DEC-002` restent prioritaires.

@@ -2,6 +2,64 @@
 
 Use this short template for future Fxx tasks. Keep the prompt focused on scope, source-of-truth constraints and validation. Add detail only where the task needs it.
 
+Use [two-agent-workflow.md](two-agent-workflow.md) when an approved implementation requires an independent Reviewer/QA pass.
+
+## Recommended Codex reasoning level
+
+- `Low`: small documentation corrections or narrow mechanical changes.
+- `Medium`: focused implementation, tests or structured documentation with contained risk.
+- `High`: models, migrations, transactions, permissions, security, write APIs or complex
+  cross-scope behavior.
+
+## Agent A - Implementer template
+
+```text
+You are Codex Agent A - Implementer.
+
+Recommended reasoning level: <Low|Medium|High>.
+Task: Fxx - <name>
+Approved branch: <branch>
+Approved scope: <files and behavior>
+
+Implement only the approved plan.
+Use scripts/dev/erp-logged-run for every terminal command.
+Do not access .env.
+Do not commit, push, create a PR or merge.
+Keep strict Hahitantsoa/Titan business scope.
+Update documentation/status when applicable.
+
+Return:
+- files created/modified
+- implementation summary
+- validation commands and results
+- terminal log locations
+- scope and business-rule confirmations
+- risks requiring human review
+```
+
+## Agent B - Reviewer/QA template
+
+```text
+You are Codex Agent B - Reviewer/QA.
+
+Recommended reasoning level: <Low|Medium|High>.
+Task under review: Fxx - <name>
+Approved scope: <files and behavior>
+
+Review the provided diff and validation evidence critically.
+Do not implement fixes while reviewing.
+Do not access .env.
+Do not commit, push, create a PR or merge.
+Verify strict Hahitantsoa/Titan business scope and forbidden-file guards.
+
+Return:
+- findings ordered by severity with file references
+- scope and business-rule assessment
+- validation-evidence assessment
+- missing tests/docs when applicable
+- verdict: APPROVE / REQUEST CHANGES / BLOCK
+```
+
 ## Workflow Codex en deux temps
 
 Use two prompts for sensitive or structured work.
