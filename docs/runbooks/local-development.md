@@ -19,15 +19,15 @@ La mise en route des conteneurs ne doit etre effectuee qu'apres revue du diff et
 
 ## Variables locales
 
-Copier ulterieurement l'exemple d'environnement avant tout demarrage local :
+L'environnement local secret doit etre prepare manuellement par l'operateur humain, hors des
+workflows Codex et agents. Les agents doivent traiter `.env` comme un fichier secret interdit et
+supposer que l'environnement shell ou runtime est deja configure avant toute validation.
 
-```sh
-cp .env.example .env
-```
+Si cette preparation manque, l'agent doit s'arreter et demander a l'operateur humain de la
+realiser sans exposer le contenu de `.env`.
 
-Remplacer les mots de passe d'exemple dans `.env` par des valeurs locales.
-
-Ne jamais commiter `.env`. Seul `.env.example` doit rester versionne.
+Ne jamais commiter `.env`. Seul `.env.example` doit rester versionne. Les agents ne doivent
+jamais creer, sourcer, afficher, ouvrir, inspecter, lire ou modifier directement `.env`.
 
 Variables Django supplementaires a completer ou conserver localement selon le besoin :
 
@@ -57,6 +57,10 @@ docker compose --env-file .env up -d db redis
 docker compose stop db redis
 docker compose down
 ```
+
+Les commandes `docker compose --env-file .env` sont des commandes runtime reservees a
+l'operateur humain. Leur presence dans ce runbook n'autorise jamais un agent a ouvrir,
+inspecter, lire, afficher ou modifier `.env`.
 
 ## Verification PostgreSQL
 
@@ -91,11 +95,8 @@ Installer le projet en mode editable :
 .venv/bin/python -m pip install -e .
 ```
 
-Charger temporairement les variables locales depuis `.env` dans le shell courant :
-
-```sh
-set -a && source .env && set +a
-```
+Avant les commandes Django locales, verifier que les variables requises sont deja exportees
+dans l'environnement du shell ou fournies par l'outillage local documente.
 
 Executer la verification Django minimale :
 
@@ -127,16 +128,16 @@ Executer le lint Python avec Ruff :
 .venv/bin/python -m ruff check .
 ```
 
-Executer le system check Django avec les variables locales chargees temporairement :
+Executer le system check Django avec l'environnement shell deja configure :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
-Executer les tests Foundation avec les variables locales chargees temporairement :
+Executer les tests Foundation avec l'environnement shell deja configure :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python -m pytest
 ```
 
 Ne pas executer `migrate` ou `makemigrations` pendant les phases Foundation F6/F7.
@@ -152,7 +153,7 @@ Ce endpoint retourne uniquement `{"status": "ok"}`. Il ne teste pas PostgreSQL, 
 Le test local du health endpoint se fait via pytest :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python -m pytest
 ```
 
 Ne pas documenter de test `curl` tant qu'aucun serveur Django local n'est demarre dans cette phase.
@@ -451,8 +452,8 @@ Executer les controles habituels :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Aucune migration ne doit etre creee en F13.
@@ -493,8 +494,8 @@ Executer les controles habituels :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Aucune migration ne doit etre creee en F14.
@@ -532,7 +533,7 @@ Verifier l'absence de migrations :
 
 ```sh
 find backend/apps -path "*/migrations/*" -print | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations common --check --dry-run
+.venv/bin/python backend/manage.py makemigrations common --check --dry-run
 ```
 
 Executer les controles habituels :
@@ -540,8 +541,8 @@ Executer les controles habituels :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Aucune migration ne doit etre creee en F15.
@@ -582,7 +583,7 @@ Verifier l'absence de migrations inventory :
 
 ```sh
 find backend/apps -path "*/migrations/*" -print | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles habituels :
@@ -590,8 +591,8 @@ Executer les controles habituels :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Aucune migration ne doit etre creee en F16.
@@ -626,7 +627,7 @@ Verifier l'absence de migrations inventory :
 
 ```sh
 find backend/apps -path "*/migrations/*" -print | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles habituels :
@@ -634,8 +635,8 @@ Executer les controles habituels :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Aucune migration ne doit etre creee en F17.
@@ -676,7 +677,7 @@ find backend/apps \
 Verifier qu'aucune nouvelle migration inventory n'est necessaire apres creation de la migration initiale :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles habituels :
@@ -684,8 +685,8 @@ Executer les controles habituels :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Valider la migration dans PostgreSQL local via Compose :
@@ -716,7 +717,7 @@ Verifier qu'aucune migration nouvelle n'est creee :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Verifier qu'aucun fichier applicatif metier interdit n'a ete cree :
@@ -740,8 +741,8 @@ Executer les controles habituels :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Relancer une validation Docker avec migration et readiness :
@@ -772,7 +773,7 @@ Verifier qu'aucune migration nouvelle n'est creee :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Verifier qu'aucun endpoint, route, view, viewset ou admin n'a ete cree :
@@ -796,7 +797,7 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -840,7 +841,7 @@ Verifier qu'aucune migration nouvelle n'est creee :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Verifier qu'aucun viewset ou admin n'a ete cree :
@@ -864,7 +865,7 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -908,7 +909,7 @@ Verifier qu'aucune migration nouvelle n'est creee :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Verifier qu'aucun viewset ou admin n'a ete cree :
@@ -932,7 +933,7 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -979,7 +980,7 @@ Verifier qu'aucune migration nouvelle n'est creee :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Verifier qu'aucun viewset ou admin n'a ete cree :
@@ -1003,7 +1004,7 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -1058,7 +1059,7 @@ Verifier qu'aucune migration nouvelle n'est creee :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Verifier qu'aucun viewset ou admin n'a ete cree :
@@ -1082,7 +1083,7 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -1142,7 +1143,7 @@ Verifier l'absence de migration nouvelle :
 
 ```sh
 find backend/apps -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1150,19 +1151,18 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
 Verifier le comportement avec variables manquantes :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py seed_dev_user || true
+.venv/bin/python backend/manage.py seed_dev_user || true
 ```
 
 Verifier le comportement avec variables presentes :
 
 ```sh
-set -a && source .env && set +a && \
 DJANGO_DEV_USERNAME=dev.local \
 DJANGO_DEV_PASSWORD='<mot-de-passe-local-non-commite>' \
 DJANGO_DEV_EMAIL='dev.local@example.test' \
@@ -1222,7 +1222,7 @@ Verifier l'absence de migration nouvelle :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1230,14 +1230,14 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Executer la commande de seed demo inventory :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py seed_demo_inventory
+.venv/bin/python backend/manage.py seed_demo_inventory
 ```
 
 Si `.env` pointe PostgreSQL vers l'hote Compose `db`, cette commande doit etre executee depuis le conteneur backend ou avec une base locale resoluble depuis l'hote.
@@ -1288,7 +1288,7 @@ Verifier l'absence de migration nouvelle :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1296,8 +1296,8 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -1344,7 +1344,7 @@ Verifier l'absence de migration nouvelle :
 
 ```sh
 find backend/apps/inventory -path "*/migrations/*" -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1352,9 +1352,9 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_detail_readonly_smoke.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_inventory_detail_readonly_smoke.py
+.venv/bin/python -m pytest
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -1408,7 +1408,7 @@ sed -n '1,220p' backend/apps/inventory/migrations/0002_inventoryavailability.py
 Verifier qu'aucune migration supplementaire n'est necessaire apres creation de `0002_inventoryavailability.py` :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1416,9 +1416,9 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_model.py tests/backend/test_inventory_availability_persistence.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_inventory_availability_model.py tests/backend/test_inventory_availability_persistence.py
+.venv/bin/python -m pytest
 ```
 
 Appliquer les migrations dans Docker Compose pour valider PostgreSQL local :
@@ -1462,7 +1462,7 @@ find tests/backend -maxdepth 1 -type f | sort
 Verifier qu'aucune migration nouvelle n'est necessaire :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1470,9 +1470,9 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
+.venv/bin/python -m pytest
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -1515,7 +1515,7 @@ Verifier qu'aucune migration nouvelle n'est necessaire :
 
 ```sh
 find backend/apps/inventory/migrations -maxdepth 1 -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1523,9 +1523,9 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_seed_smoke.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_inventory_availability_seed_smoke.py
+.venv/bin/python -m pytest
 ```
 
 Executer pytest dans un conteneur backend temporaire :
@@ -1569,7 +1569,7 @@ Verifier qu'aucune migration nouvelle n'est creee :
 
 ```sh
 find backend/apps/inventory/migrations -maxdepth 1 -type f | sort
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
+.venv/bin/python backend/manage.py makemigrations inventory --check --dry-run
 ```
 
 Verifier qu'aucun fichier API inventory n'a ete modifie :
@@ -1583,7 +1583,7 @@ Executer les controles applicables :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
 Relancer le backend et verifier readiness :
@@ -1617,8 +1617,8 @@ grep -Rni "apps.reservations.apps.ReservationsConfig" backend/config/settings.py
 Verifier qu'aucune migration n'est necessaire :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1626,9 +1626,9 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
+.venv/bin/python -m pytest
 ```
 
 Executer Django check dans un conteneur backend temporaire :
@@ -1687,8 +1687,8 @@ find backend/apps/reservations \
 Verifier qu'aucune migration n'est necessaire :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1696,10 +1696,10 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_scope.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_reservations_scope.py
+.venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
+.venv/bin/python -m pytest
 ```
 
 Executer Django check et pytest dans un conteneur backend temporaire :
@@ -1760,8 +1760,8 @@ find backend/apps/reservations \
 Verifier qu'aucune migration n'est necessaire :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1769,11 +1769,11 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_periods.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_scope.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_reservations_periods.py
+.venv/bin/python -m pytest tests/backend/test_reservations_scope.py
+.venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
+.venv/bin/python -m pytest
 ```
 
 Executer Django check et pytest dans un conteneur backend temporaire :
@@ -1835,8 +1835,8 @@ find backend/apps/reservations \
 Verifier qu'aucune migration n'est necessaire :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1844,12 +1844,12 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_validation.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_periods.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_scope.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_reservations_validation.py
+.venv/bin/python -m pytest tests/backend/test_reservations_periods.py
+.venv/bin/python -m pytest tests/backend/test_reservations_scope.py
+.venv/bin/python -m pytest tests/backend/test_reservations_app_config.py
+.venv/bin/python -m pytest
 ```
 
 Executer Django check et pytest dans un conteneur backend temporaire :
@@ -1912,8 +1912,8 @@ find backend/apps/reservations \
 Verifier qu'aucune migration n'est necessaire :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -1921,13 +1921,13 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_availability.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_validation.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_periods.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_scope.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_reservations_availability.py
+.venv/bin/python -m pytest tests/backend/test_reservations_validation.py
+.venv/bin/python -m pytest tests/backend/test_reservations_periods.py
+.venv/bin/python -m pytest tests/backend/test_reservations_scope.py
+.venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
+.venv/bin/python -m pytest
 ```
 
 Executer Django check et pytest dans un conteneur backend temporaire si la DB locale hors Docker ne resout pas le host Compose :
@@ -1992,8 +1992,8 @@ find backend/apps/reservations \
 Verifier qu'aucune migration n'est necessaire :
 
 ```sh
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
-set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations reservations --check --dry-run
+.venv/bin/python backend/manage.py makemigrations --check --dry-run
 ```
 
 Executer les controles locaux :
@@ -2001,14 +2001,14 @@ Executer les controles locaux :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_preview.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_availability.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_validation.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_periods.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_reservations_scope.py
-set -a && source .env && set +a && .venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest tests/backend/test_reservations_preview.py
+.venv/bin/python -m pytest tests/backend/test_reservations_availability.py
+.venv/bin/python -m pytest tests/backend/test_reservations_validation.py
+.venv/bin/python -m pytest tests/backend/test_reservations_periods.py
+.venv/bin/python -m pytest tests/backend/test_reservations_scope.py
+.venv/bin/python -m pytest tests/backend/test_inventory_availability_queries.py
+.venv/bin/python -m pytest
 ```
 
 Executer Django check et pytest dans un conteneur backend temporaire si la DB locale hors Docker ne resout pas le host Compose :
