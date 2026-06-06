@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F74 - value object read-only Hahitantsoa**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F75 - selector read-only de decouverte Hahitantsoa**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -325,7 +325,9 @@ F72 terminee : suppression documentaire des exemples historiques qui sourcent di
 
 F73 terminee : ajout de garde-fous purs Python pour les concepts confirmes du premier slice Hahitantsoa read-only. F73 ne cree aucune persistence, API, frontend, selector, catalogue, value object, reservation, allocation, pricing, paiement, facture, client ou workflow commercial et ne modifie pas le scope Titan.
 
-F74 en cours : ajout d'un unique value object pur Python, immuable et read-only pour representer un item de decouverte Hahitantsoa valide par les garde-fous F73. F74 ne cree aucune persistence, API, frontend, selector, catalogue, donnee demo, reservation, allocation, pricing, paiement, facture, client, stock, quantite, unite ou workflow commercial et ne modifie pas le scope Titan.
+F74 terminee : ajout d'un unique value object pur Python, immuable et read-only pour representer un item de decouverte Hahitantsoa valide par les garde-fous F73. F74 ne cree aucune persistence, API, frontend, selector, catalogue, donnee demo, reservation, allocation, pricing, paiement, facture, client, stock, quantite, unite ou workflow commercial et ne modifie pas le scope Titan.
+
+F75 en cours : ajout d'un selector interne pur Python retournant un tuple immuable des categories de decouverte Hahitantsoa validees. Ce catalogue statique read-only ne cree aucune persistence, API, frontend, acces DB, QuerySet, disponibilite, filtre, entite de catalogue reelle, reservation, allocation, pricing, paiement, facture, client, stock, quantite, unite ou workflow commercial et ne modifie pas le scope Titan.
 
 ### Roadmap MVP globale read-only
 

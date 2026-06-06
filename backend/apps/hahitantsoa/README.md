@@ -30,3 +30,21 @@ F74 adds `HahitantsoaDiscoveryItem`, a minimal immutable pure-Python value objec
 This value object is not a catalogue, selector, model, API or workflow. It contains no
 persistence identifier, metadata, status, lifecycle, availability, pricing, stock, quantity,
 unit, reservation or commercial fields.
+
+F75 adds the internal pure-Python selector `list_hahitantsoa_discovery_items`. It returns an
+immutable tuple containing these validated high-level discovery categories in deterministic
+order:
+
+- `event`;
+- `venue`;
+- `local`;
+- `room`;
+- `hall`;
+- `material`;
+- `article`;
+- `furniture`;
+- `service`.
+
+The selector is a static read-only discovery-category catalogue only. It is not real inventory,
+availability data, an API payload contract, a production or commercial catalogue, or a
+reservation workflow. It uses no Django model, database, QuerySet, filter or framework API.
