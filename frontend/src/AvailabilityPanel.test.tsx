@@ -72,11 +72,14 @@ describe("AvailabilityPanel", () => {
     expect(screen.getByRole("button", { name: "Check availability" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Sign in through the backend \/api-auth\/login\/ first\. Checking availability does not create a reservation\./,
+        /Sign in through the backend \/api-auth\/login\/ first\. For local demo data, run seed_demo_availability and choose a period overlapping its next two-hour window\. Checking availability does not create a reservation\./,
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /log in|sign in/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /reserve|book/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/username|password/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /reserve|book|create reservation/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("calls both read-only endpoints with session credentials and aware datetimes", async () => {

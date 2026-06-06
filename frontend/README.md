@@ -58,6 +58,8 @@ F65 adds a short helper note explaining that the check is read-only, requires a 
 
 The complete local demo flow is documented in [`docs/runbooks/mvp-local-demo-flow.md`](../docs/runbooks/mvp-local-demo-flow.md).
 
+F66 extends the helper note with guidance for selecting a period that overlaps the next two-hour local demo window. Manual acceptance is documented in [`docs/runbooks/mvp-local-demo-acceptance.md`](../docs/runbooks/mvp-local-demo-acceptance.md).
+
 ## Scope
 
 F61 through F63 do not add a frontend login workflow, reservation creation form,

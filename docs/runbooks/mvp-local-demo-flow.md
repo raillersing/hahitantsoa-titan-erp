@@ -63,6 +63,8 @@ Open the Vite URL shown in the terminal. Confirm that:
 
 Use [mvp-local-smoke-validation.md](mvp-local-smoke-validation.md) for the broader backend/frontend smoke validation.
 
+Record the manual browser result with [mvp-local-demo-acceptance.md](mvp-local-demo-acceptance.md). This acceptance scenario is manual verification, not automated end-to-end coverage.
+
 Stop the local services after the demo:
 
 ```sh
