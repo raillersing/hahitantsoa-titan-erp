@@ -2,6 +2,8 @@
 
 Le parcours local complet avec utilisateur dev, donnees demo inventory, periodes techniques de disponibilite et frontend est documente dans [mvp-local-demo-flow.md](mvp-local-demo-flow.md).
 
+L'acceptation manuelle du parcours est documentee dans [mvp-local-demo-acceptance.md](mvp-local-demo-acceptance.md).
+
 ## Statut
 
 Ce runbook couvre uniquement la premiere infrastructure locale PostgreSQL et Redis.

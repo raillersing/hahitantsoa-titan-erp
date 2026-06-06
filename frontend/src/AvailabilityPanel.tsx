@@ -100,7 +100,9 @@ function AvailabilityPanel() {
           <h2 id="availability-heading">Availability</h2>
           <p className="section-helper">
             Read-only check. Sign in through the backend /api-auth/login/ first.
-            Checking availability does not create a reservation.
+            For local demo data, run seed_demo_availability and choose a period
+            overlapping its next two-hour window. Checking availability does not create
+            a reservation.
           </p>
         </div>
       </div>

@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F65 - parcours de demonstration locale inventory availability**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F66 - checklist d'acceptation de la demonstration MVP locale**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -307,7 +307,9 @@ F63 terminee : panneau frontend de consultation de disponibilite consommant les 
 
 F64 terminee : validation operationnelle du smoke test MVP local backend/frontend documente en F63, sans changement applicatif, CI, configuration de deploiement ou secret versionne.
 
-F65 en cours : parcours de demonstration locale avec seed idempotent de periodes techniques `InventoryAvailability`, note UX frontend read-only et runbook dedie. F65 ne cree aucune reservation persistante, API d'ecriture, modele, migration, serializer, view, URL, admin, workflow frontend de reservation ou de login, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
+F65 terminee : parcours de demonstration locale avec seed idempotent de periodes techniques `InventoryAvailability`, note UX frontend read-only et runbook dedie. F65 ne cree aucune reservation persistante, API d'ecriture, modele, migration, serializer, view, URL, admin, workflow frontend de reservation ou de login, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
+
+F66 en cours : checklist d'acceptation de la demonstration MVP locale, scenario manuel navigateur et indication frontend textuelle pour choisir une periode chevauchant la fenetre demo F65. F66 ne modifie aucun backend, endpoint ou comportement d'ecriture et ne cree aucun modele, migration, admin, reservation persistante, workflow frontend de login ou de reservation, outillage e2e, CI, configuration de deploiement ou workflow commercial complet.
 
 ### Objectifs futurs
 

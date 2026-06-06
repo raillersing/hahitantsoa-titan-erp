@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F65 parcours de demonstration locale inventory availability en cours**.
+Statut actuel : **F66 checklist d'acceptation de la demonstration MVP locale en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -287,7 +287,7 @@ F63 ne modifie aucun comportement backend et ne cree aucune reservation persista
 
 F64 a valide operationnellement le smoke test MVP local backend/frontend documente en F63.
 
-F65 ajoute une commande locale/dev idempotente pour creer deux periodes techniques `InventoryAvailability` de demonstration :
+F65 est terminee et a ajoute une commande locale/dev idempotente pour creer deux periodes techniques `InventoryAvailability` de demonstration :
 
 ```sh
 python backend/manage.py seed_demo_availability
@@ -296,6 +296,10 @@ python backend/manage.py seed_demo_availability
 La commande utilise uniquement les items existants crees par `seed_demo_inventory`, refuse `DEBUG=False`, laisse le pack demo disponible et ne cree aucune reservation persistante. Le statut `reserved` utilise ici est uniquement un statut technique d'indisponibilite inventory.
 
 Le parcours complet est documente dans [docs/runbooks/mvp-local-demo-flow.md](docs/runbooks/mvp-local-demo-flow.md). Le frontend affiche aussi explicitement que la consultation est read-only, exige une session backend locale et ne cree aucune reservation.
+
+F66 ajoute une [checklist d'acceptation de la demonstration MVP locale](docs/runbooks/mvp-local-demo-acceptance.md), un scenario manuel navigateur et une indication frontend pour choisir une periode chevauchant la fenetre demo F65.
+
+F66 ne modifie aucun backend, endpoint, modele, migration, admin ou comportement d'ecriture. Il ne cree aucun workflow frontend de login ou de reservation, aucun outillage e2e, CI ou configuration de deploiement.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
