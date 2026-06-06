@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F71 workflow Codex a deux agents en cours**.
+Statut actuel : **F73 garde-fous read-only du scope Hahitantsoa en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -318,6 +318,10 @@ F70 clarifie le plus petit scope MVP Hahitantsoa et la roadmap globale Hahitants
 F70 ne modifie aucun comportement applicatif. Le resultat d'acceptation locale Titan reste `PASS`, mais le projet complet n'est pas production-ready.
 
 F71 formalise un workflow Codex a deux agents pour les changements qui beneficient d'une revue independante : Agent A implemente le plan approuve, puis Agent B realise une revue critique sans modifier les fichiers. Les operations Git de publication et de merge restent manuelles. Voir [docs/codex/two-agent-workflow.md](docs/codex/two-agent-workflow.md).
+
+F72 est terminee et a supprime les exemples documentaires historiques qui demandaient aux agents de sourcer directement `.env`.
+
+F73 ajoute un garde-fou pur Python pour les concepts confirmes du premier slice Hahitantsoa read-only. Ce package structurel n'est pas une app Django et n'ajoute aucune persistence, API, selector, catalogue, value object ou interface frontend.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
