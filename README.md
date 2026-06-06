@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F67 resultat d'acceptation de la demonstration MVP locale en cours**.
+Statut actuel : **F68 enregistrement du PASS d'acceptation navigateur MVP local en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -301,9 +301,11 @@ F66 est terminee et a ajoute une [checklist d'acceptation de la demonstration MV
 
 F66 ne modifie aucun backend, endpoint, modele, migration, admin ou comportement d'ecriture. Il ne cree aucun workflow frontend de login ou de reservation, aucun outillage e2e, CI ou configuration de deploiement.
 
-F67 consigne les preuves disponibles dans [docs/runbooks/mvp-local-demo-acceptance-result.md](docs/runbooks/mvp-local-demo-acceptance-result.md) et documente la prochaine etape MVP recommandee sans l'implementer. Le resultat final reste `PENDING MANUAL BROWSER CONFIRMATION` tant que l'operateur humain n'a pas confirme le scenario navigateur.
+F67 est terminee et consigne les preuves disponibles dans [docs/runbooks/mvp-local-demo-acceptance-result.md](docs/runbooks/mvp-local-demo-acceptance-result.md). Elle documente aussi la prochaine etape MVP recommandee sans l'implementer.
 
 F67 est documentaire uniquement et n'implemente pas F68.
+
+F68 enregistre le resultat `PASS` de l'acceptation navigateur humaine du parcours MVP local. Cette tache est documentaire uniquement et n'implemente pas la prochaine fonctionnalite recommandee.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
