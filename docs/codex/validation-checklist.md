@@ -2,6 +2,30 @@
 
 Use this checklist at the end of a Codex task. Trim only the checks that are clearly irrelevant to the approved scope.
 
+## Agent A - Implementer checklist
+
+- [ ] Correct approved branch is active.
+- [ ] Working tree was clean before the task started.
+- [ ] Only the approved scope was modified.
+- [ ] Documentation-only scope was preserved when applicable.
+- [ ] Every terminal command used `scripts/dev/erp-logged-run`.
+- [ ] Required validations were executed and their results summarized.
+- [ ] Diff and changed files were summarized.
+- [ ] Documentation/status was updated when applicable.
+- [ ] No `.env` file was accessed.
+- [ ] No `git add`, commit, push, PR creation or merge was performed.
+
+## Agent B - Reviewer/QA checklist
+
+- [ ] Review the diff and evidence without implementing changes.
+- [ ] Verify the approved scope was respected.
+- [ ] Verify Hahitantsoa and Titan business rules.
+- [ ] Verify no forbidden files were modified.
+- [ ] Verify validation logs and reported results.
+- [ ] Identify missing tests or documentation when applicable.
+- [ ] Confirm no `.env` access or secret exposure.
+- [ ] Produce one verdict: `APPROVE`, `REQUEST CHANGES` or `BLOCK`.
+
 ## Prompt workflow
 
 - [ ] Confirm whether the task was sensitive, structural or explicitly approval-gated.
@@ -17,7 +41,7 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 
 ## Git and scope
 
-- [ ] Use the logged terminal wrapper as the standard workflow for long or important local validations; trivial one-off commands may still run directly:
+- [ ] Agents use the logged terminal wrapper for every terminal command:
 
   ```sh
   scripts/dev/erp-logged-run <task-name> <<'EOF'
@@ -61,6 +85,10 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 
 ## Quality checks
 
+- [ ] Use an already configured shell environment or documented local tooling for commands
+  requiring environment variables. Validation commands must never source, print, inspect or
+  otherwise read `.env` directly.
+
 - [ ] Run Ruff format check when Python files changed:
 
   ```sh
@@ -76,25 +104,25 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 - [ ] Run targeted tests when code changed:
 
   ```sh
-  set -a && source .env && set +a && .venv/bin/python -m pytest <target>
+  .venv/bin/python -m pytest <target>
   ```
 
 - [ ] Run app migration check when a Django app or model area changed:
 
   ```sh
-  set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations <app> --check --dry-run
+  .venv/bin/python backend/manage.py makemigrations <app> --check --dry-run
   ```
 
 - [ ] Run global migration check when models or installed apps changed:
 
   ```sh
-  set -a && source .env && set +a && .venv/bin/python backend/manage.py makemigrations --check --dry-run
+  .venv/bin/python backend/manage.py makemigrations --check --dry-run
   ```
 
 - [ ] Run Django system check when backend Django code or settings changed:
 
   ```sh
-  set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+  .venv/bin/python backend/manage.py check
   ```
 
 ## Docker and readiness
