@@ -5,7 +5,7 @@ from rest_framework import serializers
 from apps.reservations.services import ReservationAvailabilitySummary
 
 
-class ReservationAvailabilitySummaryQuerySerializer(serializers.Serializer):
+class ReservationPeriodQuerySerializer(serializers.Serializer):
     start_at = serializers.DateTimeField(required=True)
     end_at = serializers.DateTimeField(required=True)
 
@@ -34,6 +34,10 @@ class ReservationAvailabilitySummaryQuerySerializer(serializers.Serializer):
             )
 
 
+class ReservationAvailabilitySummaryQuerySerializer(ReservationPeriodQuerySerializer):
+    pass
+
+
 class ReservationAvailabilitySummarySerializer(serializers.Serializer):
     start_at = serializers.DateTimeField(source="period.start_at")
     end_at = serializers.DateTimeField(source="period.end_at")
@@ -45,3 +49,12 @@ class ReservationAvailabilitySummarySerializer(serializers.Serializer):
         data = super().to_representation(instance)
         data["available_item_kinds"] = list(instance.available_item_kinds)
         return data
+
+
+class ReservationAvailableItemPreviewSerializer(serializers.Serializer):
+    inventory_item_id = serializers.UUIDField(source="inventory_item.id")
+    inventory_item_name = serializers.CharField(source="inventory_item.name")
+    inventory_item_kind = serializers.CharField()
+    start_at = serializers.DateTimeField()
+    end_at = serializers.DateTimeField()
+    status = serializers.CharField()

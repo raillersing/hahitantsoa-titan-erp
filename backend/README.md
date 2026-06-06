@@ -478,6 +478,17 @@ Les kinds `venue`, `local`, `room`, `service`, `event_service` et les kinds inco
 
 Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
 
+## Reservations read-only APIs
+
+Les surfaces reservations explicitement autorisees restent authentifiees et read-only :
+
+- `GET /api/v1/reservations/availability-summary/` ;
+- `GET /api/v1/reservations/available-item-previews/`.
+
+Le second endpoint F62 retourne uniquement un DTO minimal construit depuis les previews disponibles existantes : identifiant, nom, kind, periode et statut. Il ne retourne ni conflit ni objet de validation interne.
+
+Ces endpoints n'ecrivent jamais en DB et ne creent aucune reservation persistante. Le domaine reservations ne contient toujours aucun modele, migration ou admin, et aucune methode POST, PUT, PATCH ou DELETE n'est autorisee.
+
 F36 ajoute `backend/apps/reservations/validation.py`.
 
 Ce helper pur Python valide une future demande de reservation item + periode, sans acces DB.

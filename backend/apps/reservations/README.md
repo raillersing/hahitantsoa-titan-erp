@@ -389,6 +389,27 @@ F61 ne cree aucun `models.py`, aucun `admin.py`, aucun dossier `migrations/`, au
 
 F61 ne cree aucun contrat, facture, paiement, client, stock, quantite, unite, pricing, workflow complet de reservation, logique Titan local/salle/venue/room/hall/service/event-service ou workflow commercial.
 
+## Reservation available item previews API
+
+F62 ajoute une seconde surface API reservations explicitement autorisee :
+
+- `GET /api/v1/reservations/available-item-previews/`.
+
+L'endpoint exige une session authentifiee, valide `start_at` et `end_at` comme datetimes ISO timezone-aware, puis appelle `get_reservation_available_item_previews_service`.
+
+La reponse est une liste de DTO minimaux contenant uniquement :
+
+- `inventory_item_id` ;
+- `inventory_item_name` ;
+- `inventory_item_kind` ;
+- `start_at` ;
+- `end_at` ;
+- `status`.
+
+L'endpoint n'expose ni conflits ni objets de validation internes. Il reste GET-only, n'ecrit jamais en DB et ne cree aucune reservation persistante.
+
+F62 ne cree aucun `models.py`, aucun `admin.py`, aucun dossier `migrations/`, aucune API d'ecriture, aucun workflow frontend de reservation ou de login, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

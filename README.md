@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F61 MVP read-only availability API + frontend inventory bootstrap en cours**.
+Statut actuel : **F62 available item previews read-only API + frontend tests foundation en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -271,7 +271,15 @@ F61 ajoute aussi le premier bootstrap frontend React/Vite/TypeScript. La page in
 
 F61 ne cree aucun modele reservations, aucune migration reservations, aucun admin, aucune API d'ecriture, aucune reservation persistante, aucun workflow frontend de reservation, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
 
-Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React F61 reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
+F62 ajoute une seconde surface API reservations authentifiee et read-only :
+
+- `GET /api/v1/reservations/available-item-previews/`
+
+Cet endpoint retourne une liste minimale des previews d'items Titan disponibles pour une periode, en composant le service interne existant. F62 ajoute aussi Vitest, jsdom et React Testing Library pour tester la page inventory frontend existante.
+
+F62 ne cree aucun modele reservations, aucune migration reservations, aucun admin, aucune API d'ecriture, aucune reservation persistante, aucun workflow frontend de reservation ou de login, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
+
+Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 
