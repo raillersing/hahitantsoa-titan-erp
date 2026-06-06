@@ -416,6 +416,12 @@ F63 ajoute uniquement un panneau frontend qui consomme les endpoints read-only F
 
 Le panneau affiche une consultation de disponibilite et ne cree aucune reservation persistante. Il ne cree aucune API d'ecriture, logique de login frontend, workflow de reservation, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial.
 
+## MVP local demo flow
+
+F65 documente un parcours local qui combine les seeds techniques inventory et les endpoints reservations read-only existants. Il ne modifie aucun service, serializer, view ou URL reservations.
+
+Une ligne `InventoryAvailability` avec le statut technique `reserved` ne constitue pas une reservation metier persistante. Le domaine reservations reste sans modele, migration, admin et API d'ecriture.
+
 ## Reservation item preview
 
 F38 ajoute `preview.py` comme value object interne pour preparer une future demande de reservation item.

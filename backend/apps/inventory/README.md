@@ -227,6 +227,18 @@ La commande ne doit jamais creer :
 
 F26 ne cree aucun endpoint d'ecriture, modele supplementaire, serializer, view, viewset, router, admin, role metier, JWT/token ou migration.
 
+## Commande seed_demo_availability
+
+F65 ajoute la commande technique locale/dev :
+
+```sh
+python backend/manage.py seed_demo_availability
+```
+
+Elle attend les items crees par `seed_demo_inventory`, puis cree ou met a jour une periode `blocked` pour `Sonorisation standard` et une periode `reserved` pour `Projecteur LED`. `Pack sonorisation + eclairage` reste disponible pour permettre une demonstration visible.
+
+La commande refuse `DEBUG=False`, ne cree jamais d'item, ne touche pas aux periodes non gerees par F65 et reste idempotente. Le statut `reserved` est uniquement un statut technique `InventoryAvailability`; aucune reservation metier persistante n'est creee.
+
 ## InventoryAvailability
 
 F29 ajoute `InventoryAvailability` comme modele minimal de socle pour les futures periodes d'indisponibilite ou de reservation d'un `InventoryItem`.

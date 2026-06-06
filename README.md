@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F63 frontend availability panel + MVP smoke validation runbook en cours**.
+Statut actuel : **F65 parcours de demonstration locale inventory availability en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -284,6 +284,18 @@ F63 connecte le frontend aux APIs reservations read-only F61/F62 avec un panneau
 F63 extrait aussi les types et appels API frontend dans des modules simples et ajoute le runbook `docs/runbooks/mvp-local-smoke-validation.md`.
 
 F63 ne modifie aucun comportement backend et ne cree aucune reservation persistante, API d'ecriture, logique de login frontend, workflow de creation de reservation, CI, configuration de deploiement ou workflow commercial.
+
+F64 a valide operationnellement le smoke test MVP local backend/frontend documente en F63.
+
+F65 ajoute une commande locale/dev idempotente pour creer deux periodes techniques `InventoryAvailability` de demonstration :
+
+```sh
+python backend/manage.py seed_demo_availability
+```
+
+La commande utilise uniquement les items existants crees par `seed_demo_inventory`, refuse `DEBUG=False`, laisse le pack demo disponible et ne cree aucune reservation persistante. Le statut `reserved` utilise ici est uniquement un statut technique d'indisponibilite inventory.
+
+Le parcours complet est documente dans [docs/runbooks/mvp-local-demo-flow.md](docs/runbooks/mvp-local-demo-flow.md). Le frontend affiche aussi explicitement que la consultation est read-only, exige une session backend locale et ne cree aucune reservation.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 

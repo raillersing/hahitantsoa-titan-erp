@@ -70,6 +70,11 @@ describe("AvailabilityPanel", () => {
     expect(screen.getByLabelText("Start")).toHaveAttribute("type", "datetime-local");
     expect(screen.getByLabelText("End")).toHaveAttribute("type", "datetime-local");
     expect(screen.getByRole("button", { name: "Check availability" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Sign in through the backend \/api-auth\/login\/ first\. Checking availability does not create a reservation\./,
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /log in|sign in/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /reserve|book/i })).not.toBeInTheDocument();
   });

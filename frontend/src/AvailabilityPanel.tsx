@@ -98,6 +98,10 @@ function AvailabilityPanel() {
         <div>
           <p className="eyebrow">Read-only availability</p>
           <h2 id="availability-heading">Availability</h2>
+          <p className="section-helper">
+            Read-only check. Sign in through the backend /api-auth/login/ first.
+            Checking availability does not create a reservation.
+          </p>
         </div>
       </div>
 

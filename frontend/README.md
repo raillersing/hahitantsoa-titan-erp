@@ -54,6 +54,10 @@ The panel accepts a local start and end datetime, converts both values to timezo
 
 Frontend API calls and response contracts are kept in `src/api.ts` and `src/types.ts`. Native `fetch` and the existing Django session remain the only request mechanism.
 
+F65 adds a short helper note explaining that the check is read-only, requires a backend session created through `/api-auth/login/`, and does not create a reservation.
+
+The complete local demo flow is documented in [`docs/runbooks/mvp-local-demo-flow.md`](../docs/runbooks/mvp-local-demo-flow.md).
+
 ## Scope
 
 F61 through F63 do not add a frontend login workflow, reservation creation form,
