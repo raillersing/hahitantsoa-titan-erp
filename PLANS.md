@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F63 - frontend availability panel + MVP smoke validation runbook**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F65 - parcours de demonstration locale inventory availability**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -303,7 +303,11 @@ F61 terminee : premiere API read-only reservations explicitement autorisee avec 
 
 F62 terminee : API reservations authentifiee et read-only `GET /api/v1/reservations/available-item-previews/`, plus fondation de tests frontend avec Vitest, jsdom et React Testing Library pour la page inventory existante. F62 ne cree aucun modele reservations, aucune migration reservations, aucun admin, aucune API d'ecriture, aucune reservation persistante, aucun workflow frontend de reservation ou de login, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
 
-F63 en cours : panneau frontend de consultation de disponibilite consommant les APIs reservations read-only F61/F62, refactor frontend leger des types et appels API, et runbook de validation smoke MVP locale. F63 ne modifie aucun comportement backend, ne cree aucune reservation persistante, API d'ecriture, workflow frontend de reservation ou de login, CI, configuration de deploiement, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
+F63 terminee : panneau frontend de consultation de disponibilite consommant les APIs reservations read-only F61/F62, refactor frontend leger des types et appels API, et runbook de validation smoke MVP locale. F63 ne modifie aucun comportement backend, ne cree aucune reservation persistante, API d'ecriture, workflow frontend de reservation ou de login, CI, configuration de deploiement, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
+
+F64 terminee : validation operationnelle du smoke test MVP local backend/frontend documente en F63, sans changement applicatif, CI, configuration de deploiement ou secret versionne.
+
+F65 en cours : parcours de demonstration locale avec seed idempotent de periodes techniques `InventoryAvailability`, note UX frontend read-only et runbook dedie. F65 ne cree aucune reservation persistante, API d'ecriture, modele, migration, serializer, view, URL, admin, workflow frontend de reservation ou de login, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial complet.
 
 ### Objectifs futurs
 

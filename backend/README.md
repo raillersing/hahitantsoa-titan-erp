@@ -487,6 +487,18 @@ F63 consomme depuis le frontend MVP les APIs reservations read-only existantes :
 
 F63 ne modifie aucun comportement backend, endpoint, serializer, view, URL ou test backend. Les endpoints restent authentifies, GET-only et sans creation de reservation persistante.
 
+## MVP local demo availability seed
+
+F65 ajoute la commande locale/dev :
+
+```sh
+python backend/manage.py seed_demo_availability
+```
+
+Elle cree ou met a jour uniquement deux periodes techniques `InventoryAvailability` sur les items demo existants. Elle refuse `DEBUG=False`, ne cree aucun `InventoryItem` et ne cree aucune reservation persistante. Le statut `reserved` est ici uniquement un statut technique inventory.
+
+Voir [le parcours de demonstration locale](../docs/runbooks/mvp-local-demo-flow.md).
+
 ## Reservations read-only APIs
 
 Les surfaces reservations explicitement autorisees restent authentifiees et read-only :
