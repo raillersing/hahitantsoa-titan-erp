@@ -78,13 +78,13 @@ The following candidates were evaluated without implementing any of them:
 | Next authenticated read-only MVP surface | Extends the MVP while preserving the current read-only architecture and controlled scope. |
 | Future write workflow preparation | Premature before explicit decisions for persistence, transactions and business invariants. |
 
-Recommended next step: F68 should prepare a focused authenticated read-only item availability detail surface.
+The next implementation step after F68 is the authenticated read-only item availability detail API.
 
-F68 should first define the smallest useful contract and UI scope for inspecting one Titan inventory item's availability periods. It must remain read-only and must not implement persistent reservations, writes, stock, quantities, units, pricing, contracts, invoices, payments, customers or commercial workflows.
+This next step must remain focused on the smallest useful contract for inspecting one Titan inventory item's availability for a period. It must remain read-only and must not implement persistent reservations, writes, stock, quantities, units, pricing, contracts, invoices, payments, customers or commercial workflows.
 
 The manual browser acceptance did not identify blocking UX friction. The future recommendation remains to prepare a focused authenticated read-only item availability detail surface, defining its smallest useful contract and UI scope before implementation.
 
-F68 records the acceptance result only. The recommended next feature is not implemented.
+F68 records the acceptance result only. The next feature is implemented separately by F69.
 
 ## Final Result
 

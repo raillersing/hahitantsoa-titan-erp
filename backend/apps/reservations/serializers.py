@@ -2,6 +2,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import serializers
 
+from apps.reservations.preview import ReservationItemPreview
 from apps.reservations.services import ReservationAvailabilitySummary
 
 
@@ -58,3 +59,16 @@ class ReservationAvailableItemPreviewSerializer(serializers.Serializer):
     start_at = serializers.DateTimeField()
     end_at = serializers.DateTimeField()
     status = serializers.CharField()
+
+
+class ReservationItemAvailabilityPreviewSerializer(serializers.Serializer):
+    inventory_item_id = serializers.UUIDField(source="inventory_item.id")
+    inventory_item_name = serializers.CharField(source="inventory_item.name")
+    inventory_item_kind = serializers.CharField()
+    start_at = serializers.DateTimeField()
+    end_at = serializers.DateTimeField()
+    status = serializers.CharField()
+    conflict_count = serializers.SerializerMethodField()
+
+    def get_conflict_count(self, instance: ReservationItemPreview) -> int:
+        return len(instance.conflicts)

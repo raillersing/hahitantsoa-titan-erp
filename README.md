@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F68 enregistrement du PASS d'acceptation navigateur MVP local en cours**.
+Statut actuel : **F69 API read-only de preview de disponibilite d'un item en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -305,7 +305,13 @@ F67 est terminee et consigne les preuves disponibles dans [docs/runbooks/mvp-loc
 
 F67 est documentaire uniquement et n'implemente pas F68.
 
-F68 enregistre le resultat `PASS` de l'acceptation navigateur humaine du parcours MVP local. Cette tache est documentaire uniquement et n'implemente pas la prochaine fonctionnalite recommandee.
+F68 est terminee et enregistre le resultat `PASS` de l'acceptation navigateur humaine du parcours MVP local. Cette tache est documentaire uniquement.
+
+F69 ajoute la plus petite surface backend authentifiee et read-only pour consulter la preview de disponibilite d'un item Titan sur une periode :
+
+- `GET /api/v1/reservations/items/<uuid:inventory_item_id>/availability-preview/`
+
+F69 delegue au service interne existant, expose uniquement un statut public et un nombre de conflits, et ne cree aucune reservation persistante ni API d'ecriture. Aucune integration frontend n'est ajoutee dans F69.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 

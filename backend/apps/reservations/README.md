@@ -410,6 +410,18 @@ L'endpoint n'expose ni conflits ni objets de validation internes. Il reste GET-o
 
 F62 ne cree aucun `models.py`, aucun `admin.py`, aucun dossier `migrations/`, aucune API d'ecriture, aucun workflow frontend de reservation ou de login, aucun contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial.
 
+## Reservation item availability preview API
+
+F69 ajoute une surface authentifiee et read-only pour inspecter la disponibilite d'un item Titan sur une periode :
+
+- `GET /api/v1/reservations/items/<uuid:inventory_item_id>/availability-preview/`.
+
+L'endpoint valide `start_at` et `end_at`, resout uniquement un `InventoryItem` actif et non supprime, puis delegue exclusivement a `preview_reservation_item_service`.
+
+La reponse expose seulement l'identite minimale de l'item, la periode, le statut public `available` ou `unavailable`, et `conflict_count`. Les identifiants de conflits, notes, donnees d'audit, objets `InventoryAvailability` et objets de validation internes restent masques.
+
+F69 reste GET-only et ne cree aucun `models.py`, `admin.py`, dossier `migrations/`, frontend, modele, migration, reservation persistante, API d'ecriture, contrat, facture, paiement, client, stock, quantite, unite, pricing ou workflow commercial.
+
 ## Frontend availability consumption
 
 F63 ajoute uniquement un panneau frontend qui consomme les endpoints read-only F61 et F62. F63 ne modifie aucun serializer, view, URL, service ou comportement backend reservations.

@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F68 - enregistrement du PASS d'acceptation navigateur MVP local**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F69 - API read-only de preview de disponibilite d'un item**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -313,7 +313,9 @@ F66 terminee : checklist d'acceptation de la demonstration MVP locale, scenario 
 
 F67 terminee : enregistrement documentaire des preuves d'acceptation MVP disponibles et decision conditionnelle de prochaine etape. F67 n'implemente aucune fonctionnalite suivante et ne modifie aucun code, endpoint ou comportement applicatif.
 
-F68 en cours : enregistrement documentaire du resultat `PASS` de l'acceptation navigateur humaine du MVP local. La recommandation future reste de preparer une surface authentifiee et read-only de detail de disponibilite d'un item Titan, avec definition prealable du plus petit contrat et scope UI utiles. F68 n'implemente pas cette fonctionnalite et ne cree aucun backend, frontend, endpoint, modele, migration, admin, reservation persistante, API d'ecriture ou workflow commercial.
+F68 terminee : enregistrement documentaire du resultat `PASS` de l'acceptation navigateur humaine du MVP local. F68 ne modifie aucun comportement applicatif et ne revendique pas de production readiness.
+
+F69 en cours : ajout backend-only de la plus petite API authentifiee et read-only de preview de disponibilite d'un item Titan sur une periode. F69 delegue au service interne existant, masque les details internes des conflits et ne cree aucun frontend, modele, migration, admin, reservation persistante, API d'ecriture ou workflow commercial.
 
 ### Objectifs futurs
 
