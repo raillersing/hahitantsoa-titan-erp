@@ -327,12 +327,16 @@ Le runbook local est disponible dans [docs/runbooks/local-development.md](docs/r
 
 ## Commandes backend locales
 
+Executer ces commandes uniquement lorsque les variables requises sont deja exportees dans
+l'environnement du shell ou fournies par l'outillage local documente. Ne jamais sourcer,
+afficher, ouvrir, inspecter ou lire directement `.env`.
+
 ```sh
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python backend/manage.py check
+.venv/bin/python -m pytest
 ```
 
 ## Documents a lire en priorite

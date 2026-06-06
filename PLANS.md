@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F71 - workflow Codex a deux agents**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F72 - suppression des exemples historiques de sourcing `.env`**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -319,20 +319,23 @@ F69 terminee : ajout backend-only de la plus petite API authentifiee et read-onl
 
 F70 terminee : clarification documentaire du plus petit scope MVP Hahitantsoa et de la roadmap globale Hahitantsoa/Titan. F70 cree `DEC-003-hahitantsoa-mvp-scope.md`, distingue les concepts confirmes des decisions encore ouvertes et maintient les prochaines implementations en lecture seule jusqu'a approbation explicite.
 
-F71 en cours : formalisation documentaire du workflow Codex a deux agents. Agent A applique le plan approuve et produit les preuves de validation journalisees ; Agent B realise une revue critique independante sans modifier les fichiers. Les agents n'accedent jamais a `.env` et ne font ni commit, ni push, ni creation de PR, ni merge. Le premier slice Hahitantsoa et la roadmap globale restent read-only, et la frontiere Titan reste inchangee.
+F71 terminee : formalisation documentaire du workflow Codex a deux agents. Agent A applique le plan approuve et produit les preuves de validation journalisees ; Agent B realise une revue critique independante sans modifier les fichiers. Les agents n'accedent jamais a `.env` et ne font ni commit, ni push, ni creation de PR, ni merge. Le premier slice Hahitantsoa et la roadmap globale restent read-only, et la frontiere Titan reste inchangee.
+
+F72 en cours : suppression documentaire des exemples historiques qui sourcent directement `.env`. F72 ne modifie aucun comportement applicatif et preserve la roadmap Hahitantsoa/Titan ainsi que le premier slice Hahitantsoa read-only.
 
 ### Roadmap MVP globale read-only
 
 - F70 : clarifier le scope MVP Hahitantsoa ;
 - F71 : formaliser le workflow Codex a deux agents ;
-- F72 : ajouter des garde-fous et value objects read-only pour le scope Hahitantsoa ;
-- F73 : ajouter un selector/catalogue demo Hahitantsoa read-only ;
-- F74 : exposer la plus petite API Hahitantsoa read-only approuvee ;
-- F75 : ajouter un app shell et une navigation separee Hahitantsoa/Titan ;
-- F76 : ajouter une vue frontend Hahitantsoa read-only ;
-- F77 : connecter le frontend Titan a la preview de disponibilite item F69 ;
-- F78 : ajouter des tests de coherence de disponibilite cross-scope ;
-- F79 : valider l'acceptation locale du MVP global.
+- F72 : supprimer les exemples historiques de sourcing `.env` ;
+- F73 : ajouter des garde-fous et value objects read-only pour le scope Hahitantsoa ;
+- F74 : ajouter un selector/catalogue demo Hahitantsoa read-only ;
+- F75 : exposer la plus petite API Hahitantsoa read-only approuvee ;
+- F76 : ajouter un app shell et une navigation separee Hahitantsoa/Titan ;
+- F77 : ajouter une vue frontend Hahitantsoa read-only ;
+- F78 : connecter le frontend Titan a la preview de disponibilite item F69 ;
+- F79 : ajouter des tests de coherence de disponibilite cross-scope ;
+- F80 : valider l'acceptation locale du MVP global.
 
 Cette roadmap reste read-only jusqu'a approbation explicite d'une persistence, d'une allocation transactionnelle ou d'une API d'ecriture. Elle n'autorise aucun workflow commercial complet.
 
