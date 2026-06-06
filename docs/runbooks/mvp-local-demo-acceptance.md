@@ -4,7 +4,7 @@
 
 This checklist records manual acceptance of the local/dev MVP demo only. It is not an automated end-to-end test and does not claim production readiness.
 
-Record the final evidence and human observations in [mvp-local-demo-acceptance-result.md](mvp-local-demo-acceptance-result.md). The result remains `PENDING MANUAL BROWSER CONFIRMATION` until the operator completes the browser scenario.
+Record the final evidence and human observations in [mvp-local-demo-acceptance-result.md](mvp-local-demo-acceptance-result.md). The latest recorded result is maintained in that result document.
 
 - [ ] The operator confirmed that no command printed `.env`, passwords, tokens or other secrets.
 - [ ] The operator confirmed that `reserved` is only a technical `InventoryAvailability` status, not a persistent business reservation.

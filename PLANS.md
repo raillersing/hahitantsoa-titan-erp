@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F67 - resultat d'acceptation de la demonstration MVP locale et decision de prochaine etape**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F68 - enregistrement du PASS d'acceptation navigateur MVP local**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -311,7 +311,9 @@ F65 terminee : parcours de demonstration locale avec seed idempotent de periodes
 
 F66 terminee : checklist d'acceptation de la demonstration MVP locale, scenario manuel navigateur et indication frontend textuelle pour choisir une periode chevauchant la fenetre demo F65. F66 ne modifie aucun backend, endpoint ou comportement d'ecriture et ne cree aucun modele, migration, admin, reservation persistante, workflow frontend de login ou de reservation, outillage e2e, CI, configuration de deploiement ou workflow commercial complet.
 
-F67 en cours : enregistrement documentaire des preuves d'acceptation MVP disponibles et decision conditionnelle de prochaine etape. Le resultat reste `PENDING MANUAL BROWSER CONFIRMATION`. La recommandation est de preparer en F68 une surface read-only de detail de disponibilite d'un item Titan, sauf si l'acceptation navigateur identifie une friction UX bloquante. F67 n'implemente pas F68 et ne modifie aucun code, endpoint ou comportement applicatif.
+F67 terminee : enregistrement documentaire des preuves d'acceptation MVP disponibles et decision conditionnelle de prochaine etape. F67 n'implemente aucune fonctionnalite suivante et ne modifie aucun code, endpoint ou comportement applicatif.
+
+F68 en cours : enregistrement documentaire du resultat `PASS` de l'acceptation navigateur humaine du MVP local. La recommandation future reste de preparer une surface authentifiee et read-only de detail de disponibilite d'un item Titan, avec definition prealable du plus petit contrat et scope UI utiles. F68 n'implemente pas cette fonctionnalite et ne cree aucun backend, frontend, endpoint, modele, migration, admin, reservation persistante, API d'ecriture ou workflow commercial.
 
 ### Objectifs futurs
 
