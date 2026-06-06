@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F69 - API read-only de preview de disponibilite d'un item**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F70 - clarification du scope MVP Hahitantsoa et roadmap globale**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -315,7 +315,23 @@ F67 terminee : enregistrement documentaire des preuves d'acceptation MVP disponi
 
 F68 terminee : enregistrement documentaire du resultat `PASS` de l'acceptation navigateur humaine du MVP local. F68 ne modifie aucun comportement applicatif et ne revendique pas de production readiness.
 
-F69 en cours : ajout backend-only de la plus petite API authentifiee et read-only de preview de disponibilite d'un item Titan sur une periode. F69 delegue au service interne existant, masque les details internes des conflits et ne cree aucun frontend, modele, migration, admin, reservation persistante, API d'ecriture ou workflow commercial.
+F69 terminee : ajout backend-only de la plus petite API authentifiee et read-only de preview de disponibilite d'un item Titan sur une periode. F69 delegue au service interne existant, masque les details internes des conflits et ne cree aucun frontend, modele, migration, admin, reservation persistante, API d'ecriture ou workflow commercial.
+
+F70 en cours : clarification documentaire du plus petit scope MVP Hahitantsoa et de la roadmap globale Hahitantsoa/Titan. F70 cree `DEC-003-hahitantsoa-mvp-scope.md`, distingue les concepts confirmes des decisions encore ouvertes et maintient les prochaines implementations en lecture seule jusqu'a approbation explicite.
+
+### Roadmap MVP globale read-only
+
+- F70 : clarifier le scope MVP Hahitantsoa ;
+- F71 : ajouter des garde-fous et value objects read-only pour le scope Hahitantsoa ;
+- F72 : ajouter un selector/catalogue demo Hahitantsoa read-only ;
+- F73 : exposer la plus petite API Hahitantsoa read-only approuvee ;
+- F74 : ajouter un app shell et une navigation separee Hahitantsoa/Titan ;
+- F75 : ajouter une vue frontend Hahitantsoa read-only ;
+- F76 : connecter le frontend Titan a la preview de disponibilite item F69 ;
+- F77 : ajouter des tests de coherence de disponibilite cross-scope ;
+- F78 : valider l'acceptation locale du MVP global.
+
+Cette roadmap reste read-only jusqu'a approbation explicite d'une persistence, d'une allocation transactionnelle ou d'une API d'ecriture. Elle n'autorise aucun workflow commercial complet.
 
 ### Objectifs futurs
 

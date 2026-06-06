@@ -2,7 +2,7 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F69 API read-only de preview de disponibilite d'un item en cours**.
+Statut actuel : **F70 clarification du scope MVP Hahitantsoa et roadmap globale en cours**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -307,11 +307,15 @@ F67 est documentaire uniquement et n'implemente pas F68.
 
 F68 est terminee et enregistre le resultat `PASS` de l'acceptation navigateur humaine du parcours MVP local. Cette tache est documentaire uniquement.
 
-F69 ajoute la plus petite surface backend authentifiee et read-only pour consulter la preview de disponibilite d'un item Titan sur une periode :
+F69 est terminee et a ajoute la plus petite surface backend authentifiee et read-only pour consulter la preview de disponibilite d'un item Titan sur une periode :
 
 - `GET /api/v1/reservations/items/<uuid:inventory_item_id>/availability-preview/`
 
 F69 delegue au service interne existant, expose uniquement un statut public et un nombre de conflits, et ne cree aucune reservation persistante ni API d'ecriture. Aucune integration frontend n'est ajoutee dans F69.
+
+F70 clarifie le plus petit scope MVP Hahitantsoa et la roadmap globale Hahitantsoa/Titan dans [DEC-003](docs/decisions/DEC-003-hahitantsoa-mvp-scope.md). Le premier slice Hahitantsoa doit rester read-only, distinct de Titan et limite aux concepts confirmes avant toute implementation.
+
+F70 ne modifie aucun comportement applicatif. Le resultat d'acceptation locale Titan reste `PASS`, mais le projet complet n'est pas production-ready.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 
@@ -335,10 +339,11 @@ set -a && source .env && set +a && .venv/bin/python -m pytest
 2. [PLANS.md](PLANS.md)
 3. [docs/decisions/DEC-001-titan-scope-validated.md](docs/decisions/DEC-001-titan-scope-validated.md)
 4. [docs/decisions/DEC-002-inventory-availability-domain.md](docs/decisions/DEC-002-inventory-availability-domain.md)
-5. [docs/adr/ADR-006-titan-excludes-venues-and-services.md](docs/adr/ADR-006-titan-excludes-venues-and-services.md)
-6. [docs/business-rules/scope.md](docs/business-rules/scope.md)
-7. [docs/architecture/foundation-plan.md](docs/architecture/foundation-plan.md)
-8. [docs/runbooks/local-development.md](docs/runbooks/local-development.md)
+5. [docs/decisions/DEC-003-hahitantsoa-mvp-scope.md](docs/decisions/DEC-003-hahitantsoa-mvp-scope.md)
+6. [docs/adr/ADR-006-titan-excludes-venues-and-services.md](docs/adr/ADR-006-titan-excludes-venues-and-services.md)
+7. [docs/business-rules/scope.md](docs/business-rules/scope.md)
+8. [docs/architecture/foundation-plan.md](docs/architecture/foundation-plan.md)
+9. [docs/runbooks/local-development.md](docs/runbooks/local-development.md)
 
 ## Workflow Codex
 
