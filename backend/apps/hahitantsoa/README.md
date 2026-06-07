@@ -48,3 +48,8 @@ order:
 The selector is a static read-only discovery-category catalogue only. It is not real inventory,
 availability data, an API payload contract, a production or commercial catalogue, or a
 reservation workflow. It uses no Django model, database, QuerySet, filter or framework API.
+
+F76 documents the future authenticated read-only discovery API contract in
+[`docs/architecture/hahitantsoa-readonly-discovery-api-contract.md`](../../../docs/architecture/hahitantsoa-readonly-discovery-api-contract.md).
+F76 does not implement that endpoint. Hahitantsoa remains an unregistered pure-Python package
+with no serializer, view, URL, API, model, migration, admin, frontend or database behavior.
