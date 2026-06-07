@@ -229,7 +229,9 @@ result of `PASS`. F79 does not rerun application tests because it changes docume
 - **Objective:** define the smallest approved read-only behavior showing how shared `material` and
   `article` availability relates across Hahitantsoa and Titan.
 - **Scope:** documentation/contract first; implementation only in a separately approved task.
-- **Probable files:** architecture/decision documentation and focused tests after approval.
+- **F82 status:** contract definition in progress in
+  `docs/architecture/hahitantsoa-titan-shared-availability-contract.md`; no implementation.
+- **Probable future files:** focused implementation and tests only after approval.
 - **Risk:** high; this crosses domain boundaries and must not introduce Hahitantsoa persistence or
   write behavior.
 - **MVP priority:** high, but approval-gated.

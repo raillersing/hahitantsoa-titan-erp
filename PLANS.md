@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F81 - completion du contrat OpenAPI/read-only**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F82 - contrat read-only de disponibilite partagee material/article**.
 L'audit MVP F79 est documente dans `docs/mvp/mvp-gap-audit.md`.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
@@ -340,7 +340,9 @@ F79 terminee, mergee et validee post-merge : audit des ecarts MVP Titan + Hahita
 
 F80 terminee, mergee et validee post-merge : ajout d'une surface frontend Hahitantsoa distincte et read-only consommant `GET /api/v1/hahitantsoa/discovery-items/`. F80 ne cree aucune API backend, persistence, reservation, contrat ou workflow commercial et preserve strictement le scope Titan.
 
-F81 en cours : completion et stabilisation des tests et contrats OpenAPI des APIs read-only confirmees inventory, reservations availability et Hahitantsoa discovery. F81 n'ajoute aucun endpoint, comportement runtime ou workflow metier.
+F81 terminee, mergee et validee post-merge : completion et stabilisation des tests et contrats OpenAPI des APIs read-only confirmees inventory, reservations availability et Hahitantsoa discovery. F81 n'ajoute aucun endpoint, comportement runtime ou workflow metier.
+
+F82 en cours : definition documentaire du contrat read-only futur de disponibilite des concepts partages `material` et `article` entre Hahitantsoa et Titan. `material_pack` reste Titan-only. F82 n'ajoute aucune implementation, endpoint, persistence, reservation ou workflow commercial.
 
 ### Roadmap MVP globale read-only
 
