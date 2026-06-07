@@ -2,7 +2,10 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F77 API read-only de decouverte Hahitantsoa en cours**.
+Statut actuel : **F78 nettoyage documentaire et workflow post-F77 en cours**.
+
+F77 est terminee, mergee via la PR #74 et validee post-merge. La prochaine tache recommandee
+est **F79 - MVP gap audit: Titan + Hahitantsoa + API map**.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -329,7 +332,7 @@ F75 ajoute un selector interne pur Python retournant un tuple immuable des categ
 
 F76 documente le contrat de la future API read-only Hahitantsoa `GET /api/v1/hahitantsoa/discovery-items/`. F76 est documentaire uniquement et n'implemente aucun serializer, view, URL ou endpoint.
 
-F77 implemente `GET /api/v1/hahitantsoa/discovery-items/`, une API authentifiee et strictement read-only qui delegue au selector F75. Elle expose uniquement `concept` et `label`, sans DB, modele, migration, admin, frontend ou workflow commercial.
+F77 a implemente `GET /api/v1/hahitantsoa/discovery-items/`, une API authentifiee et strictement read-only qui delegue au selector F75. Elle expose uniquement `concept` et `label`, sans DB, modele, migration, admin, frontend ou workflow commercial. F77 est mergee et validee post-merge.
 
 Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
 

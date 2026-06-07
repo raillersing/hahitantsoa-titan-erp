@@ -4,7 +4,8 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F77 - API read-only de decouverte Hahitantsoa**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F78 - nettoyage documentaire et workflow post-F77**.
+La prochaine tache recommandee est **F79 - MVP gap audit: Titan + Hahitantsoa + API map**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -331,7 +332,11 @@ F75 terminee : ajout d'un selector interne pur Python retournant un tuple immuab
 
 F76 terminee : planification documentaire du contrat de la future API authentifiee et read-only Hahitantsoa `GET /api/v1/hahitantsoa/discovery-items/`. F76 ne cree aucun serializer, view, URL, endpoint, test executable, enregistrement Django, modele, migration, admin, frontend, acces DB, QuerySet, comportement d'ecriture ou workflow commercial.
 
-F77 en cours : implementation de l'API authentifiee et strictement read-only `GET /api/v1/hahitantsoa/discovery-items/`, deleguant exclusivement au selector F75 et exposant uniquement `concept` et `label`. F77 ne cree aucun enregistrement Django Hahitantsoa, modele, migration, admin, frontend, acces DB, QuerySet, comportement d'ecriture ou workflow commercial et ne modifie pas le scope Titan.
+F77 terminee, mergee et validee post-merge : implementation de l'API authentifiee et strictement read-only `GET /api/v1/hahitantsoa/discovery-items/`, deleguant exclusivement au selector F75 et exposant uniquement `concept` et `label`. F77 ne cree aucun enregistrement Django Hahitantsoa, modele, migration, admin, frontend, acces DB, QuerySet, comportement d'ecriture ou workflow commercial et ne modifie pas le scope Titan.
+
+F78 en cours : nettoyage documentaire post-F77 et clarification du workflow terminal Codex. F78 ne modifie aucun code applicatif, comportement metier, endpoint, modele, migration, admin ou frontend.
+
+F79 recommandee ensuite : audit des ecarts MVP Titan + Hahitantsoa et cartographie des APIs existantes, sans implementation fonctionnelle avant approbation explicite.
 
 ### Roadmap MVP globale read-only
 
@@ -343,11 +348,10 @@ F77 en cours : implementation de l'API authentifiee et strictement read-only `GE
 - F75 : ajouter un selector interne des categories de decouverte Hahitantsoa read-only ;
 - F76 : planifier le contrat de la plus petite API Hahitantsoa read-only ;
 - F77 : implementer la plus petite API Hahitantsoa read-only approuvee ;
-- F78 : ajouter un app shell et une navigation separee Hahitantsoa/Titan ;
-- F79 : ajouter une vue frontend Hahitantsoa read-only ;
-- F80 : connecter le frontend Titan a la preview de disponibilite item F69 ;
-- F81 : ajouter des tests de coherence de disponibilite cross-scope ;
-- F82 : valider l'acceptation locale du MVP global.
+- F78 : nettoyer les statuts post-F77 et clarifier le workflow terminal ;
+- F79 : auditer les ecarts MVP Titan + Hahitantsoa et cartographier les APIs existantes ;
+- les implementations frontend et les validations cross-scope suivantes seront recadrees par
+  l'audit F79 avant toute approbation.
 
 Cette roadmap reste read-only jusqu'a approbation explicite d'une persistence, d'une allocation transactionnelle ou d'une API d'ecriture. Elle n'autorise aucun workflow commercial complet.
 
