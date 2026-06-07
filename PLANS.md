@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F75 - selector read-only de decouverte Hahitantsoa**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F76 - contrat de la future API read-only Hahitantsoa**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -327,7 +327,9 @@ F73 terminee : ajout de garde-fous purs Python pour les concepts confirmes du pr
 
 F74 terminee : ajout d'un unique value object pur Python, immuable et read-only pour representer un item de decouverte Hahitantsoa valide par les garde-fous F73. F74 ne cree aucune persistence, API, frontend, selector, catalogue, donnee demo, reservation, allocation, pricing, paiement, facture, client, stock, quantite, unite ou workflow commercial et ne modifie pas le scope Titan.
 
-F75 en cours : ajout d'un selector interne pur Python retournant un tuple immuable des categories de decouverte Hahitantsoa validees. Ce catalogue statique read-only ne cree aucune persistence, API, frontend, acces DB, QuerySet, disponibilite, filtre, entite de catalogue reelle, reservation, allocation, pricing, paiement, facture, client, stock, quantite, unite ou workflow commercial et ne modifie pas le scope Titan.
+F75 terminee : ajout d'un selector interne pur Python retournant un tuple immuable des categories de decouverte Hahitantsoa validees. Ce catalogue statique read-only ne cree aucune persistence, API, frontend, acces DB, QuerySet, disponibilite, filtre, entite de catalogue reelle, reservation, allocation, pricing, paiement, facture, client, stock, quantite, unite ou workflow commercial et ne modifie pas le scope Titan.
+
+F76 en cours : planification documentaire du contrat de la future API authentifiee et read-only Hahitantsoa `GET /api/v1/hahitantsoa/discovery-items/`. F76 ne cree aucun serializer, view, URL, endpoint, test executable, enregistrement Django, modele, migration, admin, frontend, acces DB, QuerySet, comportement d'ecriture ou workflow commercial.
 
 ### Roadmap MVP globale read-only
 
@@ -336,13 +338,14 @@ F75 en cours : ajout d'un selector interne pur Python retournant un tuple immuab
 - F72 : supprimer les exemples historiques de sourcing `.env` ;
 - F73 : ajouter des garde-fous read-only pour le scope Hahitantsoa ;
 - F74 : ajouter des value objects read-only pour le scope Hahitantsoa ;
-- F75 : ajouter un selector/catalogue demo Hahitantsoa read-only ;
-- F76 : exposer la plus petite API Hahitantsoa read-only approuvee ;
-- F77 : ajouter un app shell et une navigation separee Hahitantsoa/Titan ;
-- F78 : ajouter une vue frontend Hahitantsoa read-only ;
-- F79 : connecter le frontend Titan a la preview de disponibilite item F69 ;
-- F80 : ajouter des tests de coherence de disponibilite cross-scope ;
-- F81 : valider l'acceptation locale du MVP global.
+- F75 : ajouter un selector interne des categories de decouverte Hahitantsoa read-only ;
+- F76 : planifier le contrat de la plus petite API Hahitantsoa read-only ;
+- F77 : implementer la plus petite API Hahitantsoa read-only approuvee ;
+- F78 : ajouter un app shell et une navigation separee Hahitantsoa/Titan ;
+- F79 : ajouter une vue frontend Hahitantsoa read-only ;
+- F80 : connecter le frontend Titan a la preview de disponibilite item F69 ;
+- F81 : ajouter des tests de coherence de disponibilite cross-scope ;
+- F82 : valider l'acceptation locale du MVP global.
 
 Cette roadmap reste read-only jusqu'a approbation explicite d'une persistence, d'une allocation transactionnelle ou d'une API d'ecriture. Elle n'autorise aucun workflow commercial complet.
 
