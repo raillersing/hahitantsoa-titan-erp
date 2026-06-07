@@ -1,4 +1,5 @@
 import type {
+  HahitantsoaDiscoveryResponse,
   InventoryItem,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
@@ -26,6 +27,12 @@ function buildReservationPeriodQuery(startAt: string, endAt: string): string {
 
 export function getInventoryItems(signal?: AbortSignal): Promise<InventoryItem[]> {
   return getAuthenticatedJson("/api/v1/inventory/items/", signal);
+}
+
+export function getHahitantsoaDiscoveryItems(
+  signal?: AbortSignal,
+): Promise<HahitantsoaDiscoveryResponse> {
+  return getAuthenticatedJson("/api/v1/hahitantsoa/discovery-items/", signal);
 }
 
 export function getReservationAvailabilitySummary(

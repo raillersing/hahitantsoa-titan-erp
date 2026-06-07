@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 
 import { getInventoryItems } from "./api";
 import AvailabilityPanel from "./AvailabilityPanel";
+import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
 import type { InventoryItem } from "./types";
+
+type AppScope = "titan" | "hahitantsoa";
 
 type InventoryState =
   | { status: "loading" }
@@ -18,6 +21,7 @@ function kindLabel(kind: InventoryItem["kind"]): string {
 }
 
 function App() {
+  const [activeScope, setActiveScope] = useState<AppScope>("titan");
   const [inventoryState, setInventoryState] = useState<InventoryState>({
     status: "loading",
   });
@@ -53,50 +57,73 @@ function App() {
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Titan inventory</p>
-          <h1>Available catalog</h1>
+          <p className="eyebrow">Hahitantsoa / Titan ERP</p>
+          <h1>{activeScope === "titan" ? "Titan inventory" : "Hahitantsoa discovery"}</h1>
         </div>
         <p className="session-note">Uses the existing Django session.</p>
       </header>
 
-      {inventoryState.status === "loading" ? (
-        <p className="status">Loading inventory...</p>
-      ) : null}
+      <nav className="scope-switcher" aria-label="Business scope">
+        <button
+          aria-pressed={activeScope === "titan"}
+          type="button"
+          onClick={() => setActiveScope("titan")}
+        >
+          Titan
+        </button>
+        <button
+          aria-pressed={activeScope === "hahitantsoa"}
+          type="button"
+          onClick={() => setActiveScope("hahitantsoa")}
+        >
+          Hahitantsoa
+        </button>
+      </nav>
 
-      {inventoryState.status === "error" ? (
-        <section className="notice" role="alert">
-          <h2>Inventory unavailable</h2>
-          <p>{inventoryState.message}</p>
-          <p>For local development, sign in through the backend Browsable API first.</p>
-        </section>
-      ) : null}
+      {activeScope === "titan" ? (
+        <>
+          {inventoryState.status === "loading" ? (
+            <p className="status">Loading inventory...</p>
+          ) : null}
 
-      {inventoryState.status === "loaded" ? (
-        <section className="inventory-section" aria-label="Inventory items">
-          <div className="section-heading">
-            <h2>Items</h2>
-            <span>{inventoryState.items.length}</span>
-          </div>
+          {inventoryState.status === "error" ? (
+            <section className="notice" role="alert">
+              <h2>Inventory unavailable</h2>
+              <p>{inventoryState.message}</p>
+              <p>For local development, sign in through the backend Browsable API first.</p>
+            </section>
+          ) : null}
 
-          {inventoryState.items.length === 0 ? (
-            <p className="status">No inventory items are currently visible.</p>
-          ) : (
-            <ul className="inventory-list">
-              {inventoryState.items.map((item) => (
-                <li className="inventory-row" key={item.id}>
-                  <div>
-                    <h3>{item.name}</h3>
-                    {item.description ? <p>{item.description}</p> : null}
-                  </div>
-                  <span className="kind-pill">{kindLabel(item.kind)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : null}
+          {inventoryState.status === "loaded" ? (
+            <section className="inventory-section" aria-label="Inventory items">
+              <div className="section-heading">
+                <h2>Items</h2>
+                <span>{inventoryState.items.length}</span>
+              </div>
 
-      <AvailabilityPanel />
+              {inventoryState.items.length === 0 ? (
+                <p className="status">No inventory items are currently visible.</p>
+              ) : (
+                <ul className="inventory-list">
+                  {inventoryState.items.map((item) => (
+                    <li className="inventory-row" key={item.id}>
+                      <div>
+                        <h3>{item.name}</h3>
+                        {item.description ? <p>{item.description}</p> : null}
+                      </div>
+                      <span className="kind-pill">{kindLabel(item.kind)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ) : null}
+
+          <AvailabilityPanel />
+        </>
+      ) : (
+        <HahitantsoaDiscoveryPanel />
+      )}
     </main>
   );
 }
