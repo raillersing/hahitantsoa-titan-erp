@@ -2,8 +2,8 @@
 
 ## Status
 
-Planned for F77 implementation. F76 documents this contract only and does not create an API
-endpoint or change application behavior.
+Implemented by F77. F76 documented this contract without creating an API endpoint or changing
+application behavior.
 
 ## Purpose
 

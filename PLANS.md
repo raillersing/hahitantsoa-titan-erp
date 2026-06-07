@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F76 - contrat de la future API read-only Hahitantsoa**.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F77 - API read-only de decouverte Hahitantsoa**.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -329,7 +329,9 @@ F74 terminee : ajout d'un unique value object pur Python, immuable et read-only 
 
 F75 terminee : ajout d'un selector interne pur Python retournant un tuple immuable des categories de decouverte Hahitantsoa validees. Ce catalogue statique read-only ne cree aucune persistence, API, frontend, acces DB, QuerySet, disponibilite, filtre, entite de catalogue reelle, reservation, allocation, pricing, paiement, facture, client, stock, quantite, unite ou workflow commercial et ne modifie pas le scope Titan.
 
-F76 en cours : planification documentaire du contrat de la future API authentifiee et read-only Hahitantsoa `GET /api/v1/hahitantsoa/discovery-items/`. F76 ne cree aucun serializer, view, URL, endpoint, test executable, enregistrement Django, modele, migration, admin, frontend, acces DB, QuerySet, comportement d'ecriture ou workflow commercial.
+F76 terminee : planification documentaire du contrat de la future API authentifiee et read-only Hahitantsoa `GET /api/v1/hahitantsoa/discovery-items/`. F76 ne cree aucun serializer, view, URL, endpoint, test executable, enregistrement Django, modele, migration, admin, frontend, acces DB, QuerySet, comportement d'ecriture ou workflow commercial.
+
+F77 en cours : implementation de l'API authentifiee et strictement read-only `GET /api/v1/hahitantsoa/discovery-items/`, deleguant exclusivement au selector F75 et exposant uniquement `concept` et `label`. F77 ne cree aucun enregistrement Django Hahitantsoa, modele, migration, admin, frontend, acces DB, QuerySet, comportement d'ecriture ou workflow commercial et ne modifie pas le scope Titan.
 
 ### Roadmap MVP globale read-only
 
