@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -24,6 +25,10 @@ class ReservationAvailabilitySummaryAPIView(APIView):
     http_method_names = ["get", "head", "options"]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        parameters=[ReservationAvailabilitySummaryQuerySerializer],
+        responses=ReservationAvailabilitySummarySerializer,
+    )
     def get(self, request):
         query_serializer = ReservationAvailabilitySummaryQuerySerializer(data=request.query_params)
         query_serializer.is_valid(raise_exception=True)
@@ -44,6 +49,10 @@ class ReservationAvailableItemPreviewsAPIView(APIView):
     http_method_names = ["get", "head", "options"]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        parameters=[ReservationPeriodQuerySerializer],
+        responses=ReservationAvailableItemPreviewSerializer(many=True),
+    )
     def get(self, request):
         query_serializer = ReservationPeriodQuerySerializer(data=request.query_params)
         query_serializer.is_valid(raise_exception=True)
@@ -64,6 +73,10 @@ class ReservationItemAvailabilityPreviewAPIView(APIView):
     http_method_names = ["get", "head", "options"]
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        parameters=[ReservationPeriodQuerySerializer],
+        responses=ReservationItemAvailabilityPreviewSerializer,
+    )
     def get(self, request, inventory_item_id):
         query_serializer = ReservationPeriodQuerySerializer(data=request.query_params)
         query_serializer.is_valid(raise_exception=True)
