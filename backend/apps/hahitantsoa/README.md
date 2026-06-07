@@ -1,7 +1,8 @@
 # Hahitantsoa Domain Package
 
-`apps.hahitantsoa` is a structural pure-Python domain package. It is not an activated Django
-application and has no model, migration, API, admin or frontend.
+`apps.hahitantsoa` contains a pure-Python read-only discovery domain core and a minimal DRF
+read-only API surface. It is not an activated Django application and has no model, migration,
+admin, database access or frontend.
 
 F73 adds read-only discovery scope guards for the first Hahitantsoa slice. The accepted
 high-level concepts are:
@@ -51,5 +52,15 @@ reservation workflow. It uses no Django model, database, QuerySet, filter or fra
 
 F76 documents the future authenticated read-only discovery API contract in
 [`docs/architecture/hahitantsoa-readonly-discovery-api-contract.md`](../../../docs/architecture/hahitantsoa-readonly-discovery-api-contract.md).
-F76 does not implement that endpoint. Hahitantsoa remains an unregistered pure-Python package
-with no serializer, view, URL, API, model, migration, admin, frontend or database behavior.
+F76 did not implement that endpoint. At the end of F76, Hahitantsoa remained an unregistered
+pure-Python package with no serializer, view, URL, API, model, migration, admin, frontend or
+database behavior.
+
+F77 implements the authenticated read-only endpoint:
+
+- `GET /api/v1/hahitantsoa/discovery-items/`
+
+The endpoint delegates exclusively to `list_hahitantsoa_discovery_items()`, returns only
+`concept` and `label` for each item, and rejects write methods. Hahitantsoa remains unregistered
+as a Django app and F77 adds no model, migration, admin, database access, QuerySet, frontend,
+availability, reservation or commercial workflow.
