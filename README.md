@@ -2,12 +2,11 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F80 surface frontend Hahitantsoa read-only en cours**.
+Statut actuel : **F81 completion du contrat OpenAPI/read-only en cours**.
 
-F79 est terminee, mergee via la PR #76 et validee post-merge. Son audit MVP est disponible dans
-[docs/mvp/mvp-gap-audit.md](docs/mvp/mvp-gap-audit.md). F80 ajoute une surface frontend
-Hahitantsoa distincte et read-only consommant l'API discovery F77, sans ecriture, reservation,
-contrat ou workflow commercial.
+F80 est terminee, mergee via la PR #77 et validee post-merge. F81 complete les tests et annotations
+OpenAPI des APIs read-only confirmees inventory, reservations availability et Hahitantsoa
+discovery. F81 n'ajoute aucun endpoint, comportement runtime ou workflow metier.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
