@@ -7,6 +7,27 @@ export type InventoryItem = {
   description: string;
 };
 
+export type HahitantsoaDiscoveryConcept =
+  | "event"
+  | "venue"
+  | "local"
+  | "room"
+  | "hall"
+  | "material"
+  | "article"
+  | "furniture"
+  | "service";
+
+export type HahitantsoaDiscoveryItem = {
+  concept: HahitantsoaDiscoveryConcept;
+  label: string;
+};
+
+export type HahitantsoaDiscoveryResponse = {
+  items: HahitantsoaDiscoveryItem[];
+  count: number;
+};
+
 export type ReservationAvailabilitySummary = {
   start_at: string;
   end_at: string;

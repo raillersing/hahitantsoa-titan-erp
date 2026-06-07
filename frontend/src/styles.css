@@ -85,7 +85,8 @@ h3 {
 
 .notice,
 .inventory-section,
-.availability-section {
+.availability-section,
+.discovery-section {
   border: 1px solid #d6dfdb;
   border-radius: 8px;
   background: #ffffff;
@@ -102,6 +103,33 @@ h3 {
 .availability-section {
   margin-top: 28px;
   margin-bottom: 28px;
+}
+
+.scope-switcher {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid #b7c9c0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.scope-switcher button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #34463e;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scope-switcher button[aria-pressed="true"] {
+  background: #22483a;
+  color: #ffffff;
 }
 
 .section-heading {
@@ -283,12 +311,45 @@ h3 {
   color: #4b6358;
 }
 
+.discovery-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  padding: 0;
+  margin: 0;
+  background: #d6dfdb;
+  list-style: none;
+}
+
+.discovery-list li {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 18px 20px;
+  background: #ffffff;
+}
+
+.discovery-list span {
+  font-weight: 700;
+}
+
+.discovery-list strong {
+  color: #4b6358;
+  font-size: 0.8rem;
+}
+
+.discovery-status,
+.discovery-notice {
+  margin: 20px;
+}
+
 @media (max-width: 640px) {
   .app-header,
   .inventory-row,
   .availability-form,
-  .summary-grid,
-  .preview-list li {
+    .summary-grid,
+    .preview-list li,
+    .discovery-list {
     grid-template-columns: 1fr;
   }
 

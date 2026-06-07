@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -108,5 +108,42 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Check availability" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /log in|sign in/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /reserve|book/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps Hahitantsoa discovery separate from the Titan surface", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [{ concept: "venue", label: "venue" }],
+            count: 1,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
+
+    render(<App />);
+
+    await screen.findByText("No inventory items are currently visible.");
+    expect(screen.queryByText("venue")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hahitantsoa" }));
+
+    expect(await screen.findAllByText("venue")).toHaveLength(2);
+    expect(screen.queryByRole("heading", { name: "Availability" })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/v1/hahitantsoa/discovery-items/", {
+      credentials: "include",
+      signal: expect.any(AbortSignal),
+    });
   });
 });

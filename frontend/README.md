@@ -56,6 +56,18 @@ Frontend API calls and response contracts are kept in `src/api.ts` and `src/type
 
 F65 adds a short helper note explaining that the check is read-only, requires a backend session created through `/api-auth/login/`, and does not create a reservation.
 
+## Hahitantsoa discovery surface
+
+F80 adds a simple scope switch that keeps Titan inventory and Hahitantsoa discovery visibly
+separate. The Hahitantsoa surface consumes the existing authenticated read-only endpoint:
+
+```text
+GET /api/v1/hahitantsoa/discovery-items/
+```
+
+It displays only the confirmed discovery `concept` and `label` fields. It adds no reservation,
+contract, pricing, payment, customer, persistence or commercial workflow.
+
 The complete local demo flow is documented in [`docs/runbooks/mvp-local-demo-flow.md`](../docs/runbooks/mvp-local-demo-flow.md).
 
 F66 extends the helper note with guidance for selecting a period that overlaps the next two-hour local demo window. Manual acceptance is documented in [`docs/runbooks/mvp-local-demo-acceptance.md`](../docs/runbooks/mvp-local-demo-acceptance.md).

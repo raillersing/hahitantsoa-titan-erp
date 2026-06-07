@@ -4,8 +4,8 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F79 - MVP gap audit: Titan + Hahitantsoa + API map**.
-L'audit courant est documente dans `docs/mvp/mvp-gap-audit.md`.
+La Foundation documentaire est terminee. La tache actuellement autorisee est **F80 - surface frontend Hahitantsoa read-only**.
+L'audit MVP F79 est documente dans `docs/mvp/mvp-gap-audit.md`.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
@@ -336,7 +336,9 @@ F77 terminee, mergee et validee post-merge : implementation de l'API authentifie
 
 F78 terminee, mergee et validee post-merge : nettoyage documentaire post-F77 et clarification du workflow terminal Codex. F78 ne modifie aucun code applicatif, comportement metier, endpoint, modele, migration, admin ou frontend.
 
-F79 en cours : audit des ecarts MVP Titan + Hahitantsoa et cartographie des APIs existantes dans `docs/mvp/mvp-gap-audit.md`, sans implementation fonctionnelle.
+F79 terminee, mergee et validee post-merge : audit des ecarts MVP Titan + Hahitantsoa et cartographie des APIs existantes dans `docs/mvp/mvp-gap-audit.md`, sans implementation fonctionnelle.
+
+F80 en cours : ajout d'une surface frontend Hahitantsoa distincte et read-only consommant `GET /api/v1/hahitantsoa/discovery-items/`. F80 ne cree aucune API backend, persistence, reservation, contrat ou workflow commercial et preserve strictement le scope Titan.
 
 ### Roadmap MVP globale read-only
 
