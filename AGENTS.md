@@ -257,6 +257,27 @@ Mode 2 : `IMPLEMENT APPROVED PLAN`
 - Produire un rapport final avec fichiers, validations et points a verifier.
 - Ne pas faire `git add`, `git commit` ou `git push`.
 
+### Workflow terminal Codex
+
+- Executer chaque commande terminal via `scripts/dev/erp-logged-run` avec stdin/heredoc :
+
+  ```sh
+  scripts/dev/erp-logged-run nom-de-tache <<'EOF'
+  <commandes>
+  EOF
+  ```
+
+- Ne pas utiliser `scripts/dev/erp-logged-run nom-de-tache bash -c '...'` : le wrapper lit deja
+  les commandes depuis stdin et doit conserver leur vrai code retour.
+- Pour les validations locales, utiliser les executables du virtualenv, notamment
+  `.venv/bin/python` et `.venv/bin/pytest`.
+- Pour un Django check dans un conteneur temporaire, utiliser
+  `docker compose run --rm backend python backend/manage.py check`.
+- Les tests DB Titan/reservations necessitent des services Docker `db` et `redis` healthy.
+- Ne jamais lire, afficher, sourcer, inspecter ou modifier `.env`. Une commande Docker qui
+  reference un environnement prepare par l'operateur ne donne jamais aux agents l'autorisation
+  d'ouvrir ou d'inspecter `.env`.
+
 Avant toute modification :
 
 1. Inspecter le répertoire courant.

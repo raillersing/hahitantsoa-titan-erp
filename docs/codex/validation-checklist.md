@@ -49,6 +49,9 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
   EOF
   ```
 
+- [ ] Confirm the wrapper receives commands through stdin/heredoc and was not invoked as
+  `scripts/dev/erp-logged-run <task-name> bash -c '...'`.
+
 - [ ] Confirm no command in a logged run prints `.env`, passwords, tokens or secrets.
 
 - [ ] Confirm active branch:
@@ -89,6 +92,8 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
   requiring environment variables. Validation commands must never source, print, inspect or
   otherwise read `.env` directly.
 
+- [ ] Use `.venv/bin/python` and `.venv/bin/pytest` for local Python and pytest commands.
+
 - [ ] Run Ruff format check when Python files changed:
 
   ```sh
@@ -128,6 +133,15 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 ## Docker and readiness
 
 - [ ] Run Docker validation when DB, migrations, Compose, API behavior or local service behavior changed.
+
+- [ ] Confirm Docker services `db` and `redis` are healthy before running Titan/reservations DB
+  tests.
+
+- [ ] Run a temporary-container Django check when appropriate:
+
+  ```sh
+  docker compose run --rm backend python backend/manage.py check
+  ```
 
 - [ ] Check `/readyz/` if the backend is started:
 
