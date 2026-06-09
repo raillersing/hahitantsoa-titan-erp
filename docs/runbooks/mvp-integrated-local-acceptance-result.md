@@ -2,17 +2,22 @@
 
 ## Status
 
-`PARTIAL`
+`PASS`
 
-This result records the validations executed during F83 documentation work. It does not claim
-integrated browser acceptance, complete DB-backed API validation or production readiness.
+This result records the integrated local MVP acceptance executed during F86.
+
+It validates the read-only Hahitantsoa/Titan MVP across backend non-DB checks, Docker/DB-backed
+checks, public backend smoke checks, frontend tests/build and human browser observation.
+
+It does not claim production readiness, persistent Hahitantsoa reservations, write APIs or
+commercial workflows.
 
 ## Version Under Review
 
-- Date: 2026-06-08
-- Branch: `docs/integrated-mvp-local-acceptance`
-- Base merge commit: `587c9ed`
-- Task: F83 integrated local MVP acceptance runbook
+- Date: 2026-06-09
+- Branch: `test/mvp-integrated-local-acceptance-execution`
+- Base merge commit: `341bc7d`
+- Task: F86 integrated local MVP acceptance execution
 
 ## Executed Validations
 
@@ -20,41 +25,80 @@ The following areas were executed without reading or inspecting `.env`:
 
 | Validation | Result | Evidence |
 | --- | --- | --- |
-| Repository base and branch checks | PASS | `logs/terminal/f83-initial-repository-check-20260608-015520.log`, `logs/terminal/f83-create-branch-20260608-015526.log` |
-| Ruff format and lint | PASS | `logs/terminal/f83-backend-nondb-validation-20260608-015711.log` |
-| Django check | PASS | `logs/terminal/f83-backend-nondb-validation-20260608-015711.log` |
-| OpenAPI and Hahitantsoa discovery API tests | PASS - 12 tests | `logs/terminal/f83-backend-nondb-validation-20260608-015711.log` |
-| Frontend tests | PASS - 20 tests | `logs/terminal/f83-frontend-validation-20260608-015721.log` |
-| Frontend production build | PASS | `logs/terminal/f83-frontend-validation-20260608-015721.log` |
-| Existing PostgreSQL and Redis container health observation | PASS - both healthy | `logs/terminal/f83-runtime-availability-observation-20260608-015742.log` |
-| Public `/healthz/` and `/readyz/` smoke checks | NOT RUNNABLE - backend not running | `logs/terminal/f83-runtime-availability-observation-20260608-015742.log` |
-| Documentation diff and scope checks | PASS | `logs/terminal/f83-documentation-validation-20260608-015822.log` |
+| Repository base and branch checks | PASS | `logs/terminal/f86-create-integrated-acceptance-execution-branch-20260609-140145.log` |
+| Ruff format check | PASS | `logs/terminal/f86-backend-nondb-validation-20260609-140226.log` |
+| Ruff lint check | PASS | `logs/terminal/f86-backend-nondb-validation-20260609-140226.log` |
+| Django check | PASS | `logs/terminal/f86-backend-nondb-validation-20260609-140226.log` |
+| OpenAPI and Hahitantsoa discovery API tests | PASS - 12 tests | `logs/terminal/f86-backend-nondb-validation-20260609-140226.log` |
+| PostgreSQL and Redis container health | PASS - both healthy | `logs/terminal/f86-docker-db-backed-validation-20260609-140304.log` |
+| Docker backend Django check | PASS | `logs/terminal/f86-docker-db-backed-validation-20260609-140304.log` |
+| Targeted Titan/reservations DB-backed API tests | PASS - 64 tests | `logs/terminal/f86-docker-db-backed-validation-20260609-140304.log` |
+| Frontend tests | PASS - 20 tests | `logs/terminal/f86-frontend-validation-20260609-140418.log` |
+| Frontend production build | PASS | `logs/terminal/f86-frontend-validation-20260609-140418.log` |
+| Public `/healthz/` smoke check | PASS | `logs/terminal/f86-backend-http-smoke-validation-20260609-140448.log` |
+| Public `/readyz/` smoke check | PASS | `logs/terminal/f86-backend-http-smoke-validation-20260609-140448.log` |
+| Public `/api/schema/` smoke check | PASS | `logs/terminal/f86-backend-http-smoke-validation-20260609-140448.log` |
+| Hahitantsoa backend route after Docker rebuild | PASS - unauthenticated request returns 403, OpenAPI includes route | `logs/terminal/f86-rebuild-backend-and-retest-hahitantsoa-api-20260609-141319.log` |
+| Frontend port/backend port checks | PASS | `logs/terminal/f86-check-local-ports-before-browser-retry-20260609-141752.log` |
+| Human browser observation - Titan surface | PASS | Human observation on 2026-06-09 |
+| Human browser observation - Hahitantsoa surface | PASS | Human observation on 2026-06-09 |
+| Documentation/result update scope | PASS | F86 result update only |
 
-## Not Executed
+## Human Browser Acceptance
 
-- authenticated manual browser acceptance;
-- manual Titan/Hahitantsoa frontend observations;
-- authenticated API smoke checks;
-- DB-backed Titan/reservations API tests;
-- full Docker Compose acceptance.
-- backend health/readiness acceptance, because the backend service was not running.
+Human browser acceptance was performed on 2026-06-09.
 
-These checks require a separately confirmed operator runtime and, for browser observations, a
-human operator. They must not be inferred from automated tests.
+Observed Titan surface:
+
+- Titan inventory loaded successfully.
+- Three inventory items were visible.
+- Visible Titan kinds were `material_pack`, `article` and `material`.
+- Availability remained read-only.
+- No reservation, payment, invoice, contract or commercial write control was visible.
+
+Observed Hahitantsoa surface:
+
+- Hahitantsoa discovery loaded successfully.
+- Nine discovery concepts were visible: `event`, `venue`, `local`, `room`, `hall`, `material`,
+  `article`, `furniture` and `service`.
+- The Hahitantsoa surface remained separate from Titan.
+- Hahitantsoa displayed read-only discovery/planning information.
+- The UI stated that the surface does not create reservations, contracts or commercial workflows.
+- No reservation, payment, invoice, contract or commercial write control was visible.
+
+## Notes
+
+During initial browser acceptance, Hahitantsoa discovery returned unavailable because the running
+Docker backend container used an older image that did not expose the Hahitantsoa URL route. The
+repository code already contained the route. Rebuilding and recreating the backend container made
+`GET /api/v1/hahitantsoa/discovery-items/` available.
+
+After rebuild, an unauthenticated direct request returned `403 Forbidden`, which is expected because
+the endpoint is authenticated. The OpenAPI schema also included
+`/api/v1/hahitantsoa/discovery-items/`.
 
 ## Known Limitations
 
 - Hahitantsoa remains read-only discovery/planning.
-- Shared `material`/`article` availability is contract-only and is not implemented.
+- Shared `material`/`article` availability remains contract-only and is not implemented.
 - `material_pack` remains Titan-only.
 - No persistent Hahitantsoa reservation, write API or commercial workflow exists.
 - This result does not claim production readiness.
+- UI visual polish remains future work and is not part of this acceptance result.
 
 ## Final Result
 
-`PARTIAL`
+`PASS`
 
-The automated non-DB backend and frontend validation subsets passed. Existing PostgreSQL and Redis
-containers were healthy, but the backend was not running. Integrated local acceptance remains
-incomplete until the runbook's backend health/readiness, DB-backed, authenticated API and human
-browser checks are executed and recorded.
+The integrated local read-only MVP acceptance passed for the current approved scope.
+
+The current MVP demonstrates:
+
+- Titan read-only inventory and availability consultation;
+- Hahitantsoa separate read-only discovery surface;
+- authenticated read-only backend APIs;
+- OpenAPI visibility for confirmed read-only APIs;
+- backend health/readiness smoke checks;
+- DB-backed Titan/reservations tests;
+- frontend tests and production build;
+- no visible Hahitantsoa reservation, write or commercial workflow.
