@@ -10,6 +10,8 @@ Runbooks disponibles :
 - [mvp-local-demo-flow.md](mvp-local-demo-flow.md) : parcours de demonstration MVP locale ;
 - [mvp-local-demo-acceptance.md](mvp-local-demo-acceptance.md) : checklist d'acceptation et scenario manuel navigateur ;
 - [mvp-local-demo-acceptance-result.md](mvp-local-demo-acceptance-result.md) : resultat `PASS` et preuves d'acceptation du parcours MVP local Titan.
+- [mvp-integrated-local-acceptance.md](mvp-integrated-local-acceptance.md) : procedure d'acceptation locale integree du MVP read-only Hahitantsoa/Titan ;
+- [mvp-integrated-local-acceptance-result.md](mvp-integrated-local-acceptance-result.md) : dernier resultat enregistre de l'acceptation locale integree.
 
 Le scope de planification du premier slice MVP Hahitantsoa est defini dans
 [`DEC-003-hahitantsoa-mvp-scope.md`](../decisions/DEC-003-hahitantsoa-mvp-scope.md).

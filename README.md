@@ -2,12 +2,12 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F82 contrat read-only de disponibilite partagee material/article en cours**.
+Statut actuel : **F83 runbook d'acceptation locale integree du MVP read-only en cours**.
 
-F81 est terminee, mergee via la PR #78 et validee post-merge. F82 definit uniquement le contrat
-read-only futur de disponibilite des concepts partages `material` et `article` entre Hahitantsoa
-et Titan. F82 n'ajoute aucune implementation, aucun endpoint, comportement runtime, persistence,
-reservation ou workflow commercial.
+F82 est terminee, mergee via la PR #79 et validee post-merge. F83 definit et execute partiellement
+l'acceptation locale integree du MVP read-only Hahitantsoa/Titan. F83 n'ajoute aucune
+implementation, endpoint, test applicatif, comportement runtime, persistence, reservation ou
+workflow commercial.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
