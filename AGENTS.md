@@ -326,3 +326,65 @@ Pendant cette mission documentaire, il est interdit de créer :
 - configuration applicative opérationnelle.
 
 La seule production autorisée pendant cette phase est documentaire et structurelle.
+
+## 11. Local AI agent tooling - F84
+
+F84 adds local/free AI agent tooling to the project workflow without replacing the existing Codex workflow.
+
+### Tool roles
+
+- Codex remains the recommended senior AI coding agent for complex implementation, architecture-sensitive changes, hard debugging and critical PR review.
+- Aider may be used as a local implementer for small, scoped changes on the current Git branch.
+- Gemini CLI may be used as a reviewer/QA assistant for second opinions on the current Git diff.
+- Human validation remains mandatory before commits, PR creation and merges.
+
+### Workflow compatibility
+
+The existing Codex workflow remains valid.
+
+Local/free tools must not:
+
+- replace Codex for critical tasks unless explicitly approved;
+- merge pull requests;
+- push branches unless explicitly instructed;
+- broaden the approved task scope;
+- modify business rules without explicit approval;
+- read, print, source or modify `.env`;
+- expose credentials, tokens, cookies, passwords or secret values.
+
+### Recommended usage
+
+Use Aider when:
+
+- the task is small;
+- the expected diff is limited;
+- the files to modify are known;
+- the human operator can easily review the result.
+
+Use Gemini CLI when:
+
+- reviewing the current Git diff;
+- checking scope compliance;
+- checking tests and documentation;
+- looking for business-rule violations.
+
+Use Codex when:
+
+- the task is complex;
+- the implementation crosses backend/frontend/domain boundaries;
+- the local/free tools produce uncertain results;
+- a critical review is needed before merge.
+
+### Required review sequence for agent-assisted changes
+
+For any non-trivial agent-assisted change:
+
+1. Confirm the current branch and Git status.
+2. Run the implementing agent only on the approved scope.
+3. Review `git diff`.
+4. Run relevant tests or documentation checks.
+5. Ask a separate reviewer agent when useful.
+6. Commit only after human approval.
+7. Create a PR.
+8. Merge manually only after final human validation.
+
