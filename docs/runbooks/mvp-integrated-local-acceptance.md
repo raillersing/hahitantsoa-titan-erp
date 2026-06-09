@@ -7,6 +7,9 @@ F83 defines the integrated local acceptance procedure for the read-only Hahitant
 F83 is documentation and acceptance only. It adds no application behavior, endpoint, test,
 runtime change, persistence, reservation or commercial workflow.
 
+Latest recorded result: `PASS` from F86 in
+[`mvp-integrated-local-acceptance-result.md`](mvp-integrated-local-acceptance-result.md).
+
 ## 2. Purpose
 
 This runbook validates the local read-only MVP across backend quality checks, health/readiness,
@@ -20,6 +23,8 @@ workflows.
 
 - The repository is on the merged `main` revision being accepted.
 - The working tree is clean before acceptance begins.
+- The backend Docker image is rebuilt or recreated when recently added routes are missing from the
+  running container or when `/api/schema/` does not match the local source tree.
 - Docker is available.
 - PostgreSQL and Redis can be made healthy when DB-backed checks are required.
 - The backend virtual environment exists at `.venv/`.

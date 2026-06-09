@@ -4,7 +4,7 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. La tache actuellement autorisee est **F83 - runbook d'acceptation locale integree du MVP read-only**.
+La Foundation documentaire est terminee. Le MVP read-only Hahitantsoa/Titan est accepte localement en `PASS`. La prochaine tache d'implementation n'est pas encore autorisee.
 L'audit MVP F79 est documente dans `docs/mvp/mvp-gap-audit.md`.
 Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
@@ -344,9 +344,29 @@ F81 terminee, mergee et validee post-merge : completion et stabilisation des tes
 
 F82 terminee, mergee et validee post-merge : definition documentaire du contrat read-only futur de disponibilite des concepts partages `material` et `article` entre Hahitantsoa et Titan. `material_pack` reste Titan-only. F82 n'ajoute aucune implementation, endpoint, persistence, reservation ou workflow commercial.
 
-F83 en cours : creation et execution partielle du runbook d'acceptation locale integree du MVP read-only Hahitantsoa/Titan. F83 n'ajoute aucune implementation, endpoint, test applicatif, persistence, reservation ou workflow commercial.
+F83 terminee, mergee et revue par Agent B : creation du runbook d'acceptation locale integree du MVP read-only Hahitantsoa/Titan. F83 n'ajoute aucune implementation, endpoint, test applicatif, persistence, reservation ou workflow commercial.
+
+F84 terminee, mergee et validee post-merge : documentation du workflow local/free AI agent tooling dans `AGENTS.md`, avec Aider comme implementer local possible, Gemini CLI comme reviewer/QA possible, Codex conserve comme agent senior pour les taches complexes, et validation humaine obligatoire.
+
+F85 terminee, mergee et validee post-merge : hygiene outillage Aider avec ajout de `.aider*` dans `.gitignore` et dry-run reviewer Gemini CLI. F85 ne modifie aucun comportement applicatif.
+
+F86 terminee, mergee et validee post-merge : execution de l'acceptation locale integree du MVP read-only Hahitantsoa/Titan et enregistrement du resultat `PASS`. F86 valide backend non-DB, Docker/DB-backed, frontend, smoke HTTP et observation navigateur humaine, sans revendiquer de production readiness ni workflow commercial.
+
+F87 terminee : cloture documentaire post-F86 du MVP read-only accepte localement, incluant nettoyage de statuts, resume de cloture et note de rebuild Docker dans le runbook. F87 ne modifie aucun code applicatif, endpoint, persistence, reservation ou workflow commercial.
 
 ### Roadmap MVP globale read-only
+
+#### F80-F87 - Hahitantsoa/Titan read-only acceptance closure
+
+- F80 : surface frontend Hahitantsoa discovery ajoutee.
+- F81 : contrats OpenAPI read-only confirmes et stabilises.
+- F82 : contrat documentaire read-only de disponibilite partagee `material`/`article`.
+- F83 : runbook d'acceptation locale integree ajoute.
+- F84 : workflow agents locaux documente sans remplacer Codex.
+- F85 : hygiene Aider locale ajoutee avec `.aider*`.
+- F86 : acceptation locale integree executee et enregistree en `PASS`.
+- F87 : cloture documentaire du MVP read-only accepte localement.
+
 
 - F70 : clarifier le scope MVP Hahitantsoa ;
 - F71 : formaliser le workflow Codex a deux agents ;

@@ -1,5 +1,13 @@
 # MVP Gap Audit - Hahitantsoa/Titan ERP
 
+## Current Status
+
+F86 integrated local read-only MVP acceptance result is `PASS`.
+F87 closes the post-F86 documentation status for the accepted read-only local MVP.
+
+This audit does not claim production readiness, Hahitantsoa write APIs, persistent Hahitantsoa
+reservations, payment, invoice, contract or commercial workflows.
+
 ## 1. Status
 
 F79 is an audit and documentation task only. It creates no application behavior.
@@ -179,7 +187,7 @@ result of `PASS`. F79 does not rerun application tests because it changes docume
 | Frontend/navigation | The current screen is Titan-only and has no explicit scope navigation. | An integrated two-scope MVP needs a clear boundary. |
 | OpenAPI/schema | Existing regression tests explicitly assert inventory paths only. | Confirmed read-only APIs should have stable documented contracts. |
 | Domain/planning | Shared-material availability behavior for Hahitantsoa is not implemented. | DEC-003 identifies shared material interaction as required, but the smallest safe contract needs approval. |
-| Acceptance | No integrated local acceptance covers both Titan and Hahitantsoa surfaces. | The recorded acceptance predates the Hahitantsoa API/frontend slice. |
+| Acceptance | Integrated local acceptance now covers both Titan and Hahitantsoa read-only surfaces. | F86 recorded `PASS` in `docs/runbooks/mvp-integrated-local-acceptance-result.md`. |
 
 ### Nice-to-have after MVP
 
@@ -188,7 +196,7 @@ result of `PASS`. F79 does not rerun application tests because it changes docume
 | Frontend | Titan item-specific availability preview is not consumed. | Backend endpoint exists; summary/previews already support the current demo. |
 | UX | Frontend session login remains manual through DRF. | Acceptable for local MVP; a frontend auth workflow needs separate approval. |
 | Documentation | Some historical backend README statements are stale. | Useful cleanup, but not required to prove behavior. |
-| Local ops | A single integrated Hahitantsoa/Titan demo runbook does not exist. | Can be added with integrated acceptance work. |
+| Local ops | Integrated Hahitantsoa/Titan acceptance runbook exists. | F83 added the runbook and F86 recorded the local integrated acceptance result as `PASS`. |
 
 ### Explicitly out of scope
 
@@ -243,8 +251,10 @@ result of `PASS`. F79 does not rerun application tests because it changes docume
 - **Objective:** validate Titan catalogue/availability and Hahitantsoa discovery together in the
   local browser flow.
 - **Scope:** acceptance/runbook, targeted fixes only if separately approved.
-- **F83 status:** integrated acceptance runbook and result recording in progress; no application
+- **F83 status:** runbook completed, merged and reviewed by Agent B; no application
   implementation.
+- **F86 status:** integrated local read-only MVP acceptance executed and recorded as `PASS`
+  in `docs/runbooks/mvp-integrated-local-acceptance-result.md`.
 - **Probable files:** runbooks and status documentation.
 - **Risk:** low if validation-only.
 - **MVP priority:** final.
