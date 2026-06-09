@@ -2,12 +2,17 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **F83 runbook d'acceptation locale integree du MVP read-only en cours**.
+Statut actuel : **MVP read-only Hahitantsoa/Titan accepte localement - PASS**.
 
-F82 est terminee, mergee via la PR #79 et validee post-merge. F83 definit et execute partiellement
-l'acceptation locale integree du MVP read-only Hahitantsoa/Titan. F83 n'ajoute aucune
-implementation, endpoint, test applicatif, comportement runtime, persistence, reservation ou
-workflow commercial.
+F86 est terminee, mergee via la PR #83 et validee post-merge. L'acceptation locale integree
+du MVP read-only Hahitantsoa/Titan est enregistree en `PASS` dans
+[`docs/runbooks/mvp-integrated-local-acceptance-result.md`](docs/runbooks/mvp-integrated-local-acceptance-result.md).
+Le resume de cloture est disponible dans
+[`docs/mvp/mvp-readonly-local-acceptance-summary.md`](docs/mvp/mvp-readonly-local-acceptance-summary.md).
+
+Ce PASS couvre le scope local/dev read-only approuve. Il ne revendique pas de production readiness,
+de reservation persistante Hahitantsoa, d'API d'ecriture, de paiement, de facture, de contrat ou
+de workflow commercial.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
