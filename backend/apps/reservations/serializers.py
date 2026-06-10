@@ -139,7 +139,7 @@ class ReservationItemAvailabilityPreviewSerializer(serializers.Serializer):
                 "start_at": preview.period.start_at,
                 "end_at": preview.period.end_at,
                 "status": preview.status,
-                "conflict_count": preview.conflict_count,
+                "conflict_count": len(preview.conflicts),
             }
         )
 
