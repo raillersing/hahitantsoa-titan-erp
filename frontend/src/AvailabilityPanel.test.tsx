@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import AvailabilityPanel from "./AvailabilityPanel";
@@ -13,6 +19,18 @@ const START_AT_LOCAL = "2026-06-06T10:00";
 const END_AT_LOCAL = "2026-06-06T12:00";
 const START_AT_ISO = new Date(START_AT_LOCAL).toISOString();
 const END_AT_ISO = new Date(END_AT_LOCAL).toISOString();
+
+const CUSTOMERS = [
+  {
+    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    display_name: "Client Demo",
+    email: "client@example.test",
+    phone: "+261 34 00 000 00",
+    address: "Antananarivo",
+    notes: "Demo customer",
+    is_active: true,
+  },
+];
 
 const INVENTORY_ITEMS: InventoryItem[] = [
   {
@@ -35,6 +53,13 @@ const SUMMARY: ReservationAvailabilitySummary = {
   available_item_count: 2,
   available_preview_count: 2,
   available_item_kinds: ["material", "material_pack"],
+};
+
+const EMPTY_SUMMARY: ReservationAvailabilitySummary = {
+  ...SUMMARY,
+  available_item_count: 0,
+  available_preview_count: 0,
+  available_item_kinds: [],
 };
 
 const PREVIEWS: ReservationAvailableItemPreview[] = [
@@ -77,6 +102,46 @@ const ITEM_PREVIEWS: ReservationItemAvailabilityPreview[] = [
   },
 ];
 
+const DRAFT_RESPONSE = {
+  id: "draft-1",
+  public_reference: "RD-DEMO-001",
+  status: "draft",
+  customer_id: CUSTOMERS[0].id,
+  customer_display_name: CUSTOMERS[0].display_name,
+  start_at: START_AT_ISO,
+  end_at: END_AT_ISO,
+  notes: "Created from the frontend MVP draft flow.",
+  lines: [
+    {
+      id: "line-1",
+      inventory_item_id: INVENTORY_ITEMS[0].id,
+      inventory_item_name: INVENTORY_ITEMS[0].name,
+      inventory_item_kind: INVENTORY_ITEMS[0].kind,
+      quantity: 1,
+      notes: "",
+    },
+    {
+      id: "line-2",
+      inventory_item_id: INVENTORY_ITEMS[1].id,
+      inventory_item_name: INVENTORY_ITEMS[1].name,
+      inventory_item_kind: INVENTORY_ITEMS[1].kind,
+      quantity: 1,
+      notes: "",
+    },
+  ],
+  created_at: START_AT_ISO,
+  updated_at: START_AT_ISO,
+};
+
+type MockOptions = {
+  summary?: object;
+  previews?: object;
+  itemPreviews?: Record<string, object>;
+  draft?: object;
+  fail?: "customers" | "summary" | "previews" | "itemPreview" | "draft";
+  pendingAvailability?: boolean;
+};
+
 function jsonResponse(payload: object, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -84,13 +149,60 @@ function jsonResponse(payload: object, status = 200): Response {
   });
 }
 
-function mockSuccessfulAvailabilityResponses() {
-  return vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(jsonResponse(SUMMARY))
-    .mockResolvedValueOnce(jsonResponse(PREVIEWS))
-    .mockResolvedValueOnce(jsonResponse(ITEM_PREVIEWS[0]))
-    .mockResolvedValueOnce(jsonResponse(ITEM_PREVIEWS[1]));
+function mockAvailabilityFetch(options: MockOptions = {}) {
+  return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+    const url = String(input);
+
+    if (url === "/api/v1/customers/") {
+      return Promise.resolve(
+        options.fail === "customers"
+          ? jsonResponse({}, 500)
+          : jsonResponse(CUSTOMERS),
+      );
+    }
+
+    if (url.includes("/api/v1/reservations/availability-summary/")) {
+      if (options.pendingAvailability) {
+        return new Promise(() => undefined);
+      }
+
+      return Promise.resolve(
+        options.fail === "summary"
+          ? jsonResponse({}, 500)
+          : jsonResponse(options.summary ?? SUMMARY),
+      );
+    }
+
+    if (url.includes("/api/v1/reservations/available-item-previews/")) {
+      return Promise.resolve(
+        options.fail === "previews"
+          ? jsonResponse({}, 500)
+          : jsonResponse(options.previews ?? PREVIEWS),
+      );
+    }
+
+    if (url.includes("/api/v1/reservations/items/")) {
+      if (options.fail === "itemPreview") {
+        return Promise.resolve(jsonResponse({}, 500));
+      }
+
+      const itemPreview = url.includes(INVENTORY_ITEMS[0].id)
+        ? (options.itemPreviews?.[INVENTORY_ITEMS[0].id] ?? ITEM_PREVIEWS[0])
+        : (options.itemPreviews?.[INVENTORY_ITEMS[1].id] ?? ITEM_PREVIEWS[1]);
+
+      return Promise.resolve(jsonResponse(itemPreview));
+    }
+
+    if (url === "/api/v1/reservations/drafts/") {
+      return Promise.resolve(
+        options.fail === "draft"
+          ? jsonResponse({}, 500)
+          : jsonResponse(options.draft ?? DRAFT_RESPONSE),
+      );
+    }
+
+    return Promise.resolve(jsonResponse({}, 404));
+  });
 }
 
 function fillValidPeriod() {
@@ -106,79 +218,108 @@ function submitAvailability() {
   fireEvent.click(screen.getByRole("button", { name: "Check availability" }));
 }
 
+async function loadAvailability(inventoryItems = INVENTORY_ITEMS) {
+  render(<AvailabilityPanel inventoryItems={inventoryItems} />);
+  fillValidPeriod();
+  submitAvailability();
+  await screen.findByText("Item-specific availability previews");
+}
+
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
 });
 
 describe("AvailabilityPanel", () => {
-  it("renders the period form without login or reservation creation controls", () => {
+  it("renders the period form without login or forbidden commercial controls", () => {
+    mockAvailabilityFetch();
+
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
-    expect(screen.getByLabelText("Start")).toHaveAttribute("type", "datetime-local");
-    expect(screen.getByLabelText("End")).toHaveAttribute("type", "datetime-local");
-    expect(screen.getByRole("button", { name: "Check availability" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Start")).toHaveAttribute(
+      "type",
+      "datetime-local",
+    );
+    expect(screen.getByLabelText("End")).toHaveAttribute(
+      "type",
+      "datetime-local",
+    );
     expect(
-      screen.getByText(
-        /Sign in through the backend \/api-auth\/login\/ first\. For local demo data, run seed_demo_availability and choose a period overlapping its next two-hour window\. Checking availability does not create a reservation\./,
-      ),
+      screen.getByRole("button", { name: "Check availability" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /log in|sign in/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/username|password/i)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /reserve|book|create reservation/i }),
+      screen.queryByLabelText(/username|password/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
     ).not.toBeInTheDocument();
   });
 
-  it("calls read-only endpoints including item-specific previews with session credentials and aware datetimes", async () => {
-    const fetchMock = mockSuccessfulAvailabilityResponses();
+  it("loads customers with session credentials before draft creation UI is shown", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
-    fillValidPeriod();
 
-    submitAvailability();
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/customers/", {
+        credentials: "include",
+        signal: expect.any(AbortSignal),
+      }),
+    );
+  });
 
-    await screen.findByText("Item-specific availability previews");
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+  it("calls availability endpoints with session credentials and aware datetimes", async () => {
+    const fetchMock = mockAvailabilityFetch();
 
-    for (const [url, options] of fetchMock.mock.calls) {
+    await loadAvailability();
+
+    const availabilityCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("/api/v1/reservations/"),
+    );
+
+    expect(availabilityCalls).toHaveLength(4);
+
+    for (const [url, options] of availabilityCalls.slice(0, 3)) {
       expect(options).toEqual({ credentials: "include", signal: undefined });
       const requestUrl = new URL(String(url), "http://localhost");
       expect(requestUrl.searchParams.get("start_at")).toBe(START_AT_ISO);
       expect(requestUrl.searchParams.get("end_at")).toBe(END_AT_ISO);
     }
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain(
+    expect(String(availabilityCalls[0][0])).toContain(
       "/api/v1/reservations/availability-summary/",
     );
-    expect(String(fetchMock.mock.calls[1][0])).toContain(
+    expect(String(availabilityCalls[1][0])).toContain(
       "/api/v1/reservations/available-item-previews/",
     );
-    expect(String(fetchMock.mock.calls[2][0])).toContain(
+    expect(String(availabilityCalls[2][0])).toContain(
       `/api/v1/reservations/items/${INVENTORY_ITEMS[0].id}/availability-preview/`,
     );
-    expect(String(fetchMock.mock.calls[3][0])).toContain(
+    expect(String(availabilityCalls[3][0])).toContain(
       `/api/v1/reservations/items/${INVENTORY_ITEMS[1].id}/availability-preview/`,
     );
   });
 
-  it("shows loading while requests are pending", () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(() => undefined));
+  it("shows loading while availability requests are pending", async () => {
+    mockAvailabilityFetch({ pendingAvailability: true });
+
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
     fillValidPeriod();
-
     submitAvailability();
 
     expect(screen.getByText("Checking availability...")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check availability" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Check availability" }),
+    ).toBeDisabled();
   });
 
-  it("renders summary, available item previews and item-specific conflict counts", async () => {
-    mockSuccessfulAvailabilityResponses();
-    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
-    fillValidPeriod();
+  it("renders summary, available previews and item-specific conflict counts", async () => {
+    mockAvailabilityFetch();
 
-    submitAvailability();
+    await loadAvailability();
 
-    expect(await screen.findByText("Item-specific availability previews")).toBeInTheDocument();
     expect(screen.getAllByText("Projector")).toHaveLength(2);
     expect(screen.getAllByText("Lighting pack")).toHaveLength(2);
     expect(screen.getByText("material, material_pack")).toBeInTheDocument();
@@ -188,53 +329,31 @@ describe("AvailabilityPanel", () => {
     expect(screen.getByText("1 conflicts")).toBeInTheDocument();
   });
 
-  it("renders an empty previews state and an empty item-specific state", async () => {
-    vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        jsonResponse({
-          ...SUMMARY,
-          available_item_count: 0,
-          available_preview_count: 0,
-          available_item_kinds: [],
-        }),
-      )
-      .mockResolvedValueOnce(jsonResponse([]));
-    render(<AvailabilityPanel inventoryItems={[]} />);
-    fillValidPeriod();
+  it("renders empty preview states", async () => {
+    mockAvailabilityFetch({
+      summary: EMPTY_SUMMARY,
+      previews: [],
+    });
 
-    submitAvailability();
+    await loadAvailability([]);
 
     expect(
-      await screen.findByText("No items are available for this period."),
+      screen.getByText("No items are available for this period."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("No inventory items are loaded for item-specific preview."),
+      screen.getByText(
+        "No inventory items are loaded for item-specific preview.",
+      ),
     ).toBeInTheDocument();
   });
 
-  it.each(["summary", "previews", "item preview"])(
+  it.each(["summary", "previews", "itemPreview"] as const)(
     "renders an error when the %s request fails",
     async (failedRequest) => {
-      const fetchMock = vi.spyOn(globalThis, "fetch");
-      if (failedRequest === "summary") {
-        fetchMock
-          .mockResolvedValueOnce(jsonResponse({}, 500))
-          .mockResolvedValueOnce(jsonResponse(PREVIEWS))
-          .mockResolvedValueOnce(jsonResponse(ITEM_PREVIEWS[0]));
-      } else if (failedRequest === "previews") {
-        fetchMock
-          .mockResolvedValueOnce(jsonResponse(SUMMARY))
-          .mockResolvedValueOnce(jsonResponse({}, 500))
-          .mockResolvedValueOnce(jsonResponse(ITEM_PREVIEWS[0]));
-      } else {
-        fetchMock
-          .mockResolvedValueOnce(jsonResponse(SUMMARY))
-          .mockResolvedValueOnce(jsonResponse(PREVIEWS))
-          .mockResolvedValueOnce(jsonResponse({}, 500));
-      }
+      mockAvailabilityFetch({ fail: failedRequest });
+
       render(<AvailabilityPanel inventoryItems={[INVENTORY_ITEMS[0]]} />);
       fillValidPeriod();
-
       submitAvailability();
 
       expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -243,8 +362,9 @@ describe("AvailabilityPanel", () => {
     },
   );
 
-  it("rejects an invalid or reversed local period without API requests", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch");
+  it("rejects an invalid or reversed local period without availability API requests", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
     fireEvent.change(screen.getByLabelText("Start"), {
       target: { value: END_AT_LOCAL },
@@ -258,6 +378,74 @@ describe("AvailabilityPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Choose a valid period with an end after the start.",
     );
-    await waitFor(() => expect(fetchMock).not.toHaveBeenCalled());
+
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).includes("/api/v1/reservations/availability-summary/"),
+      ),
+    ).toBe(false);
+  });
+
+  it("creates a reservation draft for the selected customer and available items", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    await loadAvailability();
+
+    expect(await screen.findByLabelText("Customer")).toBeInTheDocument();
+    expect(screen.getByText("Client Demo")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Create draft" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create draft" }));
+
+    expect(
+      await screen.findByText("Reference: RD-DEMO-001"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Status: draft")).toBeInTheDocument();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/reservations/drafts/", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        customer_id: CUSTOMERS[0].id,
+        start_at: START_AT_ISO,
+        end_at: END_AT_ISO,
+        notes: "Created from the frontend MVP draft flow.",
+        lines: [
+          {
+            inventory_item_id: INVENTORY_ITEMS[0].id,
+            quantity: 1,
+            notes: "",
+          },
+          {
+            inventory_item_id: INVENTORY_ITEMS[1].id,
+            quantity: 1,
+            notes: "",
+          },
+        ],
+      }),
+      signal: undefined,
+    });
+  });
+
+  it("shows a draft creation error without forbidden commercial controls", async () => {
+    mockAvailabilityFetch({ fail: "draft" });
+
+    await loadAvailability();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create draft" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The requested data could not be loaded.",
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

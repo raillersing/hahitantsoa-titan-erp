@@ -1,14 +1,18 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import {
+  createReservationDraft,
+  getCustomers,
   getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
   getReservationItemAvailabilityPreview,
 } from "./api";
 import type {
+  Customer,
   InventoryItem,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
+  ReservationDraft,
   ReservationItemAvailabilityPreview,
 } from "./types";
 
@@ -23,13 +27,26 @@ type AvailabilityState =
     }
   | { status: "error"; message: string };
 
+type DraftCreationState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "created"; draft: ReservationDraft }
+  | { status: "error"; message: string };
+
+type CustomerState =
+  | { status: "loading" }
+  | { status: "loaded"; customers: Customer[] }
+  | { status: "error"; message: string };
+
 type AvailabilityPanelProps = {
   inventoryItems?: InventoryItem[];
 };
 
 function toDateTimeLocalValue(date: Date): string {
   const offsetMilliseconds = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offsetMilliseconds).toISOString().slice(0, 16);
+  return new Date(date.getTime() - offsetMilliseconds)
+    .toISOString()
+    .slice(0, 16);
 }
 
 function formatDateTime(value: string): string {
@@ -54,9 +71,50 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   const initialPeriod = defaultPeriod();
   const [startAt, setStartAt] = useState(initialPeriod.startAt);
   const [endAt, setEndAt] = useState(initialPeriod.endAt);
-  const [availabilityState, setAvailabilityState] = useState<AvailabilityState>({
-    status: "idle",
+  const [availabilityState, setAvailabilityState] = useState<AvailabilityState>(
+    {
+      status: "idle",
+    },
+  );
+  const [customerState, setCustomerState] = useState<CustomerState>({
+    status: "loading",
   });
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [draftCreationState, setDraftCreationState] =
+    useState<DraftCreationState>({
+      status: "idle",
+    });
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadCustomers() {
+      try {
+        const customers = await getCustomers(controller.signal);
+        setCustomerState({ status: "loaded", customers });
+        if (customers.length > 0) {
+          setSelectedCustomerId(customers[0].id);
+        }
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setCustomerState({
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Customers could not be loaded.",
+        });
+      }
+    }
+
+    void loadCustomers();
+
+    return () => controller.abort();
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,12 +146,23 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         getReservationAvailableItemPreviews(startAtIso, endAtIso),
         Promise.all(
           inventoryItems.map((item) =>
-            getReservationItemAvailabilityPreview(item.id, startAtIso, endAtIso),
+            getReservationItemAvailabilityPreview(
+              item.id,
+              startAtIso,
+              endAtIso,
+            ),
           ),
         ),
       ]);
 
-      setAvailabilityState({ status: "loaded", summary, previews, itemPreviews });
+      setAvailabilityState({
+        status: "loaded",
+        summary,
+        previews,
+        itemPreviews,
+      });
+      setSelectedItemIds(previews.map((preview) => preview.inventory_item_id));
+      setDraftCreationState({ status: "idle" });
     } catch (error) {
       setAvailabilityState({
         status: "error",
@@ -105,8 +174,72 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     }
   }
 
+  function toggleSelectedItem(inventoryItemId: string) {
+    setSelectedItemIds((currentSelectedItemIds) =>
+      currentSelectedItemIds.includes(inventoryItemId)
+        ? currentSelectedItemIds.filter((itemId) => itemId !== inventoryItemId)
+        : [...currentSelectedItemIds, inventoryItemId],
+    );
+    setDraftCreationState({ status: "idle" });
+  }
+
+  async function handleCreateDraft() {
+    if (availabilityState.status !== "loaded") {
+      setDraftCreationState({
+        status: "error",
+        message: "Check availability before creating a draft.",
+      });
+      return;
+    }
+
+    if (!selectedCustomerId) {
+      setDraftCreationState({
+        status: "error",
+        message: "Choose a customer before creating a draft.",
+      });
+      return;
+    }
+
+    if (selectedItemIds.length === 0) {
+      setDraftCreationState({
+        status: "error",
+        message: "Choose at least one available item before creating a draft.",
+      });
+      return;
+    }
+
+    setDraftCreationState({ status: "loading" });
+
+    try {
+      const draft = await createReservationDraft({
+        customer_id: selectedCustomerId,
+        start_at: availabilityState.summary.start_at,
+        end_at: availabilityState.summary.end_at,
+        notes: "Created from the frontend MVP draft flow.",
+        lines: selectedItemIds.map((inventoryItemId) => ({
+          inventory_item_id: inventoryItemId,
+          quantity: 1,
+          notes: "",
+        })),
+      });
+
+      setDraftCreationState({ status: "created", draft });
+    } catch (error) {
+      setDraftCreationState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Reservation draft could not be created.",
+      });
+    }
+  }
+
   return (
-    <section className="availability-section" aria-labelledby="availability-heading">
+    <section
+      className="availability-section"
+      aria-labelledby="availability-heading"
+    >
       <div className="section-heading">
         <div>
           <p className="eyebrow">Read-only availability</p>
@@ -114,8 +247,8 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           <p className="section-helper">
             Read-only check. Sign in through the backend /api-auth/login/ first.
             For local demo data, run seed_demo_availability and choose a period
-            overlapping its next two-hour window. Checking availability does not create
-            a reservation.
+            overlapping its next two-hour window. Checking availability does not
+            create a reservation.
           </p>
         </div>
       </div>
@@ -178,7 +311,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
 
           <div className="availability-kinds">
             <h3>Available kinds</h3>
-            <p>{availabilityState.summary.available_item_kinds.join(", ") || "None"}</p>
+            <p>
+              {availabilityState.summary.available_item_kinds.join(", ") ||
+                "None"}
+            </p>
           </div>
 
           <div className="preview-list-section">
@@ -189,7 +325,18 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               <ul className="preview-list">
                 {availabilityState.previews.map((preview) => (
                   <li key={preview.inventory_item_id}>
-                    <span>{preview.inventory_item_name}</span>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={selectedItemIds.includes(
+                          preview.inventory_item_id,
+                        )}
+                        onChange={() =>
+                          toggleSelectedItem(preview.inventory_item_id)
+                        }
+                      />
+                      <span>{preview.inventory_item_name}</span>
+                    </label>
                     <span>{preview.inventory_item_kind}</span>
                     <strong>{preview.status}</strong>
                   </li>
@@ -199,9 +346,83 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           </div>
 
           <div className="preview-list-section">
+            <h3>Reservation draft</h3>
+
+            {customerState.status === "loading" ? (
+              <p className="status">Loading customers...</p>
+            ) : null}
+
+            {customerState.status === "error" ? (
+              <div className="notice availability-notice" role="alert">
+                <h4>Customers unavailable</h4>
+                <p>{customerState.message}</p>
+              </div>
+            ) : null}
+
+            {customerState.status === "loaded" ? (
+              <>
+                <label>
+                  Customer
+                  <select
+                    value={selectedCustomerId}
+                    onChange={(event) => {
+                      setSelectedCustomerId(event.target.value);
+                      setDraftCreationState({ status: "idle" });
+                    }}
+                  >
+                    {customerState.customers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>
+                        {customer.display_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  disabled={
+                    draftCreationState.status === "loading" ||
+                    availabilityState.previews.length === 0 ||
+                    selectedItemIds.length === 0 ||
+                    !selectedCustomerId
+                  }
+                  onClick={handleCreateDraft}
+                >
+                  Create draft
+                </button>
+              </>
+            ) : null}
+
+            {draftCreationState.status === "loading" ? (
+              <p className="status">Creating reservation draft...</p>
+            ) : null}
+
+            {draftCreationState.status === "error" ? (
+              <div className="notice availability-notice" role="alert">
+                <h4>Reservation draft unavailable</h4>
+                <p>{draftCreationState.message}</p>
+              </div>
+            ) : null}
+
+            {draftCreationState.status === "created" ? (
+              <div className="notice">
+                <h4>Draft created</h4>
+                <p>Reference: {draftCreationState.draft.public_reference}</p>
+                <p>Status: {draftCreationState.draft.status}</p>
+              </div>
+            ) : null}
+            <p className="section-helper">
+              Draft-only action. The reservation remains editable and
+              unfinalized.
+            </p>
+          </div>
+
+          <div className="preview-list-section">
             <h3>Item-specific availability previews</h3>
             {availabilityState.itemPreviews.length === 0 ? (
-              <p className="status">No inventory items are loaded for item-specific preview.</p>
+              <p className="status">
+                No inventory items are loaded for item-specific preview.
+              </p>
             ) : (
               <ul className="preview-list">
                 {availabilityState.itemPreviews.map((preview) => (
