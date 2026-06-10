@@ -1,0 +1,85 @@
+set -eu
+set -o pipefail
+
+if GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  cd "$GIT_ROOT" || exit 1
+else
+  echo "ERROR: must be run inside the git repository."
+  exit 1
+fi
+
+MODE="${1:-local}"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-quality-check [local|backend-static|frontend|help]
+
+Modes:
+  local
+    Run the fast local non-DB quality checks:
+    - Ruff format check on backend and tests
+    - Ruff lint check on backend and tests
+    - Frontend Vitest tests
+    - Frontend production build
+
+  backend-static
+    Run backend non-DB static checks only:
+    - Ruff format check
+    - Ruff lint check
+
+  frontend
+    Run frontend checks only:
+    - npm test
+    - npm run build
+
+  help
+    Show this help message.
+
+Notes:
+  This helper does not read, source, print or modify .env files.
+  This helper does not run DB-backed pytest by default.
+  DB-backed backend tests require PostgreSQL and Redis. Use GitHub Actions CI or the documented Docker Compose workflow for DB-backed validation.
+USAGE
+}
+
+run_backend_static() {
+  echo "============================================================"
+  echo "Backend static quality"
+  echo "============================================================"
+  .venv/bin/python -m ruff format --check backend tests
+  .venv/bin/python -m ruff check backend tests
+}
+
+run_frontend() {
+  echo "============================================================"
+  echo "Frontend quality"
+  echo "============================================================"
+  (
+    cd frontend
+    npm test
+    npm run build
+  )
+}
+
+case "$MODE" in
+  local)
+    run_backend_static
+    run_frontend
+    ;;
+  backend-static)
+    run_backend_static
+    ;;
+  frontend)
+    run_frontend
+    ;;
+  help|--help|-h)
+    print_usage
+    ;;
+  *)
+    echo "ERROR: unknown mode: $MODE"
+    echo
+    print_usage
+    exit 2
+    ;;
+esac
