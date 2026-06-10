@@ -4,8 +4,14 @@
 
 `PASS`
 
-The Hahitantsoa/Titan read-only MVP has passed integrated local acceptance for the currently
-approved scope.
+The Hahitantsoa/Titan read-only MVP passed integrated local acceptance for the F86/F87 approved
+historical scope.
+
+Post-F102 note: this summary is a historical closure document for the read-only acceptance phase.
+It does not describe the complete current project state after F98-F102. The current project state
+also includes read-only document template registry endpoints, read-only customer/contact APIs and a
+limited authenticated `ReservationDraft` draft-only write path. The current scope is summarized in
+`README.md` and `PLANS.md`.
 
 This summary complements:
 
@@ -83,15 +89,15 @@ Hahitantsoa still excludes:
 
 ## Known Limitations
 
-This MVP acceptance does not claim:
+This historical MVP acceptance does not claim:
 
 - production readiness;
 - deployment readiness;
 - polished final UI;
-- persistent Hahitantsoa reservation;
-- shared `material`/`article` availability implementation;
-- Titan reservation workflow;
-- pricing, payment, invoice or contract workflow.
+- confirmed reservation workflow;
+- inventory blocking from a confirmed reservation;
+- payment, invoice, contract or PDF runtime generation;
+- complete commercial workflow.
 
 Shared `material` and `article` availability remains contract-only.
 

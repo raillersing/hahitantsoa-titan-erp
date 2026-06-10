@@ -6,6 +6,12 @@ This document records the available acceptance evidence for the local/dev MVP de
 
 It is not a production-readiness assessment and is not automated end-to-end coverage. Human browser confirmation was provided for the documented local demo scenario.
 
+Post-F102 note: this result is historical evidence for the F66/F67 Titan local demo scope. It does
+not describe the complete current project state after F98-F102, which also includes read-only
+document template registry endpoints, read-only customer/contact APIs and a limited authenticated
+`ReservationDraft` draft-only write path. The current scope is summarized in `README.md` and
+`PLANS.md`.
+
 ## Version Under Review
 
 - Branch: `main`
@@ -54,7 +60,7 @@ Record only non-sensitive observations. Do not include credentials, usernames, p
 | `Projecteur LED` is excluded | PASS | The item was excluded for the overlapping period. |
 | `Pack sonorisation + eclairage` remains available | PASS | The pack remained available for the overlapping period. |
 | No frontend login form is visible | PASS | Authentication remained a manual backend session flow. |
-| No Reserve, Book or Create reservation control is visible | PASS | No reservation creation control was visible. |
+| No Reserve, Book or Create reservation control was visible during the F66/F67 demo | PASS | No reservation creation control was visible in that historical local demo scope. |
 | No commercial workflow is visible | PASS | No contract, invoice, payment, customer, pricing, stock, quantity or unit workflow was visible. |
 
 The earlier `/accounts/profile/` HTTP 404 after login was the default post-login redirect target without a configured route. It was not an acceptance failure because the authenticated session was subsequently confirmed through DRF and frontend access.
@@ -78,11 +84,11 @@ The following candidates were evaluated without implementing any of them:
 | Next authenticated read-only MVP surface | Extends the MVP while preserving the current read-only architecture and controlled scope. |
 | Future write workflow preparation | Premature before explicit decisions for persistence, transactions and business invariants. |
 
-The next implementation step after F68 is the authenticated read-only item availability detail API.
+At the time of F68, the next implementation step was the authenticated read-only item availability detail API.
 
-This next step must remain focused on the smallest useful contract for inspecting one Titan inventory item's availability for a period. It must remain read-only and must not implement persistent reservations, writes, stock, quantities, units, pricing, contracts, invoices, payments, customers or commercial workflows.
+That recommendation is historical. It must not be read as the current roadmap after F98-F102. The current project now includes later read-only surfaces and a limited `ReservationDraft` draft-only creation path, while still excluding reservation confirmation, inventory blocking, payment, invoice, contract and PDF runtime generation.
 
-The manual browser acceptance did not identify blocking UX friction. The future recommendation remains to prepare a focused authenticated read-only item availability detail surface, defining its smallest useful contract and UI scope before implementation.
+The manual browser acceptance did not identify blocking UX friction during the F66/F67 demo scope.
 
 F68 records the acceptance result only. The next feature is implemented separately by F69.
 

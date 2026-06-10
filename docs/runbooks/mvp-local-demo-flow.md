@@ -4,7 +4,14 @@
 
 This runbook prepares a local/dev demonstration of the authenticated, read-only inventory and reservations availability surfaces.
 
-It does not create a persistent reservation, write API, frontend login workflow, reservation creation workflow, contract, invoice, payment, customer, stock, quantity, unit, pricing, CI or deployment configuration. The `reserved` value seeded below is only a technical `InventoryAvailability` status.
+Post-F102 note: this runbook is historical for the earlier local demo flow. It does not describe the
+complete current project state after F98-F102, which also includes read-only document template
+registry endpoints, read-only customer/contact APIs and limited authenticated `ReservationDraft`
+draft-only creation.
+
+This runbook itself does not create a confirmed reservation, frontend login workflow, contract,
+invoice, payment, stock, quantity, unit, pricing, CI or deployment configuration. The `reserved`
+value seeded below is only a technical `InventoryAvailability` status.
 
 Titan remains limited to `material`, `article` and `material_pack`.
 
@@ -57,7 +64,7 @@ Open the Vite URL shown in the terminal. Confirm that:
 - the Availability panel states that it is read-only and does not create a reservation;
 - a check overlapping the seeded demo period excludes `Sonorisation standard` and `Projecteur LED`;
 - `Pack sonorisation + eclairage` remains available;
-- no login form or reservation creation workflow exists in the frontend.
+- at the time of the original local demo flow, no login form or reservation creation workflow existed in the frontend.
 
 ## Validate And Stop
 

@@ -5,8 +5,13 @@
 F86 integrated local read-only MVP acceptance result is `PASS`.
 F87 closes the post-F86 documentation status for the accepted read-only local MVP.
 
-This audit does not claim production readiness, Hahitantsoa write APIs, persistent Hahitantsoa
-reservations, payment, invoice, contract or commercial workflows.
+Post-F102 note: this F79 audit is historical. It describes the controlled read-only MVP status before
+the later F98-F102 additions. The current project status now includes read-only document template
+registry endpoints, read-only customer/contact APIs and a limited authenticated `ReservationDraft`
+draft-only write path. The current scope is summarized in `README.md` and `PLANS.md`.
+
+This audit does not claim production readiness, confirmed reservation workflows, payment, invoice,
+contract generation, PDF runtime generation or commercial workflows.
 
 ## 1. Status
 
@@ -14,8 +19,8 @@ F79 is an audit and documentation task only. It creates no application behavior.
 
 F78 is completed, merged through PR #75 and post-merge validated.
 
-The current goal is to finish a controlled, read-only Hahitantsoa/Titan MVP before any
-persistence or write workflow is approved.
+At the time of F79, the goal was to finish a controlled, read-only Hahitantsoa/Titan MVP
+before any persistence or write workflow was approved.
 
 ## 2. Executive summary
 

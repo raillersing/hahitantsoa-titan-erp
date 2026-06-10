@@ -2,6 +2,11 @@
 
 Ce runbook valide le socle MVP local apres une modification frontend ou une evolution controlee des APIs read-only existantes.
 
+Note post-F102 : ce runbook reste un smoke historique/scope-limited pour les surfaces MVP locales
+read-only. Il ne valide pas le chemin authentifie de creation `ReservationDraft` draft-only ajoute
+plus tard, ni les surfaces documents registry ou clients/contacts ajoutees apres les premiers
+smokes MVP. Le statut courant complet reste resume dans `README.md` et `PLANS.md`.
+
 Il utilise `scripts/dev/erp-logged-run` pour conserver la sortie complete dans `logs/terminal/`.
 
 Ne jamais ajouter dans ce bloc une commande qui affiche `.env`, un mot de passe, un token ou un autre secret.
@@ -54,4 +59,4 @@ EOF
 
 Le bloc arrete proprement les services Docker Compose via son `trap`, y compris lorsqu'une validation echoue.
 
-Ce smoke test ne valide pas un workflow de reservation persistante, une API d'ecriture, un login frontend, un workflow commercial ou un deploiement production.
+Ce smoke test ne valide pas une confirmation de reservation, un blocage inventory, un paiement, une facture, un contrat, une generation PDF runtime, un login frontend, un workflow commercial ou un deploiement production.
