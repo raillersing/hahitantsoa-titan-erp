@@ -398,3 +398,5 @@ Les materiels sont partages entre Hahitantsoa et Titan : une reservation confirm
 F91 a ajoute la CI GitHub Actions dans `.github/workflows/ci.yml`. Cette CI execute les quality gates backend et frontend sur les pull requests vers `main` et les pushes vers `main`. Le backend utilise PostgreSQL et Redis en services GitHub Actions, puis execute Ruff format, Ruff lint et pytest. Le frontend execute `npm ci`, Vitest et le build Vite. Le runbook est disponible dans [`docs/runbooks/ci-quality-gates.md`](docs/runbooks/ci-quality-gates.md).
 
 F92 documente le fonctionnement des quality gates CI, les regles de merge, le diagnostic des echecs CI et le lien avec le workflow Codex supervise. F92 ne modifie aucun code applicatif ni le workflow CI.
+
+F93 ajoute le helper local `scripts/dev/erp-quality-check` pour lancer rapidement les validations locales non-DB alignees avec la CI : Ruff format, Ruff lint, tests frontend et build frontend. Les tests backend DB-backed restent valides via GitHub Actions CI ou le workflow Docker Compose documente, car ils necessitent PostgreSQL et Redis.

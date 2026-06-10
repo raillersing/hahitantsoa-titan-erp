@@ -141,12 +141,23 @@ Recommended response:
 
 ## Local validation
 
-For local non-DB validation, use:
+For fast local non-DB validation, use the helper added in F93:
+
+- `scripts/dev/erp-quality-check`
+
+Equivalent manual commands are:
 
 - `.venv/bin/python -m ruff format --check backend tests`
 - `.venv/bin/python -m ruff check backend tests`
 - `npm test` from `frontend/`
 - `npm run build` from `frontend/`
+
+Useful helper modes:
+
+- `scripts/dev/erp-quality-check local`
+- `scripts/dev/erp-quality-check backend-static`
+- `scripts/dev/erp-quality-check frontend`
+- `scripts/dev/erp-quality-check help`
 
 For DB-backed backend validation, use the documented Docker Compose workflow when PostgreSQL and Redis are required.
 
