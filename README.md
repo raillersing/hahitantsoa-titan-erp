@@ -2,17 +2,19 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **MVP read-only Hahitantsoa/Titan accepte localement - PASS**.
+Statut actuel : **MVP local post-F102 - surfaces read-only + brouillons de reservation draft-only**.
 
-F86 est terminee, mergee via la PR #83 et validee post-merge. L'acceptation locale integree
-du MVP read-only Hahitantsoa/Titan est enregistree en `PASS` dans
-[`docs/runbooks/mvp-integrated-local-acceptance-result.md`](docs/runbooks/mvp-integrated-local-acceptance-result.md).
-Le resume de cloture est disponible dans
+F86/F87 restent l'historique d'acceptation locale du MVP read-only Hahitantsoa/Titan. Ce resultat
+`PASS` reste conserve dans
+[`docs/runbooks/mvp-integrated-local-acceptance-result.md`](docs/runbooks/mvp-integrated-local-acceptance-result.md)
+et resume dans
 [`docs/mvp/mvp-readonly-local-acceptance-summary.md`](docs/mvp/mvp-readonly-local-acceptance-summary.md).
 
-Ce PASS couvre le scope local/dev read-only approuve. Il ne revendique pas de production readiness,
-de reservation persistante Hahitantsoa, d'API d'ecriture, de paiement, de facture, de contrat ou
-de workflow commercial.
+Depuis F98-F102, l'etat courant a evolue : le MVP conserve des surfaces read-only pour inventory,
+availability, Hahitantsoa discovery, customers et documents registry, mais il inclut maintenant une
+ecriture limitee et authentifiee pour creer des `ReservationDraft` draft-only. Cette ecriture ne
+confirme pas une reservation, ne bloque pas l'inventaire, ne cree aucun paiement, facture, contrat
+ou PDF runtime, et ne revendique pas de production readiness.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
@@ -341,7 +343,7 @@ F76 documente le contrat de la future API read-only Hahitantsoa `GET /api/v1/hah
 
 F77 a implemente `GET /api/v1/hahitantsoa/discovery-items/`, une API authentifiee et strictement read-only qui delegue au selector F75. Elle expose uniquement `concept` et `label`, sans DB, modele, migration, admin, frontend ou workflow commercial. F77 est mergee et validee post-merge.
 
-Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux. Le frontend React reste un bootstrap local minimal. Il n'existe pas encore de CI executable, de module complet de reservation/location ou d'endpoint API metier d'ecriture.
+Le projet n'est pas production-ready. Les modeles inventory existants restent des socles minimaux et le frontend React reste un MVP local controle. La CI GitHub Actions existe depuis F91, mais `main` n'est pas protege automatiquement ; les checks `Backend quality` et `Frontend quality` restent donc des gates manuels obligatoires avant merge. Il existe maintenant une ecriture metier limitee, `POST /api/v1/reservations/drafts/`, pour creer des brouillons de reservation draft-only. Il n'existe toujours pas de module complet de reservation/location, confirmation transactionnelle, paiement, facture runtime, contrat runtime ou generation PDF runtime.
 
 L'infrastructure locale PostgreSQL/Redis ne demarre aucun service applicatif et ne publie pas les ports PostgreSQL ou Redis sur l'hote.
 
@@ -402,3 +404,13 @@ F92 documente le fonctionnement des quality gates CI, les regles de merge, le di
 F93 ajoute le helper local `scripts/dev/erp-quality-check` pour lancer rapidement les validations locales non-DB alignees avec la CI : Ruff format, Ruff lint, tests frontend et build frontend. Les tests backend DB-backed restent valides via GitHub Actions CI ou le workflow Docker Compose documente, car ils necessitent PostgreSQL et Redis.
 
 F95 documente l'etat des protections de branche : la CI est active, mais `main` n'est pas protege par GitHub branch protection dans l'etat actuel du depot prive. Les checks `Backend quality` et `Frontend quality` restent donc des gates manuels obligatoires avant merge humain.
+
+F98 ajoute le registry read-only des templates documents et les endpoints de consultation `GET /api/v1/documents/templates/` et `GET /api/v1/documents/templates/<template_key>/`.
+
+F99 ajoute l'API clients/contacts read-only pour alimenter les futurs workflows sans encore creer de paiement, facture, contrat ou document runtime.
+
+F100 introduit `ReservationDraft` et `ReservationDraftLine`, avec une API authentifiee de creation et consultation de brouillons de reservation. Cette creation reste draft-only : elle ne confirme pas la reservation, ne bloque pas l'inventaire, ne genere pas de facture, contrat, paiement ou PDF runtime.
+
+F101 connecte le frontend availability panel a la creation de `ReservationDraft` depuis les items disponibles et un client selectionne. Le controle frontend reste limite a un brouillon editable et n'expose pas de confirmation, paiement, facture, contrat ou PDF.
+
+F102 met a jour les sources documentaires A/B en v3.4, ajoute l'inventaire `docs/references/document_templates_inventory.md`, enregistre `shared.breakage_repair_invoice.v1` et ajoute le template source `Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf`. F102 ne genere aucun PDF client runtime.

@@ -476,7 +476,7 @@ Ce garde-fou pur Python formalise les kinds `InventoryItem` reservables par les 
 
 Les kinds `venue`, `local`, `room`, `service`, `event_service` et les kinds inconnus ne sont pas reservables.
 
-Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
+Historiquement, F36 ne creait pas encore de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet. Cette limite a evolue plus tard : F100 ajoute les modeles et endpoints draft-only `ReservationDraft` / `ReservationDraftLine`, sans confirmation ni workflow commercial complet.
 
 ## Frontend availability consumption
 
@@ -519,16 +519,23 @@ Elle cree ou met a jour uniquement deux periodes techniques `InventoryAvailabili
 
 Voir [le parcours de demonstration locale](../docs/runbooks/mvp-local-demo-flow.md).
 
-## Reservations read-only APIs
+## Reservations availability APIs and draft-only write
 
-Les surfaces reservations explicitement autorisees restent authentifiees et read-only :
+Les surfaces reservations availability restent authentifiees et read-only :
 
 - `GET /api/v1/reservations/availability-summary/` ;
-- `GET /api/v1/reservations/available-item-previews/`.
+- `GET /api/v1/reservations/available-item-previews/` ;
+- `GET /api/v1/reservations/items/<uuid:inventory_item_id>/availability-preview/`.
 
-Le second endpoint F62 retourne uniquement un DTO minimal construit depuis les previews disponibles existantes : identifiant, nom, kind, periode et statut. Il ne retourne ni conflit ni objet de validation interne.
+Ces endpoints n'ecrivent jamais en DB et ne creent aucune reservation persistante. Ils servent uniquement a consulter une disponibilite ou une preview pour une periode.
 
-Ces endpoints n'ecrivent jamais en DB et ne creent aucune reservation persistante. Le domaine reservations ne contient toujours aucun modele, migration ou admin, et aucune methode POST, PUT, PATCH ou DELETE n'est autorisee.
+Depuis F100/F101, le domaine reservations contient aussi une ecriture limitee et authentifiee pour les brouillons :
+
+- `GET /api/v1/reservations/drafts/` ;
+- `POST /api/v1/reservations/drafts/` ;
+- `GET /api/v1/reservations/drafts/<uuid:pk>/`.
+
+Cette ecriture cree uniquement des `ReservationDraft` et `ReservationDraftLine` en statut `draft`. Elle ne confirme pas une reservation, ne cree pas d'allocation transactionnelle, n'ecrit pas de ligne `InventoryAvailability`, ne cree aucun paiement, facture, contrat ou PDF runtime.
 
 F36 ajoute `backend/apps/reservations/validation.py`.
 
@@ -539,7 +546,7 @@ Il combine :
 - `assert_reservable_inventory_item_kind` pour verifier que le kind inventory est reservable dans Titan ;
 - `make_reservation_period` pour valider `start_at`, `end_at`, `end_at > start_at` et l'intervalle `[start_at, end_at)`.
 
-Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
+A ce stade historique, le module `reservations` n'avait pas encore de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet. Cette limite a evolue plus tard avec F100/F101, qui ajoutent uniquement les brouillons draft-only.
 
 F37 ajoute `backend/apps/reservations/availability.py`.
 
@@ -597,4 +604,4 @@ La periode est valide uniquement si `end_at > start_at`.
 
 Les periodes sont interpretees comme des intervalles demi-ouverts `[start_at, end_at)`, en coherence avec les regles de disponibilite inventory.
 
-Le module `reservations` n'a toujours pas de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet.
+A ce stade historique, le module `reservations` n'avait pas encore de modele metier, migration, serializer, view, URL, endpoint, admin ou service metier complet. Cette limite a evolue plus tard avec F100/F101, qui ajoutent uniquement les brouillons draft-only.

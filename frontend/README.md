@@ -39,7 +39,7 @@ cd frontend
 npm test
 ```
 
-The tests cover the existing inventory page loading, successful rendering, empty state, request contract and error states. They do not add or test a frontend login workflow or reservation creation workflow.
+The early F62 tests covered the existing inventory page loading, successful rendering, empty state, request contract and error states. Since F101, the frontend tests also cover the draft-only reservation creation flow. The frontend still does not add a dedicated login workflow, reservation confirmation workflow, payment, invoice, contract or PDF generation workflow.
 
 ## Availability panel
 
@@ -48,13 +48,23 @@ F63 adds a read-only availability panel that calls the existing authenticated AP
 ```text
 GET /api/v1/reservations/availability-summary/
 GET /api/v1/reservations/available-item-previews/
+GET /api/v1/reservations/items/<uuid:inventory_item_id>/availability-preview/
 ```
 
-The panel accepts a local start and end datetime, converts both values to timezone-aware ISO datetimes, and displays the summary and available item previews.
+The panel accepts a local start and end datetime, converts both values to timezone-aware ISO datetimes, and displays the summary, available item previews and item-specific availability previews.
 
 Frontend API calls and response contracts are kept in `src/api.ts` and `src/types.ts`. Native `fetch` and the existing Django session remain the only request mechanism.
 
-F65 adds a short helper note explaining that the check is read-only, requires a backend session created through `/api-auth/login/`, and does not create a reservation.
+F65 adds a short helper note explaining that the availability check is read-only, requires a backend session created through `/api-auth/login/`, and does not itself create a reservation.
+
+F99/F101 extend the panel with a draft-only creation flow:
+
+```text
+GET /api/v1/customers/
+POST /api/v1/reservations/drafts/
+```
+
+The user can select an existing customer and create a `ReservationDraft` from the available items for the checked period. This action creates only a draft. It does not confirm the reservation, block inventory, process payment, generate an invoice, generate a contract or generate a PDF.
 
 ## Hahitantsoa discovery surface
 
@@ -74,9 +84,11 @@ F66 extends the helper note with guidance for selecting a period that overlaps t
 
 ## Scope
 
-F61 through F63 do not add a frontend login workflow, reservation creation form,
+F61 through F63 did not add a frontend login workflow, reservation creation form,
 router, state management library, design system or commercial workflow.
 
-Titan remains limited to materials, articles and material packs. F61 does not
+F101 now adds a limited draft-only reservation creation control inside the availability panel. This is not a confirmation flow and does not introduce payment, invoice, contract, PDF generation, stock, quantity, unit, pricing or commercial workflow behavior.
+
+Titan remains limited to materials, articles and material packs. The frontend must not
 introduce venue, local, room, hall, event service, ancillary service, contract,
-invoice, payment, customer, stock, quantity, unit or pricing behavior.
+invoice, payment, stock, quantity, unit or pricing behavior without a separately approved task.

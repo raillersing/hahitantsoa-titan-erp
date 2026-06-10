@@ -4,9 +4,9 @@
 
 Ce document organise les phases de mise en œuvre du projet ERP Hahitantsoa / Titan.
 
-La Foundation documentaire est terminee. Le MVP read-only Hahitantsoa/Titan est accepte localement en `PASS`. La prochaine tache d'implementation n'est pas encore autorisee.
-L'audit MVP F79 est documente dans `docs/mvp/mvp-gap-audit.md`.
-Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
+La Foundation documentaire est terminee. Le MVP read-only Hahitantsoa/Titan a ete accepte localement en `PASS` pendant F86/F87, mais l'etat courant post-F102 n'est plus strictement read-only au sens global.
+L'audit MVP F79 reste documente dans `docs/mvp/mvp-gap-audit.md` comme historique pre-F98/F100.
+Depuis F100/F101, une ecriture limitee et authentifiee existe pour creer des brouillons de reservation `ReservationDraft` draft-only. Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
 
@@ -168,7 +168,7 @@ F7 terminee : durcissement minimal des settings Django, sans module metier, sans
 
 F91 terminee, mergee et validee post-merge : ajout de la CI GitHub Actions avec quality gates backend et frontend.
 
-F92 en cours : documentation du runbook CI quality gates, des regles de merge et du diagnostic des echecs CI.
+F92 terminee : documentation du runbook CI quality gates, des regles de merge et du diagnostic des echecs CI.
 
 ### Objectifs futurs
 
@@ -358,7 +358,17 @@ F86 terminee, mergee et validee post-merge : execution de l'acceptation locale i
 
 F87 terminee : cloture documentaire post-F86 du MVP read-only accepte localement, incluant nettoyage de statuts, resume de cloture et note de rebuild Docker dans le runbook. F87 ne modifie aucun code applicatif, endpoint, persistence, reservation ou workflow commercial.
 
-### Roadmap MVP globale read-only
+F98 terminee, mergee et validee post-merge : ajout du registry read-only des templates documents et des endpoints de consultation documents templates. F98 ne genere aucun PDF runtime et ne cree aucun document client.
+
+F99 terminee, mergee et validee post-merge : ajout de l'API clients/contacts read-only. F99 ne cree aucun paiement, facture, contrat, pricing ou workflow commercial.
+
+F100 terminee, mergee et validee post-merge : ajout de la fondation persistante `ReservationDraft` / `ReservationDraftLine` et de l'API authentifiee de creation/consultation de brouillons. F100 reste draft-only et ne confirme aucune reservation, ne bloque pas l'inventaire, ne cree aucun paiement, facture, contrat ou PDF runtime.
+
+F101 terminee, mergee et validee post-merge : le frontend availability panel peut creer un `ReservationDraft` depuis un client selectionne et les items disponibles. F101 n'ajoute pas de confirmation, paiement, facture, contrat ou generation PDF.
+
+F102 terminee, mergee et validee post-merge : mise a jour des sources documentaires A/B en v3.4, ajout de l'inventaire des templates documents, enregistrement de `shared.breakage_repair_invoice.v1` et ajout du template source de facture casse/remise en etat. F102 ne genere aucun PDF client runtime.
+
+### Roadmap MVP globale read-only historique
 
 #### F80-F87 - Hahitantsoa/Titan read-only acceptance closure
 
@@ -385,7 +395,7 @@ F87 terminee : cloture documentaire post-F86 du MVP read-only accepte localement
 - les implementations frontend et les validations cross-scope suivantes seront recadrees par
   l'audit F79 avant toute approbation.
 
-Cette roadmap reste read-only jusqu'a approbation explicite d'une persistence, d'une allocation transactionnelle ou d'une API d'ecriture. Elle n'autorise aucun workflow commercial complet.
+Cette roadmap F80-F87 reste l'historique de cloture du MVP read-only. Depuis F100/F101, une persistence et une API d'ecriture limitees sont approuvees uniquement pour les brouillons `ReservationDraft` draft-only. Cela n'autorise toujours aucune allocation transactionnelle, confirmation de reservation, paiement, facture runtime, contrat runtime, generation PDF runtime ou workflow commercial complet.
 
 ### Objectifs futurs
 
@@ -456,6 +466,10 @@ Conséquences obligatoires pour les futures implémentations :
 * les tests devront démontrer les refus Titan ;
 * les matériels partagés devront être indisponibles dans l’autre périmètre lorsqu’ils sont confirmés dans Hahitantsoa ou Titan.
 
-F92 en cours : documentation des quality gates CI dans `docs/runbooks/ci-quality-gates.md`, avec clarification des checks backend/frontend, des services PostgreSQL/Redis, des regles de merge et du lien avec le workflow Codex supervise.
+F92 terminee : documentation des quality gates CI dans `docs/runbooks/ci-quality-gates.md`, avec clarification des checks backend/frontend, des services PostgreSQL/Redis, des regles de merge et du lien avec le workflow Codex supervise.
 
-F95 en cours : documentation de la limite branch protection sur depot prive et formalisation des gates manuels obligatoires avant merge.
+F95 terminee : documentation de la limite branch protection sur depot prive et formalisation des gates manuels obligatoires avant merge.
+
+F103A terminee : audit documentaire complet post-F102. L'audit confirme que les docs coeur doivent distinguer les surfaces read-only historiques de l'ecriture limitee draft-only ajoutee par F100/F101.
+
+F103B en cours : correction des docs coeur projet (`README.md`, `PLANS.md`, `backend/README.md`, `frontend/README.md`) pour aligner le statut courant avec le code post-F102.
