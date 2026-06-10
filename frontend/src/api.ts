@@ -3,6 +3,7 @@ import type {
   InventoryItem,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
+  ReservationItemAvailabilityPreview,
 } from "./types";
 
 async function getAuthenticatedJson<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -49,4 +50,15 @@ export function getReservationAvailableItemPreviews(
 ): Promise<ReservationAvailableItemPreview[]> {
   const query = buildReservationPeriodQuery(startAt, endAt);
   return getAuthenticatedJson(`/api/v1/reservations/available-item-previews/?${query}`);
+}
+
+export function getReservationItemAvailabilityPreview(
+  inventoryItemId: string,
+  startAt: string,
+  endAt: string,
+): Promise<ReservationItemAvailabilityPreview> {
+  const query = buildReservationPeriodQuery(startAt, endAt);
+  return getAuthenticatedJson(
+    `/api/v1/reservations/items/${inventoryItemId}/availability-preview/?${query}`,
+  );
 }

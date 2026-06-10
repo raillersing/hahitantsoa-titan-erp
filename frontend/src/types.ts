@@ -44,3 +44,18 @@ export type ReservationAvailableItemPreview = {
   end_at: string;
   status: "available";
 };
+
+export type ReservationItemAvailabilityStatus =
+  | "available"
+  | "unavailable"
+  | "invalid";
+
+export type ReservationItemAvailabilityPreview = {
+  inventory_item_id: string;
+  inventory_item_name: string;
+  inventory_item_kind: InventoryItemKind;
+  start_at: string;
+  end_at: string;
+  status: ReservationItemAvailabilityStatus;
+  conflict_count: number;
+};
