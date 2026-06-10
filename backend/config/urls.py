@@ -9,6 +9,7 @@ urlpatterns = [
     path("healthz/", healthz, name="healthz"),
     path("", include("apps.inventory.urls")),
     path("", include("apps.reservations.urls")),
+    path("api/v1/documents/", include("apps.documents.urls")),
     path("api/v1/hahitantsoa/", include("apps.hahitantsoa.urls")),
     path("readyz/", readyz, name="readyz"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
