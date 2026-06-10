@@ -191,20 +191,17 @@ def test_seed_demo_availability_does_not_create_reservations_domain_data_or_file
     _seed_demo_inventory()
     reservations_app = apps.get_app_config("reservations")
     reservations_path = Path(reservations_app.path)
-    reservation_counts = {
-        model._meta.label: model.objects.count()
-        for model in apps.get_models()
-        if model._meta.app_label == "reservations"
-    }
+    reservations_models = list(reservations_app.get_models())
+    reservation_counts = {model._meta.label: model.objects.count() for model in reservations_models}
 
     with override_settings(DEBUG=True):
         _call_seed_demo_availability()
 
-    assert list(reservations_app.get_models()) == []
-    assert reservation_counts == {}
-    assert not (reservations_path / "models.py").exists()
-    assert not (reservations_path / "admin.py").exists()
-    assert not (reservations_path / "migrations").exists()
+    assert list(reservations_app.get_models()) == reservations_models
+    assert reservation_counts == {
+        model._meta.label: model.objects.count() for model in reservations_models
+    }
+    assert list(reservations_path.glob("**/*.pdf")) == []
 
 
 def test_seed_demo_availability_output_does_not_expose_secrets(monkeypatch) -> None:

@@ -1,106 +1,121 @@
-from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.inventory.models import InventoryItem
-from apps.reservations.preview import ReservationItemPreviewStatus
+from apps.reservations.models import ReservationDraft
+from apps.reservations.periods import validate_reservation_period
 from apps.reservations.serializers import (
-    ReservationAvailabilitySummaryQuerySerializer,
+    ReservationAvailabilityPreviewRequestSerializer,
     ReservationAvailabilitySummarySerializer,
     ReservationAvailableItemPreviewSerializer,
+    ReservationDraftSerializer,
     ReservationItemAvailabilityPreviewSerializer,
-    ReservationPeriodQuerySerializer,
 )
-from apps.reservations.services import (
-    get_reservation_availability_summary_service,
-    get_reservation_available_item_previews_service,
-    preview_reservation_item_service,
-)
+
+
+def validated_period_or_error_response(request):
+    request_serializer = ReservationAvailabilityPreviewRequestSerializer(data=request.query_params)
+    request_serializer.is_valid(raise_exception=True)
+
+    start_at = request_serializer.validated_data["start_at"]
+    end_at = request_serializer.validated_data["end_at"]
+
+    try:
+        validate_reservation_period(start_at=start_at, end_at=end_at)
+    except ValueError as error:
+        return None, Response(
+            {"detail": str(error)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return (start_at, end_at), None
 
 
 class ReservationAvailabilitySummaryAPIView(APIView):
-    http_method_names = ["get", "head", "options"]
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        parameters=[ReservationAvailabilitySummaryQuerySerializer],
-        responses=ReservationAvailabilitySummarySerializer,
-    )
     def get(self, request):
-        query_serializer = ReservationAvailabilitySummaryQuerySerializer(data=request.query_params)
-        query_serializer.is_valid(raise_exception=True)
+        period, error_response = validated_period_or_error_response(request)
+        if error_response is not None:
+            return error_response
 
-        try:
-            summary = get_reservation_availability_summary_service(
-                start_at=query_serializer.validated_data["start_at"],
-                end_at=query_serializer.validated_data["end_at"],
-            )
-        except (TypeError, ValueError) as error:
-            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
-
-        response_serializer = ReservationAvailabilitySummarySerializer(summary)
-        return Response(response_serializer.data)
+        start_at, end_at = period
+        response_serializer = ReservationAvailabilitySummarySerializer.from_period(
+            start_at=start_at,
+            end_at=end_at,
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class ReservationAvailableItemPreviewsAPIView(APIView):
-    http_method_names = ["get", "head", "options"]
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        parameters=[ReservationPeriodQuerySerializer],
-        responses=ReservationAvailableItemPreviewSerializer(many=True),
-    )
     def get(self, request):
-        query_serializer = ReservationPeriodQuerySerializer(data=request.query_params)
-        query_serializer.is_valid(raise_exception=True)
+        period, error_response = validated_period_or_error_response(request)
+        if error_response is not None:
+            return error_response
 
-        try:
-            previews = get_reservation_available_item_previews_service(
-                start_at=query_serializer.validated_data["start_at"],
-                end_at=query_serializer.validated_data["end_at"],
-            )
-        except (TypeError, ValueError) as error:
-            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
-
-        response_serializer = ReservationAvailableItemPreviewSerializer(previews, many=True)
-        return Response(response_serializer.data)
+        start_at, end_at = period
+        response_serializer = ReservationAvailableItemPreviewSerializer.many_from_period(
+            start_at=start_at,
+            end_at=end_at,
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class ReservationItemAvailabilityPreviewAPIView(APIView):
-    http_method_names = ["get", "head", "options"]
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        parameters=[ReservationPeriodQuerySerializer],
-        responses=ReservationItemAvailabilityPreviewSerializer,
-    )
     def get(self, request, inventory_item_id):
-        query_serializer = ReservationPeriodQuerySerializer(data=request.query_params)
-        query_serializer.is_valid(raise_exception=True)
+        period, error_response = validated_period_or_error_response(request)
+        if error_response is not None:
+            return error_response
 
-        inventory_item = get_object_or_404(
-            InventoryItem.objects.filter(is_active=True, is_deleted=False),
-            pk=inventory_item_id,
-        )
-
-        try:
-            preview = preview_reservation_item_service(
-                inventory_item=inventory_item,
-                inventory_item_kind=inventory_item.kind,
-                start_at=query_serializer.validated_data["start_at"],
-                end_at=query_serializer.validated_data["end_at"],
-            )
-        except (TypeError, ValueError) as error:
-            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
-
-        if preview.status is ReservationItemPreviewStatus.INVALID:
+        inventory_item = InventoryItem.objects.filter(
+            id=inventory_item_id,
+            is_active=True,
+            is_deleted=False,
+        ).first()
+        if inventory_item is None:
             return Response(
-                {"detail": preview.errors[0]},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"detail": "Inventory item not found."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        response_serializer = ReservationItemAvailabilityPreviewSerializer(preview)
-        return Response(response_serializer.data)
+        start_at, end_at = period
+        response_serializer = ReservationItemAvailabilityPreviewSerializer.from_period(
+            inventory_item=inventory_item,
+            start_at=start_at,
+            end_at=end_at,
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+def active_reservation_drafts():
+    return (
+        ReservationDraft.objects.filter(is_deleted=False)
+        .select_related("customer")
+        .prefetch_related("lines__inventory_item")
+        .order_by("-created_at", "public_reference")
+    )
+
+
+class ReservationDraftListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReservationDraftSerializer
+
+    def get_queryset(self):
+        return active_reservation_drafts()
+
+
+class ReservationDraftRetrieveAPIView(generics.RetrieveAPIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReservationDraftSerializer
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        return active_reservation_drafts()

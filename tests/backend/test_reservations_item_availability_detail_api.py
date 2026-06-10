@@ -336,9 +336,9 @@ def test_item_availability_preview_accepts_only_existing_titan_kinds(
     assert response.json()["inventory_item_kind"] in RESERVATION_ALLOWED_INVENTORY_ITEM_KINDS
 
 
-def test_item_availability_preview_api_does_not_create_forbidden_files() -> None:
+def test_item_availability_preview_api_allows_draft_model_files() -> None:
     reservations_app_path = Path("backend/apps/reservations")
 
-    assert not (reservations_app_path / "models.py").exists()
+    assert (reservations_app_path / "models.py").exists()
     assert not (reservations_app_path / "admin.py").exists()
-    assert not (reservations_app_path / "migrations").exists()
+    assert (reservations_app_path / "migrations").exists()
