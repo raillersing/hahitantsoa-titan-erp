@@ -81,6 +81,29 @@ If one job fails, inspect the failing job log, identify the smallest safe correc
 
 Automatic merge remains forbidden.
 
+## Branch protection status
+
+As of F95, the repository CI exists and runs successfully, but GitHub branch protection is not active on `main`.
+
+The F95 inspection confirmed:
+
+- `main` is not protected;
+- required status checks are not configured in GitHub branch protection;
+- GitHub branch protection and repository rulesets were not available for this private repository in the current plan state.
+
+Operational consequence:
+
+- GitHub may not automatically block a manual merge when CI is failing.
+- The human supervisor and Agent B must treat `Backend quality` and `Frontend quality` as mandatory manual gates before merge.
+- A pull request must not be merged unless both checks are explicitly verified as `pass`, or an exception is documented and approved by the human supervisor.
+
+If the repository is later upgraded to a plan that supports private branch protection, or if the repository becomes public, configure `main` protection with these required checks:
+
+- `Backend quality`
+- `Frontend quality`
+
+Until then, the manual merge checklist is mandatory.
+
 ## Human and Agent B responsibilities
 
 Before merge, the human supervisor and Agent B must confirm:

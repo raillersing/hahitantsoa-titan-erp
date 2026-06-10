@@ -457,3 +457,5 @@ Conséquences obligatoires pour les futures implémentations :
 * les matériels partagés devront être indisponibles dans l’autre périmètre lorsqu’ils sont confirmés dans Hahitantsoa ou Titan.
 
 F92 en cours : documentation des quality gates CI dans `docs/runbooks/ci-quality-gates.md`, avec clarification des checks backend/frontend, des services PostgreSQL/Redis, des regles de merge et du lien avec le workflow Codex supervise.
+
+F95 en cours : documentation de la limite branch protection sur depot prive et formalisation des gates manuels obligatoires avant merge.
