@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.inventory.apps.InventoryConfig",
     "apps.reservations.apps.ReservationsConfig",
     "apps.documents.apps.DocumentsConfig",
+    "apps.customers.apps.CustomersConfig",
     "rest_framework",
     "drf_spectacular",
 ]
