@@ -400,3 +400,5 @@ F91 a ajoute la CI GitHub Actions dans `.github/workflows/ci.yml`. Cette CI exec
 F92 documente le fonctionnement des quality gates CI, les regles de merge, le diagnostic des echecs CI et le lien avec le workflow Codex supervise. F92 ne modifie aucun code applicatif ni le workflow CI.
 
 F93 ajoute le helper local `scripts/dev/erp-quality-check` pour lancer rapidement les validations locales non-DB alignees avec la CI : Ruff format, Ruff lint, tests frontend et build frontend. Les tests backend DB-backed restent valides via GitHub Actions CI ou le workflow Docker Compose documente, car ils necessitent PostgreSQL et Redis.
+
+F95 documente l'etat des protections de branche : la CI est active, mais `main` n'est pas protege par GitHub branch protection dans l'etat actuel du depot prive. Les checks `Backend quality` et `Frontend quality` restent donc des gates manuels obligatoires avant merge humain.
