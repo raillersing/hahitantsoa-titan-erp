@@ -119,7 +119,7 @@ function App() {
             </section>
           ) : null}
 
-          <AvailabilityPanel />
+          <AvailabilityPanel inventoryItems={inventoryState.status === "loaded" ? inventoryState.items : []} />
         </>
       ) : (
         <HahitantsoaDiscoveryPanel />

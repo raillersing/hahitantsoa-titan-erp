@@ -3,10 +3,13 @@ import { type FormEvent, useState } from "react";
 import {
   getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
+  getReservationItemAvailabilityPreview,
 } from "./api";
 import type {
+  InventoryItem,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
+  ReservationItemAvailabilityPreview,
 } from "./types";
 
 type AvailabilityState =
@@ -16,8 +19,13 @@ type AvailabilityState =
       status: "loaded";
       summary: ReservationAvailabilitySummary;
       previews: ReservationAvailableItemPreview[];
+      itemPreviews: ReservationItemAvailabilityPreview[];
     }
   | { status: "error"; message: string };
+
+type AvailabilityPanelProps = {
+  inventoryItems?: InventoryItem[];
+};
 
 function toDateTimeLocalValue(date: Date): string {
   const offsetMilliseconds = date.getTimezoneOffset() * 60_000;
@@ -42,7 +50,7 @@ function defaultPeriod(): { startAt: string; endAt: string } {
   };
 }
 
-function AvailabilityPanel() {
+function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   const initialPeriod = defaultPeriod();
   const [startAt, setStartAt] = useState(initialPeriod.startAt);
   const [endAt, setEndAt] = useState(initialPeriod.endAt);
@@ -75,12 +83,17 @@ function AvailabilityPanel() {
     try {
       const startAtIso = startDate.toISOString();
       const endAtIso = endDate.toISOString();
-      const [summary, previews] = await Promise.all([
+      const [summary, previews, itemPreviews] = await Promise.all([
         getReservationAvailabilitySummary(startAtIso, endAtIso),
         getReservationAvailableItemPreviews(startAtIso, endAtIso),
+        Promise.all(
+          inventoryItems.map((item) =>
+            getReservationItemAvailabilityPreview(item.id, startAtIso, endAtIso),
+          ),
+        ),
       ]);
 
-      setAvailabilityState({ status: "loaded", summary, previews });
+      setAvailabilityState({ status: "loaded", summary, previews, itemPreviews });
     } catch (error) {
       setAvailabilityState({
         status: "error",
@@ -179,6 +192,24 @@ function AvailabilityPanel() {
                     <span>{preview.inventory_item_name}</span>
                     <span>{preview.inventory_item_kind}</span>
                     <strong>{preview.status}</strong>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="preview-list-section">
+            <h3>Item-specific availability previews</h3>
+            {availabilityState.itemPreviews.length === 0 ? (
+              <p className="status">No inventory items are loaded for item-specific preview.</p>
+            ) : (
+              <ul className="preview-list">
+                {availabilityState.itemPreviews.map((preview) => (
+                  <li key={preview.inventory_item_id}>
+                    <span>{preview.inventory_item_name}</span>
+                    <span>{preview.inventory_item_kind}</span>
+                    <strong>{preview.status}</strong>
+                    <span>{preview.conflict_count} conflicts</span>
                   </li>
                 ))}
               </ul>
