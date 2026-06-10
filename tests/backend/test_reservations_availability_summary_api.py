@@ -225,18 +225,21 @@ def test_availability_summary_endpoint_does_not_write_business_data(
     assert _reservations_model_counts() == reservation_counts
 
 
-def test_reservations_api_surface_does_not_create_forbidden_files() -> None:
+def test_reservations_api_surface_allows_draft_model_files() -> None:
     reservations_app_config = apps.get_app_config("reservations")
     reservations_app_path = Path(reservations_app_config.path)
 
-    forbidden_file_names = {"models.py", "admin.py"}
+    forbidden_file_names = {"admin.py"}
     existing_file_names = {path.name for path in reservations_app_path.iterdir() if path.is_file()}
 
     assert forbidden_file_names.isdisjoint(existing_file_names)
-    assert not (reservations_app_path / "migrations").exists()
+    assert "models.py" in existing_file_names
+    assert (reservations_app_path / "migrations").exists()
 
 
-def test_reservations_app_still_has_no_models() -> None:
+def test_reservations_app_contains_draft_models() -> None:
+    from apps.reservations.models import ReservationDraft, ReservationDraftLine
+
     app_config = apps.get_app_config("reservations")
 
-    assert list(app_config.get_models()) == []
+    assert set(app_config.get_models()) == {ReservationDraft, ReservationDraftLine}

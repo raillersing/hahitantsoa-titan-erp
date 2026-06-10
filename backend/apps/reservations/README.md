@@ -471,3 +471,23 @@ Titan exclut toujours :
 - service evenementiel.
 
 F38 ne cree aucun modele, migration, serializer, view, URL, endpoint, admin, service metier complet, contrat, facture, paiement, client ou frontend.
+
+## Reservation draft foundation
+
+F100 introduces persistent reservation drafts for the MVP.
+
+The new draft foundation adds:
+
+- `ReservationDraft`;
+- `ReservationDraftLine`;
+- authenticated draft list/create/detail endpoints;
+- a DEBUG-only local demo seed command.
+
+F100 allows draft-only creation through the API. It does not confirm reservations,
+does not create invoices, does not create contracts, does not process payments,
+does not generate PDFs and does not write `InventoryAvailability` rows.
+
+Drafts are preparation records only. A draft line references an existing active
+Titan `InventoryItem`, and a draft references an active `Customer`.
+
+The allowed reservation draft status is currently only `draft`.

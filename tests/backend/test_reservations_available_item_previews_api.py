@@ -230,10 +230,10 @@ def test_available_item_previews_endpoint_does_not_write_business_data(
     assert _reservations_model_counts() == reservation_counts
 
 
-def test_reservations_previews_api_does_not_create_forbidden_files() -> None:
+def test_reservations_previews_api_allows_draft_model_files() -> None:
     reservations_app_config = apps.get_app_config("reservations")
     reservations_app_path = Path(reservations_app_config.path)
 
-    assert not (reservations_app_path / "models.py").exists()
+    assert (reservations_app_path / "models.py").exists()
     assert not (reservations_app_path / "admin.py").exists()
-    assert not (reservations_app_path / "migrations").exists()
+    assert (reservations_app_path / "migrations").exists()

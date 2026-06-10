@@ -1,0 +1,191 @@
+from datetime import timedelta
+
+import pytest
+from django.utils import timezone
+
+from apps.customers.models import Customer
+from apps.inventory.models import InventoryAvailability, InventoryItem
+from apps.reservations.models import ReservationDraft, ReservationDraftLine
+
+pytestmark = pytest.mark.django_db
+
+DRAFT_LIST_URL = "/api/v1/reservations/drafts/"
+
+
+@pytest.fixture
+def authenticated_client(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="reservation-draft-reader",
+        password="test-password",
+    )
+    client.force_login(user)
+    return client
+
+
+def _period():
+    start_at = timezone.now().replace(microsecond=0)
+    return start_at, start_at + timedelta(hours=2)
+
+
+def _customer(name: str = "Client Demo") -> Customer:
+    return Customer.objects.create(display_name=name)
+
+
+def _item(name: str = "Projecteur LED", kind: str = "article") -> InventoryItem:
+    return InventoryItem.objects.create(name=name, kind=kind)
+
+
+def _payload(customer: Customer, item: InventoryItem) -> dict:
+    start_at, end_at = _period()
+    return {
+        "customer_id": str(customer.id),
+        "start_at": start_at.isoformat(),
+        "end_at": end_at.isoformat(),
+        "notes": "Draft API test.",
+        "lines": [
+            {
+                "inventory_item_id": str(item.id),
+                "quantity": 1,
+                "notes": "Line notes.",
+            }
+        ],
+    }
+
+
+def test_reservation_draft_list_rejects_unauthenticated_user(client) -> None:
+    response = client.get(DRAFT_LIST_URL)
+
+    assert response.status_code in {401, 403}
+
+
+def test_authenticated_user_can_create_draft(authenticated_client) -> None:
+    customer = _customer()
+    item = _item()
+
+    response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=_payload(customer, item),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["status"] == "draft"
+    assert payload["customer_id"] == str(customer.id)
+    assert payload["customer_display_name"] == customer.display_name
+    assert payload["public_reference"].startswith("RD-")
+    assert len(payload["lines"]) == 1
+    assert payload["lines"][0]["inventory_item_id"] == str(item.id)
+    assert payload["lines"][0]["inventory_item_name"] == item.name
+    assert ReservationDraft.objects.count() == 1
+    assert ReservationDraftLine.objects.count() == 1
+
+
+def test_authenticated_user_can_read_draft_list_and_detail(authenticated_client) -> None:
+    start_at, end_at = _period()
+    customer = _customer()
+    item = _item()
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=end_at,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=item,
+        quantity=1,
+    )
+
+    list_response = authenticated_client.get(DRAFT_LIST_URL)
+    detail_response = authenticated_client.get(f"{DRAFT_LIST_URL}{draft.id}/")
+
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert list_response.json()[0]["id"] == str(draft.id)
+    assert detail_response.json()["id"] == str(draft.id)
+
+
+def test_create_draft_rejects_invalid_period(authenticated_client) -> None:
+    customer = _customer()
+    item = _item()
+    start_at = timezone.now().replace(microsecond=0)
+    payload = _payload(customer, item)
+    payload["start_at"] = start_at.isoformat()
+    payload["end_at"] = start_at.isoformat()
+
+    response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert ReservationDraft.objects.count() == 0
+
+
+def test_create_draft_rejects_empty_lines(authenticated_client) -> None:
+    customer = _customer()
+    item = _item()
+    payload = _payload(customer, item)
+    payload["lines"] = []
+
+    response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert ReservationDraft.objects.count() == 0
+
+
+def test_create_draft_rejects_duplicate_items(authenticated_client) -> None:
+    customer = _customer()
+    item = _item()
+    payload = _payload(customer, item)
+    payload["lines"].append(payload["lines"][0].copy())
+
+    response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert ReservationDraft.objects.count() == 0
+
+
+@pytest.mark.parametrize("method", ["put", "patch", "delete"])
+def test_reservation_draft_detail_rejects_write_methods(
+    authenticated_client,
+    method: str,
+) -> None:
+    start_at, end_at = _period()
+    draft = ReservationDraft.objects.create(
+        customer=_customer(),
+        start_at=start_at,
+        end_at=end_at,
+    )
+    request_method = getattr(authenticated_client, method)
+
+    response = request_method(
+        f"{DRAFT_LIST_URL}{draft.id}/",
+        data={"notes": "Updated"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 405
+
+
+def test_draft_creation_does_not_create_inventory_availability(authenticated_client) -> None:
+    customer = _customer()
+    item = _item()
+
+    response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=_payload(customer, item),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert InventoryAvailability.objects.count() == 0

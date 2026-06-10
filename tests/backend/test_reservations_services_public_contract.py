@@ -206,12 +206,9 @@ def test_reservations_public_services_return_only_allowed_titan_kinds() -> None:
     assert set(summary.available_item_kinds) == RESERVATION_ALLOWED_INVENTORY_ITEM_KINDS
 
 
-def test_reservations_domain_does_not_expose_api_files_or_business_migrations() -> None:
+def test_reservations_domain_exposes_draft_models_and_readonly_api_files() -> None:
     reservations_app_path = Path("backend/apps/reservations")
-    forbidden_api_files = (
-        "models.py",
-        "admin.py",
-    )
+    forbidden_api_files = ("admin.py",)
     allowed_read_only_api_files = (
         "serializers.py",
         "views.py",
@@ -224,4 +221,5 @@ def test_reservations_domain_does_not_expose_api_files_or_business_migrations() 
     assert all(
         (reservations_app_path / file_name).exists() for file_name in allowed_read_only_api_files
     )
-    assert not (reservations_app_path / "migrations").exists()
+    assert (reservations_app_path / "models.py").exists()
+    assert (reservations_app_path / "migrations").exists()

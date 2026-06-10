@@ -3,10 +3,22 @@ from django.urls import path
 from apps.reservations.views import (
     ReservationAvailabilitySummaryAPIView,
     ReservationAvailableItemPreviewsAPIView,
+    ReservationDraftListCreateAPIView,
+    ReservationDraftRetrieveAPIView,
     ReservationItemAvailabilityPreviewAPIView,
 )
 
 urlpatterns = [
+    path(
+        "api/v1/reservations/drafts/",
+        ReservationDraftListCreateAPIView.as_view(),
+        name="reservation-draft-list",
+    ),
+    path(
+        "api/v1/reservations/drafts/<uuid:pk>/",
+        ReservationDraftRetrieveAPIView.as_view(),
+        name="reservation-draft-detail",
+    ),
     path(
         "api/v1/reservations/availability-summary/",
         ReservationAvailabilitySummaryAPIView.as_view(),
