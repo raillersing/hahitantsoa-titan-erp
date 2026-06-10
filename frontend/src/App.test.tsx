@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -10,22 +10,64 @@ type InventoryItem = {
   description: string;
 };
 
-function mockInventoryResponse(items: InventoryItem[]) {
-  return vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(JSON.stringify(items), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }),
-  );
+const CUSTOMERS = [
+  {
+    id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    display_name: "Client Demo",
+    email: "client@example.test",
+    phone: "+261 34 00 000 00",
+    address: "Antananarivo",
+    notes: "Demo customer",
+    is_active: true,
+  },
+];
+
+function jsonResponse(payload: object, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function mockAppFetch(options: {
+  inventoryItems?: InventoryItem[];
+  discoveryResponse?: object;
+}) {
+  const inventoryItems = options.inventoryItems ?? [];
+  const discoveryResponse = options.discoveryResponse ?? {
+    items: [{ concept: "venue", label: "venue" }],
+    count: 1,
+  };
+
+  return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+    const url = String(input);
+
+    if (url === "/api/v1/inventory/items/") {
+      return Promise.resolve(jsonResponse(inventoryItems));
+    }
+
+    if (url === "/api/v1/customers/") {
+      return Promise.resolve(jsonResponse(CUSTOMERS));
+    }
+
+    if (url === "/api/v1/hahitantsoa/discovery-items/") {
+      return Promise.resolve(jsonResponse(discoveryResponse));
+    }
+
+    return Promise.resolve(jsonResponse({}, 404));
+  });
 }
 
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
 });
 
 describe("App", () => {
   it("shows the loading state while inventory is pending", () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(() => undefined));
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => new Promise(() => undefined),
+    );
 
     render(<App />);
 
@@ -33,20 +75,22 @@ describe("App", () => {
   });
 
   it("renders inventory items, count and kind labels", async () => {
-    mockInventoryResponse([
-      {
-        id: "item-1",
-        name: "Projector",
-        kind: "material",
-        description: "Portable projector",
-      },
-      {
-        id: "item-2",
-        name: "Lighting pack",
-        kind: "material_pack",
-        description: "",
-      },
-    ]);
+    mockAppFetch({
+      inventoryItems: [
+        {
+          id: "item-1",
+          name: "Projector",
+          kind: "material",
+          description: "Portable projector",
+        },
+        {
+          id: "item-2",
+          name: "Lighting pack",
+          kind: "material_pack",
+          description: "",
+        },
+      ],
+    });
 
     render(<App />);
 
@@ -58,7 +102,7 @@ describe("App", () => {
   });
 
   it("requests the authenticated inventory endpoint", async () => {
-    const fetchMock = mockInventoryResponse([]);
+    const fetchMock = mockAppFetch({ inventoryItems: [] });
 
     render(<App />);
 
@@ -70,7 +114,7 @@ describe("App", () => {
   });
 
   it("renders the empty inventory state", async () => {
-    mockInventoryResponse([]);
+    mockAppFetch({ inventoryItems: [] });
 
     render(<App />);
 
@@ -80,57 +124,82 @@ describe("App", () => {
   });
 
   it("renders an error state for a failed HTTP response", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+
+      if (url === "/api/v1/inventory/items/") {
+        return Promise.resolve(new Response(null, { status: 403 }));
+      }
+
+      if (url === "/api/v1/customers/") {
+        return Promise.resolve(jsonResponse(CUSTOMERS));
+      }
+
+      return Promise.resolve(jsonResponse({}, 404));
+    });
 
     render(<App />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Inventory unavailable");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Inventory unavailable",
+    );
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The requested data could not be loaded.",
     );
   });
 
   it("renders an error state when the request rejects", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network unavailable"));
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+
+      if (url === "/api/v1/inventory/items/") {
+        return Promise.reject(new Error("Network unavailable"));
+      }
+
+      if (url === "/api/v1/customers/") {
+        return Promise.resolve(jsonResponse(CUSTOMERS));
+      }
+
+      return Promise.resolve(jsonResponse({}, 404));
+    });
 
     render(<App />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Network unavailable");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Network unavailable",
+    );
   });
 
-  it("renders availability without login or reservation creation controls", async () => {
-    mockInventoryResponse([]);
+  it("renders availability without login or forbidden reservation controls", async () => {
+    mockAppFetch({ inventoryItems: [] });
 
     render(<App />);
 
     await screen.findByText("No inventory items are currently visible.");
-    expect(screen.getByRole("heading", { name: "Availability" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check availability" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /log in|sign in/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /reserve|book/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Availability" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Check availability" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /log in|sign in/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps Hahitantsoa discovery separate from the Titan surface", async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            items: [{ concept: "venue", label: "venue" }],
-            count: 1,
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      );
+    const fetchMock = mockAppFetch({
+      inventoryItems: [],
+      discoveryResponse: {
+        items: [{ concept: "venue", label: "venue" }],
+        count: 1,
+      },
+    });
 
     render(<App />);
 
@@ -140,10 +209,15 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Hahitantsoa" }));
 
     expect(await screen.findAllByText("venue")).toHaveLength(2);
-    expect(screen.queryByRole("heading", { name: "Availability" })).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/v1/hahitantsoa/discovery-items/", {
-      credentials: "include",
-      signal: expect.any(AbortSignal),
-    });
+    expect(
+      screen.queryByRole("heading", { name: "Availability" }),
+    ).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/hahitantsoa/discovery-items/",
+      {
+        credentials: "include",
+        signal: expect.any(AbortSignal),
+      },
+    );
   });
 });

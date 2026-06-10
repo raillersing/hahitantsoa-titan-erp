@@ -7,6 +7,16 @@ export type InventoryItem = {
   description: string;
 };
 
+export type Customer = {
+  id: string;
+  display_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+  is_active: boolean;
+};
+
 export type HahitantsoaDiscoveryConcept =
   | "event"
   | "venue"
@@ -58,4 +68,41 @@ export type ReservationItemAvailabilityPreview = {
   end_at: string;
   status: ReservationItemAvailabilityStatus;
   conflict_count: number;
+};
+
+export type ReservationDraftLineInput = {
+  inventory_item_id: string;
+  quantity: number;
+  notes?: string;
+};
+
+export type ReservationDraftCreatePayload = {
+  customer_id: string;
+  start_at: string;
+  end_at: string;
+  notes?: string;
+  lines: ReservationDraftLineInput[];
+};
+
+export type ReservationDraftLine = {
+  id: string;
+  inventory_item_id: string;
+  inventory_item_name: string;
+  inventory_item_kind: InventoryItemKind;
+  quantity: number;
+  notes: string;
+};
+
+export type ReservationDraft = {
+  id: string;
+  public_reference: string;
+  status: "draft";
+  customer_id: string;
+  customer_display_name: string;
+  start_at: string;
+  end_at: string;
+  notes: string;
+  lines: ReservationDraftLine[];
+  created_at: string;
+  updated_at: string;
 };
