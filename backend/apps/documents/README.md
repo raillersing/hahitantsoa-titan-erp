@@ -10,3 +10,11 @@ payments, contracts, reservations or any write workflow.
 
 The source PDF files remain in `docs/references/source/`.
 Runtime/generated customer PDFs must not be stored in Git.
+
+F102 updates the source references to Documents A/B v3.4, registers the
+validated source template for breakage and repair invoice documents, and adds a
+document template inventory report at `docs/references/document_templates_inventory.md`.
+
+F102 still does not implement runtime PDF generation or customer document
+creation.
+
