@@ -62,7 +62,10 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
         ]
 
     def clean(self) -> None:
-        validate_reservation_period(start_at=self.start_at, end_at=self.end_at)
+        try:
+            validate_reservation_period(start_at=self.start_at, end_at=self.end_at)
+        except (TypeError, ValueError) as error:
+            raise ValidationError({"end_at": str(error)}) from error
 
         if self.customer_id and (not self.customer.is_active or self.customer.is_deleted):
             raise ValidationError({"customer": "Reservation draft customer must be active."})

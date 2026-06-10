@@ -83,8 +83,8 @@ class ReservationAvailableItemPreviewSerializer(serializers.Serializer):
     def from_preview(cls, preview: ReservationItemPreview):
         return cls(
             {
-                "inventory_item_id": preview.inventory_item_id,
-                "inventory_item_name": preview.inventory_item_name,
+                "inventory_item_id": preview.inventory_item.id,
+                "inventory_item_name": preview.inventory_item.name,
                 "inventory_item_kind": preview.inventory_item_kind,
                 "start_at": preview.period.start_at,
                 "end_at": preview.period.end_at,
@@ -101,8 +101,8 @@ class ReservationAvailableItemPreviewSerializer(serializers.Serializer):
         return cls(
             [
                 {
-                    "inventory_item_id": preview.inventory_item_id,
-                    "inventory_item_name": preview.inventory_item_name,
+                    "inventory_item_id": preview.inventory_item.id,
+                    "inventory_item_name": preview.inventory_item.name,
                     "inventory_item_kind": preview.inventory_item_kind,
                     "start_at": preview.period.start_at,
                     "end_at": preview.period.end_at,
@@ -133,8 +133,8 @@ class ReservationItemAvailabilityPreviewSerializer(serializers.Serializer):
         )
         return cls(
             {
-                "inventory_item_id": preview.inventory_item_id,
-                "inventory_item_name": preview.inventory_item_name,
+                "inventory_item_id": preview.inventory_item.id,
+                "inventory_item_name": preview.inventory_item.name,
                 "inventory_item_kind": preview.inventory_item_kind,
                 "start_at": preview.period.start_at,
                 "end_at": preview.period.end_at,
