@@ -10,14 +10,19 @@ runtime change, persistence, reservation or commercial workflow.
 Latest recorded result: `PASS` from F86 in
 [`mvp-integrated-local-acceptance-result.md`](mvp-integrated-local-acceptance-result.md).
 
+Post-F102 note: this runbook remains the historical integrated acceptance procedure for the F83/F86
+read-only MVP scope. It does not by itself validate the complete current project state after F98-F102,
+including document template registry endpoints, customer/contact APIs or `ReservationDraft`
+draft-only creation.
+
 ## 2. Purpose
 
-This runbook validates the local read-only MVP across backend quality checks, health/readiness,
-confirmed APIs, OpenAPI, the Titan frontend surface, the Hahitantsoa discovery surface and their
-business separation.
+This runbook validates the historical local read-only MVP across backend quality checks,
+health/readiness, confirmed APIs, OpenAPI, the Titan frontend surface, the Hahitantsoa discovery
+surface and their business separation.
 
-It does not validate production readiness, persistent reservations, writes or commercial
-workflows.
+It does not validate production readiness, confirmed reservation workflows, payment, invoice,
+contract generation, PDF runtime generation or complete commercial workflows.
 
 ## 3. Preconditions
 

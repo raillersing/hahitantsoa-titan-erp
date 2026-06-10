@@ -9,8 +9,14 @@ This result records the integrated local MVP acceptance executed during F86.
 It validates the read-only Hahitantsoa/Titan MVP across backend non-DB checks, Docker/DB-backed
 checks, public backend smoke checks, frontend tests/build and human browser observation.
 
-It does not claim production readiness, persistent Hahitantsoa reservations, write APIs or
-commercial workflows.
+Post-F102 note: this result is historical evidence for the F86 read-only acceptance scope. It does
+not describe the complete current project state after F98-F102. The current project state also
+includes read-only document template registry endpoints, read-only customer/contact APIs and a
+limited authenticated `ReservationDraft` draft-only write path. The current scope is summarized in
+`README.md` and `PLANS.md`.
+
+This result does not claim production readiness, confirmed reservation workflows, payment, invoice,
+contract generation, PDF runtime generation or complete commercial workflows.
 
 ## Version Under Review
 
@@ -82,7 +88,7 @@ the endpoint is authenticated. The OpenAPI schema also included
 - Hahitantsoa remains read-only discovery/planning.
 - Shared `material`/`article` availability remains contract-only and is not implemented.
 - `material_pack` remains Titan-only.
-- No persistent Hahitantsoa reservation, write API or commercial workflow exists.
+- At the time of F86, no persistent Hahitantsoa reservation, write API or commercial workflow existed in the accepted read-only scope.
 - This result does not claim production readiness.
 - UI visual polish remains future work and is not part of this acceptance result.
 
@@ -90,7 +96,7 @@ the endpoint is authenticated. The OpenAPI schema also included
 
 `PASS`
 
-The integrated local read-only MVP acceptance passed for the current approved scope.
+The integrated local read-only MVP acceptance passed for the F86/F87 approved historical scope.
 
 The current MVP demonstrates:
 
