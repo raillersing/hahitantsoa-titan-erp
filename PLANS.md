@@ -166,6 +166,10 @@ F6 terminee : qualite backend minimale avec Ruff, pytest, pytest-django et test 
 
 F7 terminee : durcissement minimal des settings Django, sans module metier, sans endpoint API metier et sans objectif production-ready.
 
+F91 terminee, mergee et validee post-merge : ajout de la CI GitHub Actions avec quality gates backend et frontend.
+
+F92 en cours : documentation du runbook CI quality gates, des regles de merge et du diagnostic des echecs CI.
+
 ### Objectifs futurs
 
 * configurer Black, Ruff, mypy, pytest, pytest-django et factory_boy pour le backend ;
@@ -451,3 +455,5 @@ Conséquences obligatoires pour les futures implémentations :
 * le frontend ne devra jamais présenter une catégorie interdite comme offre sélectionnable dans un parcours, devis, réservation ou contrat Titan ;
 * les tests devront démontrer les refus Titan ;
 * les matériels partagés devront être indisponibles dans l’autre périmètre lorsqu’ils sont confirmés dans Hahitantsoa ou Titan.
+
+F92 en cours : documentation des quality gates CI dans `docs/runbooks/ci-quality-gates.md`, avec clarification des checks backend/frontend, des services PostgreSQL/Redis, des regles de merge et du lien avec le workflow Codex supervise.

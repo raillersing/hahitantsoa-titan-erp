@@ -265,7 +265,7 @@ The expected quality gates are:
 - PR created against main.
 - Human merge only.
 
-When GitHub Actions are available, the PR should rely on CI checks as an independent quality gate.
+GitHub Actions are available since F91. Pull requests should rely on CI checks as an independent quality gate. A PR must not be merged while `Backend quality` or `Frontend quality` is failing.
 
 ## Codex prompt strategy
 
@@ -293,9 +293,10 @@ The recommended sequence is:
 
 - F89: document this Codex-only autonomous workflow.
 - F90: add Codex task templates and prompt templates.
-- F91: add or strengthen CI quality gates.
-- F92: run first Codex-only implementation pilot on a small task.
-- F93: run first Codex module-level implementation pilot after a module spec is approved.
+- F91: add or strengthen CI quality gates. Completed by PR #88.
+- F92: document CI quality gates and PR validation workflow.
+- F93: run first Codex-only implementation pilot on a small task.
+- F94: run first Codex module-level implementation pilot after a module spec is approved.
 
 ## Explicit decision
 
