@@ -138,7 +138,8 @@ type MockOptions = {
   previews?: object;
   itemPreviews?: Record<string, object>;
   draft?: object;
-  fail?: "customers" | "summary" | "previews" | "itemPreview" | "draft";
+  updatedDraft?: object;
+  fail?: "customers" | "summary" | "previews" | "itemPreview" | "draft" | "update";
   pendingAvailability?: boolean;
 };
 
@@ -206,6 +207,24 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
     }
 
     if (url === `/api/v1/reservations/drafts/${DRAFT_RESPONSE.id}/`) {
+      if (init?.method === "PATCH") {
+        const updatePayload = JSON.parse(String(init.body ?? "{}")) as {
+          notes?: string;
+        };
+
+        return Promise.resolve(
+          options.fail === "update"
+            ? jsonResponse({}, 500)
+            : jsonResponse(
+                options.updatedDraft ?? {
+                  ...DRAFT_RESPONSE,
+                  notes: updatePayload.notes ?? DRAFT_RESPONSE.notes,
+                  updated_at: END_AT_ISO,
+                },
+              ),
+        );
+      }
+
       return Promise.resolve(jsonResponse(options.draft ?? DRAFT_RESPONSE));
     }
 
@@ -433,6 +452,69 @@ describe("AvailabilityPanel", () => {
         credentials: "include",
         signal: undefined,
       },
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("updates an existing reservation draft notes only without commercial controls", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    const notesField = await screen.findByLabelText("Draft notes");
+    fireEvent.change(notesField, {
+      target: { value: "Updated from frontend notes edit." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft notes" }));
+
+    expect(await screen.findByText("Draft notes saved.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Draft notes")).toHaveValue(
+      "Updated from frontend notes edit.",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/reservations/drafts/draft-1/",
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          notes: "Updated from frontend notes edit.",
+        }),
+        signal: undefined,
+      },
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a draft notes update error without commercial controls", async () => {
+    mockAvailabilityFetch({ fail: "update" });
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    const notesField = await screen.findByLabelText("Draft notes");
+    fireEvent.change(notesField, {
+      target: { value: "This save will fail." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft notes" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The requested data could not be loaded.",
     );
     expect(
       screen.queryByRole("button", {

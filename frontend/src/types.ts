@@ -84,6 +84,10 @@ export type ReservationDraftCreatePayload = {
   lines: ReservationDraftLineInput[];
 };
 
+export type ReservationDraftUpdatePayload = {
+  notes?: string;
+};
+
 export type ReservationDraftLine = {
   id: string;
   inventory_item_id: string;
