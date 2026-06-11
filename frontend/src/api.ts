@@ -101,6 +101,19 @@ export function getReservationItemAvailabilityPreview(
   );
 }
 
+export function getReservationDrafts(
+  signal?: AbortSignal,
+): Promise<ReservationDraft[]> {
+  return getAuthenticatedJson("/api/v1/reservations/drafts/", signal);
+}
+
+export function getReservationDraft(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<ReservationDraft> {
+  return getAuthenticatedJson(`/api/v1/reservations/drafts/${draftId}/`, signal);
+}
+
 export function createReservationDraft(
   payload: ReservationDraftCreatePayload,
 ): Promise<ReservationDraft> {

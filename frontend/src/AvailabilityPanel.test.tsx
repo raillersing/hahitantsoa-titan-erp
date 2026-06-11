@@ -150,7 +150,7 @@ function jsonResponse(payload: object, status = 200): Response {
 }
 
 function mockAvailabilityFetch(options: MockOptions = {}) {
-  return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+  return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
 
     if (url === "/api/v1/customers/") {
@@ -194,11 +194,19 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
     }
 
     if (url === "/api/v1/reservations/drafts/") {
-      return Promise.resolve(
-        options.fail === "draft"
-          ? jsonResponse({}, 500)
-          : jsonResponse(options.draft ?? DRAFT_RESPONSE),
-      );
+      if (init?.method === "POST") {
+        return Promise.resolve(
+          options.fail === "draft"
+            ? jsonResponse({}, 500)
+            : jsonResponse(options.draft ?? DRAFT_RESPONSE),
+        );
+      }
+
+      return Promise.resolve(jsonResponse([options.draft ?? DRAFT_RESPONSE]));
+    }
+
+    if (url === `/api/v1/reservations/drafts/${DRAFT_RESPONSE.id}/`) {
+      return Promise.resolve(jsonResponse(options.draft ?? DRAFT_RESPONSE));
     }
 
     return Promise.resolve(jsonResponse({}, 404));
@@ -275,8 +283,10 @@ describe("AvailabilityPanel", () => {
 
     await loadAvailability();
 
-    const availabilityCalls = fetchMock.mock.calls.filter(([url]) =>
-      String(url).includes("/api/v1/reservations/"),
+    const availabilityCalls = fetchMock.mock.calls.filter(
+      ([url]) =>
+        String(url).includes("/api/v1/reservations/") &&
+        !String(url).includes("/api/v1/reservations/drafts/"),
     );
 
     expect(availabilityCalls).toHaveLength(4);
@@ -386,13 +396,58 @@ describe("AvailabilityPanel", () => {
     ).toBe(false);
   });
 
+  it("loads existing reservation drafts with session credentials", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    expect(await screen.findByText("RD-DEMO-001")).toBeInTheDocument();
+    expect(screen.getByText("Client Demo")).toBeInTheDocument();
+    expect(screen.getByText("2 lines")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/reservations/drafts/", {
+      credentials: "include",
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it("opens an existing reservation draft detail without commercial controls", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    expect(await screen.findByText("Draft detail RD-DEMO-001")).toBeInTheDocument();
+    expect(screen.getByText("Customer: Client Demo")).toBeInTheDocument();
+    expect(screen.getAllByText("Status: draft").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Quantity: 1")).toHaveLength(2);
+    expect(
+      screen.getByText(
+        /No confirmation, payment, invoice, contract, inventory blocking or PDF generation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/reservations/drafts/draft-1/",
+      {
+        credentials: "include",
+        signal: undefined,
+      },
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("creates a reservation draft for the selected customer and available items", async () => {
     const fetchMock = mockAvailabilityFetch();
 
     await loadAvailability();
 
     expect(await screen.findByLabelText("Customer")).toBeInTheDocument();
-    expect(screen.getByText("Client Demo")).toBeInTheDocument();
+    expect(screen.getAllByText("Client Demo").length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: "Create draft" }),
     ).toBeInTheDocument();
@@ -402,7 +457,7 @@ describe("AvailabilityPanel", () => {
     expect(
       await screen.findByText("Reference: RD-DEMO-001"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Status: draft")).toBeInTheDocument();
+    expect(screen.getAllByText("Status: draft").length).toBeGreaterThan(0);
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/reservations/drafts/", {
       method: "POST",
