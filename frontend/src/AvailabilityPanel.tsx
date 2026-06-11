@@ -112,6 +112,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     status: "idle",
   });
   const [draftNotesDraft, setDraftNotesDraft] = useState("");
+  const [draftCustomerIdDraft, setDraftCustomerIdDraft] = useState("");
   const [draftPeriodDraft, setDraftPeriodDraft] = useState({
     startAt: "",
     endAt: "",
@@ -244,6 +245,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       const draft = await getReservationDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
       setDraftNotesDraft(draft.notes);
+      setDraftCustomerIdDraft(draft.customer_id);
       setDraftPeriodDraft({
         startAt: toDateTimeLocalValue(new Date(draft.start_at)),
         endAt: toDateTimeLocalValue(new Date(draft.end_at)),
@@ -263,6 +265,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   async function applyUpdatedDraft(updatedDraft: ReservationDraft) {
     setDraftDetailState({ status: "loaded", draft: updatedDraft });
     setDraftNotesDraft(updatedDraft.notes);
+    setDraftCustomerIdDraft(updatedDraft.customer_id);
     setDraftPeriodDraft({
       startAt: toDateTimeLocalValue(new Date(updatedDraft.start_at)),
       endAt: toDateTimeLocalValue(new Date(updatedDraft.end_at)),
@@ -275,6 +278,47 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     );
     await refreshDrafts();
     setDraftUpdateState({ status: "updated", draft: updatedDraft });
+  }
+
+  async function handleUpdateDraftCustomer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (draftDetailState.status !== "loaded") {
+      setDraftUpdateState({
+        status: "error",
+        message: "Open a draft detail before saving the customer.",
+      });
+      return;
+    }
+
+    if (!draftCustomerIdDraft) {
+      setDraftUpdateState({
+        status: "error",
+        message: "Choose a draft customer before saving.",
+      });
+      return;
+    }
+
+    setDraftUpdateState({ status: "loading" });
+
+    try {
+      const updatedDraft = await updateReservationDraft(
+        draftDetailState.draft.id,
+        {
+          customer_id: draftCustomerIdDraft,
+        },
+      );
+
+      await applyUpdatedDraft(updatedDraft);
+    } catch (error) {
+      setDraftUpdateState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Reservation draft customer could not be saved.",
+      });
+    }
   }
 
   async function handleUpdateDraftPeriod(event: FormEvent<HTMLFormElement>) {
@@ -404,6 +448,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       setDraftCreationState({ status: "created", draft });
       setDraftDetailState({ status: "loaded", draft });
       setDraftNotesDraft(draft.notes);
+      setDraftCustomerIdDraft(draft.customer_id);
       setDraftPeriodDraft({
         startAt: toDateTimeLocalValue(new Date(draft.start_at)),
         endAt: toDateTimeLocalValue(new Date(draft.end_at)),
@@ -557,6 +602,38 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             </p>
             <form
               className="availability-form"
+              onSubmit={handleUpdateDraftCustomer}
+            >
+              <label>
+                Draft customer
+                <select
+                  name="draft_customer_id"
+                  value={draftCustomerIdDraft}
+                  onChange={(event) =>
+                    setDraftCustomerIdDraft(event.target.value)
+                  }
+                >
+                  {customerState.status === "loaded"
+                    ? customerState.customers.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.display_name}
+                        </option>
+                      ))
+                    : null}
+                </select>
+              </label>
+              <button
+                type="submit"
+                disabled={
+                  draftUpdateState.status === "loading" ||
+                  customerState.status !== "loaded"
+                }
+              >
+                Save draft customer
+              </button>
+            </form>
+            <form
+              className="availability-form"
               onSubmit={handleUpdateDraftPeriod}
             >
               <label>
@@ -615,7 +692,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             </form>
 
             {draftUpdateState.status === "loading" ? (
-              <p className="status">Saving draft notes...</p>
+              <p className="status">Saving draft changes...</p>
             ) : null}
 
             {draftUpdateState.status === "updated" ? (
@@ -624,7 +701,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
 
             {draftUpdateState.status === "error" ? (
               <div className="notice availability-notice" role="alert">
-                <h4>Draft notes unavailable</h4>
+                <h4>Draft update unavailable</h4>
                 <p>{draftUpdateState.message}</p>
               </div>
             ) : null}
