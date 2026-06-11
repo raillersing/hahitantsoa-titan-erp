@@ -26,6 +26,23 @@ Use this checklist at the end of a Codex task. Trim only the checks that are cle
 - [ ] Confirm no `.env` access or secret exposure.
 - [ ] Produce one verdict: `APPROVE`, `REQUEST CHANGES` or `BLOCK`.
 
+## Orchestrated multi-agent checklist
+
+- [ ] The prompt states the expected branch, approved scope and forbidden files.
+- [ ] Domain/Business, Technical, Scope/Security and Consolidator subagents were explicitly
+  assigned.
+- [ ] Each subagent received a bounded role and a clear output format.
+- [ ] Reviewer subagents did not modify files or apply silent corrections.
+- [ ] The Consolidator produced exactly one verdict: `APPROVE`, `REQUEST_CHANGES` or `BLOCK`.
+- [ ] Any correction applied by the orchestrator was requested by the Consolidator, minimal,
+  inside approved scope and outside forbidden files.
+- [ ] No important terminal command ran outside `scripts/dev/erp-logged-run`.
+- [ ] If a direct command ran accidentally, the deviation was reported and a logged recovery
+  validation confirmed repository state before work continued.
+- [ ] No file outside the approved scope was modified.
+- [ ] No commit, push, PR creation or merge occurred without explicit authorization.
+- [ ] Human validation and merge decision remain pending.
+
 ## Prompt workflow
 
 - [ ] Confirm whether the task was sensitive, structural or explicitly approval-gated.

@@ -345,6 +345,28 @@ Mode 2 : `IMPLEMENT APPROVED PLAN`
 - Produire un rapport final avec fichiers, validations et points a verifier.
 - Ne pas faire `git add`, `git commit` ou `git push`.
 
+### Modes multi-agents Codex
+
+`AGENTS.md` reste la source courte de verite pour les regles agents. La procedure detaillee du
+mode orchestrateur est maintenue dans `docs/codex/orchestrated-multi-agent-workflow.md`.
+
+Deux modes restent valides :
+
+- **mode classique deux agents** : Agent A implemente ou documente, Agent B review sans
+  corriger silencieusement, puis l'humain decide du commit, push, PR et merge ;
+- **mode orchestrateur multi-agents** : un prompt unique demande a Codex d'assigner des
+  sous-agents Domaine/Metier, Technique, Scope/Securite et Consolidateur, puis de rendre un
+  verdict consolide `APPROVE`, `REQUEST_CHANGES` ou `BLOCK`.
+
+Le mode orchestrateur multi-agents est obligatoire lorsque la tache modifie des regles metier,
+permissions, transactions, migrations, APIs ou le scope Hahitantsoa/Titan. Les sous-agents
+reviewers ne modifient jamais les fichiers. L'orchestrateur ne peut appliquer qu'une correction
+minimale, demandee par le Consolidateur, dans le scope approuve et sans toucher aux fichiers
+interdits. Le merge reste toujours humain.
+
+Le workflow detaille et le format de prompt sont definis dans
+`docs/codex/orchestrated-multi-agent-workflow.md`.
+
 ### Workflow terminal Codex
 
 - Executer chaque commande terminal via `scripts/dev/erp-logged-run` avec stdin/heredoc :
@@ -357,6 +379,9 @@ Mode 2 : `IMPLEMENT APPROVED PLAN`
 
 - Ne pas utiliser `scripts/dev/erp-logged-run nom-de-tache bash -c '...'` : le wrapper lit deja
   les commandes depuis stdin et doit conserver leur vrai code retour.
+- Si une commande importante est lancee directement par accident, arreter le travail, signaler
+  l'ecart et relancer immediatement une verification de recuperation via le wrapper avant de
+  continuer.
 - Pour les validations locales, utiliser les executables du virtualenv, notamment
   `.venv/bin/python` et `.venv/bin/pytest`.
 - Pour un Django check dans un conteneur temporaire, utiliser
@@ -475,4 +500,3 @@ For any non-trivial agent-assisted change:
 6. Commit only after human approval.
 7. Create a PR.
 8. Merge manually only after final human validation.
-

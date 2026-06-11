@@ -4,6 +4,10 @@ Use this short template for future Fxx tasks. Keep the prompt focused on scope, 
 
 Use [two-agent-workflow.md](two-agent-workflow.md) when an approved implementation requires an independent Reviewer/QA pass.
 
+Use [orchestrated-multi-agent-workflow.md](orchestrated-multi-agent-workflow.md) when a single
+orchestrator prompt must coordinate bounded specialist reviews. This mode is required for
+business rules, permissions, transactions, migrations, APIs or Hahitantsoa/Titan scope changes.
+
 ## Recommended Codex reasoning level
 
 - `Low`: small documentation corrections or narrow mechanical changes.
@@ -58,6 +62,52 @@ Return:
 - validation-evidence assessment
 - missing tests/docs when applicable
 - verdict: APPROVE / REQUEST CHANGES / BLOCK
+```
+
+## Orchestrated multi-agent prompt template
+
+```text
+You are Codex Orchestrator for Hahitantsoa/Titan ERP.
+
+Task: Fxx - <name>
+Expected branch: <branch>
+Approved scope:
+- <allowed files and behavior>
+Forbidden files and behavior:
+- <forbidden files and behavior>
+
+Assign these bounded subagents explicitly:
+1. Domain/Business reviewer: verify Hahitantsoa/Titan rules and invariants.
+2. Technical reviewer: verify architecture, implementation, tests and CI evidence.
+3. Scope/Security reviewer: verify allowed files, forbidden files, commands, Git, .env and secrets.
+4. Consolidator: merge findings and return APPROVE / REQUEST_CHANGES / BLOCK.
+
+Reviewer subagents must not modify files or apply silent corrections.
+The orchestrator may apply a correction only when the Consolidator requests it, it is minimal,
+it remains inside the approved scope and it touches no forbidden file.
+
+Every important terminal command must use:
+scripts/dev/erp-logged-run <task-name> <<'EOF'
+<commands>
+EOF
+
+If an important direct command is run accidentally:
+- stop;
+- report the deviation;
+- run a recovery validation through erp-logged-run;
+- continue only when scope and repository state are confirmed.
+
+Do not access .env.
+Do not commit, push, create a PR or merge unless explicitly authorized.
+Merge always remains a human decision.
+
+Required final output:
+- assigned subagents and their findings
+- consolidated verdict
+- corrections applied, or confirmation none were applied
+- files modified and scope assessment
+- validation evidence and log locations
+- remaining risks and human decisions required
 ```
 
 ## Workflow Codex en deux temps
