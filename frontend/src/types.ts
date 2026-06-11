@@ -89,6 +89,7 @@ export type ReservationDraftUpdatePayload = {
   start_at?: string;
   end_at?: string;
   notes?: string;
+  lines?: ReservationDraftLineInput[];
 };
 
 export type ReservationDraftLine = {
