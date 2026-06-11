@@ -232,10 +232,29 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
           start_at?: string;
           end_at?: string;
           notes?: string;
+          lines?: Array<{
+            inventory_item_id: string;
+            quantity: number;
+            notes?: string;
+          }>;
         };
         const updatedCustomer = CUSTOMERS.find(
           (customer) => customer.id === updatePayload.customer_id,
         );
+        const updatedLines = updatePayload.lines?.map((line, index) => {
+          const inventoryItem = INVENTORY_ITEMS.find(
+            (item) => item.id === line.inventory_item_id,
+          );
+
+          return {
+            id: `updated-line-${index + 1}`,
+            inventory_item_id: line.inventory_item_id,
+            inventory_item_name: inventoryItem?.name ?? "Unknown item",
+            inventory_item_kind: inventoryItem?.kind ?? "article",
+            quantity: line.quantity,
+            notes: line.notes ?? "",
+          };
+        });
 
         return Promise.resolve(
           options.fail === "update"
@@ -251,6 +270,7 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
                   start_at: updatePayload.start_at ?? DRAFT_RESPONSE.start_at,
                   end_at: updatePayload.end_at ?? DRAFT_RESPONSE.end_at,
                   notes: updatePayload.notes ?? DRAFT_RESPONSE.notes,
+                  lines: updatedLines ?? DRAFT_RESPONSE.lines,
                   updated_at: END_AT_ISO,
                 },
               ),
@@ -484,6 +504,57 @@ describe("AvailabilityPanel", () => {
       "/api/v1/reservations/drafts/draft-1/",
       {
         credentials: "include",
+        signal: undefined,
+      },
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("updates an existing reservation draft lines only without commercial controls", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    fireEvent.change(await screen.findByLabelText("Draft line 1 quantity"), {
+      target: { value: "3" },
+    });
+    fireEvent.change(screen.getByLabelText("Draft line 1 notes"), {
+      target: { value: "Frontend replacement line." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft lines" }));
+
+    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
+    expect(screen.getByText("Quantity: 3")).toBeInTheDocument();
+    expect(screen.getAllByText("Frontend replacement line.")).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/reservations/drafts/draft-1/",
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lines: [
+            {
+              inventory_item_id: INVENTORY_ITEMS[0].id,
+              quantity: 3,
+              notes: "Frontend replacement line.",
+            },
+            {
+              inventory_item_id: INVENTORY_ITEMS[1].id,
+              quantity: 1,
+              notes: "",
+            },
+          ],
+        }),
         signal: undefined,
       },
     );

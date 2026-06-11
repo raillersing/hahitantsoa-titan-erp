@@ -87,6 +87,20 @@ function defaultPeriod(): { startAt: string; endAt: string } {
   };
 }
 
+type DraftLineInput = {
+  inventory_item_id: string;
+  quantity: number;
+  notes?: string;
+};
+
+function toDraftLineInputs(draft: ReservationDraft): DraftLineInput[] {
+  return draft.lines.map((line) => ({
+    inventory_item_id: line.inventory_item_id,
+    quantity: line.quantity,
+    notes: line.notes,
+  }));
+}
+
 function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   const initialPeriod = defaultPeriod();
   const [startAt, setStartAt] = useState(initialPeriod.startAt);
@@ -113,6 +127,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   });
   const [draftNotesDraft, setDraftNotesDraft] = useState("");
   const [draftCustomerIdDraft, setDraftCustomerIdDraft] = useState("");
+  const [draftLinesDraft, setDraftLinesDraft] = useState<DraftLineInput[]>([]);
   const [draftPeriodDraft, setDraftPeriodDraft] = useState({
     startAt: "",
     endAt: "",
@@ -238,6 +253,92 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     setDraftCreationState({ status: "idle" });
   }
 
+  function updateDraftLineItemId(index: number, inventoryItemId: string) {
+    setDraftLinesDraft((currentLines) =>
+      currentLines.map((line, lineIndex) =>
+        lineIndex === index
+          ? {
+              ...line,
+              inventory_item_id: inventoryItemId,
+            }
+          : line,
+      ),
+    );
+    setDraftUpdateState({ status: "idle" });
+  }
+
+  function updateDraftLineQuantity(index: number, quantityValue: string) {
+    const quantity = Number.parseInt(quantityValue, 10);
+
+    setDraftLinesDraft((currentLines) =>
+      currentLines.map((line, lineIndex) =>
+        lineIndex === index
+          ? {
+              ...line,
+              quantity,
+            }
+          : line,
+      ),
+    );
+    setDraftUpdateState({ status: "idle" });
+  }
+
+  function updateDraftLineNotes(index: number, notes: string) {
+    setDraftLinesDraft((currentLines) =>
+      currentLines.map((line, lineIndex) =>
+        lineIndex === index
+          ? {
+              ...line,
+              notes,
+            }
+          : line,
+      ),
+    );
+    setDraftUpdateState({ status: "idle" });
+  }
+
+  function addDraftLineDraft() {
+    const nextItem = inventoryItems.find(
+      (inventoryItem) =>
+        !draftLinesDraft.some(
+          (line) => line.inventory_item_id === inventoryItem.id,
+        ),
+    );
+
+    if (!nextItem) {
+      setDraftUpdateState({
+        status: "error",
+        message: "No additional inventory item is available for this draft.",
+      });
+      return;
+    }
+
+    setDraftLinesDraft((currentLines) => [
+      ...currentLines,
+      {
+        inventory_item_id: nextItem.id,
+        quantity: 1,
+        notes: "",
+      },
+    ]);
+    setDraftUpdateState({ status: "idle" });
+  }
+
+  function removeDraftLineDraft(index: number) {
+    if (draftLinesDraft.length <= 1) {
+      setDraftUpdateState({
+        status: "error",
+        message: "Keep at least one draft line.",
+      });
+      return;
+    }
+
+    setDraftLinesDraft((currentLines) =>
+      currentLines.filter((_, lineIndex) => lineIndex !== index),
+    );
+    setDraftUpdateState({ status: "idle" });
+  }
+
   async function handleViewDraftDetail(draftId: string) {
     setDraftDetailState({ status: "loading" });
 
@@ -246,6 +347,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       setDraftDetailState({ status: "loaded", draft });
       setDraftNotesDraft(draft.notes);
       setDraftCustomerIdDraft(draft.customer_id);
+      setDraftLinesDraft(toDraftLineInputs(draft));
       setDraftPeriodDraft({
         startAt: toDateTimeLocalValue(new Date(draft.start_at)),
         endAt: toDateTimeLocalValue(new Date(draft.end_at)),
@@ -266,6 +368,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     setDraftDetailState({ status: "loaded", draft: updatedDraft });
     setDraftNotesDraft(updatedDraft.notes);
     setDraftCustomerIdDraft(updatedDraft.customer_id);
+    setDraftLinesDraft(toDraftLineInputs(updatedDraft));
     setDraftPeriodDraft({
       startAt: toDateTimeLocalValue(new Date(updatedDraft.start_at)),
       endAt: toDateTimeLocalValue(new Date(updatedDraft.end_at)),
@@ -278,6 +381,80 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     );
     await refreshDrafts();
     setDraftUpdateState({ status: "updated", draft: updatedDraft });
+  }
+
+  async function handleUpdateDraftLines(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (draftDetailState.status !== "loaded") {
+      setDraftUpdateState({
+        status: "error",
+        message: "Open a draft detail before saving lines.",
+      });
+      return;
+    }
+
+    if (draftLinesDraft.length === 0) {
+      setDraftUpdateState({
+        status: "error",
+        message: "Keep at least one draft line.",
+      });
+      return;
+    }
+
+    const hasInvalidLine = draftLinesDraft.some(
+      (line) =>
+        !line.inventory_item_id ||
+        !Number.isFinite(line.quantity) ||
+        line.quantity < 1,
+    );
+
+    if (hasInvalidLine) {
+      setDraftUpdateState({
+        status: "error",
+        message: "Choose valid draft lines with quantities greater than zero.",
+      });
+      return;
+    }
+
+    const inventoryItemIds = draftLinesDraft.map(
+      (line) => line.inventory_item_id,
+    );
+    const hasDuplicateItem =
+      new Set(inventoryItemIds).size !== inventoryItemIds.length;
+
+    if (hasDuplicateItem) {
+      setDraftUpdateState({
+        status: "error",
+        message: "Each inventory item can appear only once per draft.",
+      });
+      return;
+    }
+
+    setDraftUpdateState({ status: "loading" });
+
+    try {
+      const updatedDraft = await updateReservationDraft(
+        draftDetailState.draft.id,
+        {
+          lines: draftLinesDraft.map((line) => ({
+            inventory_item_id: line.inventory_item_id,
+            quantity: line.quantity,
+            notes: line.notes ?? "",
+          })),
+        },
+      );
+
+      await applyUpdatedDraft(updatedDraft);
+    } catch (error) {
+      setDraftUpdateState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Reservation draft lines could not be saved.",
+      });
+    }
   }
 
   async function handleUpdateDraftCustomer(event: FormEvent<HTMLFormElement>) {
@@ -449,6 +626,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       setDraftDetailState({ status: "loaded", draft });
       setDraftNotesDraft(draft.notes);
       setDraftCustomerIdDraft(draft.customer_id);
+      setDraftLinesDraft(toDraftLineInputs(draft));
       setDraftPeriodDraft({
         startAt: toDateTimeLocalValue(new Date(draft.start_at)),
         endAt: toDateTimeLocalValue(new Date(draft.end_at)),
@@ -705,6 +883,87 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 <p>{draftUpdateState.message}</p>
               </div>
             ) : null}
+
+            <form
+              className="availability-form"
+              onSubmit={handleUpdateDraftLines}
+            >
+              <h4>Draft lines</h4>
+              {draftLinesDraft.map((line, index) => (
+                <fieldset key={`${line.inventory_item_id}-${index}`}>
+                  <legend>Draft line {index + 1}</legend>
+                  <label>
+                    Draft line {index + 1} item
+                    <select
+                      value={line.inventory_item_id}
+                      onChange={(event) =>
+                        updateDraftLineItemId(index, event.target.value)
+                      }
+                    >
+                      {inventoryItems.some(
+                        (inventoryItem) =>
+                          inventoryItem.id === line.inventory_item_id,
+                      ) ? null : (
+                        <option value={line.inventory_item_id}>
+                          Current draft line item
+                        </option>
+                      )}
+                      {inventoryItems.map((inventoryItem) => (
+                        <option key={inventoryItem.id} value={inventoryItem.id}>
+                          {inventoryItem.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Draft line {index + 1} quantity
+                    <input
+                      type="number"
+                      min="1"
+                      value={Number.isNaN(line.quantity) ? "" : line.quantity}
+                      onChange={(event) =>
+                        updateDraftLineQuantity(index, event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    Draft line {index + 1} notes
+                    <textarea
+                      value={line.notes ?? ""}
+                      onChange={(event) =>
+                        updateDraftLineNotes(index, event.target.value)
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={
+                      draftUpdateState.status === "loading" ||
+                      draftLinesDraft.length <= 1
+                    }
+                    onClick={() => removeDraftLineDraft(index)}
+                  >
+                    Remove draft line {index + 1}
+                  </button>
+                </fieldset>
+              ))}
+              <button
+                type="button"
+                disabled={
+                  draftUpdateState.status === "loading" ||
+                  inventoryItems.length === 0
+                }
+                onClick={addDraftLineDraft}
+              >
+                Add draft line
+              </button>
+              <button
+                type="submit"
+                disabled={draftUpdateState.status === "loading"}
+              >
+                Save draft lines
+              </button>
+            </form>
 
             <ul className="preview-list">
               {draftDetailState.draft.lines.map((line) => (
