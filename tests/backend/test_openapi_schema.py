@@ -13,6 +13,9 @@ RESERVATION_ITEM_AVAILABILITY_PREVIEW_PATHS = (
 HAHITANTSOA_DISCOVERY_ITEMS_PATH = "/api/v1/hahitantsoa/discovery-items/"
 DOCUMENT_TEMPLATE_REGISTRY_PATH = "/api/v1/documents/templates/"
 DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",)
+TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
+    "/api/v1/documents/titan/proforma-drafts/{reservation_draft_id}/preview/",
+)
 WRITE_METHODS = {"post", "put", "patch", "delete"}
 
 
@@ -70,6 +73,10 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
         paths,
         DOCUMENT_TEMPLATE_DETAIL_PATHS,
     )
+    titan_proforma_draft_preview_path = _get_path(
+        paths,
+        TITAN_PROFORMA_DRAFT_PREVIEW_PATHS,
+    )
 
     confirmed_read_only_paths = (
         INVENTORY_LIST_PATH,
@@ -80,6 +87,7 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
         HAHITANTSOA_DISCOVERY_ITEMS_PATH,
         DOCUMENT_TEMPLATE_REGISTRY_PATH,
         document_template_detail_path,
+        titan_proforma_draft_preview_path,
     )
 
     for path in confirmed_read_only_paths:
@@ -150,6 +158,43 @@ def test_openapi_schema_exposes_documents_template_contract(client) -> None:
     detail_response = _resolve_schema(schema, detail_schema_reference)
 
     assert expected_template_fields.issubset(detail_response["properties"])
+
+
+def test_openapi_schema_exposes_titan_proforma_preview_contract(client) -> None:
+    response = client.get("/api/schema/?format=json")
+
+    assert response.status_code == 200
+
+    schema = response.json()
+    paths = schema["paths"]
+    preview_path = _get_path(paths, TITAN_PROFORMA_DRAFT_PREVIEW_PATHS)
+
+    operation = paths[preview_path]["get"]
+    response_schema_reference = operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]
+    preview_response = _resolve_schema(schema, response_schema_reference)
+
+    expected_preview_fields = {
+        "document_type",
+        "business_scope",
+        "template_key",
+        "template",
+        "reservation_draft",
+        "scope_flags",
+    }
+    assert expected_preview_fields.issubset(preview_response["properties"])
+
+    scope_reference = preview_response["properties"]["scope_flags"]
+    scope_flags = _resolve_schema(schema, scope_reference)
+    assert {
+        "pdf_runtime_generated",
+        "reservation_confirmed",
+        "inventory_blocked",
+        "payment_created",
+        "invoice_created",
+        "contract_created",
+    }.issubset(scope_flags["properties"])
 
 
 def test_openapi_documentation_views_are_available(client) -> None:
