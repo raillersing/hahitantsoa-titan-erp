@@ -11,6 +11,7 @@ Ce document clarifie ce que les agents peuvent faire seuls, ce qui reste réserv
 - `AGENTS.md`
 - `docs/ai/codex-only-autonomous-workflow-f89.md`
 - `docs/codex/two-agent-workflow.md`
+- `docs/codex/orchestrated-multi-agent-workflow.md`
 - `docs/codex/reasoning-policy.md`
 - `docs/codex/task-prompt-template.md`
 - `docs/codex/validation-checklist.md`
@@ -124,3 +125,23 @@ Sont concernés :
 - les commandes utilisées comme preuve dans un rapport ou une PR.
 
 Une commande directe non journalisée est considérée comme un écart de méthode. Dans ce cas, l'agent doit lancer immédiatement une validation de récupération journalisée avant de poursuivre.
+
+## 12. Mode orchestrateur multi-agents F115A
+
+F115A ajoute un mode Codex permettant de lancer une tache sensible avec un seul prompt
+orchestrateur. Ce mode complete, sans remplacer, le workflow classique Agent A / Agent B.
+
+L'orchestrateur assigne explicitement quatre roles bornes :
+
+- **Domaine/Metier** : controle les invariants et la separation Hahitantsoa/Titan ;
+- **Technique** : controle architecture, code, tests et CI ;
+- **Scope/Securite** : controle fichiers autorises/interdits, commandes, Git, `.env` et secrets ;
+- **Consolidateur** : fusionne les avis et rend `APPROVE`, `REQUEST_CHANGES` ou `BLOCK`.
+
+Les agents de review n'appliquent aucune correction. Une correction par l'orchestrateur est
+autorisee uniquement si elle est minimale, dans le scope approuve, hors fichiers interdits et
+explicitement demandee par le Consolidateur. Le merge reste une decision humaine.
+
+Le mode orchestrateur doit etre utilise pour les regles metier, permissions, transactions,
+migrations, APIs et changements de scope Hahitantsoa/Titan. Le document operationnel et le
+template de prompt sont dans `docs/codex/orchestrated-multi-agent-workflow.md`.

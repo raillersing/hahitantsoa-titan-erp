@@ -5,6 +5,10 @@
 The two-agent workflow separates implementation from critical review when an independent
 quality check reduces meaningful risk. Human approval and Git operations remain mandatory.
 
+This classic mode remains valid. For tasks changing business rules, permissions, transactions,
+migrations, APIs or Hahitantsoa/Titan scope, use the orchestrated multi-agent mode documented in
+[orchestrated-multi-agent-workflow.md](orchestrated-multi-agent-workflow.md).
+
 ## Agent A - Implementer
 
 Agent A implements or documents only the human-approved plan.
@@ -60,3 +64,5 @@ diffs.
   service.
 - The first Hahitantsoa slice remains read-only discovery and planning until explicitly
   approved otherwise.
+- Reviewers never apply silent corrections. Any correction requires a separate approved
+  implementation action.
