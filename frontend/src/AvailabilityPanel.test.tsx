@@ -19,6 +19,10 @@ const START_AT_LOCAL = "2026-06-06T10:00";
 const END_AT_LOCAL = "2026-06-06T12:00";
 const START_AT_ISO = new Date(START_AT_LOCAL).toISOString();
 const END_AT_ISO = new Date(END_AT_LOCAL).toISOString();
+const UPDATED_START_AT_LOCAL = "2026-06-06T13:00";
+const UPDATED_END_AT_LOCAL = "2026-06-06T15:00";
+const UPDATED_START_AT_ISO = new Date(UPDATED_START_AT_LOCAL).toISOString();
+const UPDATED_END_AT_ISO = new Date(UPDATED_END_AT_LOCAL).toISOString();
 
 const CUSTOMERS = [
   {
@@ -139,7 +143,13 @@ type MockOptions = {
   itemPreviews?: Record<string, object>;
   draft?: object;
   updatedDraft?: object;
-  fail?: "customers" | "summary" | "previews" | "itemPreview" | "draft" | "update";
+  fail?:
+    | "customers"
+    | "summary"
+    | "previews"
+    | "itemPreview"
+    | "draft"
+    | "update";
   pendingAvailability?: boolean;
 };
 
@@ -209,6 +219,8 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
     if (url === `/api/v1/reservations/drafts/${DRAFT_RESPONSE.id}/`) {
       if (init?.method === "PATCH") {
         const updatePayload = JSON.parse(String(init.body ?? "{}")) as {
+          start_at?: string;
+          end_at?: string;
           notes?: string;
         };
 
@@ -218,6 +230,8 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
             : jsonResponse(
                 options.updatedDraft ?? {
                   ...DRAFT_RESPONSE,
+                  start_at: updatePayload.start_at ?? DRAFT_RESPONSE.start_at,
+                  end_at: updatePayload.end_at ?? DRAFT_RESPONSE.end_at,
                   notes: updatePayload.notes ?? DRAFT_RESPONSE.notes,
                   updated_at: END_AT_ISO,
                 },
@@ -437,7 +451,9 @@ describe("AvailabilityPanel", () => {
     await screen.findByText("RD-DEMO-001");
     fireEvent.click(screen.getByRole("button", { name: "View details" }));
 
-    expect(await screen.findByText("Draft detail RD-DEMO-001")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Draft detail RD-DEMO-001"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Customer: Client Demo")).toBeInTheDocument();
     expect(screen.getAllByText("Status: draft").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Quantity: 1")).toHaveLength(2);
@@ -460,6 +476,80 @@ describe("AvailabilityPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("updates an existing reservation draft period only without commercial controls", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    fireEvent.change(await screen.findByLabelText("Draft start"), {
+      target: { value: UPDATED_START_AT_LOCAL },
+    });
+    fireEvent.change(screen.getByLabelText("Draft end"), {
+      target: { value: UPDATED_END_AT_LOCAL },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft period" }));
+
+    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Draft start")).toHaveValue(
+      UPDATED_START_AT_LOCAL,
+    );
+    expect(screen.getByLabelText("Draft end")).toHaveValue(
+      UPDATED_END_AT_LOCAL,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/reservations/drafts/draft-1/",
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start_at: UPDATED_START_AT_ISO,
+          end_at: UPDATED_END_AT_ISO,
+        }),
+        signal: undefined,
+      },
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("rejects an invalid draft period without calling the update API", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    fireEvent.change(await screen.findByLabelText("Draft start"), {
+      target: { value: UPDATED_END_AT_LOCAL },
+    });
+    fireEvent.change(screen.getByLabelText("Draft end"), {
+      target: { value: UPDATED_START_AT_LOCAL },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save draft period" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Choose a valid draft period with an end after the start.",
+    );
+
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url) === "/api/v1/reservations/drafts/draft-1/" &&
+          init?.method === "PATCH",
+      ),
+    ).toBe(false);
+  });
+
   it("updates an existing reservation draft notes only without commercial controls", async () => {
     const fetchMock = mockAvailabilityFetch();
 
@@ -474,7 +564,7 @@ describe("AvailabilityPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save draft notes" }));
 
-    expect(await screen.findByText("Draft notes saved.")).toBeInTheDocument();
+    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
     expect(screen.getByLabelText("Draft notes")).toHaveValue(
       "Updated from frontend notes edit.",
     );

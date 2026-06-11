@@ -112,6 +112,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     status: "idle",
   });
   const [draftNotesDraft, setDraftNotesDraft] = useState("");
+  const [draftPeriodDraft, setDraftPeriodDraft] = useState({
+    startAt: "",
+    endAt: "",
+  });
   const [draftUpdateState, setDraftUpdateState] = useState<DraftUpdateState>({
     status: "idle",
   });
@@ -240,6 +244,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       const draft = await getReservationDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
       setDraftNotesDraft(draft.notes);
+      setDraftPeriodDraft({
+        startAt: toDateTimeLocalValue(new Date(draft.start_at)),
+        endAt: toDateTimeLocalValue(new Date(draft.end_at)),
+      });
       setDraftUpdateState({ status: "idle" });
     } catch (error) {
       setDraftDetailState({
@@ -248,6 +256,74 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           error instanceof Error
             ? error.message
             : "Reservation draft detail could not be loaded.",
+      });
+    }
+  }
+
+  async function applyUpdatedDraft(updatedDraft: ReservationDraft) {
+    setDraftDetailState({ status: "loaded", draft: updatedDraft });
+    setDraftNotesDraft(updatedDraft.notes);
+    setDraftPeriodDraft({
+      startAt: toDateTimeLocalValue(new Date(updatedDraft.start_at)),
+      endAt: toDateTimeLocalValue(new Date(updatedDraft.end_at)),
+    });
+    setDraftCreationState((currentState) =>
+      currentState.status === "created" &&
+      currentState.draft.id === updatedDraft.id
+        ? { status: "created", draft: updatedDraft }
+        : currentState,
+    );
+    await refreshDrafts();
+    setDraftUpdateState({ status: "updated", draft: updatedDraft });
+  }
+
+  async function handleUpdateDraftPeriod(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (draftDetailState.status !== "loaded") {
+      setDraftUpdateState({
+        status: "error",
+        message: "Open a draft detail before saving the period.",
+      });
+      return;
+    }
+
+    const startDate = new Date(draftPeriodDraft.startAt);
+    const endDate = new Date(draftPeriodDraft.endAt);
+
+    if (
+      !draftPeriodDraft.startAt ||
+      !draftPeriodDraft.endAt ||
+      Number.isNaN(startDate.getTime()) ||
+      Number.isNaN(endDate.getTime()) ||
+      endDate <= startDate
+    ) {
+      setDraftUpdateState({
+        status: "error",
+        message: "Choose a valid draft period with an end after the start.",
+      });
+      return;
+    }
+
+    setDraftUpdateState({ status: "loading" });
+
+    try {
+      const updatedDraft = await updateReservationDraft(
+        draftDetailState.draft.id,
+        {
+          start_at: startDate.toISOString(),
+          end_at: endDate.toISOString(),
+        },
+      );
+
+      await applyUpdatedDraft(updatedDraft);
+    } catch (error) {
+      setDraftUpdateState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Reservation draft period could not be saved.",
       });
     }
   }
@@ -266,20 +342,14 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     setDraftUpdateState({ status: "loading" });
 
     try {
-      const updatedDraft = await updateReservationDraft(draftDetailState.draft.id, {
-        notes: draftNotesDraft,
-      });
-
-      setDraftDetailState({ status: "loaded", draft: updatedDraft });
-      setDraftNotesDraft(updatedDraft.notes);
-      setDraftCreationState((currentState) =>
-        currentState.status === "created" &&
-        currentState.draft.id === updatedDraft.id
-          ? { status: "created", draft: updatedDraft }
-          : currentState,
+      const updatedDraft = await updateReservationDraft(
+        draftDetailState.draft.id,
+        {
+          notes: draftNotesDraft,
+        },
       );
-      await refreshDrafts();
-      setDraftUpdateState({ status: "updated", draft: updatedDraft });
+
+      await applyUpdatedDraft(updatedDraft);
     } catch (error) {
       setDraftUpdateState({
         status: "error",
@@ -334,6 +404,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       setDraftCreationState({ status: "created", draft });
       setDraftDetailState({ status: "loaded", draft });
       setDraftNotesDraft(draft.notes);
+      setDraftPeriodDraft({
+        startAt: toDateTimeLocalValue(new Date(draft.start_at)),
+        endAt: toDateTimeLocalValue(new Date(draft.end_at)),
+      });
       setDraftUpdateState({ status: "idle" });
       await refreshDrafts();
     } catch (error) {
@@ -432,7 +506,9 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
 
         {draftListState.status === "loaded" ? (
           draftListState.drafts.length === 0 ? (
-            <p className="status">No reservation drafts are currently visible.</p>
+            <p className="status">
+              No reservation drafts are currently visible.
+            </p>
           ) : (
             <ul className="preview-list">
               {draftListState.drafts.map((draft) => (
@@ -441,7 +517,8 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     <strong>{draft.public_reference}</strong>
                     <span>{draft.customer_display_name}</span>
                     <span>
-                      {formatDateTime(draft.start_at)} — {formatDateTime(draft.end_at)}
+                      {formatDateTime(draft.start_at)} —{" "}
+                      {formatDateTime(draft.end_at)}
                     </span>
                   </div>
                   <span>{draft.status}</span>
@@ -480,6 +557,45 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             </p>
             <form
               className="availability-form"
+              onSubmit={handleUpdateDraftPeriod}
+            >
+              <label>
+                Draft start
+                <input
+                  name="draft_start_at"
+                  type="datetime-local"
+                  value={draftPeriodDraft.startAt}
+                  onChange={(event) =>
+                    setDraftPeriodDraft((currentPeriod) => ({
+                      ...currentPeriod,
+                      startAt: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Draft end
+                <input
+                  name="draft_end_at"
+                  type="datetime-local"
+                  value={draftPeriodDraft.endAt}
+                  onChange={(event) =>
+                    setDraftPeriodDraft((currentPeriod) => ({
+                      ...currentPeriod,
+                      endAt: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={draftUpdateState.status === "loading"}
+              >
+                Save draft period
+              </button>
+            </form>
+            <form
+              className="availability-form"
               onSubmit={handleUpdateDraftNotes}
             >
               <label>
@@ -503,7 +619,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             ) : null}
 
             {draftUpdateState.status === "updated" ? (
-              <p className="status">Draft notes saved.</p>
+              <p className="status">Draft changes saved.</p>
             ) : null}
 
             {draftUpdateState.status === "error" ? (
