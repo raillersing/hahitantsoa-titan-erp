@@ -21,6 +21,94 @@ En cas de contradiction, appliquer l’ordre de priorité suivant :
 La décision Titan validée est prioritaire sur toute ambiguïté historique, tout ancien guide et toute interprétation contraire.
 
 ## 2. Périmètres métier
+## Agent workflow harmonise
+
+Le workflow multi-agent du projet est strict et homogène.
+
+- une tâche = une branche = une PR ;
+- chaque tranche est limitée à un périmètre contrôlé ;
+- chaque changement modifie uniquement les fichiers autorisés ;
+- valider localement avant push lorsqu'une validation locale est applicable ;
+- vérifier la CI GitHub avant tout merge ;
+- le merge reste toujours manuel ;
+- après merge, vérifier l'état de `main` et les checks sur `main` ;
+- utiliser systématiquement `scripts/dev/erp-logged-run` pour chaque commande terminale importante ;
+- ne pas mélanger code applicatif et documentation sans décision explicite ;
+- respecter en permanence les règles Hahitantsoa/Titan.
+
+### Rôles des agents
+
+- un agent peut implémenter, tester et corriger un échec de test dans le même périmètre ;
+- un agent peut créer une branche, committer, pousser et ouvrir une PR quand cela est autorisé ;
+- un agent doit s'arrêter et demander une intervention humaine si :
+  - un changement d'architecture est nécessaire ;
+  - le périmètre est incertain ou discutable ;
+  - une migration risquée est requise ;
+  - le travail implique une décision métier critique ou un conflit de scope ;
+  - il faut modifier des fichiers hors périmètre approuvé.
+
+### Rôle humain
+
+- approuver le plan et le périmètre ;
+- valider la PR, les résultats de validation et la conformité aux règles ;
+- décider du merge ;
+- conserver l'autorité finale ;
+- préparer et protéger `.env` et tout secret local ;
+- arbitrer les désaccords de scope ou d'architecture.
+
+### Définition de done
+
+- périmètre approuvé respecté ;
+- diff limité et compréhensible ;
+- validations locales et CI exécutées ou justifiées ;
+- PR ouverte vers `main` ;
+- pas de modification de fichiers interdits ;
+- pas d'accès à `.env` ou à des secrets ;
+- rapport de validation produit.
+
+### Règles de PR
+
+- une PR par tranche contrôlée ;
+- titre et description explicites ;
+- joindre les validations essentielles ;
+- ne pas merger tant que la PR n'est pas revue et que la CI est verte.
+
+### Command execution rule
+
+Agents must run every important terminal command through `scripts/dev/erp-logged-run`.
+
+This includes:
+- Git status, diff, commit, push, PR and CI commands;
+- test, lint, format, build and quality commands;
+- repository inspection commands used as task evidence;
+- recovery, fixer and validation commands.
+
+Direct terminal commands are only allowed for trivial editor-only inspection that cannot affect the repository. If an agent accidentally runs a direct command, it must immediately run a journaled recovery/validation command through `scripts/dev/erp-logged-run` before continuing.
+
+### Règles de validation
+
+- `git branch --show-current`
+- `git status --short`
+- `git diff --name-status`
+- vérifier les fichiers interdits
+- utiliser `scripts/dev/erp-logged-run` pour les validations importantes
+- exécuter les tests et checks pertinents
+- pour le backend Django, utiliser `.venv/bin/python backend/manage.py check` et `.venv/bin/python -m pytest` quand approprié.
+
+### Spécificités Hahitantsoa/Titan
+
+- Titan autorise uniquement `material`, `article`, `material_pack` ;
+- Titan interdit `venue`, `local`, `room`, `service`, `event_service`, `salle`, `lieu`, `service événementiel`, `service annexe` ;
+- Titan n'expose jamais local, salle, lieu ou service ;
+- l'API inventory reste read-only tant qu'une tâche ne valide pas explicitement le contraire.
+
+### Interdictions strictes
+
+- ne jamais lire, afficher, sourcer, inspecter ou modifier `.env` ;
+- ne pas modifier backend/frontend hors périmètre explicite ;
+- ne pas créer de Docker opérationnel pendant la phase documentaire ;
+- ne pas créer `compose.yaml`, `compose.yml`, `compose.prod.yaml`, `Dockerfile`, `pyproject.toml`, `package.json`, `requirements.txt`, `manage.py`, migrations, endpoints API, admin ou frontend hors tâche explicitement autorisée.
+
 
 ### Hahitantsoa
 
