@@ -45,12 +45,15 @@ def _create_availability(
     start_at,
     end_at,
     status: InventoryAvailabilityStatus = InventoryAvailabilityStatus.BLOCKED,
+    is_deleted: bool = False,
 ) -> InventoryAvailability:
     return InventoryAvailability.objects.create(
         inventory_item=inventory_item,
         status=status,
         start_at=start_at,
         end_at=end_at,
+        is_deleted=is_deleted,
+        deleted_at=timezone.now() if is_deleted else None,
     )
 
 
@@ -105,6 +108,34 @@ def test_selector_excludes_items_with_overlapping_blocked_or_reserved_period(
     )
 
     assert list(available_items) == [available_item]
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        InventoryAvailabilityStatus.BLOCKED,
+        InventoryAvailabilityStatus.RESERVED,
+    ],
+)
+def test_selector_does_not_exclude_item_with_soft_deleted_blocked_or_reserved_period(
+    status: InventoryAvailabilityStatus,
+) -> None:
+    start_at, end_at = _request_period()
+    item = _create_inventory_item(name="Soft-deleted conflict item")
+    _create_availability(
+        inventory_item=item,
+        status=status,
+        start_at=start_at,
+        end_at=end_at,
+        is_deleted=True,
+    )
+
+    available_items = get_available_inventory_items_for_period(
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert list(available_items) == [item]
 
 
 def test_selector_uses_half_open_intervals_for_adjacent_periods() -> None:

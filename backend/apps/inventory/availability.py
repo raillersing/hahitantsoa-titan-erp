@@ -29,6 +29,7 @@ def get_inventory_availability_conflicts(
 
     return InventoryAvailability.objects.filter(
         inventory_item=inventory_item,
+        is_deleted=False,
         status__in=UNAVAILABLE_AVAILABILITY_STATUSES,
         start_at__lt=end_at,
         end_at__gt=start_at,
