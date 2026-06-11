@@ -111,8 +111,8 @@ class ReservationDraftListCreateAPIView(generics.ListCreateAPIView):
         return active_reservation_drafts()
 
 
-class ReservationDraftRetrieveAPIView(generics.RetrieveAPIView):
-    http_method_names = ["get", "head", "options"]
+class ReservationDraftRetrieveAPIView(generics.RetrieveUpdateAPIView):
+    http_method_names = ["get", "put", "patch", "head", "options"]
     permission_classes = [IsAuthenticated]
     serializer_class = ReservationDraftSerializer
     lookup_field = "pk"
