@@ -34,6 +34,15 @@ const CUSTOMERS = [
     notes: "Demo customer",
     is_active: true,
   },
+  {
+    id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    display_name: "Client Updated",
+    email: "updated@example.test",
+    phone: "+261 34 11 111 11",
+    address: "Antananarivo",
+    notes: "Updated customer",
+    is_active: true,
+  },
 ];
 
 const INVENTORY_ITEMS: InventoryItem[] = [
@@ -219,10 +228,14 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
     if (url === `/api/v1/reservations/drafts/${DRAFT_RESPONSE.id}/`) {
       if (init?.method === "PATCH") {
         const updatePayload = JSON.parse(String(init.body ?? "{}")) as {
+          customer_id?: string;
           start_at?: string;
           end_at?: string;
           notes?: string;
         };
+        const updatedCustomer = CUSTOMERS.find(
+          (customer) => customer.id === updatePayload.customer_id,
+        );
 
         return Promise.resolve(
           options.fail === "update"
@@ -230,6 +243,11 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
             : jsonResponse(
                 options.updatedDraft ?? {
                   ...DRAFT_RESPONSE,
+                  customer_id:
+                    updatePayload.customer_id ?? DRAFT_RESPONSE.customer_id,
+                  customer_display_name:
+                    updatedCustomer?.display_name ??
+                    DRAFT_RESPONSE.customer_display_name,
                   start_at: updatePayload.start_at ?? DRAFT_RESPONSE.start_at,
                   end_at: updatePayload.end_at ?? DRAFT_RESPONSE.end_at,
                   notes: updatePayload.notes ?? DRAFT_RESPONSE.notes,
@@ -466,6 +484,47 @@ describe("AvailabilityPanel", () => {
       "/api/v1/reservations/drafts/draft-1/",
       {
         credentials: "include",
+        signal: undefined,
+      },
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: /confirm|pay|invoice|contract|pdf/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("updates an existing reservation draft customer only without commercial controls", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    fireEvent.change(await screen.findByLabelText("Draft customer"), {
+      target: { value: CUSTOMERS[1].id },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save draft customer" }),
+    );
+
+    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
+    expect(screen.getByText("Customer: Client Updated")).toBeInTheDocument();
+    expect(screen.getByLabelText("Draft customer")).toHaveValue(
+      CUSTOMERS[1].id,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/reservations/drafts/draft-1/",
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer_id: CUSTOMERS[1].id,
+        }),
         signal: undefined,
       },
     );

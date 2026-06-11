@@ -85,6 +85,7 @@ export type ReservationDraftCreatePayload = {
 };
 
 export type ReservationDraftUpdatePayload = {
+  customer_id?: string;
   start_at?: string;
   end_at?: string;
   notes?: string;
