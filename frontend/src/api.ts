@@ -130,7 +130,10 @@ export function getReservationDraft(
   draftId: string,
   signal?: AbortSignal,
 ): Promise<ReservationDraft> {
-  return getAuthenticatedJson(`/api/v1/reservations/drafts/${draftId}/`, signal);
+  return getAuthenticatedJson(
+    `/api/v1/reservations/drafts/${draftId}/`,
+    signal,
+  );
 }
 
 export function createReservationDraft(
@@ -143,5 +146,8 @@ export function updateReservationDraft(
   draftId: string,
   payload: ReservationDraftUpdatePayload,
 ): Promise<ReservationDraft> {
-  return patchAuthenticatedJson(`/api/v1/reservations/drafts/${draftId}/`, payload);
+  return patchAuthenticatedJson(
+    `/api/v1/reservations/drafts/${draftId}/`,
+    payload,
+  );
 }
