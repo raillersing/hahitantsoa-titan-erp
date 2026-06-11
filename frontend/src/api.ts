@@ -6,6 +6,7 @@ import type {
   ReservationAvailableItemPreview,
   ReservationDraft,
   ReservationDraftCreatePayload,
+  ReservationDraftUpdatePayload,
   ReservationItemAvailabilityPreview,
 } from "./types";
 
@@ -36,6 +37,24 @@ async function postAuthenticatedJson<T>(
 ): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal,
+  });
+
+  return parseJsonResponse<T>(response);
+}
+
+async function patchAuthenticatedJson<T>(
+  url: string,
+  payload: object,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await fetch(url, {
+    method: "PATCH",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -118,4 +137,11 @@ export function createReservationDraft(
   payload: ReservationDraftCreatePayload,
 ): Promise<ReservationDraft> {
   return postAuthenticatedJson("/api/v1/reservations/drafts/", payload);
+}
+
+export function updateReservationDraft(
+  draftId: string,
+  payload: ReservationDraftUpdatePayload,
+): Promise<ReservationDraft> {
+  return patchAuthenticatedJson(`/api/v1/reservations/drafts/${draftId}/`, payload);
 }

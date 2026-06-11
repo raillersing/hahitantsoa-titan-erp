@@ -8,6 +8,7 @@ import {
   getReservationDraft,
   getReservationDrafts,
   getReservationItemAvailabilityPreview,
+  updateReservationDraft,
 } from "./api";
 import type {
   Customer,
@@ -49,6 +50,12 @@ type DraftDetailState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "loaded"; draft: ReservationDraft }
+  | { status: "error"; message: string };
+
+type DraftUpdateState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "updated"; draft: ReservationDraft }
   | { status: "error"; message: string };
 
 type AvailabilityPanelProps = {
@@ -102,6 +109,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     status: "loading",
   });
   const [draftDetailState, setDraftDetailState] = useState<DraftDetailState>({
+    status: "idle",
+  });
+  const [draftNotesDraft, setDraftNotesDraft] = useState("");
+  const [draftUpdateState, setDraftUpdateState] = useState<DraftUpdateState>({
     status: "idle",
   });
 
@@ -228,6 +239,8 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     try {
       const draft = await getReservationDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
+      setDraftNotesDraft(draft.notes);
+      setDraftUpdateState({ status: "idle" });
     } catch (error) {
       setDraftDetailState({
         status: "error",
@@ -235,6 +248,45 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           error instanceof Error
             ? error.message
             : "Reservation draft detail could not be loaded.",
+      });
+    }
+  }
+
+  async function handleUpdateDraftNotes(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (draftDetailState.status !== "loaded") {
+      setDraftUpdateState({
+        status: "error",
+        message: "Open a draft detail before saving notes.",
+      });
+      return;
+    }
+
+    setDraftUpdateState({ status: "loading" });
+
+    try {
+      const updatedDraft = await updateReservationDraft(draftDetailState.draft.id, {
+        notes: draftNotesDraft,
+      });
+
+      setDraftDetailState({ status: "loaded", draft: updatedDraft });
+      setDraftNotesDraft(updatedDraft.notes);
+      setDraftCreationState((currentState) =>
+        currentState.status === "created" &&
+        currentState.draft.id === updatedDraft.id
+          ? { status: "created", draft: updatedDraft }
+          : currentState,
+      );
+      await refreshDrafts();
+      setDraftUpdateState({ status: "updated", draft: updatedDraft });
+    } catch (error) {
+      setDraftUpdateState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Reservation draft notes could not be saved.",
       });
     }
   }
@@ -281,6 +333,8 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
 
       setDraftCreationState({ status: "created", draft });
       setDraftDetailState({ status: "loaded", draft });
+      setDraftNotesDraft(draft.notes);
+      setDraftUpdateState({ status: "idle" });
       await refreshDrafts();
     } catch (error) {
       setDraftCreationState({
@@ -424,9 +478,41 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               Period: {formatDateTime(draftDetailState.draft.start_at)} —{" "}
               {formatDateTime(draftDetailState.draft.end_at)}
             </p>
-            {draftDetailState.draft.notes ? (
-              <p>Notes: {draftDetailState.draft.notes}</p>
+            <form
+              className="availability-form"
+              onSubmit={handleUpdateDraftNotes}
+            >
+              <label>
+                Draft notes
+                <textarea
+                  name="draft_notes"
+                  value={draftNotesDraft}
+                  onChange={(event) => setDraftNotesDraft(event.target.value)}
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={draftUpdateState.status === "loading"}
+              >
+                Save draft notes
+              </button>
+            </form>
+
+            {draftUpdateState.status === "loading" ? (
+              <p className="status">Saving draft notes...</p>
             ) : null}
+
+            {draftUpdateState.status === "updated" ? (
+              <p className="status">Draft notes saved.</p>
+            ) : null}
+
+            {draftUpdateState.status === "error" ? (
+              <div className="notice availability-notice" role="alert">
+                <h4>Draft notes unavailable</h4>
+                <p>{draftUpdateState.message}</p>
+              </div>
+            ) : null}
+
             <ul className="preview-list">
               {draftDetailState.draft.lines.map((line) => (
                 <li key={line.id}>
