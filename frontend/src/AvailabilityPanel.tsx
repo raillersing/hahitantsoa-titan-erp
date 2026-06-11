@@ -5,6 +5,8 @@ import {
   getCustomers,
   getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
+  getReservationDraft,
+  getReservationDrafts,
   getReservationItemAvailabilityPreview,
 } from "./api";
 import type {
@@ -36,6 +38,17 @@ type DraftCreationState =
 type CustomerState =
   | { status: "loading" }
   | { status: "loaded"; customers: Customer[] }
+  | { status: "error"; message: string };
+
+type DraftListState =
+  | { status: "loading" }
+  | { status: "loaded"; drafts: ReservationDraft[] }
+  | { status: "error"; message: string };
+
+type DraftDetailState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "loaded"; draft: ReservationDraft }
   | { status: "error"; message: string };
 
 type AvailabilityPanelProps = {
@@ -85,6 +98,31 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     useState<DraftCreationState>({
       status: "idle",
     });
+  const [draftListState, setDraftListState] = useState<DraftListState>({
+    status: "loading",
+  });
+  const [draftDetailState, setDraftDetailState] = useState<DraftDetailState>({
+    status: "idle",
+  });
+
+  async function refreshDrafts(signal?: AbortSignal) {
+    try {
+      const drafts = await getReservationDrafts(signal);
+      setDraftListState({ status: "loaded", drafts });
+    } catch (error) {
+      if (signal?.aborted) {
+        return;
+      }
+
+      setDraftListState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Reservation drafts could not be loaded.",
+      });
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -112,6 +150,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     }
 
     void loadCustomers();
+    void refreshDrafts(controller.signal);
 
     return () => controller.abort();
   }, []);
@@ -183,6 +222,23 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     setDraftCreationState({ status: "idle" });
   }
 
+  async function handleViewDraftDetail(draftId: string) {
+    setDraftDetailState({ status: "loading" });
+
+    try {
+      const draft = await getReservationDraft(draftId);
+      setDraftDetailState({ status: "loaded", draft });
+    } catch (error) {
+      setDraftDetailState({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Reservation draft detail could not be loaded.",
+      });
+    }
+  }
+
   async function handleCreateDraft() {
     if (availabilityState.status !== "loaded") {
       setDraftCreationState({
@@ -224,6 +280,8 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       });
 
       setDraftCreationState({ status: "created", draft });
+      setDraftDetailState({ status: "loaded", draft });
+      await refreshDrafts();
     } catch (error) {
       setDraftCreationState({
         status: "error",
@@ -287,6 +345,105 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           <p>{availabilityState.message}</p>
         </div>
       ) : null}
+
+      <section
+        className="availability-results"
+        aria-labelledby="reservation-drafts-heading"
+      >
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Draft-only reservations</p>
+            <h2 id="reservation-drafts-heading">Reservation drafts</h2>
+            <p className="section-helper">
+              Existing draft reservations from the backend. Viewing a draft does
+              not confirm it, block inventory, process payment, create invoices,
+              create contracts or generate PDF files.
+            </p>
+          </div>
+          {draftListState.status === "loaded" ? (
+            <span>{draftListState.drafts.length}</span>
+          ) : null}
+        </div>
+
+        {draftListState.status === "loading" ? (
+          <p className="status">Loading reservation drafts...</p>
+        ) : null}
+
+        {draftListState.status === "error" ? (
+          <div className="notice availability-notice" role="alert">
+            <h3>Reservation drafts unavailable</h3>
+            <p>{draftListState.message}</p>
+          </div>
+        ) : null}
+
+        {draftListState.status === "loaded" ? (
+          draftListState.drafts.length === 0 ? (
+            <p className="status">No reservation drafts are currently visible.</p>
+          ) : (
+            <ul className="preview-list">
+              {draftListState.drafts.map((draft) => (
+                <li key={draft.id}>
+                  <div>
+                    <strong>{draft.public_reference}</strong>
+                    <span>{draft.customer_display_name}</span>
+                    <span>
+                      {formatDateTime(draft.start_at)} — {formatDateTime(draft.end_at)}
+                    </span>
+                  </div>
+                  <span>{draft.status}</span>
+                  <span>{draft.lines.length} lines</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleViewDraftDetail(draft.id)}
+                  >
+                    View details
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
+
+        {draftDetailState.status === "loading" ? (
+          <p className="status">Loading reservation draft detail...</p>
+        ) : null}
+
+        {draftDetailState.status === "error" ? (
+          <div className="notice availability-notice" role="alert">
+            <h3>Reservation draft detail unavailable</h3>
+            <p>{draftDetailState.message}</p>
+          </div>
+        ) : null}
+
+        {draftDetailState.status === "loaded" ? (
+          <article className="notice availability-notice">
+            <h3>Draft detail {draftDetailState.draft.public_reference}</h3>
+            <p>Customer: {draftDetailState.draft.customer_display_name}</p>
+            <p>Status: {draftDetailState.draft.status}</p>
+            <p>
+              Period: {formatDateTime(draftDetailState.draft.start_at)} —{" "}
+              {formatDateTime(draftDetailState.draft.end_at)}
+            </p>
+            {draftDetailState.draft.notes ? (
+              <p>Notes: {draftDetailState.draft.notes}</p>
+            ) : null}
+            <ul className="preview-list">
+              {draftDetailState.draft.lines.map((line) => (
+                <li key={line.id}>
+                  <span>{line.inventory_item_name}</span>
+                  <span>{line.inventory_item_kind}</span>
+                  <span>Quantity: {line.quantity}</span>
+                  {line.notes ? <span>{line.notes}</span> : null}
+                </li>
+              ))}
+            </ul>
+            <p className="section-helper">
+              Draft-only view. No confirmation, payment, invoice, contract,
+              inventory blocking or PDF generation is performed.
+            </p>
+          </article>
+        ) : null}
+      </section>
 
       {availabilityState.status === "loaded" ? (
         <div className="availability-results">
