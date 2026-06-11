@@ -155,8 +155,8 @@ def test_create_draft_rejects_duplicate_items(authenticated_client) -> None:
     assert ReservationDraft.objects.count() == 0
 
 
-@pytest.mark.parametrize("method", ["put", "patch", "delete"])
-def test_reservation_draft_detail_rejects_write_methods(
+@pytest.mark.parametrize("method", ["delete"])
+def test_reservation_draft_detail_rejects_delete_method(
     authenticated_client,
     method: str,
 ) -> None:
@@ -188,4 +188,181 @@ def test_draft_creation_does_not_create_inventory_availability(authenticated_cli
     )
 
     assert response.status_code == 201
+    assert InventoryAvailability.objects.count() == 0
+
+
+def test_authenticated_user_can_update_reservation_draft_notes_only(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="f107-draft-update-notes",
+        password="password",
+    )
+    client.force_login(user)
+
+    customer = Customer.objects.create(display_name="F107 Customer")
+    item = InventoryItem.objects.create(name="F107 Projector", kind="material")
+    start_at = timezone.now() + timedelta(days=1)
+    end_at = start_at + timedelta(hours=2)
+
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=end_at,
+        notes="Initial notes.",
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        notes="Initial line notes.",
+    )
+
+    response = client.patch(
+        f"/api/v1/reservations/drafts/{draft.id}/",
+        data={"notes": "Updated notes only."},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == str(draft.id)
+    assert payload["status"] == "draft"
+    assert payload["notes"] == "Updated notes only."
+    assert len(payload["lines"]) == 1
+
+    draft.refresh_from_db()
+    assert draft.status == "draft"
+    assert draft.notes == "Updated notes only."
+    assert draft.lines.count() == 1
+
+
+def test_authenticated_user_can_replace_reservation_draft_lines(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="f107-draft-update-lines",
+        password="password",
+    )
+    client.force_login(user)
+
+    customer = Customer.objects.create(display_name="F107 Customer")
+    first_item = InventoryItem.objects.create(name="F107 Projector", kind="material")
+    second_item = InventoryItem.objects.create(name="F107 Lighting pack", kind="material_pack")
+    start_at = timezone.now() + timedelta(days=1)
+    end_at = start_at + timedelta(hours=2)
+
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=end_at,
+        notes="Initial notes.",
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=first_item,
+        quantity=1,
+        notes="Initial line notes.",
+    )
+
+    response = client.patch(
+        f"/api/v1/reservations/drafts/{draft.id}/",
+        data={
+            "notes": "Updated with replacement line.",
+            "lines": [
+                {
+                    "inventory_item_id": str(second_item.id),
+                    "quantity": 2,
+                    "notes": "Replacement line.",
+                }
+            ],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "draft"
+    assert payload["notes"] == "Updated with replacement line."
+    assert len(payload["lines"]) == 1
+    assert payload["lines"][0]["inventory_item_id"] == str(second_item.id)
+    assert payload["lines"][0]["quantity"] == 2
+    assert payload["lines"][0]["notes"] == "Replacement line."
+
+    draft.refresh_from_db()
+    assert draft.status == "draft"
+    assert draft.lines.count() == 1
+    assert draft.lines.get().inventory_item_id == second_item.id
+    assert draft.lines.get().quantity == 2
+
+
+def test_reservation_draft_update_rejects_empty_lines(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="f107-draft-update-empty-lines",
+        password="password",
+    )
+    client.force_login(user)
+
+    customer = Customer.objects.create(display_name="F107 Customer")
+    item = InventoryItem.objects.create(name="F107 Projector", kind="material")
+    start_at = timezone.now() + timedelta(days=1)
+    end_at = start_at + timedelta(hours=2)
+
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=end_at,
+        notes="Initial notes.",
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        notes="Initial line notes.",
+    )
+
+    response = client.patch(
+        f"/api/v1/reservations/drafts/{draft.id}/",
+        data={"lines": []},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert ReservationDraftLine.objects.filter(reservation_draft=draft).count() == 1
+
+
+def test_reservation_draft_update_does_not_create_commercial_side_effects(
+    client,
+    django_user_model,
+):
+    user = django_user_model.objects.create_user(
+        username="f107-draft-update-no-side-effects",
+        password="password",
+    )
+    client.force_login(user)
+
+    customer = Customer.objects.create(display_name="F107 Customer")
+    item = InventoryItem.objects.create(name="F107 Projector", kind="material")
+    start_at = timezone.now() + timedelta(days=1)
+    end_at = start_at + timedelta(hours=2)
+
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=end_at,
+        notes="Initial notes.",
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        notes="Initial line notes.",
+    )
+
+    response = client.patch(
+        f"/api/v1/reservations/drafts/{draft.id}/",
+        data={"notes": "Still only a draft."},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+
+    draft.refresh_from_db()
+    assert draft.status == "draft"
     assert InventoryAvailability.objects.count() == 0

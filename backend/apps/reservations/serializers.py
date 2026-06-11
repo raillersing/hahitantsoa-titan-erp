@@ -230,22 +230,24 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs):
-        start_at = attrs.get("start_at")
-        end_at = attrs.get("end_at")
+        start_at = attrs.get("start_at", getattr(self.instance, "start_at", None))
+        end_at = attrs.get("end_at", getattr(self.instance, "end_at", None))
         try:
             validate_reservation_period(start_at=start_at, end_at=end_at)
         except ValueError as error:
             raise serializers.ValidationError({"detail": str(error)}) from error
 
-        lines = attrs.get("lines") or []
-        if not lines:
-            raise serializers.ValidationError({"lines": "At least one line is required."})
+        should_validate_lines = self.instance is None or "lines" in attrs
+        if should_validate_lines:
+            lines = attrs.get("lines") or []
+            if not lines:
+                raise serializers.ValidationError({"lines": "At least one line is required."})
 
-        inventory_item_ids = [line["inventory_item"].id for line in lines]
-        if len(inventory_item_ids) != len(set(inventory_item_ids)):
-            raise serializers.ValidationError(
-                {"lines": "Each inventory item can appear only once per draft."}
-            )
+            inventory_item_ids = [line["inventory_item"].id for line in lines]
+            if len(inventory_item_ids) != len(set(inventory_item_ids)):
+                raise serializers.ValidationError(
+                    {"lines": "Each inventory item can appear only once per draft."}
+                )
 
         return attrs
 
@@ -264,3 +266,24 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             )
 
         return reservation_draft
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        lines_data = validated_data.pop("lines", None)
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+
+        instance.status = ReservationDraftStatus.DRAFT
+        instance.full_clean()
+        instance.save()
+
+        if lines_data is not None:
+            instance.lines.all().delete()
+            for line_data in lines_data:
+                ReservationDraftLine.objects.create(
+                    reservation_draft=instance,
+                    **line_data,
+                )
+
+        return instance

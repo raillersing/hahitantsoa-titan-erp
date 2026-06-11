@@ -203,3 +203,27 @@ def test_openapi_documentation_views_are_available(client) -> None:
 
     assert swagger_response.status_code == 200
     assert redoc_response.status_code == 200
+
+
+def test_openapi_schema_exposes_reservation_draft_update_contract(client) -> None:
+    response = client.get("/api/schema/?format=json")
+
+    assert response.status_code == 200
+
+    schema = response.json()
+    paths = schema["paths"]
+    draft_detail_path = _get_path(
+        paths,
+        (
+            "/api/v1/reservations/drafts/{id}/",
+            "/api/v1/reservations/drafts/{pk}/",
+        ),
+    )
+
+    draft_detail_operations = paths[draft_detail_path]
+
+    assert "get" in draft_detail_operations
+    assert "put" in draft_detail_operations
+    assert "patch" in draft_detail_operations
+    assert "delete" not in draft_detail_operations
+    assert "post" not in draft_detail_operations
