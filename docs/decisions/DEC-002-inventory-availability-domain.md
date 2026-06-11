@@ -121,3 +121,11 @@ Future work may include:
 - a future calendar or agenda view
 - stronger database-level anti-overlap protection if needed
 - partial quantity or multi-unit availability if the future inventory model requires it
+
+## F115B soft-delete clarification
+
+F115B clarifies the soft-delete semantics for `InventoryAvailability`.
+
+See [DEC-004 - Inventory availability soft-delete semantics](DEC-004-inventory-availability-soft-delete-semantics.md).
+
+The accepted target rule is that soft-deleted availability rows are retained for traceability but must not participate in active availability conflicts.
