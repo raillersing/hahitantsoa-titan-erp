@@ -11,6 +11,8 @@ RESERVATION_ITEM_AVAILABILITY_PREVIEW_PATHS = (
     "/api/v1/reservations/items/{id}/availability-preview/",
 )
 HAHITANTSOA_DISCOVERY_ITEMS_PATH = "/api/v1/hahitantsoa/discovery-items/"
+DOCUMENT_TEMPLATE_REGISTRY_PATH = "/api/v1/documents/templates/"
+DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",)
 WRITE_METHODS = {"post", "put", "patch", "delete"}
 
 
@@ -38,6 +40,9 @@ def _assert_get_only(path_operations: dict) -> None:
 
 
 def _resolve_schema(schema: dict, schema_reference: dict) -> dict:
+    if "$ref" not in schema_reference:
+        return schema_reference
+
     reference = schema_reference["$ref"]
     component_name = reference.rsplit("/", maxsplit=1)[-1]
     return schema["components"]["schemas"][component_name]
@@ -61,6 +66,10 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
         paths,
         RESERVATION_ITEM_AVAILABILITY_PREVIEW_PATHS,
     )
+    document_template_detail_path = _get_path(
+        paths,
+        DOCUMENT_TEMPLATE_DETAIL_PATHS,
+    )
 
     confirmed_read_only_paths = (
         INVENTORY_LIST_PATH,
@@ -69,6 +78,8 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
         RESERVATION_AVAILABLE_ITEM_PREVIEWS_PATH,
         item_availability_preview_path,
         HAHITANTSOA_DISCOVERY_ITEMS_PATH,
+        DOCUMENT_TEMPLATE_REGISTRY_PATH,
+        document_template_detail_path,
     )
 
     for path in confirmed_read_only_paths:
@@ -94,6 +105,51 @@ def test_openapi_schema_exposes_minimal_hahitantsoa_discovery_contract(client) -
 
     assert set(discovery_item["properties"]) == {"concept", "label"}
     assert discovery_item["required"] == ["concept", "label"]
+
+
+def test_openapi_schema_exposes_documents_template_contract(client) -> None:
+    response = client.get("/api/schema/?format=json")
+
+    assert response.status_code == 200
+
+    schema = response.json()
+    paths = schema["paths"]
+    detail_path = _get_path(paths, DOCUMENT_TEMPLATE_DETAIL_PATHS)
+
+    registry_operation = paths[DOCUMENT_TEMPLATE_REGISTRY_PATH]["get"]
+    registry_schema_reference = registry_operation["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]
+    registry_response = _resolve_schema(schema, registry_schema_reference)
+
+    assert {"items", "count"}.issubset(registry_response["properties"])
+
+    item_reference = registry_response["properties"]["items"]["items"]
+    template_definition = _resolve_schema(schema, item_reference)
+
+    expected_template_fields = {
+        "key",
+        "business_scope",
+        "document_type",
+        "label",
+        "version",
+        "status",
+        "source_kind",
+        "source_reference",
+        "template_path",
+        "preview_path",
+        "validated_by_client",
+        "notes",
+    }
+    assert expected_template_fields.issubset(template_definition["properties"])
+
+    detail_operation = paths[detail_path]["get"]
+    detail_schema_reference = detail_operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]
+    detail_response = _resolve_schema(schema, detail_schema_reference)
+
+    assert expected_template_fields.issubset(detail_response["properties"])
 
 
 def test_openapi_documentation_views_are_available(client) -> None:
