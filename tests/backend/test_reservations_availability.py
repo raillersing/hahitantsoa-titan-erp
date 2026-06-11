@@ -39,12 +39,15 @@ def _create_availability(
     start_at: datetime,
     end_at: datetime,
     status: InventoryAvailabilityStatus = InventoryAvailabilityStatus.BLOCKED,
+    is_deleted: bool = False,
 ) -> InventoryAvailability:
     return InventoryAvailability.objects.create(
         inventory_item=inventory_item,
         status=status,
         start_at=start_at,
         end_at=end_at,
+        is_deleted=is_deleted,
+        deleted_at=timezone.now() if is_deleted else None,
     )
 
 
@@ -112,6 +115,41 @@ def test_validate_reservation_item_availability_request_reports_conflicts(
     assert validation.inventory_unit_count is None
     assert validation.details is not None
     assert validation.details.conflicts == (conflict,)
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        InventoryAvailabilityStatus.BLOCKED,
+        InventoryAvailabilityStatus.RESERVED,
+    ],
+)
+def test_validate_reservation_item_availability_request_ignores_soft_deleted_conflicts(
+    status: InventoryAvailabilityStatus,
+) -> None:
+    item = _create_inventory_item()
+    start_at, end_at = _valid_period_bounds()
+    _create_availability(
+        inventory_item=item,
+        start_at=start_at,
+        end_at=end_at,
+        status=status,
+        is_deleted=True,
+    )
+
+    validation = validate_reservation_item_availability_request(
+        inventory_item=item,
+        inventory_item_kind=item.kind,
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert validation.valid is True
+    assert validation.available is True
+    assert validation.errors == ()
+    assert validation.inventory_unit_count is None
+    assert validation.details is not None
+    assert validation.details.conflicts == ()
 
 
 def test_validate_reservation_item_availability_request_uses_half_open_periods() -> None:

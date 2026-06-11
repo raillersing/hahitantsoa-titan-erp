@@ -37,12 +37,15 @@ def _create_availability(
     start_at,
     end_at,
     status: InventoryAvailabilityStatus = InventoryAvailabilityStatus.BLOCKED,
+    is_deleted: bool = False,
 ) -> InventoryAvailability:
     return InventoryAvailability.objects.create(
         inventory_item=inventory_item,
         status=status,
         start_at=start_at,
         end_at=end_at,
+        is_deleted=is_deleted,
+        deleted_at=timezone.now() if is_deleted else None,
     )
 
 
@@ -93,6 +96,43 @@ def test_overlapping_blocked_or_reserved_period_makes_item_unavailable(
             end_at=end_at,
         )
         is False
+    )
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        InventoryAvailabilityStatus.BLOCKED,
+        InventoryAvailabilityStatus.RESERVED,
+    ],
+)
+def test_soft_deleted_blocked_or_reserved_period_does_not_conflict(
+    status: InventoryAvailabilityStatus,
+) -> None:
+    item = _create_inventory_item()
+    start_at, end_at = _request_period()
+    _create_availability(
+        inventory_item=item,
+        status=status,
+        start_at=start_at,
+        end_at=end_at,
+        is_deleted=True,
+    )
+
+    conflicts = get_inventory_availability_conflicts(
+        inventory_item=item,
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    assert list(conflicts) == []
+    assert (
+        is_inventory_item_available(
+            inventory_item=item,
+            start_at=start_at,
+            end_at=end_at,
+        )
+        is True
     )
 
 

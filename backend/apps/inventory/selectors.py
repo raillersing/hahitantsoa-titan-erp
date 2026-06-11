@@ -25,6 +25,7 @@ def get_available_inventory_items_for_period(
 
     conflicting_periods = InventoryAvailability.objects.filter(
         inventory_item=OuterRef("pk"),
+        is_deleted=False,
         status__in=UNAVAILABLE_AVAILABILITY_STATUSES,
         start_at__lt=end_at,
         end_at__gt=start_at,
