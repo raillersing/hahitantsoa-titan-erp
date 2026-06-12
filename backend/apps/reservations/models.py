@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -41,6 +42,22 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
         max_length=32,
         choices=ReservationDraftStatus.choices,
         default=ReservationDraftStatus.DRAFT,
+    )
+    contract_signed_at = models.DateTimeField(null=True, blank=True)
+    contract_signed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    required_deposit_received_at = models.DateTimeField(null=True, blank=True)
+    required_deposit_received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
     )
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
