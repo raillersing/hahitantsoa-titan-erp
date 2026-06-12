@@ -1,3 +1,4 @@
+from dataclasses import FrozenInstanceError, fields, is_dataclass
 from datetime import timedelta
 
 import pytest
@@ -11,8 +12,11 @@ from apps.inventory.models import InventoryAvailability, InventoryAvailabilitySt
 from apps.reservations.confirmation import (
     CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
     CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
+    ReservationConfirmationPreflightError,
     ReservationDraftCancellationResult,
     ReservationDraftConfirmationResult,
+    ReservationLifecycleError,
+    ReservationLifecycleStateError,
     cancel_confirmed_reservation_draft,
     confirm_reservation_draft,
     mark_reservation_draft_contract_signed,
@@ -122,6 +126,32 @@ def test_mark_required_deposit_received_persists_timestamp_and_actor(
     assert draft.required_deposit_received_by_id == actor.pk
 
 
+def test_lifecycle_exceptions_subclass_value_error() -> None:
+    assert issubclass(ReservationLifecycleError, ValueError)
+    assert issubclass(ReservationLifecycleStateError, ReservationLifecycleError)
+    assert issubclass(ReservationConfirmationPreflightError, ReservationLifecycleError)
+
+
+def test_confirmation_result_dataclasses_are_frozen_with_stable_fields() -> None:
+    assert is_dataclass(ReservationDraftConfirmationResult)
+    assert ReservationDraftConfirmationResult.__dataclass_params__.frozen is True
+    assert tuple(field.name for field in fields(ReservationDraftConfirmationResult)) == (
+        "reservation_draft",
+        "blocked_item_count",
+    )
+
+    assert is_dataclass(ReservationDraftCancellationResult)
+    assert ReservationDraftCancellationResult.__dataclass_params__.frozen is True
+    assert tuple(field.name for field in fields(ReservationDraftCancellationResult)) == (
+        "reservation_draft",
+        "released_block_count",
+    )
+
+    result = ReservationDraftConfirmationResult(reservation_draft=object(), blocked_item_count=1)
+    with pytest.raises(FrozenInstanceError):
+        result.blocked_item_count = 2  # type: ignore[misc]
+
+
 def test_prerequisite_marker_write_denies_unauthorized_actor() -> None:
     draft = _draft()
 
@@ -160,6 +190,14 @@ def test_prerequisite_marker_write_refuses_soft_deleted_draft(django_user_model)
             actor=actor,
         )
 
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
+        mark_reservation_draft_required_deposit_received(
+            reservation_draft=draft,
+            actor=actor,
+        )
+
+    assert error_info.value.code == "soft_deleted_draft"
+
 
 def test_prerequisite_marker_write_refuses_draft_with_cancellation_metadata(
     django_user_model,
@@ -175,6 +213,32 @@ def test_prerequisite_marker_write_refuses_draft_with_cancellation_metadata(
             reservation_draft=draft,
             actor=actor,
         )
+
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
+        mark_reservation_draft_required_deposit_received(
+            reservation_draft=draft,
+            actor=actor,
+        )
+
+    assert error_info.value.code == "draft_has_cancellation_metadata"
+
+
+def test_prerequisite_marker_write_refuses_draft_with_confirmation_metadata(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save(update_fields=["confirmed_at", "confirmed_by"])
+
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
+        mark_reservation_draft_contract_signed(
+            reservation_draft=draft,
+            actor=actor,
+        )
+
+    assert error_info.value.code == "draft_has_confirmation_metadata"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -263,6 +327,11 @@ def test_confirmation_refuses_non_draft_state(django_user_model) -> None:
     with pytest.raises(ValueError):
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
 
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
+        confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "draft_not_in_draft_state"
+
 
 def test_confirmation_refuses_draft_with_cancellation_metadata(django_user_model) -> None:
     draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
@@ -276,6 +345,18 @@ def test_confirmation_refuses_draft_with_cancellation_metadata(django_user_model
     assert AuditEvent.objects.filter(action="reservation.confirmed").count() == 0
 
 
+def test_confirmation_refuses_draft_with_confirmation_metadata(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save(update_fields=["confirmed_at", "confirmed_by"])
+
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
+        confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "draft_has_confirmation_metadata"
+
+
 def test_confirmation_refuses_no_active_lines(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
@@ -285,8 +366,10 @@ def test_confirmation_refuses_no_active_lines(django_user_model) -> None:
         actor=actor,
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "draft_has_no_active_lines"
 
 
 def test_confirmation_refuses_missing_contract_marker(django_user_model) -> None:
@@ -298,8 +381,11 @@ def test_confirmation_refuses_missing_contract_marker(django_user_model) -> None
         actor=actor,
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "confirmation_preflight_failed"
+    assert error_info.value.blockers == ("missing_signed_contract",)
 
 
 def test_confirmation_refuses_missing_deposit_marker(django_user_model) -> None:
@@ -308,8 +394,11 @@ def test_confirmation_refuses_missing_deposit_marker(django_user_model) -> None:
     _line(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "confirmation_preflight_failed"
+    assert error_info.value.blockers == ("missing_required_deposit",)
 
 
 def test_confirmation_refuses_availability_conflict(django_user_model) -> None:
@@ -328,8 +417,11 @@ def test_confirmation_refuses_availability_conflict(django_user_model) -> None:
         end_at=draft.end_at,
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "confirmation_preflight_failed"
+    assert error_info.value.blockers == ("active_availability_conflict",)
 
 
 def test_confirmation_refuses_inactive_or_soft_deleted_inventory_item(django_user_model) -> None:
@@ -346,8 +438,11 @@ def test_confirmation_refuses_inactive_or_soft_deleted_inventory_item(django_use
     line.inventory_item.deleted_at = timezone.now()
     line.inventory_item.save(update_fields=["is_active", "is_deleted", "deleted_at"])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "confirmation_preflight_failed"
+    assert error_info.value.blockers == ("active_availability_conflict",)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -531,8 +626,10 @@ def test_cancellation_refuses_draft_unconfirmed_reservation(django_user_model) -
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
         cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "draft_not_confirmed"
 
 
 def test_cancellation_refuses_confirmed_status_without_confirmed_at(django_user_model) -> None:
@@ -541,8 +638,10 @@ def test_cancellation_refuses_confirmed_status_without_confirmed_at(django_user_
     draft.confirmed_at = None
     draft.save(update_fields=["confirmed_at"])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
         cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "incomplete_confirmation_metadata"
 
     assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
 
@@ -553,8 +652,10 @@ def test_cancellation_refuses_confirmed_status_without_confirmed_by(django_user_
     draft.confirmed_by = None
     draft.save(update_fields=["confirmed_by"])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
         cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "incomplete_confirmation_metadata"
 
     assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
 
@@ -567,8 +668,10 @@ def test_cancellation_refuses_partial_cancellation_metadata_on_confirmed_draft(
     draft.cancelled_at = timezone.now()
     draft.save(update_fields=["cancelled_at"])
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
         cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "partial_cancellation_metadata"
 
     assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
 
@@ -578,8 +681,10 @@ def test_cancellation_refuses_already_cancelled_reservation(django_user_model) -
     confirm_reservation_draft(reservation_draft=draft, actor=actor)
     cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
         cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "draft_already_cancelled"
 
 
 def test_cancellation_refuses_unauthorized_actor(django_user_model) -> None:

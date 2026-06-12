@@ -752,3 +752,40 @@ F122 does not add:
 - refund behavior;
 - `completed` or `no_show` lifecycle semantics;
 - Hahitantsoa write workflow.
+
+## Lifecycle service contract and error semantics hardening
+
+F123 hardens the backend-internal reservation lifecycle service contract
+without opening an API.
+
+It adds:
+
+- stable internal lifecycle exceptions that remain compatible with
+  `ValueError`;
+- stable machine-readable reservation-local error codes for lifecycle state and
+  prerequisite failures;
+- a dedicated preflight exception carrying the unchanged blocker tuple;
+- focused contract tests for immutable result/preflight dataclasses and stable
+  field names.
+
+F123 keeps current behavior explicit:
+
+- authorization failures still use `PermissionError`;
+- lifecycle state and prerequisite failures now raise stable reservation-local
+  exceptions that still subclass `ValueError`;
+- confirmation preflight failure still uses the same blocker values and remains
+  rollback-safe;
+- no transaction widening or new side effects are introduced.
+
+F123 does not add:
+
+- API, serializer, view, URL or router;
+- frontend behavior;
+- payment provider integration;
+- invoice or receipt workflow;
+- PDF contract generation;
+- refund behavior;
+- `completed` or `no_show` lifecycle semantics;
+- logistics or returns workflow;
+- Hahitantsoa write workflow;
+- OpenClaw.
