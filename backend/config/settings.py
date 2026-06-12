@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "apps.common.apps.CommonConfig",
+    "apps.audit.apps.AuditConfig",
     "apps.inventory.apps.InventoryConfig",
     "apps.reservations.apps.ReservationsConfig",
     "apps.documents.apps.DocumentsConfig",
