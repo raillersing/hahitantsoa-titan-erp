@@ -22,7 +22,7 @@ Scope:
 Required agents:
 - backend: <Agent A-F roles or none>
 - frontend: <Agent FE-A-F roles or none>
-- native subagents: use when available; otherwise execute roles sequentially
+- Codex subagents: use when available; otherwise execute roles sequentially in Codex
 
 Execution authorization:
 - inspect: yes/no
@@ -62,5 +62,7 @@ Environment rules:
 - important commands use scripts/dev/erp-logged-run with heredoc stdin
 - use .venv/bin/python, .venv/bin/pytest, or Docker Compose; no bare python
 - never read, display, source, inspect, or modify .env or secrets
-- never modify, commit, push, merge, or resync OpenClaw
+- use Codex and Codex subagents only
+- OpenClaw is decommissioned: never create, modify, resync, commit, push, merge, or
+  rely on OpenClaw sandbox output
 ```

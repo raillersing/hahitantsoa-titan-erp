@@ -383,6 +383,8 @@ Le workflow agent officiel est documente dans `docs/ai-agents/`.
 - Utiliser `docs/ai-agents/pr-quality-gates.md` pour les validations et rapports PR.
 - Utiliser des subagents natifs lorsqu'ils sont disponibles, sinon executer les memes
   roles sequentiellement.
+- Utiliser uniquement Codex et les subagents Codex. OpenClaw est decommissionne du
+  workflow actif et ses sorties ne doivent pas etre utilisees.
 - Les agents peuvent committer, pousser et ouvrir une PR uniquement lorsque la tache
   l'autorise explicitement.
 - Le merge reste toujours humain.

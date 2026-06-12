@@ -33,8 +33,10 @@ Never weaken a higher-priority rule to satisfy a lower-priority request.
 The official system is defined in [`docs/ai-agents/README.md`](docs/ai-agents/README.md).
 No other agent roster or prompt collection is authoritative.
 
+- Use Codex and Codex subagents only.
 - Use native Codex subagents when available.
-- If native subagents are unavailable, execute the same roles sequentially.
+- If native Codex subagents are unavailable, execute the same roles sequentially in
+  Codex.
 - Review agents inspect and report; they do not silently modify files.
 - Valid findings are fixed by the implementer within the approved scope.
 - The human remains the final merge authority.
@@ -55,6 +57,8 @@ Required frontend roles are selected from Agent FE-A through Agent FE-F in
 - Open the PR only when authorized.
 - CI must pass before merge.
 - Validate `main` after merge.
+- Confirm CI on `main` after merge.
+- Clean local task and review branches after merge when the human authorizes cleanup.
 - Never merge automatically.
 
 Every task prompt must state:
@@ -87,11 +91,12 @@ EOF
 - If an important command is accidentally run outside the wrapper, immediately run a
   logged recovery check and report the incident.
 
-OpenClaw is proposal-only and read-only:
+OpenClaw is decommissioned from the active Hahitantsoa/Titan ERP workflow.
 
-- keep its sandbox detached and clean;
-- never modify, commit, push, merge, or resync it;
-- treat its output as advisory evidence only.
+- Do not create, modify, resync, commit, push, merge, or rely on OpenClaw sandbox
+  output for this project.
+- Historical OpenClaw references may remain only in past audit records or task evidence;
+  they are not workflow authority.
 
 ## Engineering rules
 

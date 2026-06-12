@@ -10,9 +10,12 @@ official detailed multi-agent workflow.
 - Use `.venv/bin/python`, `.venv/bin/pytest`, or Docker Compose instead of bare
   `python`.
 - Never read, display, source, inspect, or modify `.env` or secrets.
-- Never modify OpenClaw; its detached sandbox is proposal-only and read-only.
+- Use Codex and Codex subagents only.
+- OpenClaw is decommissioned: do not create, modify, resync, commit, push, merge, or
+  rely on OpenClaw sandbox output.
 - Keep Titan limited to `material`, `article`, and `material_pack`.
 - Do not invent business behavior, APIs, payloads, models, migrations, or frontend
   workflows.
 - Require CI before merge and post-merge validation on `main`.
+- After merge, confirm `main` CI and clean local task/review branches when authorized.
 - Never merge automatically.

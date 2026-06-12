@@ -5,9 +5,14 @@ This directory is the only official detailed agent system for Hahitantsoa/Titan 
 
 ## Execution model
 
-Use native Codex subagents when available. Assign only the roles needed by the task and
-give each role a bounded inspection or implementation scope. If native subagents are
-unavailable, execute the same roles sequentially.
+The active project workflow uses Codex and Codex subagents only. Use native Codex
+subagents when available. Assign only the roles needed by the task and give each role a
+bounded inspection or implementation scope. If native Codex subagents are unavailable,
+execute the same roles sequentially in Codex.
+
+OpenClaw is decommissioned from this project workflow. Do not create, modify, resync,
+commit, push, merge, or rely on OpenClaw sandbox output. Historical OpenClaw references
+may remain only in past audit records or task evidence and are not workflow authority.
 
 Reviewers never apply silent corrections. They return findings with severity, evidence,
 and a verdict. The implementer fixes valid findings inside the approved scope before
@@ -62,8 +67,9 @@ Frontend roles:
 6. Fix valid findings without broadening scope.
 7. Commit, push, and open a PR only when authorized.
 8. Verify CI before human merge.
-9. Validate `main` after merge.
-10. Capture durable workflow improvements in a later small PR.
+9. Validate `main` and confirm CI on `main` after merge.
+10. Clean local task and review branches after merge when the human authorizes cleanup.
+11. Capture durable workflow improvements in a later small PR.
 
 ## Replaced guidance
 
