@@ -23,14 +23,17 @@ contraintes DB de completude des marqueurs de prerequis.
 F123 est termine : durcissement du contrat de service lifecycle interne avec
 exceptions stables et codes d'erreur reservation-local.
 
-F124 est la tranche active/recommandee :
-durcissement de la frontiere permissions + data-scope de l'API reservations,
-en conservant les endpoints availability read-only et l'API draft-only deja
-approuves.
+F124 est termine : durcissement de la frontiere permissions + data-scope de
+l'API reservations, en conservant les endpoints availability read-only et
+l'API draft-only deja approuves.
 
-F125 reste explicitement differee. La decision a ete prise de ne pas combiner
-F124 et F125 afin de garder une PR backend petite, testable et sans exposition
-prematuree des writes lifecycle.
+F125 est la prochaine tranche active/recommandee. Elle doit rester une decision
+courte sur l'exposition API future de la confirmation/annulation, avec un
+defaut decision-only sauf validation explicite contraire.
+
+La decision precedente de ne pas combiner F124 et F125 reste confirmee afin de
+garder les PR backend petites, testables et sans exposition prematuree des
+writes lifecycle.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
 
