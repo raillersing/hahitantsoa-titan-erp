@@ -869,3 +869,17 @@ F125B does not add runtime code, frontend behavior, payment provider
 integration, invoices, receipts, refunds, PDF contract generation, logistics,
 completed/no_show lifecycle states, Hahitantsoa write behavior, broad RBAC, or
 OpenClaw.
+
+## F127A payment and deposit backend boundary
+
+F127A records that the existing required-deposit reservation fields remain
+minimal confirmation prerequisite markers only.
+
+They are not a payment ledger, provider transaction, receipt, invoice, refund,
+or accounting workflow.
+
+A future payment/deposit backend domain must be introduced in a separately
+approved implementation slice and must not be silently bundled with document
+preview, PDF generation, receipt generation, provider integration, refund,
+reservation confirmation API exposure, frontend behavior, Hahitantsoa write
+behavior, broad RBAC, or OpenClaw.
