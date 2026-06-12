@@ -649,3 +649,40 @@ F121G remains backend-internal only. It does not add:
 - payment/invoice/receipt/accounting workflow;
 - quantity allocation, stock movement or inventory accounting model;
 - frontend behavior.
+
+## Confirmed reservation cancellation foundation
+
+F121H adds the first controlled backend-internal lifecycle reversal after
+confirmation.
+
+It adds:
+
+- `cancel_confirmed_reservation_draft` in `confirmation.py`;
+- durable cancelled reservation state on `ReservationDraft`;
+- soft-delete release of linked confirmation `InventoryAvailability` rows only;
+- success audit scheduling on commit for cancellation.
+
+The cancellation flow:
+
+- requires reservation-sensitive staff authorization;
+- requires durable attribution capture;
+- locks the reservation draft row;
+- locks linked confirmation inventory blocks;
+- refuses non-confirmed drafts;
+- refuses already cancelled drafts;
+- refuses soft-deleted drafts;
+- releases only the linked confirmation blocks by soft-deleting them;
+- persists cancelled reservation state in the same transaction;
+- schedules success audit only on commit.
+
+F121H deliberately does not add `completed` or `no_show` lifecycle semantics.
+Those remain deferred until the business meaning is explicit enough to avoid
+ambiguous internal transitions.
+
+F121H remains backend-internal only. It does not add:
+
+- cancellation API, serializer, view or URL;
+- refund/payment/accounting workflow;
+- invoice or receipt lifecycle;
+- document/PDF lifecycle;
+- frontend behavior.
