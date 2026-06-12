@@ -278,6 +278,26 @@ Current F121B2 semantics remain intentionally small:
 
 This primitive does not create roles, groups, operators, managers, reviewers, broad RBAC, confirmation, audit persistence, attribution fields, contract prerequisites, or deposit prerequisites.
 
+## Reservation-sensitive attribution
+
+F121D adds `attribution.py` as a narrow backend-only foundation for future
+reservation-sensitive writes.
+
+`capture_reservation_sensitive_actor_attribution(actor=...)`:
+
+- reuses the F121B2 reservation-sensitive staff actor authorization;
+- requires an actor with a persistent identifier;
+- captures that identifier with a timezone-aware attribution timestamp;
+- returns an immutable `ReservationSensitiveActorAttribution` value object.
+
+The value object does not persist anything by itself. A future approved sensitive-write
+service must persist its actor identifier and timestamp atomically with its own durable
+business state and may use F121C separately for transaction-safe success audit events.
+
+F121D does not add confirmation, confirmation fields or status, audit events, inventory
+blocking, contract or deposit prerequisites, roles, groups, endpoints, or frontend
+behavior.
+
 F54 ajoute des tests de garde-fou Titan scope sur les services reservations.
 
 Les services reservations doivent traiter comme reservables uniquement :
