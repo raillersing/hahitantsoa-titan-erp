@@ -11,10 +11,11 @@
 ## Historical status note
 
 This document remains useful as the post-F121J backend roadmap refresh, but it
-now predates the completed F122 and F123 slices.
+now predates the completed F122, F123, and F124 slices.
 
-After F123, F124 is the active backend boundary-hardening task and F125 remains
-explicitly deferred until F124 is validated.
+After F124, the next recommended roadmap step is F125 as a narrow
+confirmation/cancellation API decision slice. F125 should default to
+decision-only unless a later task explicitly approves implementation.
 
 ## 2. F121 lifecycle completion summary
 
@@ -112,24 +113,30 @@ Objective:
 
 ### F124 - backend permissions and data-scope hardening
 
-Current active slice after F123.
+Completed after F123.
 
-Objective:
+Outcome:
 
-- tighten backend authorization and data-scope guarantees around sensitive
-  reservation operations;
-- keep the implementation backend-only and Titan-safe.
+- tightened the existing reservation API permission boundary with explicit
+  reservations-local DRF permission classes;
+- hardened data-scope tests for existing availability and draft surfaces;
+- preserved the current boundary where lifecycle confirmation/cancellation
+  remains internal to backend services.
 
 ### F125 - reservation confirmation/cancellation API decision
 
-Deferred until F124 validation is complete.
+Next recommended active slice after F124.
 
 Objective:
 
 - decide whether backend-internal lifecycle operations should remain internal or
   gain a narrow authenticated API surface;
 - default to decision-only unless a later task explicitly approves
-  implementation.
+  implementation;
+- avoid adding lifecycle write endpoints, serializers, views, URLs, routers,
+  frontend behavior, payment provider integration, invoices, receipts, PDF
+  generation, refunds, logistics, returns, completed/no_show semantics,
+  Hahitantsoa write behavior, broad RBAC, or OpenClaw.
 
 ### F126 - commercial documents backend foundation
 
@@ -182,11 +189,19 @@ Future slices must not silently add:
 - `completed` or `no_show` lifecycle semantics;
 - unrelated cross-domain broadening.
 
-## 7. Recommended next step
+## 7. Recommended next step after F124
 
-`F122A - contract/deposit prerequisite cadrage` is the next recommended
-implementation/planning step after F121K.
+`F125 - reservation confirmation/cancellation API decision` is the next
+recommended step after F124.
 
-It is the smallest coherent next slice because it clarifies what must become a
-stronger durable prerequisite foundation before later API, commercial document,
-or payment-domain work can proceed safely.
+It should stay decision-only by default because the backend now has an internal
+reservation lifecycle foundation, but exposing that lifecycle as a public API
+would freeze an external contract. A later implementation slice may only open
+such an API after explicit approval.
+
+After F125, the recommended backend finalization sequence remains:
+
+1. F126 - commercial documents backend foundation;
+2. F127 - payment/deposit backend foundation;
+3. F128 - logistics and returns backend foundation;
+4. F129 - backend completion audit for remaining ERP domains.

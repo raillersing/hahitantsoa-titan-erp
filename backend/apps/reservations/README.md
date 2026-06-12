@@ -826,3 +826,28 @@ F124 does not add:
 - logistics or returns workflow;
 - Hahitantsoa write workflow;
 - OpenClaw.
+
+## Backend roadmap refresh after F124
+
+F125A refreshes the backend roadmap after F124.
+
+F124 is complete and keeps the existing reservation API boundary explicit:
+availability endpoints remain authenticated read-only, the draft API remains
+authenticated and draft-only, and lifecycle confirmation/cancellation remains
+internal to backend services.
+
+The next recommended slice is F125, a narrow reservation confirmation/
+cancellation API decision. F125 should remain decision-only by default unless a
+later task explicitly approves implementation.
+
+The recommended backend finalization sequence after F125 remains:
+
+1. F126 - commercial documents backend foundation;
+2. F127 - payment/deposit backend foundation;
+3. F128 - logistics and returns backend foundation;
+4. F129 - backend completion audit for remaining ERP domains.
+
+This roadmap refresh does not add API routes, serializers, views, URLs, routers,
+frontend behavior, payment provider integration, invoices, receipts, PDF
+generation, refunds, logistics, returns, completed/no_show semantics,
+Hahitantsoa write behavior, broad RBAC, or OpenClaw.
