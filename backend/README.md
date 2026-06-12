@@ -14,10 +14,13 @@ Depuis la racine du repository :
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -e .
-set -a && source .env && set +a && .venv/bin/python backend/manage.py check
+.venv/bin/python backend/manage.py check
 ```
 
-Ne pas executer les migrations avant validation explicite d'une phase ulterieure.
+Ces commandes supposent que l'environnement d'execution a deja ete prepare par
+l'operateur humain. Les agents ne doivent jamais ouvrir, lire, afficher, sourcer,
+inspecter ou modifier `.env`. Ne pas executer les migrations avant validation explicite
+d'une phase ulterieure.
 
 ## Qualite backend
 
@@ -32,7 +35,7 @@ Executer le format check Ruff, le lint Ruff et les tests Foundation :
 ```sh
 .venv/bin/python -m ruff format --check .
 .venv/bin/python -m ruff check .
-set -a && source .env && set +a && .venv/bin/python -m pytest
+.venv/bin/python -m pytest
 ```
 
 Ces controles restent techniques. Aucun module metier Hahitantsoa/Titan n'est encore cree.

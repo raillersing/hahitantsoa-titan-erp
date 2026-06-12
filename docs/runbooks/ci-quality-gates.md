@@ -17,7 +17,9 @@ The workflow is active for:
 
 The CI quality gates provide an independent validation layer before a pull request is merged.
 
-They do not replace human review, Agent B review, or post-merge validation. They make the existing workflow safer by checking backend and frontend quality automatically on GitHub.
+They do not replace independent agent review, human review, or post-merge validation.
+They make the existing workflow safer by checking backend and frontend quality
+automatically on GitHub.
 
 ## Jobs
 
@@ -94,7 +96,8 @@ The F95 inspection confirmed:
 Operational consequence:
 
 - GitHub may not automatically block a manual merge when CI is failing.
-- The human supervisor and Agent B must treat `Backend quality` and `Frontend quality` as mandatory manual gates before merge.
+- The human supervisor and assigned independent reviewers must treat `Backend quality`
+  and `Frontend quality` as mandatory manual gates before merge.
 - A pull request must not be merged unless both checks are explicitly verified as `pass`, or an exception is documented and approved by the human supervisor.
 
 If the repository is later upgraded to a plan that supports private branch protection, or if the repository becomes public, configure `main` protection with these required checks:
@@ -104,9 +107,9 @@ If the repository is later upgraded to a plan that supports private branch prote
 
 Until then, the manual merge checklist is mandatory.
 
-## Human and Agent B responsibilities
+## Human and independent reviewer responsibilities
 
-Before merge, the human supervisor and Agent B must confirm:
+Before merge, the human supervisor and assigned independent reviewers must confirm:
 
 - the PR targets `main`;
 - the PR scope matches the approved task;

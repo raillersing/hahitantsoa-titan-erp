@@ -151,20 +151,16 @@ Cette validation combine le kind reservable via `assert_reservable_inventory_ite
 
 F36 ne cree aucune reservation persistante, aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend. L'API inventory reste read-only.
 
-OP1 ajoute une couche documentaire d'optimisation des prompts Codex pour reduire les prompts repetitifs tout en conservant les garde-fous senior :
+F121E-0 remplace les anciennes generations de prompts et workflows agents par un seul
+systeme officiel :
 
-- `docs/codex/task-prompt-template.md` ;
-- `docs/codex/reasoning-policy.md` ;
-- `docs/codex/validation-checklist.md`.
-
-Le workflow OP1 standardise les prompts courts par tache Fxx, le choix du niveau de reasoning et les validations de fin de tache. Il ne modifie aucun code applicatif backend, ne cree aucun modele, migration, serializer, view, URL, endpoint, admin ou frontend, et ne change pas les decisions Titan.
-
-OP1-b formalise le workflow Codex en deux temps :
-
-1. `PLAN ONLY` : lire, analyser, proposer le plan, lister les fichiers et validations, sans modifier de fichier.
-2. `IMPLEMENT APPROVED PLAN` : appliquer uniquement le plan approuve, executer les validations pertinentes et produire le rapport final.
-
-Ce workflow vise les taches sensibles, structurantes ou explicitement soumises a approbation.
+- `AGENTS.md` reste la source courte de verite ;
+- `docs/ai-agents/` definit les roles backend/frontend, les quality gates, le template
+  de tache et la boucle d'amelioration ;
+- les subagents natifs sont utilises lorsqu'ils sont disponibles, sinon les memes roles
+  sont executes sequentiellement ;
+- la publication Git est permise uniquement quand la tache l'autorise explicitement ;
+- le merge reste toujours humain.
 
 F37 ajoute un helper backend interne de validation de disponibilite pour une future demande de reservation item + periode.
 
@@ -329,7 +325,10 @@ F70 clarifie le plus petit scope MVP Hahitantsoa et la roadmap globale Hahitants
 
 F70 ne modifie aucun comportement applicatif. Le resultat d'acceptation locale Titan reste `PASS`, mais le projet complet n'est pas production-ready.
 
-F71 formalise un workflow Codex a deux agents pour les changements qui beneficient d'une revue independante : Agent A implemente le plan approuve, puis Agent B realise une revue critique sans modifier les fichiers. Les operations Git de publication et de merge restent manuelles. Voir [docs/codex/two-agent-workflow.md](docs/codex/two-agent-workflow.md).
+F121E-0 remplace les anciens workflows agents concurrents par un systeme multi-agent
+officiel unique. `AGENTS.md` reste la source courte de verite et
+[`docs/ai-agents/`](docs/ai-agents/README.md) porte les roles backend/frontend, les
+quality gates, le template de tache et la boucle d'amelioration. Le merge reste humain.
 
 F72 est terminee et a supprime les exemples documentaires historiques qui demandaient aux agents de sourcer directement `.env`.
 
@@ -375,16 +374,20 @@ afficher, ouvrir, inspecter ou lire directement `.env`.
 8. [docs/architecture/foundation-plan.md](docs/architecture/foundation-plan.md)
 9. [docs/runbooks/local-development.md](docs/runbooks/local-development.md)
 
-## Workflow Codex
+## Workflow agents officiel
 
-Les prompts courts Codex sont documentes dans `docs/codex/`.
+Le workflow agent officiel est documente dans `docs/ai-agents/`.
 
-- Utiliser `docs/codex/task-prompt-template.md` pour cadrer les futures taches Fxx.
-- Utiliser `docs/codex/reasoning-policy.md` pour choisir Low, Medium ou High selon le risque.
-- Utiliser `docs/codex/validation-checklist.md` pour preparer le rapport final et les validations.
-- Utiliser `docs/codex/two-agent-workflow.md` lorsqu'une implementation doit etre suivie d'une revue independante.
-- Utiliser `PLAN ONLY` puis `IMPLEMENT APPROVED PLAN` pour les taches sensibles ou explicitement soumises a approbation.
-- Les agents ne font ni commit, ni push, ni creation de PR, ni merge ; ces operations restent manuelles.
+- Utiliser `docs/ai-agents/task-prompt-template.md` pour cadrer les futures taches.
+- Utiliser les templates backend/frontend pour assigner des roles bornes.
+- Utiliser `docs/ai-agents/pr-quality-gates.md` pour les validations et rapports PR.
+- Utiliser des subagents natifs lorsqu'ils sont disponibles, sinon executer les memes
+  roles sequentiellement.
+- Utiliser uniquement Codex et les subagents Codex. OpenClaw est decommissionne du
+  workflow actif et ses sorties ne doivent pas etre utilisees.
+- Les agents peuvent committer, pousser et ouvrir une PR uniquement lorsque la tache
+  l'autorise explicitement.
+- Le merge reste toujours humain.
 - Integrer les mises a jour documentaires utiles dans la meme PR que la tache quand c'est raisonnable.
 
 Ces documents ne remplacent pas les sources de verite. `AGENTS.md`, `DEC-001` et `DEC-002` restent prioritaires.
