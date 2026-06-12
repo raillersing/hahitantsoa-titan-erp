@@ -22,7 +22,11 @@ from apps.reservations.confirmation import (
     ReservationDraftConfirmationPreflight,
     get_reservation_draft_confirmation_preflight,
 )
-from apps.reservations.models import ReservationDraft, ReservationDraftLine
+from apps.reservations.models import (
+    ReservationDraft,
+    ReservationDraftLine,
+    ReservationDraftStatus,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -64,6 +68,31 @@ def _actor(*, django_user_model, username: str = "reservation-staff", is_staff: 
         username=username,
         password="test-password",
         is_staff=is_staff,
+    )
+
+
+def _snapshot_reservation_draft(draft: ReservationDraft) -> dict[str, object | None]:
+    draft.refresh_from_db()
+    return {
+        "status": draft.status,
+        "contract_signed_at": draft.contract_signed_at,
+        "contract_signed_by_id": draft.contract_signed_by_id,
+        "required_deposit_received_at": draft.required_deposit_received_at,
+        "required_deposit_received_by_id": draft.required_deposit_received_by_id,
+        "confirmed_at": draft.confirmed_at,
+        "confirmed_by_id": draft.confirmed_by_id,
+        "cancelled_at": draft.cancelled_at,
+        "cancelled_by_id": draft.cancelled_by_id,
+    }
+
+
+def _snapshot_availabilities() -> tuple[tuple[object | None, bool, object | None], ...]:
+    return tuple(
+        InventoryAvailability.objects.order_by("id").values_list(
+            "reservation_draft_id",
+            "is_deleted",
+            "deleted_at",
+        )
     )
 
 
@@ -318,6 +347,8 @@ def test_confirmation_preflight_does_not_confirm_or_write_side_effects(
     draft = _draft()
     _line(reservation_draft=draft, inventory_item=_item(kind="material"))
     actor = _actor(django_user_model=django_user_model)
+    draft_state = _snapshot_reservation_draft(draft)
+    availability_state = _snapshot_availabilities()
     availability_count = InventoryAvailability.objects.count()
     audit_count = AuditEvent.objects.count()
 
@@ -326,10 +357,11 @@ def test_confirmation_preflight_does_not_confirm_or_write_side_effects(
         actor=actor,
     )
 
-    draft.refresh_from_db()
-    assert draft.status == "draft"
+    assert _snapshot_reservation_draft(draft) == draft_state
+    assert draft.status == ReservationDraftStatus.DRAFT
     assert preflight.can_confirm is False
     assert InventoryAvailability.objects.count() == availability_count
+    assert _snapshot_availabilities() == availability_state
     assert AuditEvent.objects.count() == audit_count
 
 
@@ -347,6 +379,74 @@ def test_confirmation_preflight_rejects_non_draft_source_state(
     )
 
     assert RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA in preflight.blockers
+
+
+@pytest.mark.parametrize(
+    ("scenario", "configure"),
+    [
+        (
+            "unauthorized_actor",
+            lambda draft, actor, item: None,
+        ),
+        (
+            "availability_conflict",
+            lambda draft, actor, item: InventoryAvailability.objects.create(
+                inventory_item=item,
+                status=InventoryAvailabilityStatus.RESERVED,
+                start_at=draft.start_at,
+                end_at=draft.end_at,
+            ),
+        ),
+        (
+            "missing_prerequisites",
+            lambda draft, actor, item: None,
+        ),
+        (
+            "non_draft_state",
+            lambda draft, actor, item: setattr(draft, "status", ReservationDraftStatus.CONFIRMED),
+        ),
+        (
+            "soft_deleted_lines",
+            lambda draft, actor, item: draft.lines.update(
+                is_deleted=True,
+                deleted_at=timezone.now(),
+            ),
+        ),
+    ],
+)
+def test_confirmation_preflight_remains_read_only_across_blocker_scenarios(
+    django_user_model,
+    scenario: str,
+    configure,
+) -> None:
+    draft = _draft()
+    item = _item(kind="material")
+    _line(reservation_draft=draft, inventory_item=item)
+    actor = _actor(django_user_model=django_user_model)
+
+    if scenario == "non_draft_state":
+        configure(draft, actor, item)
+    else:
+        configure(draft, actor, item)
+        if scenario == "soft_deleted_lines":
+            pass
+
+    if scenario == "non_draft_state":
+        draft.save(update_fields=["status"])
+
+    draft_state = _snapshot_reservation_draft(draft)
+    availability_count = InventoryAvailability.objects.count()
+    availability_state = _snapshot_availabilities()
+
+    preflight = get_reservation_draft_confirmation_preflight(
+        reservation_draft=draft,
+        actor=None if scenario == "unauthorized_actor" else actor,
+    )
+
+    assert preflight.can_confirm is False
+    assert _snapshot_reservation_draft(draft) == draft_state
+    assert InventoryAvailability.objects.count() == availability_count
+    assert _snapshot_availabilities() == availability_state
 
 
 def test_confirmation_preflight_dataclass_is_frozen() -> None:

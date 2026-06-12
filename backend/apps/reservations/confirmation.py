@@ -155,6 +155,9 @@ def _assert_active_draft_state(*, reservation_draft: ReservationDraft) -> None:
     if reservation_draft.status != ReservationDraftStatus.DRAFT:
         raise ValueError("Reservation draft must remain in draft state.")
 
+    if reservation_draft.cancelled_at is not None or reservation_draft.cancelled_by_id is not None:
+        raise ValueError("Reservation draft already carries cancellation metadata.")
+
     if reservation_draft.confirmed_at is not None or reservation_draft.confirmed_by_id is not None:
         raise ValueError("Reservation draft already carries confirmation metadata.")
 
@@ -245,8 +248,14 @@ def _assert_confirmed_draft_state(*, reservation_draft: ReservationDraft) -> Non
     if _is_cancelled(reservation_draft=reservation_draft):
         raise ValueError("Reservation draft is already cancelled.")
 
-    if not _is_confirmed(reservation_draft=reservation_draft):
+    if reservation_draft.status != ReservationDraftStatus.CONFIRMED:
         raise ValueError("Reservation draft must already be confirmed.")
+
+    if reservation_draft.confirmed_at is None or reservation_draft.confirmed_by_id is None:
+        raise ValueError("Reservation draft must carry complete confirmation metadata.")
+
+    if reservation_draft.cancelled_at is not None or reservation_draft.cancelled_by_id is not None:
+        raise ValueError("Reservation draft must not carry partial cancellation metadata.")
 
 
 def _locked_active_confirmation_inventory_blocks(

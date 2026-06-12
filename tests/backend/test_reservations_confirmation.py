@@ -161,6 +161,22 @@ def test_prerequisite_marker_write_refuses_soft_deleted_draft(django_user_model)
         )
 
 
+def test_prerequisite_marker_write_refuses_draft_with_cancellation_metadata(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+    draft.cancelled_at = timezone.now()
+    draft.cancelled_by = actor
+    draft.save(update_fields=["cancelled_at", "cancelled_by"])
+
+    with pytest.raises(ValueError):
+        mark_reservation_draft_contract_signed(
+            reservation_draft=draft,
+            actor=actor,
+        )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_prerequisite_marker_write_rolls_back_with_outer_transaction(
     django_user_model,
@@ -246,6 +262,18 @@ def test_confirmation_refuses_non_draft_state(django_user_model) -> None:
 
     with pytest.raises(ValueError):
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+
+def test_confirmation_refuses_draft_with_cancellation_metadata(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    draft.cancelled_at = timezone.now()
+    draft.cancelled_by = actor
+    draft.save(update_fields=["cancelled_at", "cancelled_by"])
+
+    with pytest.raises(ValueError):
+        confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert AuditEvent.objects.filter(action="reservation.confirmed").count() == 0
 
 
 def test_confirmation_refuses_no_active_lines(django_user_model) -> None:
@@ -449,12 +477,100 @@ def test_cancellation_releases_only_linked_confirmation_blocks(django_user_model
     )
 
 
+def test_cancellation_does_not_modify_unrelated_or_soft_deleted_blocks(
+    django_user_model,
+) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+    draft.refresh_from_db()
+
+    own_active_block = InventoryAvailability.objects.get(
+        reservation_draft=draft,
+        is_deleted=False,
+    )
+    unrelated_block = InventoryAvailability.objects.create(
+        inventory_item=own_active_block.inventory_item,
+        status=InventoryAvailabilityStatus.BLOCKED,
+        start_at=draft.start_at,
+        end_at=draft.end_at,
+        notes="Unrelated block",
+    )
+    other_draft, other_actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=other_draft, actor=other_actor)
+    other_block = InventoryAvailability.objects.get(
+        reservation_draft=other_draft,
+        is_deleted=False,
+    )
+    soft_deleted_linked_block = InventoryAvailability.objects.create(
+        inventory_item=own_active_block.inventory_item,
+        reservation_draft=draft,
+        status=InventoryAvailabilityStatus.RESERVED,
+        start_at=draft.start_at,
+        end_at=draft.end_at,
+        notes="Already released",
+        is_deleted=True,
+        deleted_at=timezone.now(),
+    )
+
+    cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    own_active_block.refresh_from_db()
+    unrelated_block.refresh_from_db()
+    other_block.refresh_from_db()
+    soft_deleted_linked_block.refresh_from_db()
+
+    assert own_active_block.is_deleted is True
+    assert unrelated_block.is_deleted is False
+    assert unrelated_block.notes == "Unrelated block"
+    assert other_block.is_deleted is False
+    assert soft_deleted_linked_block.is_deleted is True
+    assert soft_deleted_linked_block.notes == "Already released"
+
+
 def test_cancellation_refuses_draft_unconfirmed_reservation(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
 
     with pytest.raises(ValueError):
         cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+
+def test_cancellation_refuses_confirmed_status_without_confirmed_at(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+    draft.confirmed_at = None
+    draft.save(update_fields=["confirmed_at"])
+
+    with pytest.raises(ValueError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
+
+
+def test_cancellation_refuses_confirmed_status_without_confirmed_by(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+    draft.confirmed_by = None
+    draft.save(update_fields=["confirmed_by"])
+
+    with pytest.raises(ValueError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
+
+
+def test_cancellation_refuses_partial_cancellation_metadata_on_confirmed_draft(
+    django_user_model,
+) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+    draft.cancelled_at = timezone.now()
+    draft.save(update_fields=["cancelled_at"])
+
+    with pytest.raises(ValueError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
 
 
 def test_cancellation_refuses_already_cancelled_reservation(django_user_model) -> None:
@@ -499,6 +615,8 @@ def test_cancellation_refuses_soft_deleted_reservation_draft(django_user_model) 
 
     with pytest.raises(ValueError):
         cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
