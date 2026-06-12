@@ -1,7 +1,11 @@
 # Audit
 
-Role prevu : accueillir les futurs journaux d'audit, la tracabilite et les evenements sensibles.
+Role : accueillir les journaux d'audit, la tracabilite et les evenements sensibles.
 
-Hors perimetre F13 : aucun systeme d'audit actif et aucune collecte d'evenements n'est creee.
+F121C ajoute une fondation minimale pour enregistrer les succes durables d'actions sensibles :
 
-Aucun modele, migration, serializer, viewset ou endpoint n'est cree dans ce domaine.
+- `AuditEvent` persiste l'acteur optionnel, l'action, la cible et des metadonnees minimales ;
+- `record_audit_event_on_commit(...)` planifie la creation uniquement apres commit reussi ;
+- un rollback annule le callback et ne laisse aucun faux audit de succes.
+
+F121C ne cree aucun endpoint, serializer, view, event bus, integration Celery ou workflow de confirmation. Les audits de refus et d'echec restent hors perimetre jusqu'a une decision technique dediee.
