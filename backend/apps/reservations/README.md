@@ -530,3 +530,47 @@ Drafts are preparation records only. A draft line references an existing active
 Titan `InventoryItem`, and a draft references an active `Customer`.
 
 The allowed reservation draft status is currently only `draft`.
+
+## Reservation confirmation preflight
+
+F121E adds `confirmation.py` as a narrow internal read-only preflight helper for
+future reservation confirmation.
+
+Exposed dataclass:
+
+- `ReservationDraftConfirmationPreflight`.
+
+Exposed function:
+
+- `get_reservation_draft_confirmation_preflight`.
+
+The helper evaluates a persisted `ReservationDraft` and reports explicit
+blockers for future confirmation readiness, including:
+
+- reservation-sensitive staff actor authorization;
+- actor attribution capture readiness;
+- soft-deleted draft rejection;
+- presence of active draft lines;
+- availability revalidation through the existing reservations availability helper;
+- still-missing signed contract prerequisite;
+- still-missing deposit received prerequisite.
+
+The blocker vocabulary intentionally stays aligned with the accepted
+machine-readable confirmation categories from DEC-005, but this preflight
+remains an internal advisory helper only. It must not be treated as authority
+to confirm, and it must not be exposed as a public API contract without an
+explicit later slice.
+
+The preflight result reports only `attribution_ready`. It does not expose or
+persist confirmation attribution metadata. Future confirmation must capture
+durable attribution again inside the real transactional write.
+
+F121E stays strictly backend-internal and read-only. It does not:
+
+- confirm a reservation draft;
+- create a confirmation endpoint, serializer, view or URL;
+- add a confirmed status;
+- write audit rows;
+- create `InventoryAvailability` rows;
+- add attribution fields to reservation models;
+- add signed-contract or deposit/payment models.
