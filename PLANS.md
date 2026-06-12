@@ -8,9 +8,19 @@ La Foundation documentaire est terminee. Le MVP read-only Hahitantsoa/Titan a et
 L'audit MVP F79 reste documente dans `docs/mvp/mvp-gap-audit.md` comme historique pre-F98/F100.
 Depuis F100/F101, une ecriture limitee et authentifiee existe pour creer des brouillons de reservation `ReservationDraft` draft-only. Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
-F121E-0 est en cours : reset documentaire majeur du workflow agents. Cette tranche
-remplace les definitions concurrentes par `AGENTS.md` et un systeme officiel unique dans
-`docs/ai-agents/`, sans modifier le comportement backend ou frontend.
+Le socle backend reservations F121E a F121J est termine et merge :
+
+- F121E : preflight de confirmation en lecture seule ;
+- F121F : marqueurs durables de prerequis contrat/acompte ;
+- F121G : confirmation transactionnelle interne des brouillons ;
+- F121H : annulation interne d'une reservation confirmee ;
+- F121I : audit non modifiant du lifecycle interne ;
+- F121J : durcissement des invariants de lifecycle et de la securite transactionnelle.
+
+La prochaine tranche recommandee est `F122A` :
+`contract/deposit prerequisite cadrage`, en restant backend-first, PR-sized et sans
+ouvrir d'API, de frontend, de workflow commercial complet ou de write workflow
+Hahitantsoa.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
 

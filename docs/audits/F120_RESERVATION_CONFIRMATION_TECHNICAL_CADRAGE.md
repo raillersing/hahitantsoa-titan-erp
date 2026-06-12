@@ -13,6 +13,17 @@ F120:
 
 F120 does not change application code or runtime behavior.
 
+## Historical status note
+
+F120 is preserved as a historical technical cadrage document written before the
+F121E-F121J backend reservation lifecycle work was delivered.
+
+Its readiness and blocking-gap sections remain useful as historical inspection
+evidence, but they no longer describe the exact repository state after F121J.
+
+For the refreshed post-F121J status and next-step sequence, use
+`docs/audits/F121K_F121_LIFECYCLE_AND_BACKEND_ROADMAP_REFRESH.md`.
+
 Historical note: earlier F117/F118/F119 handoff language left open the possibility that F120 could become the first narrow confirmation implementation slice. F120 inspection narrowed the outcome: F120 accepts the guard decisions and records why implementation remains blocked rather than creating an unsafe partial confirmation path.
 
 ## 2. Inspection findings
