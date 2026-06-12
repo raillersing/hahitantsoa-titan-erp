@@ -614,3 +614,38 @@ F121F does not add:
 - audit event writes for confirmation;
 - contract PDF/document lifecycle;
 - payment provider, invoice, receipt or accounting workflow.
+
+## Transactional reservation confirmation
+
+F121G adds the first backend-internal transactional reservation confirmation
+write.
+
+It adds:
+
+- a durable confirmed reservation state on `ReservationDraft`;
+- a narrow durable `InventoryAvailability -> ReservationDraft` link for
+  confirmation blocking rows;
+- `confirm_reservation_draft` in `confirmation.py`;
+- success audit scheduling through the existing transaction-safe audit helper.
+
+The confirmation flow:
+
+- requires reservation-sensitive staff authorization;
+- requires durable attribution capture;
+- locks the reservation draft row;
+- locks the active draft lines;
+- locks the targeted inventory items before revalidating availability;
+- reuses the existing preflight as the internal gate;
+- creates durable `InventoryAvailability` rows with `reserved` status for each
+  active line;
+- persists the confirmed reservation state in the same transaction;
+- schedules success audit only on commit.
+
+F121G remains backend-internal only. It does not add:
+
+- confirmation API, serializer, view or URL;
+- admin UI;
+- contract PDF/document lifecycle;
+- payment/invoice/receipt/accounting workflow;
+- quantity allocation, stock movement or inventory accounting model;
+- frontend behavior.
