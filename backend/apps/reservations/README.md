@@ -686,3 +686,42 @@ F121H remains backend-internal only. It does not add:
 - invoice or receipt lifecycle;
 - document/PDF lifecycle;
 - frontend behavior.
+
+## Lifecycle invariant and transaction hardening
+
+F121J hardens the existing backend-internal reservation lifecycle without
+expanding its scope.
+
+It adds:
+
+- stricter lifecycle metadata invariants for draft, confirmed and cancelled
+  states;
+- stronger read-only guarantees for
+  `get_reservation_draft_confirmation_preflight`;
+- stronger tests proving inventory release stays linked-only and rollback-safe;
+- stronger tests proving success audit remains transaction-safe for confirmation
+  and cancellation.
+
+F121J keeps these guarantees explicit:
+
+- prerequisite marker writes refuse drafts carrying cancellation metadata;
+- confirmation refuses drafts carrying cancellation metadata;
+- cancellation refuses incomplete confirmed metadata;
+- cancellation refuses partial cancellation metadata on a still-confirmed draft;
+- preflight remains read-only across blocker scenarios;
+- cancellation releases only active linked `InventoryAvailability` rows for the
+  same reservation draft;
+- cancellation does not touch unrelated, foreign, or already soft-deleted
+  inventory blocks;
+- success audit is never persisted for failed confirmation or failed
+  cancellation attempts.
+
+F121J does not add:
+
+- API, serializer, view or URL;
+- frontend behavior;
+- payment, invoice, receipt or refund workflow;
+- contract PDF/document lifecycle;
+- email or SMS;
+- `completed` or `no_show` lifecycle semantics;
+- migration, because no schema change was required for this hardening slice.
