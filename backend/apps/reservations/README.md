@@ -789,3 +789,40 @@ F123 does not add:
 - logistics or returns workflow;
 - Hahitantsoa write workflow;
 - OpenClaw.
+
+## Reservation API permission and data-scope boundary hardening
+
+F124 hardens the existing reservation API boundary without exposing lifecycle
+writes.
+
+It adds:
+
+- explicit reservation-local DRF permission classes for approved authenticated
+  reservation read endpoints and draft-only endpoints;
+- stronger test coverage for authenticated boundary behavior on the existing
+  reservation API surfaces;
+- stronger data-scope tests proving soft-deleted drafts stay hidden, inactive or
+  soft-deleted inventory items remain excluded from item preview lookups, and
+  lifecycle write fields stay absent from draft API payloads;
+- explicit tests proving no lifecycle confirmation/cancellation or prerequisite
+  marker routes are exposed.
+
+F124 preserves the current boundary:
+
+- read-only availability endpoints stay authenticated read-only;
+- draft API stays authenticated and draft-only;
+- lifecycle confirmation/cancellation remains internal to backend services.
+
+F124 does not add:
+
+- confirmation or cancellation API;
+- lifecycle write endpoint, serializer, view, URL or router;
+- frontend behavior;
+- payment provider integration;
+- invoice or receipt workflow;
+- PDF contract generation;
+- refund behavior;
+- `completed` or `no_show` lifecycle semantics;
+- logistics or returns workflow;
+- Hahitantsoa write workflow;
+- OpenClaw.

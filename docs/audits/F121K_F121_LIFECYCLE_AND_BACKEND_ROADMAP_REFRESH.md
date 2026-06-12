@@ -8,6 +8,14 @@
 - F121K closes the backend-internal reservation lifecycle foundation delivered
   through F121J and refreshes the next backend finalization sequence.
 
+## Historical status note
+
+This document remains useful as the post-F121J backend roadmap refresh, but it
+now predates the completed F122 and F123 slices.
+
+After F123, F124 is the active backend boundary-hardening task and F125 remains
+explicitly deferred until F124 is validated.
+
 ## 2. F121 lifecycle completion summary
 
 The F121 reservation lifecycle foundation is complete through F121J:
@@ -104,6 +112,8 @@ Objective:
 
 ### F124 - backend permissions and data-scope hardening
 
+Current active slice after F123.
+
 Objective:
 
 - tighten backend authorization and data-scope guarantees around sensitive
@@ -111,6 +121,8 @@ Objective:
 - keep the implementation backend-only and Titan-safe.
 
 ### F125 - reservation confirmation/cancellation API decision
+
+Deferred until F124 validation is complete.
 
 Objective:
 

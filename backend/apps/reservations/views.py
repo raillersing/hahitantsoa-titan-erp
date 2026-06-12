@@ -1,11 +1,14 @@
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.inventory.models import InventoryItem
 from apps.reservations.models import ReservationDraft
 from apps.reservations.periods import validate_reservation_period
+from apps.reservations.permissions import (
+    IsAuthenticatedReservationDraftBoundary,
+    IsAuthenticatedReservationReadBoundary,
+)
 from apps.reservations.serializers import (
     ReservationAvailabilityPreviewRequestSerializer,
     ReservationAvailabilitySummarySerializer,
@@ -34,7 +37,7 @@ def validated_period_or_error_response(request):
 
 
 class ReservationAvailabilitySummaryAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedReservationReadBoundary]
 
     def get(self, request):
         period, error_response = validated_period_or_error_response(request)
@@ -50,7 +53,7 @@ class ReservationAvailabilitySummaryAPIView(APIView):
 
 
 class ReservationAvailableItemPreviewsAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedReservationReadBoundary]
 
     def get(self, request):
         period, error_response = validated_period_or_error_response(request)
@@ -66,7 +69,7 @@ class ReservationAvailableItemPreviewsAPIView(APIView):
 
 
 class ReservationItemAvailabilityPreviewAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedReservationReadBoundary]
 
     def get(self, request, inventory_item_id):
         period, error_response = validated_period_or_error_response(request)
@@ -104,7 +107,7 @@ def active_reservation_drafts():
 
 class ReservationDraftListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedReservationDraftBoundary]
     serializer_class = ReservationDraftSerializer
 
     def get_queryset(self):
@@ -113,7 +116,7 @@ class ReservationDraftListCreateAPIView(generics.ListCreateAPIView):
 
 class ReservationDraftRetrieveAPIView(generics.RetrieveUpdateAPIView):
     http_method_names = ["get", "put", "patch", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedReservationDraftBoundary]
     serializer_class = ReservationDraftSerializer
     lookup_field = "pk"
 
