@@ -6,6 +6,19 @@ F121A is inspection and planning only.
 
 F121A creates one documentation artifact and does not change backend code, frontend code, migrations, models, serializers, services, views, URLs, permissions, audit runtime behavior, or tests.
 
+## Historical status note
+
+F121A is preserved as the planning baseline for the F121 backend mini-epic.
+
+The repository has since moved beyond this planning state through the
+implementation and validation of F121E-F121J. As a result, the "current
+repository findings", "recommended next immediate slice", and mini-epic
+sequence in this document are historical planning statements, not the current
+authoritative repository status.
+
+For the refreshed post-F121J backend status and finalization roadmap, use
+`docs/audits/F121K_F121_LIFECYCLE_AND_BACKEND_ROADMAP_REFRESH.md`.
+
 ## 2. Non-goals
 
 F121A does not:

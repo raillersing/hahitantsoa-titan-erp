@@ -6,6 +6,17 @@
 - F117 does not change application code, runtime behavior, database schema, dependencies, or tests.
 - F117 is written after F116 and assumes `DEC-004` is accepted and implemented.
 
+## Historical status note
+
+This document is kept as a historical roadmap snapshot written before the
+F121E-F121J reservation lifecycle foundation was implemented.
+
+Its "current backend state" and "next slice" statements are no longer the
+authoritative description of the repository after F121J.
+
+For the post-F121J backend status and recommended sequence, use
+`docs/audits/F121K_F121_LIFECYCLE_AND_BACKEND_ROADMAP_REFRESH.md`.
+
 ## 2. Current backend state after F116
 
 ### Confirmed foundations already in place
