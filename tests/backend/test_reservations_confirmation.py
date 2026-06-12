@@ -6,10 +6,14 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.inventory.availability import is_inventory_item_available
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus
 from apps.reservations.confirmation import (
+    CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
     CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
+    ReservationDraftCancellationResult,
     ReservationDraftConfirmationResult,
+    cancel_confirmed_reservation_draft,
     confirm_reservation_draft,
     mark_reservation_draft_contract_signed,
     mark_reservation_draft_required_deposit_received,
@@ -46,9 +50,14 @@ def _line(*, reservation_draft: ReservationDraft) -> ReservationDraftLine:
     )
 
 
+class ActorFactory:
+    counter = 0
+
+
 def _actor(*, django_user_model, username: str = "confirmation-staff", is_staff: bool = True):
+    ActorFactory.counter += 1
     return django_user_model.objects.create_user(
-        username=username,
+        username=f"{username}-{ActorFactory.counter}",
         password="test-password",
         is_staff=is_staff,
     )
@@ -367,3 +376,229 @@ def test_confirmation_rolls_back_state_when_audit_schedule_fails(
     assert draft.confirmed_by_id is None
     assert InventoryAvailability.objects.filter(reservation_draft=draft).count() == 0
     assert AuditEvent.objects.count() == 0
+
+
+def test_cancellation_succeeds_releases_blocks_and_persists_state_and_audit(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    line = draft.lines.select_related("inventory_item").get()
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+    draft.refresh_from_db()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        result = cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    draft.refresh_from_db()
+    assert result == ReservationDraftCancellationResult(
+        reservation_draft=draft,
+        released_block_count=1,
+    )
+    assert draft.status == ReservationDraftStatus.CANCELLED
+    assert draft.cancelled_at is not None
+    assert draft.cancelled_by_id == actor.pk
+
+    blocked_period = InventoryAvailability.objects.get(reservation_draft=draft)
+    assert blocked_period.is_deleted is True
+    assert blocked_period.deleted_at is not None
+    assert blocked_period.notes == CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE.format(
+        public_reference=draft.public_reference
+    )
+    assert (
+        is_inventory_item_available(
+            inventory_item=line.inventory_item,
+            start_at=draft.start_at,
+            end_at=draft.end_at,
+        )
+        is True
+    )
+
+    audit_event = AuditEvent.objects.filter(action="reservation.cancelled").get()
+    assert audit_event.target_id == str(draft.id)
+    assert audit_event.metadata["released_block_count"] == 1
+
+
+def test_cancellation_releases_only_linked_confirmation_blocks(django_user_model) -> None:
+    first_draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    second_draft, second_actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=first_draft, actor=actor)
+    confirm_reservation_draft(reservation_draft=second_draft, actor=second_actor)
+
+    cancel_confirmed_reservation_draft(reservation_draft=first_draft, actor=actor)
+
+    assert (
+        InventoryAvailability.objects.filter(
+            reservation_draft=first_draft,
+            is_deleted=False,
+        ).count()
+        == 0
+    )
+    assert (
+        InventoryAvailability.objects.filter(
+            reservation_draft=first_draft,
+            is_deleted=True,
+        ).count()
+        == 1
+    )
+    assert (
+        InventoryAvailability.objects.filter(
+            reservation_draft=second_draft,
+            is_deleted=False,
+        ).count()
+        == 1
+    )
+
+
+def test_cancellation_refuses_draft_unconfirmed_reservation(django_user_model) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+
+    with pytest.raises(ValueError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+
+def test_cancellation_refuses_already_cancelled_reservation(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+    cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    with pytest.raises(ValueError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+
+def test_cancellation_refuses_unauthorized_actor(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    with pytest.raises(PermissionError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=None)
+
+
+def test_cancellation_refuses_actor_without_persistent_identifier(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    class StaffLikeActor:
+        is_authenticated = True
+        is_active = True
+        is_staff = True
+
+    with pytest.raises(ValueError):
+        cancel_confirmed_reservation_draft(
+            reservation_draft=draft,
+            actor=StaffLikeActor(),
+        )
+
+
+def test_cancellation_refuses_soft_deleted_reservation_draft(django_user_model) -> None:
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+    draft.is_deleted = True
+    draft.deleted_at = timezone.now()
+    draft.save(update_fields=["is_deleted", "deleted_at"])
+
+    with pytest.raises(ValueError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cancellation_rolls_back_when_release_fails(
+    django_user_model, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from apps.reservations import confirmation as reservation_confirmation
+
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    def raise_during_release(**kwargs):
+        raise RuntimeError("boom during release")
+
+    monkeypatch.setattr(
+        reservation_confirmation,
+        "_release_confirmation_inventory_blocks",
+        raise_during_release,
+    )
+
+    with pytest.raises(RuntimeError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    draft.refresh_from_db()
+    assert draft.status == ReservationDraftStatus.CONFIRMED
+    assert (
+        InventoryAvailability.objects.filter(
+            reservation_draft=draft,
+            is_deleted=False,
+        ).count()
+        == 1
+    )
+    assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cancellation_rolls_back_when_status_persist_fails(
+    django_user_model, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from apps.reservations import confirmation as reservation_confirmation
+
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    def raise_before_status(**kwargs):
+        raise RuntimeError("boom before cancelled state")
+
+    monkeypatch.setattr(
+        reservation_confirmation,
+        "_persist_reservation_draft_cancellation",
+        raise_before_status,
+    )
+
+    with pytest.raises(RuntimeError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    draft.refresh_from_db()
+    assert draft.status == ReservationDraftStatus.CONFIRMED
+    assert draft.cancelled_at is None
+    assert draft.cancelled_by_id is None
+    assert (
+        InventoryAvailability.objects.filter(
+            reservation_draft=draft,
+            is_deleted=False,
+        ).count()
+        == 1
+    )
+    assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cancellation_rolls_back_when_audit_schedule_fails(
+    django_user_model, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from apps.reservations import confirmation as reservation_confirmation
+
+    draft, actor = _prepare_confirmable_draft(django_user_model=django_user_model)
+    confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    def raise_before_commit(**kwargs):
+        raise RuntimeError("boom before cancellation audit")
+
+    monkeypatch.setattr(
+        reservation_confirmation,
+        "_schedule_cancellation_success_audit",
+        raise_before_commit,
+    )
+
+    with pytest.raises(RuntimeError):
+        cancel_confirmed_reservation_draft(reservation_draft=draft, actor=actor)
+
+    draft.refresh_from_db()
+    assert draft.status == ReservationDraftStatus.CONFIRMED
+    assert draft.cancelled_at is None
+    assert draft.cancelled_by_id is None
+    assert (
+        InventoryAvailability.objects.filter(
+            reservation_draft=draft,
+            is_deleted=False,
+        ).count()
+        == 1
+    )
+    assert AuditEvent.objects.filter(action="reservation.cancelled").count() == 0

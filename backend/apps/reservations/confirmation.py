@@ -9,6 +9,7 @@ with durable inventory blocking.
 from dataclasses import dataclass
 
 from django.db import transaction
+from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
 from apps.inventory.models import (
@@ -35,6 +36,7 @@ RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT = "missing_signed_contr
 RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT = "missing_required_deposit"
 RESERVATION_CONFIRMATION_BLOCKER_PERMISSION_DENIED = "permission_denied"
 CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Confirmed reservation draft {public_reference}."
+CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Cancelled reservation draft {public_reference}."
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,12 @@ class ReservationDraftConfirmationPreflight:
 class ReservationDraftConfirmationResult:
     reservation_draft: ReservationDraft
     blocked_item_count: int
+
+
+@dataclass(frozen=True)
+class ReservationDraftCancellationResult:
+    reservation_draft: ReservationDraft
+    released_block_count: int
 
 
 def _append_blocker(*, blockers: list[str], blocker: str) -> None:
@@ -75,6 +83,14 @@ def _is_confirmed(*, reservation_draft: ReservationDraft) -> bool:
         reservation_draft.status == ReservationDraftStatus.CONFIRMED
         and reservation_draft.confirmed_at is not None
         and reservation_draft.confirmed_by_id is not None
+    )
+
+
+def _is_cancelled(*, reservation_draft: ReservationDraft) -> bool:
+    return (
+        reservation_draft.status == ReservationDraftStatus.CANCELLED
+        and reservation_draft.cancelled_at is not None
+        and reservation_draft.cancelled_by_id is not None
     )
 
 
@@ -222,6 +238,61 @@ def _persist_reservation_draft_confirmation(
     return reservation_draft
 
 
+def _assert_confirmed_draft_state(*, reservation_draft: ReservationDraft) -> None:
+    if reservation_draft.is_deleted:
+        raise ValueError("Reservation draft must not be soft-deleted.")
+
+    if _is_cancelled(reservation_draft=reservation_draft):
+        raise ValueError("Reservation draft is already cancelled.")
+
+    if not _is_confirmed(reservation_draft=reservation_draft):
+        raise ValueError("Reservation draft must already be confirmed.")
+
+
+def _locked_active_confirmation_inventory_blocks(
+    *,
+    reservation_draft: ReservationDraft,
+) -> tuple[InventoryAvailability, ...]:
+    return tuple(
+        InventoryAvailability.objects.select_for_update()
+        .filter(reservation_draft=reservation_draft, is_deleted=False)
+        .order_by("start_at", "end_at", "id")
+    )
+
+
+def _release_confirmation_inventory_blocks(
+    *,
+    reservation_draft: ReservationDraft,
+    blocked_periods: tuple[InventoryAvailability, ...],
+) -> tuple[InventoryAvailability, ...]:
+    released_periods: list[InventoryAvailability] = []
+    release_timestamp = timezone.now()
+    release_note = CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE.format(
+        public_reference=reservation_draft.public_reference
+    )
+
+    for blocked_period in blocked_periods:
+        blocked_period.is_deleted = True
+        blocked_period.deleted_at = release_timestamp
+        blocked_period.notes = release_note
+        blocked_period.save(update_fields=["is_deleted", "deleted_at", "notes"])
+        released_periods.append(blocked_period)
+
+    return tuple(released_periods)
+
+
+def _persist_reservation_draft_cancellation(
+    *,
+    reservation_draft: ReservationDraft,
+    attribution: ReservationSensitiveActorAttribution,
+) -> ReservationDraft:
+    reservation_draft.status = ReservationDraftStatus.CANCELLED
+    reservation_draft.cancelled_at = attribution.attributed_at
+    reservation_draft.cancelled_by_id = attribution.actor_id
+    reservation_draft.save(update_fields=["status", "cancelled_at", "cancelled_by"])
+    return reservation_draft
+
+
 def _schedule_confirmation_success_audit(
     *,
     reservation_draft: ReservationDraft,
@@ -237,6 +308,25 @@ def _schedule_confirmation_success_audit(
             "public_reference": reservation_draft.public_reference,
             "result": "confirmed",
             "blocked_item_count": blocked_item_count,
+        },
+    )
+
+
+def _schedule_cancellation_success_audit(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None,
+    released_block_count: int,
+) -> None:
+    record_audit_event_on_commit(
+        actor=actor,
+        action="reservation.cancelled",
+        target_type="reservation_draft",
+        target_id=str(reservation_draft.id),
+        metadata={
+            "public_reference": reservation_draft.public_reference,
+            "result": "cancelled",
+            "released_block_count": released_block_count,
         },
     )
 
@@ -324,6 +414,42 @@ def confirm_reservation_draft(
         return ReservationDraftConfirmationResult(
             reservation_draft=confirmed_reservation_draft,
             blocked_item_count=len(blocked_periods),
+        )
+
+
+def cancel_confirmed_reservation_draft(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None,
+) -> ReservationDraftCancellationResult:
+    attribution = capture_reservation_sensitive_actor_attribution(actor=actor)
+
+    with transaction.atomic():
+        locked_reservation_draft = _get_locked_reservation_draft(
+            reservation_draft=reservation_draft
+        )
+        _assert_confirmed_draft_state(reservation_draft=locked_reservation_draft)
+
+        blocked_periods = _locked_active_confirmation_inventory_blocks(
+            reservation_draft=locked_reservation_draft
+        )
+        released_periods = _release_confirmation_inventory_blocks(
+            reservation_draft=locked_reservation_draft,
+            blocked_periods=blocked_periods,
+        )
+        cancelled_reservation_draft = _persist_reservation_draft_cancellation(
+            reservation_draft=locked_reservation_draft,
+            attribution=attribution,
+        )
+        _schedule_cancellation_success_audit(
+            reservation_draft=cancelled_reservation_draft,
+            actor=actor,
+            released_block_count=len(released_periods),
+        )
+
+        return ReservationDraftCancellationResult(
+            reservation_draft=cancelled_reservation_draft,
+            released_block_count=len(released_periods),
         )
 
 
