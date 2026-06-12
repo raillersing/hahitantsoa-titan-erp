@@ -1,21 +1,18 @@
 # Copilot instructions - Hahitantsoa / Titan ERP
 
-Copilot et les agents VS Code doivent suivre le workflow multi-agent strict du projet.
+Follow `AGENTS.md` as the concise source of truth and `docs/ai-agents/` as the only
+official detailed multi-agent workflow.
 
-- Travailler uniquement sur le périmètre de tâche explicitement approuvé.
-- Une branche par tâche, une PR par tranche.
-- Ne jamais merger une PR.
-- Utiliser `scripts/dev/erp-logged-run` pour chaque commande terminale de validation.
-- Toute commande terminale importante doit passer par `scripts/dev/erp-logged-run`; ne pas lancer directement `git`, `gh`, `pytest`, `npm`, `ruff`, `docker` ou scripts de validation sans journalisation.
-- Ne pas lire, afficher, sourcer, inspecter ou modifier `.env`.
-- Ne pas exposer de secrets, de tokens, de cookies ou de clés API.
-- Ne pas modifier le backend ou le frontend hors périmètre expressément autorisé.
-- Valider localement avant push si cela est applicable.
-- Vérifier que la CI GitHub passe avant de proposer un merge.
-- Respecter Titan : seuls `material`, `article` et `material_pack` sont autorisés ; jamais local, salle, lieu, service, event_service.
-- Pour toute tâche touchant règles métier, permissions, transactions, migrations, APIs ou scope Hahitantsoa/Titan, utiliser le mode orchestrateur multi-agents décrit dans `docs/codex/orchestrated-multi-agent-workflow.md`.
-- Dans ce mode, assigner explicitement les sous-agents Domaine/Métier, Technique, Scope/Sécurité et Consolidateur ; les reviewers ne corrigent jamais silencieusement et le verdict consolidé est obligatoire.
-- L'orchestrateur ne peut appliquer que les corrections minimales demandées par le Consolidateur et comprises dans le scope approuvé.
-- En cas de doute, s'arrêter et demander au superviseur humain.
-
-Voir AGENTS.md pour les règles complètes et docs/ai-agents/F113_AGENT_WORKFLOW_INVENTORY.md pour l’inventaire workflow.
+- One task, one branch, one controlled PR.
+- Use the required backend or frontend agent roles for the task risk.
+- Review agents report findings and never silently edit.
+- Run important commands through `scripts/dev/erp-logged-run` using heredoc stdin.
+- Use `.venv/bin/python`, `.venv/bin/pytest`, or Docker Compose instead of bare
+  `python`.
+- Never read, display, source, inspect, or modify `.env` or secrets.
+- Never modify OpenClaw; its detached sandbox is proposal-only and read-only.
+- Keep Titan limited to `material`, `article`, and `material_pack`.
+- Do not invent business behavior, APIs, payloads, models, migrations, or frontend
+  workflows.
+- Require CI before merge and post-merge validation on `main`.
+- Never merge automatically.

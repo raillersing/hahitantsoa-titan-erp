@@ -8,6 +8,10 @@ La Foundation documentaire est terminee. Le MVP read-only Hahitantsoa/Titan a et
 L'audit MVP F79 reste documente dans `docs/mvp/mvp-gap-audit.md` comme historique pre-F98/F100.
 Depuis F100/F101, une ecriture limitee et authentifiee existe pour creer des brouillons de reservation `ReservationDraft` draft-only. Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
+F121E-0 est en cours : reset documentaire majeur du workflow agents. Cette tranche
+remplace les definitions concurrentes par `AGENTS.md` et un systeme officiel unique dans
+`docs/ai-agents/`, sans modifier le comportement backend ou frontend.
+
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
 
 ---
@@ -324,7 +328,10 @@ F69 terminee : ajout backend-only de la plus petite API authentifiee et read-onl
 
 F70 terminee : clarification documentaire du plus petit scope MVP Hahitantsoa et de la roadmap globale Hahitantsoa/Titan. F70 cree `DEC-003-hahitantsoa-mvp-scope.md`, distingue les concepts confirmes des decisions encore ouvertes et maintient les prochaines implementations en lecture seule jusqu'a approbation explicite.
 
-F71 terminee : formalisation documentaire du workflow Codex a deux agents. Agent A applique le plan approuve et produit les preuves de validation journalisees ; Agent B realise une revue critique independante sans modifier les fichiers. Les agents n'accedent jamais a `.env` et ne font ni commit, ni push, ni creation de PR, ni merge. Le premier slice Hahitantsoa et la roadmap globale restent read-only, et la frontiere Titan reste inchangee.
+F71 terminee : formalisation documentaire historique du workflow Codex a deux agents. Ce
+workflow et son ancienne interdiction absolue de publication agent sont supersedes par
+F121E-0. Les agents n'accedent jamais a `.env`, le merge reste humain, et la frontiere
+Titan reste inchangee.
 
 F72 terminee : suppression documentaire des exemples historiques qui sourcent directement `.env`. F72 ne modifie aucun comportement applicatif et preserve la roadmap Hahitantsoa/Titan ainsi que le premier slice Hahitantsoa read-only.
 
