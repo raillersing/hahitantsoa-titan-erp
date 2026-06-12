@@ -39,6 +39,26 @@ CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Confirmed reservation draft 
 CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Cancelled reservation draft {public_reference}."
 
 
+class ReservationLifecycleError(ValueError):
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+class ReservationLifecycleStateError(ReservationLifecycleError):
+    pass
+
+
+class ReservationLifecyclePrerequisiteError(ReservationLifecycleError):
+    pass
+
+
+class ReservationConfirmationPreflightError(ReservationLifecyclePrerequisiteError):
+    def __init__(self, message: str, *, blockers: tuple[str, ...]) -> None:
+        super().__init__(message, code="confirmation_preflight_failed")
+        self.blockers = blockers
+
+
 @dataclass(frozen=True)
 class ReservationDraftConfirmationPreflight:
     can_confirm: bool
@@ -150,16 +170,28 @@ def _get_locked_reservation_draft(
 
 def _assert_active_draft_state(*, reservation_draft: ReservationDraft) -> None:
     if reservation_draft.is_deleted:
-        raise ValueError("Reservation draft must not be soft-deleted.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft must not be soft-deleted.",
+            code="soft_deleted_draft",
+        )
 
     if reservation_draft.status != ReservationDraftStatus.DRAFT:
-        raise ValueError("Reservation draft must remain in draft state.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft must remain in draft state.",
+            code="draft_not_in_draft_state",
+        )
 
     if reservation_draft.cancelled_at is not None or reservation_draft.cancelled_by_id is not None:
-        raise ValueError("Reservation draft already carries cancellation metadata.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft already carries cancellation metadata.",
+            code="draft_has_cancellation_metadata",
+        )
 
     if reservation_draft.confirmed_at is not None or reservation_draft.confirmed_by_id is not None:
-        raise ValueError("Reservation draft already carries confirmation metadata.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft already carries confirmation metadata.",
+            code="draft_has_confirmation_metadata",
+        )
 
 
 def _lock_inventory_items_for_active_lines(
@@ -243,19 +275,34 @@ def _persist_reservation_draft_confirmation(
 
 def _assert_confirmed_draft_state(*, reservation_draft: ReservationDraft) -> None:
     if reservation_draft.is_deleted:
-        raise ValueError("Reservation draft must not be soft-deleted.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft must not be soft-deleted.",
+            code="soft_deleted_draft",
+        )
 
     if _is_cancelled(reservation_draft=reservation_draft):
-        raise ValueError("Reservation draft is already cancelled.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft is already cancelled.",
+            code="draft_already_cancelled",
+        )
 
     if reservation_draft.status != ReservationDraftStatus.CONFIRMED:
-        raise ValueError("Reservation draft must already be confirmed.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft must already be confirmed.",
+            code="draft_not_confirmed",
+        )
 
     if reservation_draft.confirmed_at is None or reservation_draft.confirmed_by_id is None:
-        raise ValueError("Reservation draft must carry complete confirmation metadata.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft must carry complete confirmation metadata.",
+            code="incomplete_confirmation_metadata",
+        )
 
     if reservation_draft.cancelled_at is not None or reservation_draft.cancelled_by_id is not None:
-        raise ValueError("Reservation draft must not carry partial cancellation metadata.")
+        raise ReservationLifecycleStateError(
+            "Reservation draft must not carry partial cancellation metadata.",
+            code="partial_cancellation_metadata",
+        )
 
 
 def _locked_active_confirmation_inventory_blocks(
@@ -393,7 +440,10 @@ def confirm_reservation_draft(
             reservation_draft=locked_reservation_draft
         )
         if not active_lines:
-            raise ValueError("Reservation draft must have at least one active line.")
+            raise ReservationLifecycleStateError(
+                "Reservation draft must have at least one active line.",
+                code="draft_has_no_active_lines",
+            )
 
         _lock_inventory_items_for_active_lines(active_lines=active_lines)
 
@@ -402,8 +452,9 @@ def confirm_reservation_draft(
             actor=actor,
         )
         if not preflight.can_confirm:
-            raise ValueError(
-                "Reservation draft confirmation preflight failed: " + ", ".join(preflight.blockers)
+            raise ReservationConfirmationPreflightError(
+                "Reservation draft confirmation preflight failed: " + ", ".join(preflight.blockers),
+                blockers=preflight.blockers,
             )
 
         blocked_periods = _create_confirmation_inventory_blocks(

@@ -1,4 +1,4 @@
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields, is_dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -459,3 +459,14 @@ def test_confirmation_preflight_dataclass_is_frozen() -> None:
 
     with pytest.raises(FrozenInstanceError):
         preflight.can_confirm = True
+
+
+def test_confirmation_preflight_dataclass_contract_is_stable() -> None:
+    assert is_dataclass(ReservationDraftConfirmationPreflight)
+    assert ReservationDraftConfirmationPreflight.__dataclass_params__.frozen is True
+    assert tuple(field.name for field in fields(ReservationDraftConfirmationPreflight)) == (
+        "can_confirm",
+        "blockers",
+        "active_line_count",
+        "attribution_ready",
+    )
