@@ -574,3 +574,43 @@ F121E stays strictly backend-internal and read-only. It does not:
 - create `InventoryAvailability` rows;
 - add attribution fields to reservation models;
 - add signed-contract or deposit/payment models.
+
+## Confirmation prerequisite markers
+
+F121F adds the smallest durable confirmation prerequisite markers directly on
+`ReservationDraft`:
+
+- `contract_signed_at`;
+- `contract_signed_by`;
+- `required_deposit_received_at`;
+- `required_deposit_received_by`.
+
+F121F also adds two internal transaction-safe write helpers in
+`confirmation.py`:
+
+- `mark_reservation_draft_contract_signed`;
+- `mark_reservation_draft_required_deposit_received`.
+
+These helpers:
+
+- require reservation-sensitive staff authorization;
+- require durable actor attribution capture;
+- lock the draft row with `select_for_update()`;
+- refuse soft-deleted or non-draft reservation drafts;
+- persist only the smallest prerequisite markers.
+
+F121F updates the existing preflight so contract/deposit blockers disappear only
+when both timestamp and actor are durable for the corresponding prerequisite.
+
+F121F deliberately does not implement the actual confirmation write. That part
+is deferred because the repository does not yet expose a narrow, reviewed,
+durable inventory-blocking primitive tied to reservation confirmation.
+
+F121F does not add:
+
+- confirmation endpoint, serializer, view or URL;
+- confirmed status or durable confirmed reservation state;
+- `InventoryAvailability` confirmation side effects;
+- audit event writes for confirmation;
+- contract PDF/document lifecycle;
+- payment provider, invoice, receipt or accounting workflow.

@@ -92,6 +92,36 @@ def test_confirmation_preflight_returns_explicit_prerequisite_blockers(
     assert preflight.attribution_ready is True
 
 
+def test_confirmation_preflight_prerequisite_blockers_clear_when_markers_exist(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    item = _item(kind="material")
+    actor = _actor(django_user_model=django_user_model)
+    _line(reservation_draft=draft, inventory_item=item)
+
+    draft.contract_signed_at = timezone.now()
+    draft.contract_signed_by_id = actor.pk
+    draft.required_deposit_received_at = timezone.now()
+    draft.required_deposit_received_by_id = actor.pk
+    draft.save(
+        update_fields=[
+            "contract_signed_at",
+            "contract_signed_by",
+            "required_deposit_received_at",
+            "required_deposit_received_by",
+        ]
+    )
+
+    preflight = get_reservation_draft_confirmation_preflight(
+        reservation_draft=draft,
+        actor=actor,
+    )
+
+    assert preflight.can_confirm is True
+    assert preflight.blockers == ()
+
+
 def test_confirmation_preflight_rejects_soft_deleted_draft(
     django_user_model,
 ) -> None:
