@@ -2,7 +2,12 @@
 
 Ce repository contient le futur ERP evenementiel pour les activites Hahitantsoa et Titan.
 
-Statut actuel : **MVP local post-F102 - surfaces read-only + brouillons de reservation draft-only**.
+Statut actuel : **Etat post-F128 roadmap - socles backend/frontend/documentaires en place, finalisation ERP encore incomplete**.
+
+Le cadrage d'ensemble est consolide dans
+[`docs/audits/F128_APPLICATION_WIDE_STATE_AND_FINALIZATION_ROADMAP.md`](docs/audits/F128_APPLICATION_WIDE_STATE_AND_FINALIZATION_ROADMAP.md).
+Ce document remplace les anciens reperes MVP comme etat courant global sans effacer leur valeur
+historique de preuve et d'acceptation locale.
 
 F86/F87 restent l'historique d'acceptation locale du MVP read-only Hahitantsoa/Titan. Ce resultat
 `PASS` reste conserve dans
@@ -10,11 +15,13 @@ F86/F87 restent l'historique d'acceptation locale du MVP read-only Hahitantsoa/T
 et resume dans
 [`docs/mvp/mvp-readonly-local-acceptance-summary.md`](docs/mvp/mvp-readonly-local-acceptance-summary.md).
 
-Depuis F98-F102, l'etat courant a evolue : le MVP conserve des surfaces read-only pour inventory,
-availability, Hahitantsoa discovery, customers et documents registry, mais il inclut maintenant une
-ecriture limitee et authentifiee pour creer des `ReservationDraft` draft-only. Cette ecriture ne
-confirme pas une reservation, ne bloque pas l'inventaire, ne cree aucun paiement, facture, contrat
-ou PDF runtime, et ne revendique pas de production readiness.
+Depuis F98-F102, puis les slices backend ulterieures jusqu'au roadmap F128, l'etat courant a evolue :
+le repository dispose deja de socles concrets pour inventory, availability, customers, documents
+registry, Hahitantsoa discovery, reservations draft-only et fondations backend de lifecycle.
+Cependant, l'application n'est toujours pas production-ready : les documents runtime, les paiements,
+les APIs de lifecycle finales, le RBAC, la logistique, le frontend ERP complet et le deploiement de
+production restent a finaliser. Les documents MVP/read-only existants doivent donc etre lus comme
+historique controle, pas comme une affirmation d'exhaustivite ou de readiness finale.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 
