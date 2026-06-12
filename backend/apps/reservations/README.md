@@ -259,6 +259,25 @@ Elle retourne un `tuple[ReservationItemPreview, ...]`. Elle ne duplique pas la l
 
 ## Reservation service scope guards
 
+## Reservation-sensitive authorization
+
+F121B2 adds `authorization.py` as a narrow backend-only helper module for future sensitive reservation writes.
+
+Helpers exposed:
+
+- `is_reservation_sensitive_staff_actor(actor=...)`
+- `require_reservation_sensitive_staff_actor(actor=...)`
+
+Current F121B2 semantics remain intentionally small:
+
+- unauthenticated actor: denied;
+- anonymous actor: denied;
+- inactive actor: denied when `is_active` is present and `False`;
+- authenticated non-staff actor: denied;
+- authenticated active staff actor: allowed.
+
+This primitive does not create roles, groups, operators, managers, reviewers, broad RBAC, confirmation, audit persistence, attribution fields, contract prerequisites, or deposit prerequisites.
+
 F54 ajoute des tests de garde-fou Titan scope sur les services reservations.
 
 Les services reservations doivent traiter comme reservables uniquement :
