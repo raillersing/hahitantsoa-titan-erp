@@ -1,22 +1,28 @@
 # DEC-006 - Reservation-sensitive permissions, attribution, and audit guard
 
-Status: Proposed
+Status: Accepted
 Scope: F119
 Type: Documentation / guardrail decision only
 Date: 2026-06-12
 
-## Why Proposed
+## Acceptance history
 
-This decision is intentionally marked **Proposed**.
-
-Reason:
+F119 initially proposed this decision because:
 
 - the repository does not yet implement reservation confirmation;
 - the repository does not yet implement an active reservation audit subsystem;
 - the repository does not yet implement a custom reservation RBAC model;
 - current reservation APIs rely primarily on `IsAuthenticated`, which is acceptable for current read-only and draft surfaces but explicitly insufficient for future sensitive writes.
 
-F119 therefore defines minimum backend guardrails that must be accepted before F120 implements any sensitive reservation write flow.
+F120 accepted this decision after technical inspection confirmed that these guardrails are required before any sensitive reservation write implementation.
+
+## Accepted in F120
+
+F120 inspection confirmed that `IsAuthenticated` alone is insufficient for future sensitive reservation writes.
+
+Acceptance does not claim that permissions, attribution, or audit persistence already exist. It accepts the minimum backend authorization, durable attribution, transaction-safe audit, and anti-shortcut requirements defined below.
+
+Historical clarification: F120 accepted this decision and documented the technical gate only. F120 did not implement permissions, attribution, audit persistence, or reservation confirmation; those remain deferred to later controlled backend slices.
 
 ## Scope
 
@@ -51,16 +57,14 @@ The repository also shows:
 
 - `ADR-004` accepted: confirmation requires signed contract, received deposit, and transactional availability revalidation;
 - `ADR-009` accepted: Django sessions and backend permissions are the access-control basis;
-- `DEC-005` proposed: confirmation from current reservation flows must not rely on `IsAuthenticated` only and must carry durable attribution and auditable behavior;
+- `DEC-005` accepted in F120: confirmation from current reservation flows must not rely on `IsAuthenticated` only and must carry durable attribution and auditable behavior;
 - `backend/apps/common/models.py` defines shared `created_by` and `updated_by` fields in `AuditableModel`;
 - `backend/apps/audit/README.md` confirms that no active audit system exists yet;
 - `backend/apps/identity/README.md` confirms no custom permission system exists yet.
 
-### Why F119 is needed before F120
+### Why F119 was needed before any confirmation implementation
 
-F120 is expected to implement the first narrow confirmation write slice.
-
-Without F119, F120 could easily drift into one or more invalid shortcuts:
+F119 was needed before any first narrow confirmation write slice because, without it, a future implementation could easily drift into one or more invalid shortcuts:
 
 - confirmation authorized by generic authenticated session only;
 - success writes without durable actor attribution;
@@ -115,7 +119,7 @@ F119 intentionally leaves the exact permission primitive open:
 - future role mapping;
 - equivalent explicit backend policy.
 
-F120 may choose one of those only after F119 is accepted.
+A future controlled implementation slice may choose one of those only after this guardrail decision is accepted and the selected permission primitive is explicitly reviewed.
 
 ## Permission guard
 
@@ -236,20 +240,20 @@ Instead:
 
 Both decisions must be treated together before F120 begins confirmation implementation.
 
-## F120 handoff
+## Future implementation handoff
 
-F120 may implement the first narrow confirmation write slice only after `DEC-005` and `DEC-006` are accepted.
+F120 accepted `DEC-005` and `DEC-006` but did not implement a confirmation write slice. A future controlled implementation slice may proceed only after the missing prerequisites identified by F120 are designed and validated.
 
-### F120 may implement
+### A future implementation slice may implement
 
 - explicit backend authorization for sensitive confirmation;
 - confirmation-specific attribution fields or equivalent durable representation;
 - transaction-aware audit behavior for confirmation success and, if approved, denial/failure paths;
 - transactional confirmation logic consistent with `ADR-004` and `DEC-005`.
 
-### F120 must not bypass
+### A future implementation slice must not bypass
 
-F120 must not bypass:
+A future implementation slice must not bypass:
 
 - explicit backend authorization beyond `IsAuthenticated`;
 - signed-contract prerequisite;

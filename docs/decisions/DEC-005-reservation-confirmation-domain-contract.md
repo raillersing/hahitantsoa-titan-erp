@@ -1,22 +1,28 @@
 # DEC-005 - Reservation confirmation domain contract
 
-Status: Proposed
+Status: Accepted
 Scope: F118
 Type: Documentation / domain decision only
 Date: 2026-06-12
 
-## Why Proposed
+## Acceptance history
 
-This decision is intentionally marked **Proposed**, not **Accepted**.
+F118 initially proposed this decision because:
 
-Reason:
-
-- `ADR-004` already establishes the high-level reservation confirmation rule;
+- `ADR-004` establishes the high-level reservation confirmation rule;
 - the repository does not yet implement reservation confirmation;
 - the current backend still exposes only draft/planning reservation behavior;
 - permissions, audit, and durable confirmation side effects are not yet fully specified in accepted implementation detail.
 
-F118 therefore defines the implementation-ready contract that must be reviewed and accepted before the first confirmation write slice.
+F120 accepted this decision after technical inspection confirmed that its requirements are necessary before implementation.
+
+## Accepted in F120
+
+F120 inspection confirmed that the current backend is not ready for full reservation confirmation and that this contract must remain the implementation gate.
+
+Acceptance does not claim that confirmation capabilities already exist. It accepts the required domain rules, preconditions, transactional invariants, error categories, durable blocking invariant, and anti-scope guard defined below.
+
+Historical clarification: F120 accepted this decision and documented the technical gate only. F120 did not implement reservation confirmation; implementation is deferred to later controlled slices after the missing prerequisites are designed and validated.
 
 ## Context
 
@@ -378,11 +384,11 @@ F119 should define and, if approved, narrow the backend guardrails for sensitive
 
 F119 should not broaden into full billing or logistics implementation.
 
-### F120 may implement only after F118 and F119 are accepted
+### Future implementation may proceed only after accepted guards and prerequisites
 
-F120 may implement the first narrow confirmation slice only after F118 and F119 are accepted.
+F118 originally handed off a possible first narrow confirmation slice to F120 after F118 and F119 were accepted. F120 ultimately accepted the guard decisions and kept implementation blocked because the repository still lacks required signed-contract, deposit/payment, authorization, attribution, audit, persistent confirmed-state, and durable inventory-blocking foundations.
 
-That implementation may include only:
+A future controlled implementation slice may include only:
 
 - confirmation service logic;
 - transactional revalidation of availability;
@@ -390,7 +396,7 @@ That implementation may include only:
 - durable blocking side effects consistent with `DEC-004`;
 - targeted tests for the approved confirmation contract.
 
-F120 must not silently weaken:
+Any future implementation slice must not silently weaken:
 
 - signed-contract prerequisite;
 - deposit/payment prerequisite;
