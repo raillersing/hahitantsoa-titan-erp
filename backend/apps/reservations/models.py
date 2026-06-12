@@ -18,6 +18,7 @@ from apps.reservations.scope import assert_reservable_inventory_item_kind
 
 class ReservationDraftStatus(models.TextChoices):
     DRAFT = "draft", "draft"
+    CONFIRMED = "confirmed", "confirmed"
 
 
 RESERVATION_DRAFT_STATUS_VALUES = [status.value for status in ReservationDraftStatus]
@@ -53,6 +54,14 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
     )
     required_deposit_received_at = models.DateTimeField(null=True, blank=True)
     required_deposit_received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    confirmed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
