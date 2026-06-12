@@ -725,3 +725,30 @@ F121J does not add:
 - email or SMS;
 - `completed` or `no_show` lifecycle semantics;
 - migration, because no schema change was required for this hardening slice.
+
+## Contract and deposit prerequisite marker foundation
+
+F122 adds the smallest justified backend-only hardening for reservation
+confirmation prerequisites.
+
+It adds database-level completeness constraints on `ReservationDraft` so that:
+
+- `contract_signed_at` and `contract_signed_by` are either both absent or both
+  present;
+- `required_deposit_received_at` and
+  `required_deposit_received_by` are either both absent or both present.
+
+This keeps the persistence layer aligned with the existing service-level
+expectation already used by `confirmation.py`: a prerequisite marker is valid
+only when both timestamp and actor are durable.
+
+F122 does not add:
+
+- API, serializer, view or URL;
+- frontend behavior;
+- payment provider integration;
+- invoice or receipt workflow;
+- PDF contract generation;
+- refund behavior;
+- `completed` or `no_show` lifecycle semantics;
+- Hahitantsoa write workflow.

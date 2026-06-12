@@ -94,6 +94,32 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
                 condition=models.Q(end_at__gt=models.F("start_at")),
                 name="reservation_draft_end_after_start",
             ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(contract_signed_at__isnull=True)
+                        & models.Q(contract_signed_by__isnull=True)
+                    )
+                    | (
+                        models.Q(contract_signed_at__isnull=False)
+                        & models.Q(contract_signed_by__isnull=False)
+                    )
+                ),
+                name="reservation_draft_contract_signed_marker_complete",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(required_deposit_received_at__isnull=True)
+                        & models.Q(required_deposit_received_by__isnull=True)
+                    )
+                    | (
+                        models.Q(required_deposit_received_at__isnull=False)
+                        & models.Q(required_deposit_received_by__isnull=False)
+                    )
+                ),
+                name="reservation_draft_required_deposit_received_marker_complete",
+            ),
         ]
 
     def clean(self) -> None:
