@@ -17,10 +17,20 @@ Le socle backend reservations F121E a F121J est termine et merge :
 - F121I : audit non modifiant du lifecycle interne ;
 - F121J : durcissement des invariants de lifecycle et de la securite transactionnelle.
 
-La prochaine tranche recommandee est `F122A` :
-`contract/deposit prerequisite cadrage`, en restant backend-first, PR-sized et sans
-ouvrir d'API, de frontend, de workflow commercial complet ou de write workflow
-Hahitantsoa.
+F122 est termine : cadrage contrat/acompte puis durcissement minimal des
+contraintes DB de completude des marqueurs de prerequis.
+
+F123 est termine : durcissement du contrat de service lifecycle interne avec
+exceptions stables et codes d'erreur reservation-local.
+
+F124 est la tranche active/recommandee :
+durcissement de la frontiere permissions + data-scope de l'API reservations,
+en conservant les endpoints availability read-only et l'API draft-only deja
+approuves.
+
+F125 reste explicitement differee. La decision a ete prise de ne pas combiner
+F124 et F125 afin de garder une PR backend petite, testable et sans exposition
+prematuree des writes lifecycle.
 
 En cas de contradiction, appliquer la hiérarchie des sources définie dans `AGENTS.md`, les décisions validées, les ADR acceptées, les règles métier versionnées et le CDC fonctionnel et technique consolidé v3.2.
 

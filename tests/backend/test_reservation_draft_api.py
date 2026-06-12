@@ -105,6 +105,39 @@ def test_authenticated_user_can_read_draft_list_and_detail(authenticated_client)
     assert detail_response.json()["id"] == str(draft.id)
 
 
+def test_draft_list_and_detail_exclude_soft_deleted_drafts(authenticated_client) -> None:
+    start_at, end_at = _period()
+    visible_draft = ReservationDraft.objects.create(
+        customer=_customer("Visible"),
+        start_at=start_at,
+        end_at=end_at,
+    )
+    hidden_draft = ReservationDraft.objects.create(
+        customer=_customer("Hidden"),
+        start_at=start_at,
+        end_at=end_at,
+        is_deleted=True,
+        deleted_at=timezone.now(),
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=visible_draft,
+        inventory_item=_item("Visible item"),
+        quantity=1,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=hidden_draft,
+        inventory_item=_item("Hidden item"),
+        quantity=1,
+    )
+
+    list_response = authenticated_client.get(DRAFT_LIST_URL)
+    detail_response = authenticated_client.get(f"{DRAFT_LIST_URL}{hidden_draft.id}/")
+
+    assert list_response.status_code == 200
+    assert [entry["id"] for entry in list_response.json()] == [str(visible_draft.id)]
+    assert detail_response.status_code == 404
+
+
 def test_create_draft_rejects_invalid_period(authenticated_client) -> None:
     customer = _customer()
     item = _item()
@@ -233,6 +266,36 @@ def test_authenticated_user_can_update_reservation_draft_notes_only(client, djan
     assert draft.status == "draft"
     assert draft.notes == "Updated notes only."
     assert draft.lines.count() == 1
+
+
+def test_draft_api_does_not_expose_lifecycle_write_fields(authenticated_client) -> None:
+    start_at, end_at = _period()
+    draft = ReservationDraft.objects.create(
+        customer=_customer(),
+        start_at=start_at,
+        end_at=end_at,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=_item(),
+        quantity=1,
+    )
+
+    response = authenticated_client.get(f"{DRAFT_LIST_URL}{draft.id}/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    hidden_fields = {
+        "contract_signed_at",
+        "contract_signed_by",
+        "required_deposit_received_at",
+        "required_deposit_received_by",
+        "confirmed_at",
+        "confirmed_by",
+        "cancelled_at",
+        "cancelled_by",
+    }
+    assert hidden_fields.isdisjoint(payload)
 
 
 def test_authenticated_user_can_replace_reservation_draft_lines(client, django_user_model):
