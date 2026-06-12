@@ -851,3 +851,21 @@ This roadmap refresh does not add API routes, serializers, views, URLs, routers,
 frontend behavior, payment provider integration, invoices, receipts, PDF
 generation, refunds, logistics, returns, completed/no_show semantics,
 Hahitantsoa write behavior, broad RBAC, or OpenClaw.
+
+## Reservation lifecycle API decision
+
+F125B records the reservation lifecycle API decision after F124 and F125A.
+
+Confirmation and cancellation remain backend-internal for now. F125B does not
+expose confirmation, cancellation, prerequisite marker, or other reservation
+lifecycle write endpoints.
+
+A future lifecycle API may only be introduced in a separately approved narrow
+slice after permission boundaries, data scope, error mapping, transaction
+expectations, audit behavior, OpenAPI expectations, and tests are explicitly
+specified.
+
+F125B does not add runtime code, frontend behavior, payment provider
+integration, invoices, receipts, refunds, PDF contract generation, logistics,
+completed/no_show lifecycle states, Hahitantsoa write behavior, broad RBAC, or
+OpenClaw.
