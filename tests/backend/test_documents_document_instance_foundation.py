@@ -98,6 +98,7 @@ def test_document_instance_can_be_persisted_with_required_foundation_fields(
     assert instance.voided_by_id is None
     assert instance.content_checksum is None
     assert instance.storage_path is None
+    assert instance.generated_content_size_bytes is None
 
 
 def test_document_instance_rejects_voided_status_without_void_markers_at_db_level() -> None:
