@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.template.loader import render_to_string
 
@@ -25,6 +27,25 @@ class DocumentGenerationResult:
 
 def calculate_document_html_checksum(html_content: str) -> str:
     return hashlib.sha256(html_content.encode("utf-8")).hexdigest()
+
+
+def build_document_artifact_storage_path(document_instance, content_checksum: str) -> str:
+    """Return a deterministic relative path for the HTML artifact.
+    Includes the document instance PK and a prefix of the checksum.
+    """
+    safe_checksum = content_checksum[:12]
+    return f"documents/{document_instance.id}/{safe_checksum}.html"
+
+
+def store_document_html_artifact(
+    document_instance, html_content: str, content_checksum: str
+) -> str:
+    """Save the HTML content to the default storage and return the relative path.
+    Uses UTF-8 encoding.
+    """
+    path = build_document_artifact_storage_path(document_instance, content_checksum)
+    default_storage.save(path, ContentFile(html_content.encode("utf-8")))
+    return path
 
 
 @transaction.atomic
@@ -54,14 +75,18 @@ def generate_document_instance_html(
     checksum = calculate_document_html_checksum(html_content)
     size_bytes = len(html_content.encode("utf-8"))
 
+    storage_path = store_document_html_artifact(document_instance, html_content, checksum)
+
     document_instance.status = DocumentInstanceStatus.GENERATED
     document_instance.content_checksum = checksum
     document_instance.generated_content_size_bytes = size_bytes
+    document_instance.storage_path = storage_path
     document_instance.save(
         update_fields=[
             "status",
             "content_checksum",
             "generated_content_size_bytes",
+            "storage_path",
             "updated_at",
         ]
     )
