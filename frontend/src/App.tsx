@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { getInventoryItems } from "./api";
 import AvailabilityPanel from "./AvailabilityPanel";
+import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
 import type { InventoryItem } from "./types";
 
@@ -221,6 +222,7 @@ function App() {
                   inventoryState.status === "loaded" ? inventoryState.items : []
                 }
               />
+              <DocumentArtifactPreviewPanel />
             </>
           ) : (
             <HahitantsoaDiscoveryPanel />

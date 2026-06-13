@@ -151,3 +151,34 @@ export function updateReservationDraft(
     payload,
   );
 }
+
+export async function getDocumentArtifactHtml(
+  documentInstanceId: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const response = await fetch(
+    `/api/v1/documents/instances/${documentInstanceId}/artifact/`,
+    {
+      credentials: "include",
+      signal,
+    },
+  );
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error(
+      "The private artifact preview requires an authenticated session with document access.",
+    );
+  }
+
+  if (response.status === 404) {
+    throw new Error(
+      "No generated HTML artifact was found for this document instance.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error("The requested document artifact could not be loaded.");
+  }
+
+  return response.text();
+}
