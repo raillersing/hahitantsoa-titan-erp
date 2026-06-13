@@ -126,3 +126,46 @@ def test_calculate_document_html_checksum_returns_sha256_hex_digest() -> None:
     assert len(checksum) == 64
     assert calculate_document_html_checksum(html) == checksum
     assert checksum == hashlib.sha256(html.encode("utf-8")).hexdigest()
+
+
+def test_generate_document_instance_html_empty_content(monkeypatch) -> None:
+    draft = _draft_with_line()
+    instance = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.proforma.v1",
+    )
+    # Monkeypatch render_to_string to return empty content
+    monkeypatch.setattr("apps.documents.runtime.render_to_string", lambda *args, **kwargs: "")
+    with pytest.raises(DocumentRuntimeGenerationError) as exc_info:
+        generate_document_instance_html(document_instance=instance)
+    assert exc_info.value.code == "empty_generated_html_content"
+
+
+def test_generate_document_instance_html_invalid_checksum_length(monkeypatch) -> None:
+    draft = _draft_with_line()
+    instance = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.proforma.v1",
+    )
+    # Monkeypatch calculate_document_html_checksum to return short checksum
+    monkeypatch.setattr(
+        "apps.documents.runtime.calculate_document_html_checksum", lambda *args: "short"
+    )
+    with pytest.raises(DocumentRuntimeGenerationError) as exc_info:
+        generate_document_instance_html(document_instance=instance)
+    assert exc_info.value.code == "invalid_calculated_checksum"
+
+
+def test_generate_document_instance_html_unsafe_storage_path(monkeypatch) -> None:
+    draft = _draft_with_line()
+    instance = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.proforma.v1",
+    )
+    # Monkeypatch store_document_html_artifact to return unsafe path
+    monkeypatch.setattr(
+        "apps.documents.runtime.store_document_html_artifact", lambda *args: "../unsafe.html"
+    )
+    with pytest.raises(DocumentRuntimeGenerationError) as exc_info:
+        generate_document_instance_html(document_instance=instance)
+    assert exc_info.value.code == "unsafe_storage_path"
