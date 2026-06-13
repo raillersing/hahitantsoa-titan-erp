@@ -72,10 +72,32 @@ def generate_document_instance_html(
 
     html_content = render_to_string(template_path, {"context": context})
 
+    if not html_content or not html_content.strip():
+        raise DocumentRuntimeGenerationError(
+            "Generated document HTML content is empty or invalid.",
+            code="empty_generated_html_content",
+        )
+
     checksum = calculate_document_html_checksum(html_content)
+    if not checksum or len(checksum) != 64:
+        raise DocumentRuntimeGenerationError(
+            "Calculated checksum is invalid.",
+            code="invalid_calculated_checksum",
+        )
+
     size_bytes = len(html_content.encode("utf-8"))
+    if size_bytes <= 0:
+        raise DocumentRuntimeGenerationError(
+            "Generated content size must be positive.",
+            code="invalid_generated_content_size",
+        )
 
     storage_path = store_document_html_artifact(document_instance, html_content, checksum)
+    if not storage_path or ".." in storage_path or storage_path.startswith("/"):
+        raise DocumentRuntimeGenerationError(
+            f"Unsafe or invalid storage path resolved: {storage_path}",
+            code="unsafe_storage_path",
+        )
 
     document_instance.status = DocumentInstanceStatus.GENERATED
     document_instance.content_checksum = checksum
