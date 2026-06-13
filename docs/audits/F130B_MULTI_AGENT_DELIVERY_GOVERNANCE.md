@@ -348,3 +348,8 @@ After each merged task, the orchestrator should produce:
 - justification if no;
 - recommended next task;
 - whether Agent B is needed for that next task.
+
+## 15.1 Pointer to F130C
+
+F130C defines the operational roadmap delta, the complex task policy, and the
+T0-T5 execution levels.

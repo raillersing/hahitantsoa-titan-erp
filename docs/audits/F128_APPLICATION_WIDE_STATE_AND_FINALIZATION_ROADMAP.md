@@ -435,6 +435,14 @@ F128 does not:
 - implement RBAC;
 - modify `.env` or secrets;
 - use OpenClaw.
+## 8.5 Post-F130B operational roadmap delta
+
+- F129, F129S, F130A, and F130B are complete.
+- The automated ERP delivery workflow is validated.
+- The multi-agent governance chain is validated.
+- The orchestrator must prefer short post-merge roadmap deltas.
+- Complex tasks are allowed under the T0-T5 execution policy.
+- Recommended next task: F131 - document runtime generation backend phase 1.
 
 ## 9. Operating rules going forward
 
