@@ -26,6 +26,8 @@ def test_generate_document_instance_html_success() -> None:
     assert instance.status == DocumentInstanceStatus.GENERATED
     assert instance.content_checksum is not None
     assert instance.storage_path is None
+    assert instance.generated_content_size_bytes is not None
+    assert instance.generated_content_size_bytes == len(result.html_content.encode("utf-8"))
 
     assert result.document_instance == instance
     assert result.content_checksum == instance.content_checksum
@@ -53,6 +55,7 @@ def test_generate_document_instance_html_determinism() -> None:
 
     assert result1.content_checksum == result2.content_checksum
     assert result1.html_content == result2.html_content
+    assert instance1.generated_content_size_bytes == instance2.generated_content_size_bytes
 
 
 def test_generate_document_instance_html_invalid_status() -> None:

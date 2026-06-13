@@ -52,10 +52,19 @@ def generate_document_instance_html(
     html_content = render_to_string(template_path, {"context": context})
 
     checksum = calculate_document_html_checksum(html_content)
+    size_bytes = len(html_content.encode("utf-8"))
 
     document_instance.status = DocumentInstanceStatus.GENERATED
     document_instance.content_checksum = checksum
-    document_instance.save(update_fields=["status", "content_checksum", "updated_at"])
+    document_instance.generated_content_size_bytes = size_bytes
+    document_instance.save(
+        update_fields=[
+            "status",
+            "content_checksum",
+            "generated_content_size_bytes",
+            "updated_at",
+        ]
+    )
 
     return DocumentGenerationResult(
         document_instance=document_instance,
