@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+if [ ! -f "pyproject.toml" ] || [ ! -d "backend" ] || [ ! -d "tests" ]; then
+  echo "ERROR: scripts/ci/backend-quality must run from the project repository layout."
+  echo "Resolved REPO_ROOT=$REPO_ROOT"
+  exit 1
+fi
+
+python -m ruff format --check backend tests
+python -m ruff check backend tests
+python backend/manage.py makemigrations --check --dry-run
+python -m pytest "$@"
