@@ -55,3 +55,11 @@ F129 remains strictly backend-only and excludes:
 - reservation lifecycle APIs;
 - frontend behavior;
 - broad RBAC or external storage integration.
+
+## F131 document runtime generation backend phase 1
+
+F131 introduces the first backend-only runtime generation increment.
+
+It transitions a `prepared` `DocumentInstance` to `generated`, rendering deterministic HTML from the commercial context and storing the SHA-256 checksum in `content_checksum`.
+
+F131 intentionally avoids external dependencies like WeasyPrint, and defers PDF rendering, external storage, API exposure, and broader RBAC concerns.
