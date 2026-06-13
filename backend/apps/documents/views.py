@@ -1,5 +1,5 @@
 from django.http import Http404
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import OpenApiResponse, OpenApiTypes, extend_schema, inline_serializer
 from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -107,3 +107,44 @@ class TitanProformaDraftPreviewAPIView(APIView):
             }
         )
         return Response(serializer.data)
+
+
+class DocumentInstancePrivateArtifactAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                description="Raw stored HTML content of the document artifact.",
+                response=OpenApiTypes.STR,
+            )
+        }
+    )
+    def get(self, request, id):
+        from django.core.files.storage import default_storage
+        from django.http import HttpResponse
+
+        from apps.documents.models import DocumentInstanceStatus
+        from apps.documents.selectors import get_document_instance_by_id
+
+        instance = get_document_instance_by_id(document_instance_id=id)
+        if instance is None:
+            raise Http404("Document instance not found.")
+
+        if instance.status != DocumentInstanceStatus.GENERATED:
+            raise Http404("Document instance is not generated.")
+
+        if not instance.storage_path:
+            raise Http404("Artifact storage path is empty.")
+
+        if not default_storage.exists(instance.storage_path):
+            raise Http404("Artifact file does not exist.")
+
+        try:
+            with default_storage.open(instance.storage_path, "rb") as f:
+                content = f.read()
+        except Exception:
+            raise Http404("Failed to read artifact from storage.")
+
+        return HttpResponse(content, content_type="text/html; charset=utf-8")
