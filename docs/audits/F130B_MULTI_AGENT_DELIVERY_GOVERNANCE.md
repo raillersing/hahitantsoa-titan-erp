@@ -1,4 +1,4 @@
-# F130B - Multi-agent delivery governance
+﻿# F130B - Multi-agent delivery governance
 
 ## 1. Agent 0 - ERP Task Orchestrator / Program Orchestrator
 
@@ -348,3 +348,7 @@ After each merged task, the orchestrator should produce:
 - justification if no;
 - recommended next task;
 - whether Agent B is needed for that next task.
+
+## 15.1 Pointer to F130C
+
+F130C définit le delta opérationnel de roadmap, la politique des tâches complexes, et les niveaux T0–T5.
