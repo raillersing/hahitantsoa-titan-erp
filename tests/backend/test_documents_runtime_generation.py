@@ -1,5 +1,9 @@
 import pytest
 from django.core.files.storage import default_storage
+from tests.backend.test_documents_document_instance_foundation import (
+    _draft_with_line,
+)
+
 from apps.documents.models import DocumentInstanceStatus
 from apps.documents.runtime import (
     DocumentRuntimeGenerationError,
@@ -7,9 +11,6 @@ from apps.documents.runtime import (
     generate_document_instance_html,
 )
 from apps.documents.services import create_document_instance_from_reservation_draft
-from tests.backend.test_documents_document_instance_foundation import (
-    _draft_with_line,
-)
 
 pytestmark = pytest.mark.django_db
 
