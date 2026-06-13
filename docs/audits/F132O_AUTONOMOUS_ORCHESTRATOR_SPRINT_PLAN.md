@@ -167,3 +167,10 @@ Antigravity may not:
 ## Recommended Next Task
 **F132A — Document artifact storage inspection**
 - *Authority Level*: A1/A2 inspection-only before implementing F132B.
+
+## A4 Certification Drill
+- Antigravity may attempt A4 only on low-risk documentation-only tasks first.
+- A4 on backend/runtime/storage/payment/API/lifecycle remains forbidden until explicitly approved by the Human Owner.
+- A4 requires exact file-set verification, PR CI success, `MERGEABLE`, main CI success, and cleanup.
+- Any failure in validation, PR CI, merge, main CI, branch cleanup, or git state must stop the task.
+- After one successful docs-only A4 drill, Antigravity remains limited to A3 for T3/T4 business tasks unless the Human Owner explicitly promotes it.
