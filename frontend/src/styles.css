@@ -120,7 +120,8 @@ h3 {
 .notice,
 .inventory-section,
 .availability-section,
-.discovery-section {
+.discovery-section,
+.artifact-preview-section {
   border: 1px solid rgba(113, 132, 121, 0.22);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.9);
@@ -235,6 +236,11 @@ h3 {
   margin: 24px 24px 0;
 }
 
+.artifact-preview-section {
+  margin: 24px 24px 0;
+  overflow: hidden;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
@@ -318,20 +324,24 @@ h3 {
 }
 
 .availability-form input,
-.availability-form button {
+.availability-form button,
+.artifact-preview-form input,
+.artifact-preview-form button {
   min-height: 42px;
   border: 1px solid #b7c9c0;
   border-radius: 6px;
 }
 
-.availability-form input {
+.availability-form input,
+.artifact-preview-form input {
   width: 100%;
   padding: 0 10px;
   color: #172026;
   background: #ffffff;
 }
 
-.availability-form button {
+.availability-form button,
+.artifact-preview-form button {
   padding: 0 16px;
   border-color: #22483a;
   background: #22483a;
@@ -343,6 +353,55 @@ h3 {
 .availability-form button:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.artifact-preview-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+  padding: 20px;
+}
+
+.artifact-preview-form label {
+  display: grid;
+  gap: 6px;
+  color: #34463e;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.artifact-preview-status,
+.artifact-preview-notice {
+  margin: 0 20px 20px;
+}
+
+.artifact-preview-frame-shell {
+  display: grid;
+  gap: 18px;
+  padding: 0 20px 20px;
+}
+
+.artifact-preview-meta {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid #dde4de;
+  border-radius: 14px;
+  background: #f7faf8;
+}
+
+.artifact-preview-meta p {
+  margin-bottom: 0;
+  color: #5d665f;
+}
+
+.artifact-preview-frame {
+  width: 100%;
+  min-height: 520px;
+  border: 1px solid #dde4de;
+  border-radius: 14px;
+  background: #ffffff;
 }
 
 .availability-section > .status,
@@ -452,6 +511,7 @@ h3 {
   .app-header,
   .inventory-row,
   .availability-form,
+  .artifact-preview-form,
   .summary-grid,
   .preview-list li,
   .discovery-list {
