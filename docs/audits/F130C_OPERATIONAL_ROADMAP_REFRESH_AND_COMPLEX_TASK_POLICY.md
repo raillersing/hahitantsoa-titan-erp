@@ -173,3 +173,6 @@ Recommended F131 scope:
 
 Agent B is recommended for F131 if the slice touches storage behavior, runtime
 document generation, document access policy, or any public API exposure.
+
+For T2-T5 tasks, F130D defines the specialized agent routing matrix and the
+required business module agents.
