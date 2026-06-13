@@ -12,6 +12,51 @@ type InventoryState =
   | { status: "loaded"; items: InventoryItem[] }
   | { status: "error"; message: string };
 
+type ModuleDefinition = {
+  scope: AppScope;
+  navLabel: string;
+  heading: string;
+  eyebrow: string;
+  description: string;
+  boundaryNote: string;
+};
+
+const MODULES: ModuleDefinition[] = [
+  {
+    scope: "titan",
+    navLabel: "Titan",
+    heading: "Titan inventory",
+    eyebrow: "Titan module",
+    description:
+      "Operational inventory and reservation draft preparation for Titan materials, articles and material packs.",
+    boundaryNote:
+      "Titan stays limited to rental inventory. Venue, room, hall and service concepts are excluded from this module.",
+  },
+  {
+    scope: "hahitantsoa",
+    navLabel: "Hahitantsoa",
+    heading: "Hahitantsoa discovery",
+    eyebrow: "Hahitantsoa module",
+    description:
+      "Read-only discovery for the broader event domain, kept separate from Titan inventory and commercial reservation workflows.",
+    boundaryNote:
+      "This module remains exploratory. It does not expose reservation creation, payment, contract or inventory blocking controls.",
+  },
+];
+
+function isAppScope(value: string | null): value is AppScope {
+  return value === "titan" || value === "hahitantsoa";
+}
+
+function readScopeFromHash(hash: string): AppScope {
+  const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
+  return isAppScope(normalizedHash) ? normalizedHash : "titan";
+}
+
+function writeScopeHash(scope: AppScope) {
+  window.history.replaceState(null, "", `#${scope}`);
+}
+
 function kindLabel(kind: InventoryItem["kind"]): string {
   if (kind === "material_pack") {
     return "material pack";
@@ -21,10 +66,20 @@ function kindLabel(kind: InventoryItem["kind"]): string {
 }
 
 function App() {
-  const [activeScope, setActiveScope] = useState<AppScope>("titan");
+  const [activeScope, setActiveScope] = useState<AppScope>(() =>
+    readScopeFromHash(window.location.hash),
+  );
   const [inventoryState, setInventoryState] = useState<InventoryState>({
     status: "loading",
   });
+
+  const activeModule =
+    MODULES.find((moduleDefinition) => moduleDefinition.scope === activeScope) ??
+    MODULES[0];
+
+  useEffect(() => {
+    writeScopeHash(activeScope);
+  }, [activeScope]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -53,35 +108,77 @@ function App() {
     return () => controller.abort();
   }, []);
 
+  useEffect(() => {
+    function handleHashChange() {
+      setActiveScope(readScopeFromHash(window.location.hash));
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div>
+        <div className="app-intro">
           <p className="eyebrow">Hahitantsoa / Titan ERP</p>
-          <h1>{activeScope === "titan" ? "Titan inventory" : "Hahitantsoa discovery"}</h1>
+          <h1>Frontend module shell</h1>
+          <p className="shell-summary">
+            Session-authenticated navigation between the Titan rental surface and the
+            Hahitantsoa read-only discovery surface.
+          </p>
         </div>
         <p className="session-note">Uses the existing Django session.</p>
       </header>
 
-      <nav className="scope-switcher" aria-label="Business scope">
-        <button
-          aria-pressed={activeScope === "titan"}
-          type="button"
-          onClick={() => setActiveScope("titan")}
-        >
-          Titan
-        </button>
-        <button
-          aria-pressed={activeScope === "hahitantsoa"}
-          type="button"
-          onClick={() => setActiveScope("hahitantsoa")}
-        >
-          Hahitantsoa
-        </button>
-      </nav>
+      <div className="shell-layout">
+        <nav className="module-nav" aria-label="Business modules">
+          <div className="module-nav-header">
+            <p className="eyebrow">Modules</p>
+            <p className="module-nav-copy">
+              Navigation stays inside approved frontend surfaces and keeps each business
+              boundary visible.
+            </p>
+          </div>
+          <ul className="module-nav-list">
+            {MODULES.map((moduleDefinition) => {
+              const isActive = moduleDefinition.scope === activeScope;
 
-      {activeScope === "titan" ? (
-        <>
+              return (
+                <li key={moduleDefinition.scope}>
+                  <button
+                    aria-current={isActive ? "page" : undefined}
+                    aria-label={moduleDefinition.navLabel}
+                    aria-pressed={isActive}
+                    className="module-nav-button"
+                    type="button"
+                    onClick={() => setActiveScope(moduleDefinition.scope)}
+                  >
+                    <span>{moduleDefinition.navLabel}</span>
+                    <small>{moduleDefinition.heading}</small>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <section
+          aria-labelledby="active-module-heading"
+          className="module-panel"
+        >
+          <div className="module-hero">
+            <div>
+              <p className="eyebrow">{activeModule.eyebrow}</p>
+              <h2 id="active-module-heading">{activeModule.heading}</h2>
+              <p className="module-description">{activeModule.description}</p>
+            </div>
+            <p className="module-boundary">{activeModule.boundaryNote}</p>
+          </div>
+
+          {activeScope === "titan" ? (
+            <>
           {inventoryState.status === "loading" ? (
             <p className="status">Loading inventory...</p>
           ) : null}
@@ -119,11 +216,17 @@ function App() {
             </section>
           ) : null}
 
-          <AvailabilityPanel inventoryItems={inventoryState.status === "loaded" ? inventoryState.items : []} />
-        </>
-      ) : (
-        <HahitantsoaDiscoveryPanel />
-      )}
+              <AvailabilityPanel
+                inventoryItems={
+                  inventoryState.status === "loaded" ? inventoryState.items : []
+                }
+              />
+            </>
+          ) : (
+            <HahitantsoaDiscoveryPanel />
+          )}
+        </section>
+      </div>
     </main>
   );
 }
