@@ -14,6 +14,7 @@ from apps.documents.selectors import (
     get_document_instance_by_id,
     list_active_document_instances_for_reservation_draft,
     list_document_instances_for_reservation_draft,
+    list_generated_document_instances_for_reservation_draft,
 )
 from apps.documents.services import create_document_instance_from_reservation_draft
 from apps.inventory.models import InventoryAvailability, InventoryItem
@@ -266,3 +267,53 @@ def test_document_instance_service_allows_multiple_instances_for_same_template_k
         ).count()
         == 2
     )
+
+
+def test_list_generated_document_instances_for_reservation_draft(django_user_model) -> None:
+    draft_a = _draft_with_line()
+    draft_b = _draft_with_line()
+    actor = django_user_model.objects.create_user(username="test-actor-gen", password="test-pass")
+
+    def _create_instance(draft, status, template_key):
+        instance = create_document_instance_from_reservation_draft(
+            reservation_draft=draft,
+            template_key=template_key,
+        )
+        instance.status = status
+        if status == DocumentInstanceStatus.VOIDED:
+            instance.voided_at = timezone.now()
+            instance.voided_by = actor
+            instance.void_reason = "Void reasons"
+        instance.save()
+        return instance
+
+    gen_a = _create_instance(draft_a, DocumentInstanceStatus.GENERATED, "titan.proforma.v1")
+    _create_instance(draft_a, DocumentInstanceStatus.PREPARED, "titan.proforma.v1")
+    _create_instance(draft_a, DocumentInstanceStatus.VOIDED, "titan.proforma.v1")
+    _create_instance(draft_a, DocumentInstanceStatus.ISSUED, "titan.proforma.v1")
+
+    gen_b = _create_instance(draft_b, DocumentInstanceStatus.GENERATED, "titan.proforma.v1")
+
+    result_a = list_generated_document_instances_for_reservation_draft(reservation_draft=draft_a)
+    result_b = list_generated_document_instances_for_reservation_draft(reservation_draft=draft_b)
+
+    assert list(result_a) == [gen_a]
+    assert list(result_b) == [gen_b]
+
+    draft_a.refresh_from_db()
+    gen_a.refresh_from_db()
+
+    status_before = draft_a.status
+    updated_at_before = draft_a.updated_at
+    gen_status_before = gen_a.status
+    gen_updated_at_before = gen_a.updated_at
+
+    list(list_generated_document_instances_for_reservation_draft(reservation_draft=draft_a))
+
+    draft_a.refresh_from_db()
+    gen_a.refresh_from_db()
+
+    assert draft_a.status == status_before
+    assert draft_a.updated_at == updated_at_before
+    assert gen_a.status == gen_status_before
+    assert gen_a.updated_at == gen_updated_at_before

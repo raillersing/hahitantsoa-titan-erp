@@ -32,3 +32,12 @@ def get_document_instance_by_id(
         .select_related("reservation_draft", "customer", "prepared_by", "voided_by")
         .first()
     )
+
+
+def list_generated_document_instances_for_reservation_draft(
+    *,
+    reservation_draft: ReservationDraft,
+) -> QuerySet[DocumentInstance]:
+    return list_document_instances_for_reservation_draft(
+        reservation_draft=reservation_draft,
+    ).filter(status=DocumentInstanceStatus.GENERATED)
