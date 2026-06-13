@@ -147,4 +147,18 @@ class DocumentInstancePrivateArtifactAPIView(APIView):
         except Exception:
             raise Http404("Failed to read artifact from storage.")
 
+        from apps.audit.services import record_audit_event_on_commit
+
+        record_audit_event_on_commit(
+            actor=request.user,
+            action="document.artifact_accessed",
+            target_type="document_instance",
+            target_id=str(instance.id),
+            metadata={
+                "template_key": instance.template_key,
+                "content_checksum": instance.content_checksum,
+                "generated_content_size_bytes": instance.generated_content_size_bytes,
+            },
+        )
+
         return HttpResponse(content, content_type="text/html; charset=utf-8")

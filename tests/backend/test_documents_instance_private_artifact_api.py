@@ -6,10 +6,11 @@ from django.core.files.storage import FileSystemStorage
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 import apps.documents.selectors as document_selectors
+from apps.audit.models import AuditEvent
 from apps.documents.models import DocumentInstanceStatus
 from apps.documents.views import DocumentInstancePrivateArtifactAPIView
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(transaction=True)
 
 
 @pytest.fixture
@@ -18,8 +19,10 @@ def api_factory():
 
 
 @pytest.fixture
-def authenticated_user():
-    return SimpleNamespace(is_authenticated=True)
+def authenticated_user(django_user_model):
+    # Retrieve or create a real user to associate with AuditEvent
+    user, _ = django_user_model.objects.get_or_create(username="testuser")
+    return user
 
 
 @pytest.fixture(autouse=True)
@@ -56,6 +59,8 @@ def test_private_artifact_api_not_found(api_factory, authenticated_user) -> None
     request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
     response = view(request, id=instance_id)
     assert response.status_code == 404
+    # Ensure no audit event was created
+    assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
 def test_private_artifact_api_not_generated(api_factory, authenticated_user, monkeypatch) -> None:
@@ -74,6 +79,8 @@ def test_private_artifact_api_not_generated(api_factory, authenticated_user, mon
     request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
     response = view(request, id=instance_id)
     assert response.status_code == 404
+    # Ensure no audit event was created
+    assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
 def test_private_artifact_api_missing_storage_path(
@@ -94,6 +101,8 @@ def test_private_artifact_api_missing_storage_path(
     request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
     response = view(request, id=instance_id)
     assert response.status_code == 404
+    # Ensure no audit event was created
+    assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
 def test_private_artifact_api_file_not_found_in_storage(
@@ -114,6 +123,8 @@ def test_private_artifact_api_file_not_found_in_storage(
     request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
     response = view(request, id=instance_id)
     assert response.status_code == 404
+    # Ensure no audit event was created
+    assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
 def test_private_artifact_api_success(
@@ -132,6 +143,9 @@ def test_private_artifact_api_success(
         id=instance_id,
         status=DocumentInstanceStatus.GENERATED,
         storage_path=storage_path,
+        template_key="test-template",
+        content_checksum="abc123checksum",
+        generated_content_size_bytes=len(html_content),
     )
     monkeypatch.setattr(
         document_selectors,
@@ -146,6 +160,18 @@ def test_private_artifact_api_success(
     assert response.status_code == 200
     assert response.content.decode("utf-8") == html_content
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+
+    # Verify audit event was recorded
+    audit_event = AuditEvent.objects.filter(
+        action="document.artifact_accessed",
+        target_type="document_instance",
+        target_id=str(instance_id),
+    ).first()
+    assert audit_event is not None
+    assert audit_event.actor == authenticated_user
+    assert audit_event.metadata["template_key"] == "test-template"
+    assert audit_event.metadata["content_checksum"] == "abc123checksum"
+    assert audit_event.metadata["generated_content_size_bytes"] == len(html_content)
 
 
 @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
