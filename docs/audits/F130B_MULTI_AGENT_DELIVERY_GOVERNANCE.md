@@ -353,3 +353,6 @@ After each merged task, the orchestrator should produce:
 
 F130C defines the operational roadmap delta, the complex task policy, and the
 T0-T5 execution levels.
+
+F130D defines the specialized agent routing matrix, business module agents, the
+handoff contract, and module-level agent requirements.
