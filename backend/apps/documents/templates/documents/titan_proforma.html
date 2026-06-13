@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ context.template.label }}</title>
+</head>
+<body>
+    <h1>{{ context.template.label }}</h1>
+    <p>Template Key: {{ context.template.key }}</p>
+    <p>Business Scope: {{ context.template.business_scope }}</p>
+    <p>Document Type: {{ context.template.document_type }}</p>
+
+    <h2>Customer</h2>
+    <p>Name: {{ context.reservation_draft.customer.display_name }}</p>
+
+    <h2>Reservation</h2>
+    <p>Reference: {{ context.reservation_draft.public_reference }}</p>
+
+    <h2>Lines</h2>
+    <ul>
+    {% for line in context.reservation_draft.lines %}
+        <li>{{ line.quantity }} x {{ line.inventory_item_description }} ({{ line.notes }})</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
