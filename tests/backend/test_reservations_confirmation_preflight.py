@@ -121,6 +121,24 @@ def test_confirmation_preflight_returns_explicit_prerequisite_blockers(
     assert preflight.attribution_ready is True
 
 
+def test_confirmation_preflight_service_wrapper(django_user_model) -> None:
+    from apps.reservations.services import get_reservation_draft_confirmation_preflight_service
+
+    draft = _draft()
+    item = _item(kind="material")
+    _line(reservation_draft=draft, inventory_item=item)
+    actor = _actor(django_user_model=django_user_model)
+
+    preflight = get_reservation_draft_confirmation_preflight_service(
+        reservation_draft_id=draft.id,
+        actor=actor,
+    )
+
+    assert preflight.can_confirm is False
+    assert preflight.active_line_count == 1
+    assert preflight.attribution_ready is True
+
+
 def test_confirmation_preflight_prerequisite_blockers_clear_when_markers_exist(
     django_user_model,
 ) -> None:

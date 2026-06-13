@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from apps.inventory.models import InventoryItem
+from apps.reservations.confirmation import ReservationDraftConfirmationPreflight
 from apps.reservations.periods import ReservationPeriod, make_reservation_period
 from apps.reservations.preview import (
     ReservationItemPreview,
@@ -107,3 +108,23 @@ def get_reservation_availability_summary_service(
         available_preview_count=len(previews),
         available_item_kinds=tuple(preview.inventory_item_kind for preview in previews),
     )
+
+
+def get_reservation_draft_confirmation_preflight_service(
+    *,
+    reservation_draft_id,
+    actor: object | None,
+) -> ReservationDraftConfirmationPreflight:
+    """Validate if a reservation draft can be confirmed.
+
+    Checks:
+    - Draft exists (raises Http404 or ValueError if not found)
+    - Validates time period, lines, item availability, Titan-allowed kinds, etc.
+    """
+    from django.shortcuts import get_object_or_404
+
+    from apps.reservations.confirmation import get_reservation_draft_confirmation_preflight
+    from apps.reservations.models import ReservationDraft
+
+    draft = get_object_or_404(ReservationDraft, pk=reservation_draft_id)
+    return get_reservation_draft_confirmation_preflight(reservation_draft=draft, actor=actor)
