@@ -35,3 +35,23 @@ then wire rendering in a separate approved slice.
 F126A also keeps payment, invoice, receipt, signed contract, reservation
 confirmation, inventory blocking, frontend behavior, Hahitantsoa write behavior,
 broad RBAC, and OpenClaw out of scope.
+
+## F129 document instance backend foundation
+
+F129 adds the first persisted backend boundary for commercial document
+instances.
+
+This foundation stores metadata snapshots linked to a `ReservationDraft`,
+customer, and template definition from the existing registry/F126BC commercial
+context. It allows the backend to represent a prepared/generated commercial
+document instance without rendering HTML/PDF and without exposing an API.
+
+F129 remains strictly backend-only and excludes:
+
+- PDF/HTML runtime rendering;
+- download endpoints or document file serving;
+- serializers, views, routers, URLs, or OpenAPI paths;
+- payment, receipt, invoice runtime, refund, or cashbox execution;
+- reservation lifecycle APIs;
+- frontend behavior;
+- broad RBAC or external storage integration.
