@@ -23,6 +23,10 @@ class DocumentGenerationResult:
     content_checksum: str
 
 
+def calculate_document_html_checksum(html_content: str) -> str:
+    return hashlib.sha256(html_content.encode("utf-8")).hexdigest()
+
+
 @transaction.atomic
 def generate_document_instance_html(
     *,
@@ -47,7 +51,7 @@ def generate_document_instance_html(
 
     html_content = render_to_string(template_path, {"context": context})
 
-    checksum = hashlib.sha256(html_content.encode("utf-8")).hexdigest()
+    checksum = calculate_document_html_checksum(html_content)
 
     document_instance.status = DocumentInstanceStatus.GENERATED
     document_instance.content_checksum = checksum

@@ -6,6 +6,7 @@ from tests.backend.test_documents_document_instance_foundation import (
 from apps.documents.models import DocumentInstanceStatus
 from apps.documents.runtime import (
     DocumentRuntimeGenerationError,
+    calculate_document_html_checksum,
     generate_document_instance_html,
 )
 from apps.documents.services import create_document_instance_from_reservation_draft
@@ -82,3 +83,13 @@ def test_generate_document_instance_html_no_reservation_mutation() -> None:
 
     draft.refresh_from_db()
     assert draft.updated_at == before_updated_at
+
+
+def test_calculate_document_html_checksum_returns_sha256_hex_digest() -> None:
+    import hashlib
+
+    html = "<html><body>Test</body></html>"
+    checksum = calculate_document_html_checksum(html)
+    assert len(checksum) == 64
+    assert calculate_document_html_checksum(html) == checksum
+    assert checksum == hashlib.sha256(html.encode("utf-8")).hexdigest()
