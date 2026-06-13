@@ -169,39 +169,10 @@ This handoff may appear:
 
 ## 9. Agent routing for F131
 
-**F131 - Document runtime generation backend phase 1**
+The F131 runtime document generation backend phase 1 is complete. For subsequent specialized agent routing details, refer to [F132O_AUTONOMOUS_ORCHESTRATOR_SPRINT_PLAN.md](file:///home/raillersing/projects/hahitantsoa-titan-erp/docs/audits/F132O_AUTONOMOUS_ORCHESTRATOR_SPRINT_PLAN.md).
 
-Required agents:
+The next immediate task is **F132A — Document artifact storage inspection**.
 
-- Documents Runtime Agent
-- Backend Domain Agent
-- Business Specification Agent
-- QA/Test Agent
-- Documentation/Roadmap Agent for the post-merge roadmap impact
-
-Recommended agents:
-
-- Security/RBAC/Audit Agent; required if storage behavior, document access, or
-  public API exposure is touched
-- Agent B; recommended if storage behavior, runtime generation, document access
-  policy, or public API exposure is touched
-
-Not required by default:
-
-- Frontend Business Flow Agent
-- Payments/Billing/Cashbox Agent
-- Logistics/Delivery/Return Agent
-- Production Readiness Agent
-
-F131 must remain:
-
-- backend-only
-- without frontend
-- without payment
-- without reservation lifecycle work
-- without an external provider
-- without a public API unless explicitly approved
-- validated by targeted tests plus full `backend-test` plus CI
 
 ## 10. How the orchestrator calls agents
 

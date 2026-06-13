@@ -156,23 +156,6 @@ Roadmap updates must stay short, operational, and verifiable. They should state:
 
 ## 9. Recommended next task
 
-Recommended next task:
+The F131 runtime document generation backend phase 1 is complete. For subsequent task planning and operational sprint execution details, refer to [F132O_AUTONOMOUS_ORCHESTRATOR_SPRINT_PLAN.md](file:///home/raillersing/projects/hahitantsoa-titan-erp/docs/audits/F132O_AUTONOMOUS_ORCHESTRATOR_SPRINT_PLAN.md).
 
-**F131 - Document runtime generation backend phase 1**
-
-Recommended F131 scope:
-
-- backend-only
-- reuse F126BC and F129
-- generate a first Titan commercial document from `DocumentInstance`
-- no frontend
-- no payment
-- no reservation lifecycle API changes
-- no external provider
-- targeted tests plus full `backend-test` validation plus CI
-
-Agent B is recommended for F131 if the slice touches storage behavior, runtime
-document generation, document access policy, or any public API exposure.
-
-For T2-T5 tasks, F130D defines the specialized agent routing matrix and the
-required business module agents.
+The next immediate task is **F132A — Document artifact storage inspection**.

@@ -303,6 +303,10 @@ For A4:
 - F130D defines specialized agents and business-module routing
 - F130E defines how different tools or agents attach to that governance model
 
+## 13.5 Operational Sprint Execution
+
+For the post-F131 task queue, multi-agent sprint orchestration, and promotion safety guidelines, see the operational plan at [F132O_AUTONOMOUS_ORCHESTRATOR_SPRINT_PLAN.md](file:///home/raillersing/projects/hahitantsoa-titan-erp/docs/audits/F132O_AUTONOMOUS_ORCHESTRATOR_SPRINT_PLAN.md).
+
 ## 14. Stop conditions specific to the Agent Adapter Contract
 
 Stop immediately when:
