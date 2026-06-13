@@ -9,6 +9,9 @@ Le cadrage d'ensemble est consolide dans
 Ce document remplace les anciens reperes MVP comme etat courant global sans effacer leur valeur
 historique de preuve et d'acceptation locale.
 
+Le workflow automatise de livraison ERP valide post-F129S est documente dans
+[`docs/audits/F130A_AUTOMATED_ERP_DELIVERY_WORKFLOW.md`](docs/audits/F130A_AUTOMATED_ERP_DELIVERY_WORKFLOW.md).
+
 F86/F87 restent l'historique d'acceptation locale du MVP read-only Hahitantsoa/Titan. Ce resultat
 `PASS` reste conserve dans
 [`docs/runbooks/mvp-integrated-local-acceptance-result.md`](docs/runbooks/mvp-integrated-local-acceptance-result.md)
