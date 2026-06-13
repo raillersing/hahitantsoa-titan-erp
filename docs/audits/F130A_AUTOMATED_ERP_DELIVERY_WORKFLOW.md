@@ -22,6 +22,10 @@ The canonical containerized execution path is:
 This workflow allows Codex to execute a controlled task end-to-end when the
 scope is clear, validations stay green, and no blocked condition appears.
 
+F130A documents the automated execution workflow. Governance, role separation,
+decision authority, and roadmap-update responsibility are documented in
+[`F130B_MULTI_AGENT_DELIVERY_GOVERNANCE.md`](F130B_MULTI_AGENT_DELIVERY_GOVERNANCE.md).
+
 ## 3. General principle
 
 Codex may execute a task through:

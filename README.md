@@ -11,6 +11,9 @@ historique de preuve et d'acceptation locale.
 
 Le workflow automatise de livraison ERP valide post-F129S est documente dans
 [`docs/audits/F130A_AUTOMATED_ERP_DELIVERY_WORKFLOW.md`](docs/audits/F130A_AUTOMATED_ERP_DELIVERY_WORKFLOW.md).
+La gouvernance multi-agent et la chaine de decision associee sont documentees
+dans
+[`docs/audits/F130B_MULTI_AGENT_DELIVERY_GOVERNANCE.md`](docs/audits/F130B_MULTI_AGENT_DELIVERY_GOVERNANCE.md).
 
 F86/F87 restent l'historique d'acceptation locale du MVP read-only Hahitantsoa/Titan. Ce resultat
 `PASS` reste conserve dans
