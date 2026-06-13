@@ -356,3 +356,7 @@ T0-T5 execution levels.
 
 F130D defines the specialized agent routing matrix, business module agents, the
 handoff contract, and module-level agent requirements.
+
+F130E defines the Agent Adapter Contract used to connect Codex or any other
+delivery or review agent to the ERP governance workflow with explicit authority
+levels and validation requirements.

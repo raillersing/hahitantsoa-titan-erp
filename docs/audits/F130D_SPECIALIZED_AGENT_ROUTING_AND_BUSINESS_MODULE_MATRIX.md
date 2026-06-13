@@ -255,6 +255,8 @@ Agent routing:
 - F130B defines the general multi-agent governance model
 - F130C defines the operational roadmap and the T0-T5 execution policy
 - F130D defines specialized agents and their routing
+- F130E defines the tool-agnostic adapter contract used to determine which
+  specialized agents can inspect, implement, create PRs, merge, or review only
 - future T2, T3, T4, and T5 tasks should point to F130D when routing is part of
   the delivery contract
 
