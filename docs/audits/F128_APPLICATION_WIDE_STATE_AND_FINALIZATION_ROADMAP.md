@@ -1,4 +1,4 @@
-﻿# F128 - Application-wide state and finalization roadmap
+# F128 - Application-wide state and finalization roadmap
 
 ## 1. Status
 
@@ -435,16 +435,14 @@ F128 does not:
 - implement RBAC;
 - modify `.env` or secrets;
 - use OpenClaw.
-
-
 ## 8.5 Post-F130B operational roadmap delta
 
-- F129/F129S/F130A/F130B sont terminés;
-- le workflow automatisé est validé;
-- la gouvernance multi-agent est validée;
-- l'orchestrateur doit utiliser des deltas courts après merge;
-- les tâches complexes sont autorisées sous politique T0–T5;
-- prochaine tâche recommandée: F131 document runtime generation backend phase 1.
+- F129, F129S, F130A, and F130B are complete.
+- The automated ERP delivery workflow is validated.
+- The multi-agent governance chain is validated.
+- The orchestrator must prefer short post-merge roadmap deltas.
+- Complex tasks are allowed under the T0-T5 execution policy.
+- Recommended next task: F131 - document runtime generation backend phase 1.
 
 ## 9. Operating rules going forward
 
