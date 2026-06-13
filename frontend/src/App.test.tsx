@@ -68,7 +68,44 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  it("defaults to the Titan module shell when the URL hash is missing", async () => {
+    window.history.replaceState(null, "", "/");
+    mockAppFetch({ inventoryItems: [] });
+
+    render(<App />);
+
+    expect(
+      screen.getByRole("heading", { name: "Frontend module shell" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Titan inventory" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Titan" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("opens the Hahitantsoa module from the URL hash", async () => {
+    window.history.replaceState(null, "", "/#hahitantsoa");
+
+    mockAppFetch({
+      inventoryItems: [],
+      discoveryResponse: {
+        items: [{ concept: "venue", label: "venue" }],
+        count: 1,
+      },
+    });
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Hahitantsoa discovery" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("venue")).toHaveLength(2);
+  });
+
   it("shows the loading state while inventory is pending", () => {
+    window.history.replaceState(null, "", "/");
     vi.spyOn(globalThis, "fetch").mockImplementation(
       () => new Promise(() => undefined),
     );
@@ -79,6 +116,7 @@ describe("App", () => {
   });
 
   it("renders inventory items, count and kind labels", async () => {
+    window.history.replaceState(null, "", "/");
     mockAppFetch({
       inventoryItems: [
         {
@@ -106,6 +144,7 @@ describe("App", () => {
   });
 
   it("requests the authenticated inventory endpoint", async () => {
+    window.history.replaceState(null, "", "/");
     const fetchMock = mockAppFetch({ inventoryItems: [] });
 
     render(<App />);
@@ -118,6 +157,7 @@ describe("App", () => {
   });
 
   it("renders the empty inventory state", async () => {
+    window.history.replaceState(null, "", "/");
     mockAppFetch({ inventoryItems: [] });
 
     render(<App />);
@@ -128,6 +168,7 @@ describe("App", () => {
   });
 
   it("renders an error state for a failed HTTP response", async () => {
+    window.history.replaceState(null, "", "/");
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
 
@@ -157,6 +198,7 @@ describe("App", () => {
   });
 
   it("renders an error state when the request rejects", async () => {
+    window.history.replaceState(null, "", "/");
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
 
@@ -183,6 +225,7 @@ describe("App", () => {
   });
 
   it("renders availability without login or forbidden reservation controls", async () => {
+    window.history.replaceState(null, "", "/");
     mockAppFetch({ inventoryItems: [] });
 
     render(<App />);
@@ -205,6 +248,7 @@ describe("App", () => {
   });
 
   it("keeps Hahitantsoa discovery separate from the Titan surface", async () => {
+    window.history.replaceState(null, "", "/");
     const fetchMock = mockAppFetch({
       inventoryItems: [],
       discoveryResponse: {
@@ -231,5 +275,6 @@ describe("App", () => {
         signal: expect.any(AbortSignal),
       },
     );
+    expect(window.location.hash).toBe("#hahitantsoa");
   });
 });
