@@ -1,8 +1,5 @@
 import pytest
-from tests.backend.test_documents_document_instance_foundation import (
-    _draft_with_line,
-)
-
+from django.core.files.storage import default_storage
 from apps.documents.models import DocumentInstanceStatus
 from apps.documents.runtime import (
     DocumentRuntimeGenerationError,
@@ -10,6 +7,9 @@ from apps.documents.runtime import (
     generate_document_instance_html,
 )
 from apps.documents.services import create_document_instance_from_reservation_draft
+from tests.backend.test_documents_document_instance_foundation import (
+    _draft_with_line,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -25,9 +25,14 @@ def test_generate_document_instance_html_success() -> None:
 
     assert instance.status == DocumentInstanceStatus.GENERATED
     assert instance.content_checksum is not None
-    assert instance.storage_path is None
-    assert instance.generated_content_size_bytes is not None
-    assert instance.generated_content_size_bytes == len(result.html_content.encode("utf-8"))
+    assert instance.storage_path is not None
+    assert not instance.storage_path.startswith("/") and ".." not in instance.storage_path
+    assert instance.storage_path.endswith(".html")
+    # Verify stored content matches generated HTML
+    with default_storage.open(instance.storage_path, "rb") as f:
+        stored_bytes = f.read()
+    assert stored_bytes == result.html_content.encode("utf-8")
+    assert instance.generated_content_size_bytes == len(stored_bytes)
 
     assert result.document_instance == instance
     assert result.content_checksum == instance.content_checksum
@@ -72,6 +77,8 @@ def test_generate_document_instance_html_invalid_status() -> None:
         generate_document_instance_html(document_instance=instance)
 
     assert exc_info.value.code == "invalid_document_status_for_generation"
+    # Ensure no storage path was set
+    assert instance.storage_path is None
 
 
 def test_generate_document_instance_html_no_reservation_mutation() -> None:
