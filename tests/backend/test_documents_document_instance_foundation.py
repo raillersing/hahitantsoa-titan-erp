@@ -259,7 +259,10 @@ def test_document_instance_service_allows_multiple_instances_for_same_template_k
     )
 
     assert first.id != second.id
-    assert DocumentInstance.objects.filter(
-        reservation_draft=draft,
-        template_key="titan.proforma.v1",
-    ).count() == 2
+    assert (
+        DocumentInstance.objects.filter(
+            reservation_draft=draft,
+            template_key="titan.proforma.v1",
+        ).count()
+        == 2
+    )
