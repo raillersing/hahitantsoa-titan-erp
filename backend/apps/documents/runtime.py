@@ -41,7 +41,7 @@ def store_document_html_artifact(
     document_instance, html_content: str, content_checksum: str
 ) -> str:
     """Save the HTML content to the default storage and return the relative path.
-    Uses UTF‑8 encoding.
+    Uses UTF-8 encoding.
     """
     path = build_document_artifact_storage_path(document_instance, content_checksum)
     default_storage.save(path, ContentFile(html_content.encode("utf-8")))
