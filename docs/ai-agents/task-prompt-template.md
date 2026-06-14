@@ -38,6 +38,13 @@ Current repo baseline:
 - active PR state: <none|PR #...>
 - allowed dirty files: <none or explicit list>
 
+Live baseline:
+- run the live baseline before trusting static docs
+- include the relevant subset of: `git fetch origin --prune`, `git log`, `git status --short`,
+  `gh pr list`, `bash scripts/dev/erp-orchestrator-state-check`,
+  `bash scripts/dev/erp-task-queue-validate`, `bash scripts/dev/erp-worktree-list-validated`
+- if static docs disagree with live baseline, report the mismatch and follow live baseline
+
 Dirty-worktree stop condition:
 - stop if any dirty file exists outside the explicitly allowed dirty set for this task
 
@@ -49,9 +56,12 @@ Forbidden scope:
 - forbidden behavior: <list>
 
 Command mode:
+- environment mode: <native WSL/bash | OpenCode Web from WSL | Windows-hosted plan-only | approved Windows-to-WSL bridge>
 - all important commands run through `scripts/dev/erp-logged-run <task-name> <<'EOF' ... EOF`
-- Codex/native WSL-bash agents may execute approved repo commands
+- native WSL/bash mode forbids `wsl`, `wsl.exe`, `wsl -d`, PowerShell, `cmd.exe`, and Windows paths
+- OpenCode Web launched from WSL uses native WSL/bash mode
 - Windows-hosted agents are plan-only unless an explicit WSL adapter is approved
+- approved bridge mode must mention CRLF and quoting risks
 - no improvised PowerShell-to-WSL bridge
 
 Validation commands:

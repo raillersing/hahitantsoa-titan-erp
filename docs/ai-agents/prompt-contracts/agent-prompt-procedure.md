@@ -89,6 +89,8 @@ State the baseline facts the task depends on, such as:
 - detached or active worktree state
 - known dirty files
 
+The baseline must come from a live repository check, not from static docs alone.
+
 ### `dirty-worktree stop condition`
 
 Say whether the agent must stop on any dirty state or whether specific already-dirty files
@@ -125,9 +127,11 @@ not stated, treat it as not allowed.
 
 ## Command Mode Rules
 
-### Codex And Native WSL/Bash Agents
+### Native WSL/Bash Agent
 
-Codex and any native WSL/bash agent must run important commands through:
+Use this mode when the agent is already running inside Ubuntu/Linux.
+
+Required behavior:
 
 ```sh
 cd "$HOME/projects/hahitantsoa-titan-erp"
@@ -138,14 +142,79 @@ set -euo pipefail
 EOF
 ```
 
-Do not replace this with inline `bash -c`.
+Use native bash only.
 
-### Windows-Hosted Agents
+Forbidden in this mode:
 
-Windows-hosted agents such as Antigravity or OpenCode are plan-only unless a stable,
-explicitly approved WSL adapter is part of the task.
+- `wsl`
+- `wsl.exe`
+- `wsl -d`
+- PowerShell
+- `cmd.exe`
+- Windows paths
+- improvised Windows-to-WSL bridge commands
 
-They must not improvise a PowerShell-to-WSL bridge on their own.
+Do not replace the logged format with inline `bash -c`.
+
+### OpenCode Web Launched From WSL
+
+If the browser UI is on Windows but the OpenCode backend terminal is already inside WSL,
+treat it as native WSL/bash mode.
+
+Required behavior:
+
+- use the same native bash heredoc workflow as above
+- do not use Windows-to-WSL bridge commands
+- do not use `wsl -d Ubuntu bash -c`
+
+### Windows-Hosted Agent
+
+Use this mode for:
+
+- Windows desktop app sessions
+- PowerShell-hosted agents
+- unknown host-shell agents
+
+Default behavior:
+
+- plan-only
+- no shell execution unless an adapter is explicitly approved for the task
+
+Allowed action in this mode:
+
+- propose WSL commands for the human supervisor in standard `erp-logged-run` heredoc format
+
+Forbidden in this mode:
+
+- improvised PowerShell-to-WSL bridges
+- direct backend validation through host Python
+- pretending bridge mode is WSL-native mode
+
+### Approved Windows-To-WSL Adapter
+
+This mode is allowed only when the task explicitly authorizes it.
+
+It must be documented in the prompt as bridge mode, not as WSL-native mode.
+
+The prompt must also call out these risks:
+
+- CRLF conversion risk
+- quoting and heredoc escaping risk
+- host-shell interpolation risk
+- path translation risk
+
+Never use bridge mode if the agent is already inside WSL.
+
+### OpenCode Desktop Windows
+
+OpenCode Desktop on Windows is not approved for autonomous mutation.
+
+Treat it as:
+
+- review-only
+- plan-only
+
+until a stable WSL backend mode is proven and explicitly approved.
 
 ### No Improvised Bridge Rule
 
@@ -215,6 +284,29 @@ these baseline ones:
 - stop if another active worktree owns the same mutable files
 - stop before merge or push unless explicitly authorized
 
+## Stale Static Docs Rule
+
+Agents must run a live baseline before accepting repository state.
+
+The live baseline should include the relevant subset of:
+
+- `git fetch origin --prune`
+- `git log --oneline --decorate -n ...`
+- `git status --short`
+- `gh pr list`
+- `scripts/dev/erp-orchestrator-state-check`
+- `scripts/dev/erp-task-queue-validate`
+- `scripts/dev/erp-worktree-list-validated`
+
+Static docs such as `orchestrator-state.md` are reference material, not sufficient proof
+of current state.
+
+If static docs disagree with the live baseline:
+
+- the live baseline wins
+- the agent must report the mismatch explicitly
+- the task must not silently continue on stale assumptions
+
 ## Prompt Skeleton
 
 Use this structure:
@@ -246,6 +338,10 @@ Current context:
 - <baseline fact>
 - <baseline fact>
 
+Live baseline:
+- <commands already run or required before accepting state>
+- if static docs disagree with live baseline, report the mismatch and follow live state
+
 Allowed scope:
 - <path/glob>
 
@@ -253,6 +349,7 @@ Forbidden scope:
 - <path/glob or behavior>
 
 Command mode:
+- <native WSL/bash | OpenCode Web from WSL | Windows-hosted plan-only | approved bridge mode>
 - important commands run through scripts/dev/erp-logged-run heredoc format
 
 Validation:

@@ -4,6 +4,9 @@
 
 This runbook defines the standard command patterns for ERP agent tasks.
 
+These commands assume a native WSL/bash execution context unless a task explicitly
+documents an approved Windows-to-WSL bridge mode.
+
 Always run important terminal work through:
 
 ```sh
@@ -13,6 +16,27 @@ EOF
 ```
 
 Do not replace this heredoc workflow with inline `bash -c`.
+
+If the agent is already inside WSL, do not wrap commands with `wsl`, `wsl.exe`,
+`wsl -d`, PowerShell, `cmd.exe`, or Windows path indirection.
+
+If the agent is Windows-hosted and no approved bridge mode is explicitly authorized,
+remain plan-only and propose the WSL heredoc commands for the human supervisor instead of
+executing them.
+
+Before trusting static queue or state docs, run a live baseline using the relevant subset
+of:
+
+- `git fetch origin --prune`
+- `git log --oneline --decorate -8`
+- `git status --short`
+- `gh pr list`
+- `bash scripts/dev/erp-orchestrator-state-check`
+- `bash scripts/dev/erp-task-queue-validate`
+- `bash scripts/dev/erp-worktree-list-validated`
+
+If static docs disagree with the live baseline, report the mismatch and follow the live
+baseline.
 
 ## Standard Task Start
 
