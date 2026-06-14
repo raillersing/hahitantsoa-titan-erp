@@ -9,6 +9,13 @@
 
 Standardize small, versioned prompt inputs for documentation-only work.
 
+## Maximum Autonomy
+
+- maximum level: `Level 2`
+- Pursue Goal: allowed for bounded docs-only outcomes
+- Level 3 auto-repair: allowed only for same-PR docs conflicts or docs CI issues
+- Level 4 auto-merge: forbidden by default
+
 ## Required References
 
 - `docs/ai-agents/agent-command-runbook.md`
@@ -41,6 +48,7 @@ Never modify `backend/`, `frontend/`, `scripts/`, `.github/`, dependencies, Comp
 - another active docs agent already owns overlapping files
 - the task requires unapproved code or workflow edits
 - `.env` or secret-like path appears in status or requested scope
+- the agent would need to extend scope to "finish faster"
 
 ## Expected Outputs
 

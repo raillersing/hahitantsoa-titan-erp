@@ -9,6 +9,13 @@
 
 Define a strict review-only prompt surface for non-mutating review agents.
 
+## Maximum Autonomy
+
+- maximum level: `Level 0`
+- Pursue Goal: not allowed for mutation
+- Level 3 auto-repair: not allowed in review-only mode
+- Level 4 auto-merge: forbidden
+
 ## Required References
 
 - `docs/ai-agents/review-agent-template.md`
@@ -35,6 +42,7 @@ Review agents must not:
 - push
 - merge
 - silently correct findings
+- extend their scope to "finish faster"
 
 ## Expected Outputs
 

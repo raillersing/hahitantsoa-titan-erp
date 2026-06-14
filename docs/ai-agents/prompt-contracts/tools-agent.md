@@ -9,6 +9,13 @@
 
 Standardize prompt inputs for agent-tooling and orchestration helper work.
 
+## Maximum Autonomy
+
+- maximum level: `Level 2`
+- Pursue Goal: allowed for bounded tooling outcomes
+- Level 3 auto-repair: allowed only for same-PR lint, test, or conflict repair
+- Level 4 auto-merge: forbidden
+
 ## Required References
 
 - `docs/ai-agents/agent-command-runbook.md`
@@ -41,6 +48,7 @@ Never touch application code, `.github/workflows/`, dependencies, or `.env`.
 - helper would require reading or printing secrets
 - helper would delete dirty state without explicit stop
 - another active tools agent owns overlapping files
+- the agent would need to extend scope to "finish faster"
 
 ## Expected Outputs
 

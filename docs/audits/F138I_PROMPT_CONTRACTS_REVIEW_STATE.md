@@ -16,6 +16,9 @@ This covers:
 - F138L: review-only agent workflow
 - F138M: conflict and parallelism policy
 
+The amended slice also adds controlled-autonomy policy and a Pursue Goal contract so
+future orchestrator prompts can stay short without becoming underspecified.
+
 ## Delivered Files
 
 - `docs/ai-agents/prompt-contracts/backend-orchestrator.md`
@@ -26,6 +29,8 @@ This covers:
 - `docs/ai-agents/orchestrator-state.md`
 - `docs/ai-agents/review-agent-template.md`
 - `docs/ai-agents/parallel-agent-policy.md`
+- `docs/ai-agents/autonomous-agent-policy.md`
+- `docs/ai-agents/pursue-goal-contract.md`
 - this audit
 
 ## Why Prompt Contracts Were Needed

@@ -7,6 +7,27 @@ Two agents may work in parallel only when their mutable file globs do not overla
 If mutable globs overlap, the tasks must be serialized or one task must be reduced to
 review-only.
 
+## Shared Index Rule
+
+Shared index files are single-writer files during parallel work.
+
+These include:
+
+- `AGENTS.md`
+- `PLANS.md`
+- `docs/ai-agents/README.md`
+- `docs/ai-agents/orchestrator-state.md`
+- any global queue or global index file
+
+These files may be modified only:
+
+- by the orchestrator;
+- in a final integration PR;
+- by one explicitly designated agent.
+
+Parallel agents should create their own dedicated docs without touching shared index
+files unless explicit authorization exists.
+
 ## Allowed Parallel Examples
 
 - backend agent on `backend/**` and `tests/backend/**` plus frontend agent on
@@ -21,6 +42,7 @@ review-only.
 - backend implementer and backend reviewer both editing the same backend branch
 - frontend implementer and docs agent both changing the same frontend audit file
 - two tools agents both editing `scripts/dev/**`
+- one docs or tools agent editing a shared index file already owned by another active agent
 
 ## Conflict Policy
 
@@ -28,6 +50,7 @@ Stop and re-coordinate when:
 
 - two active tasks require the same file
 - one task needs to broaden into another agent's live scope
+- one task needs a shared index file already owned by another active agent
 - a review-only agent is asked to become mutating mid-stream without explicit reassigning
 - rebasing or merge conflict resolution would require silent ownership override
 

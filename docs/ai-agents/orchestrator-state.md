@@ -4,40 +4,41 @@
 
 - ledger: `orchestrator-state`
 - version: `F138K-v1`
-- last-updated-main-head: `f808b3951b96507ccb31013c9e1537c42a0d4f5d`
+- last-updated-main-head: `b31a52e934bb2d10f89b450e6d3993a6b0c978a9`
 
 ## Current Main HEAD
 
-- `origin/main`: `f808b3951b96507ccb31013c9e1537c42a0d4f5d`
-- title: `docs-agent-runbook-and-orchestrator-queue-f138d (#163)`
+- `origin/main`: `b31a52e934bb2d10f89b450e6d3993a6b0c978a9`
+- title: `docs (#165)`
 
 ## Active Backend Task
 
 - task: `F135B`
-- state: active
+- state: suspended until #166 merges and main CI is green
 - branch or worktree: `feat/f135b-reservation-confirmation-private-api` in backend worktree
 - scope: private reservation confirmation API only
 
 ## Active Frontend Task
 
 - task: `F137C`
-- state: next-active frontend slice
+- state: suspended until #166 merges and main CI is green
 - branch or worktree: frontend worktree currently detached and awaiting next task branch
 - scope: approved frontend continuation after F137B
 
 ## Active Docs And Tools Tasks
 
 - `F138F/F138N`
-  - state: open PR
+  - state: merged
   - branch: `chore/f138f-worktree-lifecycle-and-recovery`
   - PR: [#164](https://github.com/raillersing/hahitantsoa-titan-erp/pull/164)
 - `F138G/F138H`
-  - state: open PR
+  - state: merged
   - branch: `chore/f138g-security-and-secret-hygiene`
   - PR: [#165](https://github.com/raillersing/hahitantsoa-titan-erp/pull/165)
 - `F138I/F138K/F138L/F138M`
-  - state: in progress in agent-prompts worktree
+  - state: open PR in progress
   - branch: `docs/f138i-prompt-contracts-review-agent-state`
+  - PR: [#166](https://github.com/raillersing/hahitantsoa-titan-erp/pull/166)
 
 ## Blocked Tasks
 
@@ -45,20 +46,19 @@
 
 ## Open PRs
 
-- [#164](https://github.com/raillersing/hahitantsoa-titan-erp/pull/164) `chore/f138f-worktree-lifecycle-and-recovery`
-- [#165](https://github.com/raillersing/hahitantsoa-titan-erp/pull/165) `chore/f138g-security-and-secret-hygiene`
+- [#166](https://github.com/raillersing/hahitantsoa-titan-erp/pull/166) `docs/f138i-prompt-contracts-review-agent-state`
 
 ## Last Green Main CI
 
-- run: [27491764627](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/27491764627)
-- head SHA: `f808b3951b96507ccb31013c9e1537c42a0d4f5d`
+- run: [27494017907](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/27494017907)
+- head SHA: `b31a52e934bb2d10f89b450e6d3993a6b0c978a9`
 - conclusion: success
 
 ## Next Allowed Task
 
-- next backend implementation remains `F135B`
-- next frontend implementation remains `F137C`
-- next docs or tools task after currently open F138 PRs depends on human approval and green PR CI
+- next backend implementation remains `F135B`, but stays suspended
+- next frontend implementation remains `F137C`, but stays suspended
+- next step is `F138E` only after #166 is merged and `main` CI is green
 
 ## Ledger Update Rule
 

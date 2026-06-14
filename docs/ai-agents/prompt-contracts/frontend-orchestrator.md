@@ -9,6 +9,13 @@
 
 Keep frontend orchestration prompts short, referenced, and API-contract-safe.
 
+## Maximum Autonomy
+
+- maximum level: `Level 2`
+- Pursue Goal: allowed only when the bounded goal contract is fully specified
+- Level 3 auto-repair: allowed only inside the same PR and same approved scope
+- Level 4 auto-merge: forbidden
+
 ## Required References
 
 - `docs/ai-agents/agent-command-runbook.md`
@@ -44,6 +51,7 @@ Never invent backend endpoints, payloads, permissions, or workflows.
 - `.env` or secret-like path appears
 - absent or contradictory backend contract
 - any request to create public document URLs or expose protected storage paths
+- the agent would need to extend scope to "finish faster"
 
 ## Expected Outputs
 

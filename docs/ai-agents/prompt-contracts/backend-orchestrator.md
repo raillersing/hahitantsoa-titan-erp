@@ -9,6 +9,13 @@
 
 Keep backend orchestration prompts short, repeatable, and reviewable.
 
+## Maximum Autonomy
+
+- maximum level: `Level 2`
+- Pursue Goal: allowed only when the bounded goal contract is fully specified
+- Level 3 auto-repair: allowed only inside the same PR and same approved scope
+- Level 4 auto-merge: forbidden
+
 ## Required References
 
 Backend prompts should reference, not duplicate:
@@ -47,6 +54,7 @@ task explicitly authorizes it.
 - `.env` or secret-like path appears
 - missing or contradictory backend contract
 - CI failure that would require unapproved scope expansion
+- the agent would need to extend scope to "finish faster"
 
 ## Expected Outputs
 

@@ -15,6 +15,9 @@ Unless the task explicitly says otherwise, a review agent must:
 - avoid file edits;
 - avoid commits, pushes, and merges.
 
+Review-only review is mandatory before Level 2 autonomy on backend or frontend mutation
+tasks.
+
 ## Required Inputs
 
 - repository path
@@ -23,6 +26,16 @@ Unless the task explicitly says otherwise, a review agent must:
 - relevant diff or files
 - review goals
 - available evidence such as local checks or CI results
+
+The reviewer must check:
+
+- scope
+- tests
+- business rules
+- security
+- secrets handling
+- migrations when relevant
+- documentation accuracy
 
 ## Review Output Format
 
@@ -48,6 +61,7 @@ If no findings exist, say so explicitly and note any remaining evidence gaps.
 - committing
 - pushing
 - merging
+- deleting branches
 - reading `.env`
 - printing or repeating secrets
 
