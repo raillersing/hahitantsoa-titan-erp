@@ -2,57 +2,59 @@
 
 ## Status
 
-This is an initial non-definitive macro-goal planning document. It defines the method
-for backend finalization and records the first known queue items. It does not claim that
-all backend tasks are already known.
+This is a non-definitive macro-goal planning document. It defines the method for backend
+finalization and records the current known queue after `F135B` merged on `main`.
 
 ## Target macro-goal
 
 - macro-goal: `MG-BACKEND-FINALIZATION`
 - primary outcome: finish backend work through bounded, reviewable micro-tasks
 
+## Current baseline
+
+- `F138E` is complete and the backend worktree is repaired
+- `F135B` is complete and merged on `main` at `9df9251`
+- the backend worktree is detached on `9df9251` and ready for a new dedicated task branch
+
 ## Planning method
 
-1. Audit the backend baseline
-   - confirm current `origin/main`
-   - inspect the backend worktree branch and cleanliness
-   - identify whether the current WIP can be rebased or must be repaired first
-2. Inventory backend modules
-   - list implemented modules and incomplete flows
-   - separate reservation, documents, auth, finance, and support infrastructure areas
-3. Identify incomplete flows
-   - verify current API surface versus intended private reservation confirmation flow
-   - record known gaps only when supported by code or audit evidence
-4. Classify tasks
-   - bug fix
-   - feature continuation
-   - contract alignment
-   - tests and validation
-   - docs and status updates
-5. Create micro-goals
-   - convert each verified backend slice into one queue entry
-   - keep dependencies explicit
-6. Execute known continuation
-   - run `F138E` first to repair or rebase WIP branches safely
-   - continue `F135B` reservation confirmation private API after the repair baseline is
-     validated
-7. Continue by priority
-   - prioritize tasks that unblock frontend work or remove backend uncertainty first
+1. Confirm the backend baseline on `origin/main`
+2. Prefer slices already recommended by accepted backend audits
+3. Keep each backend slice bounded to one branch and one narrow behavior change
+4. Stop immediately when a slice would require migrations, cross-worktree edits, or
+   broader commercial workflow expansion
+5. Use review and `main` CI gates before advancing the macro-goal queue
 
-## First known queue items
+## Completed queue items
 
 - `F138E`
   - purpose: repair or rebase WIP branches before new implementation
-  - dependency: none
-  - status: planned prerequisite
+  - status: done
 - `F135B`
   - purpose: reservation confirmation private API continuation
-  - dependency: `F138E`
-  - status: suspended until safe baseline is restored
+  - status: done
+
+## Next implementation slice
+
+- `F126B`
+  - source: explicitly recommended by `F126A`
+  - purpose: add a backend-only commercial document context/value object
+  - inputs: existing document template registry and `ReservationDraft`
+  - constraints: side-effect free, no PDF generation, no invoices, contracts, receipts,
+    payments, reservations, or inventory blocks
+  - state: ready
+
+## Immediate follow-up after F126B
+
+- `F126C`
+  - purpose: refactor Titan proforma preview to use the new context while preserving the
+    existing API payload
+  - state: draft until `F126B` is complete
 
 ## Stop conditions
 
-- backend worktree is on the wrong branch
-- repair would require destructive cleanup
-- scope expands beyond the bounded private API slice without audit evidence
-- CI or local validation failures point to unrelated domains
+- migration becomes necessary
+- the task needs runtime PDF generation
+- the task needs payment, inventory, or reservation writes
+- the task needs frontend, script, or workflow changes
+- the source of truth for the commercial context becomes ambiguous
