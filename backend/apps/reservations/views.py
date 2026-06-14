@@ -122,3 +122,53 @@ class ReservationDraftRetrieveAPIView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return active_reservation_drafts()
+
+
+class ReservationDraftConfirmAPIView(APIView):
+    permission_classes = [IsAuthenticatedReservationDraftBoundary]
+
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        from apps.reservations.confirmation import (
+            ReservationConfirmationPreflightError,
+            ReservationLifecycleError,
+            ReservationLifecycleStateError,
+            confirm_reservation_draft,
+        )
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+
+        try:
+            result = confirm_reservation_draft(reservation_draft=draft, actor=request.user)
+        except PermissionError as error:
+            return Response(
+                {"detail": str(error)},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except ReservationConfirmationPreflightError as error:
+            return Response(
+                {
+                    "detail": str(error),
+                    "code": error.code,
+                    "blockers": error.blockers,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {
+                    "detail": str(error),
+                    "code": getattr(error, "code", None),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        confirmed_draft = result.reservation_draft
+        payload = {
+            "status": "confirmed",
+            "public_reference": confirmed_draft.public_reference,
+            "blocked_item_count": result.blocked_item_count,
+            "reservation_draft": ReservationDraftSerializer(confirmed_draft).data,
+        }
+        return Response(payload, status=status.HTTP_200_OK)
