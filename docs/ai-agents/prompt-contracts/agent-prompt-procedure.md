@@ -7,6 +7,7 @@ repository.
 
 Use it with:
 
+- [Agent profiles](../agent-profiles.md)
 - [Agent command runbook](../agent-command-runbook.md)
 - [Worktree registry](../worktree-registry.md)
 - [Parallel agent policy](../parallel-agent-policy.md)
@@ -15,6 +16,9 @@ Use it with:
 
 Prompts must stay short. They should reference official repository procedure instead of
 copying long command blocks, environment rules, or queue state into every task.
+
+Task-start baseline is part of the task itself. No separate human pre-baseline command
+should be required before every prompt.
 
 ## Mandatory Prompt Fields
 
@@ -25,6 +29,7 @@ Every mutating or review task prompt must contain all of the following:
 - `authorized worktree`
 - `forbidden worktrees`
 - `agent role/type`
+- `agent profile`
 - `autonomy level`
 - `files to read first`
 - `current repo baseline`
@@ -71,6 +76,13 @@ State the expected role clearly, for example:
 - `docs-governance agent`
 - `review-only agent`
 
+### `agent profile`
+
+State one explicit assigned profile from [`agent-profiles.md`](../agent-profiles.md).
+
+Agents must not infer their profile from a UI surface, browser label, or shell guesswork
+alone.
+
 ### `autonomy level`
 
 State the allowed autonomy level explicitly. If not stated, treat the task as bounded
@@ -112,6 +124,9 @@ State the execution mode (native WSL/bash, OpenCode Web from WSL, Windows-hosted
 plan-only, approved bridge mode) and the execution level (0 plan-only, 1 read-only,
 2 docs mutation, 3 tools-governance, 4 backend/frontend).
 
+Executable agents run the task-start baseline as their first command. Plan-only agents
+propose the same baseline and wait.
+
 ### `validation commands`
 
 List only the focused repository commands required to validate the task.
@@ -130,6 +145,21 @@ State whether commit, push, PR creation, merge, or cleanup are allowed. If a per
 not stated, treat it as not allowed.
 
 ## Command Mode Rules
+
+Choose the command mode that matches the assigned agent profile.
+
+Executable agent tasks must begin with:
+
+```sh
+scripts/dev/erp-logged-run task-start <<'EOF'
+set -euo pipefail
+
+bash scripts/dev/erp-agent-task-start
+EOF
+```
+
+Plan-only agent tasks must propose the same baseline to the human supervisor instead of
+executing it.
 
 ### Native WSL/Bash Agent
 
@@ -364,6 +394,9 @@ The live baseline should include the relevant subset of:
 - `scripts/dev/erp-task-queue-validate`
 - `scripts/dev/erp-worktree-list-validated`
 
+The standard integrated way to satisfy this is `bash scripts/dev/erp-agent-task-start`
+inside `scripts/dev/erp-logged-run`.
+
 Static docs such as `orchestrator-state.md` are reference material, not sufficient proof
 of current state.
 
@@ -372,6 +405,9 @@ If static docs disagree with the live baseline:
 - the live baseline wins
 - the agent must report the mismatch explicitly
 - the task must not silently continue on stale assumptions
+
+The orchestrator must assign a profile before assigning a task because the live-baseline
+requirements differ by execution environment.
 
 ## Orchestrator State Update Policy
 
@@ -469,6 +505,9 @@ Agent role:
 - <role/type>
 - docs profile if applicable: <docs-only | docs-governance | not applicable>
 
+Agent profile:
+- <profile from docs/ai-agents/agent-profiles.md>
+
 Autonomy:
 - <level>
 
@@ -481,7 +520,7 @@ Current context:
 - <baseline fact>
 
 Live baseline:
-- <commands already run or required before accepting state>
+- `scripts/dev/erp-logged-run task-start <<'EOF' ... bash scripts/dev/erp-agent-task-start ... EOF`
 - if static docs disagree with live baseline, report the mismatch and follow live state
 
 Allowed scope:

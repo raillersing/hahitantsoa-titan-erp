@@ -2,6 +2,8 @@
 
 Use this template with the canonical procedure in
 [`docs/ai-agents/prompt-contracts/agent-prompt-procedure.md`](prompt-contracts/agent-prompt-procedure.md).
+Assign one explicit profile from
+[`docs/ai-agents/agent-profiles.md`](agent-profiles.md) before writing the task prompt.
 Every field required by that procedure must appear in the final task prompt.
 
 ```text
@@ -22,6 +24,9 @@ Agent role:
 - <backend|frontend|docs/tools governance|docs-only|docs-governance|review-only|other approved role>
 - docs profile if applicable: <docs-only | docs-governance | not applicable>
 
+Agent profile:
+- <codex-native-wsl-mutating | antigravity-review-docs | opencode-web-wsl-review | opencode-desktop-windows-plan-only | windows-hosted-agent-plan-only | human-supervisor | future-crewai-orchestrator-framework>
+
 Autonomy:
 - <level>
 
@@ -40,7 +45,8 @@ Current repo baseline:
 - allowed dirty files: <none or explicit list>
 
 Live baseline:
-- run the live baseline before trusting static docs
+- task-start baseline is part of the task itself
+- run `scripts/dev/erp-logged-run task-start <<'EOF' ... bash scripts/dev/erp-agent-task-start ... EOF` before trusting static docs
 - include the relevant subset of: `git fetch origin --prune`, `git log`, `git status --short`,
   `gh pr list`, `bash scripts/dev/erp-orchestrator-state-check`,
   `bash scripts/dev/erp-task-queue-validate`, `bash scripts/dev/erp-worktree-list-validated`
@@ -60,6 +66,8 @@ Command mode:
 - environment mode: <native WSL/bash | OpenCode Web from WSL | Windows-hosted plan-only | approved Windows-to-WSL bridge>
 - execution level: <0 plan-only | 1 read-only | 2 docs | 3 tools-governance | 4 backend/frontend>
 - all important commands run through `scripts/dev/erp-logged-run <task-name> <<'EOF' ... EOF`
+- executable agents run the integrated task-start baseline as their first command
+- plan-only agents propose the same task-start baseline and wait
 - native WSL/bash mode forbids `wsl`, `wsl.exe`, `wsl -d`, PowerShell, `cmd.exe`, and Windows paths
 - OpenCode Web launched from WSL uses native WSL/bash mode
 - Windows-hosted agents are plan-only unless an explicit WSL adapter is approved
