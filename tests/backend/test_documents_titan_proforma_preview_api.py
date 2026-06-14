@@ -1,13 +1,22 @@
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.documents import views as document_views
+from apps.documents.commercial import (
+    CommercialDocumentContext,
+    CommercialDocumentCustomerContext,
+    CommercialDocumentLineContext,
+    CommercialDocumentReservationContext,
+    CommercialDocumentReservationMarkerFlags,
+    CommercialDocumentRuntimeScopeFlags,
+    CommercialDocumentTemplateContext,
+)
 from apps.documents.views import TitanProformaDraftPreviewAPIView
+from apps.reservations.models import ReservationDraft
 
 EXPECTED_TEMPLATE_KEY = "titan.proforma.v1"
 PREVIEW_PATH_TEMPLATE = "/api/v1/documents/titan/proforma-drafts/{draft_id}/preview/"
@@ -22,24 +31,6 @@ EXPECTED_SCOPE_FLAGS = {
 WRITE_METHODS = ("post", "put", "patch", "delete")
 
 
-class FakeReservationDraftQuerySet:
-    def __init__(self, draft):
-        self.draft = draft
-        self.filters = []
-
-    def filter(self, **kwargs):
-        self.filters.append(kwargs)
-        expected_id = kwargs.get("id")
-
-        if self.draft is not None and self.draft.id == expected_id:
-            return FakeReservationDraftQuerySet(self.draft)
-
-        return FakeReservationDraftQuerySet(None)
-
-    def first(self):
-        return self.draft
-
-
 @pytest.fixture
 def api_factory():
     return APIRequestFactory()
@@ -47,59 +38,83 @@ def api_factory():
 
 @pytest.fixture
 def authenticated_user():
-    return SimpleNamespace(is_authenticated=True)
+    class User:
+        is_authenticated = True
+
+    return User()
 
 
 def _preview_url(draft_id) -> str:
     return PREVIEW_PATH_TEMPLATE.format(draft_id=draft_id)
 
 
-def _fake_draft():
+def _fake_context():
+    draft_id = uuid4()
+    customer_id = uuid4()
+    line_id = uuid4()
+    inventory_item_id = uuid4()
     start_at = datetime(2026, 6, 12, 8, 0, tzinfo=UTC)
     end_at = start_at + timedelta(hours=4)
     created_at = datetime(2026, 6, 11, 9, 0, tzinfo=UTC)
     updated_at = datetime(2026, 6, 11, 9, 5, tzinfo=UTC)
 
-    customer = SimpleNamespace(
-        id=uuid4(),
-        pk=None,
-        display_name="Client Titan Demo",
+    return CommercialDocumentContext(
+        template=CommercialDocumentTemplateContext(
+            key=EXPECTED_TEMPLATE_KEY,
+            business_scope="titan",
+            document_type="proforma",
+            label="Proforma Titan",
+            version="v1",
+            status="validated_source_template",
+            source_kind="source_pdf",
+            source_reference="docs/references/source/Document_A_CDC_Technique_Evenementiel_v3.4.pdf",
+            template_path="backend/apps/documents/templates_documents/titan/proforma/v1/template.html",
+            preview_path="backend/apps/documents/templates_documents/titan/proforma/v1/preview.pdf",
+            validated_by_client=True,
+            notes="Template notes",
+        ),
+        reservation_draft=CommercialDocumentReservationContext(
+            reservation_draft_id=draft_id,
+            public_reference="RD-TEST-TITAN-001",
+            status="draft",
+            customer=CommercialDocumentCustomerContext(
+                customer_id=customer_id,
+                display_name="Client Titan Demo",
+                email="",
+                phone="",
+                address="",
+            ),
+            start_at=start_at,
+            end_at=end_at,
+            notes="Preview payload test.",
+            lines=(
+                CommercialDocumentLineContext(
+                    reservation_draft_line_id=line_id,
+                    inventory_item_id=inventory_item_id,
+                    inventory_item_name="Projecteur Titan",
+                    inventory_item_kind="material",
+                    inventory_item_description="",
+                    quantity=2,
+                    notes="Line preview notes.",
+                ),
+            ),
+            created_at=created_at,
+            updated_at=updated_at,
+        ),
+        runtime_scope_flags=CommercialDocumentRuntimeScopeFlags(
+            pdf_runtime_generated=False,
+            inventory_blocked=False,
+            payment_created=False,
+            invoice_created=False,
+            contract_created=False,
+        ),
+        reservation_marker_flags=CommercialDocumentReservationMarkerFlags(
+            contract_signed_marker_present=False,
+            required_deposit_received_marker_present=False,
+            reservation_confirmed=True,
+            reservation_cancelled=False,
+        ),
     )
-    customer.pk = customer.id
-
-    inventory_item = SimpleNamespace(
-        id=uuid4(),
-        pk=None,
-        name="Projecteur Titan",
-        kind="material",
-    )
-    inventory_item.pk = inventory_item.id
-
-    line = SimpleNamespace(
-        id=uuid4(),
-        pk=None,
-        inventory_item=inventory_item,
-        quantity=2,
-        notes="Line preview notes.",
-    )
-    line.pk = line.id
-
-    draft = SimpleNamespace(
-        id=uuid4(),
-        pk=None,
-        public_reference="RD-TEST-TITAN-001",
-        status="draft",
-        customer=customer,
-        start_at=start_at,
-        end_at=end_at,
-        notes="Preview payload test.",
-        lines=[line],
-        created_at=created_at,
-        updated_at=updated_at,
-    )
-    draft.pk = draft.id
-
-    return draft, line
 
 
 def _request(api_factory, method: str, path: str, authenticated_user=None):
@@ -117,11 +132,15 @@ def _request(api_factory, method: str, path: str, authenticated_user=None):
 
 
 def test_titan_proforma_preview_requires_authentication(api_factory) -> None:
-    draft, _ = _fake_draft()
+    context = _fake_context()
     view = TitanProformaDraftPreviewAPIView.as_view()
-    request = _request(api_factory, "get", _preview_url(draft.id))
+    request = _request(
+        api_factory,
+        "get",
+        _preview_url(context.reservation_draft.reservation_draft_id),
+    )
 
-    response = view(request, reservation_draft_id=draft.id)
+    response = view(request, reservation_draft_id=context.reservation_draft.reservation_draft_id)
 
     assert response.status_code in {401, 403}
 
@@ -131,23 +150,22 @@ def test_authenticated_user_can_preview_titan_proforma_payload(
     authenticated_user,
     monkeypatch,
 ) -> None:
-    draft, line = _fake_draft()
-    fake_queryset = FakeReservationDraftQuerySet(draft)
+    context = _fake_context()
     monkeypatch.setattr(
         document_views,
-        "active_reservation_drafts_for_document_preview",
-        lambda: fake_queryset,
+        "get_reservation_draft_commercial_document_context_service",
+        lambda **_: context,
     )
 
     view = TitanProformaDraftPreviewAPIView.as_view()
     request = _request(
         api_factory,
         "get",
-        _preview_url(draft.id),
+        _preview_url(context.reservation_draft.reservation_draft_id),
         authenticated_user,
     )
 
-    response = view(request, reservation_draft_id=draft.id)
+    response = view(request, reservation_draft_id=context.reservation_draft.reservation_draft_id)
 
     assert response.status_code == 200
 
@@ -172,21 +190,27 @@ def test_authenticated_user_can_preview_titan_proforma_payload(
     assert template["validated_by_client"] is True
 
     reservation_draft = payload["reservation_draft"]
-    assert reservation_draft["id"] == str(draft.id)
-    assert reservation_draft["public_reference"] == draft.public_reference
+    assert reservation_draft["id"] == str(context.reservation_draft.reservation_draft_id)
+    assert reservation_draft["public_reference"] == context.reservation_draft.public_reference
     assert reservation_draft["status"] == "draft"
-    assert str(reservation_draft["customer_id"]) == str(draft.customer.id)
-    assert reservation_draft["customer_display_name"] == draft.customer.display_name
-    assert reservation_draft["notes"] == draft.notes
+    assert str(reservation_draft["customer_id"]) == str(
+        context.reservation_draft.customer.customer_id
+    )
+    assert (
+        reservation_draft["customer_display_name"]
+        == context.reservation_draft.customer.display_name
+    )
+    assert reservation_draft["notes"] == context.reservation_draft.notes
     assert len(reservation_draft["lines"]) == 1
 
     line_payload = reservation_draft["lines"][0]
-    assert line_payload["id"] == str(line.id)
-    assert str(line_payload["inventory_item_id"]) == str(line.inventory_item.id)
-    assert line_payload["inventory_item_name"] == line.inventory_item.name
-    assert line_payload["inventory_item_kind"] == line.inventory_item.kind
+    line_context = context.reservation_draft.lines[0]
+    assert line_payload["id"] == str(line_context.reservation_draft_line_id)
+    assert str(line_payload["inventory_item_id"]) == str(line_context.inventory_item_id)
+    assert line_payload["inventory_item_name"] == line_context.inventory_item_name
+    assert line_payload["inventory_item_kind"] == line_context.inventory_item_kind
     assert line_payload["quantity"] == 2
-    assert line_payload["notes"] == line.notes
+    assert line_payload["notes"] == line_context.notes
 
     assert payload["scope_flags"] == EXPECTED_SCOPE_FLAGS
 
@@ -196,48 +220,26 @@ def test_titan_proforma_preview_returns_404_for_unknown_draft(
     authenticated_user,
     monkeypatch,
 ) -> None:
-    draft, _ = _fake_draft()
+    missing_id = uuid4()
+
+    def _raise_missing(**_kwargs):
+        raise ReservationDraft.DoesNotExist
+
     monkeypatch.setattr(
         document_views,
-        "active_reservation_drafts_for_document_preview",
-        lambda: FakeReservationDraftQuerySet(draft),
-    )
-
-    unknown_draft_id = uuid4()
-    view = TitanProformaDraftPreviewAPIView.as_view()
-    request = _request(
-        api_factory,
-        "get",
-        _preview_url(unknown_draft_id),
-        authenticated_user,
-    )
-
-    response = view(request, reservation_draft_id=unknown_draft_id)
-
-    assert response.status_code == 404
-
-
-def test_titan_proforma_preview_returns_404_when_active_queryset_has_no_draft(
-    api_factory,
-    authenticated_user,
-    monkeypatch,
-) -> None:
-    draft, _ = _fake_draft()
-    monkeypatch.setattr(
-        document_views,
-        "active_reservation_drafts_for_document_preview",
-        lambda: FakeReservationDraftQuerySet(None),
+        "get_reservation_draft_commercial_document_context_service",
+        _raise_missing,
     )
 
     view = TitanProformaDraftPreviewAPIView.as_view()
     request = _request(
         api_factory,
         "get",
-        _preview_url(draft.id),
+        _preview_url(missing_id),
         authenticated_user,
     )
 
-    response = view(request, reservation_draft_id=draft.id)
+    response = view(request, reservation_draft_id=missing_id)
 
     assert response.status_code == 404
 
@@ -248,16 +250,16 @@ def test_titan_proforma_preview_is_get_only(
     authenticated_user,
     method: str,
 ) -> None:
-    draft, _ = _fake_draft()
+    context = _fake_context()
     view = TitanProformaDraftPreviewAPIView.as_view()
     request = _request(
         api_factory,
         method,
-        _preview_url(draft.id),
+        _preview_url(context.reservation_draft.reservation_draft_id),
         authenticated_user,
     )
 
-    response = view(request, reservation_draft_id=draft.id)
+    response = view(request, reservation_draft_id=context.reservation_draft.reservation_draft_id)
 
     assert response.status_code == 405
 
@@ -267,11 +269,11 @@ def test_titan_proforma_preview_does_not_generate_pdf_file(
     authenticated_user,
     monkeypatch,
 ) -> None:
-    draft, _ = _fake_draft()
+    context = _fake_context()
     monkeypatch.setattr(
         document_views,
-        "active_reservation_drafts_for_document_preview",
-        lambda: FakeReservationDraftQuerySet(draft),
+        "get_reservation_draft_commercial_document_context_service",
+        lambda **_: context,
     )
 
     pdf_files_before = set(Path("backend/apps/documents").glob("**/*.pdf"))
@@ -279,11 +281,11 @@ def test_titan_proforma_preview_does_not_generate_pdf_file(
     request = _request(
         api_factory,
         "get",
-        _preview_url(draft.id),
+        _preview_url(context.reservation_draft.reservation_draft_id),
         authenticated_user,
     )
 
-    response = view(request, reservation_draft_id=draft.id)
+    response = view(request, reservation_draft_id=context.reservation_draft.reservation_draft_id)
 
     assert response.status_code == 200
     assert set(Path("backend/apps/documents").glob("**/*.pdf")) == pdf_files_before

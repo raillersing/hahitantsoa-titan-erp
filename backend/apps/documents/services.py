@@ -3,9 +3,40 @@ from __future__ import annotations
 from django.db import transaction
 from django.utils import timezone
 
-from apps.documents.commercial import build_reservation_draft_commercial_document_context
+from apps.documents.commercial import (
+    CommercialDocumentContext,
+    build_reservation_draft_commercial_document_context,
+)
 from apps.documents.models import DocumentInstance
 from apps.reservations.models import ReservationDraft
+
+
+def active_reservation_drafts_for_commercial_document_context():
+    return (
+        ReservationDraft.objects.filter(is_deleted=False)
+        .select_related("customer")
+        .prefetch_related("lines__inventory_item")
+        .order_by("-created_at", "public_reference")
+    )
+
+
+def get_reservation_draft_commercial_document_context_service(
+    *,
+    reservation_draft_id,
+    template_key: str,
+) -> CommercialDocumentContext:
+    reservation_draft = (
+        active_reservation_drafts_for_commercial_document_context()
+        .filter(id=reservation_draft_id)
+        .first()
+    )
+    if reservation_draft is None:
+        raise ReservationDraft.DoesNotExist
+
+    return build_reservation_draft_commercial_document_context(
+        reservation_draft=reservation_draft,
+        template_key=template_key,
+    )
 
 
 @transaction.atomic
