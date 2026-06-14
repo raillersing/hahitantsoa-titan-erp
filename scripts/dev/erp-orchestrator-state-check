@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-orchestrator-state-check
+
+Purpose:
+  Print the current orchestrator baseline without mutating the repository:
+  - current main HEAD
+  - known Git worktrees
+  - open PRs
+  - last green main CI run
+  - required F138/F139 docs presence
+  - changed-path hygiene for .env and secret-like filenames
+
+Notes:
+  This helper never reads, prints, copies, sources, or creates any .env file.
+USAGE
+}
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    echo "ERROR: unexpected argument '$1'"
+    print_usage
+    exit 2
+    ;;
+esac
+
+echo "============================================================"
+echo "ORCHESTRATOR STATE CHECK"
+echo "============================================================"
+echo "REPO_ROOT: $REPO_ROOT"
+echo "CURRENT_BRANCH: $(git branch --show-current 2>/dev/null || true)"
+echo "CURRENT_HEAD: $(git rev-parse HEAD)"
+echo
+
+MAIN_HEAD="$(git rev-parse origin/main 2>/dev/null || git rev-parse HEAD)"
+echo "MAIN_HEAD: $MAIN_HEAD"
+echo
+
+echo "WORKTREES:"
+git worktree list
+echo
+
+echo "OPEN_PRS:"
+if command -v gh >/dev/null 2>&1; then
+  gh pr list --state open --json number,title,headRefName,baseRefName,url \
+    --jq '.[] | "#\(.number) \(.headRefName) -> \(.baseRefName) | \(.title) | \(.url)"' \
+    2>/dev/null || echo "(unable to query open PRs)"
+else
+  echo "(gh not installed)"
+fi
+echo
+
+echo "LAST_GREEN_MAIN_CI:"
+if command -v gh >/dev/null 2>&1; then
+  gh run list --branch main --event push --limit 10 --json databaseId,headSha,conclusion,displayTitle \
+    --jq '.[] | select(.conclusion == "success") | "run=\(.databaseId) sha=\(.headSha) title=\(.displayTitle)"' \
+    2>/dev/null | head -n 1 || echo "(unable to query main CI)"
+else
+  echo "(gh not installed)"
+fi
+echo
+
+echo "REQUIRED_DOCS:"
+required_docs=(
+  "docs/ai-agents/orchestrator-state.md"
+  "docs/ai-agents/parallel-agent-policy.md"
+  "docs/ai-agents/recovery-playbooks.md"
+  "docs/ai-agents/macro-goal-orchestrator.md"
+  "docs/ai-agents/macro-goal-contract.md"
+  "docs/ai-agents/orchestrator-delegation-protocol.md"
+  "docs/ai-agents/task-queue-schema.md"
+  "docs/ai-agents/orchestrator-action-ledger.md"
+  "docs/ai-agents/macro-goals/backend-completion-plan.md"
+  "docs/ai-agents/macro-goals/frontend-completion-plan.md"
+)
+
+missing=0
+for path in "${required_docs[@]}"; do
+  if [ -f "$path" ]; then
+    echo "OK: $path"
+  else
+    echo "MISSING: $path"
+    missing=1
+  fi
+done
+echo
+
+echo "STATUS_HYGIENE:"
+status_output="$(git status --short)"
+if [ -n "$status_output" ]; then
+  printf '%s\n' "$status_output"
+else
+  echo "(clean)"
+fi
+
+if printf '%s\n' "$status_output" | grep -E '(^| )\.env|\.env\.|\.env$|\.pem$|\.key$|id_rsa|id_ed25519' >/dev/null; then
+  echo
+  echo "ERROR: env or secret-like path detected in changed status."
+  exit 1
+fi
+
+if [ "$missing" -ne 0 ]; then
+  echo
+  echo "ERROR: required orchestrator documents are missing."
+  exit 1
+fi
+
+echo
+echo "State check completed."

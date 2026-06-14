@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-task-queue-validate
+
+Purpose:
+  Non-destructively validate orchestrator queue documents:
+  - required field names in the queue schema
+  - authorized status list
+  - absence of anchored conflict markers
+  - changed-path hygiene for .env and secret-like filenames
+
+Notes:
+  This helper never reads, prints, copies, sources, or creates any .env file.
+USAGE
+}
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    echo "ERROR: unexpected argument '$1'"
+    print_usage
+    exit 2
+    ;;
+esac
+
+schema_file="docs/ai-agents/task-queue-schema.md"
+queue_related_files=(
+  "docs/ai-agents/task-queue-schema.md"
+  "docs/ai-agents/macro-goal-contract.md"
+  "docs/ai-agents/macro-goal-orchestrator.md"
+  "docs/ai-agents/orchestrator-delegation-protocol.md"
+  "docs/ai-agents/orchestrator-action-ledger.md"
+  "docs/ai-agents/macro-goals/backend-completion-plan.md"
+  "docs/ai-agents/macro-goals/frontend-completion-plan.md"
+)
+
+if [ ! -f "$schema_file" ]; then
+  echo "ERROR: missing $schema_file"
+  exit 1
+fi
+
+required_fields=(
+  "Task ID"
+  "Parent macro-goal"
+  "Agent type"
+  "Autonomy level"
+  "Worktree"
+  "Branch"
+  "Scope allowed"
+  "Scope forbidden"
+  "Inputs"
+  "Expected output"
+  "Validation commands"
+  "Review required"
+  "Merge policy"
+  "Stop conditions"
+  "Dependencies"
+  "Status"
+  "PR URL"
+  "Main CI result"
+  "Next task"
+)
+
+authorized_statuses=(
+  "draft"
+  "ready"
+  "assigned"
+  "in_progress"
+  "pr_open"
+  "pr_green"
+  "review_required"
+  "reviewed"
+  "merge_ready"
+  "merged"
+  "main_green"
+  "done"
+  "blocked"
+  "cancelled"
+)
+
+echo "============================================================"
+echo "TASK QUEUE VALIDATION"
+echo "============================================================"
+echo "SCHEMA: $schema_file"
+echo
+
+for field in "${required_fields[@]}"; do
+  if grep -Fq -- "$field" "$schema_file"; then
+    echo "OK field: $field"
+  else
+    echo "ERROR missing field: $field"
+    exit 1
+  fi
+done
+echo
+
+for status in "${authorized_statuses[@]}"; do
+  if grep -Fq -- "\`$status\`" "$schema_file"; then
+    echo "OK status: $status"
+  else
+    echo "ERROR missing status: $status"
+    exit 1
+  fi
+done
+echo
+
+echo "CONFLICT MARKERS:"
+if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' "${queue_related_files[@]}" 2>/dev/null; then
+  echo "ERROR: conflict markers detected."
+  exit 1
+fi
+echo "OK: none detected"
+echo
+
+status_output="$(git status --short)"
+if printf '%s\n' "$status_output" | grep -E '(^| )\.env|\.env\.|\.env$|\.pem$|\.key$|id_rsa|id_ed25519' >/dev/null; then
+  echo "ERROR: env or secret-like path detected in changed status."
+  exit 1
+fi
+
+echo "STATUS_HYGIENE: OK"
+echo
+echo "Queue validation completed."
