@@ -56,17 +56,24 @@ Frontend roles:
 - [Autonomous agent policy](autonomous-agent-policy.md)
 - [Frontend agent template](frontend-agent-template.md)
 - [GitHub repository rules checklist](github-repository-rules-checklist.md)
+- [Macro-goal contract](macro-goal-contract.md)
+- [Macro-goal orchestrator](macro-goal-orchestrator.md)
+- [Orchestrator action ledger](orchestrator-action-ledger.md)
+- [Orchestrator delegation protocol](orchestrator-delegation-protocol.md)
 - [Orchestrator state](orchestrator-state.md)
 - [Pursue Goal contract](pursue-goal-contract.md)
 - [Recovery playbooks](recovery-playbooks.md)
 - [Worktree registry](worktree-registry.md)
 - [Orchestrator task queue](orchestrator-task-queue.md)
+- [Task queue schema](task-queue-schema.md)
 - [Parallel agent policy](parallel-agent-policy.md)
 - [PR quality gates](pr-quality-gates.md)
 - [Review agent template](review-agent-template.md)
 - [Secret handling policy](secret-handling-policy.md)
 - [Task prompt template](task-prompt-template.md)
 - [Prompt contracts](prompt-contracts/backend-orchestrator.md)
+- [Macro-goal backend completion plan](macro-goals/backend-completion-plan.md)
+- [Macro-goal frontend completion plan](macro-goals/frontend-completion-plan.md)
 - [Skill improvement loop](skill-improvement-loop.md)
 
 ## Worktree and prompt policy
@@ -82,9 +89,10 @@ One agent equals one worktree equals one branch equals one non-overlapping scope
 - review agent: non-mutating unless explicitly authorized
 
 Prompts should stay short and reference the
-[Agent command runbook](agent-command-runbook.md) and
-[Orchestrator task queue](orchestrator-task-queue.md) instead of repeating all standard
-commands and queue state inline.
+[Agent command runbook](agent-command-runbook.md),
+[Macro-goal orchestrator](macro-goal-orchestrator.md), and
+[Task queue schema](task-queue-schema.md) instead of repeating all standard commands and
+queue state inline.
 
 ## Minimum flow
 
