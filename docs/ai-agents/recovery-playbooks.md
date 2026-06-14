@@ -180,6 +180,30 @@ Recovery:
 4. ask for a scope-safe alternative or human intervention;
 5. continue only when the task no longer requires secret interaction.
 
+## Untracked Audit Report Handling
+
+Symptoms:
+
+- a task generates an audit report in `docs/audits/` that is untracked
+- the task prompt forbids committing the report
+- the report contains findings that should influence future work
+
+Recovery:
+
+1. confirm the report file is listed in `git status --short` as untracked (`??`)
+2. do not stage or commit the report unless explicitly authorized
+3. if the report contains actionable findings, promote each finding to:
+   - a task description in the orchestrator queue, or
+   - a docs change in the appropriate runbook or procedure, or
+   - a script enhancement
+4. leave the report untracked if no promotion is required and the prompt forbids commit
+5. do not delete the report without human approval — deletion counts as mutation
+
+Stop if:
+
+- the report contains secrets or credentials (treat as secret exposure)
+- the prompt explicitly forbids both promotion and retention
+
 ## Post-Recovery Exit Criteria
 
 A recovery attempt is complete only when:

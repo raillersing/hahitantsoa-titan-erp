@@ -19,7 +19,8 @@ Forbidden worktrees:
 - <path>
 
 Agent role:
-- <backend|frontend|docs/tools governance|review-only|other approved role>
+- <backend|frontend|docs/tools governance|docs-only|docs-governance|review-only|other approved role>
+- docs profile if applicable: <docs-only | docs-governance | not applicable>
 
 Autonomy:
 - <level>
@@ -57,6 +58,7 @@ Forbidden scope:
 
 Command mode:
 - environment mode: <native WSL/bash | OpenCode Web from WSL | Windows-hosted plan-only | approved Windows-to-WSL bridge>
+- execution level: <0 plan-only | 1 read-only | 2 docs | 3 tools-governance | 4 backend/frontend>
 - all important commands run through `scripts/dev/erp-logged-run <task-name> <<'EOF' ... EOF`
 - native WSL/bash mode forbids `wsl`, `wsl.exe`, `wsl -d`, PowerShell, `cmd.exe`, and Windows paths
 - OpenCode Web launched from WSL uses native WSL/bash mode

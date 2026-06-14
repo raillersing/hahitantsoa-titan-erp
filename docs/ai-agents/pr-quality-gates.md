@@ -16,6 +16,9 @@ referencing the current task state in
 - Important commands ran through `scripts/dev/erp-logged-run` heredoc workflow.
 - Focused tests or documentation checks pass when applicable.
 - `git diff --check` passes.
+- All scripts under `scripts/dev/` that were created or modified have the executable bit set.
+- CI wait policy followed: pre-merge CI green confirmed before merge; post-merge `main` CI
+  green confirmed after merge.
 - Independent review findings are resolved or explicitly escalated.
 - PR targets `main`; automatic merge is forbidden.
 - Required CI passes before human merge.
