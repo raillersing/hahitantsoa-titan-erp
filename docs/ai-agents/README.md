@@ -55,6 +55,8 @@ Frontend roles:
 - [Backend agent template](backend-agent-template.md)
 - [Frontend agent template](frontend-agent-template.md)
 - [GitHub repository rules checklist](github-repository-rules-checklist.md)
+- [Recovery playbooks](recovery-playbooks.md)
+- [Worktree registry](worktree-registry.md)
 - [Orchestrator task queue](orchestrator-task-queue.md)
 - [PR quality gates](pr-quality-gates.md)
 - [Secret handling policy](secret-handling-policy.md)
