@@ -3,6 +3,21 @@
 Assign only roles relevant to the task. Frontend agents must not invent backend
 endpoints, payloads, permissions, or business rules.
 
+Frontend prompts should stay short and reference:
+
+- [`agent-command-runbook.md`](agent-command-runbook.md)
+- [`orchestrator-task-queue.md`](orchestrator-task-queue.md)
+
+Frontend agents work in the frontend worktree only. Their mutable scope is limited to
+`frontend/` and frontend audits unless the task explicitly authorizes something else.
+They must never modify backend, agent-tools, or agent-docs worktrees.
+
+After merge of F138B/F138C on `main`, frontend agents must use these official wrappers
+when applicable:
+
+- `scripts/dev/erp-agent-scope-guard`
+- `scripts/dev/erp-worktree-preflight`
+
 ## Agent FE-A - Frontend Implementer
 
 - Mission: implement the smallest approved React/TypeScript UI change.

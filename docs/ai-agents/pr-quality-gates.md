@@ -3,6 +3,11 @@
 Apply gates proportionally to the touched scope. Record exact commands and results in
 the PR body.
 
+Use the standard command patterns in
+[`agent-command-runbook.md`](agent-command-runbook.md) and keep prompts short by
+referencing the current task state in
+[`orchestrator-task-queue.md`](orchestrator-task-queue.md).
+
 ## Universal gates
 
 - Baseline commit and dedicated branch verified.
@@ -15,6 +20,8 @@ the PR body.
 - PR targets `main`; automatic merge is forbidden.
 - Required CI passes before human merge.
 - `main` is validated after merge.
+- `main` CI is green after merge.
+- Human merge remains mandatory unless explicitly authorized.
 
 ## Backend gates
 
@@ -28,6 +35,10 @@ the PR body.
 - No frontend or API drift unless explicitly required.
 - No contracts, payments, deposits, invoices, Celery, event bus, or commercial workflow
   unless explicitly approved.
+- Backend work stays in the backend worktree only.
+- After merge of F138B/F138C on `main`, use `scripts/dev/erp-backend-compose-ci`,
+  `scripts/dev/erp-agent-scope-guard`, and `scripts/dev/erp-worktree-preflight` when
+  applicable.
 
 ## Frontend gates
 
@@ -40,6 +51,9 @@ the PR body.
 - No fake backend data unless explicitly documented as temporary.
 - No duplicated backend business rules beyond UI validation.
 - No invented endpoints, payloads, permissions, or workflows.
+- Frontend work stays in the frontend worktree only.
+- After merge of F138B/F138C on `main`, use `scripts/dev/erp-agent-scope-guard` and
+  `scripts/dev/erp-worktree-preflight` when applicable.
 
 ## PR body
 
