@@ -240,6 +240,95 @@ EOF
 
 Human merge remains mandatory unless a task explicitly says otherwise.
 
+## CI Wait Policy
+
+### Pre-merge CI wait
+
+After opening a PR, the agent must wait for all required CI checks to complete with a
+`SUCCESS` conclusion before requesting human merge.
+
+Use:
+
+```sh
+scripts/dev/erp-logged-run task-pr-checks <<'EOF'
+set -euo pipefail
+
+gh pr checks PR-NUMBER --watch --interval 15
+EOF
+```
+
+Stop conditions during CI wait:
+
+- a required check fails → stop and report without merging
+- CI is cancelled or times out → stop and re-run or escalate
+- CI runs but the PR is blocked by merge conflicts → stop and report
+
+### Post-merge main CI wait
+
+After the PR is merged, the agent must verify that the `main` branch CI passes before
+declaring the task complete.
+
+Use:
+
+```sh
+scripts/dev/erp-logged-run task-main-ci <<'EOF'
+set -euo pipefail
+
+gh run list --branch main --limit 5
+gh run watch RUN-ID --interval 15
+EOF
+```
+
+If `main` CI fails after merge:
+
+- report the failure immediately with the run URL
+- do not start the next task until `main` CI is green
+- escalate to the human for resolution
+
+The pre-merge and post-merge CI check is required for every mutating task that opens a
+PR. Review-only and plan-only tasks are exempt.
+
+## Executable Bit Policy
+
+Script files under `scripts/dev/` must have the executable bit set when:
+
+- they are written as `#!/usr/bin/env bash` or other shebang-executed scripts
+- they are intended to be run directly by an agent or CI workflow
+- they are referenced as standalone commands in runbook examples
+
+When a new script is created or an existing script is modified, verify the executable bit:
+
+```sh
+test -x scripts/dev/script-name || echo "MISSING EXECUTABLE BIT"
+```
+
+If the bit is missing on a committed script, it must be set in a dedicated fix commit:
+
+```sh
+chmod +x scripts/dev/script-name
+git add scripts/dev/script-name
+git commit -m "chore(agent): mark script-name executable"
+```
+
+The `chmod` prohibition in the permanent prohibitions does not apply to setting the
+executable bit on approved `scripts/dev/` files as part of a tools-governance task.
+
+## Dirty Worktree Policy
+
+A dirty worktree must be handled according to the following rules:
+
+- If the dirty files are within the approved scope and the task prompt explicitly allows
+  them, the task may proceed.
+- If the dirty files are outside the approved scope, the agent must stop and report.
+- If the dirty files include `.env`, `.env.*`, `.pem`, `.key`, or secret-like paths, the
+  agent must stop immediately and escalate.
+- If the worktree was already dirty before the task started and the dirtiness is not
+  covered by the task, the agent must stop and ask whether to proceed.
+- A dirty worktree must never be reset, stashed, or cleaned without explicit human
+  approval.
+
+The authoritative dirty-worktree stop condition must be stated in every task prompt.
+
 ## Resume After Connection Cut
 
 Use a restart block that re-verifies the exact branch and status before any new action:
