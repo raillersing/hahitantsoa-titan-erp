@@ -1,10 +1,9 @@
 import hashlib
+import sys
 
 import pytest
 from django.core.files.storage import FileSystemStorage
-from tests.backend.test_documents_document_instance_foundation import (
-    _draft_with_line,
-)
+from test_documents_document_instance_foundation import _draft_with_line
 
 import apps.documents.runtime as runtime_module
 from apps.documents.models import DocumentInstanceStatus
@@ -29,10 +28,7 @@ def isolated_document_storage(tmp_path, monkeypatch):
     storage = FileSystemStorage(location=str(tmp_path))
     monkeypatch.setattr(runtime_module, "default_storage", storage)
     # Also patch the name imported into this test module so reads work.
-    monkeypatch.setattr(
-        "tests.backend.test_documents_runtime_generation.FileSystemStorage",
-        FileSystemStorage,
-    )
+    monkeypatch.setattr(sys.modules[__name__], "FileSystemStorage", FileSystemStorage)
     return storage
 
 

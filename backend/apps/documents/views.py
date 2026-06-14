@@ -13,18 +13,12 @@ from apps.documents.serializers import (
     DocumentTemplateDefinitionSerializer,
     TitanProformaDraftPreviewSerializer,
 )
+from apps.documents.services import (
+    get_reservation_draft_commercial_document_context_service,
+)
 from apps.reservations.models import ReservationDraft
 
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
-
-
-def active_reservation_drafts_for_document_preview():
-    return (
-        ReservationDraft.objects.filter(is_deleted=False)
-        .select_related("customer")
-        .prefetch_related("lines__inventory_item")
-        .order_by("-created_at", "public_reference")
-    )
 
 
 def runtime_document_scope_flags() -> dict[str, bool]:
@@ -86,25 +80,16 @@ class TitanProformaDraftPreviewAPIView(APIView):
 
     @extend_schema(responses=TitanProformaDraftPreviewSerializer)
     def get(self, request, reservation_draft_id):
-        template_definition = get_document_template_definition(TITAN_PROFORMA_TEMPLATE_KEY)
-        if template_definition is None:
-            raise Http404("Titan proforma template definition not found.")
-
-        reservation_draft = (
-            active_reservation_drafts_for_document_preview().filter(id=reservation_draft_id).first()
-        )
-        if reservation_draft is None:
+        try:
+            context = get_reservation_draft_commercial_document_context_service(
+                reservation_draft_id=reservation_draft_id,
+                template_key=TITAN_PROFORMA_TEMPLATE_KEY,
+            )
+        except ReservationDraft.DoesNotExist:
             raise Http404("Reservation draft not found.")
 
-        serializer = TitanProformaDraftPreviewSerializer(
-            {
-                "document_type": "proforma",
-                "business_scope": "titan",
-                "template_key": TITAN_PROFORMA_TEMPLATE_KEY,
-                "template": template_definition,
-                "reservation_draft": reservation_draft,
-                "scope_flags": runtime_document_scope_flags(),
-            }
+        serializer = TitanProformaDraftPreviewSerializer.from_commercial_document_context(
+            context=context
         )
         return Response(serializer.data)
 
