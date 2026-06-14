@@ -54,9 +54,13 @@ Frontend roles:
 - [Agent command runbook](agent-command-runbook.md)
 - [Backend agent template](backend-agent-template.md)
 - [Frontend agent template](frontend-agent-template.md)
+- [Orchestrator state](orchestrator-state.md)
 - [Orchestrator task queue](orchestrator-task-queue.md)
+- [Parallel agent policy](parallel-agent-policy.md)
 - [PR quality gates](pr-quality-gates.md)
+- [Review agent template](review-agent-template.md)
 - [Task prompt template](task-prompt-template.md)
+- [Prompt contracts](prompt-contracts/backend-orchestrator.md)
 - [Skill improvement loop](skill-improvement-loop.md)
 
 ## Worktree and prompt policy
