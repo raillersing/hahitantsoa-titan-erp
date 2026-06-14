@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-worktree-list-validated
+
+Purpose:
+  List Git worktrees with a validated operational classification:
+  - worktree path
+  - branch or detached state
+  - inferred agent profile
+  - persistence class
+  - cleanliness
+  - ahead/behind versus origin branch when available
+
+Notes:
+  This helper does not read, source, print, copy, or create any .env file.
+  This helper does not inspect secret contents. It only checks path names in status.
+USAGE
+}
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    echo "ERROR: unexpected argument '$1'"
+    print_usage
+    exit 2
+    ;;
+esac
+
+infer_profile() {
+  local path="$1"
+  local branch="$2"
+
+  case "$path" in
+    */hahitantsoa-titan-erp-backend) echo "backend" ;;
+    */hahitantsoa-titan-erp-frontend) echo "frontend" ;;
+    */hahitantsoa-titan-erp-agent-tools) echo "agent-tools" ;;
+    */hahitantsoa-titan-erp-agent-docs) echo "agent-docs" ;;
+    */hahitantsoa-titan-erp-agent-lifecycle) echo "agent-lifecycle" ;;
+    */hahitantsoa-titan-erp-agent-prompts) echo "agent-prompts" ;;
+    */hahitantsoa-titan-erp-agent-security) echo "agent-security" ;;
+    */hahitantsoa-titan-erp-openclaw-sandbox) echo "forbidden-openclaw" ;;
+    */hahitantsoa-titan-erp) echo "main-root" ;;
+    *)
+      case "$branch" in
+        refs/heads/feat/f135b-*) echo "backend" ;;
+        refs/heads/feat/f137*) echo "frontend" ;;
+        refs/heads/chore/f138-agent-ready-*) echo "agent-tools" ;;
+        refs/heads/docs/f138-agent-*) echo "agent-docs" ;;
+        refs/heads/chore/f138f-*) echo "agent-lifecycle" ;;
+        refs/heads/chore/f138g-*) echo "agent-security" ;;
+        refs/heads/docs/f138i-*) echo "agent-prompts" ;;
+        refs/heads/main) echo "main-root" ;;
+        "") echo "detached" ;;
+        *) echo "unknown" ;;
+      esac
+      ;;
+  esac
+}
+
+infer_persistence() {
+  local profile="$1"
+  case "$profile" in
+    main-root|backend|frontend|agent-tools|agent-docs|agent-lifecycle|agent-prompts|agent-security)
+      echo "persistent"
+      ;;
+    forbidden-openclaw)
+      echo "forbidden"
+      ;;
+    detached|unknown)
+      echo "temporary-or-review"
+      ;;
+    *)
+      echo "temporary-or-review"
+      ;;
+  esac
+}
+
+status_summary() {
+  local path="$1"
+  local out
+  out="$(git -C "$path" status --short 2>/dev/null || true)"
+  if [ -z "$out" ]; then
+    echo "clean"
+    return
+  fi
+
+  if printf '%s\n' "$out" | grep -E '(^| )\.env|\.env\.|\.env$|\.pem$|\.key$|id_rsa|id_ed25519' >/dev/null; then
+    echo "DIRTY-STOP secret-like-path"
+    return
+  fi
+
+  echo "dirty"
+}
+
+ahead_behind() {
+  local path="$1"
+  local branch_ref="$2"
+  local short_branch
+  local upstream
+
+  if [ -z "$branch_ref" ]; then
+    echo "detached"
+    return
+  fi
+
+  short_branch="${branch_ref#refs/heads/}"
+  upstream="origin/$short_branch"
+
+  if ! git -C "$path" rev-parse --verify "$upstream" >/dev/null 2>&1; then
+    echo "no-upstream"
+    return
+  fi
+
+  git -C "$path" rev-list --left-right --count "$upstream...$short_branch" \
+    | awk '{printf "behind=%s ahead=%s", $1, $2}'
+}
+
+current_path=""
+current_head=""
+current_branch=""
+
+emit_row() {
+  local path="$1"
+  local head="$2"
+  local branch="$3"
+  local profile
+  local persistence
+  local status
+  local divergence
+
+  profile="$(infer_profile "$path" "$branch")"
+  persistence="$(infer_persistence "$profile")"
+  status="$(status_summary "$path")"
+  divergence="$(ahead_behind "$path" "$branch")"
+
+  printf 'PATH: %s\n' "$path"
+  printf '  HEAD: %s\n' "$head"
+  printf '  BRANCH: %s\n' "${branch:-DETACHED}"
+  printf '  PROFILE: %s\n' "$profile"
+  printf '  PERSISTENCE: %s\n' "$persistence"
+  printf '  STATUS: %s\n' "$status"
+  printf '  DIVERGENCE: %s\n' "$divergence"
+}
+
+while IFS= read -r line; do
+  case "$line" in
+    worktree\ *)
+      if [ -n "$current_path" ]; then
+        emit_row "$current_path" "$current_head" "$current_branch"
+        echo
+      fi
+      current_path="${line#worktree }"
+      current_head=""
+      current_branch=""
+      ;;
+    HEAD\ *)
+      current_head="${line#HEAD }"
+      ;;
+    branch\ *)
+      current_branch="${line#branch }"
+      ;;
+    detached)
+      current_branch=""
+      ;;
+  esac
+done < <(git worktree list --porcelain)
+
+if [ -n "$current_path" ]; then
+  emit_row "$current_path" "$current_head" "$current_branch"
+fi

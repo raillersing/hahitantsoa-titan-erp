@@ -54,6 +54,8 @@ Frontend roles:
 - [Agent command runbook](agent-command-runbook.md)
 - [Backend agent template](backend-agent-template.md)
 - [Frontend agent template](frontend-agent-template.md)
+- [Recovery playbooks](recovery-playbooks.md)
+- [Worktree registry](worktree-registry.md)
 - [Orchestrator task queue](orchestrator-task-queue.md)
 - [PR quality gates](pr-quality-gates.md)
 - [Task prompt template](task-prompt-template.md)

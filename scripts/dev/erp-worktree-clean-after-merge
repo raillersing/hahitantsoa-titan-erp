@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+DRY_RUN=1
+TARGET_BRANCH=""
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-worktree-clean-after-merge [--apply] <branch>
+
+Purpose:
+  Safely clean a merged task worktree after human-confirmed merge by:
+  - locating the worktree that owns the branch
+  - refusing to operate on dirty or secret-like worktrees
+  - refusing detached, main, or unknown targets
+  - removing the worktree
+  - deleting the local branch when safe
+
+Default mode is dry-run. Use --apply to perform changes.
+
+Examples:
+  scripts/dev/erp-worktree-clean-after-merge --help
+  scripts/dev/erp-worktree-clean-after-merge docs/f138-agent-command-runbook-and-task-queue
+  scripts/dev/erp-worktree-clean-after-merge --apply docs/f138-agent-command-runbook-and-task-queue
+
+Notes:
+  Never use this helper on an active or dirty worktree.
+  This helper does not read, source, print, copy, or create any .env file.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --apply)
+      DRY_RUN=0
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      ;;
+    help|--help|-h)
+      print_usage
+      exit 0
+      ;;
+    *)
+      if [ -n "$TARGET_BRANCH" ]; then
+        echo "ERROR: only one branch may be provided"
+        exit 2
+      fi
+      TARGET_BRANCH="$1"
+      ;;
+  esac
+  shift
+done
+
+if [ -z "$TARGET_BRANCH" ]; then
+  print_usage
+  exit 2
+fi
+
+case "$TARGET_BRANCH" in
+  main|origin/main)
+    echo "ERROR: refusing to clean main"
+    exit 1
+    ;;
+esac
+
+if ! git rev-parse --verify "refs/heads/$TARGET_BRANCH" >/dev/null 2>&1; then
+  echo "ERROR: local branch not found: $TARGET_BRANCH"
+  exit 1
+fi
+
+if ! git merge-base --is-ancestor "$TARGET_BRANCH" origin/main 2>/dev/null; then
+  echo "ERROR: branch '$TARGET_BRANCH' is not merged into origin/main"
+  exit 1
+fi
+
+target_path=""
+target_head=""
+
+while IFS= read -r line; do
+  case "$line" in
+    worktree\ *)
+      current_path="${line#worktree }"
+      ;;
+    HEAD\ *)
+      current_head="${line#HEAD }"
+      ;;
+    branch\ refs/heads/*)
+      current_branch="${line#branch refs/heads/}"
+      if [ "$current_branch" = "$TARGET_BRANCH" ]; then
+        target_path="$current_path"
+        target_head="$current_head"
+      fi
+      ;;
+    detached)
+      current_branch=""
+      ;;
+  esac
+done < <(git worktree list --porcelain)
+
+if [ -z "$target_path" ]; then
+  echo "ERROR: no worktree currently owns branch '$TARGET_BRANCH'"
+  exit 1
+fi
+
+if [ "$target_path" = "$REPO_ROOT" ]; then
+  echo "ERROR: refusing to remove the current repository root worktree"
+  exit 1
+fi
+
+if [ ! -d "$target_path" ]; then
+  echo "ERROR: worktree path missing or inaccessible: $target_path"
+  echo "Recovery: inspect with 'git worktree list --porcelain' and prune stale metadata manually."
+  exit 1
+fi
+
+status_output="$(git -C "$target_path" status --short 2>/dev/null || true)"
+if [ -z "$status_output" ]; then
+  worktree_status="clean"
+else
+  worktree_status="dirty"
+fi
+
+if printf '%s\n' "$status_output" | grep -E '(^| )\.env|\.env\.|\.env$|\.pem$|\.key$|id_rsa|id_ed25519' >/dev/null; then
+  echo "ERROR: secret-like path detected in target worktree status"
+  printf '%s\n' "$status_output"
+  exit 1
+fi
+
+if [ "$worktree_status" != "clean" ]; then
+  echo "ERROR: refusing to remove dirty worktree: $target_path"
+  printf '%s\n' "$status_output"
+  exit 1
+fi
+
+current_branch="$(git branch --show-current 2>/dev/null || true)"
+if [ "$current_branch" = "$TARGET_BRANCH" ]; then
+  echo "ERROR: current repository is on target branch '$TARGET_BRANCH'"
+  exit 1
+fi
+
+echo "TARGET_BRANCH: $TARGET_BRANCH"
+echo "TARGET_PATH: $target_path"
+echo "TARGET_HEAD: $target_head"
+echo "MERGED_INTO: origin/main"
+echo "WORKTREE_STATUS: $worktree_status"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "MODE: dry-run"
+  echo "WOULD_RUN: git worktree remove \"$target_path\""
+  echo "WOULD_RUN: git branch -d \"$TARGET_BRANCH\""
+  exit 0
+fi
+
+echo "MODE: apply"
+
+if ! git worktree remove "$target_path"; then
+  echo "ERROR: worktree removal failed for '$target_path'"
+  echo "Recovery: confirm no shell or editor still holds the directory, then retry."
+  exit 1
+fi
+
+if ! git branch -d "$TARGET_BRANCH"; then
+  echo "ERROR: worktree removed but local branch deletion failed for '$TARGET_BRANCH'"
+  echo "Recovery: inspect whether another worktree still holds the branch."
+  exit 1
+fi
+
+echo "Cleanup completed for branch '$TARGET_BRANCH'."
