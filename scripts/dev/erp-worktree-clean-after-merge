@@ -8,15 +8,17 @@ cd "$REPO_ROOT"
 
 DRY_RUN=1
 TARGET_BRANCH=""
+ORPHAN_PATH=""
 
 print_usage() {
   cat <<'USAGE'
 Usage:
-  scripts/dev/erp-worktree-clean-after-merge [--apply] <branch>
+  scripts/dev/erp-worktree-clean-after-merge [--apply] [--orphan-path <path>] <branch>
 
 Purpose:
   Safely clean a merged task worktree after human-confirmed merge by:
   - locating the worktree that owns the branch
+  - optionally cleaning an orphan path when worktree metadata is already gone
   - refusing to operate on dirty or secret-like worktrees
   - refusing detached, main, or unknown targets
   - removing the worktree
@@ -28,6 +30,7 @@ Examples:
   scripts/dev/erp-worktree-clean-after-merge --help
   scripts/dev/erp-worktree-clean-after-merge docs/f138-agent-command-runbook-and-task-queue
   scripts/dev/erp-worktree-clean-after-merge --apply docs/f138-agent-command-runbook-and-task-queue
+  scripts/dev/erp-worktree-clean-after-merge --apply --orphan-path /path/to/orphan feat/f126c-branch
 
 Notes:
   Never use this helper on an active or dirty worktree.
@@ -42,6 +45,14 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dry-run)
       DRY_RUN=1
+      ;;
+    --orphan-path)
+      shift
+      if [ "$#" -eq 0 ]; then
+        echo "ERROR: --orphan-path requires a path argument"
+        exit 2
+      fi
+      ORPHAN_PATH="$1"
       ;;
     help|--help|-h)
       print_usage
@@ -75,9 +86,23 @@ if ! git rev-parse --verify "refs/heads/$TARGET_BRANCH" >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! git merge-base --is-ancestor "$TARGET_BRANCH" origin/main 2>/dev/null; then
-  echo "ERROR: branch '$TARGET_BRANCH' is not merged into origin/main"
-  exit 1
+MERGE_MODE=""
+if git merge-base --is-ancestor "$TARGET_BRANCH" origin/main 2>/dev/null; then
+  MERGE_MODE="ancestor"
+else
+  pr_data="$(
+    gh pr list \
+      --state merged \
+      --head "$TARGET_BRANCH" \
+      --json number,baseRefName,mergedAt \
+      2>/dev/null || true
+  )"
+  if printf '%s' "$pr_data" | grep -Eq '"baseRefName"[[:space:]]*:[[:space:]]*"main"'; then
+    MERGE_MODE="merged-pr"
+  else
+    echo "ERROR: branch '$TARGET_BRANCH' is not merged into origin/main"
+    exit 1
+  fi
 fi
 
 target_path=""
@@ -104,9 +129,89 @@ while IFS= read -r line; do
   esac
 done < <(git worktree list --porcelain)
 
+cleanup_mode="registered-worktree"
+
+orphan_gitdir_missing() {
+  local path="$1"
+  local gitfile gitdir
+
+  if [ ! -f "$path/.git" ]; then
+    return 1
+  fi
+
+  gitfile="$(sed -n '1p' "$path/.git" 2>/dev/null || true)"
+  case "$gitfile" in
+    gitdir:\ *)
+      gitdir="${gitfile#gitdir: }"
+      if [ ! -e "$gitdir" ]; then
+        return 0
+      fi
+      ;;
+  esac
+
+  return 1
+}
+
+path_is_registered_worktree() {
+  local path="$1"
+  git worktree list --porcelain | grep -Fx "worktree $path" >/dev/null 2>&1
+}
+
+orphan_status_output() {
+  local path="$1"
+  local tracked untracked
+  local -a pathspecs=()
+  local entry basename
+
+  while IFS= read -r entry; do
+    basename="$(basename "$entry")"
+    case "$basename" in
+      .git|.pytest_cache|.ruff_cache|logs)
+        continue
+        ;;
+    esac
+    pathspecs+=("$basename")
+  done < <(find "$path" -mindepth 1 -maxdepth 1 -print | sort)
+
+  tracked="$(
+    git --git-dir="$REPO_ROOT/.git" --work-tree="$path" diff --name-only "$TARGET_BRANCH" -- "${pathspecs[@]}" 2>/dev/null || true
+  )"
+  untracked="$(
+    git --git-dir="$REPO_ROOT/.git" --work-tree="$path" ls-files --others --exclude-standard -- "${pathspecs[@]}" 2>/dev/null || true
+  )"
+
+  {
+    if [ -n "$tracked" ]; then
+      printf '%s\n' "$tracked"
+    fi
+    if [ -n "$untracked" ]; then
+      printf '%s\n' "$untracked"
+    fi
+  } | sed '/^$/d'
+}
+
 if [ -z "$target_path" ]; then
-  echo "ERROR: no worktree currently owns branch '$TARGET_BRANCH'"
-  exit 1
+  if [ -n "$ORPHAN_PATH" ]; then
+    if [ ! -d "$ORPHAN_PATH" ]; then
+      echo "ERROR: orphan path missing or inaccessible: $ORPHAN_PATH"
+      exit 1
+    fi
+    if path_is_registered_worktree "$ORPHAN_PATH"; then
+      echo "ERROR: orphan path is still a registered worktree: $ORPHAN_PATH"
+      exit 1
+    fi
+    if ! orphan_gitdir_missing "$ORPHAN_PATH"; then
+      echo "ERROR: orphan path does not look like a stale worktree with missing metadata: $ORPHAN_PATH"
+      exit 1
+    fi
+    target_path="$ORPHAN_PATH"
+    target_head="orphan-unregistered"
+    cleanup_mode="orphan-path"
+  else
+    echo "ERROR: no worktree currently owns branch '$TARGET_BRANCH'"
+    echo "Recovery: rerun with --orphan-path only if the branch was merged and the old worktree directory still exists."
+    exit 1
+  fi
 fi
 
 if [ "$target_path" = "$REPO_ROOT" ]; then
@@ -120,7 +225,12 @@ if [ ! -d "$target_path" ]; then
   exit 1
 fi
 
-status_output="$(git -C "$target_path" status --short 2>/dev/null || true)"
+if [ "$cleanup_mode" = "registered-worktree" ]; then
+  status_output="$(git -C "$target_path" status --short 2>/dev/null || true)"
+else
+  status_output="$(orphan_status_output "$target_path")"
+fi
+
 if [ -z "$status_output" ]; then
   worktree_status="clean"
 else
@@ -149,27 +259,53 @@ echo "TARGET_BRANCH: $TARGET_BRANCH"
 echo "TARGET_PATH: $target_path"
 echo "TARGET_HEAD: $target_head"
 echo "MERGED_INTO: origin/main"
+echo "MERGE_MODE: $MERGE_MODE"
+echo "CLEANUP_MODE: $cleanup_mode"
 echo "WORKTREE_STATUS: $worktree_status"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "MODE: dry-run"
-  echo "WOULD_RUN: git worktree remove \"$target_path\""
-  echo "WOULD_RUN: git branch -d \"$TARGET_BRANCH\""
+  if [ "$cleanup_mode" = "registered-worktree" ]; then
+    echo "WOULD_RUN: git worktree remove \"$target_path\""
+  else
+    echo "WOULD_RUN: rm -rf \"$target_path\""
+  fi
+  if [ "$MERGE_MODE" = "ancestor" ]; then
+    echo "WOULD_RUN: git branch -d \"$TARGET_BRANCH\""
+  else
+    echo "WOULD_RUN: git branch -D \"$TARGET_BRANCH\""
+  fi
   exit 0
 fi
 
 echo "MODE: apply"
 
-if ! git worktree remove "$target_path"; then
-  echo "ERROR: worktree removal failed for '$target_path'"
-  echo "Recovery: confirm no shell or editor still holds the directory, then retry."
-  exit 1
+if [ "$cleanup_mode" = "registered-worktree" ]; then
+  if ! git worktree remove "$target_path"; then
+    echo "ERROR: worktree removal failed for '$target_path'"
+    echo "Recovery: confirm no shell or editor still holds the directory, then retry."
+    exit 1
+  fi
+else
+  if ! rm -rf -- "$target_path"; then
+    echo "ERROR: orphan path removal failed for '$target_path'"
+    echo "Recovery: permission or ownership repair is required before cleanup can continue."
+    exit 1
+  fi
 fi
 
-if ! git branch -d "$TARGET_BRANCH"; then
-  echo "ERROR: worktree removed but local branch deletion failed for '$TARGET_BRANCH'"
-  echo "Recovery: inspect whether another worktree still holds the branch."
-  exit 1
+if [ "$MERGE_MODE" = "ancestor" ]; then
+  if ! git branch -d "$TARGET_BRANCH"; then
+    echo "ERROR: cleanup path removed but local branch deletion failed for '$TARGET_BRANCH'"
+    echo "Recovery: inspect whether another worktree still holds the branch."
+    exit 1
+  fi
+else
+  if ! git branch -D "$TARGET_BRANCH"; then
+    echo "ERROR: cleanup path removed but local branch deletion failed for '$TARGET_BRANCH'"
+    echo "Recovery: inspect whether another worktree still holds the branch."
+    exit 1
+  fi
 fi
 
 echo "Cleanup completed for branch '$TARGET_BRANCH'."

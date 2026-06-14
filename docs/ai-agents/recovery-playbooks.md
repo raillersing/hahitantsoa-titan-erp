@@ -5,6 +5,11 @@
 These playbooks define how to recover from interrupted or partial agent operations
 without widening scope or touching secrets.
 
+Use prompt setup together with
+[`prompt-contracts/agent-prompt-procedure.md`](prompt-contracts/agent-prompt-procedure.md)
+so recovery tasks explicitly declare worktree, dirty-state policy, command mode, and stop
+conditions before execution.
+
 Always use:
 
 ```sh
@@ -88,6 +93,17 @@ Stop if:
 - the target branch is still active in the current shell;
 - the merge into `origin/main` is not confirmed.
 
+If the old worktree directory still exists but `git worktree list` no longer shows it, use:
+
+- `scripts/dev/erp-worktree-clean-after-merge --orphan-path /path/to/worktree branch-name`
+
+Use this only when:
+
+- the PR merge is confirmed;
+- `main` CI is green;
+- the orphan path is not a registered worktree anymore;
+- the path still contains a stale `.git` file pointing to missing worktree metadata.
+
 ## Branch Already In Use By Another Worktree
 
 Symptoms:
@@ -123,6 +139,10 @@ Recovery:
 4. rerun with `--apply` only after the path is accessible.
 
 Never bypass this with destructive filesystem deletion.
+
+If the permission-denied failure already caused Git to drop the worktree registration while
+leaving the directory behind, switch to the orphan-path recovery above instead of retrying
+manual deletion loops.
 
 ## Backend WIP Behind `origin/main`
 
