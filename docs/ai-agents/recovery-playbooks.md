@@ -1,0 +1,171 @@
+# Recovery Playbooks
+
+## Purpose
+
+These playbooks define how to recover from interrupted or partial agent operations
+without widening scope or touching secrets.
+
+Always use:
+
+```sh
+scripts/dev/erp-logged-run task-recovery <<'EOF'
+set -euo pipefail
+commands
+EOF
+```
+
+Never recover by improvising destructive Git commands. Never read, source, print, copy,
+or create `.env`.
+
+## Common First Step
+
+Before any recovery action:
+
+1. verify the current worktree and branch;
+2. print `git status --short`;
+3. print the recent log;
+4. re-check the approved scope;
+5. stop if `.env` or secret-like paths appear.
+
+Recommended baseline:
+
+```sh
+scripts/dev/erp-logged-run recovery-baseline <<'EOF'
+set -euo pipefail
+
+pwd
+git branch --show-current
+git status --short
+git log --oneline --decorate -8
+scripts/dev/erp-worktree-list-validated
+EOF
+```
+
+## Connection Cut During Task
+
+Symptoms:
+
+- terminal session interrupted;
+- branch exists but task state is uncertain;
+- local files may already be edited.
+
+Recovery:
+
+1. run the common first step;
+2. inspect `git diff --name-only origin/main...HEAD`;
+3. re-run the relevant scope and preflight checks;
+4. resume only if branch, worktree, and file scope still match the task.
+
+If the task is backend after F138B/F138C merge:
+
+- run `scripts/dev/erp-worktree-preflight backend`
+- run `scripts/dev/erp-agent-scope-guard backend`
+- run `scripts/dev/erp-backend-compose-ci config --quiet`
+
+If the task is frontend after F138B/F138C merge:
+
+- run `scripts/dev/erp-worktree-preflight frontend`
+- run `scripts/dev/erp-agent-scope-guard frontend`
+
+## PR Merged But Branch Deletion Failed
+
+Symptoms:
+
+- PR is merged;
+- CI on `main` is green;
+- branch or worktree still exists locally.
+
+Recovery:
+
+1. confirm merge commit and main CI;
+2. run `scripts/dev/erp-worktree-clean-after-merge branch-name` in dry-run mode;
+3. if the target worktree is clean, rerun with `--apply`;
+4. if branch deletion still fails, inspect whether another worktree still owns the branch.
+
+Stop if:
+
+- the worktree is dirty;
+- the target branch is still active in the current shell;
+- the merge into `origin/main` is not confirmed.
+
+## Branch Already In Use By Another Worktree
+
+Symptoms:
+
+- `git branch -d` fails because the branch is checked out elsewhere;
+- `git worktree add` or reuse fails because the branch is already in use.
+
+Recovery:
+
+1. run `scripts/dev/erp-worktree-list-validated`;
+2. identify the owning worktree path;
+3. stop and coordinate cleanup or handoff;
+4. do not force-delete the branch.
+
+Safe follow-up:
+
+- remove the old worktree only when it is clean and human-approved;
+- otherwise keep the branch and worktree intact.
+
+## Worktree Permission Denied
+
+Symptoms:
+
+- `git worktree remove` fails with permission denied;
+- shell, editor, or OS process still holds the directory;
+- filesystem access is blocked.
+
+Recovery:
+
+1. stop the cleanup attempt;
+2. close the shell, editor, or process using the worktree;
+3. rerun `scripts/dev/erp-worktree-clean-after-merge branch-name` in dry-run mode;
+4. rerun with `--apply` only after the path is accessible.
+
+Never bypass this with destructive filesystem deletion.
+
+## Backend WIP Behind `origin/main`
+
+Symptoms:
+
+- backend worktree branch is behind current `origin/main`;
+- local backend task was started from an older base;
+- merge conflicts or stale assumptions are likely.
+
+Recovery:
+
+1. stop feature editing;
+2. fetch `origin/main`;
+3. inspect divergence and current diff;
+4. ask whether the task should rebase, merge `origin/main`, or be restarted from a fresh
+   branch;
+5. resume only with explicit approval.
+
+Do not silently rewrite or reset a backend WIP branch.
+
+## Stop On `.env` Or Secrets
+
+Symptoms:
+
+- `.env`, `.env.*`, `.pem`, `.key`, `id_rsa`, or `id_ed25519` appears in status, diff, or
+  requested scope;
+- a prompt requests reading or copying secrets;
+- a command sequence would require `source .env`.
+
+Recovery:
+
+1. stop immediately;
+2. report the exact path pattern that triggered the stop;
+3. do not open the file;
+4. ask for a scope-safe alternative or human intervention;
+5. continue only when the task no longer requires secret interaction.
+
+## Post-Recovery Exit Criteria
+
+A recovery attempt is complete only when:
+
+- the correct worktree and branch are confirmed;
+- status and scope are understood;
+- no secret-like path is in play;
+- the next action is explicit and logged;
+- no destructive cleanup remains pending without approval.
