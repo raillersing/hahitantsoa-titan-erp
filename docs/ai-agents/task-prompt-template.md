@@ -1,79 +1,87 @@
 # Multi-agent task prompt template
 
+Use this template with the canonical procedure in
+[`docs/ai-agents/prompt-contracts/agent-prompt-procedure.md`](prompt-contracts/agent-prompt-procedure.md).
+Every field required by that procedure must appear in the final task prompt.
+
 ```text
-Repository:
-<path>
-
-Baseline:
-- base branch: <branch>
-- expected commit: <sha>
-- expected worktree: <backend|frontend|agent-tools|agent-docs|other approved docs worktree>
-
 Task:
-<task id and title>
+<task ID and title>
 
-Objective:
-<small, testable result>
+Working directory:
+- <path>
 
-Scope:
-- allowed files/areas: <list>
-- forbidden files/areas: <list>
+Authorized worktree:
+- <path>
+
+Forbidden worktrees:
+- <path>
+- <path>
+
+Agent role:
+- <backend|frontend|docs/tools governance|review-only|other approved role>
+
+Autonomy:
+- <level>
+
+Read first:
+- docs/ai-agents/prompt-contracts/agent-prompt-procedure.md
+- docs/ai-agents/agent-command-runbook.md
+- docs/ai-agents/worktree-registry.md
+- docs/ai-agents/parallel-agent-policy.md
+- <task-specific file>
+
+Current repo baseline:
+- main branch: <branch>
+- main SHA: <sha>
+- current green main CI: <run or pending>
+- active PR state: <none|PR #...>
+- allowed dirty files: <none or explicit list>
+
+Dirty-worktree stop condition:
+- stop if any dirty file exists outside the explicitly allowed dirty set for this task
+
+Allowed scope:
+- <list>
+
+Forbidden scope:
+- <list>
 - forbidden behavior: <list>
 
-Standard references:
-- runbook: docs/ai-agents/agent-command-runbook.md
-- task queue: docs/ai-agents/orchestrator-task-queue.md
-- keep this prompt short and reference these docs instead of repeating standard commands
+Command mode:
+- all important commands run through `scripts/dev/erp-logged-run <task-name> <<'EOF' ... EOF`
+- Codex/native WSL-bash agents may execute approved repo commands
+- Windows-hosted agents are plan-only unless an explicit WSL adapter is approved
+- no improvised PowerShell-to-WSL bridge
 
-Required agents:
-- backend: <Agent A-F roles or none>
-- frontend: <Agent FE-A-F roles or none>
-- Codex subagents: use when available; otherwise execute roles sequentially in Codex
+Validation commands:
+- <focused command>
+- <focused command>
 
-Execution authorization:
-- inspect: yes/no
-- edit: yes/no
-- commit: yes/no
-- push: yes/no
-- open PR: yes/no
-- merge: no
+Permanent prohibitions:
+- no `.env` read/source/copy/display/create`
+- no secrets
+- no `/tmp` scripts as primary mechanism
+- no `chmod` unless explicitly authorized
+- no host python for backend Django tests
+- no merge/push without human approval
 
-Required implementation:
-<requirements>
-
-Required tests/checks:
-<focused checks and applicable quality gates>
-
-PR body requirements:
-- summary
+Expected output:
+- files read
 - files changed
-- agent findings and resolutions
-- tests/checks
-- explicit exclusions
-- risks and next slice
-- No merge was performed.
+- validation commands and results
+- final git status
+- recommended PR title if relevant
 
-Final report requirements:
-- branch
-- commit SHA
-- PR number/URL when created
-- files changed
-- agent findings
-- tests/checks with exact results
-- scope confirmation
-- risks/blockers
-- No merge was performed.
+Stop conditions:
+- <condition>
+- <condition>
 
-Environment rules:
-- important commands use scripts/dev/erp-logged-run with heredoc stdin
-- use .venv/bin/python, .venv/bin/pytest, or Docker Compose; no bare python
-- never read, display, source, inspect, or modify .env or secrets
-- never touch another active worktree
-- never place two agents on the same files
-- review agents are non-mutating unless explicitly authorized
-- after F138B/F138C merge on main, use scripts/dev/erp-backend-compose-ci,
-  scripts/dev/erp-agent-scope-guard, and scripts/dev/erp-worktree-preflight when applicable
-- use Codex and Codex subagents only
-- OpenClaw is decommissioned: never create, modify, resync, commit, push, merge, or
-  rely on OpenClaw sandbox output
+Merge/push policy:
+- inspect: <yes/no>
+- edit: <yes/no>
+- commit: <yes/no>
+- push: <yes/no>
+- open PR: <yes/no>
+- merge: no unless explicitly authorized
 ```
