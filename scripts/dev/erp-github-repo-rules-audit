@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-github-repo-rules-audit
+
+Purpose:
+  Run a non-mutating local audit of GitHub repository rules expectations and CI
+  security posture using the checked-in workflow files and gh CLI metadata when
+  available.
+
+Checks:
+  - pull_request and push to main
+  - least-privilege workflow permissions
+  - no pull_request_target usage
+  - no PR job secrets usage in workflow file
+  - required checks naming present in workflow
+  - action pinning inventory for manual review
+  - reminder to verify branch protection and squash merge in GitHub settings
+
+This helper does not modify repository settings.
+USAGE
+}
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    echo "ERROR: unexpected argument '$1'"
+    print_usage
+    exit 2
+    ;;
+esac
+
+workflow_file=".github/workflows/ci.yml"
+
+if [ ! -f "$workflow_file" ]; then
+  echo "ERROR: missing workflow file: $workflow_file"
+  exit 1
+fi
+
+echo "============================================================"
+echo "GITHUB REPOSITORY RULES AUDIT"
+echo "============================================================"
+echo "WORKFLOW_FILE: $workflow_file"
+echo
+
+if grep -q '^  pull_request:' "$workflow_file"; then
+  echo "PASS: pull_request trigger present"
+else
+  echo "WARN: pull_request trigger not found"
+fi
+
+if grep -q '^  push:' "$workflow_file" && grep -q 'main' "$workflow_file"; then
+  echo "PASS: push to main trigger present"
+else
+  echo "WARN: push to main trigger not clearly present"
+fi
+
+if grep -q 'pull_request_target' "$workflow_file"; then
+  echo "WARN: pull_request_target found and should be avoided unless explicitly justified"
+else
+  echo "PASS: pull_request_target not used"
+fi
+
+if grep -q '^permissions:' "$workflow_file" && grep -q 'contents: read' "$workflow_file"; then
+  echo "PASS: least-privilege top-level permissions start at contents: read"
+else
+  echo "WARN: top-level least-privilege permissions not clearly set to contents: read"
+fi
+
+if grep -Eiq 'secrets\.' "$workflow_file"; then
+  echo "WARN: workflow references GitHub secrets; verify no secrets are exposed to PR jobs"
+else
+  echo "PASS: no GitHub secrets reference found in workflow file"
+fi
+
+if grep -q 'name: Backend quality' "$workflow_file" && grep -q 'name: Frontend quality' "$workflow_file"; then
+  echo "PASS: expected required check names found"
+else
+  echo "WARN: expected required check names missing or renamed"
+fi
+
+echo
+echo "Action versions for manual review:"
+grep -En 'uses: ' "$workflow_file" || true
+
+echo
+echo "GitHub settings checklist to verify manually:"
+echo "- branch protection on main"
+echo "- required status checks include Backend quality and Frontend quality"
+echo "- squash merge policy reviewed"
+echo "- Actions permissions remain least-privilege"
+echo "- PR jobs do not receive unnecessary secrets"
+echo "- untrusted inputs are treated as hostile"
+echo "- post-merge main CI is monitored"
+
+if command -v gh >/dev/null 2>&1; then
+  echo
+  echo "GitHub CLI repository context:"
+  gh repo view --json nameWithOwner,defaultBranchRef,visibility 2>/dev/null || \
+    echo "INFO: gh repo metadata unavailable in current session"
+else
+  echo
+  echo "INFO: gh CLI not available; repository settings audit remains local-only"
+fi
