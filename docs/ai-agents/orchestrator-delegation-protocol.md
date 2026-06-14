@@ -5,12 +5,21 @@
 The orchestrator delegates only bounded micro-tasks. Each delegation packet must be
 short, reference the official docs, and define one mutable scope.
 
+The orchestrator must assign one explicit agent profile from
+[`agent-profiles.md`](agent-profiles.md) before assigning a task.
+
+The orchestrator must not assume current state from static docs alone. A live baseline
+wins over stale docs and must be referenced when state-sensitive delegation decisions are
+made.
+
 ## Common delegation packet
 
 Every delegated micro-task should include:
 
 - micro-task ID and parent macro-goal
+- assigned agent profile
 - worktree and branch
+- task-start baseline expectation
 - scope allowed and scope forbidden
 - files or docs to read first
 - required scripts and validations
@@ -21,6 +30,9 @@ Every delegated micro-task should include:
 
 ```text
 You are <agent role>.
+
+Assigned profile:
+<profile from docs/ai-agents/agent-profiles.md>
 
 Authorized worktree only:
 <path>
@@ -35,6 +47,10 @@ Read first:
 - docs/ai-agents/agent-command-runbook.md
 - docs/ai-agents/<relevant contract or plan>.md
 - docs/ai-agents/task-queue-schema.md
+
+Task-start baseline:
+- executable agents run `bash scripts/dev/erp-agent-task-start` inside `scripts/dev/erp-logged-run` as the first command
+- plan-only agents propose that baseline and wait
 
 Use:
 - scripts/dev/<required helper>
@@ -79,6 +95,8 @@ Final report:
 ## Docs agent delegation
 
 - goal contract: docs-agent prompt contract plus the active macro-goal contract
+- profile: usually `codex-native-wsl-mutating` for mutating docs work, or
+  `antigravity-review-docs` / `opencode-web-wsl-review` for review/docs-only work
 - files to read: runbook, queue item, relevant workflow docs, shared index ownership
   rules
 - scripts to use: `erp-worktree-preflight agent-tools` only when a docs task also owns
@@ -99,6 +117,8 @@ Final report:
 ## Review agent delegation
 
 - goal contract: review-agent prompt contract
+- profile: `antigravity-review-docs`, `opencode-web-wsl-review`,
+  `opencode-desktop-windows-plan-only`, or `windows-hosted-agent-plan-only`
 - files to read: diff, PR context, queue item, review template
 - scripts to use: non-mutating checks only
 - report format: findings first, verdict, residual risks, no edits performed

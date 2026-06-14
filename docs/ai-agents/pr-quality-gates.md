@@ -11,6 +11,8 @@ referencing the current task state in
 ## Universal gates
 
 - Baseline commit and dedicated branch verified.
+- Integrated task-start baseline executed first for executable agents, or explicitly proposed
+  and awaited for plan-only agents.
 - Changed files match approved scope; forbidden files are untouched.
 - No `.env`, secrets, logs, caches, generated junk, or `__pycache__`.
 - Important commands ran through `scripts/dev/erp-logged-run` heredoc workflow.

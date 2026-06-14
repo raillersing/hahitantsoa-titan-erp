@@ -7,6 +7,12 @@ This runbook defines the standard command patterns for ERP agent tasks.
 These commands assume a native WSL/bash execution context unless a task explicitly
 documents an approved Windows-to-WSL bridge mode.
 
+The assigned execution profile must come from
+[`agent-profiles.md`](agent-profiles.md), not from agent self-inference.
+
+Task-start baseline is part of the task itself. No separate human pre-baseline command
+should be required before every prompt.
+
 Always run important terminal work through:
 
 ```sh
@@ -38,18 +44,33 @@ of:
 If static docs disagree with the live baseline, report the mismatch and follow the live
 baseline.
 
-## Standard Task Start
+## Integrated Task-Start Baseline
 
-Run these checks before any edit:
+Executable agent tasks must begin by running the project-approved task-start baseline as
+their first command.
+
+Use:
 
 ```sh
 scripts/dev/erp-logged-run task-start <<'EOF'
 set -euo pipefail
 
-pwd
-git branch --show-current
-git status --short
-git log --oneline --decorate -8
+bash scripts/dev/erp-agent-task-start
+EOF
+```
+
+Plan-only agents must propose the same baseline to the human supervisor and wait. They do
+not execute it themselves.
+
+## Standard Task Start
+
+Run the integrated task-start baseline before any edit:
+
+```sh
+scripts/dev/erp-logged-run task-start <<'EOF'
+set -euo pipefail
+
+bash scripts/dev/erp-agent-task-start
 EOF
 ```
 
