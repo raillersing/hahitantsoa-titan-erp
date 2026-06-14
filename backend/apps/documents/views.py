@@ -14,11 +14,9 @@ from apps.documents.serializers import (
     TitanProformaDraftPreviewSerializer,
 )
 from apps.documents.services import (
-    get_reservation_draft_commercial_document_context_service,
+    get_titan_proforma_draft_preview_payload_service,
 )
 from apps.reservations.models import ReservationDraft
-
-TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
 
 
 def runtime_document_scope_flags() -> dict[str, bool]:
@@ -81,16 +79,13 @@ class TitanProformaDraftPreviewAPIView(APIView):
     @extend_schema(responses=TitanProformaDraftPreviewSerializer)
     def get(self, request, reservation_draft_id):
         try:
-            context = get_reservation_draft_commercial_document_context_service(
+            payload = get_titan_proforma_draft_preview_payload_service(
                 reservation_draft_id=reservation_draft_id,
-                template_key=TITAN_PROFORMA_TEMPLATE_KEY,
             )
         except ReservationDraft.DoesNotExist:
             raise Http404("Reservation draft not found.")
 
-        serializer = TitanProformaDraftPreviewSerializer.from_commercial_document_context(
-            context=context
-        )
+        serializer = TitanProformaDraftPreviewSerializer(payload)
         return Response(serializer.data)
 
 
