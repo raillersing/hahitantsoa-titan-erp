@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+COMPOSE_FILE="$REPO_ROOT/compose.agent-ci.yaml"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-backend-compose-ci <docker compose args...>
+
+Purpose:
+  Run backend-local Docker Compose validation without reading, sourcing, copying
+  or requiring any .env file.
+
+Examples:
+  scripts/dev/erp-backend-compose-ci config --quiet
+  scripts/dev/erp-backend-compose-ci config --services
+  scripts/dev/erp-backend-compose-ci up -d db redis backend
+  scripts/dev/erp-backend-compose-ci exec -T backend python backend/manage.py check
+  scripts/dev/erp-backend-compose-ci run --rm backend python -m ruff check backend tests
+
+Notes:
+  This wrapper always uses compose.agent-ci.yaml.
+  It injects only versioned non-secret CI/dev values.
+  It is intended for agent-safe local backend validation.
+USAGE
+}
+
+if [ ! -f "$COMPOSE_FILE" ]; then
+  echo "ERROR: missing compose file: $COMPOSE_FILE"
+  exit 1
+fi
+
+if [ "$#" -eq 0 ]; then
+  print_usage
+  exit 2
+fi
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+esac
+
+exec docker compose -f "$COMPOSE_FILE" "$@"

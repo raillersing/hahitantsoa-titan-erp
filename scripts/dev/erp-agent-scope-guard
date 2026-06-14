@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-agent-scope-guard <backend|frontend|agent-tools>
+
+Purpose:
+  Stop early when the current worktree or branch diff contains files outside the
+  approved scope for the selected agent profile.
+
+Profiles:
+  backend
+    Forbid frontend paths, .env-like files, dist output, and secret-looking files.
+
+  frontend
+    Forbid backend paths, .env-like files, frontend/dist output, and secret-looking files.
+
+  agent-tools
+    Forbid backend, frontend, .github, dependency manifests, .env-like files, and
+    secret-looking files. Allow only scripts/dev, compose.agent-ci.yaml, and docs/audits.
+
+Notes:
+  This guard inspects file paths only. It does not open or read secret contents.
+USAGE
+}
+
+if [ "$#" -ne 1 ]; then
+  print_usage
+  exit 2
+fi
+
+PROFILE="$1"
+
+if git rev-parse --verify origin/main >/dev/null 2>&1; then
+  RANGE_BASE="$(git merge-base HEAD origin/main)"
+elif git rev-parse --verify main >/dev/null 2>&1; then
+  RANGE_BASE="$(git merge-base HEAD main)"
+else
+  RANGE_BASE=""
+fi
+
+collect_paths() {
+  git status --porcelain=v1 | sed -E 's/^...//' | sed '/^$/d'
+  if [ -n "$RANGE_BASE" ]; then
+    git diff --name-only "$RANGE_BASE"...HEAD
+  fi
+}
+
+normalize_paths() {
+  awk 'NF { print }' | sed 's#^\./##' | sort -u
+}
+
+ALL_PATHS="$(collect_paths | normalize_paths)"
+
+if [ -z "$ALL_PATHS" ]; then
+  echo "Scope guard: no changed paths detected for profile '$PROFILE'."
+  exit 0
+fi
+
+check_blocked() {
+  local blocked_regex="$1"
+  local reason="$2"
+  local matches
+
+  matches="$(printf '%s\n' "$ALL_PATHS" | grep -E "$blocked_regex" || true)"
+  if [ -n "$matches" ]; then
+    echo "ERROR: forbidden paths detected for profile '$PROFILE': $reason"
+    printf '%s\n' "$matches"
+    exit 1
+  fi
+}
+
+check_allowed_only() {
+  local allowed_regex="$1"
+  local matches
+
+  matches="$(printf '%s\n' "$ALL_PATHS" | grep -Ev "$allowed_regex" || true)"
+  if [ -n "$matches" ]; then
+    echo "ERROR: forbidden paths detected for profile '$PROFILE': only approved files are allowed"
+    printf '%s\n' "$matches"
+    exit 1
+  fi
+}
+
+case "$PROFILE" in
+  backend)
+    check_blocked '^(frontend/|frontend$|frontend/dist/|frontend/dist$)' "frontend paths are out of scope"
+    check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
+    check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
+    ;;
+  frontend)
+    check_blocked '^(backend/|backend$|tests/backend/|tests/backend$)' "backend paths are out of scope"
+    check_blocked '^(frontend/dist/|frontend/dist$)' "generated frontend dist output is forbidden"
+    check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
+    check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
+    ;;
+  agent-tools)
+    check_blocked '^(backend/|backend$|frontend/|frontend$|\.github/|\.github$)' "application or GitHub workflow paths are out of scope"
+    check_blocked '^(package\.json|package-lock\.json|pyproject\.toml|requirements[^/]*\.txt|poetry\.lock|pnpm-lock\.yaml|yarn\.lock)$' "dependency manifests are out of scope"
+    check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
+    check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
+    check_allowed_only '^(scripts/dev/|compose\.agent-ci\.yaml$|docs/audits/)'
+    ;;
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+  *)
+    echo "ERROR: unknown profile '$PROFILE'"
+    print_usage
+    exit 2
+    ;;
+esac
+
+echo "Scope guard: profile '$PROFILE' passed."
