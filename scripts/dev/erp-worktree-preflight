@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+REQUIRE_CLEAN=0
+PROFILE=""
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-worktree-preflight [--require-clean] [backend|frontend|agent-tools]
+
+Purpose:
+  Print the current repository baseline and optionally stop when the worktree is
+  not clean. When a profile is provided, run the matching scope guard as part of
+  the preflight.
+
+Examples:
+  scripts/dev/erp-worktree-preflight
+  scripts/dev/erp-worktree-preflight --require-clean
+  scripts/dev/erp-worktree-preflight frontend
+  scripts/dev/erp-worktree-preflight --require-clean agent-tools
+
+Notes:
+  This helper does not read, source, print or create any .env file.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --require-clean)
+      REQUIRE_CLEAN=1
+      ;;
+    backend|frontend|agent-tools)
+      if [ -n "$PROFILE" ]; then
+        echo "ERROR: only one profile may be provided"
+        exit 2
+      fi
+      PROFILE="$1"
+      ;;
+    help|--help|-h)
+      print_usage
+      exit 0
+      ;;
+    *)
+      echo "ERROR: unknown argument '$1'"
+      print_usage
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+BRANCH="$(git branch --show-current 2>/dev/null || true)"
+HEAD_SHA="$(git rev-parse HEAD)"
+SHORT_HEAD_SHA="$(git rev-parse --short HEAD)"
+STATUS_OUTPUT="$(git status --short)"
+
+echo "============================================================"
+echo "ERP WORKTREE PREFLIGHT"
+echo "============================================================"
+echo "REPO_ROOT: $REPO_ROOT"
+echo "BRANCH: ${BRANCH:-DETACHED}"
+echo "HEAD: $HEAD_SHA"
+echo "SHORT_HEAD: $SHORT_HEAD_SHA"
+echo
+echo "STATUS:"
+if [ -n "$STATUS_OUTPUT" ]; then
+  printf '%s\n' "$STATUS_OUTPUT"
+else
+  echo "(clean)"
+fi
+
+if [ "$REQUIRE_CLEAN" -eq 1 ] && [ -n "$STATUS_OUTPUT" ]; then
+  echo
+  echo "ERROR: worktree is not clean."
+  exit 1
+fi
+
+if [ -n "$PROFILE" ]; then
+  echo
+  "$SCRIPT_DIR/erp-agent-scope-guard" "$PROFILE"
+fi
