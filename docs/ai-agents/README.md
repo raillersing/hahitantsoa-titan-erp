@@ -54,8 +54,10 @@ Frontend roles:
 - [Agent command runbook](agent-command-runbook.md)
 - [Backend agent template](backend-agent-template.md)
 - [Frontend agent template](frontend-agent-template.md)
+- [GitHub repository rules checklist](github-repository-rules-checklist.md)
 - [Orchestrator task queue](orchestrator-task-queue.md)
 - [PR quality gates](pr-quality-gates.md)
+- [Secret handling policy](secret-handling-policy.md)
 - [Task prompt template](task-prompt-template.md)
 - [Skill improvement loop](skill-improvement-loop.md)
 
