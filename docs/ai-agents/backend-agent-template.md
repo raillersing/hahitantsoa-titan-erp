@@ -3,6 +3,22 @@
 Assign only roles relevant to the task. Every reviewer returns findings ordered by
 severity, evidence, verdict, and unresolved risks.
 
+Backend prompts should stay short and reference:
+
+- [`agent-command-runbook.md`](agent-command-runbook.md)
+- [`orchestrator-task-queue.md`](orchestrator-task-queue.md)
+
+Backend agents work in the backend worktree only. Their mutable scope is limited to
+`backend/`, `tests/backend/`, and backend audits unless the task explicitly authorizes
+something else. They must never modify frontend, agent-tools, or agent-docs worktrees.
+
+After merge of F138B/F138C on `main`, backend agents must use these official wrappers
+when applicable:
+
+- `scripts/dev/erp-backend-compose-ci`
+- `scripts/dev/erp-agent-scope-guard`
+- `scripts/dev/erp-worktree-preflight`
+
 ## Agent A - Backend Implementer
 
 - Mission: implement the smallest approved backend change and its focused tests.

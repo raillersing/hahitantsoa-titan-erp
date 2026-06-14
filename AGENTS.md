@@ -4,6 +4,14 @@ This file is the concise, authoritative workflow for every AI agent working in t
 repository. Detailed agent roles, templates, and quality gates live in
 [`docs/ai-agents/`](docs/ai-agents/README.md).
 
+Use these two documents as the standard operational references for future tasks:
+
+- [`docs/ai-agents/agent-command-runbook.md`](docs/ai-agents/agent-command-runbook.md)
+- [`docs/ai-agents/orchestrator-task-queue.md`](docs/ai-agents/orchestrator-task-queue.md)
+
+Task prompts should stay short and reference these documents instead of copying large
+command blocks or queue state into every prompt.
+
 ## Sources of truth
 
 Apply the following priority when instructions conflict:
@@ -46,6 +54,26 @@ Required backend roles are selected from Agent A through Agent F in
 Required frontend roles are selected from Agent FE-A through Agent FE-F in
 [`frontend-agent-template.md`](docs/ai-agents/frontend-agent-template.md).
 
+## Worktree matrix
+
+One agent equals one worktree equals one branch equals one non-overlapping scope.
+
+- `backend` agent: backend worktree, one backend branch, `backend/`, `tests/backend/`,
+  and backend audits only.
+- `frontend` agent: frontend worktree, one frontend branch, `frontend/` and frontend
+  audits only.
+- `agent-tools` agent: agent-tools worktree, one agent-tools branch,
+  `scripts/dev/`, `compose.agent-ci.yaml`, and F138 agent-tools audit files only.
+- `agent-docs` agent: agent-docs worktree, one docs branch, `docs/ai-agents/` and docs
+  audits only.
+- future `business-rules` agent: business-documentation worktree, one docs branch,
+  business docs only.
+- review agent: non-mutating by default and may edit only when the task explicitly
+  authorizes review-side changes.
+
+Never modify another active worktree. Never put two agents on the same files. Never mix
+backend, frontend, agent-tools, and agent-docs edits in the same task branch.
+
 ## Mandatory task workflow
 
 - One task, one branch, one controlled PR.
@@ -73,6 +101,9 @@ Every task prompt must state:
 
 Use [`docs/ai-agents/task-prompt-template.md`](docs/ai-agents/task-prompt-template.md).
 
+Prompts should reference the runbook and task queue instead of repeating all standard
+commands, stop conditions, and CI follow-up instructions inline.
+
 ## Terminal and environment rules
 
 Run every important terminal command through the logged heredoc workflow:
@@ -87,9 +118,22 @@ EOF
 - Use `.venv/bin/python`, `.venv/bin/pytest`, or Docker Compose instead of bare
   `python`.
 - Never read, display, source, inspect, copy, or modify `.env` or secrets.
+- Never touch secrets, tokens, private keys, or secret-like files.
 - Never commit generated junk, logs, caches, or `__pycache__`.
 - If an important command is accidentally run outside the wrapper, immediately run a
   logged recovery check and report the incident.
+
+The standard operational command set is defined in
+[`docs/ai-agents/agent-command-runbook.md`](docs/ai-agents/agent-command-runbook.md).
+The standard task ordering and current queue are defined in
+[`docs/ai-agents/orchestrator-task-queue.md`](docs/ai-agents/orchestrator-task-queue.md).
+
+After merge of F138B/F138C on `main`, these official wrappers are required when
+applicable:
+
+- `scripts/dev/erp-backend-compose-ci`
+- `scripts/dev/erp-agent-scope-guard`
+- `scripts/dev/erp-worktree-preflight`
 
 OpenClaw is decommissioned from the active Hahitantsoa/Titan ERP workflow.
 
@@ -126,6 +170,9 @@ Apply the relevant gates in
 - independent review findings and resolutions;
 - CI result before merge;
 - post-merge `main` validation.
+
+PR CI must be green before merge. `main` CI must be green after merge. Human merge
+control remains mandatory unless a task explicitly authorizes otherwise.
 
 ## Continuous improvement
 

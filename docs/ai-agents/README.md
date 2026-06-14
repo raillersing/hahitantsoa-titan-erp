@@ -51,11 +51,30 @@ Frontend roles:
 
 ## Required documents
 
+- [Agent command runbook](agent-command-runbook.md)
 - [Backend agent template](backend-agent-template.md)
 - [Frontend agent template](frontend-agent-template.md)
+- [Orchestrator task queue](orchestrator-task-queue.md)
 - [PR quality gates](pr-quality-gates.md)
 - [Task prompt template](task-prompt-template.md)
 - [Skill improvement loop](skill-improvement-loop.md)
+
+## Worktree and prompt policy
+
+One agent equals one worktree equals one branch equals one non-overlapping scope.
+
+- backend agent: backend worktree, `backend/`, `tests/backend/`, backend audits
+- frontend agent: frontend worktree, `frontend/`, frontend audits
+- agent-tools agent: agent-tools worktree, `scripts/dev/`, `compose.agent-ci.yaml`,
+  F138 agent-tools audit files
+- agent-docs agent: agent-docs worktree, `docs/ai-agents/`, docs audits
+- future business-rules agent: business docs only
+- review agent: non-mutating unless explicitly authorized
+
+Prompts should stay short and reference the
+[Agent command runbook](agent-command-runbook.md) and
+[Orchestrator task queue](orchestrator-task-queue.md) instead of repeating all standard
+commands and queue state inline.
 
 ## Minimum flow
 
@@ -70,6 +89,13 @@ Frontend roles:
 9. Validate `main` and confirm CI on `main` after merge.
 10. Clean local task and review branches after merge when the human authorizes cleanup.
 11. Capture durable workflow improvements in a later small PR.
+
+After merge of F138B/F138C on `main`, these wrappers are official and required when
+applicable:
+
+- `scripts/dev/erp-backend-compose-ci`
+- `scripts/dev/erp-agent-scope-guard`
+- `scripts/dev/erp-worktree-preflight`
 
 ## Replaced guidance
 
