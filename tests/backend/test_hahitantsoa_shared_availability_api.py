@@ -92,9 +92,15 @@ def test_authenticated_user_can_read_hahitantsoa_shared_availability(authenticat
     payload = response.json()
     assert set(payload) == {"items", "count"}
     assert payload["count"] == len(payload["items"]) == 2
-    assert [item["inventory_item_id"] for item in payload["items"]] == [str(material.pk), str(article.pk)]
+    assert [item["inventory_item_id"] for item in payload["items"]] == [
+        str(material.pk),
+        str(article.pk),
+    ]
     assert [item["inventory_item_kind"] for item in payload["items"]] == ["material", "article"]
-    assert [item["inventory_item_name"] for item in payload["items"]] == [material.name, article.name]
+    assert [item["inventory_item_name"] for item in payload["items"]] == [
+        material.name,
+        article.name,
+    ]
     assert [item["inventory_item_description"] for item in payload["items"]] == ["A", "B"]
     for item in payload["items"]:
         assert set(item) == EXPECTED_ITEM_FIELDS

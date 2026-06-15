@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from apps.hahitantsoa.selectors import get_available_hahitantsoa_shared_inventory_items_for_period
 from apps.inventory.models import InventoryItem
 from apps.reservations.periods import ReservationPeriod, make_reservation_period
-
-from apps.hahitantsoa.selectors import get_available_hahitantsoa_shared_inventory_items_for_period
 
 
 @dataclass(frozen=True)

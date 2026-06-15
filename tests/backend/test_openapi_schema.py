@@ -117,7 +117,6 @@ def test_openapi_schema_exposes_minimal_hahitantsoa_discovery_contract(client) -
     assert discovery_item["required"] == ["concept", "label"]
 
 
-
 def test_openapi_schema_exposes_hahitantsoa_shared_availability_contract(client) -> None:
     response = client.get("/api/schema/?format=json")
 
@@ -152,6 +151,7 @@ def test_openapi_schema_exposes_hahitantsoa_shared_availability_contract(client)
         "start_at",
         "status",
     ]
+
 
 def test_openapi_schema_exposes_documents_template_contract(client) -> None:
     response = client.get("/api/schema/?format=json")
