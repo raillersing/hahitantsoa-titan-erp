@@ -86,10 +86,15 @@ EOF
       FINALIZER_ARGS+=(--allow "$path")
     done
 
+    FINALIZER_CMD="bash scripts/dev/erp-pr-finalize-from-root"
+    for arg in "${FINALIZER_ARGS[@]}"; do
+      FINALIZER_CMD+=" $(printf '%q' "$arg")"
+    done
+
     echo "INFO: Running PR finalization via erp-logged-run..."
     scripts/dev/erp-logged-run task-pr-finalize-adapter <<EOF
 set -euo pipefail
-bash scripts/dev/erp-pr-finalize-from-root "${FINALIZER_ARGS[@]}"
+$FINALIZER_CMD
 EOF
     ;;
 
