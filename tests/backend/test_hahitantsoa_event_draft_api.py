@@ -169,18 +169,43 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     assert InventoryAvailability.objects.count() == availability_count
 
 
-def test_event_draft_detail_rejects_delete(authenticated_client) -> None:
+def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticated_client) -> None:
     start_at, end_at = _period()
+    item = _item()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Delete forbidden",
         start_at=start_at,
         end_at=end_at,
     )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=item,
+        quantity=1,
+    )
+    InventoryAvailability.objects.create(
+        inventory_item=item,
+        status="blocked",
+        start_at=start_at,
+        end_at=end_at,
+    )
+    availability_count = InventoryAvailability.objects.count()
 
     response = authenticated_client.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
 
-    assert response.status_code == 405
+    assert response.status_code == 204
+    draft.refresh_from_db()
+    assert draft.is_deleted is True
+    assert draft.deleted_at is not None
+    assert InventoryAvailability.objects.count() == availability_count
+    assert authenticated_client.get(EVENT_DRAFT_LIST_URL).json() == []
+    assert authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/").status_code == 404
+    assert (
+        authenticated_client.get(
+            f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/"
+        ).status_code
+        == 404
+    )
 
 
 def test_authenticated_user_can_read_event_draft_availability_preview(authenticated_client) -> None:
