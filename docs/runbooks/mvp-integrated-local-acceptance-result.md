@@ -15,6 +15,10 @@ includes read-only document template registry endpoints, read-only customer/cont
 limited authenticated `ReservationDraft` draft-only write path. The current scope is summarized in
 `README.md` and `PLANS.md`.
 
+Post-F93A note: this result is not the source of truth for current Hahitantsoa lifecycle or
+confirmation decisions. Those come from Documents A/B and
+`docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`.
+
 This result does not claim production readiness, confirmed reservation workflows, payment, invoice,
 contract generation, PDF runtime generation or complete commercial workflows.
 

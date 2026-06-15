@@ -15,6 +15,10 @@ read-only MVP scope. It does not by itself validate the complete current project
 including document template registry endpoints, customer/contact APIs or `ReservationDraft`
 draft-only creation.
 
+Post-F93A note: this runbook does not define the current Hahitantsoa lifecycle or confirmation
+business truth. For that, use Documents A/B and
+`docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`.
+
 ## 2. Purpose
 
 This runbook validates the historical local read-only MVP across backend quality checks,
