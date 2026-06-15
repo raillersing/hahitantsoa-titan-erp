@@ -44,3 +44,11 @@ For the Antigravity adapter, the only authorized Windows host invocation pattern
 - **Supported Modes:** The adapter currently supports **only** `task-start` and `finalize-pr`.
 - **Not Enabled Yet:** Automated git actions such as branch creation (`create-branch`), local commit (`commit`), remote push (`push`), and pull request creation (`PR creation`) are **not enabled yet** in this first adapter version. Attempting to run them via the adapter will result in an error or a protocol violation.
 - **Flattened Arguments:** The PowerShell wrapper must construct a flat array of strings (e.g. `$WslArgs`) containing both the `wsl.exe` command line parameters and the bash entrypoint arguments before executing `Start-Process -ArgumentList`. Passing a nested array (e.g. passing a sub-array `$ArgList` inside `-ArgumentList`) triggers a PowerShell parameter binding failure.
+
+## F140U validation status
+
+- `task-start` smoke test via adapter: PASS
+- `finalize-pr` smoke test via adapter: PASS
+- raw WSL bridge outside wrapper: forbidden
+- `.env` / secrets: not touched
+
