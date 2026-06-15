@@ -15,6 +15,8 @@ referencing the current task state in
   and awaited for plan-only agents.
 - Agent profile contract validation passes when agent profiles or delegation entry points
   change: `bash scripts/dev/erp-agent-profile-validate`.
+- Repo-scoped skill additions or updates remain docs/tools-governance scope and still
+  require green PR CI before merge plus green `main` CI after merge.
 - Changed files match approved scope; forbidden files are untouched.
 - No `.env`, secrets, logs, caches, generated junk, or `__pycache__`.
 - Important commands ran through `scripts/dev/erp-logged-run` heredoc workflow.

@@ -132,6 +132,9 @@ The standard operational command set is defined in
 [`docs/ai-agents/agent-command-runbook.md`](docs/ai-agents/agent-command-runbook.md).
 The standard task ordering and current queue are defined in
 [`docs/ai-agents/orchestrator-task-queue.md`](docs/ai-agents/orchestrator-task-queue.md).
+Repo-scoped Codex accelerators may live under
+[`/.agents/skills/`](.agents/skills), but they are optional helpers and never replace the
+canonical workflow docs above.
 
 After merge of F138B/F138C on `main`, these official wrappers are required when
 applicable:
