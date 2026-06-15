@@ -6,9 +6,9 @@ This bridge defines the approved repository workflow for Antigravity sessions.
 
 ## Default Profile
 
-- profile: `antigravity-review-docs`
-- default mode: review/docs-only
-- mutation: forbidden unless the task explicitly promotes Antigravity inside approved docs-only scope
+- profile: `antigravity-plan-only` (default) or `antigravity-logged-readonly-review`
+- default mode: plan-only or wrapped logged review
+- mutation: forbidden
 
 ## Rules
 
@@ -17,6 +17,15 @@ This bridge defines the approved repository workflow for Antigravity sessions.
 - No `/tmp` scripts.
 - No `chmod`.
 - No improvised `wsl -d` or similar bridge commands.
+- No direct shell, git, or gh commands (e.g. `git status`, `git log`, `git diff`, `gh pr view`, `gh pr checks`, `ls` must never be run directly).
+- Any required inspection commands must be executed strictly wrapped in:
+  ```sh
+  cd "$HOME/projects/hahitantsoa-titan-erp"
+  scripts/dev/erp-logged-run task-name <<'EOF'
+  [command]
+  EOF
+  ```
+  Direct unwrapped execution is a protocol violation.
 - Deliverables belong in chat and/or approved repo docs only.
 - Codex skills may be read as reference runbooks only.
 
