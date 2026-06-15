@@ -177,8 +177,7 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
     assert "patch" not in paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]
     assert "delete" not in paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]
     assert detail_path in paths
-    assert set(paths[detail_path]) >= {"get", "put", "patch"}
-    assert "delete" not in paths[detail_path]
+    assert set(paths[detail_path]) >= {"get", "put", "patch", "delete"}
 
     availability_preview_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_AVAILABILITY_PREVIEW_PATHS)
     assert availability_preview_path in paths

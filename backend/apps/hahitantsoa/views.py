@@ -1,3 +1,4 @@
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
 from rest_framework.permissions import IsAuthenticated
@@ -109,11 +110,20 @@ class HahitantsoaEventDraftAvailabilityPreviewAPIView(APIView):
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
-class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
-    http_method_names = ["get", "put", "patch", "head", "options"]
+class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyAPIView):
+    http_method_names = ["get", "put", "patch", "delete", "head", "options"]
     permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
     serializer_class = HahitantsoaEventDraftSerializer
     lookup_field = "pk"
 
     def get_queryset(self):
         return active_hahitantsoa_event_drafts()
+
+    @extend_schema(responses={204: None})
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+    def perform_destroy(self, instance):
+        instance.is_deleted = True
+        instance.deleted_at = timezone.now()
+        instance.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
