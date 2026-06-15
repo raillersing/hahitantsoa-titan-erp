@@ -4,7 +4,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create", "task-branch-start")]
+    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create", "task-branch-start", "frontend-quality")]
     [string]$Mode,
 
     [Parameter(Mandatory=$false)]
@@ -93,8 +93,8 @@ if ($Mode -eq "task-branch-start") {
     }
 }
 
-# Construct the WSL path for the bash entrypoint
-$WslAdapterPath = "/home/raillersing/projects/hahitantsoa-titan-erp/scripts/dev/erp-antigravity-wsl-adapter"
+# Resolve the WSL path dynamically from the script location
+$WslAdapterPath = $PSScriptRoot.Replace("\", "/").Replace("Y:", "").Replace("//wsl$/Ubuntu", "").Replace("//wsl.localhost/Ubuntu", "") + "/erp-antigravity-wsl-adapter"
 
 # Construct argv parameters without shell command interpolation
 $ArgList = @($Mode)

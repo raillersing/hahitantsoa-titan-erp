@@ -58,10 +58,15 @@ For the Antigravity adapter, the only authorized Windows host invocation pattern
    .\scripts\dev\erp-antigravity-windows-wsl-adapter.ps1 -Mode task-branch-start -TaskBranch <branch> [-TaskWorktree <path>] [-TaskBase <branch>]
    ```
 
+7. **Frontend Quality Check:**
+   ```powershell
+   .\scripts\dev\erp-antigravity-windows-wsl-adapter.ps1 -Mode frontend-quality
+   ```
+
 ### Critical Constraints
 
 - **No Raw WSL Usage:** Direct execution of raw `wsl`, `wsl.exe`, `wsl --exec`, or `wsl -e` on the Windows host outside this approved `.ps1` wrapper remains a strict protocol **FAIL**.
-- **Supported Modes:** The adapter currently supports `task-start`, `finalize-pr`, `repo-status`, `pr-checks`, `pr-create`, and `task-branch-start`.
+- **Supported Modes:** The adapter currently supports `task-start`, `finalize-pr`, `repo-status`, `pr-checks`, `pr-create`, `task-branch-start`, and `frontend-quality`.
 - **Not Enabled Yet:** Automated git actions such as local commit (`commit`) and remote push (`push`) are **not enabled yet** in this first adapter version. Attempting to run them via the adapter will result in an error or a protocol violation.
 - **Flattened Arguments:** The PowerShell wrapper must construct a flat array of strings (e.g. `$WslArgs`) containing both the `wsl.exe` command line parameters and the bash entrypoint arguments before executing `Start-Process -ArgumentList`. Passing a nested array (e.g. passing a sub-array `$ArgList` inside `-ArgumentList`) triggers a PowerShell parameter binding failure.
 

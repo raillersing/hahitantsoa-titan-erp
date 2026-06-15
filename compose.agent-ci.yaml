@@ -81,6 +81,15 @@ services:
     networks:
       - erp_agent_ci_internal
 
+  frontend-quality:
+    image: node:22.14.0-bookworm-slim
+    volumes:
+      - .:/app
+    working_dir: /app
+    networks:
+      - erp_agent_ci_internal
+    command: bash scripts/dev/erp-frontend-quality
+
 volumes:
   postgres_agent_ci_data:
   redis_agent_ci_data:
