@@ -16,6 +16,8 @@ This bridge defines the approved repository workflow for OpenCode sessions.
 - OpenCode Desktop Windows remains plan-only unless a future promoted profile explicitly changes that.
 - No PowerShell-to-WSL bridge unless explicitly authorized by the task.
 - Codex skills may be read as reference runbooks, but OpenCode must not assume they auto-load.
+- OpenCode review agents may not finalize PRs.
+- No OpenCode workflow should run `gh pr merge` from a temporary worktree.
 
 ## Baseline Behavior
 

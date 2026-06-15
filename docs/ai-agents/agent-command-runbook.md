@@ -267,6 +267,32 @@ EOF
 
 Human merge remains mandatory unless a task explicitly says otherwise.
 
+Root-only finalization rule:
+
+- PR finalization is a separate phase from PR creation.
+- Task worktrees may commit, push, open PRs, and wait for PR CI.
+- Only the main-root worktree at `/home/raillersing/projects/hahitantsoa-titan-erp`
+  may merge PRs, sync `main`, wait for post-merge `main` CI, remove task worktrees, and
+  delete task branches.
+- Do not run `gh pr merge` from a temporary worktree.
+- Do not use `gh pr merge --delete-branch` from a task worktree.
+- Codex may finalize only through `scripts/dev/erp-pr-finalize-from-root` or an
+  equivalent logged command executed from root `main`.
+
+Root-main finalization helper:
+
+```sh
+scripts/dev/erp-logged-run task-pr-finalize <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-pr-finalize-from-root PR-NUMBER \
+  --task-worktree /home/raillersing/projects/hahitantsoa-titan-erp-agent-lifecycle \
+  --task-branch branch-name \
+  --allow scripts/dev/erp-pr-finalize-from-root \
+  --allow docs/ai-agents/pr-quality-gates.md
+EOF
+```
+
 ## CI Wait Policy
 
 ### Pre-merge CI wait

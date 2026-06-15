@@ -27,12 +27,16 @@ referencing the current task state in
 - All scripts under `scripts/dev/` that were created or modified have the executable bit set.
 - CI wait policy followed: pre-merge CI green confirmed before merge; post-merge `main` CI
   green confirmed after merge.
+- Root-only finalization policy followed: merge from the main-root worktree only, never
+  from a temporary task worktree.
 - Independent review findings are resolved or explicitly escalated.
 - PR targets `main`; automatic merge is forbidden.
 - Required CI passes before human merge.
 - `main` is validated after merge.
 - `main` CI is green after merge.
 - Human merge remains mandatory unless explicitly authorized.
+- When Codex is explicitly authorized to merge, it must use
+  `scripts/dev/erp-pr-finalize-from-root` or an equivalent logged root-`main` command.
 
 ## Backend gates
 
@@ -79,3 +83,5 @@ Include:
 - explicit scope exclusions;
 - risks, limitations, and recommended next slice;
 - `No merge was performed.`
+- If the task includes finalization, record that PR creation/waiting and PR finalization
+  were handled as separate phases.

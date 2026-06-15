@@ -123,6 +123,14 @@ Safe follow-up:
 - remove the old worktree only when it is clean and human-approved;
 - otherwise keep the branch and worktree intact.
 
+If the branch ownership conflict appears during PR merge/finalization:
+
+- stop any temporary-worktree merge attempt immediately
+- return to `/home/raillersing/projects/hahitantsoa-titan-erp` on branch `main`
+- finalize only with `scripts/dev/erp-pr-finalize-from-root`
+- let that helper remove the task worktree and delete the task branch only after green
+  `main` CI
+
 ## Worktree Permission Denied
 
 Symptoms:

@@ -14,9 +14,13 @@ Use this skill only after implementation and local validation are complete.
 3. Push the branch and open the PR with the task-approved title and scope statement.
 4. Check PR file scope before trusting CI.
 5. Wait for both required PR checks to complete successfully.
-6. Squash merge only when the task explicitly allows it, the PR is mergeable, and PR scope stays valid.
-7. Sync `main`, identify the new `main` CI run, and wait for success.
-8. Remove the local task branch only after `main` CI is green.
+6. Treat PR creation/waiting and PR finalization as separate phases.
+7. Squash merge only from `/home/raillersing/projects/hahitantsoa-titan-erp` on branch
+   `main`, using `scripts/dev/erp-pr-finalize-from-root` or an equivalent logged root
+   command, and only when the task explicitly allows it, the PR is mergeable, and PR
+   scope stays valid.
+8. Sync `main`, identify the new `main` CI run, and wait for success.
+9. Remove the local task worktree and branch only after `main` CI is green.
 
 ## References
 
