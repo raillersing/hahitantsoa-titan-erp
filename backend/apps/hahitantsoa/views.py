@@ -148,6 +148,8 @@ class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyA
         instance.lines.filter(is_deleted=False).update(
             is_deleted=True,
             deleted_at=deleted_at,
+            updated_by=self.request.user,
+            updated_at=deleted_at,
         )
         instance.is_deleted = True
         instance.deleted_at = deleted_at
