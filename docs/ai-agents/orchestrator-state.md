@@ -11,12 +11,12 @@ snapshot when they disagree, and the mismatch must be reported.
 
 - ledger: `orchestrator-state`
 - version: `MG-BACKEND-v1`
-- last-updated-main-head: `e433ddbec9d45596650faf5294437fbfeff4fe32`
+- last-updated-main-head: `1fc3d2ccae940a12ab66813f6b91d8eb2ed5fb3f`
 
 ## Current Main HEAD
 
-- `origin/main`: `e433ddbec9d45596650faf5294437fbfeff4fe32`
-- title: `feat(hahitantsoa): add shared availability readonly facade (#183)`
+- `origin/main`: `1fc3d2ccae940a12ab66813f6b91d8eb2ed5fb3f`
+- title: `feat: add hahitantsoa event draft foundation (#185)`
 
 ## Current Workflow Activation
 
@@ -31,8 +31,8 @@ snapshot when they disagree, and the mismatch must be reported.
 ## Active Backend Task
 
 - no active backend implementation task recorded
-- `F126B`, `F126C`, and `F83` are complete and merged
-- no next Hahitantsoa backend slice is selected safely without further clarification or approval
+- `F126B`, `F126C`, `F83`, and `F84` are complete and merged
+- next Hahitantsoa backend slice must be selected from the approved post-F84 reservation-first queue
 
 ## Active Frontend Task
 
@@ -47,7 +47,8 @@ snapshot when they disagree, and the mismatch must be reported.
 
 ## Blocked Tasks
 
-- next Hahitantsoa backend expansion beyond `F83` remains blocked pending explicit task approval or business clarification
+- no backend task is blocked by approval at this snapshot
+- next Hahitantsoa backend slice still requires bounded selection and validation before implementation
 
 ## Open PRs
 
@@ -55,8 +56,8 @@ snapshot when they disagree, and the mismatch must be reported.
 
 ## Last Green Main CI
 
-- run: [27533193483](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/27533193483)
-- head SHA: `e433ddbec9d45596650faf5294437fbfeff4fe32`
+- run: [27536222690](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/27536222690)
+- head SHA: `1fc3d2ccae940a12ab66813f6b91d8eb2ed5fb3f`
 - conclusion: success
 
 ## Completed Milestones
@@ -71,6 +72,7 @@ snapshot when they disagree, and the mismatch must be reported.
 - `F140I`: repo-scoped Codex skills, merged through `#181`
 - `F140J`: cross-agent workflow parity layer, merged through `#182`
 - `F83`: Hahitantsoa shared availability read-only facade, merged through `#183`
+- `F84`: Hahitantsoa event draft foundation, merged through `#185`
 
 ## Ledger Update Rule
 
