@@ -201,7 +201,9 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
     assert authenticated_client.get(EVENT_DRAFT_LIST_URL).json() == []
     assert authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/").status_code == 404
     assert (
-        authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/").status_code
+        authenticated_client.get(
+            f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/"
+        ).status_code
         == 404
     )
 
