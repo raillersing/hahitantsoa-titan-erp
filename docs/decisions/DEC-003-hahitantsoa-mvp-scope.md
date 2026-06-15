@@ -3,6 +3,8 @@
 ## Status
 
 Accepted for MVP planning.
+Historical-only for the earliest read-only Hahitantsoa slice after later extraction of
+Documents A/B.
 
 ## Context
 
@@ -11,10 +13,17 @@ The Hahitantsoa/Titan MVP must eventually cover both business scopes.
 Titan progressed first with authenticated, read-only inventory and availability surfaces.
 Hahitantsoa has no dedicated implemented feature yet.
 
-The repository contains broader source documents in `docs/references/source/`, but their
-detailed contents were not extracted during F70. This decision therefore uses the latest
-validated repository decisions, ADRs and business rules without inventing unverified details
-from those source documents.
+At the time of this decision, the repository contained broader source documents in
+`docs/references/source/`, but their detailed contents had not yet been extracted. This
+decision therefore used the latest validated repository decisions, ADRs and business rules
+without inventing unverified details from those source documents.
+
+After later extraction work, the higher-level business specification Documents A and B are
+the primary business source of truth for Hahitantsoa lifecycle and confirmation rules. See:
+
+- `docs/references/source/Document_A_CDC_Technique_Evenementiel_v3.4.pdf`
+- `docs/references/source/Document_B_Presentation_Metier_Evenementiel_v3.4.pdf`
+- `docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`
 
 ## Decision
 
@@ -40,12 +49,21 @@ It must:
 
 ## Not Confirmed Yet
 
-- the exact Hahitantsoa event lifecycle;
-- exact Hahitantsoa statuses;
+- exact backend field modeling for the full Hahitantsoa event lifecycle;
+- exact persisted status enum names to encode the business lifecycle in repository code;
 - whether venue or service management is required in the first implemented UI;
 - whether a read-only Hahitantsoa catalog is sufficient for the first MVP demo;
 - exact fields for an event, venue, service or event package;
-- any persistence or write workflow.
+- payment-provider operational details not already validated elsewhere.
+
+The earlier ambiguity in this section must not be interpreted as overriding later validated
+Documents A/B. Those documents now confirm at least the following business rules:
+
+- a proforma is an estimate and does not confirm a reservation;
+- a reservation becomes confirmed only after signed contract, deposit received, and
+  availability rechecked;
+- confirmed shared materials become unavailable across Hahitantsoa and Titan;
+- post-contract modification requires an amendment workflow rather than direct contract edit.
 
 These points require explicit validation before implementation.
 
@@ -71,11 +89,16 @@ No configuration or permission may enable those categories for Titan.
 
 ## Consequences
 
-- The next Hahitantsoa implementation must start read-only.
+- The first Hahitantsoa implementation step started read-only.
 - Each implementation step must remain small, testable and reviewable.
 - Cross-scope availability may first be demonstrated through the existing shared
   `InventoryAvailability` rules.
-- Persistence, transactional allocation and write workflows require later explicit approval.
+- Persistence, transactional allocation and write workflows require explicit approval from the
+  validated business sources before implementation.
+
+This document should no longer be used by itself to claim that Hahitantsoa lifecycle and
+confirmation remain wholly undefined. For current implementation planning, use Documents A/B
+first, then aligned repository decisions and business rules.
 
 ## Acceptance Criteria For The First Hahitantsoa MVP Slice
 
