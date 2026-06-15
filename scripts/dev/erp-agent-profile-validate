@@ -16,6 +16,7 @@ required_profiles=(
   windows-hosted-agent-plan-only
   human-supervisor
   future-crewai-orchestrator-framework
+  antigravity-windows-wsl-adapter-full-cycle-pilot
 )
 
 required_fields=(
@@ -78,7 +79,7 @@ if [ ! -f "$REPO_ROOT/opencode.json" ]; then
   exit 1
 fi
 
-for token in antigravity-review-docs antigravity-plan-only antigravity-logged-readonly-review antigravity-docs-only-mutation-pilot opencode-web-wsl-review opencode-desktop-windows-plan-only; do
+for token in antigravity-review-docs antigravity-plan-only antigravity-logged-readonly-review antigravity-docs-only-mutation-pilot opencode-web-wsl-review opencode-desktop-windows-plan-only antigravity-windows-wsl-adapter-full-cycle-pilot; do
   if ! grep -R -F -- "$token" \
     "$REPO_ROOT/docs/ai-agents/cross-agent-compatibility.md" \
     "$REPO_ROOT/docs/ai-agents/cross-agent-acceptance-tests.md" \
