@@ -221,6 +221,123 @@ gh pr view "\$PR_HEAD" --json number,title,baseRefName,headRefName,state,mergeab
 EOF
     ;;
 
+  task-branch-start)
+    TASK_BRANCH="${1:-}"
+    if [ -z "$TASK_BRANCH" ]; then
+      echo "ERROR: missing TaskBranch."
+      exit 2
+    fi
+    if [ "$TASK_BRANCH" = "main" ] || [ "$TASK_BRANCH" = "master" ]; then
+      echo "ERROR: TaskBranch cannot be main or master."
+      exit 2
+    fi
+    if [[ ! "$TASK_BRANCH" =~ ^(docs/|feat/|fix/|chore/) ]]; then
+      echo "ERROR: TaskBranch must start with docs/, feat/, fix/, or chore/."
+      exit 2
+    fi
+    shift
+
+    TASK_WORKTREE=""
+    TASK_BASE="main"
+
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --task-worktree)
+          shift
+          TASK_WORKTREE="${1:-}"
+          ;;
+        --task-base)
+          shift
+          TASK_BASE="${1:-}"
+          ;;
+        *)
+          echo "ERROR: unknown task-branch-start option: $1"
+          exit 2
+          ;;
+      esac
+      shift
+    done
+
+    if [ "$TASK_BASE" != "main" ]; then
+      echo "ERROR: TaskBase must be main."
+      exit 2
+    fi
+
+    # Pre-escape strings for heredoc safety
+    H_BRANCH=$(printf '%q' "$TASK_BRANCH")
+    H_WORKTREE=$(printf '%q' "$TASK_WORKTREE")
+    H_BASE=$(printf '%q' "$TASK_BASE")
+
+    echo "INFO: Running task-branch-start via erp-logged-run..."
+    scripts/dev/erp-logged-run task-branch-start <<EOF
+set -euo pipefail
+TASK_BRANCH=$H_BRANCH
+TASK_WORKTREE=$H_WORKTREE
+TASK_BASE=$H_BASE
+
+echo "INFO: Confirming repository root branch is main..."
+CURRENT_ROOT_BRANCH=\$(git branch --show-current)
+if [ "\$CURRENT_ROOT_BRANCH" != "main" ]; then
+  echo "ERROR: current root branch is \$CURRENT_ROOT_BRANCH, expected main."
+  exit 1
+fi
+
+echo "INFO: Confirming no tracked changes exist in root..."
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "ERROR: root worktree has dirty tracked files."
+  exit 1
+fi
+
+echo "INFO: Fetching and fast-forwarding main..."
+git fetch origin main
+git merge --ff-only FETCH_HEAD
+
+BASE_SHA=\$(git rev-parse HEAD)
+
+if [ -n "\$TASK_WORKTREE" ]; then
+  echo "INFO: Checking if worktree path exists..."
+  if [ -d "\$TASK_WORKTREE" ]; then
+    echo "ERROR: worktree path \$TASK_WORKTREE already exists."
+    exit 1
+  fi
+
+  echo "INFO: Checking if branch already exists locally..."
+  if git show-ref --verify --quiet "refs/heads/\$TASK_BRANCH"; then
+    echo "ERROR: branch \$TASK_BRANCH already exists locally."
+    exit 1
+  fi
+
+  echo "INFO: Checking if branch already exists on origin..."
+  if [ -n "\$(git ls-remote --heads origin \"\$TASK_BRANCH\")" ]; then
+    echo "ERROR: branch \$TASK_BRANCH already exists on origin."
+    exit 1
+  fi
+
+  echo "INFO: Creating linked worktree for branch \$TASK_BRANCH..."
+  git worktree add -b "\$TASK_BRANCH" "\$TASK_WORKTREE" "\$TASK_BASE"
+else
+  echo "INFO: Creating branch \$TASK_BRANCH in root..."
+  git checkout -b "\$TASK_BRANCH" "\$TASK_BASE"
+fi
+
+echo "==== BRANCH DETAILS ===="
+echo "Branch: \$TASK_BRANCH"
+echo "Base Branch: \$TASK_BASE"
+echo "Base SHA: \$BASE_SHA"
+echo "Worktree Path: \$TASK_WORKTREE"
+echo "Git Status:"
+git status --short
+echo "Git Worktree List:"
+git worktree list
+echo "F140D Status:"
+if git status --short | grep -F "docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATION.md" >/dev/null; then
+  echo "F140D status: untracked/modified"
+else
+  echo "F140D status: tracked/clean"
+fi
+EOF
+    ;;
+
   *)
     echo "ERROR: unsupported adapter mode: $MODE"
     exit 2
