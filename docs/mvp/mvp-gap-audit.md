@@ -10,6 +10,11 @@ the later F98-F102 additions. The current project status now includes read-only 
 registry endpoints, read-only customer/contact APIs and a limited authenticated `ReservationDraft`
 draft-only write path. The current scope is summarized in `README.md` and `PLANS.md`.
 
+Post-F93A note: this audit is also superseded for Hahitantsoa lifecycle and confirmation business
+truth by Documents A/B and their repository traceability alignment in
+`docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`. Its read-only statements remain useful as
+historical MVP evidence only.
+
 This audit does not claim production readiness, confirmed reservation workflows, payment, invoice,
 contract generation, PDF runtime generation or commercial workflows.
 

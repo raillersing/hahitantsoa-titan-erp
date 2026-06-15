@@ -149,6 +149,30 @@ Near-term missing requirements that are now supported by Documents A/B:
 - stable lifecycle service contract for transition from draft toward confirmed reservation;
 - amendment / post-contract modification boundary after confirmation.
 
+## Rule traceability map
+
+| Documents A/B rule | Repository decision / rule doc | Current backend status | Remaining work |
+| --- | --- | --- | --- |
+| Hahitantsoa = evenement complet ; Titan = location pure | `docs/business-rules/scope.md`, `DEC-003`, `DEC-001`, `ADR-006` | partially implemented | preserve boundary in future lifecycle bundles |
+| Proforma is not confirmation | `docs/business-rules/reservations.md`, `DEC-005` | not implemented in Hahitantsoa backend | F93 preflight, later lifecycle modeling |
+| Confirmation requires signed contract + deposit + availability recheck | `docs/business-rules/reservations.md`, `DEC-005` | not implemented in Hahitantsoa backend | F93-F95 |
+| Confirmed shared materials become unavailable cross-scope | `docs/business-rules/reservations.md`, `ADR-005`, `DEC-005` | only preview/read-side groundwork exists | later confirmation write / blocking bundle |
+| Double booking prevented at confirmation time | `DEC-005`, reservation confirmation docs | not implemented in Hahitantsoa backend | F95 and later transactional confirmation |
+| Post-contract changes require amendment workflow | `docs/business-rules/reservations.md` | not implemented in Hahitantsoa backend | F96 amendment foundation |
+| Hahitantsoa document flow includes proforma, contract, amendment, BL, invoice, receipt, damage invoice | `docs/business-rules/billing-and-payments.md`, source docs | template/document foundations only | later documents/payment/logistics bundles |
+| MVola statuses are payment statuses, not reservation lifecycle statuses | `docs/business-rules/billing-and-payments.md` | not modeled in Hahitantsoa backend | later payment integration bundle only |
+
+## Implemented backend baseline
+
+- Hahitantsoa/Titan separation
+- Hahitantsoa draft CRUD
+- owner-scoped draft access
+- draft availability preview
+- draft and line soft-delete
+- child-line delete cascade
+- line reuse / revive by item
+- draft and line audit / ownership consistency
+
 ## Proposed next medium bundles
 
 ### F93 - Hahitantsoa draft confirmation preflight

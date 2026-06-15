@@ -9,6 +9,16 @@ Le cadrage d'ensemble est consolide dans
 Ce document remplace les anciens reperes MVP comme etat courant global sans effacer leur valeur
 historique de preuve et d'acceptation locale.
 
+Pour les regles metier Hahitantsoa/Titan, la hierarchie de verite courante est :
+
+1. Documents A et B validates dans `docs/references/source/`
+2. corrections utilisateur explicites
+3. decisions repository alignees sur ces documents
+4. etat d'implementation visible dans le code et les tests
+
+La traceabilite Hahitantsoa lifecycle / confirmation est documentee dans
+[`docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`](docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md).
+
 Le workflow automatise de livraison ERP valide post-F129S est documente dans
 [`docs/audits/F130A_AUTOMATED_ERP_DELIVERY_WORKFLOW.md`](docs/audits/F130A_AUTOMATED_ERP_DELIVERY_WORKFLOW.md).
 La gouvernance multi-agent et la chaine de decision associee sont documentees
@@ -28,6 +38,11 @@ Cependant, l'application n'est toujours pas production-ready : les documents run
 les APIs de lifecycle finales, le RBAC, la logistique, le frontend ERP complet et le deploiement de
 production restent a finaliser. Les documents MVP/read-only existants doivent donc etre lus comme
 historique controle, pas comme une affirmation d'exhaustivite ou de readiness finale.
+
+Les Documents A/B confirment des regles metier de lifecycle Hahitantsoa qui depassent ce premier
+historique read-only : proforma, contrat, contrat signe + acompte, recontrole transactionnel des
+disponibilites, confirmation, puis flux facture/logistique/BL/retour/casse, avec avenant pour
+toute modification post-contrat.
 
 La Foundation documentaire est terminee. F4 PostgreSQL/Redis est termine et a ajoute l'infrastructure Docker Compose locale pour ces deux services.
 

@@ -8,6 +8,10 @@ La Foundation documentaire est terminee. Le MVP read-only Hahitantsoa/Titan a et
 L'audit MVP F79 reste documente dans `docs/mvp/mvp-gap-audit.md` comme historique pre-F98/F100.
 Depuis F100/F101, une ecriture limitee et authentifiee existe pour creer des brouillons de reservation `ReservationDraft` draft-only. Les phases techniques suivantes restent planifiees, mais ne doivent etre executees qu'apres validation explicite.
 
+Pour les regles metier Hahitantsoa/Titan, la source prioritaire n'est plus DEC-003 seule : les
+Documents A/B valides dans `docs/references/source/` priment pour les decisions de lifecycle et de
+confirmation. Voir `docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`.
+
 Le socle backend reservations F121E a F121J est termine et merge :
 
 - F121E : preflight de confirmation en lecture seule ;

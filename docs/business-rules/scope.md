@@ -1,10 +1,14 @@
 # Perimetres Hahitantsoa et Titan
 
+Source prioritaire : `docs/references/source/Document_A_CDC_Technique_Evenementiel_v3.4.pdf`
+et `docs/references/source/Document_B_Presentation_Metier_Evenementiel_v3.4.pdf`.
+Voir aussi `docs/audits/F92_HAHITANTSOA_LIFECYCLE_SOURCE_TRACE.md`.
+
 ## Hahitantsoa
 
 Hahitantsoa correspond a l'evenement complet. Le perimetre peut inclure local, materiels/articles, mobilier et services annexes eventuels.
 
-Le premier scope MVP Hahitantsoa est limite a une decouverte et une planification read-only :
+Le premier scope MVP Hahitantsoa etait limite a une decouverte et une planification read-only :
 
 - presenter Hahitantsoa comme un scope distinct de Titan ;
 - presenter uniquement les categories de ressources et offres confirmees a haut niveau ;
@@ -15,13 +19,26 @@ Le premier scope MVP Hahitantsoa est limite a une decouverte et une planificatio
 La decision de planification MVP est detaillee dans
 [`DEC-003-hahitantsoa-mvp-scope.md`](../decisions/DEC-003-hahitantsoa-mvp-scope.md).
 
-Restent a valider avant implementation :
+Les Documents A/B confirment maintenant le workflow metier Hahitantsoa suivant :
 
-- le cycle de vie exact d'un evenement Hahitantsoa ;
-- les statuts et champs exacts ;
-- la necessite de gerer lieux ou services dans le premier ecran ;
-- le niveau suffisant du premier catalogue read-only ;
-- tout workflow de persistence ou d'ecriture.
+1. creation du dossier client / dossier de reservation ;
+2. verification calendrier et disponibilite ;
+3. selection des offres Hahitantsoa ;
+4. generation proforma ;
+5. generation contrat ;
+6. contrat signe + acompte recu ;
+7. recontrole transactionnel des disponibilites ;
+8. reservation confirmee ;
+9. facture, logistique, bon de livraison, retour, casse/remise en etat ;
+10. workflow d'avenant pour toute modification post-contrat.
+
+Les points qui restent a definir au niveau implementation repository ne sont plus le workflow
+metier de haut niveau, mais sa traduction technique :
+
+- les noms exacts des statuts persistants ;
+- les champs backend exacts pour le cycle de vie complet ;
+- le sequencing fin des futures APIs et services ;
+- les details non specifies dans Documents A/B.
 
 ## Titan
 
@@ -42,4 +59,7 @@ Aucune configuration alternative ne peut autoriser local ou service dans Titan.
 - Le frontend Titan ne devra jamais presenter local ni service.
 - Les tests devront verifier qu'une tentative d'ajouter local ou service dans Titan echoue.
 - Les materiels sont partages entre Hahitantsoa et Titan.
-- Le premier slice Hahitantsoa reste read-only tant qu'une persistence ou une ecriture n'est pas explicitement approuvee.
+- Le partage d'inventaire entre Hahitantsoa et Titan doit passer par des regles de disponibilite
+  controlees.
+- Un proforma n'est jamais une confirmation.
+- Une reservation confirmee exige contrat signe, acompte recu et recontrole des disponibilites.
