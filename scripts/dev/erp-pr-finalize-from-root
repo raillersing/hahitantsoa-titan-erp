@@ -252,39 +252,51 @@ else
   post_merge_head="$(git rev-parse HEAD)"
 fi
 
-merge_commit="$post_merge_head"
+current_main_sha="$(git rev-parse HEAD)"
+merge_commit="$current_main_sha"
 
-for _ in $(seq 1 30); do
-  main_ci_run_id="$(
-    gh run list \
-      --branch main \
-      --event push \
-      --json databaseId,headSha,url \
-      --limit 20 \
-      --jq ".[] | select(.headSha == \"$post_merge_head\") | .databaseId" \
-      | head -n 1
-  )"
-  main_ci_url="$(
-    gh run list \
-      --branch main \
-      --event push \
-      --json databaseId,headSha,url \
-      --limit 20 \
-      --jq ".[] | select(.headSha == \"$post_merge_head\") | .url" \
-      | head -n 1
-  )"
+echo "INFO: Validating main CI run for commit SHA: $current_main_sha"
+
+main_ci_run_id=""
+main_ci_url=""
+
+for attempt in $(seq 1 45); do
+  main_ci_run_id="$(gh run list --branch main --event push --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$current_main_sha\") | .databaseId" 2>/dev/null | head -n 1 || true)"
+  main_ci_url="$(gh run list --branch main --event push --limit 20 --json databaseId,headSha,url --jq ".[] | select(.headSha == \"$current_main_sha\") | .url" 2>/dev/null | head -n 1 || true)"
+
   if [ -n "$main_ci_run_id" ]; then
+    echo "INFO: Found main CI run matching HEAD SHA: $main_ci_run_id"
     break
   fi
-  sleep 5
+  echo "INFO: Waiting for main CI run for SHA $current_main_sha to trigger... (attempt $attempt/45)"
+  sleep 10
 done
 
 if [ -z "$main_ci_run_id" ]; then
-  echo "ERROR: unable to find main CI run for HEAD $post_merge_head"
+  echo "ERROR: No main CI run found triggered for current main HEAD SHA $current_main_sha"
   exit 1
 fi
 
-gh run watch "$main_ci_run_id" --interval 10 --exit-status
+# Print initial run details
+echo "INFO: Checking status of main CI run $main_ci_run_id:"
+gh run view "$main_ci_run_id" --json databaseId,headSha,status,conclusion,displayTitle,url
+
+# If the run is not completed, watch it
+status="$(gh run view "$main_ci_run_id" --json status --jq '.status')"
+if [ "$status" != "completed" ]; then
+  echo "INFO: Main CI run is $status. Watching run $main_ci_run_id..."
+  gh run watch "$main_ci_run_id" --interval 10 --exit-status || true
+fi
+
+# Retrieve and print final run details
+echo "INFO: Final status of main CI run:"
+gh run view "$main_ci_run_id" --json databaseId,headSha,status,conclusion,displayTitle,url
+
+conclusion="$(gh run view "$main_ci_run_id" --json conclusion --jq '.conclusion')"
+if [ "$conclusion" != "success" ]; then
+  echo "ERROR: Main CI run conclusion is: $conclusion (expected success)"
+  exit 1
+fi
 
 if [ -n "$TASK_WORKTREE" ]; then
   bash scripts/dev/erp-worktree-clean-after-merge --apply "$TASK_BRANCH"

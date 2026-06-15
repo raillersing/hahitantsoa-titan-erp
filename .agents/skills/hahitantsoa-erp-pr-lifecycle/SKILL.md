@@ -19,8 +19,8 @@ Use this skill only after implementation and local validation are complete.
    `main`, using `scripts/dev/erp-pr-finalize-from-root` or an equivalent logged root
    command, and only when the task explicitly allows it, the PR is mergeable, and PR
    scope stays valid.
-8. Sync `main`, identify the new `main` CI run, and wait for success.
-9. Remove the local task worktree and branch only after `main` CI is green.
+8. Sync `main`, identify the new `main` CI run tied strictly to the exact HEAD SHA (do not accept a general "latest main run"), and wait for success.
+9. Remove the local task worktree and branch only after the SHA-bound `main` CI is green.
 
 ## References
 

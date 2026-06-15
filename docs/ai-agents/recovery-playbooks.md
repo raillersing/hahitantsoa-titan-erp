@@ -253,6 +253,22 @@ Recovery:
    ```
 4. Verify that the task worktree has been successfully removed and the branch deleted.
 
+## Missing Main CI Run for Current HEAD
+
+Symptoms:
+- `scripts/dev/erp-pr-finalize-from-root` fails with "No main CI run found triggered for current main HEAD SHA".
+- The push trigger was registered, but GitHub Actions has not initialized the run or is delayed.
+
+Recovery:
+1. Do not finalize or remove task worktrees manually until the run is identified.
+2. Confirm the exact current main commit SHA:
+   ```sh
+   git rev-parse HEAD
+   ```
+3. Wait 1-2 minutes and re-run the finalizer script to allow GitHub Actions scheduler to register the push event.
+4. If the run still does not appear, check the GitHub repository Actions page via browser to verify if GitHub Actions is experiencing a service outage or delay.
+5. Once the run triggers, let the finalizer watch and verify its conclusion.
+
 ## Post-Recovery Exit Criteria
 
 A recovery attempt is complete only when:
