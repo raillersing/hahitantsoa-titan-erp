@@ -37,6 +37,8 @@ referencing the current task state in
 - Human merge remains mandatory unless explicitly authorized.
 - When Codex is explicitly authorized to merge, it must use
   `scripts/dev/erp-pr-finalize-from-root` or an equivalent logged root-`main` command.
+- PR check status validation: required checks are verified via `gh pr checks` first. If required checks are missing or unconfigured, statusCheckRollup is checked to ensure both `Backend quality` and `Frontend quality` are `SUCCESS`.
+- JSON processing inside helper tools must never call external `jq`. All processing must be handled via `gh --json --jq`.
 
 ## Backend gates
 
