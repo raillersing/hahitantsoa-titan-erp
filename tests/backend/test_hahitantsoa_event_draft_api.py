@@ -197,6 +197,137 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     ) == [second_item.id]
 
 
+def test_event_draft_update_can_keep_same_item_without_inventory_write(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    customer = _customer()
+    item = _item(name="Shared article", kind="article")
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Initial event",
+        start_at=start_at,
+        end_at=end_at,
+        notes="Initial notes",
+        created_by=user,
+    )
+    line = HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        notes="Initial line",
+    )
+    availability_count = InventoryAvailability.objects.count()
+
+    response = authenticated_client.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data={
+            "lines": [
+                {
+                    "inventory_item_id": str(item.id),
+                    "quantity": 4,
+                    "notes": "Updated line",
+                }
+            ],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["lines"]) == 1
+    assert payload["lines"][0]["id"] == str(line.id)
+    assert payload["lines"][0]["inventory_item_id"] == str(item.id)
+    assert payload["lines"][0]["quantity"] == 4
+    assert payload["lines"][0]["notes"] == "Updated line"
+    assert InventoryAvailability.objects.count() == availability_count
+    draft.refresh_from_db()
+    line.refresh_from_db()
+    assert draft.updated_by == user
+    assert draft.lines.filter(is_deleted=False).count() == 1
+    assert draft.lines.filter(is_deleted=True).count() == 0
+    assert line.is_deleted is False
+    assert line.quantity == 4
+    assert line.notes == "Updated line"
+
+
+def test_event_draft_update_can_restore_previously_soft_deleted_item(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    customer = _customer()
+    first_item = _item(name="Shared article", kind="article")
+    second_item = _item(name="Shared material", kind="material")
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Initial event",
+        start_at=start_at,
+        end_at=end_at,
+        notes="Initial notes",
+        created_by=user,
+    )
+    first_line = HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=first_item,
+        quantity=1,
+        notes="First line",
+    )
+    availability_count = InventoryAvailability.objects.count()
+
+    first_response = authenticated_client.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data={
+            "lines": [
+                {
+                    "inventory_item_id": str(second_item.id),
+                    "quantity": 2,
+                    "notes": "Second line",
+                }
+            ],
+        },
+        content_type="application/json",
+    )
+
+    assert first_response.status_code == 200
+
+    second_response = authenticated_client.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data={
+            "lines": [
+                {
+                    "inventory_item_id": str(first_item.id),
+                    "quantity": 3,
+                    "notes": "Restored first line",
+                }
+            ],
+        },
+        content_type="application/json",
+    )
+
+    assert second_response.status_code == 200
+    payload = second_response.json()
+    assert len(payload["lines"]) == 1
+    assert payload["lines"][0]["id"] == str(first_line.id)
+    assert payload["lines"][0]["inventory_item_id"] == str(first_item.id)
+    assert payload["lines"][0]["quantity"] == 3
+    assert payload["lines"][0]["notes"] == "Restored first line"
+    assert InventoryAvailability.objects.count() == availability_count
+    draft.refresh_from_db()
+    first_line.refresh_from_db()
+    second_line = draft.lines.get(inventory_item=second_item)
+    assert draft.updated_by == user
+    assert draft.lines.filter(is_deleted=False).count() == 1
+    assert draft.lines.filter(is_deleted=True).count() == 1
+    assert first_line.is_deleted is False
+    assert first_line.deleted_at is None
+    assert first_line.quantity == 3
+    assert first_line.notes == "Restored first line"
+    assert second_line.is_deleted is True
+    assert second_line.deleted_at is not None
+
+
 def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticated_client) -> None:
     start_at, end_at = _period()
     user = authenticated_client.test_user

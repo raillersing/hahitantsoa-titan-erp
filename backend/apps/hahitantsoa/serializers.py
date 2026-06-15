@@ -269,14 +269,44 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         instance.save()
 
         if lines_data is not None:
-            instance.lines.filter(is_deleted=False).update(
+            event_draft_lines = HahitantsoaEventDraftLine.objects.filter(event_draft=instance)
+            requested_item_ids = {str(line_data["inventory_item"].id) for line_data in lines_data}
+            event_draft_lines.filter(is_deleted=False).exclude(
+                inventory_item_id__in=requested_item_ids
+            ).update(
                 is_deleted=True,
                 deleted_at=timezone.now(),
             )
+
+            existing_lines_by_item_id = {
+                str(line.inventory_item_id): line
+                for line in event_draft_lines.select_related("inventory_item").order_by(
+                    "created_at", "id"
+                )
+            }
             for line_data in lines_data:
-                line = HahitantsoaEventDraftLine(event_draft=instance, **line_data)
-                line.full_clean()
-                line.save()
+                inventory_item = line_data["inventory_item"]
+                line = existing_lines_by_item_id.get(str(inventory_item.id))
+
+                if line is None:
+                    line = HahitantsoaEventDraftLine(event_draft=instance, **line_data)
+                    line.full_clean()
+                    line.save()
+                else:
+                    line.quantity = line_data["quantity"]
+                    line.notes = line_data.get("notes", "")
+                    line.is_deleted = False
+                    line.deleted_at = None
+                    line.full_clean(validate_unique=False, validate_constraints=False)
+                    line.save(
+                        update_fields=[
+                            "quantity",
+                            "notes",
+                            "is_deleted",
+                            "deleted_at",
+                            "updated_at",
+                        ]
+                    )
 
         return instance
 
