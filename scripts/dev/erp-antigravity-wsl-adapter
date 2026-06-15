@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 # erp-antigravity-wsl-adapter
 # Bash entrypoint for the Antigravity Windows-to-WSL adapter wrapper.
 
