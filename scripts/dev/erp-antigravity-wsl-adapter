@@ -143,8 +143,8 @@ echo "Head: \$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')"
 echo "Mergeable: \$(gh pr view "$PR_NUMBER" --json mergeable --jq '.mergeable')"
 
 echo "==== CI CHECKS ===="
-BE_STATUS=\$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.context == "Backend quality") | .conclusion' 2>/dev/null || echo "")
-FE_STATUS=\$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.context == "Frontend quality") | .conclusion' 2>/dev/null || echo "")
+BE_STATUS=\$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select((.name // .context) == "Backend quality") | .conclusion' 2>/dev/null || echo "")
+FE_STATUS=\$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select((.name // .context) == "Frontend quality") | .conclusion' 2>/dev/null || echo "")
 
 echo "Backend quality: \$BE_STATUS"
 echo "Frontend quality: \$FE_STATUS"
