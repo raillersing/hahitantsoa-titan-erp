@@ -18,12 +18,14 @@ Define a strict review-only prompt surface for non-mutating review agents.
 
 ## Required References
 
+- `docs/ai-agents/agent-profiles.md`
 - `docs/ai-agents/review-agent-template.md`
 - `docs/ai-agents/parallel-agent-policy.md`
 - `docs/ai-agents/orchestrator-state.md`
 
 ## Required Inputs
 
+- assigned agent profile
 - repository path
 - branch or PR under review
 - scope under review
@@ -34,6 +36,9 @@ Define a strict review-only prompt surface for non-mutating review agents.
 ## Mode
 
 Default mode is review-only and non-mutating.
+
+Executable review profiles run the integrated task-start baseline first. Plan-only
+profiles propose it and wait. Live baseline wins over stale docs.
 
 Review agents must not:
 
@@ -51,6 +56,9 @@ Review agents must not:
 - verdict: `APPROVE`, `REQUEST_CHANGES`, or `BLOCK`
 - residual risks
 - explicit statement whether no edits were performed
+
+Deliverables must be in chat and/or an approved repository file. A private-only report
+must not be the sole deliverable.
 
 ## Stop Conditions
 

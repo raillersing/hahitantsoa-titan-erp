@@ -20,12 +20,16 @@ tasks.
 
 ## Required Inputs
 
+- assigned agent profile
 - repository path
 - branch or PR under review
 - approved scope
 - relevant diff or files
 - review goals
 - available evidence such as local checks or CI results
+
+Executable review profiles run the integrated task-start baseline first. Plan-only
+profiles propose it and wait. Live baseline wins over stale static docs.
 
 The reviewer must check:
 
@@ -44,6 +48,9 @@ The reviewer must check:
 - why it matters
 - verdict
 - residual risk
+- deliverable location: chat or approved repository file
+
+A private-only report outside the repository must not be the sole deliverable.
 
 If no findings exist, say so explicitly and note any remaining evidence gaps.
 

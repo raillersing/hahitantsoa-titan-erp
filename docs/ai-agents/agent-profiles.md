@@ -240,3 +240,13 @@ Every delegated task must name:
 - one command mode
 
 If any of these are missing, the task assignment is incomplete.
+
+## Validation
+
+Run:
+
+```sh
+bash scripts/dev/erp-agent-profile-validate
+```
+
+This validates the required profiles and contract fields without inspecting secrets.

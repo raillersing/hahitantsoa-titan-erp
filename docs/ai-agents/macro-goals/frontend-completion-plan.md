@@ -14,7 +14,7 @@ that all frontend tasks are fully known before the backend contract is verified.
 ## Planning method
 
 1. Repair baseline first
-   - run `F138E` before new frontend implementation
+   - `F138E` is complete
    - verify the frontend worktree is resynced from current `origin/main`
 2. Audit frontend modules and entry points
    - inventory module shell, documents, reservation flows, and pending integration areas
@@ -35,11 +35,11 @@ that all frontend tasks are fully known before the backend contract is verified.
   - purpose: repair WIP, resync the frontend worktree, and re-establish a safe branch
     baseline
   - dependency: none
-  - status: planned prerequisite
+  - status: done
 - `F137C`
   - purpose: next approved frontend implementation after `F137B`
-  - dependency: `F138E` and backend API availability
-  - status: suspended until prerequisites are green
+  - dependency: frontend readiness planning and confirmed current API contract
+  - status: pending current readiness queue; see open PR `#175`
 
 ## Stop conditions
 

@@ -13,6 +13,8 @@ referencing the current task state in
 - Baseline commit and dedicated branch verified.
 - Integrated task-start baseline executed first for executable agents, or explicitly proposed
   and awaited for plan-only agents.
+- Agent profile contract validation passes when agent profiles or delegation entry points
+  change: `bash scripts/dev/erp-agent-profile-validate`.
 - Changed files match approved scope; forbidden files are untouched.
 - No `.env`, secrets, logs, caches, generated junk, or `__pycache__`.
 - Important commands ran through `scripts/dev/erp-logged-run` heredoc workflow.
