@@ -28,7 +28,7 @@ def list_hahitantsoa_discovery_items() -> tuple[HahitantsoaDiscoveryItem, ...]:
     return _HAHITANTSOA_DISCOVERY_ITEMS
 
 
-def get_available_hahitantsoa_shared_inventory_items_for_period(
+def _get_available_hahitantsoa_shared_inventory_items_for_period(
     *,
     start_at: datetime,
     end_at: datetime,
