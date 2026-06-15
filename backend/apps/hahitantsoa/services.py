@@ -4,6 +4,10 @@ from datetime import datetime
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.hahitantsoa.selectors import _get_available_hahitantsoa_shared_inventory_items_for_period
 from apps.inventory.models import InventoryItem
+from apps.reservations.confirmation import (
+    RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
+    RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+)
 from apps.reservations.periods import ReservationPeriod, make_reservation_period
 from apps.reservations.preview import ReservationItemPreview, preview_reservation_item_request
 
@@ -36,6 +40,17 @@ class HahitantsoaEventDraftAvailabilityPreview:
     available_line_count: int
     unavailable_line_count: int
     lines: tuple[HahitantsoaEventDraftAvailabilityLinePreview, ...]
+
+
+@dataclass(frozen=True)
+class HahitantsoaEventDraftConfirmationPreflight:
+    event_draft_id: str
+    public_reference: str
+    status: str
+    can_confirm: bool
+    blockers: tuple[str, ...]
+    active_line_count: int
+    unavailable_line_count: int
 
 
 def get_hahitantsoa_shared_availability_item_previews(
@@ -110,4 +125,90 @@ def get_hahitantsoa_event_draft_availability_preview(
         available_line_count=available_line_count,
         unavailable_line_count=unavailable_line_count,
         lines=line_previews,
+    )
+
+
+def _append_blocker(*, blockers: list[str], blocker: str) -> None:
+    if blocker not in blockers:
+        blockers.append(blocker)
+
+
+def get_hahitantsoa_event_draft_confirmation_preflight(
+    *,
+    event_draft: HahitantsoaEventDraft,
+) -> HahitantsoaEventDraftConfirmationPreflight:
+    blockers: list[str] = []
+
+    if event_draft.is_deleted:
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+        )
+
+    if event_draft.status != "draft":
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+        )
+
+    customer = event_draft.customer
+    if (not customer.is_active) or customer.is_deleted:
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+        )
+
+    active_lines = tuple(
+        event_draft.lines.filter(is_deleted=False).select_related("inventory_item").order_by(
+            "created_at",
+            "id",
+        )
+    )
+    if not active_lines:
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+        )
+        return HahitantsoaEventDraftConfirmationPreflight(
+            event_draft_id=str(event_draft.id),
+            public_reference=event_draft.public_reference,
+            status=event_draft.status,
+            can_confirm=not blockers,
+            blockers=tuple(blockers),
+            active_line_count=0,
+            unavailable_line_count=0,
+        )
+
+    unavailable_line_count = 0
+    for line in active_lines:
+        inventory_item = line.inventory_item
+        if not inventory_item.is_active or inventory_item.is_deleted:
+            unavailable_line_count += 1
+            _append_blocker(
+                blockers=blockers,
+                blocker=RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
+            )
+            continue
+
+        preview = preview_reservation_item_request(
+            inventory_item=inventory_item,
+            inventory_item_kind=inventory_item.kind,
+            start_at=event_draft.start_at,
+            end_at=event_draft.end_at,
+        )
+        if preview.status != "available":
+            unavailable_line_count += 1
+            _append_blocker(
+                blockers=blockers,
+                blocker=RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
+            )
+
+    return HahitantsoaEventDraftConfirmationPreflight(
+        event_draft_id=str(event_draft.id),
+        public_reference=event_draft.public_reference,
+        status=event_draft.status,
+        can_confirm=not blockers,
+        blockers=tuple(blockers),
+        active_line_count=len(active_lines),
+        unavailable_line_count=unavailable_line_count,
     )

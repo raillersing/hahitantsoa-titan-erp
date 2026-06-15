@@ -13,6 +13,7 @@ from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAvailabilityPreviewSerializer,
+    HahitantsoaEventDraftConfirmationPreflightSerializer,
     HahitantsoaEventDraftSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
@@ -121,6 +122,21 @@ class HahitantsoaEventDraftAvailabilityPreviewAPIView(APIView):
 
         event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
         response_serializer = HahitantsoaEventDraftAvailabilityPreviewSerializer.from_event_draft(
+            event_draft=event_draft
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaEventDraftConfirmationPreflightAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(responses=HahitantsoaEventDraftConfirmationPreflightSerializer)
+    def get(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
+        response_serializer = HahitantsoaEventDraftConfirmationPreflightSerializer.from_event_draft(
             event_draft=event_draft
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)

@@ -7,7 +7,9 @@ from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraft
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.hahitantsoa.services import (
     HahitantsoaEventDraftAvailabilityPreview,
+    HahitantsoaEventDraftConfirmationPreflight,
     HahitantsoaSharedAvailabilityItemPreview,
+    get_hahitantsoa_event_draft_confirmation_preflight,
     get_hahitantsoa_event_draft_availability_preview,
     get_hahitantsoa_shared_availability_item_previews,
 )
@@ -135,6 +137,36 @@ class HahitantsoaEventDraftAvailabilityPreviewSerializer(serializers.Serializer)
     def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
         return cls.from_preview(
             get_hahitantsoa_event_draft_availability_preview(event_draft=event_draft)
+        )
+
+
+class HahitantsoaEventDraftConfirmationPreflightSerializer(serializers.Serializer):
+    event_draft_id = serializers.UUIDField()
+    public_reference = serializers.CharField()
+    status = serializers.CharField()
+    can_confirm = serializers.BooleanField()
+    blockers = serializers.ListField(child=serializers.CharField())
+    active_line_count = serializers.IntegerField()
+    unavailable_line_count = serializers.IntegerField()
+
+    @classmethod
+    def from_preflight(cls, preflight: HahitantsoaEventDraftConfirmationPreflight):
+        return cls(
+            {
+                "event_draft_id": preflight.event_draft_id,
+                "public_reference": preflight.public_reference,
+                "status": preflight.status,
+                "can_confirm": preflight.can_confirm,
+                "blockers": list(preflight.blockers),
+                "active_line_count": preflight.active_line_count,
+                "unavailable_line_count": preflight.unavailable_line_count,
+            }
+        )
+
+    @classmethod
+    def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
+        return cls.from_preflight(
+            get_hahitantsoa_event_draft_confirmation_preflight(event_draft=event_draft)
         )
 
 
