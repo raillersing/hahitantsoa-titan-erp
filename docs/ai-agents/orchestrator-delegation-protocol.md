@@ -12,6 +12,10 @@ The orchestrator must not assume current state from static docs alone. A live ba
 wins over stale docs and must be referenced when state-sensitive delegation decisions are
 made.
 
+For Codex tasks, the orchestrator may additionally request explicit invocation of an
+approved repo-scoped skill under [`.agents/skills/`](../../.agents/skills) when that helps
+the agent follow the bounded repo workflow more reliably.
+
 ## Common delegation packet
 
 Every delegated micro-task should include:

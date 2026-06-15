@@ -1,5 +1,8 @@
 # Agent Command Runbook
 
+Repo-scoped Codex skills under [`.agents/skills/`](../../.agents/skills) may accelerate
+repetitive Codex tasks, but this runbook remains the canonical command source of truth.
+
 ## Purpose
 
 This runbook defines the standard command patterns for ERP agent tasks.
