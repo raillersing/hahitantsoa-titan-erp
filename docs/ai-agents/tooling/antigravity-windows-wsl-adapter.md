@@ -72,3 +72,10 @@ For the Antigravity adapter, the only authorized Windows host invocation pattern
 - raw WSL bridge outside wrapper: forbidden
 - `.env` / secrets: not touched
 
+## F141E full orchestration pilot status
+
+- Branch: `docs/f141e-antigravity-full-orchestration-pilot`
+- Worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f141e-pilot`
+- Pilot Status: `PASS`
+
+
