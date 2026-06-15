@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# erp-antigravity-wsl-adapter
+# Bash entrypoint for the Antigravity Windows-to-WSL adapter wrapper.
+
+set -Eeuo pipefail
+
+REPO_ROOT="/home/raillersing/projects/hahitantsoa-titan-erp"
+cd "$REPO_ROOT"
+
+if [ "$PWD" != "$REPO_ROOT" ]; then
+  echo "ERROR: adapter must execute in repository root: $REPO_ROOT"
+  exit 1
+fi
+
+MODE="${1:-}"
+if [ -z "$MODE" ]; then
+  echo "ERROR: missing Mode parameter."
+  exit 2
+fi
+
+shift
+
+case "$MODE" in
+  task-start)
+    if [ "$#" -ne 0 ]; then
+      echo "ERROR: task-start mode accepts no extra parameters."
+      exit 2
+    fi
+    echo "INFO: Running task-start sequence via erp-logged-run..."
+    scripts/dev/erp-logged-run task-start <<'EOF'
+set -euo pipefail
+bash scripts/dev/erp-agent-task-start
+bash scripts/dev/erp-agent-profile-validate
+bash scripts/dev/erp-orchestrator-state-check
+bash scripts/dev/erp-task-queue-validate
+EOF
+    ;;
+
+  finalize-pr)
+    PR_NUMBER="${1:-}"
+    if [ -z "$PR_NUMBER" ]; then
+      echo "ERROR: missing PR number for finalize-pr mode."
+      exit 2
+    fi
+    shift
+
+    TASK_BRANCH="${1:-}"
+    if [ -z "$TASK_BRANCH" ]; then
+      echo "ERROR: missing TaskBranch for finalize-pr mode."
+      exit 2
+    fi
+    shift
+
+    TASK_WORKTREE=""
+    declare -a ALLOW_PATHS=()
+
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --task-worktree)
+          shift
+          TASK_WORKTREE="${1:-}"
+          ;;
+        --allow)
+          shift
+          ALLOW_PATHS+=("${1:-}")
+          ;;
+        *)
+          echo "ERROR: unknown finalize-pr argument: $1"
+          exit 2
+          ;;
+      esac
+      shift
+    done
+
+    if [ "${#ALLOW_PATHS[@]}" -eq 0 ]; then
+      echo "ERROR: at least one Allow path is required."
+      exit 2
+    fi
+
+    # Build the finalization command arguments
+    declare -a FINALIZER_ARGS=("$PR_NUMBER" --task-branch "$TASK_BRANCH")
+    if [ -n "$TASK_WORKTREE" ]; then
+      FINALIZER_ARGS+=(--task-worktree "$TASK_WORKTREE")
+    fi
+    for path in "${ALLOW_PATHS[@]}"; do
+      FINALIZER_ARGS+=(--allow "$path")
+    done
+
+    echo "INFO: Running PR finalization via erp-logged-run..."
+    scripts/dev/erp-logged-run task-pr-finalize-adapter <<EOF
+set -euo pipefail
+bash scripts/dev/erp-pr-finalize-from-root "${FINALIZER_ARGS[@]}"
+EOF
+    ;;
+
+  *)
+    echo "ERROR: unsupported adapter mode: $MODE"
+    exit 2
+    ;;
+esac
+
+echo "ADAPTER_MODE: $MODE"
+echo "ADAPTER_STATUS: SUCCESS"

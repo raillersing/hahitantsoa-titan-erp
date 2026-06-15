@@ -23,3 +23,23 @@ Before this adapter mode is promoted to production tasks:
 1. The adapter wrapper script must be implemented under `scripts/dev/`.
 2. Scenario validation tests must be documented and executed, confirming that exit codes are successfully checked.
 3. The adapter profile must pass validation audits.
+
+## Approved PowerShell Command Shapes
+
+For the Antigravity adapter, the only authorized Windows host invocation pattern is through the versioned PowerShell script:
+
+1. **Task Start Sequence:**
+   ```powershell
+   .\scripts\dev\erp-antigravity-windows-wsl-adapter.ps1 -Mode task-start
+   ```
+
+2. **PR Finalization Sequence:**
+   ```powershell
+   .\scripts\dev\erp-antigravity-windows-wsl-adapter.ps1 -Mode finalize-pr -PrNumber <PR_NUMBER> -TaskBranch <BRANCH_NAME> [-TaskWorktree <WORKTREE_PATH>] -Allow <PATH_1>[,<PATH_2>...]
+   ```
+
+### Critical Constraints
+
+- **No Raw WSL Usage:** Direct execution of raw `wsl`, `wsl.exe`, `wsl --exec`, or `wsl -e` on the Windows host outside this approved `.ps1` wrapper remains a strict protocol **FAIL**.
+- **Supported Modes:** The adapter currently supports **only** `task-start` and `finalize-pr`.
+- **Not Enabled Yet:** Automated git actions such as branch creation (`create-branch`), local commit (`commit`), remote push (`push`), and pull request creation (`PR creation`) are **not enabled yet** in this first adapter version. Attempting to run them via the adapter will result in an error or a protocol violation.
