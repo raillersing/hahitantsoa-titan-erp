@@ -233,7 +233,8 @@ Symptoms:
 Recovery:
 1. Immediately run a root WSL state check to confirm actual repository status.
 2. Even if GitHub CLI or branch merge succeeds, the task execution must be classified as protocol **FAIL**.
-3. Do not proceed to further task phases or branch cleanups until the protocol violation has been flagged and reviewed.
+3. If the approved Windows-to-WSL adapter wrapper itself is unconfigured or encounters relay/permission failures, do not fall back to raw bridge commands. Escalate to the human supervisor, or wait for the native WSL terminal environment.
+4. Do not proceed to further task phases or branch cleanups until the protocol violation has been flagged and reviewed.
 
 ## Cleanup Permission Failures
 

@@ -49,9 +49,11 @@ The reviewer must check:
 - verdict
 - protocol audit details:
   - Functional verdict: APPROVED, APPROVED WITH RESERVATIONS, or REJECTED
-  - Protocol verdict: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
-  - Execution context: native-wsl, windows-hosted, or adapter
+  - Protocol verdict: PASS, PASS WITH PROTOCOL RESERVATIONS, PASS WITH ADAPTER, or FAIL
+  - Execution context: native-wsl, windows-hosted, or approved-wsl-adapter
   - Bridge used: Yes (specify e.g. wsl --exec or PowerShell pipe), or No
+  - Adapter path: Path to the versioned adapter wrapper or N/A
+  - Final log path: Log file path on WSL or N/A
   - Background execution used: Yes or No
   - Final erp-logged-run log returned: Yes, No, or N/A
   - Environment mode: native WSL/Linux, Windows-hosted, or adapter (deprecated, use Execution context)
@@ -63,9 +65,10 @@ The reviewer must check:
   - Whether all commands used erp-logged-run: Yes, No, or N/A (no commands run)
   - Files modified: List of files mutated or None (deprecated, use Mutation files changed)
   - Secrets/.env touched: Yes (explain) or No
-  - Final classification: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
+  - Final classification: PASS, PASS WITH PROTOCOL RESERVATIONS, PASS WITH ADAPTER, or FAIL
   *Protocol Enforcement Rules:*
-  - Contradictions (e.g. stating "no terminal command executed" while also listing commands in "Ran command", or stating "no bridge used" when one was used) must be classified as protocol **FAIL**.*
+  - Contradictions (e.g. stating "no terminal command executed" while also listing commands in "Ran command", or stating "no bridge used" when one was used) must be classified as protocol **FAIL**.
+  - Any raw bridge command execution on the host outside the approved adapter must be classified as protocol **FAIL**.
 - residual risk
 - deliverable location: chat or approved repository file
 - applicable bridge doc for non-Codex review agents
