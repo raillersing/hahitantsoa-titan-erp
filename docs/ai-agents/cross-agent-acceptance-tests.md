@@ -36,13 +36,17 @@ These scenarios define the manual acceptance bar for cross-agent workflow parity
 
 ## Antigravity Review/Docs Task
 
-- Assigned profile: `antigravity-review-docs`
-- Allowed command mode: plan-only by default; approved repo command pattern only if explicitly promoted
-- Expected first step: propose or run the integrated baseline according to the assigned mode
-- Expected stop condition: backend/frontend mutation request, `/tmp` script request, or missing evidence
-- Expected deliverable: review findings or approved docs-only artifact in chat/repo
-- Pass criteria: review/docs-only discipline and bounded scope
-- Fail criteria: silent mutation, `chmod`, or ad hoc bridges
+- Assigned profile: `antigravity-plan-only` or `antigravity-logged-readonly-review`
+- Allowed command mode: plan-only (for plan-only profile) or strictly wrapped within `scripts/dev/erp-logged-run` (for logged-readonly-review profile)
+- Expected first step: propose or run the integrated baseline according to the assigned profile
+- Expected stop condition: backend/frontend mutation request, `/tmp` script request, unwrapped git/gh/shell command execution, or missing evidence
+- Expected deliverable: review findings or approved docs-only artifact in chat/repo containing protocol audit details
+- Pass criteria:
+  - For `antigravity-plan-only`: zero terminal commands executed; complete inspection via read-only tools.
+  - For `antigravity-logged-readonly-review`: 100% of executed terminal commands wrapped strictly inside `erp-logged-run`; no direct unwrapped shell execution.
+- Fail criteria:
+  - Running any direct unwrapped terminal command (e.g. `git status`, `git log`, `git diff`, `gh pr view`, `gh pr checks`, `ls` run directly). Unwrapped commands result in FAIL or PASS WITH PROTOCOL RESERVATIONS, never a clean PASS.
+  - Silent mutation, `chmod`, `/tmp` scripts, or ad hoc bridges.
 
 ## Stale Orchestrator-State Mismatch
 
@@ -83,3 +87,10 @@ These scenarios define the manual acceptance bar for cross-agent workflow parity
 - Expected deliverable: blocked report with the correct command mode
 - Pass criteria: agent refuses the mismatched mode and points to the correct bridge or baseline
 - Fail criteria: agent executes in an unapproved shell mode
+
+### Antigravity legacy transition profile
+
+- Legacy/transition profile: `antigravity-review-docs`
+- New Antigravity acceptance tests should prefer `antigravity-plan-only` or `antigravity-logged-readonly-review`.
+- `antigravity-review-docs` remains valid only as a backward-compatible reference while older prompts and reports are migrated.
+- A task using `antigravity-review-docs` must still be classified into one of the explicit command modes before execution: plan-only or logged-readonly-review.

@@ -111,6 +111,54 @@ If static docs disagree with the live baseline:
   - no merge
   - push only if explicitly authorized in a docs-governance task
 
+### `antigravity-plan-only`
+
+- Approved environment:
+  - Antigravity plan/review session
+- Allowed autonomy levels:
+  - Level 0 only
+- Allowed command mode:
+  - plan-only
+  - no terminal commands or shell execution of any kind
+- Allowed worktree behavior:
+  - inspect via file-reading tools only
+- Allowed mutation scope:
+  - none (read-only)
+- Forbidden actions:
+  - any direct terminal command execution (e.g. `git`, `gh`, `ls`, or shell execution)
+  - `/tmp` scripts, `chmod`, backend/frontend mutation
+- Required live baseline behavior:
+  - propose the integrated task-start baseline inside standard heredoc wrapper for human/Codex execution
+- Required deliverable format:
+  - review findings or plan proposals in chat only
+- Merge/push policy:
+  - no push
+  - no merge
+
+### `antigravity-logged-readonly-review`
+
+- Approved environment:
+  - Antigravity review session under human supervision
+- Allowed autonomy levels:
+  - Level 1 only for non-mutating checks
+- Allowed command mode:
+  - wrapped readonly commands only
+  - all shell execution MUST be wrapped inside `scripts/dev/erp-logged-run`
+- Allowed worktree behavior:
+  - inspect/read-only
+- Allowed mutation scope:
+  - none
+- Forbidden actions:
+  - direct git/gh/shell execution without `erp-logged-run` wrapper
+  - any backend or frontend file mutation, `chmod`, or `/tmp` scripts
+- Required live baseline behavior:
+  - run the integrated task-start baseline through `erp-logged-run` as the first step
+- Required deliverable format:
+  - review report including protocol audit details
+- Merge/push policy:
+  - no push
+  - no merge
+
 ### `opencode-web-wsl-review`
 
 - Approved environment:

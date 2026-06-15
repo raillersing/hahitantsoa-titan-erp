@@ -47,6 +47,14 @@ The reviewer must check:
 - file and evidence
 - why it matters
 - verdict
+- protocol audit details:
+  - Functional verdict: APPROVED, APPROVED WITH RESERVATIONS, or REJECTED
+  - Protocol verdict: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
+  - Commands executed: List of all terminal commands run during the session
+  - Whether all commands used erp-logged-run: Yes, No, or N/A (no commands run)
+  - Files modified: List of files mutated or None
+  - Secrets/.env touched: Yes (explain) or No
+  - Final classification: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
 - residual risk
 - deliverable location: chat or approved repository file
 - applicable bridge doc for non-Codex review agents
