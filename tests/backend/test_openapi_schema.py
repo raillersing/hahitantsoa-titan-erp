@@ -11,6 +11,7 @@ RESERVATION_ITEM_AVAILABILITY_PREVIEW_PATHS = (
     "/api/v1/reservations/items/{id}/availability-preview/",
 )
 HAHITANTSOA_DISCOVERY_ITEMS_PATH = "/api/v1/hahitantsoa/discovery-items/"
+HAHITANTSOA_SHARED_AVAILABILITY_PATH = "/api/v1/hahitantsoa/shared-availability/"
 DOCUMENT_TEMPLATE_REGISTRY_PATH = "/api/v1/documents/templates/"
 DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",)
 TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
@@ -85,6 +86,7 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
         RESERVATION_AVAILABLE_ITEM_PREVIEWS_PATH,
         item_availability_preview_path,
         HAHITANTSOA_DISCOVERY_ITEMS_PATH,
+        HAHITANTSOA_SHARED_AVAILABILITY_PATH,
         DOCUMENT_TEMPLATE_REGISTRY_PATH,
         document_template_detail_path,
         titan_proforma_draft_preview_path,
@@ -114,6 +116,42 @@ def test_openapi_schema_exposes_minimal_hahitantsoa_discovery_contract(client) -
     assert set(discovery_item["properties"]) == {"concept", "label"}
     assert discovery_item["required"] == ["concept", "label"]
 
+
+
+def test_openapi_schema_exposes_hahitantsoa_shared_availability_contract(client) -> None:
+    response = client.get("/api/schema/?format=json")
+
+    assert response.status_code == 200
+
+    schema = response.json()
+    operation = schema["paths"][HAHITANTSOA_SHARED_AVAILABILITY_PATH]["get"]
+    response_schema = operation["responses"]["200"]["content"]["application/json"]["schema"]
+    availability_response = _resolve_schema(schema, response_schema)
+
+    assert set(availability_response["properties"]) == {"items", "count"}
+    assert availability_response["required"] == ["count", "items"]
+
+    item_reference = availability_response["properties"]["items"]["items"]
+    availability_item = _resolve_schema(schema, item_reference)
+
+    assert set(availability_item["properties"]) == {
+        "inventory_item_id",
+        "inventory_item_name",
+        "inventory_item_description",
+        "inventory_item_kind",
+        "start_at",
+        "end_at",
+        "status",
+    }
+    assert availability_item["required"] == [
+        "end_at",
+        "inventory_item_description",
+        "inventory_item_id",
+        "inventory_item_kind",
+        "inventory_item_name",
+        "start_at",
+        "status",
+    ]
 
 def test_openapi_schema_exposes_documents_template_contract(client) -> None:
     response = client.get("/api/schema/?format=json")
