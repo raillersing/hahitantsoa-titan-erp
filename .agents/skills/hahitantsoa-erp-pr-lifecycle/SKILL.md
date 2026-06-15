@@ -13,8 +13,8 @@ Use this skill only after implementation and local validation are complete.
 2. Commit only the allowed tracked files.
 3. Push the branch and open the PR with the task-approved title and scope statement.
 4. Check PR file scope before trusting CI.
-5. Wait for both required PR checks to complete successfully.
-6. Treat PR creation/waiting and PR finalization as separate phases.
+5. Wait for both required PR checks to complete successfully. Required checks are preferred when configured; visible statusCheckRollup success (specifically requiring SUCCESS on Backend quality and Frontend quality checks) is the mandatory fallback.
+6. Treat PR creation/waiting and PR finalization as separate phases. No external jq is allowed in finalization scripts; native `gh --json --jq` must be used for filtering.
 7. Squash merge only from `/home/raillersing/projects/hahitantsoa-titan-erp` on branch
    `main`, using `scripts/dev/erp-pr-finalize-from-root` or an equivalent logged root
    command, and only when the task explicitly allows it, the PR is mergeable, and PR

@@ -293,6 +293,12 @@ scripts/dev/erp-pr-finalize-from-root PR-NUMBER \
 EOF
 ```
 
+### PR Check Finalization Rules
+
+- **Required Checks:** Verification of required PR checks via `gh pr checks <PR> --required` is preferred when configured on the branch protection rules.
+- **Rollup Fallback:** If no required checks are reported by the CLI (or the check command fails/returns empty because none are configured), the finalizer falls back to statusCheckRollup validation. Under statusCheckRollup validation, both `Backend quality` and `Frontend quality` checks are explicitly required to be `SUCCESS`.
+- **JSON Processing:** The use of external `jq` is strictly forbidden in project scripts to maintain environment portability. All JSON parsing and filtering must be handled natively using the `gh --json --jq` option built into the GitHub CLI.
+
 ## CI Wait Policy
 
 ### Pre-merge CI wait

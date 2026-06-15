@@ -212,6 +212,19 @@ Stop if:
 - the report contains secrets or credentials (treat as secret exposure)
 - the prompt explicitly forbids both promotion and retention
 
+## PR Finalizer Required Check Failures
+
+Symptoms:
+- `scripts/dev/erp-pr-finalize-from-root` fails with unconfigured required check status.
+- GitHub CLI reports that no required checks are set up on the branch, but checks are visible.
+
+Recovery:
+1. Do not use external `jq` to parse JSON. External `jq` is strictly forbidden in project scripts.
+2. Ensure JSON query/filtering is performed natively using `gh --json --jq`.
+3. The helper will fallback to `statusCheckRollup` verification if `gh pr checks --required` fails due to unconfigured rules.
+4. Verify that both `Backend quality` and `Frontend quality` are explicitly marked as `SUCCESS` in the output of the fallback statusCheckRollup audit.
+5. If any essential quality checks are failing, do not finalize the PR. Report the failure and request implementer action.
+
 ## Post-Recovery Exit Criteria
 
 A recovery attempt is complete only when:
