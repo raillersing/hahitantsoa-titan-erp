@@ -40,6 +40,7 @@ referencing the current task state in
 - PR check status validation: required checks are verified via `gh pr checks` first. If required checks are missing or unconfigured, statusCheckRollup is checked to ensure both `Backend quality` and `Frontend quality` are `SUCCESS`.
 - JSON processing inside helper tools must never call external `jq`. All processing must be handled via `gh --json --jq`.
 - Root finalization reports are invalid unless they include the real, synchronous completed `erp-logged-run` terminal log capturing PR state, merge commit, main CI result, cleanup result, and final worktree list. Running in the background without outputting the log violates the gate.
+- Windows-to-WSL adapter validation gate: full-cycle operations on Windows-hosted Antigravity must proceed exclusively via the versioned, audited project adapter wrapper, which enforces synchronous execution and logged wrappers inside WSL. Raw `wsl`/`wsl.exe`/`bash -c` executions outside the approved wrapper violate the gates.
 
 ## Backend gates
 

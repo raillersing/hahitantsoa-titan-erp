@@ -48,30 +48,35 @@ These scenarios define the manual acceptance bar for cross-agent workflow parity
 - Pass criteria: Clean PASS.
 - Fail criteria: Any unwrapped commands, or usage of Windows-to-WSL host bridges (e.g. `wsl --exec`).
 
-### Antigravity uses wsl --exec during native WSL task: FAIL
-- Assigned profile: any native WSL/Linux profile (e.g. `antigravity-root-finalization-pilot`)
-- Expected behavior: Execution is run from Windows using `wsl --exec`, `wsl -e`, or similar bridge commands.
-- Protocol verdict: FAIL. Unwrapped or bridge-based command execution in a native WSL profile is a failure.
+### Antigravity raw wsl --exec outside adapter: FAIL
+- Assigned profile: `antigravity-windows-wsl-adapter-full-cycle-pilot` (or any other profile)
+- Expected behavior: Running commands from a Windows host using raw, unapproved `wsl --exec` or `wsl` commands outside of the formally versioned adapter wrapper.
+- Protocol verdict: FAIL.
 
-### Antigravity uses PowerShell here-string piped to wsl: FAIL
-- Assigned profile: any native WSL/Linux profile (e.g. `antigravity-root-finalization-pilot`)
-- Expected behavior: Piping commands from a Windows PowerShell host to the WSL instance (e.g., `@' ... '@ | wsl`).
-- Protocol verdict: FAIL. Direct Windows host piping is forbidden in native modes.
+### Antigravity PowerShell pipe to wsl outside adapter: FAIL
+- Assigned profile: `antigravity-windows-wsl-adapter-full-cycle-pilot` (or any other profile)
+- Expected behavior: Relaying raw commands from a Windows host via PowerShell pipes (e.g. `@' ... '@ | wsl`) outside the approved adapter wrapper.
+- Protocol verdict: FAIL.
 
-### Antigravity launches "background" finalization and does not return final log: FAIL
-- Assigned profile: `antigravity-root-finalization-pilot`
-- Expected behavior: Command execution is sent to the background as an asynchronous task without returning the real completed `erp-logged-run` terminal log synchronously in the output.
-- Protocol verdict: FAIL. Background processing of finalizations is forbidden; the complete synchronous output log must be returned.
+### Approved adapter with logged command and final log: PASS WITH ADAPTER
+- Assigned profile: `antigravity-windows-wsl-adapter-full-cycle-pilot`
+- Expected behavior: Execution is run from Windows using the versioned and audited adapter helper, executing commands synchronously inside `erp-logged-run` on WSL and returning the complete real final log.
+- Protocol verdict: PASS WITH ADAPTER.
 
-### Antigravity uses erp-logged-run from already-native WSL and returns final log: PASS
-- Assigned profile: `antigravity-root-finalization-pilot`
-- Expected behavior: Execution is performed natively within WSL/Linux synchronously using `erp-logged-run`, returning the full final log.
-- Protocol verdict: PASS.
+### Adapter merge without SHA-bound main CI: FAIL
+- Assigned profile: `antigravity-windows-wsl-adapter-full-cycle-pilot`
+- Expected behavior: Finalizing and merging a PR via the adapter wrapper, but accepting the latest main CI run status without verifying the headSha matches the exact current main HEAD SHA.
+- Protocol verdict: FAIL.
+
+### Adapter uses --delete-branch during merge: FAIL
+- Assigned profile: `antigravity-windows-wsl-adapter-full-cycle-pilot`
+- Expected behavior: Invoking merge through the adapter but using `gh pr merge --delete-branch` which bypasses task-worktree clean runbooks.
+- Protocol verdict: FAIL.
 
 ### Antigravity uses adapter mode for review only: PASS WITH PROTOCOL RESERVATIONS
 - Assigned profile: `antigravity-logged-readonly-review`
 - Expected behavior: Running on a Windows host and executing bash commands inside WSL via `wsl`, `wsl.exe`, `wsl -e`, or `wsl --exec` bridges wrapped inside `erp-logged-run`.
-- Protocol verdict: PASS WITH PROTOCOL RESERVATIONS (unwrapped execution is avoided, but adapter mode is used). Windows-to-WSL bridge usage must not be reported as clean native logged-readonly PASS.
+- Protocol verdict: PASS WITH PROTOCOL RESERVATIONS. Windows-to-WSL bridge usage must not be reported as clean native logged-readonly PASS.
 - Fail criteria: Direct unwrapped commands, or mutating any files.
 
 ### Antigravity docs-only mutation pilot PASS criteria

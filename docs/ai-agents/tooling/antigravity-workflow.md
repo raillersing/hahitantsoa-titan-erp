@@ -6,9 +6,9 @@ This bridge defines the approved repository workflow for Antigravity sessions.
 
 ## Default Profile
 
-- profile: `antigravity-plan-only` (default), `antigravity-logged-readonly-review`, or `antigravity-docs-only-mutation-pilot`
-- default mode: plan-only, wrapped logged review, or docs-only mutation
-- mutation: forbidden unless using `antigravity-docs-only-mutation-pilot` within approved docs scope
+- profile: `antigravity-plan-only` (default), `antigravity-logged-readonly-review`, `antigravity-docs-only-mutation-pilot`, or `antigravity-windows-wsl-adapter-full-cycle-pilot`
+- default mode: plan-only, wrapped logged review, docs-only mutation, or approved adapter full-cycle execution
+- mutation: forbidden unless using `antigravity-docs-only-mutation-pilot` within approved docs scope, or `antigravity-windows-wsl-adapter-full-cycle-pilot` under audited full-cycle constraints
 
 ## Environment mode
 

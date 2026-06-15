@@ -209,6 +209,29 @@ If static docs disagree with the live baseline:
 - Merge/push policy:
   - PR squash merge and branch deletion only
 
+### `antigravity-windows-wsl-adapter-full-cycle-pilot`
+
+- Approved environment:
+  - Windows-hosted with an approved, audited adapter wrapper only
+- Allowed autonomy levels:
+  - Level 1 only for full-cycle pilot tasks (commit, push, PR, merge)
+- Allowed command mode:
+  - approved adapter wrapper command mode only (relaying to `scripts/dev/erp-logged-run` inside WSL)
+- Allowed worktree behavior:
+  - operates on WSL worktrees via the adapter wrapper
+- Allowed mutation scope:
+  - allowed feature worktree files and root-finalizer operations only
+- Forbidden actions:
+  - direct unwrapped Windows host execution, raw `wsl`/`wsl.exe`/`bash -c` commands on the host outside the approved adapter
+  - background finalization (execution must run synchronously and return the complete real terminal log)
+  - backend/frontend mutation outside approved task scopes, `.env` or secrets
+- Required live baseline behavior:
+  - run the integrated task-start baseline via the adapter and bind main CI validation strictly to the current main HEAD SHA
+- Required deliverable format:
+  - full-cycle execution report containing the final logged stdout/stderr
+- Merge/push policy:
+  - squash merge only via the adapter wrapper (no `--delete-branch`)
+
 ### `opencode-web-wsl-review`
 
 - Approved environment:
