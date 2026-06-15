@@ -50,8 +50,12 @@ The reviewer must check:
 - protocol audit details:
   - Functional verdict: APPROVED, APPROVED WITH RESERVATIONS, or REJECTED
   - Protocol verdict: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
-  - Environment mode: native WSL/Linux, Windows-hosted, or adapter
-  - Bridge/adapter used: Yes (specify e.g. wsl --exec), No, or N/A
+  - Execution context: native-wsl, windows-hosted, or adapter
+  - Bridge used: Yes (specify e.g. wsl --exec or PowerShell pipe), or No
+  - Background execution used: Yes or No
+  - Final erp-logged-run log returned: Yes, No, or N/A
+  - Environment mode: native WSL/Linux, Windows-hosted, or adapter (deprecated, use Execution context)
+  - Bridge/adapter used: Yes, No, or N/A (deprecated, use Bridge used)
   - Mutation mode: none, docs-only, tools, backend, or frontend
   - Mutation files changed: List of modified files or None
   - Commit/push/merge performed: Yes or No
@@ -60,6 +64,8 @@ The reviewer must check:
   - Files modified: List of files mutated or None (deprecated, use Mutation files changed)
   - Secrets/.env touched: Yes (explain) or No
   - Final classification: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
+  *Protocol Enforcement Rules:*
+  - Contradictions (e.g. stating "no terminal command executed" while also listing commands in "Ran command", or stating "no bridge used" when one was used) must be classified as protocol **FAIL**.*
 - residual risk
 - deliverable location: chat or approved repository file
 - applicable bridge doc for non-Codex review agents
