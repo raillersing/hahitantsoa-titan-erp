@@ -1,5 +1,7 @@
 from enum import StrEnum
 
+from apps.inventory.scope import InventoryItemKind, normalize_inventory_item_kind
+
 
 class HahitantsoaDiscoveryConcept(StrEnum):
     EVENT = "event"
@@ -32,6 +34,9 @@ HAHITANTSOA_ONLY_DISCOVERY_CONCEPTS = frozenset(
 )
 HAHITANTSOA_READ_ONLY_DISCOVERY_CONCEPTS = (
     HAHITANTSOA_SHARED_INVENTORY_CONCEPTS | HAHITANTSOA_ONLY_DISCOVERY_CONCEPTS
+)
+HAHITANTSOA_SHARED_INVENTORY_ITEM_KINDS = frozenset(
+    {InventoryItemKind.MATERIAL, InventoryItemKind.ARTICLE}
 )
 
 
@@ -68,3 +73,28 @@ def assert_hahitantsoa_read_only_discovery_concept(
         return concept
 
     raise HahitantsoaScopeError("Concept is not allowed for Hahitantsoa read-only discovery.")
+
+
+def normalize_hahitantsoa_shared_inventory_item_kind(
+    value: InventoryItemKind | str,
+) -> InventoryItemKind | None:
+    return normalize_inventory_item_kind(value)
+
+
+def is_hahitantsoa_shared_inventory_item_kind(value: InventoryItemKind | str) -> bool:
+    return normalize_hahitantsoa_shared_inventory_item_kind(value) in (
+        HAHITANTSOA_SHARED_INVENTORY_ITEM_KINDS
+    )
+
+
+def assert_hahitantsoa_shared_inventory_item_kind(
+    value: InventoryItemKind | str,
+) -> InventoryItemKind:
+    item_kind = normalize_hahitantsoa_shared_inventory_item_kind(value)
+
+    if item_kind in HAHITANTSOA_SHARED_INVENTORY_ITEM_KINDS:
+        return item_kind
+
+    raise HahitantsoaScopeError(
+        "Inventory item kind is not allowed for Hahitantsoa shared inventory planning."
+    )

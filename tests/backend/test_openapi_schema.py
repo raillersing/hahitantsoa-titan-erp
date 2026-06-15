@@ -12,6 +12,11 @@ RESERVATION_ITEM_AVAILABILITY_PREVIEW_PATHS = (
 )
 HAHITANTSOA_DISCOVERY_ITEMS_PATH = "/api/v1/hahitantsoa/discovery-items/"
 HAHITANTSOA_SHARED_AVAILABILITY_PATH = "/api/v1/hahitantsoa/shared-availability/"
+HAHITANTSOA_EVENT_DRAFT_LIST_PATH = "/api/v1/hahitantsoa/event-drafts/"
+HAHITANTSOA_EVENT_DRAFT_DETAIL_PATHS = (
+    "/api/v1/hahitantsoa/event-drafts/{id}/",
+    "/api/v1/hahitantsoa/event-drafts/{pk}/",
+)
 DOCUMENT_TEMPLATE_REGISTRY_PATH = "/api/v1/documents/templates/"
 DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",)
 TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
@@ -151,6 +156,59 @@ def test_openapi_schema_exposes_hahitantsoa_shared_availability_contract(client)
         "start_at",
         "status",
     ]
+
+
+def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(client) -> None:
+    response = client.get("/api/schema/?format=json")
+
+    assert response.status_code == 200
+
+    schema = response.json()
+    paths = schema["paths"]
+    detail_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_DETAIL_PATHS)
+
+    assert HAHITANTSOA_EVENT_DRAFT_LIST_PATH in paths
+    assert set(paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]) >= {"get", "post"}
+    assert "put" not in paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]
+    assert "patch" not in paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]
+    assert "delete" not in paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]
+    assert detail_path in paths
+    assert set(paths[detail_path]) >= {"get", "put", "patch"}
+    assert "delete" not in paths[detail_path]
+
+    create_operation = paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]["post"]
+    response_schema = create_operation["responses"]["201"]["content"]["application/json"]["schema"]
+    draft_schema = _resolve_schema(schema, response_schema)
+
+    expected_fields = {
+        "id",
+        "public_reference",
+        "status",
+        "customer_id",
+        "customer_display_name",
+        "event_name",
+        "venue_name",
+        "location_details",
+        "service_notes",
+        "start_at",
+        "end_at",
+        "notes",
+        "lines",
+        "created_at",
+        "updated_at",
+    }
+    assert expected_fields.issubset(draft_schema["properties"])
+
+    line_reference = draft_schema["properties"]["lines"]["items"]
+    line_schema = _resolve_schema(schema, line_reference)
+    assert {
+        "id",
+        "inventory_item_id",
+        "inventory_item_name",
+        "inventory_item_kind",
+        "quantity",
+        "notes",
+    }.issubset(line_schema["properties"])
 
 
 def test_openapi_schema_exposes_documents_template_contract(client) -> None:

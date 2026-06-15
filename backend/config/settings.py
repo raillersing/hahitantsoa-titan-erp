@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "apps.reservations.apps.ReservationsConfig",
     "apps.documents.apps.DocumentsConfig",
     "apps.customers.apps.CustomersConfig",
+    "apps.hahitantsoa.apps.HahitantsoaConfig",
     "rest_framework",
     "drf_spectacular",
 ]

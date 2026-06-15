@@ -1,12 +1,15 @@
 from drf_spectacular.utils import extend_schema, inline_serializer
-from rest_framework import serializers, status
+from rest_framework import generics, serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.hahitantsoa.models import HahitantsoaEventDraft
+from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
+    HahitantsoaEventDraftSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
 )
@@ -70,3 +73,31 @@ class HahitantsoaSharedAvailabilityAPIView(APIView):
             end_at=end_at,
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+def active_hahitantsoa_event_drafts():
+    return (
+        HahitantsoaEventDraft.objects.filter(is_deleted=False)
+        .select_related("customer")
+        .prefetch_related("lines__inventory_item")
+        .order_by("-created_at", "public_reference")
+    )
+
+
+class HahitantsoaEventDraftListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+    serializer_class = HahitantsoaEventDraftSerializer
+
+    def get_queryset(self):
+        return active_hahitantsoa_event_drafts()
+
+
+class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
+    http_method_names = ["get", "put", "patch", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+    serializer_class = HahitantsoaEventDraftSerializer
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        return active_hahitantsoa_event_drafts()
