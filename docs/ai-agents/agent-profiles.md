@@ -159,6 +159,30 @@ If static docs disagree with the live baseline:
   - no push
   - no merge
 
+### `antigravity-docs-only-mutation-pilot`
+
+- Approved environment:
+  - Antigravity docs-only mutation session under human supervision
+- Allowed autonomy levels:
+  - Level 1 only for authorized documents mutation
+- Allowed command mode:
+  - plan-only or wrapped readonly commands (for baseline checking)
+  - no command-based edits allowed; mutations must be done strictly via file-editing tools
+- Allowed worktree behavior:
+  - requires isolated worktree usage (docs/review scope worktree only)
+- Allowed mutation scope:
+  - `docs/ai-agents/**` and `docs/audits/**` only when explicitly scoped
+- Forbidden actions:
+  - any backend mutation (`backend/**`), frontend mutation (`frontend/**`), Github workflows (`.github/**`), Docker/compose setup (`compose*`, `Docker*`), `.env` or secrets
+  - direct git/gh/shell commands, `/tmp` scripts, and `chmod`
+- Required live baseline behavior:
+  - run or propose the integrated task-start baseline before applying mutations
+- Required deliverable format:
+  - updated document files in the authorized worktree and/or chat report
+- Merge/push policy:
+  - no commit, no push, no merge
+  - requires human or Codex validation before any PR is created or integrated
+
 ### `opencode-web-wsl-review`
 
 - Approved environment:

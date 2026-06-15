@@ -50,9 +50,14 @@ The reviewer must check:
 - protocol audit details:
   - Functional verdict: APPROVED, APPROVED WITH RESERVATIONS, or REJECTED
   - Protocol verdict: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
+  - Environment mode: native WSL/Linux, Windows-hosted, or adapter
+  - Bridge/adapter used: Yes (specify e.g. wsl --exec), No, or N/A
+  - Mutation mode: none, docs-only, tools, backend, or frontend
+  - Mutation files changed: List of modified files or None
+  - Commit/push/merge performed: Yes or No
   - Commands executed: List of all terminal commands run during the session
   - Whether all commands used erp-logged-run: Yes, No, or N/A (no commands run)
-  - Files modified: List of files mutated or None
+  - Files modified: List of files mutated or None (deprecated, use Mutation files changed)
   - Secrets/.env touched: Yes (explain) or No
   - Final classification: PASS, PASS WITH PROTOCOL RESERVATIONS, or FAIL
 - residual risk
