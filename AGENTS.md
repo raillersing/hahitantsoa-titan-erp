@@ -7,6 +7,7 @@ repository. Detailed agent roles, templates, and quality gates live in
 Use these two documents as the standard operational references for future tasks:
 
 - [`docs/ai-agents/agent-command-runbook.md`](docs/ai-agents/agent-command-runbook.md)
+- [`docs/ai-agents/agent-profiles.md`](docs/ai-agents/agent-profiles.md)
 - [`docs/ai-agents/orchestrator-task-queue.md`](docs/ai-agents/orchestrator-task-queue.md)
 
 Task prompts should stay short and reference these documents instead of copying large
@@ -76,6 +77,10 @@ backend, frontend, agent-tools, and agent-docs edits in the same task branch.
 
 ## Mandatory task workflow
 
+- The orchestrator assigns an explicit agent profile before delegating a task.
+- Every executable agent task starts with `bash scripts/dev/erp-agent-task-start` inside
+  `scripts/dev/erp-logged-run`.
+- Live baseline wins over stale static docs; report any mismatch.
 - One task, one branch, one controlled PR.
 - Verify branch, baseline commit, and Git status before editing.
 - Keep the diff limited to explicitly allowed files and behavior.

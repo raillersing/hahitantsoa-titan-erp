@@ -18,12 +18,14 @@ Standardize small, versioned prompt inputs for documentation-only work.
 
 ## Required References
 
+- `docs/ai-agents/agent-profiles.md`
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-state.md`
 - `docs/ai-agents/parallel-agent-policy.md`
 
 ## Required Inputs
 
+- assigned agent profile
 - repository path
 - expected branch
 - objective
@@ -32,6 +34,9 @@ Standardize small, versioned prompt inputs for documentation-only work.
 - validation requirements
 - whether commit, push, PR creation are authorized
 - whether the task may add minimal links in existing docs
+
+Executable profiles run `bash scripts/dev/erp-agent-task-start` inside
+`scripts/dev/erp-logged-run` first. Live baseline wins over stale docs.
 
 ## Expected Mutable Scope
 
@@ -57,3 +62,6 @@ Never modify `backend/`, `frontend/`, `scripts/`, `.github/`, dependencies, Comp
 - open PR URL when created
 - residual documentation limits
 - `No merge was performed.`
+
+Deliverables must be in chat and/or an approved repository file. A private-only report
+must not be the sole deliverable.

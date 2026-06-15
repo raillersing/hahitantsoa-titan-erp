@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+PROFILE_FILE="$REPO_ROOT/docs/ai-agents/agent-profiles.md"
+
+required_profiles=(
+  codex-native-wsl-mutating
+  antigravity-review-docs
+  opencode-web-wsl-review
+  opencode-desktop-windows-plan-only
+  windows-hosted-agent-plan-only
+  human-supervisor
+  future-crewai-orchestrator-framework
+)
+
+required_fields=(
+  "Approved environment"
+  "Allowed autonomy levels"
+  "Allowed command mode"
+  "Allowed worktree behavior"
+  "Allowed mutation scope"
+  "Forbidden actions"
+  "Required live baseline behavior"
+  "Required deliverable format"
+  "Merge/push policy"
+)
+
+if [ ! -f "$PROFILE_FILE" ]; then
+  echo "ERROR: missing agent profile file: $PROFILE_FILE"
+  exit 1
+fi
+
+for profile in "${required_profiles[@]}"; do
+  section="$(
+    awk -v heading="### \`$profile\`" '
+      $0 == heading {inside=1; next}
+      inside && /^### / {exit}
+      inside {print}
+    ' "$PROFILE_FILE"
+  )"
+
+  if [ -z "$section" ]; then
+    echo "ERROR: missing agent profile: $profile"
+    exit 1
+  fi
+
+  for field in "${required_fields[@]}"; do
+    if ! printf '%s\n' "$section" | grep -F -- "- $field:" >/dev/null; then
+      echo "ERROR: profile '$profile' missing field: $field"
+      exit 1
+    fi
+  done
+
+  echo "OK profile: $profile"
+done
+
+echo "Agent profile validation completed."

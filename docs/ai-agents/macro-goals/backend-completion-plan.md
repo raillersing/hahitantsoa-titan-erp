@@ -3,7 +3,7 @@
 ## Status
 
 This is a non-definitive macro-goal planning document. It defines the method for backend
-finalization and records the current known queue after `F135B` merged on `main`.
+finalization and records completed document-service slices through `F126C`.
 
 ## Target macro-goal
 
@@ -14,7 +14,8 @@ finalization and records the current known queue after `F135B` merged on `main`.
 
 - `F138E` is complete and the backend worktree is repaired
 - `F135B` is complete and merged on `main` at `9df9251`
-- the backend worktree is detached on `9df9251` and ready for a new dedicated task branch
+- `F126B` and `F126C` are complete and merged
+- live task-start baseline is required before selecting the next backend slice
 
 ## Planning method
 
@@ -33,23 +34,18 @@ finalization and records the current known queue after `F135B` merged on `main`.
 - `F135B`
   - purpose: reservation confirmation private API continuation
   - status: done
+- `F126B`
+  - purpose: add a backend-only commercial document context/value object
+  - status: done
+- `F126C`
+  - purpose: complete the commercial document service chain and preserve preview payload
+  - status: done
 
 ## Next implementation slice
 
-- `F126B`
-  - source: explicitly recommended by `F126A`
-  - purpose: add a backend-only commercial document context/value object
-  - inputs: existing document template registry and `ReservationDraft`
-  - constraints: side-effect free, no PDF generation, no invoices, contracts, receipts,
-    payments, reservations, or inventory blocks
-  - state: ready
-
-## Immediate follow-up after F126B
-
-- `F126C`
-  - purpose: refactor Titan proforma preview to use the new context while preserving the
-    existing API payload
-  - state: draft until `F126B` is complete
+- not selected in this plan revision
+- use the live task-start baseline and a bounded backend audit before assigning the next
+  task
 
 ## Stop conditions
 

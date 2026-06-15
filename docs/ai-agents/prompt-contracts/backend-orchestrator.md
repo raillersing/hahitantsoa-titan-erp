@@ -20,6 +20,7 @@ Keep backend orchestration prompts short, repeatable, and reviewable.
 
 Backend prompts should reference, not duplicate:
 
+- `docs/ai-agents/agent-profiles.md`
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
 - `docs/ai-agents/orchestrator-state.md`
@@ -27,6 +28,7 @@ Backend prompts should reference, not duplicate:
 
 ## Required Inputs
 
+- assigned agent profile
 - repository path
 - expected branch
 - baseline commit or `origin/main` reference
@@ -36,6 +38,9 @@ Backend prompts should reference, not duplicate:
 - exact checks to run
 - whether commit, push, PR creation are authorized
 - whether the prompt is implement-only or review-only
+
+Executable profiles run the integrated task-start baseline first. Live baseline wins over
+stale docs.
 
 ## Expected Mutable Scope
 
@@ -65,6 +70,9 @@ task explicitly authorizes it.
 - residual risks
 - PR URL when created
 - explicit statement: `No merge was performed.`
+
+Deliverables must be in chat and/or an approved repository file. A private-only report
+must not be the sole deliverable.
 
 ## Final Report Format
 

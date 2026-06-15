@@ -12,7 +12,13 @@ Each micro-task record must contain:
 - Task ID
 - Parent macro-goal
 - Agent type
+- Agent profile
 - Autonomy level
+- Execution mode
+- Task-start baseline
+- Baseline log
+- Static/live state mismatch
+- Human gate required
 - Worktree
 - Branch
 - Scope allowed
@@ -56,7 +62,13 @@ Use a compact Markdown block per micro-task:
 Task ID: MT-EXAMPLE-001
 Parent macro-goal: MG-BACKEND-FINALIZATION
 Agent type: backend
+Agent profile: codex-native-wsl-mutating
 Autonomy level: Level 1
+Execution mode: native WSL/bash
+Task-start baseline: bash scripts/dev/erp-agent-task-start
+Baseline log: logs/terminal/task-start-YYYYMMDD-HHMMSS.log
+Static/live state mismatch: none
+Human gate required: merge
 Worktree: /home/raillersing/projects/hahitantsoa-titan-erp-backend
 Branch: feat/example-branch
 Scope allowed: backend/**, tests/backend/**
@@ -85,6 +97,9 @@ Next task: MT-EXAMPLE-002
 ## Validation expectations
 
 - required fields must be present exactly once per micro-task record
+- the assigned agent profile must exist in `docs/ai-agents/agent-profiles.md`
+- executable tasks must record a task-start baseline and baseline log
+- plan-only tasks must record that the baseline was proposed and is awaiting a human gate
 - `Status` must use one authorized value
 - `Review required` and `Merge policy` must reflect the current autonomy policy
 - `Next task` should name the next known dependent micro-task or `none`

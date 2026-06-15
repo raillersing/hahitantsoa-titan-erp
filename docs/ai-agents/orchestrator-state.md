@@ -1,76 +1,79 @@
 # Orchestrator State
 
+## State Semantics
+
+This file is an operational snapshot. Update it after merge plus green `main` CI.
+
+Agents must still run the integrated task-start baseline. Live baseline wins over this
+snapshot when they disagree, and the mismatch must be reported.
+
 ## Version
 
 - ledger: `orchestrator-state`
-- version: `F139-v2`
-- last-updated-main-head: `9df925111a5fd230d9b92e5dbe78f65519906116`
+- version: `F140H-v1`
+- last-updated-main-head: `4078985c0034d46ad05b6c10b746a6090f051f1a`
 
 ## Current Main HEAD
 
-- `origin/main`: `9df925111a5fd230d9b92e5dbe78f65519906116`
-- title: `feat(reservations): add private reservation confirmation API (#171)`
+- `origin/main`: `4078985c0034d46ad05b6c10b746a6090f051f1a`
+- title: `docs(ai-agents): add multi-agent compatibility layer (#179)`
+
+## Current Workflow Activation
+
+- agent profile assignment: required before delegation
+- executable task-start baseline: `bash scripts/dev/erp-agent-task-start`
+- static/live precedence: live baseline wins
+- primary bounded mutating agent: Codex
+- Antigravity: review/docs-only unless promoted
+- OpenCode Web WSL: experimental review/docs-governance
+- OpenCode Desktop Windows: plan-only
 
 ## Active Backend Task
 
-- task: `F126B`
-- state: `ready`
-- branch or worktree: backend worktree currently detached on `9df9251` and ready for a new
-  dedicated branch
-- scope: backend-only commercial document context/value object built from the existing
-  registry and `ReservationDraft`
-- constraints: side-effect free, no PDF generation, no invoices, contracts, receipts,
-  payments, or inventory writes
+- no active backend implementation task recorded
+- `F126B` and `F126C` are complete and merged
 
 ## Active Frontend Task
 
-- task: `F137C`
-- state: not launched in this queue refresh
-- branch or worktree: frontend worktree remains detached on `7771b07`
-- scope: approved frontend continuation after F137B, to be planned later
+- task: frontend readiness planning
+- PR: `#175`
+- state: open
+- note: this governance task must not merge or modify PR `#175`
 
 ## Active Docs And Tools Tasks
 
-- no active docs/tools PR is open at this ledger revision
+- task: `F140H`
+- state: in progress at this snapshot
 
 ## Blocked Tasks
 
-- none explicitly blocked at this ledger revision
+- none explicitly blocked at this snapshot
 
 ## Open PRs
 
-- none
+- `#175` docs(frontend): add frontend readiness plan and task queue
 
 ## Last Green Main CI
 
-- run: [27498090045](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/27498090045)
-- head SHA: `9df925111a5fd230d9b92e5dbe78f65519906116`
+- run: [27513617651](https://github.com/raillersing/hahitantsoa-titan-erp/actions/runs/27513617651)
+- head SHA: `4078985c0034d46ad05b6c10b746a6090f051f1a`
 - conclusion: success
 
-## Completed Backend Milestones
+## Completed Milestones
 
-- `F138E`
-  - state: done
-  - note: backend worktree was repaired/rebased and is now detached on `main`
-- `F135B`
-  - state: done, merged, `main_green`
-  - merge commit: `9df9251`
-  - note: private reservation confirmation API is now merged on `main`
-
-## Next Allowed Task
-
-- next backend implementation: `F126B`
-- state: `ready`
-- reason: `F126A` explicitly identifies `F126B` as the next backend implementation slice
-- next frontend implementation remains deferred in this queue update
+- `F126B`: commercial document context service, merged
+- `F126C`: commercial document service completion, merged
+- `F140C`: canonical agent prompt procedure, merged through `#176`
+- `F140E`: environment-specific command modes, merged through `#177`
+- `F140F`: agent workflow edge-case hardening, merged through `#178`
+- `F140G`: multi-agent compatibility and integrated task-start baseline, merged through
+  `#179`
 
 ## Ledger Update Rule
 
-Update this ledger when any of these changes occurs:
+Update this snapshot when:
 
-- `origin/main` advances
-- active backend or frontend task changes
-- docs/tools orchestration task status changes
-- a task becomes blocked or unblocked
+- `origin/main` advances and `main` CI is green
+- active backend, frontend, docs, or tools task changes
 - open PR inventory changes
-- latest green `main` CI changes
+- a task becomes blocked or unblocked
