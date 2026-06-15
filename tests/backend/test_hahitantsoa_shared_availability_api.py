@@ -197,10 +197,11 @@ def test_hahitantsoa_shared_availability_endpoint_does_not_write_business_data(
     assert _reservations_model_counts() == reservation_counts
 
 
-def test_hahitantsoa_shared_availability_allows_existing_backend_package_layout() -> None:
+def test_hahitantsoa_shared_availability_allows_expanded_backend_package_layout() -> None:
     hahitantsoa_path = Path("backend/apps/hahitantsoa")
 
     assert hahitantsoa_path.exists()
     assert (hahitantsoa_path / "services.py").exists()
-    assert not (hahitantsoa_path / "models.py").exists()
-    assert not (hahitantsoa_path / "migrations").exists()
+    assert (hahitantsoa_path / "models.py").exists()
+    assert (hahitantsoa_path / "permissions.py").exists()
+    assert (hahitantsoa_path / "migrations").exists()
