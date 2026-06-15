@@ -312,12 +312,40 @@ if [ -n "$TASK_BRANCH" ]; then
     exit 1
   fi
 
+  if [ "$TASK_BRANCH" = "main" ] || [ "$TASK_BRANCH" = "master" ]; then
+    echo "ERROR: refusing to delete protected branch: $TASK_BRANCH"
+    exit 1
+  fi
+
   if git rev-parse --verify "refs/heads/$TASK_BRANCH" >/dev/null 2>&1; then
-    git branch -d "$TASK_BRANCH"
+    if git branch -d "$TASK_BRANCH"; then
+      echo "INFO: Deleted fully merged local branch: $TASK_BRANCH"
+    else
+      latest_pr_state="$(gh pr view "$pr_number" --json state --jq '.state')"
+      latest_pr_head_branch="$(gh pr view "$pr_number" --json headRefName --jq '.headRefName')"
+
+      if [ "$latest_pr_state" != "MERGED" ]; then
+        echo "ERROR: refusing forced local branch deletion because PR #$pr_number is not MERGED: $latest_pr_state"
+        exit 1
+      fi
+      if [ "$latest_pr_head_branch" != "$TASK_BRANCH" ]; then
+        echo "ERROR: refusing forced local branch deletion because PR head '$latest_pr_head_branch' differs from task branch '$TASK_BRANCH'"
+        exit 1
+      fi
+      if [ "$(git branch --show-current)" != "main" ]; then
+        echo "ERROR: refusing forced local branch deletion outside main"
+        exit 1
+      fi
+
+      echo "INFO: Local branch is not fully merged, likely due to squash merge; deleting verified task branch with -D: $TASK_BRANCH"
+      git branch -D "$TASK_BRANCH"
+    fi
   fi
 
   if git ls-remote --exit-code --heads origin "$TASK_BRANCH" >/dev/null 2>&1; then
     git push origin --delete "$TASK_BRANCH"
+  else
+    echo "INFO: Remote branch already absent or unavailable for deletion check: $TASK_BRANCH"
   fi
 fi
 
