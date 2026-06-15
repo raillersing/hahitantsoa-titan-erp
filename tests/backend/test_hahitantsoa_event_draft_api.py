@@ -185,10 +185,16 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     payload = response.json()
     assert payload["event_name"] == "Updated event"
     assert payload["venue_name"] == "Updated venue"
+    assert len(payload["lines"]) == 1
     assert payload["lines"][0]["inventory_item_id"] == str(second_item.id)
     assert InventoryAvailability.objects.count() == availability_count
     draft.refresh_from_db()
     assert draft.updated_by == user
+    assert draft.lines.filter(is_deleted=False).count() == 1
+    assert draft.lines.filter(is_deleted=True).count() == 1
+    assert list(
+        draft.lines.filter(is_deleted=False).values_list("inventory_item_id", flat=True)
+    ) == [second_item.id]
 
 
 def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticated_client) -> None:
@@ -358,3 +364,40 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     assert draft.created_by == owner
     assert draft.updated_by != other_user
     assert draft.is_deleted is False
+
+
+def test_event_draft_detail_hides_soft_deleted_lines_after_update(authenticated_client) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    first_item = _item(name="Shared article", kind="article")
+    second_item = _item(name="Shared material", kind="material")
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Line replacement event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    original_line = HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=first_item,
+        quantity=1,
+    )
+
+    response = authenticated_client.put(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data=_payload(draft.customer, second_item),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["lines"]) == 1
+    assert payload["lines"][0]["inventory_item_id"] == str(second_item.id)
+    original_line.refresh_from_db()
+    assert original_line.is_deleted is True
+    assert original_line.deleted_at is not None
+    detail_response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
+    assert detail_response.status_code == 200
+    assert len(detail_response.json()["lines"]) == 1
+    assert detail_response.json()["lines"][0]["inventory_item_id"] == str(second_item.id)
