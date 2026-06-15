@@ -541,3 +541,92 @@ h3 {
     justify-self: start;
   }
 }
+
+/* Hardened UX improvements */
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled,
+fieldset:disabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  display: flex;
+  align-items: center;
+}
+
+.loading-spinner::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.success-notice {
+  background-color: hsl(142, 70%, 97%) !important;
+  border-left: 5px solid hsl(142, 76%, 36%) !important;
+  color: hsl(142, 76%, 15%) !important;
+}
+
+.error-notice {
+  background-color: hsl(346, 100%, 98%) !important;
+  border-left: 5px solid hsl(346, 84%, 50%) !important;
+  color: hsl(346, 84%, 20%) !important;
+}
+
+.loading-notice {
+  background-color: hsl(200, 100%, 98%) !important;
+  border-left: 5px solid hsl(200, 95%, 45%) !important;
+  color: hsl(200, 95%, 20%) !important;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  margin: 16px 24px;
+  border-radius: 12px;
+  transition: all 0.2s ease-in-out;
+}
+
+.notice h3 {
+  margin: 0 0 4px 0;
+}
+
+.notice p {
+  margin: 0;
+}
+
+.notice button {
+  padding: 6px 12px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.1s ease;
+}
+
+.notice button:hover {
+  opacity: 1;
+}
+
