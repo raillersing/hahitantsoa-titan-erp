@@ -186,6 +186,29 @@ If static docs disagree with the live baseline:
   - requires human or Codex validation before any PR is created or integrated
   - may not finalize PRs under the docs-only mutation pilot
 
+### `antigravity-root-finalization-pilot`
+
+- Approved environment:
+  - native WSL/Linux context only
+- Allowed autonomy levels:
+  - Level 1 only for authorized PR finalization sequence execution
+- Allowed command mode:
+  - `scripts/dev/erp-logged-run` only
+- Allowed worktree behavior:
+  - root main worktree only
+- Allowed mutation scope:
+  - PR squash merge, main branch sync, branch/worktree deletion only
+- Forbidden actions:
+  - backend mutation (`backend/**`), frontend mutation (`frontend/**`), and all file edits
+  - any Windows-to-WSL bridge wrapper (such as `wsl`, `wsl.exe`, `wsl --exec`, `wsl -e`, or PowerShell pipes)
+  - background task execution (must run synchronously and return the complete real erp-logged-run log in the chat/output)
+- Required live baseline behavior:
+  - verify root main worktree path and main branch before merging
+- Required deliverable format:
+  - finalization summary with the real erp-logged-run final state log
+- Merge/push policy:
+  - PR squash merge and branch deletion only
+
 ### `opencode-web-wsl-review`
 
 - Approved environment:

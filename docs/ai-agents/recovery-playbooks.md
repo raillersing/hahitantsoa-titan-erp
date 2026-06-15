@@ -225,6 +225,16 @@ Recovery:
 4. Verify that both `Backend quality` and `Frontend quality` are explicitly marked as `SUCCESS` in the output of the fallback statusCheckRollup audit.
 5. If any essential quality checks are failing, do not finalize the PR. Report the failure and request implementer action.
 
+## Windows-to-WSL Bridge Violations
+
+Symptoms:
+- An agent executes git/gh or shell commands inside a native-only WSL profile via a Windows host bridge (`wsl`, `wsl.exe`, `wsl --exec`, `wsl -e`, or PowerShell pipes/here-strings piped to `wsl`).
+
+Recovery:
+1. Immediately run a root WSL state check to confirm actual repository status.
+2. Even if GitHub CLI or branch merge succeeds, the task execution must be classified as protocol **FAIL**.
+3. Do not proceed to further task phases or branch cleanups until the protocol violation has been flagged and reviewed.
+
 ## Post-Recovery Exit Criteria
 
 A recovery attempt is complete only when:
