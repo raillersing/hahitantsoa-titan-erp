@@ -8,6 +8,10 @@ import type {
   ReservationDraftCreatePayload,
   ReservationDraftUpdatePayload,
   ReservationItemAvailabilityPreview,
+  HahitantsoaEventDraft,
+  HahitantsoaEventDraftCreatePayload,
+  HahitantsoaEventDraftUpdatePayload,
+  HahitantsoaEventDraftAvailabilityPreview,
 } from "./types";
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
@@ -182,3 +186,58 @@ export async function getDocumentArtifactHtml(
 
   return response.text();
 }
+
+export function getHahitantsoaEventDrafts(
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraft[]> {
+  return getAuthenticatedJson("/api/v1/hahitantsoa/event-drafts/", signal);
+}
+
+export function getHahitantsoaEventDraft(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraft> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/`,
+    signal,
+  );
+}
+
+export function createHahitantsoaEventDraft(
+  payload: HahitantsoaEventDraftCreatePayload,
+): Promise<HahitantsoaEventDraft> {
+  return postAuthenticatedJson("/api/v1/hahitantsoa/event-drafts/", payload);
+}
+
+export function updateHahitantsoaEventDraft(
+  draftId: string,
+  payload: HahitantsoaEventDraftUpdatePayload,
+): Promise<HahitantsoaEventDraft> {
+  return patchAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/`,
+    payload,
+  );
+}
+
+export async function deleteHahitantsoaEventDraft(
+  draftId: string,
+): Promise<void> {
+  const response = await fetch(`/api/v1/hahitantsoa/event-drafts/${draftId}/`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("The event draft could not be deleted.");
+  }
+}
+
+export function getHahitantsoaEventDraftAvailabilityPreview(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAvailabilityPreview> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/availability-preview/`,
+    signal,
+  );
+}
+

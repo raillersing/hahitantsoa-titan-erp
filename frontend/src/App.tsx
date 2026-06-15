@@ -4,6 +4,7 @@ import { getInventoryItems } from "./api";
 import AvailabilityPanel from "./AvailabilityPanel";
 import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
+import HahitantsoaEventDraftsPanel from "./HahitantsoaEventDraftsPanel";
 import type { InventoryItem } from "./types";
 
 type AppScope = "titan" | "hahitantsoa";
@@ -225,7 +226,14 @@ function App() {
               <DocumentArtifactPreviewPanel />
             </>
           ) : (
-            <HahitantsoaDiscoveryPanel />
+            <>
+              <HahitantsoaDiscoveryPanel />
+              <HahitantsoaEventDraftsPanel
+                inventoryItems={
+                  inventoryState.status === "loaded" ? inventoryState.items : []
+                }
+              />
+            </>
           )}
         </section>
       </div>

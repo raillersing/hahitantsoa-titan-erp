@@ -114,3 +114,82 @@ export type ReservationDraft = {
   created_at: string;
   updated_at: string;
 };
+
+export type HahitantsoaEventDraftLineInput = {
+  inventory_item_id: string;
+  quantity: number;
+  notes?: string;
+};
+
+export type HahitantsoaEventDraftCreatePayload = {
+  customer_id: string;
+  event_name: string;
+  venue_name?: string;
+  location_details?: string;
+  service_notes?: string;
+  start_at: string;
+  end_at: string;
+  notes?: string;
+  lines: HahitantsoaEventDraftLineInput[];
+};
+
+export type HahitantsoaEventDraftUpdatePayload = {
+  customer_id?: string;
+  event_name?: string;
+  venue_name?: string;
+  location_details?: string;
+  service_notes?: string;
+  start_at?: string;
+  end_at?: string;
+  notes?: string;
+  lines?: HahitantsoaEventDraftLineInput[];
+};
+
+export type HahitantsoaEventDraftLine = {
+  id: string;
+  inventory_item_id: string;
+  inventory_item_name: string;
+  inventory_item_kind: InventoryItemKind;
+  quantity: number;
+  notes: string;
+};
+
+export type HahitantsoaEventDraft = {
+  id: string;
+  public_reference: string;
+  status: "draft";
+  customer_id: string;
+  customer_display_name: string;
+  event_name: string;
+  venue_name: string;
+  location_details: string;
+  service_notes: string;
+  start_at: string;
+  end_at: string;
+  notes: string;
+  lines: HahitantsoaEventDraftLine[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type HahitantsoaEventDraftAvailabilityLinePreview = {
+  event_draft_line_id: string;
+  quantity: number;
+  inventory_item_id: string;
+  inventory_item_name: string;
+  inventory_item_kind: InventoryItemKind;
+  status: "available" | "unavailable";
+  conflict_count: number;
+};
+
+export type HahitantsoaEventDraftAvailabilityPreview = {
+  event_draft_id: string;
+  public_reference: string;
+  start_at: string;
+  end_at: string;
+  line_count: number;
+  available_line_count: number;
+  unavailable_line_count: number;
+  lines: HahitantsoaEventDraftAvailabilityLinePreview[];
+};
+
