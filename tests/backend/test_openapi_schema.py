@@ -17,6 +17,10 @@ HAHITANTSOA_EVENT_DRAFT_DETAIL_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/",
 )
+HAHITANTSOA_EVENT_DRAFT_AVAILABILITY_PREVIEW_PATHS = (
+    "/api/v1/hahitantsoa/event-drafts/{id}/availability-preview/",
+    "/api/v1/hahitantsoa/event-drafts/{pk}/availability-preview/",
+)
 DOCUMENT_TEMPLATE_REGISTRY_PATH = "/api/v1/documents/templates/"
 DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",)
 TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
@@ -176,6 +180,10 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
     assert set(paths[detail_path]) >= {"get", "put", "patch"}
     assert "delete" not in paths[detail_path]
 
+    availability_preview_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_AVAILABILITY_PREVIEW_PATHS)
+    assert availability_preview_path in paths
+    _assert_get_only(paths[availability_preview_path])
+
     create_operation = paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]["post"]
     response_schema = create_operation["responses"]["201"]["content"]["application/json"]["schema"]
     draft_schema = _resolve_schema(schema, response_schema)
@@ -209,6 +217,34 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "quantity",
         "notes",
     }.issubset(line_schema["properties"])
+
+    preview_operation = paths[availability_preview_path]["get"]
+    preview_schema_reference = preview_operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]
+    preview_schema = _resolve_schema(schema, preview_schema_reference)
+    assert {
+        "event_draft_id",
+        "public_reference",
+        "start_at",
+        "end_at",
+        "line_count",
+        "available_line_count",
+        "unavailable_line_count",
+        "lines",
+    }.issubset(preview_schema["properties"])
+
+    preview_line_reference = preview_schema["properties"]["lines"]["items"]
+    preview_line_schema = _resolve_schema(schema, preview_line_reference)
+    assert {
+        "event_draft_line_id",
+        "quantity",
+        "inventory_item_id",
+        "inventory_item_name",
+        "inventory_item_kind",
+        "status",
+        "conflict_count",
+    }.issubset(preview_line_schema["properties"])
 
 
 def test_openapi_schema_exposes_documents_template_contract(client) -> None:

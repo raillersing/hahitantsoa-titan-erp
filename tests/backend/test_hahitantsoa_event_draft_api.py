@@ -181,3 +181,79 @@ def test_event_draft_detail_rejects_delete(authenticated_client) -> None:
     response = authenticated_client.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
 
     assert response.status_code == 405
+
+
+def test_authenticated_user_can_read_event_draft_availability_preview(authenticated_client) -> None:
+    start_at, end_at = _period()
+    available_item = _item(name="Available shared article", kind="article")
+    blocked_item = _item(name="Blocked shared material", kind="material")
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Preview event",
+        start_at=start_at,
+        end_at=end_at,
+    )
+    available_line = HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=available_item,
+        quantity=1,
+    )
+    blocked_line = HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=blocked_item,
+        quantity=2,
+    )
+    InventoryAvailability.objects.create(
+        inventory_item=blocked_item,
+        status="blocked",
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["event_draft_id"] == str(draft.id)
+    assert payload["public_reference"] == draft.public_reference
+    assert payload["line_count"] == 2
+    assert payload["available_line_count"] == 1
+    assert payload["unavailable_line_count"] == 1
+    assert [line["event_draft_line_id"] for line in payload["lines"]] == [
+        str(available_line.id),
+        str(blocked_line.id),
+    ]
+    assert [line["status"] for line in payload["lines"]] == ["available", "unavailable"]
+    assert [line["conflict_count"] for line in payload["lines"]] == [0, 1]
+
+
+def test_event_draft_availability_preview_returns_404_for_soft_deleted_draft(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Hidden preview",
+        start_at=start_at,
+        end_at=end_at,
+        is_deleted=True,
+        deleted_at=timezone.now(),
+    )
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/")
+
+    assert response.status_code == 404
+
+
+def test_event_draft_availability_preview_rejects_write_methods(authenticated_client) -> None:
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Readonly preview",
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/")
+
+    assert response.status_code == 405
