@@ -235,6 +235,24 @@ Recovery:
 2. Even if GitHub CLI or branch merge succeeds, the task execution must be classified as protocol **FAIL**.
 3. Do not proceed to further task phases or branch cleanups until the protocol violation has been flagged and reviewed.
 
+## Cleanup Permission Failures
+
+Symptoms:
+- Worktree branch cleanup fails with "Permission denied" or exit code 126.
+- The system prevents executing `scripts/dev/erp-worktree-clean-after-merge` directly because the executable bit is missing.
+
+Recovery:
+1. Ensure the finalizer script is updated to explicitly invoke the cleanup helper via bash (e.g. `bash scripts/dev/erp-worktree-clean-after-merge`).
+2. If executing manually, run the helper explicitly through bash:
+   ```sh
+   bash scripts/dev/erp-worktree-clean-after-merge --apply <branch>
+   ```
+3. Set the executable bit in a separate tools-governance task:
+   ```sh
+   chmod +x scripts/dev/erp-worktree-clean-after-merge
+   ```
+4. Verify that the task worktree has been successfully removed and the branch deleted.
+
 ## Post-Recovery Exit Criteria
 
 A recovery attempt is complete only when:
