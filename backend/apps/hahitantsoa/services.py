@@ -159,7 +159,9 @@ def get_hahitantsoa_event_draft_confirmation_preflight(
         )
 
     active_lines = tuple(
-        event_draft.lines.filter(is_deleted=False).select_related("inventory_item").order_by(
+        event_draft.lines.filter(is_deleted=False)
+        .select_related("inventory_item")
+        .order_by(
             "created_at",
             "id",
         )

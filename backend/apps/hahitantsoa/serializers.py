@@ -9,8 +9,8 @@ from apps.hahitantsoa.services import (
     HahitantsoaEventDraftAvailabilityPreview,
     HahitantsoaEventDraftConfirmationPreflight,
     HahitantsoaSharedAvailabilityItemPreview,
-    get_hahitantsoa_event_draft_confirmation_preflight,
     get_hahitantsoa_event_draft_availability_preview,
+    get_hahitantsoa_event_draft_confirmation_preflight,
     get_hahitantsoa_shared_availability_item_previews,
 )
 from apps.inventory.models import InventoryItem
