@@ -49,6 +49,7 @@ The reviewer must check:
 - verdict
 - residual risk
 - deliverable location: chat or approved repository file
+- applicable bridge doc for non-Codex review agents
 
 A private-only report outside the repository must not be the sole deliverable.
 

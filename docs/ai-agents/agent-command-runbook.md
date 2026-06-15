@@ -2,6 +2,9 @@
 
 Repo-scoped Codex skills under [`.agents/skills/`](../../.agents/skills) may accelerate
 repetitive Codex tasks, but this runbook remains the canonical command source of truth.
+Cross-agent bridges live in [tooling/antigravity-workflow.md](tooling/antigravity-workflow.md),
+[tooling/opencode-workflow.md](tooling/opencode-workflow.md), and
+[cross-agent-compatibility.md](cross-agent-compatibility.md).
 
 ## Purpose
 

@@ -25,6 +25,8 @@ Use this document with:
 - One agent profile operates in one approved worktree scope at a time.
 - `.env`, secrets, `/tmp` script workflows, and unauthorized `chmod` remain forbidden
   across all profiles.
+- Review-only or plan-only profiles are not mutation-capable until explicit promotion plus
+  acceptance-test evidence are recorded.
 
 ## Required Live Baseline
 

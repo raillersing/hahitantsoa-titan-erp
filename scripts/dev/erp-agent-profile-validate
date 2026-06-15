@@ -27,19 +27,26 @@ required_fields=(
   "Merge/push policy"
 )
 
+cross_agent_files=(
+  "$REPO_ROOT/docs/ai-agents/cross-agent-compatibility.md"
+  "$REPO_ROOT/docs/ai-agents/cross-agent-acceptance-tests.md"
+  "$REPO_ROOT/docs/ai-agents/tooling/antigravity-workflow.md"
+  "$REPO_ROOT/docs/ai-agents/tooling/opencode-workflow.md"
+)
+
 if [ ! -f "$PROFILE_FILE" ]; then
   echo "ERROR: missing agent profile file: $PROFILE_FILE"
   exit 1
 fi
 
 for profile in "${required_profiles[@]}"; do
-  section="$(
+  section="$({
     awk -v heading="### \`$profile\`" '
       $0 == heading {inside=1; next}
       inside && /^### / {exit}
       inside {print}
     ' "$PROFILE_FILE"
-  )"
+  })"
 
   if [ -z "$section" ]; then
     echo "ERROR: missing agent profile: $profile"
@@ -54,6 +61,29 @@ for profile in "${required_profiles[@]}"; do
   done
 
   echo "OK profile: $profile"
+done
+
+for file in "${cross_agent_files[@]}"; do
+  if [ ! -f "$file" ]; then
+    echo "ERROR: missing cross-agent file: $file"
+    exit 1
+  fi
+done
+
+if [ ! -f "$REPO_ROOT/opencode.json" ]; then
+  echo "ERROR: missing opencode.json"
+  exit 1
+fi
+
+for token in antigravity-review-docs opencode-web-wsl-review opencode-desktop-windows-plan-only; do
+  if ! grep -R -F -- "$token" \
+    "$REPO_ROOT/docs/ai-agents/cross-agent-compatibility.md" \
+    "$REPO_ROOT/docs/ai-agents/cross-agent-acceptance-tests.md" \
+    "$REPO_ROOT/docs/ai-agents/tooling/antigravity-workflow.md" \
+    "$REPO_ROOT/docs/ai-agents/tooling/opencode-workflow.md" >/dev/null; then
+    echo "ERROR: missing cross-agent profile reference: $token"
+    exit 1
+  fi
 done
 
 echo "Agent profile validation completed."
