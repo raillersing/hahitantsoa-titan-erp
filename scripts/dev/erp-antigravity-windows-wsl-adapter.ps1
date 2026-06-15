@@ -4,7 +4,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet("task-start", "finalize-pr")]
+    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks")]
     [string]$Mode,
 
     [Parameter(Mandatory=$false)]
@@ -35,6 +35,12 @@ if ($Mode -eq "finalize-pr") {
         exit 2
     }
 }
+if ($Mode -eq "pr-checks") {
+    if (-not $PrNumber) {
+        Write-Error "PrNumber is required for pr-checks mode."
+        exit 2
+    }
+}
 
 # Construct the WSL path for the bash entrypoint
 $WslAdapterPath = "/home/raillersing/projects/hahitantsoa-titan-erp/scripts/dev/erp-antigravity-wsl-adapter"
@@ -53,6 +59,9 @@ if ($Mode -eq "finalize-pr") {
         $ArgList += "--allow"
         $ArgList += $path
     }
+}
+if ($Mode -eq "pr-checks") {
+    $ArgList += $PrNumber.ToString()
 }
 
 # Build a flat array for Start-Process to avoid parameter binding issues
