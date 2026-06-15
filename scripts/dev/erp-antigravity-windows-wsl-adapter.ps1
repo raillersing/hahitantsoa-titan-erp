@@ -40,7 +40,7 @@ if ($Mode -eq "finalize-pr") {
 $WslAdapterPath = "/home/raillersing/projects/hahitantsoa-titan-erp/scripts/dev/erp-antigravity-wsl-adapter"
 
 # Construct argv parameters without shell command interpolation
-$ArgList = @($WslAdapterPath, $Mode)
+$ArgList = @($Mode)
 
 if ($Mode -eq "finalize-pr") {
     $ArgList += $PrNumber.ToString()
@@ -55,8 +55,11 @@ if ($Mode -eq "finalize-pr") {
     }
 }
 
+# Build a flat array for Start-Process to avoid parameter binding issues
+$WslArgs = @("--distribution", "Ubuntu", "--exec", "/bin/bash", $WslAdapterPath) + $ArgList
+
 # Call wsl.exe using argv array safely
-$WslProcess = Start-Process -FilePath "wsl.exe" -ArgumentList "--distribution", "Ubuntu", "--exec", "/bin/bash", $ArgList -NoNewWindow -PassThru -Wait
+$WslProcess = Start-Process -FilePath "wsl.exe" -ArgumentList $WslArgs -NoNewWindow -PassThru -Wait
 
 if ($null -eq $WslProcess) {
     Write-Error "Failed to launch wsl.exe"
