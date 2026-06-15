@@ -32,8 +32,8 @@ referencing the current task state in
 - Independent review findings are resolved or explicitly escalated.
 - PR targets `main`; automatic merge is forbidden.
 - Required CI passes before human merge.
-- `main` is validated after merge.
-- `main` CI is green after merge.
+- `main` is validated after merge. The validation must be SHA-bound to the exact HEAD SHA of current main. Relying on the latest main CI run conclusion without HEAD SHA matching is a gate violation.
+- `main` CI is green after merge (the run matching current main HEAD SHA must be SUCCESS).
 - Human merge remains mandatory unless explicitly authorized.
 - When Codex is explicitly authorized to merge, it must use
   `scripts/dev/erp-pr-finalize-from-root` or an equivalent logged root-`main` command.

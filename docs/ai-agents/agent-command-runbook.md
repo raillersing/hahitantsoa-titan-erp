@@ -324,8 +324,10 @@ Stop conditions during CI wait:
 
 ### Post-merge main CI wait
 
-After the PR is merged, the agent must verify that the `main` branch CI passes before
-declaring the task complete.
+After the PR is merged, the agent must verify that the `main` branch CI passes before declaring the task complete.
+
+- **SHA-Bound Validation:** The main CI validation must be bound to the exact current main HEAD SHA. Relying merely on the "latest main CI success" is insufficient and unsafe because it could accept a successful run for a previous commit.
+- **Run Identification:** Identify the workflow run triggered for the exact post-merge HEAD SHA using `gh run list --branch main --event push --json databaseId,headSha` and filter by the SHA.
 
 Use:
 
@@ -333,15 +335,21 @@ Use:
 scripts/dev/erp-logged-run task-main-ci <<'EOF'
 set -euo pipefail
 
-gh run list --branch main --limit 5
-gh run watch RUN-ID --interval 15
+# Compute current main HEAD SHA
+current_main_sha="$(git rev-parse HEAD)"
+
+# Find CI run matching the exact SHA
+run_id="$(gh run list --branch main --event push --json databaseId,headSha --jq ".[] | select(.headSha == \"$current_main_sha\") | .databaseId" | head -n 1)"
+
+gh run view "$run_id" --json databaseId,headSha,status,conclusion,url
+gh run watch "$run_id" --interval 15
 EOF
 ```
 
-If `main` CI fails after merge:
+If `main` CI fails after merge, or the conclusion of the SHA-bound run is not success:
 
 - report the failure immediately with the run URL
-- do not start the next task until `main` CI is green
+- do not start the next task until `main` CI is green for the current HEAD SHA
 - escalate to the human for resolution
 
 The pre-merge and post-merge CI check is required for every mutating task that opens a
