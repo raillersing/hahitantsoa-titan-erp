@@ -244,7 +244,11 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         event_draft.save()
 
         for line_data in lines_data:
-            line = HahitantsoaEventDraftLine(event_draft=event_draft, **line_data)
+            line = HahitantsoaEventDraftLine(
+                event_draft=event_draft,
+                created_by=event_draft.created_by,
+                **line_data,
+            )
             line.full_clean()
             line.save()
 
@@ -270,12 +274,16 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
 
         if lines_data is not None:
             event_draft_lines = HahitantsoaEventDraftLine.objects.filter(event_draft=instance)
+            acting_user = instance.updated_by
+            updated_at = timezone.now()
             requested_item_ids = {str(line_data["inventory_item"].id) for line_data in lines_data}
             event_draft_lines.filter(is_deleted=False).exclude(
                 inventory_item_id__in=requested_item_ids
             ).update(
                 is_deleted=True,
-                deleted_at=timezone.now(),
+                deleted_at=updated_at,
+                updated_by=acting_user,
+                updated_at=updated_at,
             )
 
             existing_lines_by_item_id = {
@@ -289,7 +297,12 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                 line = existing_lines_by_item_id.get(str(inventory_item.id))
 
                 if line is None:
-                    line = HahitantsoaEventDraftLine(event_draft=instance, **line_data)
+                    line = HahitantsoaEventDraftLine(
+                        event_draft=instance,
+                        created_by=acting_user,
+                        updated_by=acting_user,
+                        **line_data,
+                    )
                     line.full_clean()
                     line.save()
                 else:
@@ -297,6 +310,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                     line.notes = line_data.get("notes", "")
                     line.is_deleted = False
                     line.deleted_at = None
+                    line.updated_by = acting_user
                     line.full_clean(validate_unique=False, validate_constraints=False)
                     line.save(
                         update_fields=[
@@ -304,6 +318,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                             "notes",
                             "is_deleted",
                             "deleted_at",
+                            "updated_by",
                             "updated_at",
                         ]
                     )

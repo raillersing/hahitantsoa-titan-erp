@@ -98,7 +98,11 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert payload["lines"][0]["inventory_item_kind"] == "article"
     assert HahitantsoaEventDraft.objects.count() == 1
     assert HahitantsoaEventDraftLine.objects.count() == 1
-    assert HahitantsoaEventDraft.objects.get().created_by is not None
+    draft = HahitantsoaEventDraft.objects.get()
+    line = HahitantsoaEventDraftLine.objects.get()
+    assert draft.created_by == authenticated_client.test_user
+    assert line.created_by == authenticated_client.test_user
+    assert line.updated_by is None
 
 
 def test_authenticated_user_can_read_event_draft_list_and_detail(authenticated_client) -> None:
@@ -162,6 +166,7 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
         inventory_item=first_item,
         quantity=1,
         notes="Initial line",
+        created_by=user,
     )
     availability_count = InventoryAvailability.objects.count()
 
@@ -189,9 +194,16 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     assert payload["lines"][0]["inventory_item_id"] == str(second_item.id)
     assert InventoryAvailability.objects.count() == availability_count
     draft.refresh_from_db()
+    first_line = draft.lines.get(inventory_item=first_item)
+    replacement_line = draft.lines.get(inventory_item=second_item)
     assert draft.updated_by == user
     assert draft.lines.filter(is_deleted=False).count() == 1
     assert draft.lines.filter(is_deleted=True).count() == 1
+    first_line.refresh_from_db()
+    replacement_line.refresh_from_db()
+    assert first_line.updated_by == user
+    assert replacement_line.created_by == user
+    assert replacement_line.updated_by == user
     assert list(
         draft.lines.filter(is_deleted=False).values_list("inventory_item_id", flat=True)
     ) == [second_item.id]
@@ -217,6 +229,7 @@ def test_event_draft_update_can_keep_same_item_without_inventory_write(
         inventory_item=item,
         quantity=1,
         notes="Initial line",
+        created_by=user,
     )
     availability_count = InventoryAvailability.objects.count()
 
@@ -248,6 +261,8 @@ def test_event_draft_update_can_keep_same_item_without_inventory_write(
     assert draft.lines.filter(is_deleted=False).count() == 1
     assert draft.lines.filter(is_deleted=True).count() == 0
     assert line.is_deleted is False
+    assert line.created_by == user
+    assert line.updated_by == user
     assert line.quantity == 4
     assert line.notes == "Updated line"
 
@@ -273,6 +288,7 @@ def test_event_draft_update_can_restore_previously_soft_deleted_item(
         inventory_item=first_item,
         quantity=1,
         notes="First line",
+        created_by=user,
     )
     availability_count = InventoryAvailability.objects.count()
 
@@ -322,8 +338,12 @@ def test_event_draft_update_can_restore_previously_soft_deleted_item(
     assert draft.lines.filter(is_deleted=True).count() == 1
     assert first_line.is_deleted is False
     assert first_line.deleted_at is None
+    assert first_line.created_by == user
+    assert first_line.updated_by == user
     assert first_line.quantity == 3
     assert first_line.notes == "Restored first line"
+    assert second_line.created_by == user
+    assert second_line.updated_by == user
     assert second_line.is_deleted is True
     assert second_line.deleted_at is not None
 
@@ -343,6 +363,7 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
         event_draft=draft,
         inventory_item=item,
         quantity=1,
+        created_by=user,
     )
     InventoryAvailability.objects.create(
         inventory_item=item,
@@ -365,6 +386,8 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
     assert draft.lines.filter(is_deleted=True).count() == 1
     assert line.is_deleted is True
     assert line.deleted_at is not None
+    assert line.created_by == user
+    assert line.updated_by == user
     assert InventoryAvailability.objects.count() == availability_count
     assert authenticated_client.get(EVENT_DRAFT_LIST_URL).json() == []
     assert authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/").status_code == 404
@@ -498,9 +521,12 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     assert delete_response.status_code == 404
     assert preview_response.status_code == 404
     draft.refresh_from_db()
+    line = draft.lines.get()
     assert draft.created_by == owner
     assert draft.updated_by != other_user
     assert draft.is_deleted is False
+    assert line.created_by != other_user
+    assert line.updated_by != other_user
 
 
 def test_event_draft_detail_hides_soft_deleted_lines_after_update(authenticated_client) -> None:
