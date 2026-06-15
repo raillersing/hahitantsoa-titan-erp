@@ -4,7 +4,8 @@
 
 set -Eeuo pipefail
 
-REPO_ROOT="/home/raillersing/projects/hahitantsoa-titan-erp"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
 if [ "$PWD" != "$REPO_ROOT" ]; then
@@ -335,6 +336,18 @@ if git status --short | grep -F "docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATIO
 else
   echo "F140D status: tracked/clean"
 fi
+EOF
+    ;;
+
+  frontend-quality)
+    if [ "$#" -ne 0 ]; then
+      echo "ERROR: frontend-quality mode accepts no extra parameters."
+      exit 2
+    fi
+    echo "INFO: Running frontend-quality check via erp-logged-run..."
+    scripts/dev/erp-logged-run frontend-quality <<'EOF'
+set -euo pipefail
+bash scripts/dev/erp-frontend-quality
 EOF
     ;;
 

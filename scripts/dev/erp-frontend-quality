@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# erp-frontend-quality
+# Audited entrypoint for frontend quality validation
+
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+if [ ! -f /.dockerenv ]; then
+  echo "INFO: Running frontend quality wrapper via Docker Compose..."
+  exec docker compose -f "$REPO_ROOT/compose.agent-ci.yaml" run --rm frontend-quality
+fi
+
+# Inside the Docker container, run the checks:
+cd "$REPO_ROOT/frontend"
+
+echo "========================================="
+echo "PHASE 1: Installing Dependencies (npm ci)"
+echo "========================================="
+if npm ci; then
+  echo "PHASE 1: PASS"
+else
+  echo "PHASE 1: FAIL"
+  exit 1
+fi
+
+echo "========================================="
+echo "PHASE 2: Running Vitest (npm run test)"
+echo "========================================="
+if npm run test; then
+  echo "PHASE 2: PASS"
+else
+  echo "PHASE 2: FAIL"
+  exit 1
+fi
+
+echo "========================================="
+echo "PHASE 3: TypeScript type check (tsc)"
+echo "========================================="
+if npx tsc --noEmit; then
+  echo "PHASE 3: PASS"
+else
+  echo "PHASE 3: FAIL"
+  exit 1
+fi
+
+echo "========================================="
+echo "PHASE 4: Vite production build (vite build)"
+echo "========================================="
+if npx vite build; then
+  echo "PHASE 4: PASS"
+else
+  echo "PHASE 4: FAIL"
+  exit 1
+fi
+
+echo "========================================="
+echo "ALL FRONTEND PHASES PASSED SUCCESSFULLY"
+echo "========================================="
