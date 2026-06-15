@@ -351,14 +351,20 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
         end_at=end_at,
     )
     availability_count = InventoryAvailability.objects.count()
+    line = draft.lines.get()
 
     response = authenticated_client.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
 
     assert response.status_code == 204
     draft.refresh_from_db()
+    line.refresh_from_db()
     assert draft.is_deleted is True
     assert draft.deleted_at is not None
     assert draft.updated_by == user
+    assert draft.lines.filter(is_deleted=False).count() == 0
+    assert draft.lines.filter(is_deleted=True).count() == 1
+    assert line.is_deleted is True
+    assert line.deleted_at is not None
     assert InventoryAvailability.objects.count() == availability_count
     assert authenticated_client.get(EVENT_DRAFT_LIST_URL).json() == []
     assert authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/").status_code == 404

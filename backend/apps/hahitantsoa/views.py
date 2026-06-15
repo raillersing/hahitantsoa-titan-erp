@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, inline_serializer
@@ -141,8 +142,14 @@ class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyA
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
 
+    @transaction.atomic
     def perform_destroy(self, instance):
+        deleted_at = timezone.now()
+        instance.lines.filter(is_deleted=False).update(
+            is_deleted=True,
+            deleted_at=deleted_at,
+        )
         instance.is_deleted = True
-        instance.deleted_at = timezone.now()
+        instance.deleted_at = deleted_at
         instance.updated_by = self.request.user
         instance.save(update_fields=["is_deleted", "deleted_at", "updated_by", "updated_at"])
