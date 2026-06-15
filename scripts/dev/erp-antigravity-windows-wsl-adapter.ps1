@@ -4,7 +4,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create")]
+    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create", "task-branch-start")]
     [string]$Mode,
 
     [Parameter(Mandatory=$false)]
@@ -29,7 +29,10 @@ param(
     [string]$PrTitle,
 
     [Parameter(Mandatory=$false)]
-    [string]$PrBody
+    [string]$PrBody,
+
+    [Parameter(Mandatory=$false)]
+    [string]$TaskBase = "main"
 )
 
 # Enforce parameters based on mode
@@ -75,6 +78,20 @@ if ($Mode -eq "pr-create") {
         exit 2
     }
 }
+if ($Mode -eq "task-branch-start") {
+    if (-not $TaskBranch) {
+        Write-Error "TaskBranch is required for task-branch-start mode."
+        exit 2
+    }
+    if ($TaskBranch -eq "main" -or $TaskBranch -eq "master") {
+        Write-Error "TaskBranch cannot be 'main' or 'master'."
+        exit 2
+    }
+    if ($TaskBase -ne "main") {
+        Write-Error "TaskBase must be 'main'."
+        exit 2
+    }
+}
 
 # Construct the WSL path for the bash entrypoint
 $WslAdapterPath = "/home/raillersing/projects/hahitantsoa-titan-erp/scripts/dev/erp-antigravity-wsl-adapter"
@@ -102,6 +119,15 @@ if ($Mode -eq "pr-create") {
     $ArgList += $PrBase
     $ArgList += $PrTitle
     $ArgList += $PrBody
+}
+if ($Mode -eq "task-branch-start") {
+    $ArgList += $TaskBranch
+    if ($TaskWorktree) {
+        $ArgList += "--task-worktree"
+        $ArgList += $TaskWorktree
+    }
+    $ArgList += "--task-base"
+    $ArgList += $TaskBase
 }
 
 # Build a flat array for Start-Process to avoid parameter binding issues
