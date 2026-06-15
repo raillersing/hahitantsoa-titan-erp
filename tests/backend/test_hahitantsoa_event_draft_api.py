@@ -192,9 +192,9 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     assert draft.updated_by == user
     assert draft.lines.filter(is_deleted=False).count() == 1
     assert draft.lines.filter(is_deleted=True).count() == 1
-    assert list(draft.lines.filter(is_deleted=False).values_list("inventory_item_id", flat=True)) == [
-        second_item.id
-    ]
+    assert list(
+        draft.lines.filter(is_deleted=False).values_list("inventory_item_id", flat=True)
+    ) == [second_item.id]
 
 
 def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticated_client) -> None:
