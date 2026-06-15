@@ -9,6 +9,7 @@ Use these two documents as the standard operational references for future tasks:
 - [`docs/ai-agents/agent-command-runbook.md`](docs/ai-agents/agent-command-runbook.md)
 - [`docs/ai-agents/agent-profiles.md`](docs/ai-agents/agent-profiles.md)
 - [`docs/ai-agents/orchestrator-task-queue.md`](docs/ai-agents/orchestrator-task-queue.md)
+- [`docs/ai-agents/cross-agent-compatibility.md`](docs/ai-agents/cross-agent-compatibility.md)
 
 Task prompts should stay short and reference these documents instead of copying large
 command blocks or queue state into every prompt.
@@ -135,6 +136,7 @@ The standard task ordering and current queue are defined in
 Repo-scoped Codex accelerators may live under
 [`/.agents/skills/`](.agents/skills), but they are optional helpers and never replace the
 canonical workflow docs above.
+Cross-agent tool bridges live in `docs/ai-agents/tooling/` and remain concise entry points, not replacement authorities.
 
 After merge of F138B/F138C on `main`, these official wrappers are required when
 applicable:

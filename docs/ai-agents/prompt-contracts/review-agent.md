@@ -22,6 +22,7 @@ Define a strict review-only prompt surface for non-mutating review agents.
 - `docs/ai-agents/review-agent-template.md`
 - `docs/ai-agents/parallel-agent-policy.md`
 - `docs/ai-agents/orchestrator-state.md`
+- `docs/ai-agents/tooling/antigravity-workflow.md` or `docs/ai-agents/tooling/opencode-workflow.md` when relevant
 
 ## Required Inputs
 

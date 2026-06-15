@@ -6,7 +6,8 @@ The orchestrator delegates only bounded micro-tasks. Each delegation packet must
 short, reference the official docs, and define one mutable scope.
 
 The orchestrator must assign one explicit agent profile from
-[`agent-profiles.md`](agent-profiles.md) before assigning a task.
+[`agent-profiles.md`](agent-profiles.md) before assigning a task. For non-Codex agents, the
+orchestrator must also choose the correct tool bridge from `docs/ai-agents/tooling/`.
 
 The orchestrator must not assume current state from static docs alone. A live baseline
 wins over stale docs and must be referenced when state-sensitive delegation decisions are

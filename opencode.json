@@ -1,0 +1,11 @@
+{
+  "instructions": [
+    "AGENTS.md",
+    "docs/ai-agents/agent-profiles.md",
+    "docs/ai-agents/prompt-contracts/agent-prompt-procedure.md",
+    "docs/ai-agents/agent-command-runbook.md",
+    "docs/ai-agents/review-agent-template.md",
+    "docs/ai-agents/cross-agent-compatibility.md",
+    "docs/ai-agents/tooling/opencode-workflow.md"
+  ]
+}
