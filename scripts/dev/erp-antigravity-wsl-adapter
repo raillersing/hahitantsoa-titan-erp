@@ -159,6 +159,68 @@ fi
 EOF
     ;;
 
+  pr-create)
+    PR_HEAD="${1:-}"
+    PR_BASE="${2:-}"
+    PR_TITLE="${3:-}"
+    PR_BODY="${4:-}"
+
+    if [ -z "$PR_HEAD" ]; then
+      echo "ERROR: missing PrHead."
+      exit 2
+    fi
+    if [ "$PR_HEAD" = "main" ] || [ "$PR_HEAD" = "master" ]; then
+      echo "ERROR: PrHead cannot be main or master."
+      exit 2
+    fi
+    if [ "$PR_BASE" != "main" ]; then
+      echo "ERROR: PrBase must be main."
+      exit 2
+    fi
+    if [ -z "$PR_TITLE" ]; then
+      echo "ERROR: missing PrTitle."
+      exit 2
+    fi
+    if [ -z "$PR_BODY" ]; then
+      echo "ERROR: missing PrBody."
+      exit 2
+    fi
+
+    # Pre-escape strings for heredoc safety
+    H_HEAD=$(printf '%q' "$PR_HEAD")
+    H_BASE=$(printf '%q' "$PR_BASE")
+    H_TITLE=$(printf '%q' "$PR_TITLE")
+    H_BODY=$(printf '%q' "$PR_BODY")
+
+    echo "INFO: Running PR creation via erp-logged-run..."
+    scripts/dev/erp-logged-run task-pr-create-adapter <<EOF
+set -euo pipefail
+PR_HEAD=$H_HEAD
+PR_BASE=$H_BASE
+PR_TITLE=$H_TITLE
+PR_BODY=$H_BODY
+
+echo "INFO: Confirming branch exists on origin..."
+if [ -z "\$(git ls-remote --heads origin "\$PR_HEAD")" ]; then
+  echo "ERROR: branch \$PR_HEAD does not exist on origin."
+  exit 1
+fi
+
+echo "INFO: Checking for existing open PR..."
+PR_EXISTING=\$(gh pr list --head "\$PR_HEAD" --base "\$PR_BASE" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+if [ -n "\$PR_EXISTING" ]; then
+  echo "INFO: Reusing existing open PR #\$PR_EXISTING"
+else
+  echo "INFO: Creating new PR..."
+  gh pr create --head "\$PR_HEAD" --base "\$PR_BASE" --title "\$PR_TITLE" --body "\$PR_BODY"
+fi
+
+echo "==== PR DETAILS ===="
+gh pr view "\$PR_HEAD" --json number,title,baseRefName,headRefName,state,mergeable,url --jq '"PR Number: \(.number)\nTitle: \(.title)\nBase: \(.baseRefName)\nHead: \(.headRefName)\nState: \(.state)\nMergeable: \(.mergeable)\nURL: \(.url)"'
+EOF
+    ;;
+
   *)
     echo "ERROR: unsupported adapter mode: $MODE"
     exit 2

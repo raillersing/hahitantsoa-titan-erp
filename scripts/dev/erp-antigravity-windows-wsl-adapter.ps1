@@ -4,7 +4,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks")]
+    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create")]
     [string]$Mode,
 
     [Parameter(Mandatory=$false)]
@@ -17,7 +17,19 @@ param(
     [string[]]$Allow,
 
     [Parameter(Mandatory=$false)]
-    [string]$TaskWorktree
+    [string]$TaskWorktree,
+
+    [Parameter(Mandatory=$false)]
+    [string]$PrHead,
+
+    [Parameter(Mandatory=$false)]
+    [string]$PrBase = "main",
+
+    [Parameter(Mandatory=$false)]
+    [string]$PrTitle,
+
+    [Parameter(Mandatory=$false)]
+    [string]$PrBody
 )
 
 # Enforce parameters based on mode
@@ -38,6 +50,28 @@ if ($Mode -eq "finalize-pr") {
 if ($Mode -eq "pr-checks") {
     if (-not $PrNumber) {
         Write-Error "PrNumber is required for pr-checks mode."
+        exit 2
+    }
+}
+if ($Mode -eq "pr-create") {
+    if (-not $PrHead) {
+        Write-Error "PrHead is required for pr-create mode."
+        exit 2
+    }
+    if ($PrHead -eq "main" -or $PrHead -eq "master") {
+        Write-Error "PrHead cannot be 'main' or 'master'."
+        exit 2
+    }
+    if ($PrBase -ne "main") {
+        Write-Error "PrBase must be 'main'."
+        exit 2
+    }
+    if (-not $PrTitle) {
+        Write-Error "PrTitle is required for pr-create mode."
+        exit 2
+    }
+    if (-not $PrBody) {
+        Write-Error "PrBody is required for pr-create mode."
         exit 2
     }
 }
@@ -62,6 +96,12 @@ if ($Mode -eq "finalize-pr") {
 }
 if ($Mode -eq "pr-checks") {
     $ArgList += $PrNumber.ToString()
+}
+if ($Mode -eq "pr-create") {
+    $ArgList += $PrHead
+    $ArgList += $PrBase
+    $ArgList += $PrTitle
+    $ArgList += $PrBody
 }
 
 # Build a flat array for Start-Process to avoid parameter binding issues
