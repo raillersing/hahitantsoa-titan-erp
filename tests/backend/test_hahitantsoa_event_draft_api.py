@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from django.test import Client
 from django.utils import timezone
 
 from apps.customers.models import Customer
@@ -13,12 +14,26 @@ EVENT_DRAFT_LIST_URL = "/api/v1/hahitantsoa/event-drafts/"
 
 
 @pytest.fixture
-def authenticated_client(client, django_user_model):
+def authenticated_client(django_user_model):
+    client = Client()
     user = django_user_model.objects.create_user(
         username="hahitantsoa-event-draft-user",
         password="test-password",
     )
     client.force_login(user)
+    client.test_user = user
+    return client
+
+
+@pytest.fixture
+def authenticated_client_two(django_user_model):
+    client = Client()
+    user = django_user_model.objects.create_user(
+        username="hahitantsoa-event-draft-user-two",
+        password="test-password",
+    )
+    client.force_login(user)
+    client.test_user = user
     return client
 
 
@@ -83,15 +98,18 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert payload["lines"][0]["inventory_item_kind"] == "article"
     assert HahitantsoaEventDraft.objects.count() == 1
     assert HahitantsoaEventDraftLine.objects.count() == 1
+    assert HahitantsoaEventDraft.objects.get().created_by is not None
 
 
 def test_authenticated_user_can_read_event_draft_list_and_detail(authenticated_client) -> None:
     start_at, end_at = _period()
+    user = authenticated_client.test_user
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Planning event",
         start_at=start_at,
         end_at=end_at,
+        created_by=user,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -127,6 +145,7 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     authenticated_client,
 ) -> None:
     start_at, end_at = _period()
+    user = authenticated_client.test_user
     customer = _customer()
     first_item = _item(name="Shared article", kind="article")
     second_item = _item(name="Shared material", kind="material")
@@ -136,6 +155,7 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
         start_at=start_at,
         end_at=end_at,
         notes="Initial notes",
+        created_by=user,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -167,16 +187,20 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     assert payload["venue_name"] == "Updated venue"
     assert payload["lines"][0]["inventory_item_id"] == str(second_item.id)
     assert InventoryAvailability.objects.count() == availability_count
+    draft.refresh_from_db()
+    assert draft.updated_by == user
 
 
 def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticated_client) -> None:
     start_at, end_at = _period()
+    user = authenticated_client.test_user
     item = _item()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Delete forbidden",
         start_at=start_at,
         end_at=end_at,
+        created_by=user,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -197,6 +221,7 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
     draft.refresh_from_db()
     assert draft.is_deleted is True
     assert draft.deleted_at is not None
+    assert draft.updated_by == user
     assert InventoryAvailability.objects.count() == availability_count
     assert authenticated_client.get(EVENT_DRAFT_LIST_URL).json() == []
     assert authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/").status_code == 404
@@ -210,6 +235,7 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
 
 def test_authenticated_user_can_read_event_draft_availability_preview(authenticated_client) -> None:
     start_at, end_at = _period()
+    user = authenticated_client.test_user
     available_item = _item(name="Available shared article", kind="article")
     blocked_item = _item(name="Blocked shared material", kind="material")
     draft = HahitantsoaEventDraft.objects.create(
@@ -217,6 +243,7 @@ def test_authenticated_user_can_read_event_draft_availability_preview(authentica
         event_name="Preview event",
         start_at=start_at,
         end_at=end_at,
+        created_by=user,
     )
     available_line = HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -256,6 +283,7 @@ def test_event_draft_availability_preview_returns_404_for_soft_deleted_draft(
     authenticated_client,
 ) -> None:
     start_at, end_at = _period()
+    user = authenticated_client.test_user
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Hidden preview",
@@ -263,6 +291,7 @@ def test_event_draft_availability_preview_returns_404_for_soft_deleted_draft(
         end_at=end_at,
         is_deleted=True,
         deleted_at=timezone.now(),
+        created_by=user,
     )
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/")
@@ -272,13 +301,60 @@ def test_event_draft_availability_preview_returns_404_for_soft_deleted_draft(
 
 def test_event_draft_availability_preview_rejects_write_methods(authenticated_client) -> None:
     start_at, end_at = _period()
+    user = authenticated_client.test_user
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Readonly preview",
         start_at=start_at,
         end_at=end_at,
+        created_by=user,
     )
 
     response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/")
 
     assert response.status_code == 405
+
+
+def test_second_user_cannot_list_read_update_delete_or_preview_another_users_draft(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    start_at, end_at = _period()
+    owner = authenticated_client.test_user
+    other_user = authenticated_client_two.test_user
+    item = _item()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Private event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=owner,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=item,
+        quantity=1,
+    )
+
+    list_response = authenticated_client_two.get(EVENT_DRAFT_LIST_URL)
+    detail_response = authenticated_client_two.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
+    update_response = authenticated_client_two.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data={"event_name": "Should stay hidden"},
+        content_type="application/json",
+    )
+    delete_response = authenticated_client_two.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
+    preview_response = authenticated_client_two.get(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/"
+    )
+
+    assert list_response.status_code == 200
+    assert list_response.json() == []
+    assert detail_response.status_code == 404
+    assert update_response.status_code == 404
+    assert delete_response.status_code == 404
+    assert preview_response.status_code == 404
+    draft.refresh_from_db()
+    assert draft.created_by == owner
+    assert draft.updated_by != other_user
+    assert draft.is_deleted is False
