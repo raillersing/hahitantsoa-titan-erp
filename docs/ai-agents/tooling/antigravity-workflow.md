@@ -41,6 +41,8 @@ Antigravity operates in one of the following environment modes:
   Direct unwrapped execution is a protocol violation.
 - Deliverables belong in chat and/or approved repo docs only.
 - Codex skills may be read as reference runbooks only.
+- The docs-only mutation pilot may not finalize PRs.
+- No `gh pr merge` usage from Antigravity temporary worktrees.
 
 ## Baseline Behavior
 

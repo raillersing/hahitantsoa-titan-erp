@@ -81,6 +81,8 @@ If static docs disagree with the live baseline:
   - chat report and/or approved repo docs
 - Merge/push policy:
   - only when explicitly authorized by the task
+  - PR finalization is root-main only via `scripts/dev/erp-pr-finalize-from-root` or an
+    equivalent logged command from `/home/raillersing/projects/hahitantsoa-titan-erp`
 
 ### `antigravity-review-docs`
 
@@ -182,6 +184,7 @@ If static docs disagree with the live baseline:
 - Merge/push policy:
   - no commit, no push, no merge
   - requires human or Codex validation before any PR is created or integrated
+  - may not finalize PRs under the docs-only mutation pilot
 
 ### `opencode-web-wsl-review`
 
@@ -209,6 +212,7 @@ If static docs disagree with the live baseline:
 - Merge/push policy:
   - no merge
   - push only if explicitly authorized
+  - review agents must not finalize PRs
 
 ### `opencode-desktop-windows-plan-only`
 

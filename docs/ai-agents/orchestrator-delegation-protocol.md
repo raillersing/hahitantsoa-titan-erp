@@ -30,6 +30,7 @@ Every delegated micro-task should include:
 - required scripts and validations
 - required report format
 - explicit stop conditions
+- whether PR creation and PR finalization are separate phases
 
 ## Minimal prompt structure
 
@@ -73,6 +74,7 @@ Final report:
 - validations
 - findings or blockers
 - PR URL if opened
+- if finalized: merge commit, main CI result, cleanup result
 ```
 
 ## Backend agent delegation
@@ -107,7 +109,8 @@ Final report:
 - scripts to use: `erp-worktree-preflight agent-tools` only when a docs task also owns
   script wrappers; otherwise plain status and diff checks are enough
 - report format: files changed, validation commands, references updated, open questions
-- stop rules: stop if a shared index file is already owned by another live task
+- stop rules: stop if a shared index file is already owned by another live task; stop if
+  the task tries to finalize a PR outside root `main`
 
 ## Tools agent delegation
 

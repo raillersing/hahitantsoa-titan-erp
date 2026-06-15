@@ -103,5 +103,5 @@ Merge/push policy:
 - commit: <yes/no>
 - push: <yes/no>
 - open PR: <yes/no>
-- merge: no unless explicitly authorized
+- merge: no unless explicitly authorized; if yes, root-main only via `scripts/dev/erp-pr-finalize-from-root`
 ```

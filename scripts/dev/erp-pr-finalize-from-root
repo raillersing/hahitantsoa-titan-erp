@@ -1,0 +1,303 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+PR_REF=""
+TASK_WORKTREE=""
+TASK_BRANCH=""
+ALLOWLIST_FILE=""
+declare -a ALLOWLIST_PATHS=()
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-pr-finalize-from-root <pr-number-or-url> [options]
+
+Options:
+  --task-worktree <path>     Remove this task worktree after main CI succeeds.
+  --task-branch <branch>     Delete this local and remote branch after worktree removal.
+  --allow <path>             Allow one changed file path. Repeat as needed.
+  --allowlist-file <file>    Read allowed changed file paths from a newline-delimited file.
+  --help                     Show this help.
+
+Purpose:
+  Finalize a PR from the main-root worktree only by:
+  - requiring execution from /home/raillersing/projects/hahitantsoa-titan-erp
+  - requiring the current branch to be main
+  - requiring PR state OPEN unless already MERGED
+  - requiring mergeable=MERGEABLE before merge
+  - requiring required PR checks success before merge
+  - validating PR changed files when an allowlist is provided
+  - merging with gh pr merge --squash and without --delete-branch
+  - syncing main with fetch plus pull --ff-only
+  - waiting for the post-merge main CI run tied to the merged HEAD
+  - removing the optional task worktree only after main CI succeeds
+  - deleting the optional local and remote branch only after worktree removal
+  - pruning stale worktree metadata
+  - printing final git status, worktree list, and open PRs
+
+Notes:
+  This helper never reads, sources, prints, copies, or creates .env.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --task-worktree)
+      shift
+      TASK_WORKTREE="${1:-}"
+      ;;
+    --task-branch)
+      shift
+      TASK_BRANCH="${1:-}"
+      ;;
+    --allow)
+      shift
+      ALLOWLIST_PATHS+=("${1:-}")
+      ;;
+    --allowlist-file)
+      shift
+      ALLOWLIST_FILE="${1:-}"
+      ;;
+    --help|-h|help)
+      print_usage
+      exit 0
+      ;;
+    -*)
+      echo "ERROR: unknown option: $1"
+      print_usage
+      exit 2
+      ;;
+    *)
+      if [ -n "$PR_REF" ]; then
+        echo "ERROR: only one PR reference may be provided"
+        print_usage
+        exit 2
+      fi
+      PR_REF="$1"
+      ;;
+  esac
+  shift
+done
+
+if [ -z "$PR_REF" ]; then
+  print_usage
+  exit 2
+fi
+
+require_option_value() {
+  local name="$1"
+  local value="$2"
+  if [ -z "$value" ] || [[ "$value" == --* ]]; then
+    echo "ERROR: missing value for $name"
+    exit 2
+  fi
+}
+
+if [ -n "$TASK_WORKTREE" ]; then
+  require_option_value "--task-worktree" "$TASK_WORKTREE"
+fi
+if [ -n "$TASK_BRANCH" ]; then
+  require_option_value "--task-branch" "$TASK_BRANCH"
+fi
+if [ -n "$ALLOWLIST_FILE" ]; then
+  require_option_value "--allowlist-file" "$ALLOWLIST_FILE"
+fi
+
+pwd_root="$(pwd -P)"
+if [ "$pwd_root" != "$REPO_ROOT" ]; then
+  echo "ERROR: helper must run from repository root: $REPO_ROOT"
+  exit 1
+fi
+
+if [ "$REPO_ROOT" != "/home/raillersing/projects/hahitantsoa-titan-erp" ]; then
+  echo "ERROR: helper is restricted to /home/raillersing/projects/hahitantsoa-titan-erp"
+  exit 1
+fi
+
+current_branch="$(git branch --show-current 2>/dev/null || true)"
+if [ "$current_branch" != "main" ]; then
+  echo "ERROR: helper requires current branch main"
+  exit 1
+fi
+
+git fetch origin --prune
+git pull --ff-only origin main
+
+if [ -n "$ALLOWLIST_FILE" ]; then
+  if [ ! -f "$ALLOWLIST_FILE" ]; then
+    echo "ERROR: allowlist file not found: $ALLOWLIST_FILE"
+    exit 1
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ""|\#*) continue ;;
+      *) ALLOWLIST_PATHS+=("$line") ;;
+    esac
+  done < "$ALLOWLIST_FILE"
+fi
+
+if [ -n "$TASK_WORKTREE" ] && [ ! -d "$TASK_WORKTREE" ]; then
+  echo "ERROR: task worktree path not found: $TASK_WORKTREE"
+  exit 1
+fi
+
+pr_number="$(gh pr view "$PR_REF" --json number --jq '.number')"
+pr_url="$(gh pr view "$PR_REF" --json url --jq '.url')"
+pr_state="$(gh pr view "$PR_REF" --json state --jq '.state')"
+pr_mergeable="$(gh pr view "$PR_REF" --json mergeable --jq '.mergeable')"
+pr_head_branch="$(gh pr view "$PR_REF" --json headRefName --jq '.headRefName')"
+pr_base_branch="$(gh pr view "$PR_REF" --json baseRefName --jq '.baseRefName')"
+pr_title="$(gh pr view "$PR_REF" --json title --jq '.title')"
+
+if [ "$pr_base_branch" != "main" ]; then
+  echo "ERROR: PR #$pr_number does not target main"
+  exit 1
+fi
+
+if [ -z "$TASK_BRANCH" ]; then
+  TASK_BRANCH="$pr_head_branch"
+fi
+
+if [ "$pr_state" != "OPEN" ] && [ "$pr_state" != "MERGED" ]; then
+  echo "ERROR: PR #$pr_number must be OPEN unless already MERGED; got $pr_state"
+  exit 1
+fi
+
+if [ "${#ALLOWLIST_PATHS[@]}" -gt 0 ]; then
+  mapfile -t pr_files < <(gh pr diff "$pr_number" --name-only | sed '/^$/d')
+  if [ "${#pr_files[@]}" -eq 0 ]; then
+    echo "ERROR: PR #$pr_number has no changed files to validate"
+    exit 1
+  fi
+
+  for changed_file in "${pr_files[@]}"; do
+    allowed=0
+    for allowed_path in "${ALLOWLIST_PATHS[@]}"; do
+      if [ "$changed_file" = "$allowed_path" ]; then
+        allowed=1
+        break
+      fi
+    done
+    if [ "$allowed" -ne 1 ]; then
+      echo "ERROR: PR file outside allowlist: $changed_file"
+      exit 1
+    fi
+  done
+fi
+
+merge_commit=""
+main_ci_run_id=""
+main_ci_url=""
+post_merge_head=""
+
+if [ "$pr_state" = "OPEN" ]; then
+  if [ "$pr_mergeable" != "MERGEABLE" ]; then
+    echo "ERROR: PR #$pr_number is not mergeable: $pr_mergeable"
+    exit 1
+  fi
+
+  if ! gh pr checks "$pr_number" --required; then
+    echo "ERROR: PR #$pr_number required checks are not green"
+    exit 1
+  fi
+
+  before_main_head="$(git rev-parse HEAD)"
+
+  gh pr merge "$pr_number" --squash
+
+  git fetch origin --prune
+  git pull --ff-only origin main
+
+  post_merge_head="$(git rev-parse HEAD)"
+  if [ "$post_merge_head" = "$before_main_head" ]; then
+    echo "ERROR: main did not advance after merge"
+    exit 1
+  fi
+else
+  git fetch origin --prune
+  git pull --ff-only origin main
+  post_merge_head="$(git rev-parse HEAD)"
+fi
+
+merge_commit="$post_merge_head"
+
+for _ in $(seq 1 30); do
+  main_ci_run_id="$(
+    gh run list \
+      --branch main \
+      --event push \
+      --json databaseId,headSha,url \
+      --limit 20 \
+      --jq ".[] | select(.headSha == \"$post_merge_head\") | .databaseId" \
+      | head -n 1
+  )"
+  main_ci_url="$(
+    gh run list \
+      --branch main \
+      --event push \
+      --json databaseId,headSha,url \
+      --limit 20 \
+      --jq ".[] | select(.headSha == \"$post_merge_head\") | .url" \
+      | head -n 1
+  )"
+  if [ -n "$main_ci_run_id" ]; then
+    break
+  fi
+  sleep 5
+done
+
+if [ -z "$main_ci_run_id" ]; then
+  echo "ERROR: unable to find main CI run for HEAD $post_merge_head"
+  exit 1
+fi
+
+gh run watch "$main_ci_run_id" --interval 10 --exit-status
+
+if [ -n "$TASK_WORKTREE" ]; then
+  scripts/dev/erp-worktree-clean-after-merge --apply "$TASK_BRANCH"
+  if [ -d "$TASK_WORKTREE" ]; then
+    echo "ERROR: task worktree still exists after cleanup: $TASK_WORKTREE"
+    exit 1
+  fi
+fi
+
+if [ -n "$TASK_BRANCH" ]; then
+  if [ -n "$TASK_WORKTREE" ] && [ -d "$TASK_WORKTREE" ]; then
+    echo "ERROR: task worktree still exists; refusing branch deletion"
+    exit 1
+  fi
+
+  if git rev-parse --verify "refs/heads/$TASK_BRANCH" >/dev/null 2>&1; then
+    git branch -d "$TASK_BRANCH"
+  fi
+
+  if git ls-remote --exit-code --heads origin "$TASK_BRANCH" >/dev/null 2>&1; then
+    git push origin --delete "$TASK_BRANCH"
+  fi
+fi
+
+git worktree prune
+
+echo "FINALIZED_PR: #$pr_number"
+echo "PR_TITLE: $pr_title"
+echo "PR_URL: $pr_url"
+echo "MERGE_COMMIT: $merge_commit"
+echo "MAIN_CI_RUN_ID: $main_ci_run_id"
+echo "MAIN_CI_URL: ${main_ci_url:-unavailable}"
+
+echo
+echo "==== FINAL GIT STATUS ===="
+git status --short
+
+echo
+echo "==== FINAL WORKTREE LIST ===="
+git worktree list
+
+echo
+echo "==== FINAL OPEN PRS ===="
+gh pr list --state open --limit 20
