@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
@@ -5,7 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.hahitantsoa.models import HahitantsoaEventDraft
+from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
@@ -81,7 +82,14 @@ def active_hahitantsoa_event_drafts():
     return (
         HahitantsoaEventDraft.objects.filter(is_deleted=False)
         .select_related("customer")
-        .prefetch_related("lines__inventory_item")
+        .prefetch_related(
+            Prefetch(
+                "lines",
+                queryset=HahitantsoaEventDraftLine.objects.filter(is_deleted=False).select_related(
+                    "inventory_item"
+                ),
+            )
+        )
         .order_by("-created_at", "public_reference")
     )
 

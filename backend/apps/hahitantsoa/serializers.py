@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.customers.models import Customer
@@ -249,6 +250,14 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
 
         return event_draft
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation["lines"] = HahitantsoaEventDraftLineSerializer(
+            instance.lines.filter(is_deleted=False).select_related("inventory_item"),
+            many=True,
+        ).data
+        return representation
+
     @transaction.atomic
     def update(self, instance, validated_data):
         lines_data = validated_data.pop("lines", None)
@@ -260,7 +269,10 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         instance.save()
 
         if lines_data is not None:
-            instance.lines.all().delete()
+            instance.lines.filter(is_deleted=False).update(
+                is_deleted=True,
+                deleted_at=timezone.now(),
+            )
             for line_data in lines_data:
                 line = HahitantsoaEventDraftLine(event_draft=instance, **line_data)
                 line.full_clean()
