@@ -24,7 +24,7 @@ referencing the current task state in
 - Important commands ran through `scripts/dev/erp-logged-run` heredoc workflow.
 - Focused tests or documentation checks pass when applicable.
 - `git diff --check` passes.
-- All scripts under `scripts/dev/` that were created or modified have the executable bit set.
+- All scripts under `scripts/dev/` that were created or modified have the executable bit set. Directly executed repo helpers must have the executable bit set. Helpers called from another script may be explicitly invoked through bash. Cleanup permission failures (exit code 126) must stop safely and produce an actionable recovery path.
 - CI wait policy followed: pre-merge CI green confirmed before merge; post-merge `main` CI
   green confirmed after merge.
 - Root-only finalization policy followed: merge from the main-root worktree only, never

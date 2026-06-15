@@ -287,7 +287,7 @@ fi
 gh run watch "$main_ci_run_id" --interval 10 --exit-status
 
 if [ -n "$TASK_WORKTREE" ]; then
-  scripts/dev/erp-worktree-clean-after-merge --apply "$TASK_BRANCH"
+  bash scripts/dev/erp-worktree-clean-after-merge --apply "$TASK_BRANCH"
   if [ -d "$TASK_WORKTREE" ]; then
     echo "ERROR: task worktree still exists after cleanup: $TASK_WORKTREE"
     exit 1

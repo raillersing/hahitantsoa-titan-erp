@@ -352,8 +352,12 @@ PR. Review-only and plan-only tasks are exempt.
 Script files under `scripts/dev/` must have the executable bit set when:
 
 - they are written as `#!/usr/bin/env bash` or other shebang-executed scripts
-- they are intended to be run directly by an agent or CI workflow
+- they are intended to be run directly by an agent or CI workflow (directly executed repo helpers must have the executable bit set)
 - they are referenced as standalone commands in runbook examples
+
+*Invoking Helpers:*
+- Helpers called from another script or orchestrator workflow may be invoked explicitly through bash (e.g. `bash scripts/dev/helper-name`) to prevent execution failures due to missing shebang/permissions.
+- If a cleanup or finalization permission failure is encountered (e.g. exit code 126), the script must stop safely, log the error, and produce an actionable recovery path (e.g. suggesting the operator run `chmod +x` or invoke via bash).
 
 When a new script is created or an existing script is modified, verify the executable bit:
 
