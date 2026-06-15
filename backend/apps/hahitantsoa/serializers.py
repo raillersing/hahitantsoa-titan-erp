@@ -5,7 +5,9 @@ from apps.customers.models import Customer
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.hahitantsoa.services import (
+    HahitantsoaEventDraftAvailabilityPreview,
     HahitantsoaSharedAvailabilityItemPreview,
+    get_hahitantsoa_event_draft_availability_preview,
     get_hahitantsoa_shared_availability_item_previews,
 )
 from apps.inventory.models import InventoryItem
@@ -79,6 +81,59 @@ class HahitantsoaSharedAvailabilityResponseSerializer(serializers.Serializer):
                 "items": item_serializer.data,
                 "count": len(item_serializer.data),
             }
+        )
+
+
+class HahitantsoaEventDraftAvailabilityLinePreviewSerializer(serializers.Serializer):
+    event_draft_line_id = serializers.UUIDField()
+    quantity = serializers.IntegerField()
+    inventory_item_id = serializers.UUIDField()
+    inventory_item_name = serializers.CharField()
+    inventory_item_kind = serializers.CharField()
+    status = serializers.CharField()
+    conflict_count = serializers.IntegerField()
+
+
+class HahitantsoaEventDraftAvailabilityPreviewSerializer(serializers.Serializer):
+    event_draft_id = serializers.UUIDField()
+    public_reference = serializers.CharField()
+    start_at = serializers.DateTimeField()
+    end_at = serializers.DateTimeField()
+    line_count = serializers.IntegerField()
+    available_line_count = serializers.IntegerField()
+    unavailable_line_count = serializers.IntegerField()
+    lines = HahitantsoaEventDraftAvailabilityLinePreviewSerializer(many=True)
+
+    @classmethod
+    def from_preview(cls, preview: HahitantsoaEventDraftAvailabilityPreview):
+        return cls(
+            {
+                "event_draft_id": preview.event_draft_id,
+                "public_reference": preview.public_reference,
+                "start_at": preview.start_at,
+                "end_at": preview.end_at,
+                "line_count": preview.line_count,
+                "available_line_count": preview.available_line_count,
+                "unavailable_line_count": preview.unavailable_line_count,
+                "lines": [
+                    {
+                        "event_draft_line_id": line.event_draft_line_id,
+                        "quantity": line.quantity,
+                        "inventory_item_id": line.inventory_item_id,
+                        "inventory_item_name": line.inventory_item_name,
+                        "inventory_item_kind": line.inventory_item_kind,
+                        "status": line.status,
+                        "conflict_count": line.conflict_count,
+                    }
+                    for line in preview.lines
+                ],
+            }
+        )
+
+    @classmethod
+    def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
+        return cls.from_preview(
+            get_hahitantsoa_event_draft_availability_preview(event_draft=event_draft)
         )
 
 
@@ -218,6 +273,8 @@ __all__ = [
     "HahitantsoaDiscoveryItemSerializer",
     "HahitantsoaSharedAvailabilityItemPreviewSerializer",
     "HahitantsoaSharedAvailabilityResponseSerializer",
+    "HahitantsoaEventDraftAvailabilityLinePreviewSerializer",
+    "HahitantsoaEventDraftAvailabilityPreviewSerializer",
     "HahitantsoaEventDraftLineSerializer",
     "HahitantsoaEventDraftSerializer",
     "ReservationAvailabilityPreviewRequestSerializer",

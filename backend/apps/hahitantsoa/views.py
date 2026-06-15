@@ -9,6 +9,7 @@ from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBou
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
+    HahitantsoaEventDraftAvailabilityPreviewSerializer,
     HahitantsoaEventDraftSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
@@ -91,6 +92,21 @@ class HahitantsoaEventDraftListCreateAPIView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return active_hahitantsoa_event_drafts()
+
+
+class HahitantsoaEventDraftAvailabilityPreviewAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(responses=HahitantsoaEventDraftAvailabilityPreviewSerializer)
+    def get(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(active_hahitantsoa_event_drafts(), pk=pk)
+        response_serializer = HahitantsoaEventDraftAvailabilityPreviewSerializer.from_event_draft(
+            event_draft=event_draft
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
