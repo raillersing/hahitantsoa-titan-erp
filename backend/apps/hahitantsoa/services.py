@@ -7,6 +7,8 @@ from apps.inventory.models import InventoryItem
 from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+    RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
+    RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
 )
 from apps.reservations.periods import ReservationPeriod, make_reservation_period
 from apps.reservations.preview import ReservationItemPreview, preview_reservation_item_request
@@ -133,6 +135,19 @@ def _append_blocker(*, blockers: list[str], blocker: str) -> None:
         blockers.append(blocker)
 
 
+def _is_contract_signed(*, event_draft: HahitantsoaEventDraft) -> bool:
+    return (
+        event_draft.contract_signed_at is not None and event_draft.contract_signed_by_id is not None
+    )
+
+
+def _is_required_deposit_received(*, event_draft: HahitantsoaEventDraft) -> bool:
+    return (
+        event_draft.required_deposit_received_at is not None
+        and event_draft.required_deposit_received_by_id is not None
+    )
+
+
 def get_hahitantsoa_event_draft_confirmation_preflight(
     *,
     event_draft: HahitantsoaEventDraft,
@@ -203,6 +218,34 @@ def get_hahitantsoa_event_draft_confirmation_preflight(
             _append_blocker(
                 blockers=blockers,
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
+            )
+
+    if not _is_contract_signed(event_draft=event_draft):
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
+        )
+        if (
+            event_draft.contract_signed_at is not None
+            or event_draft.contract_signed_by_id is not None
+        ):
+            _append_blocker(
+                blockers=blockers,
+                blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+            )
+
+    if not _is_required_deposit_received(event_draft=event_draft):
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
+        )
+        if (
+            event_draft.required_deposit_received_at is not None
+            or event_draft.required_deposit_received_by_id is not None
+        ):
+            _append_blocker(
+                blockers=blockers,
+                blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
             )
 
     return HahitantsoaEventDraftConfirmationPreflight(
