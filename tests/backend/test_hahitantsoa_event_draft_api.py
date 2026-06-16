@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 
 import pytest
@@ -993,6 +994,79 @@ def test_second_user_cannot_access_another_users_amendment_requests(
     assert list_response.status_code == 404
     assert create_response.status_code == 404
     assert detail_response.status_code == 404
+
+
+def test_owner_can_update_amendment_request_metadata_without_side_effects(
+    authenticated_client,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        reason="Initial reason",
+        notes="Initial notes",
+        created_by=owner,
+    )
+    inventory_availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+    original_updated_at = amendment_request.updated_at
+
+    response = authenticated_client.patch(
+        _amendment_request_detail_url(draft.id, amendment_request.id),
+        data={
+            "reason": "Updated reason",
+            "notes": "Updated notes",
+            "status": "confirmed",
+            "event_draft_id": str(uuid.uuid4()),
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["id"] == str(amendment_request.id)
+    assert payload["reason"] == "Updated reason"
+    assert payload["notes"] == "Updated notes"
+    assert payload["status"] == "draft"
+    assert payload["event_draft_id"] == str(draft.id)
+    amendment_request.refresh_from_db()
+    draft.refresh_from_db()
+    assert amendment_request.reason == "Updated reason"
+    assert amendment_request.notes == "Updated notes"
+    assert amendment_request.status == "draft"
+    assert amendment_request.event_draft_id == draft.id
+    assert amendment_request.updated_by == owner
+    assert amendment_request.updated_at >= original_updated_at
+    assert draft.status == "confirmed"
+    assert InventoryAvailability.objects.count() == inventory_availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_second_user_cannot_update_another_users_amendment_request(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        reason="Owner-only",
+        created_by=owner,
+    )
+
+    response = authenticated_client_two.patch(
+        _amendment_request_detail_url(draft.id, amendment_request.id),
+        data={"reason": "Blocked"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+    amendment_request.refresh_from_db()
+    assert amendment_request.reason == "Owner-only"
 
 
 def test_authenticated_user_can_confirm_own_event_draft(

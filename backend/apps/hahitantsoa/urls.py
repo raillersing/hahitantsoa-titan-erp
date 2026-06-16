@@ -4,7 +4,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaDiscoveryItemsAPIView,
     HahitantsoaEventDraftAmendmentPreflightAPIView,
     HahitantsoaEventDraftAmendmentRequestListCreateAPIView,
-    HahitantsoaEventDraftAmendmentRequestRetrieveAPIView,
+    HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView,
     HahitantsoaEventDraftAvailabilityPreviewAPIView,
     HahitantsoaEventDraftConfirmAPIView,
     HahitantsoaEventDraftConfirmationPreflightAPIView,
@@ -56,7 +56,7 @@ urlpatterns = [
     ),
     path(
         "event-drafts/<uuid:event_draft_pk>/amendment-requests/<uuid:pk>/",
-        HahitantsoaEventDraftAmendmentRequestRetrieveAPIView.as_view(),
+        HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView.as_view(),
         name="hahitantsoa-event-draft-amendment-request-detail",
     ),
     path(

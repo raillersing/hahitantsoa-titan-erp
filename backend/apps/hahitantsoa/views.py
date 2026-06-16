@@ -20,6 +20,7 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaEventDraftAmendmentRequestCreateSerializer,
     HahitantsoaEventDraftAmendmentRequestResultSerializer,
     HahitantsoaEventDraftAmendmentRequestSerializer,
+    HahitantsoaEventDraftAmendmentRequestUpdateSerializer,
     HahitantsoaEventDraftAvailabilityPreviewSerializer,
     HahitantsoaEventDraftConfirmationPreflightSerializer,
     HahitantsoaEventDraftConfirmationResultSerializer,
@@ -248,11 +249,15 @@ class HahitantsoaEventDraftAmendmentRequestListCreateAPIView(generics.ListCreate
         return Response(payload.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
-class HahitantsoaEventDraftAmendmentRequestRetrieveAPIView(generics.RetrieveAPIView):
-    http_method_names = ["get", "head", "options"]
+class HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
+    http_method_names = ["get", "put", "patch", "head", "options"]
     permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
-    serializer_class = HahitantsoaEventDraftAmendmentRequestSerializer
     lookup_field = "pk"
+
+    def get_serializer_class(self):
+        if self.request.method in {"PUT", "PATCH"}:
+            return HahitantsoaEventDraftAmendmentRequestUpdateSerializer
+        return HahitantsoaEventDraftAmendmentRequestSerializer
 
     def get_queryset(self):
         return (
@@ -263,6 +268,22 @@ class HahitantsoaEventDraftAmendmentRequestRetrieveAPIView(generics.RetrieveAPIV
             .select_related("event_draft")
             .order_by("created_at", "id")
         )
+
+    @extend_schema(
+        request=HahitantsoaEventDraftAmendmentRequestUpdateSerializer,
+        responses={200: HahitantsoaEventDraftAmendmentRequestSerializer},
+    )
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        payload = HahitantsoaEventDraftAmendmentRequestSerializer(serializer.instance)
+        return Response(payload.data, status=status.HTTP_200_OK)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
 
 
 class HahitantsoaEventDraftConfirmAPIView(APIView):

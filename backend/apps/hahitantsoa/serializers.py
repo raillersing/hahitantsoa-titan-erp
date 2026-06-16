@@ -247,6 +247,12 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
         return result.amendment_request
 
 
+class HahitantsoaEventDraftAmendmentRequestUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HahitantsoaEventDraftAmendmentRequest
+        fields = ("reason", "notes")
+
+
 class HahitantsoaEventDraftAmendmentRequestResultSerializer(serializers.Serializer):
     amendment_request = HahitantsoaEventDraftAmendmentRequestSerializer()
 
@@ -470,6 +476,7 @@ __all__ = [
     "HahitantsoaEventDraftAmendmentRequestCreateSerializer",
     "HahitantsoaEventDraftAmendmentRequestResultSerializer",
     "HahitantsoaEventDraftAmendmentRequestSerializer",
+    "HahitantsoaEventDraftAmendmentRequestUpdateSerializer",
     "HahitantsoaSharedAvailabilityItemPreviewSerializer",
     "HahitantsoaSharedAvailabilityResponseSerializer",
     "HahitantsoaEventDraftAvailabilityLinePreviewSerializer",
