@@ -3,6 +3,7 @@ from django.urls import path
 from apps.hahitantsoa.views import (
     HahitantsoaDiscoveryItemsAPIView,
     HahitantsoaEventDraftAvailabilityPreviewAPIView,
+    HahitantsoaEventDraftConfirmAPIView,
     HahitantsoaEventDraftConfirmationPreflightAPIView,
     HahitantsoaEventDraftListCreateAPIView,
     HahitantsoaEventDraftRetrieveUpdateAPIView,
@@ -39,5 +40,10 @@ urlpatterns = [
         "event-drafts/<uuid:pk>/confirmation-preflight/",
         HahitantsoaEventDraftConfirmationPreflightAPIView.as_view(),
         name="hahitantsoa-event-draft-confirmation-preflight",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/confirm/",
+        HahitantsoaEventDraftConfirmAPIView.as_view(),
+        name="hahitantsoa-event-draft-confirm",
     ),
 ]
