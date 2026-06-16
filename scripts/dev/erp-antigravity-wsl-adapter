@@ -573,11 +573,12 @@ set -euo pipefail
 COMMIT_SHA=$H_SHA
 BRANCH=$H_BRANCH
 WATCH_MODE=$H_WATCH
+FIELD_SEP=$'\x1f'
 
 REMOTE_URL=\$(git remote get-url origin)
 REPO_SLUG=\$(printf '%s\n' "\$REMOTE_URL" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git\$##')
 
-RUN_RECORD=\$(gh api "repos/\$REPO_SLUG/actions/runs?branch=\$BRANCH&event=push&per_page=100" --jq '(.workflow_runs | map(select(.head_sha == "'"$COMMIT_SHA"'" and .name == "CI")) | first) as \$run | if \$run == null then "" else [\$run.id, \$run.name, \$run.status, (\$run.conclusion // ""), \$run.head_sha, \$run.html_url] | @tsv end' 2>/dev/null || true)
+RUN_RECORD=\$(gh api "repos/\$REPO_SLUG/actions/runs?branch=\$BRANCH&event=push&per_page=100" --jq ".workflow_runs | map(select(.head_sha == \"$COMMIT_SHA\" and .name == \"CI\")) | first | if . == null then \"\" else [(.id | tostring), .name, .status, (.conclusion // \"\"), .head_sha, .html_url] | join(\"\\u001f\") end" 2>/dev/null || true)
 
 if [ -z "\$RUN_RECORD" ]; then
   echo "MAIN_CI_RUN_NOT_FOUND"
@@ -586,7 +587,7 @@ if [ -z "\$RUN_RECORD" ]; then
   exit 4
 fi
 
-IFS=\$'\t' read -r RUN_ID WORKFLOW_NAME RUN_STATUS RUN_CONCLUSION HEAD_SHA RUN_URL <<< "\$RUN_RECORD"
+IFS=\$FIELD_SEP read -r RUN_ID WORKFLOW_NAME RUN_STATUS RUN_CONCLUSION HEAD_SHA RUN_URL <<< "\$RUN_RECORD"
 
 if [ "\$HEAD_SHA" != "\$COMMIT_SHA" ]; then
   echo "MAIN_CI_HEAD_SHA_MISMATCH"
@@ -603,8 +604,8 @@ fi
 
 if [ "\$WATCH_MODE" = "1" ] && { [ "\$RUN_STATUS" = "queued" ] || [ "\$RUN_STATUS" = "in_progress" ] || [ "\$RUN_STATUS" = "pending" ]; }; then
   gh run watch "\$RUN_ID" --compact --exit-status
-  RUN_RECORD=\$(gh run view "\$RUN_ID" --json databaseId,workflowName,status,conclusion,headSha,url --jq '[.databaseId, .workflowName, .status, (.conclusion // ""), .headSha, .url] | @tsv')
-  IFS=\$'\t' read -r RUN_ID WORKFLOW_NAME RUN_STATUS RUN_CONCLUSION HEAD_SHA RUN_URL <<< "\$RUN_RECORD"
+  RUN_RECORD=\$(gh run view "\$RUN_ID" --json databaseId,workflowName,status,conclusion,headSha,url --jq '[(.databaseId | tostring), .workflowName, .status, (.conclusion // ""), .headSha, .url] | join("\u001f")')
+  IFS=\$FIELD_SEP read -r RUN_ID WORKFLOW_NAME RUN_STATUS RUN_CONCLUSION HEAD_SHA RUN_URL <<< "\$RUN_RECORD"
 fi
 
 echo "Requested Commit SHA: \$COMMIT_SHA"
