@@ -594,6 +594,12 @@ fieldset:disabled {
   color: hsl(200, 95%, 20%) !important;
 }
 
+.info-notice {
+  background-color: hsl(210, 100%, 98%) !important;
+  border-left: 5px solid hsl(210, 95%, 45%) !important;
+  color: hsl(210, 95%, 20%) !important;
+}
+
 .notice {
   display: flex;
   align-items: center;
