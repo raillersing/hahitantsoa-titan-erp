@@ -69,6 +69,13 @@ class InventoryAvailability(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
         on_delete=models.SET_NULL,
         related_name="inventory_availability_blocks",
     )
+    hahitantsoa_event_draft = models.ForeignKey(
+        "hahitantsoa.HahitantsoaEventDraft",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="inventory_availability_blocks",
+    )
     status = models.CharField(max_length=32, choices=InventoryAvailabilityStatus.choices)
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
