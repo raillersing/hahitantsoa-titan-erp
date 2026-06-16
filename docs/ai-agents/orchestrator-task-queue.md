@@ -10,31 +10,101 @@
 
 ## Active Backend Task
 
-### F135B
+### F145A
 
 Status:
 - active backend task
 
 Scope:
-- private reservation confirmation API only
-- backend-focused implementation and validation
-- no frontend feature broadening
+- source-traced commercial operations completion plan only
+- docs/task-queue updates only
+- no backend business-code implementation
+- no frontend modification
 
 Expected worktree:
 - backend-dedicated worktree only
 
 Stop conditions:
-- any required change in `frontend/`
+- any required frontend change
+- any required backend business-code implementation
 - any need to inspect or use `.env`
-- any unapproved contract, payment, or document workflow expansion
-- any migration or endpoint broadening beyond approved F135B scope
+- any missing legal/fiscal/business source that would force invention
+- any touch to F140D, quarantine, or unrelated worktrees
 
 Expected validation:
-- backend static checks
-- backend focused tests
+- `git diff --check`
+- `bash scripts/dev/erp-task-queue-validate` when queue changes
+- docs validation when present
+- Agent F docs review
+- Agent B final review
+- PR CI green before merge
+- main CI green after merge
+
+## Backend Next Task
+
+### F145B
+
+Status:
+- next backend task after F145A approval
+
+Scope:
+- documents runtime and commercial artifact completion
+- backend-only implementation
+- no frontend modification
+
+Expected worktree:
+- backend-dedicated worktree only
+
+Stop conditions:
+- any required frontend change
+- any fiscal/payment rule invention
+- any `.env` interaction
+- any scope drift into logistics, payment, returns, or unrelated frontend work
+
+Expected validation:
+- backend-focused quality checks
+- focused document/runtime tests
 - `git diff --check`
 - PR CI green before merge
 - main CI green after merge
+
+## Backend Follow-Up Queue
+
+### F145C
+
+Status:
+- queued after F145B
+
+Scope:
+- billing and payment foundation
+- backend-only implementation
+
+### F145D
+
+Status:
+- queued after F145C
+
+Scope:
+- stock movement and logistics foundation
+- backend-only implementation
+
+### F145E
+
+Status:
+- queued after F145D
+
+Scope:
+- returns and damage/loss foundation
+- backend-only implementation
+
+### F145F
+
+Status:
+- queued after F145E
+
+Scope:
+- end-to-end commercial acceptance
+- backend-only implementation unless separately approved otherwise
 
 ## Frontend Next Task
 
