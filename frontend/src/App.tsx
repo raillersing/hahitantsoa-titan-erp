@@ -74,6 +74,8 @@ function App() {
   const [inventoryState, setInventoryState] = useState<InventoryState>({
     status: "loading",
   });
+  const [prefillEventName, setPrefillEventName] = useState("");
+  const [prefillVenueName, setPrefillVenueName] = useState("");
 
   const activeModule =
     MODULES.find((moduleDefinition) => moduleDefinition.scope === activeScope) ??
@@ -227,11 +229,18 @@ function App() {
             </>
           ) : (
             <>
-              <HahitantsoaDiscoveryPanel />
+              <HahitantsoaDiscoveryPanel
+                onSelectConcept={(eventName, venueName) => {
+                  setPrefillEventName(eventName);
+                  setPrefillVenueName(venueName);
+                }}
+              />
               <HahitantsoaEventDraftsPanel
                 inventoryItems={
                   inventoryState.status === "loaded" ? inventoryState.items : []
                 }
+                prefillEventName={prefillEventName}
+                prefillVenueName={prefillVenueName}
               />
             </>
           )}

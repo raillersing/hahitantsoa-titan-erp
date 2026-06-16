@@ -601,6 +601,30 @@ describe("HahitantsoaEventDraftsPanel", () => {
     // Verify Check Amendment Preflight remains enabled
     expect(screen.getByRole("button", { name: "Check Amendment Preflight" })).not.toBeDisabled();
   });
+
+  it("populates default values when prefill props are provided", async () => {
+    mockHahitantsoaFetch();
+    render(
+      <HahitantsoaEventDraftsPanel
+        inventoryItems={INVENTORY_ITEMS}
+        prefillEventName="Custom Festival"
+        prefillVenueName="Grand Arena"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    // Verify draft creation inputs
+    const inputs = screen.getAllByLabelText("Event Name");
+    // Find the input which has the prefill value
+    const prefilledInput = inputs.find((inp) => (inp as HTMLInputElement).value === "Custom Festival");
+    expect(prefilledInput).toBeInTheDocument();
+
+    const venueInput = screen.getByLabelText("Venue Name");
+    expect(venueInput).toHaveValue("Grand Arena");
+  });
 });
 
 

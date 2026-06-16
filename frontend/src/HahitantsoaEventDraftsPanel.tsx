@@ -59,6 +59,8 @@ type ActionState =
 
 type HahitantsoaEventDraftsPanelProps = {
   inventoryItems?: InventoryItem[];
+  prefillEventName?: string;
+  prefillVenueName?: string;
 };
 
 type DraftLineInput = {
@@ -94,6 +96,8 @@ function defaultPeriod(): { startAt: string; endAt: string } {
 
 export function HahitantsoaEventDraftsPanel({
   inventoryItems = [],
+  prefillEventName = "",
+  prefillVenueName = "",
 }: HahitantsoaEventDraftsPanelProps) {
   const [draftListState, setDraftListState] = useState<DraftListState>({
     status: "loading",
@@ -132,15 +136,28 @@ export function HahitantsoaEventDraftsPanel({
 
   // New Draft Form State
   const initialPeriod = defaultPeriod();
-  const [newEventName, setNewEventName] = useState("");
+  const [newEventName, setNewEventName] = useState(prefillEventName);
   const [newCustomerId, setNewCustomerId] = useState("");
-  const [newVenueName, setNewVenueName] = useState("");
+  const [newVenueName, setNewVenueName] = useState(prefillVenueName);
   const [newLocationDetails, setNewLocationDetails] = useState("");
   const [newServiceNotes, setNewServiceNotes] = useState("");
   const [newStartAt, setNewStartAt] = useState(initialPeriod.startAt);
   const [newEndAt, setNewEndAt] = useState(initialPeriod.endAt);
   const [newNotes, setNewNotes] = useState("");
   const [newLineInputs, setNewLineInputs] = useState<DraftLineInput[]>([]);
+
+  // Effect to adopt prefills when they change
+  useEffect(() => {
+    if (prefillEventName) {
+      setNewEventName(prefillEventName);
+    }
+  }, [prefillEventName]);
+
+  useEffect(() => {
+    if (prefillVenueName) {
+      setNewVenueName(prefillVenueName);
+    }
+  }, [prefillVenueName]);
 
   // Update State
   const [editEventName, setEditEventName] = useState("");

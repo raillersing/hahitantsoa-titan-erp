@@ -8,7 +8,11 @@ type DiscoveryState =
   | { status: "loaded"; items: HahitantsoaDiscoveryItem[]; count: number }
   | { status: "error"; message: string };
 
-function HahitantsoaDiscoveryPanel() {
+type HahitantsoaDiscoveryPanelProps = {
+  onSelectConcept?: (eventName: string, venueName: string) => void;
+};
+
+function HahitantsoaDiscoveryPanel({ onSelectConcept }: HahitantsoaDiscoveryPanelProps) {
   const [discoveryState, setDiscoveryState] = useState<DiscoveryState>({
     status: "loading",
   });
@@ -51,8 +55,7 @@ function HahitantsoaDiscoveryPanel() {
           <p className="eyebrow">Hahitantsoa discovery</p>
           <h2 id="hahitantsoa-discovery-heading">Complete-event concepts</h2>
           <p className="section-helper">
-            Read-only discovery and planning. This surface does not create reservations,
-            contracts or commercial workflows.
+            Read-only discovery and planning. Select and adopt concepts directly to populate drafts.
           </p>
         </div>
         {discoveryState.status === "loaded" ? <span>{discoveryState.count}</span> : null}
@@ -84,6 +87,15 @@ function HahitantsoaDiscoveryPanel() {
               <li key={item.concept}>
                 <span>{item.label}</span>
                 <strong>{item.concept}</strong>
+                {onSelectConcept && (
+                  <button
+                    type="button"
+                    className="adopt-concept-btn"
+                    onClick={() => onSelectConcept(`${item.label} Event`, `${item.label} Hall`)}
+                  >
+                    Adopt Concept
+                  </button>
+                )}
               </li>
             ))}
           </ul>

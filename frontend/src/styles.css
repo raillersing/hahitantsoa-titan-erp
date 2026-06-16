@@ -733,5 +733,27 @@ fieldset:disabled {
   padding-top: 24px;
 }
 
+.discovery-list li {
+  position: relative;
+}
+
+.adopt-concept-btn {
+  margin-top: 10px;
+  min-height: 32px;
+  border: 1px solid #22483a;
+  border-radius: 6px;
+  background: #22483a;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: background-color 0.15s ease;
+}
+
+.adopt-concept-btn:hover {
+  background: #18352a;
+}
+
+
 
 
