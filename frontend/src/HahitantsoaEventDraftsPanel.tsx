@@ -81,6 +81,18 @@ function toDateTimeLocalValue(date: Date): string {
     .slice(0, 16);
 }
 
+const AMENDMENT_BLOCKER_LABELS: Record<string, string> = {
+  draft_not_confirmed_for_amendment: "This draft has not been confirmed yet. Amendment is only available on confirmed drafts.",
+  draft_not_found: "This draft could not be found. It may have been deleted.",
+  draft_has_no_active_lines: "This draft has no active lines. Add line items before attempting an amendment.",
+  draft_period_invalid: "The draft period is invalid. Correct the start and end dates before amending.",
+  user_not_owner: "You are not the owner of this draft. Only the owner may request an amendment.",
+};
+
+function formatBlockerLabel(blocker: string): string {
+  return AMENDMENT_BLOCKER_LABELS[blocker] ?? blocker;
+}
+
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -994,7 +1006,17 @@ export function HahitantsoaEventDraftsPanel({
             <p className="status">Running amendment preflight checks...</p>
           )}
           {amendmentPreflightState.status === "error" && (
-            <p className="status error">{amendmentPreflightState.message}</p>
+            <div className="notice error-notice" role="alert">
+              <h4>Amendment Preflight Failed</h4>
+              <p>{amendmentPreflightState.message}</p>
+              <button
+                type="button"
+                onClick={() => handleCheckAmendmentPreflight(draftDetailState.draft.id)}
+                disabled={isDisabled}
+              >
+                Retry Preflight Check
+              </button>
+            </div>
           )}
           {amendmentPreflightState.status === "loaded" && (
             <div
@@ -1020,7 +1042,7 @@ export function HahitantsoaEventDraftsPanel({
                     <strong>Blockers:</strong>
                     <ul style={{ marginTop: "0.25rem", paddingLeft: "1.2rem" }}>
                       {amendmentPreflightState.preflight.blockers.map((blocker, idx) => (
-                        <li key={idx}>{blocker}</li>
+                        <li key={idx}>{formatBlockerLabel(blocker)}</li>
                       ))}
                     </ul>
                   </div>
@@ -1033,7 +1055,18 @@ export function HahitantsoaEventDraftsPanel({
             <h3>Amendment Requests</h3>
 
             {amendmentRequestsLoading && <p className="status">Loading amendment requests...</p>}
-            {amendmentRequestsError && <p className="status error">{amendmentRequestsError}</p>}
+            {amendmentRequestsError && (
+              <div className="notice error-notice" role="alert">
+                <p>{amendmentRequestsError}</p>
+                <button
+                  type="button"
+                  onClick={() => fetchAmendmentRequests(draftDetailState.draft.id)}
+                  disabled={isDisabled}
+                >
+                  Retry Loading Requests
+                </button>
+              </div>
+            )}
 
             {!amendmentRequestsLoading && amendmentRequests.length === 0 && (
               <p className="no-amendments-text">No amendment requests found for this draft.</p>
@@ -1117,6 +1150,21 @@ export function HahitantsoaEventDraftsPanel({
 
             <div className="create-amendment-section">
               <h4>Create Amendment Request</h4>
+              {amendmentPreflightState.status === "idle" && (
+                <p className="amendment-preflight-hint">
+                  Run the amendment preflight check above to verify this draft is eligible before submitting a request.
+                </p>
+              )}
+              {amendmentPreflightState.status === "loaded" && !amendmentPreflightState.preflight.can_amend && (
+                <p className="amendment-preflight-blocked">
+                  Amendment is currently blocked. See the preflight report above for details.
+                </p>
+              )}
+              {amendmentPreflightState.status === "loaded" && amendmentPreflightState.preflight.can_amend && (
+                <p className="amendment-preflight-ready">
+                  This draft is eligible for amendment. Fill in the form below to submit a request.
+                </p>
+              )}
               <form onSubmit={(e) => handleCreateAmendmentRequest(e, draftDetailState.draft.id)} className="availability-form">
                 <label>
                   Reason

@@ -956,6 +956,43 @@ fieldset:disabled {
   border-top: 1px dashed #cbd5e1;
 }
 
+/* Amendment Preflight Contextual Notices */
+.amendment-preflight-hint {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: hsl(220, 20%, 96%);
+  border-left: 3px solid hsl(220, 50%, 60%);
+  border-radius: 0 6px 6px 0;
+  color: hsl(220, 20%, 35%);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.amendment-preflight-blocked {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: hsl(346, 30%, 96%);
+  border-left: 3px solid hsl(346, 70%, 55%);
+  border-radius: 0 6px 6px 0;
+  color: hsl(346, 50%, 35%);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.amendment-preflight-ready {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: hsl(140, 30%, 95%);
+  border-left: 3px solid hsl(140, 60%, 40%);
+  border-radius: 0 6px 6px 0;
+  color: hsl(140, 50%, 25%);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+
 
 
 
