@@ -87,6 +87,33 @@ def _payload(customer: Customer, item: InventoryItem) -> dict:
     }
 
 
+def _confirmed_draft(*, user, item: InventoryItem) -> HahitantsoaEventDraft:
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(name="Confirmed draft customer"),
+        event_name="Confirmed event",
+        start_at=start_at,
+        end_at=end_at,
+        status="confirmed",
+        contract_signed_at=timezone.now(),
+        contract_signed_by=user,
+        required_deposit_received_at=timezone.now(),
+        required_deposit_received_by=user,
+        confirmed_at=timezone.now(),
+        confirmed_by=user,
+        created_by=user,
+        updated_by=user,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        created_by=user,
+        updated_by=user,
+    )
+    return draft
+
+
 def test_hahitantsoa_event_draft_list_rejects_unauthenticated_user(client) -> None:
     response = client.get(EVENT_DRAFT_LIST_URL)
 
@@ -813,6 +840,105 @@ def test_event_draft_confirm_returns_preflight_blockers_without_mutating_state(
     assert draft.status == "draft"
     assert draft.confirmed_at is None
     assert InventoryAvailability.objects.count() == availability_count
+
+
+def test_confirmed_event_draft_patch_is_rejected_without_inventory_mutation(
+    authenticated_client,
+) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    item = _item(name="Confirmed shared article", kind="article")
+    draft = _confirmed_draft(user=user, item=item)
+    availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+
+    response = authenticated_client.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data={"event_name": "Should not update"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "confirmed_draft_is_immutable"
+    draft.refresh_from_db()
+    assert draft.event_name == "Confirmed event"
+    assert draft.status == "confirmed"
+    assert draft.is_deleted is False
+    assert InventoryAvailability.objects.count() == availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_confirmed_event_draft_put_is_rejected_without_inventory_mutation(
+    authenticated_client,
+) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    original_item = _item(name="Original confirmed article", kind="article")
+    replacement_item = _item(name="Replacement confirmed material", kind="material")
+    draft = _confirmed_draft(user=user, item=original_item)
+    availability_count = InventoryAvailability.objects.count()
+
+    response = authenticated_client.put(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data=_payload(draft.customer, replacement_item),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "confirmed_draft_is_immutable"
+    draft.refresh_from_db()
+    assert draft.status == "confirmed"
+    assert draft.event_name == "Confirmed event"
+    assert InventoryAvailability.objects.count() == availability_count
+    assert draft.lines.filter(is_deleted=False).count() == 1
+    assert draft.lines.get().inventory_item_id == original_item.id
+
+
+def test_confirmed_event_draft_delete_is_rejected_without_inventory_mutation(
+    authenticated_client,
+) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=user, item=_item())
+    availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+
+    response = authenticated_client.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "confirmed_draft_is_immutable"
+    draft.refresh_from_db()
+    assert draft.status == "confirmed"
+    assert draft.is_deleted is False
+    assert draft.deleted_at is None
+    assert draft.lines.filter(is_deleted=False).count() == 1
+    assert InventoryAvailability.objects.count() == availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_second_user_gets_404_for_confirmed_event_draft_mutations(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item())
+
+    detail_response = authenticated_client_two.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
+    update_response = authenticated_client_two.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data={"event_name": "Hidden"},
+        content_type="application/json",
+    )
+    delete_response = authenticated_client_two.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
+
+    assert detail_response.status_code == 404
+    assert update_response.status_code == 404
+    assert delete_response.status_code == 404
 
 
 def test_second_user_cannot_list_read_update_delete_or_preview_another_users_draft(
