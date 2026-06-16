@@ -100,6 +100,7 @@ function mockHahitantsoaFetch(options: {
   failDelete?: boolean;
   failPreview?: boolean;
   failPreflight?: boolean;
+  failConfirm?: boolean;
   preflightCanConfirm?: boolean;
   preflightBlockers?: string[];
 } = {}) {
@@ -143,6 +144,18 @@ function mockHahitantsoaFetch(options: {
       if (url.endsWith("/confirmation-preflight/")) {
         return Promise.resolve(
           options.failPreflight ? jsonResponse({}, 500) : jsonResponse(preflightPayload)
+        );
+      }
+      if (url.endsWith("/confirm/")) {
+        return Promise.resolve(
+          options.failConfirm
+            ? jsonResponse({ detail: "Confirmation failed due to business conflicts." }, 400)
+            : jsonResponse({
+                status: "confirmed",
+                public_reference: DRAFTS[0].public_reference,
+                blocked_item_count: 0,
+                event_draft: DRAFTS[0],
+              })
         );
       }
       if (init?.method === "DELETE") {
@@ -416,6 +429,58 @@ describe("HahitantsoaEventDraftsPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByText("The requested data could not be loaded.")).toBeInTheDocument();
+    });
+  });
+
+  it("handles confirm draft success", async () => {
+    mockHahitantsoaFetch({ preflightCanConfirm: true });
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    // Run Preflight Check
+    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+
+    // Preflight loaded, confirm button should show
+    const confirmButton = await screen.findByRole("button", { name: "Confirm Event Draft" });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/confirmed successfully!/i)).toBeInTheDocument();
+    });
+  });
+
+  it("handles confirm draft failure", async () => {
+    mockHahitantsoaFetch({ preflightCanConfirm: true, failConfirm: true });
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    // Run Preflight Check
+    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+
+    // Preflight loaded, confirm button should show
+    const confirmButton = await screen.findByRole("button", { name: "Confirm Event Draft" });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Confirmation failed due to business conflicts.");
     });
   });
 });

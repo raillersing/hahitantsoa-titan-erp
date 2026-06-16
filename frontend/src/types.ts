@@ -203,4 +203,11 @@ export type HahitantsoaEventDraftConfirmationPreflight = {
   unavailable_line_count: number;
 };
 
+export type HahitantsoaEventDraftConfirmationResult = {
+  status: string;
+  public_reference: string;
+  blocked_item_count: number;
+  event_draft: HahitantsoaEventDraft;
+};
+
 
