@@ -860,6 +860,22 @@ fieldset:disabled {
   line-height: 1.6;
 }
 
+/* Validation Feedback Standardized Styles */
+.invalid-input-highlight {
+  border-color: hsl(346, 84%, 50%) !important;
+  background-color: hsl(346, 100%, 99%) !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2) !important;
+}
+
+.field-error-text {
+  display: block;
+  margin-top: 4px;
+  color: hsl(346, 84%, 40%) !important;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+
 
 
 

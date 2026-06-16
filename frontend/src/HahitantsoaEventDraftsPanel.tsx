@@ -10,6 +10,7 @@ import {
   getHahitantsoaEventDraftConfirmationPreflight,
   getHahitantsoaEventDraftAmendmentPreflight,
   confirmHahitantsoaEventDraft,
+  ApiError,
 } from "./api";
 import type {
   Customer,
@@ -110,6 +111,7 @@ export function HahitantsoaEventDraftsPanel({
   const [actionState, setActionState] = useState<ActionState>({
     status: "idle",
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
 
   const [preflightState, setPreflightState] = useState<PreflightState>({
     status: "idle",
@@ -201,6 +203,7 @@ export function HahitantsoaEventDraftsPanel({
 
   const handleCreateDraft = async (e: FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
     if (!newEventName) {
       setActionState({ status: "error", message: "Event name is required." });
       return;
@@ -253,6 +256,9 @@ export function HahitantsoaEventDraftsPanel({
       setNewLineInputs([]);
       fetchDrafts();
     } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(err.errors);
+      }
       setActionState({
         status: "error",
         message: err instanceof Error ? err.message : "Failed to create draft.",
@@ -265,6 +271,7 @@ export function HahitantsoaEventDraftsPanel({
     setAvailabilityPreviewState({ status: "idle" });
     setPreflightState({ status: "idle" });
     setAmendmentPreflightState({ status: "idle" });
+    setFieldErrors({});
     try {
       const draft = await getHahitantsoaEventDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
@@ -293,6 +300,7 @@ export function HahitantsoaEventDraftsPanel({
 
   const handleUpdateDraft = async (e: FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
     if (draftDetailState.status !== "loaded") return;
     const draftId = draftDetailState.draft.id;
 
@@ -344,6 +352,9 @@ export function HahitantsoaEventDraftsPanel({
         handleCheckAmendmentPreflight(draftId);
       }
     } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(err.errors);
+      }
       setActionState({
         status: "error",
         message: err instanceof Error ? err.message : "Failed to update draft.",
@@ -355,6 +366,7 @@ export function HahitantsoaEventDraftsPanel({
     if (!window.confirm("Are you sure you want to delete this event draft?"))
       return;
 
+    setFieldErrors({});
     setActionState({ status: "loading" });
     try {
       await deleteHahitantsoaEventDraft(draftId);
@@ -365,6 +377,9 @@ export function HahitantsoaEventDraftsPanel({
       setAmendmentPreflightState({ status: "idle" });
       fetchDrafts();
     } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(err.errors);
+      }
       setActionState({
         status: "error",
         message: err instanceof Error ? err.message : "Failed to delete draft.",
@@ -594,61 +609,124 @@ export function HahitantsoaEventDraftsPanel({
               Event Name
               <input
                 type="text"
+                className={fieldErrors.event_name ? "invalid-input-highlight" : ""}
                 value={editEventName}
-                onChange={(e) => setEditEventName(e.target.value)}
+                onChange={(e) => {
+                  setEditEventName(e.target.value);
+                  if (fieldErrors.event_name) {
+                    setFieldErrors(curr => ({ ...curr, event_name: undefined }));
+                  }
+                }}
                 disabled={formDisabled}
               />
+              {fieldErrors.event_name && (
+                <span className="field-error-text" role="alert">{fieldErrors.event_name.join(", ")}</span>
+              )}
             </label>
             <label>
               Venue Name
               <input
                 type="text"
+                className={fieldErrors.venue_name ? "invalid-input-highlight" : ""}
                 value={editVenueName}
-                onChange={(e) => setEditVenueName(e.target.value)}
+                onChange={(e) => {
+                  setEditVenueName(e.target.value);
+                  if (fieldErrors.venue_name) {
+                    setFieldErrors(curr => ({ ...curr, venue_name: undefined }));
+                  }
+                }}
                 disabled={formDisabled}
               />
+              {fieldErrors.venue_name && (
+                <span className="field-error-text" role="alert">{fieldErrors.venue_name.join(", ")}</span>
+              )}
             </label>
             <label>
               Location Details
               <textarea
+                className={fieldErrors.location_details ? "invalid-input-highlight" : ""}
                 value={editLocationDetails}
-                onChange={(e) => setEditLocationDetails(e.target.value)}
+                onChange={(e) => {
+                  setEditLocationDetails(e.target.value);
+                  if (fieldErrors.location_details) {
+                    setFieldErrors(curr => ({ ...curr, location_details: undefined }));
+                  }
+                }}
                 disabled={formDisabled}
               />
+              {fieldErrors.location_details && (
+                <span className="field-error-text" role="alert">{fieldErrors.location_details.join(", ")}</span>
+              )}
             </label>
             <label>
               Service Notes
               <textarea
+                className={fieldErrors.service_notes ? "invalid-input-highlight" : ""}
                 value={editServiceNotes}
-                onChange={(e) => setEditServiceNotes(e.target.value)}
+                onChange={(e) => {
+                  setEditServiceNotes(e.target.value);
+                  if (fieldErrors.service_notes) {
+                    setFieldErrors(curr => ({ ...curr, service_notes: undefined }));
+                  }
+                }}
                 disabled={formDisabled}
               />
+              {fieldErrors.service_notes && (
+                <span className="field-error-text" role="alert">{fieldErrors.service_notes.join(", ")}</span>
+              )}
             </label>
             <label>
               Start Time
               <input
                 type="datetime-local"
+                className={fieldErrors.start_at ? "invalid-input-highlight" : ""}
                 value={editStartAt}
-                onChange={(e) => setEditStartAt(e.target.value)}
+                onChange={(e) => {
+                  setEditStartAt(e.target.value);
+                  if (fieldErrors.start_at) {
+                    setFieldErrors(curr => ({ ...curr, start_at: undefined }));
+                  }
+                }}
                 disabled={formDisabled}
               />
+              {fieldErrors.start_at && (
+                <span className="field-error-text" role="alert">{fieldErrors.start_at.join(", ")}</span>
+              )}
             </label>
             <label>
               End Time
               <input
                 type="datetime-local"
+                className={fieldErrors.end_at ? "invalid-input-highlight" : ""}
                 value={editEndAt}
-                onChange={(e) => setEditEndAt(e.target.value)}
+                onChange={(e) => {
+                  setEditEndAt(e.target.value);
+                  if (fieldErrors.end_at) {
+                    setFieldErrors(curr => ({ ...curr, end_at: undefined }));
+                  }
+                }}
                 disabled={formDisabled}
               />
+              {fieldErrors.end_at && (
+                <span className="field-error-text" role="alert">{fieldErrors.end_at.join(", ")}</span>
+              )}
             </label>
             <label>
               Notes
               <textarea
+                className={fieldErrors.notes ? "invalid-input-highlight" : ""}
                 value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
+                onChange={(e) => {
+                  setEditNotes(e.target.value);
+                  if (fieldErrors.notes) {
+                    setFieldErrors(curr => ({ ...curr, notes: undefined }));
+                  }
+                }}
                 disabled={formDisabled}
               />
+              {fieldErrors.notes && (
+                <span className="field-error-text" role="alert">{fieldErrors.notes.join(", ")}</span>
+              )}
             </label>
 
             <h4>Lines</h4>
@@ -882,16 +960,31 @@ export function HahitantsoaEventDraftsPanel({
             <input
               type="text"
               required
+              className={fieldErrors.event_name ? "invalid-input-highlight" : ""}
               value={newEventName}
-              onChange={(e) => setNewEventName(e.target.value)}
+              onChange={(e) => {
+                setNewEventName(e.target.value);
+                if (fieldErrors.event_name) {
+                  setFieldErrors(curr => ({ ...curr, event_name: undefined }));
+                }
+              }}
               disabled={isDisabled}
             />
+            {fieldErrors.event_name && (
+              <span className="field-error-text" role="alert">{fieldErrors.event_name.join(", ")}</span>
+            )}
           </label>
           <label>
             Customer
             <select
+              className={fieldErrors.customer_id ? "invalid-input-highlight" : ""}
               value={newCustomerId}
-              onChange={(e) => setNewCustomerId(e.target.value)}
+              onChange={(e) => {
+                setNewCustomerId(e.target.value);
+                if (fieldErrors.customer_id) {
+                  setFieldErrors(curr => ({ ...curr, customer_id: undefined }));
+                }
+              }}
               disabled={isDisabled}
             >
               {customers.map((c) => (
@@ -900,57 +993,114 @@ export function HahitantsoaEventDraftsPanel({
                 </option>
               ))}
             </select>
+            {fieldErrors.customer_id && (
+              <span className="field-error-text" role="alert">{fieldErrors.customer_id.join(", ")}</span>
+            )}
           </label>
           <label>
             Venue Name
             <input
               type="text"
+              className={fieldErrors.venue_name ? "invalid-input-highlight" : ""}
               value={newVenueName}
-              onChange={(e) => setNewVenueName(e.target.value)}
+              onChange={(e) => {
+                setNewVenueName(e.target.value);
+                if (fieldErrors.venue_name) {
+                  setFieldErrors(curr => ({ ...curr, venue_name: undefined }));
+                }
+              }}
               disabled={isDisabled}
             />
+            {fieldErrors.venue_name && (
+              <span className="field-error-text" role="alert">{fieldErrors.venue_name.join(", ")}</span>
+            )}
           </label>
           <label>
             Location Details
             <textarea
+              className={fieldErrors.location_details ? "invalid-input-highlight" : ""}
               value={newLocationDetails}
-              onChange={(e) => setNewLocationDetails(e.target.value)}
+              onChange={(e) => {
+                setNewLocationDetails(e.target.value);
+                if (fieldErrors.location_details) {
+                  setFieldErrors(curr => ({ ...curr, location_details: undefined }));
+                }
+              }}
               disabled={isDisabled}
             />
+            {fieldErrors.location_details && (
+              <span className="field-error-text" role="alert">{fieldErrors.location_details.join(", ")}</span>
+            )}
           </label>
           <label>
             Service Notes
             <textarea
+              className={fieldErrors.service_notes ? "invalid-input-highlight" : ""}
               value={newServiceNotes}
-              onChange={(e) => setNewServiceNotes(e.target.value)}
+              onChange={(e) => {
+                setNewServiceNotes(e.target.value);
+                if (fieldErrors.service_notes) {
+                  setFieldErrors(curr => ({ ...curr, service_notes: undefined }));
+                }
+              }}
               disabled={isDisabled}
             />
+            {fieldErrors.service_notes && (
+              <span className="field-error-text" role="alert">{fieldErrors.service_notes.join(", ")}</span>
+            )}
           </label>
           <label>
             Start Time
             <input
               type="datetime-local"
+              className={fieldErrors.start_at ? "invalid-input-highlight" : ""}
               value={newStartAt}
-              onChange={(e) => setNewStartAt(e.target.value)}
+              onChange={(e) => {
+                setNewStartAt(e.target.value);
+                if (fieldErrors.start_at) {
+                  setFieldErrors(curr => ({ ...curr, start_at: undefined }));
+                }
+              }}
               disabled={isDisabled}
             />
+            {fieldErrors.start_at && (
+              <span className="field-error-text" role="alert">{fieldErrors.start_at.join(", ")}</span>
+            )}
           </label>
           <label>
             End Time
             <input
               type="datetime-local"
+              className={fieldErrors.end_at ? "invalid-input-highlight" : ""}
               value={newEndAt}
-              onChange={(e) => setNewEndAt(e.target.value)}
+              onChange={(e) => {
+                setNewEndAt(e.target.value);
+                if (fieldErrors.end_at) {
+                  setFieldErrors(curr => ({ ...curr, end_at: undefined }));
+                }
+              }}
               disabled={isDisabled}
             />
+            {fieldErrors.end_at && (
+              <span className="field-error-text" role="alert">{fieldErrors.end_at.join(", ")}</span>
+            )}
           </label>
           <label>
             Notes
             <textarea
+              className={fieldErrors.notes ? "invalid-input-highlight" : ""}
               value={newNotes}
-              onChange={(e) => setNewNotes(e.target.value)}
+              onChange={(e) => {
+                setNewNotes(e.target.value);
+                if (fieldErrors.notes) {
+                  setFieldErrors(curr => ({ ...curr, notes: undefined }));
+                }
+              }}
               disabled={isDisabled}
             />
+            {fieldErrors.notes && (
+              <span className="field-error-text" role="alert">{fieldErrors.notes.join(", ")}</span>
+            )}
           </label>
 
           <h4>Lines</h4>

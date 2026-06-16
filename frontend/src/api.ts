@@ -16,9 +16,57 @@ import type {
   HahitantsoaEventDraftAmendmentPreflight,
 } from "./types";
 
+export class ApiError extends Error {
+  status: number;
+  errors: Record<string, string[]>;
+
+  constructor(message: string, status: number, errors: Record<string, string[]> = {}) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.errors = errors;
+  }
+}
+
+async function parseErrorResponse(
+  response: Response,
+): Promise<{ message: string; errors: Record<string, string[]> }> {
+  let message = "The requested data could not be loaded.";
+  let errors: Record<string, string[]> = {};
+  try {
+    const errorData = await response.json();
+    if (errorData && typeof errorData === "object") {
+      if (typeof errorData.detail === "string") {
+        message = errorData.detail;
+      } else {
+        const parts: string[] = [];
+        for (const [key, value] of Object.entries(errorData)) {
+          if (Array.isArray(value)) {
+            const strArray = value.map(String);
+            errors[key] = strArray;
+            parts.push(`${key}: ${strArray.join(", ")}`);
+          } else if (typeof value === "string") {
+            errors[key] = [value];
+            parts.push(`${key}: ${value}`);
+          }
+        }
+        if (parts.length > 0) {
+          message = parts.join("; ");
+        }
+      }
+    }
+  } catch {
+    if (response.statusText) {
+      message = `${response.statusText} (${response.status})`;
+    }
+  }
+  return { message, errors };
+}
+
 async function parseJsonResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    throw new Error("The requested data could not be loaded.");
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
   }
 
   return (await response.json()) as T;
@@ -229,7 +277,8 @@ export async function deleteHahitantsoaEventDraft(
     credentials: "include",
   });
   if (!response.ok) {
-    throw new Error("The event draft could not be deleted.");
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
   }
 }
 

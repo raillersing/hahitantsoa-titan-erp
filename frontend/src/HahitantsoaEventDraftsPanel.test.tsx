@@ -497,7 +497,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     await waitFor(() => {
       const alertNode = screen.getByRole("alert");
       expect(alertNode).toHaveClass("notice", "error-notice");
-      expect(alertNode).toHaveTextContent("The requested data could not be loaded.");
+      expect(alertNode).toHaveTextContent("Confirmation failed due to business conflicts.");
     });
   });
 
@@ -624,6 +624,51 @@ describe("HahitantsoaEventDraftsPanel", () => {
 
     const venueInput = screen.getByLabelText("Venue Name");
     expect(venueInput).toHaveValue("Grand Arena");
+  });
+
+  it("handles field-level validation errors from API with input highlights", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/v1/customers/") {
+        return Promise.resolve(jsonResponse(CUSTOMERS));
+      }
+      if (url === "/api/v1/hahitantsoa/event-drafts/") {
+        if (init?.method === "POST") {
+          return Promise.resolve(
+            jsonResponse({
+              event_name: ["The event name is too long."],
+              venue_name: ["The venue is already fully booked for this date."]
+            }, 400)
+          );
+        }
+        return Promise.resolve(jsonResponse(DRAFTS));
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    // Fill details
+    const inputs = screen.getAllByLabelText("Event Name");
+    const createInput = inputs.find(inp => !(inp as HTMLInputElement).disabled) as HTMLInputElement;
+    fireEvent.change(createInput, { target: { value: "A very long event name..." } });
+
+    // Add a line to satisfy local validation
+    fireEvent.click(screen.getByText("Add Line"));
+
+    // Submit
+    fireEvent.click(screen.getByRole("button", { name: "Create Draft" }));
+
+    // Verify errors render under fields
+    await waitFor(() => {
+      expect(screen.getByText("The event name is too long.")).toBeInTheDocument();
+      expect(screen.getByText("The venue is already fully booked for this date.")).toBeInTheDocument();
+      expect(createInput).toHaveClass("invalid-input-highlight");
+    });
   });
 });
 
