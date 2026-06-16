@@ -454,7 +454,7 @@ export default function PaymentWorkflowPanel() {
   return (
     <div className="payment-workflow-panel" data-testid="payment-workflow-panel">
       <div className="payment-workflow-panel__header">
-        <h3 className="payment-workflow-panel__title">Payments &amp; Receipts</h3>
+        <h3 className="payment-workflow-panel__title">Transactions</h3>
         <div className="payment-workflow-panel__actions">
           <button
             className="payment-workflow-panel__refresh"
