@@ -240,6 +240,14 @@ def _assert_active_draft_state(*, event_draft: HahitantsoaEventDraft) -> None:
         )
 
 
+def assert_hahitantsoa_event_draft_mutable(*, event_draft: HahitantsoaEventDraft) -> None:
+    if _is_confirmed(event_draft=event_draft):
+        raise ReservationLifecycleStateError(
+            "Confirmed Hahitantsoa event drafts are immutable until amendment workflow exists.",
+            code="confirmed_draft_is_immutable",
+        )
+
+
 def _lock_inventory_items_for_active_lines(*, active_lines: tuple) -> tuple[InventoryItem, ...]:
     inventory_item_ids = sorted({line.inventory_item_id for line in active_lines})
     return tuple(

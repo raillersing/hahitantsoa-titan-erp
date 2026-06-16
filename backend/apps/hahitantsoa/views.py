@@ -19,7 +19,10 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaSharedAvailabilityResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
 )
-from apps.hahitantsoa.services import confirm_hahitantsoa_event_draft
+from apps.hahitantsoa.services import (
+    assert_hahitantsoa_event_draft_mutable,
+    confirm_hahitantsoa_event_draft,
+)
 from apps.reservations.confirmation import (
     ReservationConfirmationPreflightError,
     ReservationLifecycleError,
@@ -197,12 +200,42 @@ class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyA
     def get_queryset(self):
         return visible_hahitantsoa_event_drafts(user=self.request.user)
 
+    def _lifecycle_error_response(self, error: ReservationLifecycleStateError) -> Response:
+        return Response(
+            {
+                "detail": str(error),
+                "code": getattr(error, "code", None),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        try:
+            assert_hahitantsoa_event_draft_mutable(event_draft=instance)
+        except ReservationLifecycleStateError as error:
+            return self._lifecycle_error_response(error)
+
+        return super().update(request, *args, **kwargs)
+
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
     @extend_schema(responses={204: None})
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        try:
+            assert_hahitantsoa_event_draft_mutable(event_draft=instance)
+        except ReservationLifecycleStateError as error:
+            return self._lifecycle_error_response(error)
+
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @transaction.atomic
     def perform_destroy(self, instance):
