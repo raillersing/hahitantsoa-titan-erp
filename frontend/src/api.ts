@@ -252,4 +252,15 @@ export function getHahitantsoaEventDraftConfirmationPreflight(
   );
 }
 
+export function confirmHahitantsoaEventDraft(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<{ status: string; public_reference: string; blocked_item_count: number; event_draft: HahitantsoaEventDraft }> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/confirm/`,
+    {},
+    signal,
+  );
+}
+
 

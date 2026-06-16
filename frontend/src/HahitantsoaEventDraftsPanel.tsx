@@ -8,6 +8,7 @@ import {
   deleteHahitantsoaEventDraft,
   getHahitantsoaEventDraftAvailabilityPreview,
   getHahitantsoaEventDraftConfirmationPreflight,
+  confirmHahitantsoaEventDraft,
 } from "./api";
 import type {
   Customer,
@@ -15,6 +16,7 @@ import type {
   HahitantsoaEventDraft,
   HahitantsoaEventDraftAvailabilityPreview,
   HahitantsoaEventDraftConfirmationPreflight,
+  HahitantsoaEventDraftConfirmationResult,
 } from "./types";
 
 type DraftListState =
@@ -368,6 +370,27 @@ export function HahitantsoaEventDraftsPanel({
           err instanceof Error
             ? err.message
             : "Failed to load confirmation preflight.",
+      });
+    }
+  };
+
+  const handleConfirmDraft = async (draftId: string) => {
+    setActionState({ status: "loading" });
+    try {
+      const result = await confirmHahitantsoaEventDraft(draftId);
+      setActionState({
+        status: "success",
+        message: `Draft ${result.public_reference} confirmed successfully! Blocked items: ${result.blocked_item_count}.`,
+      });
+      // Clear panel details and fetch updated drafts list
+      setDraftDetailState({ status: "idle" });
+      setAvailabilityPreviewState({ status: "idle" });
+      setPreflightState({ status: "idle" });
+      fetchDrafts();
+    } catch (err) {
+      setActionState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to confirm draft.",
       });
     }
   };
@@ -733,6 +756,26 @@ export function HahitantsoaEventDraftsPanel({
                       <li key={idx}>{blocker}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+              {preflightState.preflight.can_confirm && (
+                <div style={{ marginTop: "1rem" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmDraft(draftDetailState.draft.id)}
+                    disabled={isDisabled}
+                    style={{
+                      backgroundColor: "#059669",
+                      color: "#ffffff",
+                      border: "none",
+                      padding: "8px 16px",
+                      borderRadius: "6px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Confirm Event Draft
+                  </button>
                 </div>
               )}
             </div>
