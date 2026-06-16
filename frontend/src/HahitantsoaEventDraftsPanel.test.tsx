@@ -993,7 +993,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Edit the request
-    fireEvent.click(screen.getAllByRole("button", { name: "Edit Request" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Request Details" })[0]);
 
     const editForm = section.querySelector(".edit-amendment-form")!;
     const editReasonInput = editForm.querySelector("input[type='text']") as HTMLInputElement;
