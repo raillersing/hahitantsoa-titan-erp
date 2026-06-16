@@ -61,6 +61,8 @@ describe("DocumentArtifactPreviewPanel", () => {
       screen.getByRole("button", { name: "Load artifact preview" }),
     );
 
+    expect(screen.getByRole("status")).toHaveClass("notice", "loading-notice");
+
     const iframe = await screen.findByTitle(
       "Document artifact preview doc-123",
     );
@@ -93,7 +95,8 @@ describe("DocumentArtifactPreviewPanel", () => {
         screen.getByRole("button", { name: "Load artifact preview" }),
       );
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
+      expect(await screen.findByRole("alert")).toHaveClass("notice", "error-notice");
+      expect(screen.getByRole("alert")).toHaveTextContent(
         "The private artifact preview requires an authenticated session with document access.",
       );
     },
@@ -111,7 +114,8 @@ describe("DocumentArtifactPreviewPanel", () => {
       screen.getByRole("button", { name: "Load artifact preview" }),
     );
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveClass("notice", "error-notice");
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "No generated HTML artifact was found for this document instance.",
     );
   });

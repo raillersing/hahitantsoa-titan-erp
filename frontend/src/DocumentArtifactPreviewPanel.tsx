@@ -85,15 +85,17 @@ function DocumentArtifactPreviewPanel() {
       </form>
 
       {previewState.status === "loading" ? (
-        <p className="status artifact-preview-status">
-          Loading private document artifact...
-        </p>
+        <div className="notice loading-notice artifact-preview-status" role="status">
+          <p className="loading-spinner">Loading private document artifact...</p>
+        </div>
       ) : null}
 
       {previewState.status === "error" ? (
-        <div className="notice artifact-preview-notice" role="alert">
-          <h3>Document artifact unavailable</h3>
-          <p>{previewState.message}</p>
+        <div className="notice error-notice artifact-preview-notice" role="alert">
+          <div>
+            <h3>Document artifact unavailable</h3>
+            <p>{previewState.message}</p>
+          </div>
         </div>
       ) : null}
 

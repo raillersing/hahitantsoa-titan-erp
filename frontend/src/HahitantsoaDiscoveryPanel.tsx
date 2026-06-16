@@ -59,25 +59,35 @@ function HahitantsoaDiscoveryPanel() {
       </div>
 
       {discoveryState.status === "loading" ? (
-        <p className="status discovery-status">Loading Hahitantsoa discovery...</p>
+        <div className="notice loading-notice discovery-status" role="status">
+          <p className="loading-spinner">Loading Hahitantsoa discovery...</p>
+        </div>
       ) : null}
 
       {discoveryState.status === "error" ? (
-        <div className="notice discovery-notice" role="alert">
-          <h3>Hahitantsoa discovery unavailable</h3>
-          <p>{discoveryState.message}</p>
+        <div className="notice error-notice discovery-notice" role="alert">
+          <div>
+            <h3>Hahitantsoa discovery unavailable</h3>
+            <p>{discoveryState.message}</p>
+          </div>
         </div>
       ) : null}
 
       {discoveryState.status === "loaded" ? (
-        <ul className="discovery-list">
-          {discoveryState.items.map((item) => (
-            <li key={item.concept}>
-              <span>{item.label}</span>
-              <strong>{item.concept}</strong>
-            </li>
-          ))}
-        </ul>
+        discoveryState.items.length === 0 ? (
+          <div className="notice info-notice discovery-notice" role="status">
+            <p>No discovery items found.</p>
+          </div>
+        ) : (
+          <ul className="discovery-list">
+            {discoveryState.items.map((item) => (
+              <li key={item.concept}>
+                <span>{item.label}</span>
+                <strong>{item.concept}</strong>
+              </li>
+            ))}
+          </ul>
+        )
       ) : null}
     </section>
   );

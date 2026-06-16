@@ -21,6 +21,7 @@ describe("HahitantsoaDiscoveryPanel", () => {
     render(<HahitantsoaDiscoveryPanel />);
 
     expect(screen.getByText("Loading Hahitantsoa discovery...")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveClass("notice", "loading-notice");
   });
 
   it("loads and renders only read-only Hahitantsoa discovery fields", async () => {
@@ -47,12 +48,27 @@ describe("HahitantsoaDiscoveryPanel", () => {
     });
   });
 
+  it("renders an empty state when discovery returns no items", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        items: [],
+        count: 0,
+      }),
+    );
+
+    render(<HahitantsoaDiscoveryPanel />);
+
+    expect(await screen.findByText("No discovery items found.")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveClass("notice", "info-notice");
+  });
+
   it("renders an error state when discovery cannot be loaded", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 403 }));
 
     render(<HahitantsoaDiscoveryPanel />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    expect(await screen.findByRole("alert")).toHaveClass("notice", "error-notice");
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "Hahitantsoa discovery unavailable",
     );
     expect(screen.getByRole("alert")).toHaveTextContent(
