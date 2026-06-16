@@ -2,7 +2,8 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`.
+- `main` includes F137B at merge commit `b9dab44` and F145B at merge commit `27973be`.
+- Current `origin/main` HEAD is `db9fd45` (feat(frontend): commercial operations foundation shell (#251)).
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -164,6 +165,46 @@ Stop conditions:
 
 Expected validation:
 - frontend-focused checks only unless the approved scope says otherwise
+
+## Agents/Docs Governance Queue
+
+### F147B
+
+Status:
+- completed compliance smoke test
+- baseline: origin/main at db9fd45
+- branch: docs/f147b-orchestrator-compliance-smoke-test
+- scope: orchestrator compliance smoke test, docs/audits audit file, task queue update
+
+Result:
+- PASS across all compliance checkpoints
+- gap identified: erp-agent-scope-guard lacks a dedicated `agent-docs` profile
+- agent-command-runbook.md reviewed — no correction needed
+
+### F147C (recommended next safe bundle)
+
+Status:
+- recommended next agents/docs governance task after F147B merge
+
+Scope:
+- add `agent-docs` profile to erp-agent-scope-guard
+- profile should allow: `docs/ai-agents/`, `docs/audits/`
+- profile should forbid: `backend/`, `frontend/`, `.env` and secret-like files
+- no other scope expansion
+
+Expected worktree:
+- agent-tools or agent-docs dedicated worktree only
+
+Stop conditions:
+- any backend or frontend code change
+- any scope drift beyond the scope guard change
+- any .env interaction
+
+Expected validation:
+- bash scripts/dev/erp-agent-scope-guard agent-docs
+- git diff --check
+- PR CI green before merge
+- main CI green after merge
 
 ## Later Repair Track
 
