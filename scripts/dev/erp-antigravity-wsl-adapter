@@ -351,6 +351,184 @@ bash scripts/dev/erp-frontend-quality
 EOF
     ;;
 
+  ci-diagnostics)
+    PR_NUMBER=""
+    RUN_ID=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --pr)
+          shift
+          PR_NUMBER="${1:-}"
+          ;;
+        --run)
+          shift
+          RUN_ID="${1:-}"
+          ;;
+        *)
+          echo "ERROR: unknown ci-diagnostics option: $1"
+          exit 2
+          ;;
+      esac
+      shift
+    done
+
+    if [ -z "$PR_NUMBER" ] && [ -z "$RUN_ID" ]; then
+      echo "ERROR: Either PR_NUMBER or RUN_ID must be specified for ci-diagnostics."
+      exit 2
+    fi
+
+echo "INFO: Running ci-diagnostics via erp-logged-run..."
+    # Escape values safely
+    H_PR=$(printf '%q' "$PR_NUMBER")
+    H_RUN=$(printf '%q' "$RUN_ID")
+    scripts/dev/erp-logged-run ci-diagnostics <<EOF
+set -euo pipefail
+PR=$H_PR
+RUN=$H_RUN
+
+if [ -n "\$PR" ]; then
+  echo "==== PR METADATA ===="
+  gh pr view "\$PR" --json number,title,state,baseRefName,headRefName,mergeable,url --jq '"PR Number: \(.number)\nTitle: \(.title)\nState: \(.state)\nBase: \(.baseRefName)\nHead: \(.headRefName)\nMergeable: \(.mergeable)\nURL: \(.url)"'
+  echo "==== STATUS CHECK ROLLUP ===="
+  gh pr view "\$PR" --json statusCheckRollup --jq '.statusCheckRollup[] | "\(.name // .context): \(.conclusion // .state)"' 2>/dev/null || echo "No status checks found."
+fi
+
+if [ -n "\$RUN" ]; then
+  echo "==== RUN METADATA ===="
+  gh run view "\$RUN" --json databaseId,name,workflowName,event,status,conclusion,headBranch,headSha,url --jq '"Run ID: \(.databaseId)\nWorkflow: \(.workflowName)\nName: \(.name)\nEvent: \(.event)\nStatus: \(.status)\nConclusion: \(.conclusion)\nHead Branch: \(.headBranch)\nHead SHA: \(.headSha)\nURL: \(.url)"'
+  echo "==== FAILED JOBS & FAILURES ===="
+  FAILED_JOBS=\$(gh run view "\$RUN" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .name' 2>/dev/null || true)
+  if [ -z "\$FAILED_JOBS" ]; then
+    echo "No failed jobs found."
+  else
+    printf '%s\n' "\$FAILED_JOBS"
+    echo "==== FAILED LOG TAIL ===="
+    gh run view "\$RUN" --log-failed 2>/dev/null | tail -n 120 || echo "Could not fetch failed log tail."
+    echo "==== FAILED STEP SUMMARY ===="
+    gh run view "\$RUN" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | .name as $job | (.steps // [])[] | select(.conclusion == "failure") | "\($job): \(.name)"' 2>/dev/null || true
+    echo "==== FINAL LOG SECTIONS ===="
+    gh run view "\$RUN" --log-failed 2>/dev/null | awk '
+      /^==> / {current=$0; buffer=""; next}
+      {buffer = buffer $0 "\n"}
+      END {
+        if (length(buffer) > 0) {
+          print buffer
+        }
+      }
+    ' | tail -n 80 || true
+  fi
+fi
+EOF
+    ;;
+
+  worktree-clean)
+    TASK_BRANCH="${1:-}"
+    if [ -z "$TASK_BRANCH" ]; then
+      echo "ERROR: missing TaskBranch."
+      exit 2
+    fi
+    if [ "$TASK_BRANCH" = "main" ] || [ "$TASK_BRANCH" = "master" ]; then
+      echo "ERROR: Cannot clean main or master branch."
+      exit 2
+    fi
+    shift
+
+    TASK_WORKTREE=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --task-worktree)
+          shift
+          TASK_WORKTREE="${1:-}"
+          ;;
+        *)
+          echo "ERROR: unknown worktree-clean option: $1"
+          exit 2
+          ;;
+      esac
+      shift
+    done
+
+    H_BRANCH=$(printf '%q' "$TASK_BRANCH")
+    H_WORKTREE=$(printf '%q' "$TASK_WORKTREE")
+
+    echo "INFO: Running worktree-clean via erp-logged-run..."
+    scripts/dev/erp-logged-run worktree-clean <<EOF
+set -euo pipefail
+BRANCH=$H_BRANCH
+WORKTREE=$H_WORKTREE
+
+if [ -z "\$BRANCH" ]; then
+  echo "ERROR: TaskBranch cannot be empty."
+  exit 2
+fi
+if [ "\$BRANCH" = "main" ] || [ "\$BRANCH" = "master" ]; then
+  echo "ERROR: refusing to clean protected branch \$BRANCH"
+  exit 2
+fi
+
+resolve_registered_worktree_for_branch() {
+  git worktree list --porcelain | awk -v branch="\$BRANCH" '
+    \$1 == "worktree" { path=\$2 }
+    \$1 == "branch" && \$2 == "refs/heads/" branch { print path }
+  '
+}
+
+REGISTERED_PATH="\$(resolve_registered_worktree_for_branch | head -n 1)"
+
+if [ -n "\$WORKTREE" ]; then
+  if [ ! -d "\$WORKTREE" ]; then
+    echo "ERROR: task worktree path does not exist: \$WORKTREE"
+    exit 1
+  fi
+  if [ -z "\$REGISTERED_PATH" ]; then
+    echo "ERROR: no registered worktree owns branch \$BRANCH"
+    exit 1
+  fi
+  if [ "\$REGISTERED_PATH" != "\$WORKTREE" ]; then
+    echo "ERROR: worktree \$WORKTREE does not match registered branch worktree \$REGISTERED_PATH"
+    exit 1
+  fi
+  echo "INFO: Removing registered worktree \$WORKTREE"
+  git worktree remove --force "\$WORKTREE"
+else
+  if [ -n "\$REGISTERED_PATH" ] && [ "\$REGISTERED_PATH" != "\$REPO_ROOT" ]; then
+    echo "INFO: Removing registered worktree \$REGISTERED_PATH"
+    git worktree remove --force "\$REGISTERED_PATH"
+  else
+    echo "INFO: No removable registered worktree found for branch \$BRANCH"
+  fi
+fi
+
+echo "INFO: Pruning worktree metadata"
+git worktree prune
+
+if git show-ref --verify --quiet "refs/heads/\$BRANCH"; then
+  if git worktree list --porcelain | grep -Fx "branch refs/heads/\$BRANCH" >/dev/null 2>&1; then
+    echo "ERROR: branch \$BRANCH is still owned by a worktree after prune"
+    exit 1
+  fi
+  echo "INFO: Deleting local branch \$BRANCH"
+  git branch -D "\$BRANCH"
+else
+  echo "INFO: Local branch \$BRANCH does not exist"
+fi
+
+echo "INFO: Remote branch cleanup is not performed by worktree-clean mode."
+
+echo "==== GIT WORKTREE LIST ===="
+git worktree list
+echo "==== ROOT STATUS ===="
+git status --short
+echo "==== F140D STATUS ===="
+if git status --short | grep -F "docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATION.md" >/dev/null; then
+  echo "F140D status: untracked/modified"
+else
+  echo "F140D status: tracked/clean"
+fi
+
+EOF
+    ;;
+
   *)
     echo "ERROR: unsupported adapter mode: $MODE"
     exit 2
