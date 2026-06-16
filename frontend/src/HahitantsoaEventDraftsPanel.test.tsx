@@ -480,7 +480,9 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent("Confirmation failed due to business conflicts.");
+      const alertNode = screen.getByRole("alert");
+      expect(alertNode).toHaveClass("notice", "error-notice");
+      expect(alertNode).toHaveTextContent("Confirmation failed due to business conflicts.");
     });
   });
 });
