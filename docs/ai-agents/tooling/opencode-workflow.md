@@ -4,6 +4,9 @@
 
 This bridge defines the approved repository workflow for OpenCode sessions.
 
+Use `docs/ai-agents/AI_ORCHESTRATION_INDEX.md` as the task-routing entry point before
+choosing the OpenCode profile and command mode.
+
 ## Profiles
 
 - `opencode-web-wsl-review`: WSL-backed review/docs workflow

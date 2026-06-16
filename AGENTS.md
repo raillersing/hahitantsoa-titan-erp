@@ -6,6 +6,7 @@ repository. Detailed agent roles, templates, and quality gates live in
 
 Use these two documents as the standard operational references for future tasks:
 
+- [`docs/ai-agents/AI_ORCHESTRATION_INDEX.md`](docs/ai-agents/AI_ORCHESTRATION_INDEX.md)
 - [`docs/ai-agents/agent-command-runbook.md`](docs/ai-agents/agent-command-runbook.md)
 - [`docs/ai-agents/agent-profiles.md`](docs/ai-agents/agent-profiles.md)
 - [`docs/ai-agents/orchestrator-task-queue.md`](docs/ai-agents/orchestrator-task-queue.md)
