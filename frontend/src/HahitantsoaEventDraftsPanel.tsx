@@ -88,6 +88,11 @@ export function HahitantsoaEventDraftsPanel({
     status: "idle",
   });
 
+  const isActionLoading = actionState.status === "loading";
+  const isDetailLoading = draftDetailState.status === "loading";
+  const isAvailabilityLoading = availabilityPreviewState.status === "loading";
+  const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading;
+
   // Customers state
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customersLoaded, setCustomersLoaded] = useState(false);
@@ -387,20 +392,24 @@ export function HahitantsoaEventDraftsPanel({
         </div>
       </div>
 
-      {actionState.status === "loading" && <p className="status">Processing...</p>}
+      {actionState.status === "loading" && (
+        <div className="notice loading-notice" role="status">
+          <p className="loading-spinner">Processing operation, please wait...</p>
+        </div>
+      )}
       {actionState.status === "success" && (
-        <div className="notice" role="status">
+        <div className="notice success-notice" role="status">
           <p>{actionState.message}</p>
-          <button onClick={() => setActionState({ status: "idle" })}>
+          <button type="button" onClick={() => setActionState({ status: "idle" })}>
             Dismiss
           </button>
         </div>
       )}
       {actionState.status === "error" && (
-        <div className="notice availability-notice" role="alert">
+        <div className="notice error-notice" role="alert">
           <h3>Operation Failed</h3>
           <p>{actionState.message}</p>
-          <button onClick={() => setActionState({ status: "idle" })}>
+          <button type="button" onClick={() => setActionState({ status: "idle" })}>
             Dismiss
           </button>
         </div>
@@ -437,6 +446,7 @@ export function HahitantsoaEventDraftsPanel({
                     <button
                       type="button"
                       onClick={() => handleViewDetails(draft.id)}
+                      disabled={isDisabled}
                     >
                       View & Manage
                     </button>
@@ -464,6 +474,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="text"
                 value={editEventName}
                 onChange={(e) => setEditEventName(e.target.value)}
+                disabled={isDisabled}
               />
             </label>
             <label>
@@ -472,6 +483,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="text"
                 value={editVenueName}
                 onChange={(e) => setEditVenueName(e.target.value)}
+                disabled={isDisabled}
               />
             </label>
             <label>
@@ -479,6 +491,7 @@ export function HahitantsoaEventDraftsPanel({
               <textarea
                 value={editLocationDetails}
                 onChange={(e) => setEditLocationDetails(e.target.value)}
+                disabled={isDisabled}
               />
             </label>
             <label>
@@ -486,6 +499,7 @@ export function HahitantsoaEventDraftsPanel({
               <textarea
                 value={editServiceNotes}
                 onChange={(e) => setEditServiceNotes(e.target.value)}
+                disabled={isDisabled}
               />
             </label>
             <label>
@@ -494,6 +508,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="datetime-local"
                 value={editStartAt}
                 onChange={(e) => setEditStartAt(e.target.value)}
+                disabled={isDisabled}
               />
             </label>
             <label>
@@ -502,6 +517,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="datetime-local"
                 value={editEndAt}
                 onChange={(e) => setEditEndAt(e.target.value)}
+                disabled={isDisabled}
               />
             </label>
             <label>
@@ -509,12 +525,13 @@ export function HahitantsoaEventDraftsPanel({
               <textarea
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
+                disabled={isDisabled}
               />
             </label>
 
             <h4>Lines</h4>
             {editLines.map((line, idx) => (
-              <fieldset key={idx}>
+              <fieldset key={idx} disabled={isDisabled}>
                 <legend>Line {idx + 1}</legend>
                 <label>
                   Item
@@ -528,6 +545,7 @@ export function HahitantsoaEventDraftsPanel({
                         true,
                       )
                     }
+                    disabled={isDisabled}
                   >
                     {inventoryItems.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -550,6 +568,7 @@ export function HahitantsoaEventDraftsPanel({
                         true,
                       )
                     }
+                    disabled={isDisabled}
                   />
                 </label>
                 <label>
@@ -559,37 +578,42 @@ export function HahitantsoaEventDraftsPanel({
                     onChange={(e) =>
                       updateLineField(idx, "notes", e.target.value, true)
                     }
+                    disabled={isDisabled}
                   />
                 </label>
                 <button
                   type="button"
                   onClick={() => removeLine(idx, true)}
-                  disabled={editLines.length <= 1}
+                  disabled={isDisabled || editLines.length <= 1}
                 >
                   Remove Line
                 </button>
               </fieldset>
             ))}
-            <button type="button" onClick={() => addLine(true)}>
+            <button type="button" onClick={() => addLine(true)} disabled={isDisabled}>
               Add Line
             </button>
-            <button type="submit">Save Changes</button>
+            <button type="submit" disabled={isDisabled}>
+              {isActionLoading ? "Saving..." : "Save Changes"}
+            </button>
           </form>
 
           <div style={{ marginTop: "1rem" }}>
             <button
               type="button"
               onClick={() => handleCheckAvailability(draftDetailState.draft.id)}
+              disabled={isDisabled}
             >
-              Check Cascading Availability
+              {isAvailabilityLoading ? "Checking Availability..." : "Check Cascading Availability"}
             </button>
             <button
               type="button"
               className="error-btn"
               onClick={() => handleDeleteDraft(draftDetailState.draft.id)}
+              disabled={isDisabled}
               style={{ marginLeft: "1rem", backgroundColor: "#b91c1c" }}
             >
-              Delete Draft
+              {isActionLoading ? "Deleting Draft..." : "Delete Draft"}
             </button>
           </div>
 
@@ -632,7 +656,7 @@ export function HahitantsoaEventDraftsPanel({
 
       <div className="preview-list-section" style={{ marginTop: "2rem" }}>
         <h3>Create Hahitantsoa Event Draft</h3>
-        <form className="availability-form" onSubmit={handleCreateDraft}>
+         <form className="availability-form" onSubmit={handleCreateDraft}>
           <label>
             Event Name
             <input
@@ -640,6 +664,7 @@ export function HahitantsoaEventDraftsPanel({
               required
               value={newEventName}
               onChange={(e) => setNewEventName(e.target.value)}
+              disabled={isDisabled}
             />
           </label>
           <label>
@@ -647,6 +672,7 @@ export function HahitantsoaEventDraftsPanel({
             <select
               value={newCustomerId}
               onChange={(e) => setNewCustomerId(e.target.value)}
+              disabled={isDisabled}
             >
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -661,6 +687,7 @@ export function HahitantsoaEventDraftsPanel({
               type="text"
               value={newVenueName}
               onChange={(e) => setNewVenueName(e.target.value)}
+              disabled={isDisabled}
             />
           </label>
           <label>
@@ -668,6 +695,7 @@ export function HahitantsoaEventDraftsPanel({
             <textarea
               value={newLocationDetails}
               onChange={(e) => setNewLocationDetails(e.target.value)}
+              disabled={isDisabled}
             />
           </label>
           <label>
@@ -675,6 +703,7 @@ export function HahitantsoaEventDraftsPanel({
             <textarea
               value={newServiceNotes}
               onChange={(e) => setNewServiceNotes(e.target.value)}
+              disabled={isDisabled}
             />
           </label>
           <label>
@@ -683,6 +712,7 @@ export function HahitantsoaEventDraftsPanel({
               type="datetime-local"
               value={newStartAt}
               onChange={(e) => setNewStartAt(e.target.value)}
+              disabled={isDisabled}
             />
           </label>
           <label>
@@ -691,6 +721,7 @@ export function HahitantsoaEventDraftsPanel({
               type="datetime-local"
               value={newEndAt}
               onChange={(e) => setNewEndAt(e.target.value)}
+              disabled={isDisabled}
             />
           </label>
           <label>
@@ -698,12 +729,13 @@ export function HahitantsoaEventDraftsPanel({
             <textarea
               value={newNotes}
               onChange={(e) => setNewNotes(e.target.value)}
+              disabled={isDisabled}
             />
           </label>
 
           <h4>Lines</h4>
           {newLineInputs.map((line, idx) => (
-            <fieldset key={idx}>
+            <fieldset key={idx} disabled={isDisabled}>
               <legend>Line {idx + 1}</legend>
               <label>
                 Item
@@ -717,11 +749,12 @@ export function HahitantsoaEventDraftsPanel({
                       false,
                     )
                   }
+                  disabled={isDisabled}
                 >
                   {inventoryItems.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name} ({item.kind})
-                      </option>
+                    </option>
                   ))}
                 </select>
               </label>
@@ -739,6 +772,7 @@ export function HahitantsoaEventDraftsPanel({
                       false,
                     )
                   }
+                  disabled={isDisabled}
                 />
               </label>
               <label>
@@ -748,17 +782,24 @@ export function HahitantsoaEventDraftsPanel({
                   onChange={(e) =>
                     updateLineField(idx, "notes", e.target.value, false)
                   }
+                  disabled={isDisabled}
                 />
               </label>
-              <button type="button" onClick={() => removeLine(idx, false)}>
+              <button
+                type="button"
+                onClick={() => removeLine(idx, false)}
+                disabled={isDisabled}
+              >
                 Remove Line
               </button>
             </fieldset>
           ))}
-          <button type="button" onClick={() => addLine(false)}>
+          <button type="button" onClick={() => addLine(false)} disabled={isDisabled}>
             Add Line
           </button>
-          <button type="submit">Create Draft</button>
+          <button type="submit" disabled={isDisabled}>
+            {isActionLoading ? "Creating..." : "Create Draft"}
+          </button>
         </form>
       </div>
     </section>

@@ -217,4 +217,50 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText(/draft deleted/i)).toBeInTheDocument();
     });
   });
+
+  it("disables inputs and buttons during processing state", async () => {
+    let resolvePromise!: (val: any) => void;
+    const pendingPromise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/v1/customers/") {
+        return Promise.resolve(jsonResponse(CUSTOMERS));
+      }
+      if (url === "/api/v1/hahitantsoa/event-drafts/") {
+        if (init?.method === "POST") {
+          return pendingPromise.then(() => jsonResponse(DRAFTS[0]));
+        }
+        return Promise.resolve(jsonResponse(DRAFTS));
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    // Populate name
+    const eventNameInput = screen.getByLabelText("Event Name");
+    fireEvent.change(eventNameInput, { target: { value: "New Party" } });
+
+    // Add a line item so local validation passes
+    fireEvent.click(screen.getByRole("button", { name: "Add Line" }));
+
+    // Submit
+    fireEvent.click(screen.getByRole("button", { name: "Create Draft" }));
+
+    // Now in loading state, inputs and buttons should be disabled
+    await waitFor(() => {
+      expect(screen.getByLabelText("Event Name")).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
+    });
+
+    resolvePromise(null);
+  });
 });
+
