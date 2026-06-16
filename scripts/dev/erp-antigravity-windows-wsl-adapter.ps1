@@ -4,7 +4,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create", "task-branch-start", "frontend-quality")]
+    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create", "task-branch-start", "frontend-quality", "ci-diagnostics", "worktree-clean")]
     [string]$Mode,
 
     [Parameter(Mandatory=$false)]
@@ -32,7 +32,10 @@ param(
     [string]$PrBody,
 
     [Parameter(Mandatory=$false)]
-    [string]$TaskBase = "main"
+    [string]$TaskBase = "main",
+
+    [Parameter(Mandatory=$false)]
+    [string]$RunId
 )
 
 # Enforce parameters based on mode
@@ -92,6 +95,18 @@ if ($Mode -eq "task-branch-start") {
         exit 2
     }
 }
+if ($Mode -eq "ci-diagnostics") {
+    if (-not $PrNumber -and -not $RunId) {
+        Write-Error "Either PrNumber or RunId must be provided for ci-diagnostics mode."
+        exit 2
+    }
+}
+if ($Mode -eq "worktree-clean") {
+    if (-not $TaskBranch) {
+        Write-Error "TaskBranch is required for worktree-clean mode."
+        exit 2
+    }
+}
 
 # Resolve the WSL path dynamically from the script location
 $WslAdapterPath = $PSScriptRoot.Replace("\", "/").Replace("Y:", "").Replace("//wsl$/Ubuntu", "").Replace("//wsl.localhost/Ubuntu", "") + "/erp-antigravity-wsl-adapter"
@@ -128,6 +143,23 @@ if ($Mode -eq "task-branch-start") {
     }
     $ArgList += "--task-base"
     $ArgList += $TaskBase
+}
+if ($Mode -eq "ci-diagnostics") {
+    if ($PrNumber) {
+        $ArgList += "--pr"
+        $ArgList += $PrNumber.ToString()
+    }
+    if ($RunId) {
+        $ArgList += "--run"
+        $ArgList += $RunId
+    }
+}
+if ($Mode -eq "worktree-clean") {
+    $ArgList += $TaskBranch
+    if ($TaskWorktree) {
+        $ArgList += "--task-worktree"
+        $ArgList += $TaskWorktree
+    }
 }
 
 # Build a flat array for Start-Process to avoid parameter binding issues

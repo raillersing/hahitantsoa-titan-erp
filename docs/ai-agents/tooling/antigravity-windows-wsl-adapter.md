@@ -63,24 +63,30 @@ For the Antigravity adapter, the only authorized Windows host invocation pattern
    .\scripts\dev\erp-antigravity-windows-wsl-adapter.ps1 -Mode frontend-quality
    ```
 
+8. **CI Diagnostics Audit:**
+   ```powershell
+   .\scripts\dev\erp-antigravity-windows-wsl-adapter.ps1 -Mode ci-diagnostics [-PrNumber <PR_NUMBER>] [-RunId <RUN_ID>]
+   ```
+
+9. **Safe Task Worktree/Branch Cleanup:**
+   ```powershell
+   .\scripts\dev\erp-antigravity-windows-wsl-adapter.ps1 -Mode worktree-clean -TaskBranch <BRANCH_NAME> [-TaskWorktree <WORKTREE_PATH>]
+   ```
+
 ### Critical Constraints
 
 - **No Raw WSL Usage:** Direct execution of raw `wsl`, `wsl.exe`, `wsl --exec`, or `wsl -e` on the Windows host outside this approved `.ps1` wrapper remains a strict protocol **FAIL**.
-- **Supported Modes:** The adapter currently supports `task-start`, `finalize-pr`, `repo-status`, `pr-checks`, `pr-create`, `task-branch-start`, and `frontend-quality`.
+- **Approved Diagnostics and Cleanup:** CI diagnostics must use `ci-diagnostics`, and worktree cleanup must use `worktree-clean`. If an approved mode is missing, stop with `BLOCKED_NEEDS_APPROVED_ADAPTER_MODE`.
+- **Supported Modes:** The adapter currently supports `task-start`, `finalize-pr`, `repo-status`, `pr-checks`, `pr-create`, `task-branch-start`, `frontend-quality`, `ci-diagnostics`, and `worktree-clean`.
 - **Not Enabled Yet:** Automated git actions such as local commit (`commit`) and remote push (`push`) are **not enabled yet** in this first adapter version. Attempting to run them via the adapter will result in an error or a protocol violation.
 - **Flattened Arguments:** The PowerShell wrapper must construct a flat array of strings (e.g. `$WslArgs`) containing both the `wsl.exe` command line parameters and the bash entrypoint arguments before executing `Start-Process -ArgumentList`. Passing a nested array (e.g. passing a sub-array `$ArgList` inside `-ArgumentList`) triggers a PowerShell parameter binding failure.
 
-## F140U validation status
+## F143A validation status
 
-- `task-start` smoke test via adapter: PASS
-- `finalize-pr` smoke test via adapter: PASS
+- `ci-diagnostics` validation: PASS
+- `worktree-clean` validation: PASS
 - raw WSL bridge outside wrapper: forbidden
 - `.env` / secrets: not touched
 
-## F141E full orchestration pilot status
-
-- Branch: `docs/f141e-antigravity-full-orchestration-pilot`
-- Worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f141e-pilot`
-- Pilot Status: `PASS`
 
 
