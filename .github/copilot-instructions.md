@@ -8,10 +8,15 @@ command lists:
 
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
+- `docs/ai-agents/backend-agent-template.md` for backend Agent A-F role selection
+- `docs/ai-agents/prompt-contracts/backend-orchestrator.md` for backend orchestrator
+  prompts
 
 - One task, one branch, one controlled PR.
 - One agent, one worktree, one branch, one non-overlapping scope.
 - Use the required backend or frontend agent roles for the task risk.
+- In backend orchestration, assign only relevant agents: Agent A implements, Agent B
+  reviews independently, and Agents C/D/E/F are used only when relevant.
 - Review agents report findings and never silently edit.
 - Run important commands through `scripts/dev/erp-logged-run` using heredoc stdin.
 - Use `.venv/bin/python`, `.venv/bin/pytest`, or Docker Compose instead of bare
@@ -24,11 +29,15 @@ command lists:
 - Keep Titan limited to `material`, `article`, and `material_pack`.
 - Do not invent business behavior, APIs, payloads, models, migrations, or frontend
   workflows.
+- Backend bundles must stay medium-sized and coherent.
 - Never modify another active worktree and never put two agents on the same files.
 - Review agents are non-mutating unless explicitly authorized.
 - After F138B/F138C merge on `main`, use `scripts/dev/erp-backend-compose-ci`,
   `scripts/dev/erp-agent-scope-guard`, and `scripts/dev/erp-worktree-preflight` when
   applicable.
 - Require CI before merge and post-merge validation on `main`.
+- Reporting alone is not a stopping condition.
+- After merge and green `main` CI, continue to the next clear backend bundle unless a
+  hard stop condition occurs.
 - After merge, confirm `main` CI and clean local task/review branches when authorized.
 - Never merge automatically.

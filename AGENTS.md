@@ -14,6 +14,11 @@ Use these two documents as the standard operational references for future tasks:
 Task prompts should stay short and reference these documents instead of copying large
 command blocks or queue state into every prompt.
 
+Backend orchestration prompts must follow
+[`docs/ai-agents/prompt-contracts/backend-orchestrator.md`](docs/ai-agents/prompt-contracts/backend-orchestrator.md).
+They must reference the runbook, task queue, backend Agent A-F template, official
+wrappers when applicable, medium-bundle policy, and hard stop conditions.
+
 ## Sources of truth
 
 Apply the following priority when instructions conflict:
@@ -55,6 +60,16 @@ Required backend roles are selected from Agent A through Agent F in
 [`backend-agent-template.md`](docs/ai-agents/backend-agent-template.md).
 Required frontend roles are selected from Agent FE-A through Agent FE-F in
 [`frontend-agent-template.md`](docs/ai-agents/frontend-agent-template.md).
+
+For backend orchestration:
+
+- the orchestrator assigns only relevant agents
+- Agent A implements
+- Agent B reviews independently
+- Agents C, D, E, and F are used only when relevant
+- reporting alone is not a stopping condition
+- after merge and green `main` CI, continue to the next clear backend bundle unless a
+  hard stop condition occurs
 
 ## Worktree matrix
 

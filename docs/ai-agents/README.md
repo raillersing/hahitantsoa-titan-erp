@@ -90,9 +90,15 @@ One agent equals one worktree equals one branch equals one non-overlapping scope
 
 Prompts should stay short and reference the
 [Agent command runbook](agent-command-runbook.md),
-[Macro-goal orchestrator](macro-goal-orchestrator.md), and
-[Task queue schema](task-queue-schema.md) instead of repeating all standard commands and
-queue state inline.
+[Macro-goal orchestrator](macro-goal-orchestrator.md),
+[Task queue schema](task-queue-schema.md), and the applicable prompt contract instead of
+repeating all standard commands and queue state inline.
+
+For backend orchestration, the canonical prompt contract is
+[prompt-contracts/backend-orchestrator.md](prompt-contracts/backend-orchestrator.md). It
+defines the required references to the runbook, queue, backend agent template, official
+wrappers, medium-bundle policy, hard stop conditions, relevant-agent assignment, and the
+rule that reporting alone is not a stopping condition.
 
 ## Minimum flow
 
