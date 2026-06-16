@@ -7,6 +7,10 @@ from django.utils import timezone
 from apps.customers.models import Customer
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.inventory.models import InventoryAvailability, InventoryItem
+from apps.reservations.confirmation import (
+    RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
+    RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -42,8 +46,17 @@ def _period():
     return start_at, start_at + timedelta(hours=6)
 
 
-def _customer(name: str = "Hahitantsoa Customer") -> Customer:
-    return Customer.objects.create(display_name=name)
+def _customer(
+    name: str = "Hahitantsoa Customer",
+    *,
+    is_active: bool = True,
+    is_deleted: bool = False,
+) -> Customer:
+    return Customer.objects.create(
+        display_name=name,
+        is_active=is_active,
+        is_deleted=is_deleted,
+    )
 
 
 def _item(name: str = "Shared material", kind: str = "material") -> InventoryItem:
@@ -481,6 +494,148 @@ def test_event_draft_availability_preview_rejects_write_methods(authenticated_cl
     assert response.status_code == 405
 
 
+def test_authenticated_user_can_read_event_draft_confirmation_preflight(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    item = _item(name="Available shared article", kind="article")
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Preflight event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        created_by=user,
+    )
+    availability_count = InventoryAvailability.objects.count()
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload == {
+        "event_draft_id": str(draft.id),
+        "public_reference": draft.public_reference,
+        "status": "draft",
+        "can_confirm": True,
+        "blockers": [],
+        "active_line_count": 1,
+        "unavailable_line_count": 0,
+    }
+    assert InventoryAvailability.objects.count() == availability_count
+
+
+def test_event_draft_confirmation_preflight_reports_blockers_without_inventory_write(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    blocked_item = _item(name="Blocked shared material", kind="material")
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(is_active=False),
+        event_name="Blocked preflight",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=blocked_item,
+        quantity=1,
+        created_by=user,
+    )
+    InventoryAvailability.objects.create(
+        inventory_item=blocked_item,
+        status="blocked",
+        start_at=start_at,
+        end_at=end_at,
+    )
+    availability_count = InventoryAvailability.objects.count()
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["event_draft_id"] == str(draft.id)
+    assert payload["public_reference"] == draft.public_reference
+    assert payload["status"] == "draft"
+    assert payload["can_confirm"] is False
+    assert payload["active_line_count"] == 1
+    assert payload["unavailable_line_count"] == 1
+    assert payload["blockers"] == [
+        RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+        RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
+    ]
+    assert InventoryAvailability.objects.count() == availability_count
+
+
+def test_event_draft_confirmation_preflight_blocks_empty_active_lines(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Empty preflight",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    line = HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(),
+        quantity=1,
+        created_by=user,
+    )
+    line.is_deleted = True
+    line.deleted_at = timezone.now()
+    line.save(update_fields=["is_deleted", "deleted_at"])
+    availability_count = InventoryAvailability.objects.count()
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["can_confirm"] is False
+    assert payload["active_line_count"] == 0
+    assert payload["unavailable_line_count"] == 0
+    assert payload["blockers"] == [RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA]
+    assert InventoryAvailability.objects.count() == availability_count
+
+
+def test_second_user_cannot_access_another_users_confirmation_preflight(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    start_at, end_at = _period()
+    owner = authenticated_client.test_user
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Private preflight event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=owner,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(),
+        quantity=1,
+        created_by=owner,
+    )
+
+    response = authenticated_client_two.get(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/"
+    )
+
+    assert response.status_code == 404
+
+
 def test_second_user_cannot_list_read_update_delete_or_preview_another_users_draft(
     authenticated_client,
     authenticated_client_two,
@@ -513,6 +668,9 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     preview_response = authenticated_client_two.get(
         f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/"
     )
+    preflight_response = authenticated_client_two.get(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/"
+    )
 
     assert list_response.status_code == 200
     assert list_response.json() == []
@@ -520,6 +678,7 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     assert update_response.status_code == 404
     assert delete_response.status_code == 404
     assert preview_response.status_code == 404
+    assert preflight_response.status_code == 404
     draft.refresh_from_db()
     line = draft.lines.get()
     assert draft.created_by == owner

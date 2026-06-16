@@ -21,6 +21,10 @@ HAHITANTSOA_EVENT_DRAFT_AVAILABILITY_PREVIEW_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/availability-preview/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/availability-preview/",
 )
+HAHITANTSOA_EVENT_DRAFT_CONFIRMATION_PREFLIGHT_PATHS = (
+    "/api/v1/hahitantsoa/event-drafts/{id}/confirmation-preflight/",
+    "/api/v1/hahitantsoa/event-drafts/{pk}/confirmation-preflight/",
+)
 DOCUMENT_TEMPLATE_REGISTRY_PATH = "/api/v1/documents/templates/"
 DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",)
 TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
@@ -182,6 +186,12 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
     availability_preview_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_AVAILABILITY_PREVIEW_PATHS)
     assert availability_preview_path in paths
     _assert_get_only(paths[availability_preview_path])
+    confirmation_preflight_path = _get_path(
+        paths,
+        HAHITANTSOA_EVENT_DRAFT_CONFIRMATION_PREFLIGHT_PATHS,
+    )
+    assert confirmation_preflight_path in paths
+    _assert_get_only(paths[confirmation_preflight_path])
 
     create_operation = paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]["post"]
     response_schema = create_operation["responses"]["201"]["content"]["application/json"]["schema"]
@@ -244,6 +254,21 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "status",
         "conflict_count",
     }.issubset(preview_line_schema["properties"])
+
+    confirmation_preflight_operation = paths[confirmation_preflight_path]["get"]
+    confirmation_preflight_schema_reference = confirmation_preflight_operation["responses"]["200"][
+        "content"
+    ]["application/json"]["schema"]
+    confirmation_preflight_schema = _resolve_schema(schema, confirmation_preflight_schema_reference)
+    assert {
+        "event_draft_id",
+        "public_reference",
+        "status",
+        "can_confirm",
+        "blockers",
+        "active_line_count",
+        "unavailable_line_count",
+    }.issubset(confirmation_preflight_schema["properties"])
 
 
 def test_openapi_schema_exposes_documents_template_contract(client) -> None:
