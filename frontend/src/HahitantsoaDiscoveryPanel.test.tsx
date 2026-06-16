@@ -91,4 +91,18 @@ describe("HahitantsoaDiscoveryPanel", () => {
       screen.queryByLabelText(/price|quantity|stock|invoice|customer/i),
     ).not.toBeInTheDocument();
   });
+
+  it("calls onSelectConcept callback when Adopt Concept is clicked", async () => {
+    const onSelectConcept = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({ items: [{ concept: "room", label: "Meeting Room" }], count: 1 }),
+    );
+
+    render(<HahitantsoaDiscoveryPanel onSelectConcept={onSelectConcept} />);
+
+    const button = await screen.findByRole("button", { name: "Adopt Concept" });
+    button.click();
+
+    expect(onSelectConcept).toHaveBeenCalledWith("Meeting Room Event", "Meeting Room Hall");
+  });
 });
