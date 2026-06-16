@@ -482,7 +482,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     await waitFor(() => {
       const alertNode = screen.getByRole("alert");
       expect(alertNode).toHaveClass("notice", "error-notice");
-      expect(alertNode).toHaveTextContent("Confirmation failed due to business conflicts.");
+      expect(alertNode).toHaveTextContent("The requested data could not be loaded.");
     });
   });
 });
