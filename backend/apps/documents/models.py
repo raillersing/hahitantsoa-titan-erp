@@ -20,11 +20,15 @@ DOCUMENT_INSTANCE_STATUS_VALUES = [status.value for status in DocumentInstanceSt
 class DocumentInstance(UUIDModel, TimestampedModel):
     reservation_draft = models.ForeignKey(
         ReservationDraft,
+        null=True,
+        blank=True,
         on_delete=models.PROTECT,
         related_name="document_instances",
     )
     customer = models.ForeignKey(
         Customer,
+        null=True,
+        blank=True,
         on_delete=models.PROTECT,
         related_name="document_instances",
     )

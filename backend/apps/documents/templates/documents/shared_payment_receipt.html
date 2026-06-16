@@ -1,0 +1,16 @@
+<html>
+  <body>
+    <h1>Recu de paiement</h1>
+    <p>Document: {{ context.template.label }}</p>
+    <p>Paiement: {{ context.payment.payment_id }}</p>
+    <p>Source: {{ context.payment.customer_display_name }}</p>
+    <p>Type: {{ context.payment.payment_kind }}</p>
+    <p>Methode: {{ context.payment.payment_method }}</p>
+    <p>Montant: {{ context.payment.amount }}</p>
+    <p>Statut: {{ context.payment.payment_status }}</p>
+    <p>Reference externe: {{ context.payment.external_reference }}</p>
+    <p>Reservation: {{ context.payment.reservation_public_reference }}</p>
+    <p>Date de paiement: {{ context.payment.paid_at }}</p>
+    <p>Notes: {{ context.payment.notes }}</p>
+  </body>
+</html>
