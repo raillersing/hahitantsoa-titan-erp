@@ -18,6 +18,7 @@ from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAmendmentPreflightSerializer,
+    HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer,
     HahitantsoaEventDraftAmendmentRequestCreateSerializer,
     HahitantsoaEventDraftAmendmentRequestLineCreateSerializer,
     HahitantsoaEventDraftAmendmentRequestLineSerializer,
@@ -349,6 +350,28 @@ class HahitantsoaEventDraftAmendmentRequestLineListCreateAPIView(generics.ListCr
         line = serializer.save()
         payload = HahitantsoaEventDraftAmendmentRequestLineSerializer(line)
         return Response(payload.data, status=status.HTTP_201_CREATED)
+
+
+class HahitantsoaEventDraftAmendmentRequestAvailabilityPreflightAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(responses=HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer)
+    def get(self, request, event_draft_pk, amendment_request_pk):
+        from django.shortcuts import get_object_or_404
+
+        amendment_request = get_object_or_404(
+            HahitantsoaEventDraftAmendmentRequest.objects.filter(
+                event_draft__in=visible_hahitantsoa_event_drafts(user=request.user),
+                event_draft_id=event_draft_pk,
+            ).select_related("event_draft"),
+            pk=amendment_request_pk,
+        )
+        serializer_class = HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer
+        response_serializer = serializer_class.from_amendment_request(
+            amendment_request=amendment_request
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class HahitantsoaEventDraftAmendmentRequestLineRetrieveUpdateDestroyAPIView(

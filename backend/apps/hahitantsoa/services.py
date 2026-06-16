@@ -8,6 +8,7 @@ from apps.audit.services import record_audit_event_on_commit
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftAmendmentRequestLine,
 )
 from apps.hahitantsoa.selectors import _get_available_hahitantsoa_shared_inventory_items_for_period
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus, InventoryItem
@@ -76,6 +77,31 @@ class HahitantsoaEventDraftAmendmentPreflight:
 
 
 @dataclass(frozen=True)
+class HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreview:
+    amendment_request_line_id: str
+    quantity: int
+    inventory_item_id: str
+    inventory_item_name: str
+    inventory_item_kind: str
+    status: str
+    conflict_count: int
+
+
+@dataclass(frozen=True)
+class HahitantsoaEventDraftAmendmentRequestAvailabilityPreview:
+    amendment_request_id: str
+    event_draft_id: str
+    public_reference: str
+    status: str
+    start_at: datetime
+    end_at: datetime
+    line_count: int
+    available_line_count: int
+    unavailable_line_count: int
+    lines: tuple[HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreview, ...]
+
+
+@dataclass(frozen=True)
 class HahitantsoaEventDraftConfirmationResult:
     event_draft: HahitantsoaEventDraft
     blocked_item_count: int
@@ -124,6 +150,22 @@ def _build_hahitantsoa_event_draft_line_preview(
     )
 
 
+def _build_hahitantsoa_event_draft_amendment_request_line_preview(
+    *,
+    preview: ReservationItemPreview,
+    line: HahitantsoaEventDraftAmendmentRequestLine,
+) -> HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreview:
+    return HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreview(
+        amendment_request_line_id=str(line.id),
+        quantity=line.quantity,
+        inventory_item_id=str(line.inventory_item.id),
+        inventory_item_name=line.inventory_item.name,
+        inventory_item_kind=line.inventory_item.kind,
+        status=preview.status.value,
+        conflict_count=len(preview.conflicts),
+    )
+
+
 def get_hahitantsoa_event_draft_availability_preview(
     *,
     event_draft: HahitantsoaEventDraft,
@@ -152,6 +194,46 @@ def get_hahitantsoa_event_draft_availability_preview(
     return HahitantsoaEventDraftAvailabilityPreview(
         event_draft_id=str(event_draft.id),
         public_reference=event_draft.public_reference,
+        start_at=period.start_at,
+        end_at=period.end_at,
+        line_count=len(line_previews),
+        available_line_count=available_line_count,
+        unavailable_line_count=unavailable_line_count,
+        lines=line_previews,
+    )
+
+
+def get_hahitantsoa_event_draft_amendment_request_availability_preview(
+    *,
+    amendment_request: HahitantsoaEventDraftAmendmentRequest,
+) -> HahitantsoaEventDraftAmendmentRequestAvailabilityPreview:
+    event_draft = amendment_request.event_draft
+    period = make_reservation_period(start_at=event_draft.start_at, end_at=event_draft.end_at)
+    lines = tuple(
+        amendment_request.lines.filter(is_deleted=False)
+        .select_related("inventory_item")
+        .order_by("created_at", "id")
+    )
+    line_previews = tuple(
+        _build_hahitantsoa_event_draft_amendment_request_line_preview(
+            line=line,
+            preview=preview_reservation_item_request(
+                inventory_item=line.inventory_item,
+                inventory_item_kind=line.inventory_item.kind,
+                start_at=period.start_at,
+                end_at=period.end_at,
+            ),
+        )
+        for line in lines
+    )
+    available_line_count = sum(1 for line in line_previews if line.status == "available")
+    unavailable_line_count = len(line_previews) - available_line_count
+
+    return HahitantsoaEventDraftAmendmentRequestAvailabilityPreview(
+        amendment_request_id=str(amendment_request.id),
+        event_draft_id=str(event_draft.id),
+        public_reference=event_draft.public_reference,
+        status=amendment_request.status,
         start_at=period.start_at,
         end_at=period.end_at,
         line_count=len(line_previews),
