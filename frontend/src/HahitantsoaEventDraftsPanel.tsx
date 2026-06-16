@@ -861,7 +861,7 @@ export function HahitantsoaEventDraftsPanel({
         </div>
       )}
 
-      <div className="preview-list-section" style={{ marginTop: "2rem" }}>
+      <div className="preview-list-section hahitantsoa-creation-section">
         <h3>Create Hahitantsoa Event Draft</h3>
          <form className="availability-form" onSubmit={handleCreateDraft}>
           <label>
