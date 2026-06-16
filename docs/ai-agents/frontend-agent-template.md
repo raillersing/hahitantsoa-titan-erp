@@ -7,16 +7,31 @@ Frontend prompts should stay short and reference:
 
 - [`agent-command-runbook.md`](agent-command-runbook.md)
 - [`orchestrator-task-queue.md`](orchestrator-task-queue.md)
+- [`frontend-agent-template.md`](frontend-agent-template.md)
+- [`prompt-contracts/frontend-orchestrator.md`](prompt-contracts/frontend-orchestrator.md)
 
 Frontend agents work in the frontend worktree only. Their mutable scope is limited to
 `frontend/` and frontend audits unless the task explicitly authorizes something else.
 They must never modify backend, agent-tools, or agent-docs worktrees.
+
+When the task depends on governance or tooling boundaries, reference the applicable
+frontend or Antigravity docs instead of embedding a long prompt.
 
 After merge of F138B/F138C on `main`, frontend agents must use these official wrappers
 when applicable:
 
 - `scripts/dev/erp-agent-scope-guard`
 - `scripts/dev/erp-worktree-preflight`
+
+The frontend orchestrator assigns only relevant roles. Agent FE-A implements. Agent
+FE-B through Agent FE-F are used only when their review specialty is relevant.
+
+Frontend agents must not fix backend. If an issue is caused by a confirmed API contract
+mismatch, frontend agents may mutate backend only when the task explicitly authorizes
+the minimum required cross-boundary change.
+
+Reporting alone is not a stopping condition. After merge and green `main` CI, continue
+to the next clear frontend bundle unless a hard stop condition occurs.
 
 ## Agent FE-A - Frontend Implementer
 

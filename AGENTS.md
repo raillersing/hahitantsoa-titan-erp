@@ -125,6 +125,16 @@ Use [`docs/ai-agents/task-prompt-template.md`](docs/ai-agents/task-prompt-templa
 Prompts should reference the runbook and task queue instead of repeating all standard
 commands, stop conditions, and CI follow-up instructions inline.
 
+Use the applicable orchestrator contract for the task:
+
+- backend orchestration: `docs/ai-agents/prompt-contracts/backend-orchestrator.md`
+- frontend orchestration: `docs/ai-agents/prompt-contracts/frontend-orchestrator.md`
+- Antigravity or tooling orchestration: the applicable docs in `docs/ai-agents/tooling/`
+
+Keep backend, frontend, and Antigravity/tooling orchestration separate. Backend agents
+must not fix frontend. Frontend agents must not mutate backend unless an explicit API
+contract mismatch authorization allows the minimum required cross-boundary change.
+
 ## Terminal and environment rules
 
 Run every important terminal command through the logged heredoc workflow:
