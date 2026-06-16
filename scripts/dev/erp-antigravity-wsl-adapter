@@ -529,6 +529,110 @@ fi
 EOF
     ;;
 
+  main-ci-diagnostics)
+    COMMIT_SHA=""
+    BRANCH="main"
+    WATCH_MODE=0
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --commit)
+          shift
+          COMMIT_SHA="${1:-}"
+          ;;
+        --branch)
+          shift
+          BRANCH="${1:-}"
+          ;;
+        --watch)
+          WATCH_MODE=1
+          ;;
+        *)
+          echo "ERROR: unknown main-ci-diagnostics option: $1"
+          exit 2
+          ;;
+      esac
+      shift
+    done
+
+    if [ -z "$COMMIT_SHA" ]; then
+      echo "ERROR: CommitSha is required for main-ci-diagnostics mode."
+      exit 2
+    fi
+    if [ -z "$BRANCH" ]; then
+      echo "ERROR: Branch is required for main-ci-diagnostics mode."
+      exit 2
+    fi
+
+    H_SHA=$(printf '%q' "$COMMIT_SHA")
+    H_BRANCH=$(printf '%q' "$BRANCH")
+    H_WATCH=$(printf '%q' "$WATCH_MODE")
+
+    echo "INFO: Running main-ci-diagnostics via erp-logged-run..."
+    bash scripts/dev/erp-logged-run main-ci-diagnostics <<EOF
+set -euo pipefail
+COMMIT_SHA=$H_SHA
+BRANCH=$H_BRANCH
+WATCH_MODE=$H_WATCH
+
+REMOTE_URL=\$(git remote get-url origin)
+REPO_SLUG=\$(printf '%s\n' "\$REMOTE_URL" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git\$##')
+
+RUN_RECORD=\$(gh api "repos/\$REPO_SLUG/actions/runs?branch=\$BRANCH&event=push&per_page=100" --jq '(.workflow_runs | map(select(.head_sha == "'"$COMMIT_SHA"'" and .name == "CI")) | first) as \$run | if \$run == null then "" else [\$run.id, \$run.name, \$run.status, (\$run.conclusion // ""), \$run.head_sha, \$run.html_url] | @tsv end' 2>/dev/null || true)
+
+if [ -z "\$RUN_RECORD" ]; then
+  echo "MAIN_CI_RUN_NOT_FOUND"
+  echo "Requested Commit SHA: \$COMMIT_SHA"
+  echo "Branch: \$BRANCH"
+  exit 4
+fi
+
+IFS=\$'\t' read -r RUN_ID WORKFLOW_NAME RUN_STATUS RUN_CONCLUSION HEAD_SHA RUN_URL <<< "\$RUN_RECORD"
+
+if [ "\$HEAD_SHA" != "\$COMMIT_SHA" ]; then
+  echo "MAIN_CI_HEAD_SHA_MISMATCH"
+  echo "Requested Commit SHA: \$COMMIT_SHA"
+  echo "Branch: \$BRANCH"
+  echo "Run ID: \$RUN_ID"
+  echo "Workflow: \$WORKFLOW_NAME"
+  echo "Run Status: \$RUN_STATUS"
+  echo "Run Conclusion: \$RUN_CONCLUSION"
+  echo "Run URL: \$RUN_URL"
+  echo "Head SHA: \$HEAD_SHA"
+  exit 5
+fi
+
+if [ "\$WATCH_MODE" = "1" ] && { [ "\$RUN_STATUS" = "queued" ] || [ "\$RUN_STATUS" = "in_progress" ] || [ "\$RUN_STATUS" = "pending" ]; }; then
+  gh run watch "\$RUN_ID" --compact --exit-status
+  RUN_RECORD=\$(gh run view "\$RUN_ID" --json databaseId,workflowName,status,conclusion,headSha,url --jq '[.databaseId, .workflowName, .status, (.conclusion // ""), .headSha, .url] | @tsv')
+  IFS=\$'\t' read -r RUN_ID WORKFLOW_NAME RUN_STATUS RUN_CONCLUSION HEAD_SHA RUN_URL <<< "\$RUN_RECORD"
+fi
+
+echo "Requested Commit SHA: \$COMMIT_SHA"
+echo "Branch: \$BRANCH"
+echo "Run ID: \$RUN_ID"
+echo "Workflow: \$WORKFLOW_NAME"
+echo "Run Status: \$RUN_STATUS"
+echo "Run Conclusion: \$RUN_CONCLUSION"
+echo "Run URL: \$RUN_URL"
+echo "Head SHA: \$HEAD_SHA"
+
+if [ "\$HEAD_SHA" != "\$COMMIT_SHA" ]; then
+  echo "MAIN_CI_HEAD_SHA_MISMATCH"
+  exit 5
+fi
+
+if [ "\$RUN_STATUS" != "completed" ]; then
+  echo "MAIN_CI_PENDING"
+  exit 0
+fi
+
+if [ "\$RUN_CONCLUSION" != "success" ]; then
+  echo "MAIN_CI_NOT_GREEN"
+  exit 6
+fi
+EOF
+    ;;
+
   *)
     echo "ERROR: unsupported adapter mode: $MODE"
     exit 2
