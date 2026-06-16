@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -1036,7 +1037,8 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.change(qtyInput, { target: { value: "3" } });
     fireEvent.change(notesInput, { target: { value: "New line notes" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Add Line" }));
+    const submitBtn = within(addLineForm).getByRole("button", { name: "Add Line" });
+    fireEvent.click(submitBtn);
 
     await waitFor(() => {
       expect(screen.getByText(/New line notes/i)).toBeInTheDocument();
