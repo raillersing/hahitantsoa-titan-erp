@@ -100,6 +100,16 @@ defines the required references to the runbook, queue, backend agent template, o
 wrappers, medium-bundle policy, hard stop conditions, relevant-agent assignment, and the
 rule that reporting alone is not a stopping condition.
 
+For frontend orchestration, the canonical prompt contract is
+[prompt-contracts/frontend-orchestrator.md](prompt-contracts/frontend-orchestrator.md).
+It defines the required references to the runbook, queue, frontend agent template,
+official wrappers, hard stop conditions, relevant-agent assignment, cross-boundary
+backend/frontend limits, and the rule that reporting alone is not a stopping condition.
+
+Antigravity or tooling orchestration is separate from backend and frontend
+orchestration. Use the applicable docs in `docs/ai-agents/tooling/` instead of reusing
+backend or frontend prompt contracts for tooling-only work.
+
 ## Minimum flow
 
 1. Verify baseline, branch, status, scope, and forbidden files.
