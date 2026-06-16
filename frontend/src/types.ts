@@ -219,12 +219,22 @@ export type HahitantsoaEventDraftConfirmationResult = {
   event_draft: HahitantsoaEventDraft;
 };
 
+export type HahitantsoaEventDraftAmendmentRequestLine = {
+  id: string;
+  inventory_item_id: string;
+  inventory_item_name: string;
+  inventory_item_kind: InventoryItemKind;
+  quantity: number;
+  notes: string;
+};
+
 export type HahitantsoaEventDraftAmendmentRequest = {
   id: string;
   event_draft_id: string;
   status: "draft";
   reason: string;
   notes: string;
+  lines: HahitantsoaEventDraftAmendmentRequestLine[];
   created_at: string;
   updated_at: string;
 };
@@ -237,6 +247,41 @@ export type HahitantsoaEventDraftAmendmentRequestCreatePayload = {
 export type HahitantsoaEventDraftAmendmentRequestUpdatePayload = {
   reason?: string;
   notes?: string;
+};
+
+export type HahitantsoaEventDraftAmendmentRequestLineCreatePayload = {
+  inventory_item_id: string;
+  quantity: number;
+  notes?: string;
+};
+
+export type HahitantsoaEventDraftAmendmentRequestLineUpdatePayload = {
+  inventory_item_id?: string;
+  quantity?: number;
+  notes?: string;
+};
+
+export type HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreview = {
+  amendment_request_line_id: string;
+  quantity: number;
+  inventory_item_id: string;
+  inventory_item_name: string;
+  inventory_item_kind: InventoryItemKind;
+  status: "available" | "unavailable";
+  conflict_count: number;
+};
+
+export type HahitantsoaEventDraftAmendmentRequestAvailabilityPreview = {
+  amendment_request_id: string;
+  event_draft_id: string;
+  public_reference: string;
+  status: string;
+  start_at: string;
+  end_at: string;
+  line_count: number;
+  available_line_count: number;
+  unavailable_line_count: number;
+  lines: HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreview[];
 };
 
 

@@ -992,6 +992,221 @@ fieldset:disabled {
   line-height: 1.5;
 }
 
+/* Amendment Request Lines & Preflight Report styles */
+.amendment-request-lines-wrapper {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: hsl(210, 20%, 98%);
+  border: 1px solid hsl(210, 15%, 90%);
+  border-radius: 6px;
+}
+
+.amendment-request-lines-wrapper h5 {
+  margin: 0 0 12px 0;
+  font-size: 0.95rem;
+  color: hsl(215, 25%, 25%);
+  border-bottom: 1px solid hsl(210, 15%, 88%);
+  padding-bottom: 6px;
+}
+
+.amendment-lines-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+}
+
+.amendment-line-item {
+  padding: 8px 0;
+  border-bottom: 1px solid hsl(210, 15%, 93%);
+}
+
+.amendment-line-item:last-child {
+  border-bottom: none;
+}
+
+.amendment-line-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: hsl(215, 20%, 30%);
+}
+
+.line-notes-text {
+  color: hsl(215, 15%, 55%);
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+.line-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-line-btn, .delete-line-btn {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+  color: hsl(215, 20%, 40%);
+}
+
+.delete-line-btn:hover {
+  background: hsl(346, 70%, 97%);
+  border-color: hsl(346, 50%, 80%);
+  color: hsl(346, 60%, 45%);
+}
+
+.edit-line-btn:hover {
+  background: hsl(210, 50%, 97%);
+  border-color: hsl(210, 50%, 80%);
+  color: hsl(210, 60%, 40%);
+}
+
+.inline-edit-line-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.inline-edit-line-form select,
+.inline-edit-line-form input {
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.inline-add-line-form {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid hsl(210, 15%, 88%);
+}
+
+.inline-add-line-form h6 {
+  margin: 0 0 8px 0;
+  font-size: 0.85rem;
+  color: hsl(215, 20%, 45%);
+}
+
+.inline-add-line-fields {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inline-add-line-fields select,
+.inline-add-line-fields input {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.inline-add-line-fields button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  background: hsl(220, 60%, 50%);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.inline-add-line-fields button:hover {
+  background: hsl(220, 65%, 45%);
+}
+
+.amendment-availability-preflight-wrapper {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.check-availability-btn {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(215, 60%, 40%);
+  background: hsl(210, 50%, 96%);
+  border: 1px solid hsl(210, 40%, 85%);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.check-availability-btn:hover:not(:disabled) {
+  background: hsl(210, 55%, 92%);
+  border-color: hsl(210, 50%, 80%);
+}
+
+.availability-preflight-report {
+  margin-top: 12px;
+  padding: 12px;
+  background: white;
+  border: 1px solid hsl(210, 15%, 88%);
+  border-radius: 6px;
+}
+
+.availability-preflight-report h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  color: hsl(215, 25%, 30%);
+}
+
+.availability-preflight-report p {
+  margin: 0 0 6px 0;
+  font-size: 0.85rem;
+  color: hsl(215, 15%, 40%);
+}
+
+.availability-preflight-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.8rem;
+}
+
+.availability-preflight-table th,
+.availability-preflight-table td {
+  padding: 6px 8px;
+  border: 1px solid hsl(210, 15%, 92%);
+  text-align: left;
+}
+
+.availability-preflight-table th {
+  background: hsl(210, 20%, 97%);
+  color: hsl(215, 20%, 35%);
+  font-weight: 600;
+}
+
+.success-badge {
+  background: hsl(142, 60%, 93%);
+  color: hsl(142, 60%, 25%);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.error-badge {
+  background: hsl(346, 65%, 94%);
+  color: hsl(346, 60%, 30%);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.card-footer-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 
 
 
