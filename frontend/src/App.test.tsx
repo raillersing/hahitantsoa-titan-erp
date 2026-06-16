@@ -304,7 +304,7 @@ describe("App", () => {
     fireEvent.click(commOpsQuickBtn);
 
     expect(
-      await screen.findByRole("heading", { name: "Commercial Operations" }),
+      await screen.findByRole("heading", { name: "Commercial Operations", level: 2 }),
     ).toBeInTheDocument();
     expect(window.location.hash).toBe("#commercial-ops");
 
