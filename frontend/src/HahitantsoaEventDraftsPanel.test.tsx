@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -125,6 +126,16 @@ function mockHahitantsoaFetch(options: {
       status: "draft" as const,
       reason: "Initial reason",
       notes: "Initial notes",
+      lines: [
+        {
+          id: "amendment-line-1",
+          inventory_item_id: INVENTORY_ITEMS[0].id,
+          inventory_item_name: INVENTORY_ITEMS[0].name,
+          inventory_item_kind: INVENTORY_ITEMS[0].kind,
+          quantity: 2,
+          notes: "Initial amendment line notes",
+        }
+      ],
       created_at: "2026-06-16T10:00:00Z",
       updated_at: "2026-06-16T10:00:00Z",
     }
@@ -149,7 +160,7 @@ function mockHahitantsoaFetch(options: {
     }
 
     if (url.includes("/api/v1/hahitantsoa/event-drafts/")) {
-      const draftId = url.split("/").filter(Boolean).pop();
+      const parts = url.split("/").filter(Boolean);
       if (url.endsWith("/availability-preview/")) {
         return Promise.resolve(
           options.failPreview ? jsonResponse({}, 500) : jsonResponse(AVAILABILITY_PREVIEW)
@@ -186,6 +197,89 @@ function mockHahitantsoaFetch(options: {
         );
       }
       if (url.includes("/amendment-requests/")) {
+        // Path matches: .../amendment-requests/<req_id>/availability-preflight/
+        if (url.endsWith("/availability-preflight/")) {
+          const reqId = parts[parts.length - 2];
+          return Promise.resolve(jsonResponse({
+            amendment_request_id: reqId,
+            event_draft_id: DRAFTS[0].id,
+            public_reference: DRAFTS[0].public_reference,
+            status: "draft",
+            start_at: DRAFTS[0].start_at,
+            end_at: DRAFTS[0].end_at,
+            line_count: 1,
+            available_line_count: 1,
+            unavailable_line_count: 0,
+            lines: [
+              {
+                amendment_request_line_id: "amendment-line-1",
+                quantity: 2,
+                inventory_item_id: INVENTORY_ITEMS[0].id,
+                inventory_item_name: INVENTORY_ITEMS[0].name,
+                inventory_item_kind: INVENTORY_ITEMS[0].kind,
+                status: "available",
+                conflict_count: 0,
+              }
+            ]
+          }));
+        }
+        // Path matches: .../amendment-requests/<req_id>/lines/
+        if (url.endsWith("/lines/")) {
+          const reqId = parts[parts.length - 2];
+          const req = amendmentRequests.find(r => r.id === reqId) || amendmentRequests[0];
+          if (init?.method === "POST") {
+            const body = JSON.parse(init.body as string);
+            const item = INVENTORY_ITEMS.find(i => i.id === body.inventory_item_id) || INVENTORY_ITEMS[0];
+            const newLine = {
+              id: `amendment-line-${(req.lines?.length || 0) + 1}`,
+              inventory_item_id: item.id,
+              inventory_item_name: item.name,
+              inventory_item_kind: item.kind,
+              quantity: body.quantity,
+              notes: body.notes || "",
+            };
+            if (!req.lines) req.lines = [];
+            req.lines.push(newLine);
+            return Promise.resolve(jsonResponse(newLine, 201));
+          }
+          return Promise.resolve(jsonResponse(req.lines || []));
+        }
+        // Path matches: .../amendment-requests/<req_id>/lines/<line_id>/
+        if (url.includes("/lines/")) {
+          const lineId = parts[parts.length - 1];
+          const reqId = parts[parts.length - 3];
+          const req = amendmentRequests.find(r => r.id === reqId) || amendmentRequests[0];
+          if (init?.method === "PATCH") {
+            const body = JSON.parse(init.body as string);
+            const line = (req.lines || []).find(l => l.id === lineId);
+            if (line) {
+              if (body.quantity !== undefined) line.quantity = body.quantity;
+              if (body.notes !== undefined) line.notes = body.notes;
+              if (body.inventory_item_id !== undefined) {
+                const item = INVENTORY_ITEMS.find(i => i.id === body.inventory_item_id) || INVENTORY_ITEMS[0];
+                line.inventory_item_id = item.id;
+                line.inventory_item_name = item.name;
+                line.inventory_item_kind = item.kind;
+              }
+              return Promise.resolve(jsonResponse(line));
+            }
+          }
+          if (init?.method === "DELETE") {
+            if (req.lines) {
+              req.lines = req.lines.filter(l => l.id !== lineId);
+            }
+            return Promise.resolve(new Response(null, { status: 204 }));
+          }
+        }
+        // Path matches: .../amendment-requests/<req_id>/
+        if (init?.method === "PATCH") {
+          const body = JSON.parse(init.body as string);
+          const reqId = url.split("/").filter(Boolean).pop();
+          const req = amendmentRequests.find(r => r.id === reqId) || amendmentRequests[0];
+          req.reason = body.reason !== undefined ? body.reason : req.reason;
+          req.notes = body.notes !== undefined ? body.notes : req.notes;
+          return Promise.resolve(jsonResponse(req));
+        }
         if (init?.method === "POST") {
           const body = JSON.parse(init.body as string);
           const newReq = {
@@ -194,19 +288,12 @@ function mockHahitantsoaFetch(options: {
             status: "draft" as const,
             reason: body.reason || "",
             notes: body.notes || "",
+            lines: [],
             created_at: "2026-06-16T10:00:00Z",
             updated_at: "2026-06-16T10:00:00Z",
           };
           amendmentRequests.push(newReq);
           return Promise.resolve(jsonResponse({ amendment_request: newReq }, 201));
-        }
-        if (init?.method === "PATCH") {
-          const body = JSON.parse(init.body as string);
-          const reqId = url.split("/").filter(Boolean).pop();
-          const req = amendmentRequests.find(r => r.id === reqId) || amendmentRequests[0];
-          req.reason = body.reason !== undefined ? body.reason : req.reason;
-          req.notes = body.notes !== undefined ? body.notes : req.notes;
-          return Promise.resolve(jsonResponse(req));
         }
         return Promise.resolve(jsonResponse(amendmentRequests));
       }
@@ -907,7 +994,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Edit the request
-    fireEvent.click(screen.getAllByRole("button", { name: "Edit Request" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Request Details" })[0]);
 
     const editForm = section.querySelector(".edit-amendment-form")!;
     const editReasonInput = editForm.querySelector("input[type='text']") as HTMLInputElement;
@@ -920,6 +1007,51 @@ describe("HahitantsoaEventDraftsPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Updated reason")).toBeInTheDocument();
       expect(screen.getByText("Updated notes")).toBeInTheDocument();
+    });
+  });
+
+  it("renders amendment request lines, allows inline CRUD, and checks availability preflight", async () => {
+    mockHahitantsoaFetch();
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    // Verify existing amendment request lines rendering
+    await waitFor(() => {
+      expect(screen.getByText("Initial reason")).toBeInTheDocument();
+      expect(screen.getByText("Material One")).toBeInTheDocument();
+      expect(screen.getByText(/Initial amendment line notes/i)).toBeInTheDocument();
+    });
+
+    // Add proposed line change
+    const addLineForm = screen.getByText("Add Proposed Line Change").closest("form")!;
+    const itemSelect = addLineForm.querySelector("select") as HTMLSelectElement;
+    const qtyInput = addLineForm.querySelector("input[placeholder='Qty']") as HTMLInputElement;
+    const notesInput = addLineForm.querySelector("input[placeholder='Line Notes']") as HTMLInputElement;
+
+    fireEvent.change(itemSelect, { target: { value: "item-1" } });
+    fireEvent.change(qtyInput, { target: { value: "3" } });
+    fireEvent.change(notesInput, { target: { value: "New line notes" } });
+
+    const submitBtn = within(addLineForm).getByRole("button", { name: "Add Line" });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/New line notes/i)).toBeInTheDocument();
+    });
+
+    // Check Availability Preflight
+    fireEvent.click(screen.getByRole("button", { name: "Check Amendment Availability Preflight" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Availability Preflight Report")).toBeInTheDocument();
+      expect(screen.getByText("Lines Checked:")).toBeInTheDocument();
+      expect(screen.getByText("Available Lines:")).toBeInTheDocument();
+      expect(screen.getByText("Unavailable Lines:")).toBeInTheDocument();
     });
   });
 });

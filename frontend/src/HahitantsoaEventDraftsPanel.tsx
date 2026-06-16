@@ -13,6 +13,11 @@ import {
   getHahitantsoaEventDraftAmendmentRequests,
   createHahitantsoaEventDraftAmendmentRequest,
   updateHahitantsoaEventDraftAmendmentRequest,
+  getHahitantsoaEventDraftAmendmentRequestLines,
+  createHahitantsoaEventDraftAmendmentRequestLine,
+  updateHahitantsoaEventDraftAmendmentRequestLine,
+  deleteHahitantsoaEventDraftAmendmentRequestLine,
+  getHahitantsoaEventDraftAmendmentRequestAvailabilityPreflight,
   ApiError,
 } from "./api";
 import type {
@@ -24,6 +29,8 @@ import type {
   HahitantsoaEventDraftAmendmentPreflight,
   HahitantsoaEventDraftConfirmationResult,
   HahitantsoaEventDraftAmendmentRequest,
+  HahitantsoaEventDraftAmendmentRequestLine,
+  HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
 } from "./types";
 
 type DraftListState =
@@ -87,6 +94,10 @@ const AMENDMENT_BLOCKER_LABELS: Record<string, string> = {
   draft_has_no_active_lines: "This draft has no active lines. Add line items before attempting an amendment.",
   draft_period_invalid: "The draft period is invalid. Correct the start and end dates before amending.",
   user_not_owner: "You are not the owner of this draft. Only the owner may request an amendment.",
+  missing_required_data: "Required event draft data is missing.",
+  active_availability_conflict: "There is an active inventory availability conflict.",
+  missing_signed_contract: "The signed contract marker is missing.",
+  missing_required_deposit: "The required deposit marker is missing.",
 };
 
 function formatBlockerLabel(blocker: string): string {
@@ -145,6 +156,27 @@ export function HahitantsoaEventDraftsPanel({
   const [editingAmendmentId, setEditingAmendmentId] = useState<string | null>(null);
   const [editingAmendmentReason, setEditingAmendmentReason] = useState("");
   const [editingAmendmentNotes, setEditingAmendmentNotes] = useState("");
+
+  const [amendmentRequestPreflights, setAmendmentRequestPreflights] = useState<
+    Record<
+      string,
+      | {
+          status: "idle" | "loading" | "loaded" | "error";
+          data?: HahitantsoaEventDraftAmendmentRequestAvailabilityPreview;
+          error?: string;
+        }
+      | undefined
+    >
+  >({});
+
+  const [newAmendmentLineItemId, setNewAmendmentLineItemId] = useState<Record<string, string>>({});
+  const [newAmendmentLineQuantity, setNewAmendmentLineQuantity] = useState<Record<string, number>>({});
+  const [newAmendmentLineNotes, setNewAmendmentLineNotes] = useState<Record<string, string>>({});
+
+  const [editingAmendmentLineId, setEditingAmendmentLineId] = useState<string | null>(null);
+  const [editingAmendmentLineItemId, setEditingAmendmentLineItemId] = useState("");
+  const [editingAmendmentLineQuantity, setEditingAmendmentLineQuantity] = useState(1);
+  const [editingAmendmentLineNotes, setEditingAmendmentLineNotes] = useState("");
 
   const isActionLoading = actionState.status === "loading";
   const isDetailLoading = draftDetailState.status === "loading";
@@ -352,6 +384,108 @@ export function HahitantsoaEventDraftsPanel({
         status: "error",
         message: err instanceof Error ? err.message : "Failed to update amendment request.",
       });
+    }
+  };
+
+  const handleCreateAmendmentLine = async (e: FormEvent, draftId: string, amendmentRequestId: string) => {
+    e.preventDefault();
+    setFieldErrors({});
+    setActionState({ status: "loading" });
+    const inventoryItemId = newAmendmentLineItemId[amendmentRequestId];
+    const quantity = newAmendmentLineQuantity[amendmentRequestId] || 1;
+    const notes = newAmendmentLineNotes[amendmentRequestId] || "";
+
+    if (!inventoryItemId) {
+      setActionState({ status: "error", message: "Inventory item is required." });
+      return;
+    }
+
+    try {
+      await createHahitantsoaEventDraftAmendmentRequestLine(draftId, amendmentRequestId, {
+        inventory_item_id: inventoryItemId,
+        quantity,
+        notes,
+      });
+      setNewAmendmentLineItemId(curr => ({ ...curr, [amendmentRequestId]: "" }));
+      setNewAmendmentLineQuantity(curr => ({ ...curr, [amendmentRequestId]: 1 }));
+      setNewAmendmentLineNotes(curr => ({ ...curr, [amendmentRequestId]: "" }));
+      setActionState({ status: "success", message: "Amendment request line added successfully." });
+      void fetchAmendmentRequests(draftId);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(err.errors);
+      }
+      setActionState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to add amendment request line.",
+      });
+    }
+  };
+
+  const handleUpdateAmendmentLine = async (e: FormEvent, draftId: string, amendmentRequestId: string, lineId: string) => {
+    e.preventDefault();
+    setFieldErrors({});
+    setActionState({ status: "loading" });
+
+    try {
+      await updateHahitantsoaEventDraftAmendmentRequestLine(draftId, amendmentRequestId, lineId, {
+        inventory_item_id: editingAmendmentLineItemId,
+        quantity: editingAmendmentLineQuantity,
+        notes: editingAmendmentLineNotes,
+      });
+      setEditingAmendmentLineId(null);
+      setEditingAmendmentLineItemId("");
+      setEditingAmendmentLineQuantity(1);
+      setEditingAmendmentLineNotes("");
+      setActionState({ status: "success", message: "Amendment request line updated successfully." });
+      void fetchAmendmentRequests(draftId);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(err.errors);
+      }
+      setActionState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to update amendment request line.",
+      });
+    }
+  };
+
+  const handleDeleteAmendmentLine = async (draftId: string, amendmentRequestId: string, lineId: string) => {
+    setFieldErrors({});
+    setActionState({ status: "loading" });
+
+    try {
+      await deleteHahitantsoaEventDraftAmendmentRequestLine(draftId, amendmentRequestId, lineId);
+      setActionState({ status: "success", message: "Amendment request line deleted successfully." });
+      void fetchAmendmentRequests(draftId);
+    } catch (err) {
+      setActionState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to delete amendment request line.",
+      });
+    }
+  };
+
+  const handleCheckAmendmentRequestAvailabilityPreflight = async (draftId: string, amendmentRequestId: string) => {
+    setAmendmentRequestPreflights(curr => ({
+      ...curr,
+      [amendmentRequestId]: { status: "loading" },
+    }));
+
+    try {
+      const data = await getHahitantsoaEventDraftAmendmentRequestAvailabilityPreflight(draftId, amendmentRequestId);
+      setAmendmentRequestPreflights(curr => ({
+        ...curr,
+        [amendmentRequestId]: { status: "loaded", data },
+      }));
+    } catch (err) {
+      setAmendmentRequestPreflights(curr => ({
+        ...curr,
+        [amendmentRequestId]: {
+          status: "error",
+          error: err instanceof Error ? err.message : "Failed to load availability preflight.",
+        },
+      }));
     }
   };
 
@@ -1129,18 +1263,215 @@ export function HahitantsoaEventDraftsPanel({
                         </div>
                         <p><strong>Reason:</strong> {req.reason || <em>No reason provided</em>}</p>
                         {req.notes && <p><strong>Notes:</strong> {req.notes}</p>}
-                        <button
-                          type="button"
-                          className="edit-btn"
-                          disabled={isDisabled}
-                          onClick={() => {
-                            setEditingAmendmentId(req.id);
-                            setEditingAmendmentReason(req.reason);
-                            setEditingAmendmentNotes(req.notes);
-                          }}
-                        >
-                          Edit Request
-                        </button>
+
+                        <div className="amendment-request-lines-wrapper">
+                          <h5>Proposed Line Changes</h5>
+                          {req.lines && req.lines.length > 0 ? (
+                            <ul className="amendment-lines-list">
+                              {req.lines.map((line) => (
+                                <li key={line.id} className="amendment-line-item">
+                                  {editingAmendmentLineId === line.id ? (
+                                    <form
+                                      onSubmit={(e) => handleUpdateAmendmentLine(e, draftDetailState.draft.id, req.id, line.id)}
+                                      className="inline-edit-line-form"
+                                    >
+                                      <select
+                                        value={editingAmendmentLineItemId}
+                                        onChange={(e) => setEditingAmendmentLineItemId(e.target.value)}
+                                        required
+                                        disabled={isDisabled}
+                                      >
+                                        <option value="">-- Select Inventory Item --</option>
+                                        {inventoryItems.map((item) => (
+                                          <option key={item.id} value={item.id}>
+                                            {item.name} ({item.kind})
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={editingAmendmentLineQuantity}
+                                        onChange={(e) => setEditingAmendmentLineQuantity(parseInt(e.target.value) || 1)}
+                                        required
+                                        disabled={isDisabled}
+                                      />
+                                      <input
+                                        type="text"
+                                        placeholder="Notes"
+                                        value={editingAmendmentLineNotes}
+                                        onChange={(e) => setEditingAmendmentLineNotes(e.target.value)}
+                                        disabled={isDisabled}
+                                      />
+                                      <div className="inline-form-actions">
+                                        <button type="submit" disabled={isDisabled}>Save</button>
+                                        <button type="button" onClick={() => setEditingAmendmentLineId(null)} disabled={isDisabled}>Cancel</button>
+                                      </div>
+                                    </form>
+                                  ) : (
+                                    <div className="amendment-line-display">
+                                      <span>
+                                        <strong>{line.inventory_item_name}</strong> ({line.inventory_item_kind}) &times; {line.quantity}
+                                        {line.notes && <span className="line-notes-text"> ({line.notes})</span>}
+                                      </span>
+                                      <div className="line-actions">
+                                        <button
+                                          type="button"
+                                          className="edit-line-btn"
+                                          disabled={isDisabled}
+                                          onClick={() => {
+                                            setEditingAmendmentLineId(line.id);
+                                            setEditingAmendmentLineItemId(line.inventory_item_id);
+                                            setEditingAmendmentLineQuantity(line.quantity);
+                                            setEditingAmendmentLineNotes(line.notes);
+                                          }}
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="delete-line-btn"
+                                          disabled={isDisabled}
+                                          onClick={() => handleDeleteAmendmentLine(draftDetailState.draft.id, req.id, line.id)}
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="empty-lines-hint">No proposed lines added yet.</p>
+                          )}
+
+                          <form
+                            onSubmit={(e) => handleCreateAmendmentLine(e, draftDetailState.draft.id, req.id)}
+                            className="inline-add-line-form"
+                          >
+                            <h6>Add Proposed Line Change</h6>
+                            <div className="inline-add-line-fields">
+                              <select
+                                value={newAmendmentLineItemId[req.id] || ""}
+                                onChange={(e) => setNewAmendmentLineItemId(curr => ({ ...curr, [req.id]: e.target.value }))}
+                                required
+                                disabled={isDisabled}
+                              >
+                                <option value="">-- Select Inventory Item --</option>
+                                {inventoryItems.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name} ({item.kind})
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Qty"
+                                value={newAmendmentLineQuantity[req.id] || 1}
+                                onChange={(e) => setNewAmendmentLineQuantity(curr => ({ ...curr, [req.id]: parseInt(e.target.value) || 1 }))}
+                                required
+                                disabled={isDisabled}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Line Notes"
+                                value={newAmendmentLineNotes[req.id] || ""}
+                                onChange={(e) => setNewAmendmentLineNotes(curr => ({ ...curr, [req.id]: e.target.value }))}
+                                disabled={isDisabled}
+                              />
+                              <button type="submit" disabled={isDisabled}>Add Line</button>
+                            </div>
+                          </form>
+                        </div>
+
+                        <div className="amendment-availability-preflight-wrapper">
+                          <button
+                            type="button"
+                            className="check-availability-btn"
+                            disabled={isDisabled}
+                            onClick={() => handleCheckAmendmentRequestAvailabilityPreflight(draftDetailState.draft.id, req.id)}
+                          >
+                            Check Amendment Availability Preflight
+                          </button>
+
+                          {amendmentRequestPreflights[req.id]?.status === "loading" && (
+                            <p className="status">Checking availability...</p>
+                          )}
+
+                          {amendmentRequestPreflights[req.id]?.status === "error" && (
+                            <p className="status error">{amendmentRequestPreflights[req.id]?.error}</p>
+                          )}
+
+                          {amendmentRequestPreflights[req.id]?.status === "loaded" && amendmentRequestPreflights[req.id]?.data && (
+                            <div className="availability-preflight-report">
+                              <h4>Availability Preflight Report</h4>
+                              <p>
+                                <strong>Status:</strong> {amendmentRequestPreflights[req.id]?.data?.status}
+                              </p>
+                              <p>
+                                <strong>Lines Checked:</strong> {amendmentRequestPreflights[req.id]?.data?.line_count}
+                              </p>
+                              <p>
+                                <strong>Available Lines:</strong>{" "}
+                                <span className="success-badge">{amendmentRequestPreflights[req.id]?.data?.available_line_count}</span>
+                              </p>
+                              <p>
+                                <strong>Unavailable Lines:</strong>{" "}
+                                <span className={amendmentRequestPreflights[req.id]?.data?.unavailable_line_count ? "error-badge" : "success-badge"}>
+                                  {amendmentRequestPreflights[req.id]?.data?.unavailable_line_count}
+                                </span>
+                              </p>
+
+                              {(() => {
+                                const preflight = amendmentRequestPreflights[req.id];
+                                if (!preflight || preflight.status !== "loaded" || !preflight.data) return null;
+                                return preflight.data.lines && preflight.data.lines.length > 0 && (
+                                  <table className="availability-preflight-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Item</th>
+                                        <th>Qty</th>
+                                        <th>Status</th>
+                                        <th>Conflicts</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {preflight.data.lines.map((ln) => (
+                                        <tr key={ln.amendment_request_line_id}>
+                                          <td>{ln.inventory_item_name} ({ln.inventory_item_kind})</td>
+                                          <td>{ln.quantity}</td>
+                                          <td>
+                                            <span className={`status-badge status-${ln.status}`}>
+                                              {ln.status}
+                                            </span>
+                                          </td>
+                                          <td>{ln.conflict_count}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="card-footer-actions">
+                          <button
+                            type="button"
+                            className="edit-btn"
+                            disabled={isDisabled}
+                            onClick={() => {
+                              setEditingAmendmentId(req.id);
+                              setEditingAmendmentReason(req.reason);
+                              setEditingAmendmentNotes(req.notes);
+                            }}
+                          >
+                            Edit Request Details
+                          </button>
+                        </div>
                       </div>
                     )}
                   </li>

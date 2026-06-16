@@ -17,6 +17,10 @@ import type {
   HahitantsoaEventDraftAmendmentRequest,
   HahitantsoaEventDraftAmendmentRequestCreatePayload,
   HahitantsoaEventDraftAmendmentRequestUpdatePayload,
+  HahitantsoaEventDraftAmendmentRequestLine,
+  HahitantsoaEventDraftAmendmentRequestLineCreatePayload,
+  HahitantsoaEventDraftAmendmentRequestLineUpdatePayload,
+  HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
 } from "./types";
 
 export class ApiError extends Error {
@@ -360,5 +364,84 @@ export function updateHahitantsoaEventDraftAmendmentRequest(
     signal,
   );
 }
+
+export function getHahitantsoaEventDraftAmendmentRequest(
+  draftId: string,
+  amendmentRequestId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentRequest> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/`,
+    signal,
+  );
+}
+
+export function getHahitantsoaEventDraftAmendmentRequestLines(
+  draftId: string,
+  amendmentRequestId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentRequestLine[]> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/lines/`,
+    signal,
+  );
+}
+
+export function createHahitantsoaEventDraftAmendmentRequestLine(
+  draftId: string,
+  amendmentRequestId: string,
+  payload: HahitantsoaEventDraftAmendmentRequestLineCreatePayload,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentRequestLine> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/lines/`,
+    payload,
+    signal,
+  );
+}
+
+export function updateHahitantsoaEventDraftAmendmentRequestLine(
+  draftId: string,
+  amendmentRequestId: string,
+  lineId: string,
+  payload: HahitantsoaEventDraftAmendmentRequestLineUpdatePayload,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentRequestLine> {
+  return patchAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/lines/${lineId}/`,
+    payload,
+    signal,
+  );
+}
+
+export async function deleteHahitantsoaEventDraftAmendmentRequestLine(
+  draftId: string,
+  amendmentRequestId: string,
+  lineId: string,
+): Promise<void> {
+  const response = await fetch(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/lines/${lineId}/`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    },
+  );
+  if (!response.ok) {
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+}
+
+export function getHahitantsoaEventDraftAmendmentRequestAvailabilityPreflight(
+  draftId: string,
+  amendmentRequestId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentRequestAvailabilityPreview> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/availability-preflight/`,
+    signal,
+  );
+}
+
 
 
