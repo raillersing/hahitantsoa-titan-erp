@@ -1,6 +1,10 @@
 from django.apps import apps
 
-from apps.inventory.models import InventoryAvailability, InventoryItem
+from apps.inventory.models import (
+    InventoryAvailability,
+    InventoryItem,
+    InventoryStockMovement,
+)
 
 
 def test_inventory_app_is_installed() -> None:
@@ -19,3 +23,4 @@ def test_inventory_app_registry_contains_inventory_models() -> None:
 
     assert InventoryItem in inventory_models
     assert InventoryAvailability in inventory_models
+    assert InventoryStockMovement in inventory_models

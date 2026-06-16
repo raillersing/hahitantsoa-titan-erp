@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from apps.common.models import (
     AuditableModel,
@@ -23,6 +25,31 @@ class InventoryAvailabilityStatus(models.TextChoices):
 INVENTORY_AVAILABILITY_STATUS_VALUES = [
     availability_status.value for availability_status in InventoryAvailabilityStatus
 ]
+
+
+class InventoryStockMovementType(models.TextChoices):
+    OUTBOUND_DELIVERY = "outbound_delivery", "outbound_delivery"
+    INBOUND_RETURN = "inbound_return", "inbound_return"
+    DAMAGE = "damage", "damage"
+    LOSS = "loss", "loss"
+    ADJUSTMENT_IN = "adjustment_in", "adjustment_in"
+    ADJUSTMENT_OUT = "adjustment_out", "adjustment_out"
+    OTHER = "other", "other"
+
+
+class InventoryStockMovementDirection(models.TextChoices):
+    INBOUND = "inbound", "inbound"
+    OUTBOUND = "outbound", "outbound"
+
+
+FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS = {
+    InventoryStockMovementType.OUTBOUND_DELIVERY: InventoryStockMovementDirection.OUTBOUND,
+    InventoryStockMovementType.DAMAGE: InventoryStockMovementDirection.OUTBOUND,
+    InventoryStockMovementType.LOSS: InventoryStockMovementDirection.OUTBOUND,
+    InventoryStockMovementType.ADJUSTMENT_OUT: InventoryStockMovementDirection.OUTBOUND,
+    InventoryStockMovementType.INBOUND_RETURN: InventoryStockMovementDirection.INBOUND,
+    InventoryStockMovementType.ADJUSTMENT_IN: InventoryStockMovementDirection.INBOUND,
+}
 
 
 class InventoryItem(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
@@ -98,3 +125,116 @@ class InventoryAvailability(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
 
     def __str__(self) -> str:
         return f"{self.inventory_item} {self.status} from {self.start_at} to {self.end_at}"
+
+
+class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
+    inventory_item = models.ForeignKey(
+        InventoryItem,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
+    reservation_draft = models.ForeignKey(
+        "reservations.ReservationDraft",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
+    document_instance = models.ForeignKey(
+        "documents.DocumentInstance",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="inventory_stock_movements",
+    )
+    movement_type = models.CharField(max_length=32, choices=InventoryStockMovementType.choices)
+    direction = models.CharField(
+        max_length=16,
+        choices=InventoryStockMovementDirection.choices,
+    )
+    quantity = models.PositiveIntegerField()
+    source_label = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    effective_at = models.DateTimeField(default=timezone.now)
+    validated_at = models.DateTimeField(default=timezone.now)
+    validated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["-effective_at", "-created_at", "id"]
+        verbose_name = "Inventory stock movement"
+        verbose_name_plural = "Inventory stock movements"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name="inventory_stock_movement_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        movement_type=InventoryStockMovementType.OTHER,
+                        direction__in=[
+                            InventoryStockMovementDirection.INBOUND,
+                            InventoryStockMovementDirection.OUTBOUND,
+                        ],
+                    )
+                    | ~models.Q(movement_type=InventoryStockMovementType.OTHER)
+                ),
+                name="inventory_stock_movement_other_requires_direction",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(reservation_draft__isnull=False)
+                    | models.Q(document_instance__isnull=False)
+                    | (~models.Q(source_label="") & ~models.Q(notes=""))
+                ),
+                name="inventory_stock_movement_standalone_requires_source_and_notes",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.quantity <= 0:
+            raise ValidationError({"quantity": "Quantity must be greater than zero."})
+
+        try:
+            expected_direction = FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS[
+                InventoryStockMovementType(self.movement_type)
+            ]
+        except KeyError:
+            expected_direction = None
+
+        if expected_direction is not None and self.direction != expected_direction:
+            raise ValidationError(
+                {
+                    "direction": (
+                        f"Movement type '{self.movement_type}' requires direction "
+                        f"'{expected_direction.value}'."
+                    )
+                }
+            )
+
+        if (
+            self.reservation_draft_id is None
+            and self.document_instance_id is None
+            and ((self.source_label or "").strip() == "" or (self.notes or "").strip() == "")
+        ):
+            raise ValidationError(
+                {"source_label": ("Standalone stock movements require source_label and notes.")}
+            )
+
+        if not self.inventory_item.is_active or self.inventory_item.is_deleted:
+            raise ValidationError({"inventory_item": "Stock movement item must be active."})
+
+    @property
+    def signed_quantity(self) -> int:
+        if self.direction == InventoryStockMovementDirection.INBOUND:
+            return self.quantity
+        return -self.quantity
+
+    def __str__(self) -> str:
+        return f"{self.inventory_item} {self.movement_type} {self.direction} x {self.quantity}"
