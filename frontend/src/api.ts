@@ -14,6 +14,9 @@ import type {
   HahitantsoaEventDraftAvailabilityPreview,
   HahitantsoaEventDraftConfirmationPreflight,
   HahitantsoaEventDraftAmendmentPreflight,
+  HahitantsoaEventDraftAmendmentRequest,
+  HahitantsoaEventDraftAmendmentRequestCreatePayload,
+  HahitantsoaEventDraftAmendmentRequestUpdatePayload,
 } from "./types";
 
 export class ApiError extends Error {
@@ -319,6 +322,41 @@ export function confirmHahitantsoaEventDraft(
   return postAuthenticatedJson(
     `/api/v1/hahitantsoa/event-drafts/${draftId}/confirm/`,
     {},
+    signal,
+  );
+}
+
+export function getHahitantsoaEventDraftAmendmentRequests(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentRequest[]> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/`,
+    signal,
+  );
+}
+
+export function createHahitantsoaEventDraftAmendmentRequest(
+  draftId: string,
+  payload: HahitantsoaEventDraftAmendmentRequestCreatePayload,
+  signal?: AbortSignal,
+): Promise<{ amendment_request: HahitantsoaEventDraftAmendmentRequest }> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/`,
+    payload,
+    signal,
+  );
+}
+
+export function updateHahitantsoaEventDraftAmendmentRequest(
+  draftId: string,
+  amendmentRequestId: string,
+  payload: HahitantsoaEventDraftAmendmentRequestUpdatePayload,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentRequest> {
+  return patchAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/`,
+    payload,
     signal,
   );
 }
