@@ -13,6 +13,7 @@ from apps.reservations.periods import validate_reservation_period
 
 class HahitantsoaEventDraftStatus(models.TextChoices):
     DRAFT = "draft", "draft"
+    CONFIRMED = "confirmed", "confirmed"
 
 
 HAHITANTSOA_EVENT_DRAFT_STATUS_VALUES = [status.value for status in HahitantsoaEventDraftStatus]
@@ -48,6 +49,14 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
     )
     required_deposit_received_at = models.DateTimeField(null=True, blank=True)
     required_deposit_received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    confirmed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
@@ -100,6 +109,13 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
                     )
                 ),
                 name="hahitantsoa_event_draft_required_deposit_received_marker_complete",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(confirmed_at__isnull=True) & models.Q(confirmed_by__isnull=True))
+                    | (models.Q(confirmed_at__isnull=False) & models.Q(confirmed_by__isnull=False))
+                ),
+                name="hahitantsoa_event_draft_confirmed_marker_complete",
             ),
         ]
 
