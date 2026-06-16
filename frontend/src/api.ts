@@ -21,6 +21,9 @@ import type {
   HahitantsoaEventDraftAmendmentRequestLineCreatePayload,
   HahitantsoaEventDraftAmendmentRequestLineUpdatePayload,
   HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
+  DocumentTemplateDefinition,
+  DocumentInstance,
+  DocumentInstanceCreatePayload,
 } from "./types";
 
 export class ApiError extends Error {
@@ -442,6 +445,58 @@ export function getHahitantsoaEventDraftAmendmentRequestAvailabilityPreflight(
     signal,
   );
 }
+
+export function getDocumentTemplates(
+  signal?: AbortSignal,
+): Promise<DocumentTemplateDefinition[]> {
+  return getAuthenticatedJson("/api/v1/documents/templates/", signal);
+}
+
+export function getReservationDraftDocumentInstances(
+  reservationDraftId: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance[]> {
+  return getAuthenticatedJson(
+    `/api/v1/documents/reservation-drafts/${reservationDraftId}/instances/`,
+    signal,
+  );
+}
+
+export function createReservationDraftDocumentInstance(
+  reservationDraftId: string,
+  payload: DocumentInstanceCreatePayload,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/documents/reservation-drafts/${reservationDraftId}/instances/`,
+    payload,
+    signal,
+  );
+}
+
+export function getReservationDraftDocumentInstance(
+  reservationDraftId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return getAuthenticatedJson(
+    `/api/v1/documents/reservation-drafts/${reservationDraftId}/instances/${id}/`,
+    signal,
+  );
+}
+
+export function generateReservationDraftDocumentInstance(
+  reservationDraftId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/documents/reservation-drafts/${reservationDraftId}/instances/${id}/generate/`,
+    {},
+    signal,
+  );
+}
+
 
 
 

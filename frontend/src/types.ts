@@ -284,4 +284,61 @@ export type HahitantsoaEventDraftAmendmentRequestAvailabilityPreview = {
   lines: HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreview[];
 };
 
+export type DocumentTemplateDefinition = {
+  key: string;
+  business_scope: "titan" | "hahitantsoa" | "shared";
+  document_type: string;
+  label: string;
+  version: string;
+  status: string;
+  source_kind: string;
+  source_reference: string;
+  template_path: string;
+  preview_path: string;
+  validated_by_client: boolean;
+  notes: string;
+};
+
+export type DocumentInstance = {
+  id: string;
+  reservation_draft: string;
+  customer: string;
+  template_key: string;
+  template_version: string;
+  template_label: string;
+  business_scope: string;
+  document_type: string;
+  template_status: string;
+  template_source_kind: string;
+  template_source_reference: string;
+  template_path: string;
+  template_preview_path: string;
+  template_validated_by_client: boolean;
+  template_notes: string;
+  reservation_public_reference: string;
+  reservation_status: string;
+  customer_display_name: string;
+  customer_email: string;
+  customer_phone: string;
+  customer_address: string;
+  status: "prepared" | "generated" | "voided";
+  prepared_at: string;
+  prepared_by: string;
+  voided_at: string | null;
+  voided_by: string | null;
+  void_reason: string;
+  content_checksum: string;
+  storage_path: string;
+  generated_content_size_bytes: number;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DocumentInstanceCreatePayload = {
+  template_key: string;
+  notes?: string;
+};
+
+
 

@@ -1323,6 +1323,136 @@ fieldset:disabled {
   padding-top: 16px;
 }
 
+.draft-selector-block {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.draft-selector-block label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #3b423d;
+}
+
+.draft-selector-block select {
+  padding: 8px 12px;
+  border: 1px solid #dde4de;
+  border-radius: 6px;
+  background-color: #fcfcfc;
+}
+
+.prepare-instance-form {
+  background-color: #f7f9f8;
+  border: 1px solid #e2eae5;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.prepare-instance-form h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  color: #1f2a25;
+}
+
+.prepare-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prepare-fields select,
+.prepare-fields input {
+  padding: 8px 12px;
+  border: 1px solid #dde4de;
+  border-radius: 6px;
+}
+
+.prepare-fields button {
+  background-color: #234c3d;
+  color: #ffffff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.prepare-fields button:disabled {
+  background-color: #c9d5d0;
+  cursor: not-allowed;
+}
+
+.instances-list-block h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  color: #1f2a25;
+}
+
+.instances-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.instance-item {
+  border: 1px solid #e8ede9;
+  background-color: #fafbfb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.instance-meta {
+  font-size: 0.85rem;
+}
+
+.meta-sub {
+  font-size: 0.75rem;
+  color: #7d857f;
+}
+
+.status-tag {
+  font-weight: bold;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.status-tag.status-prepared {
+  color: #ef6c00;
+}
+
+.status-tag.status-generated {
+  color: #2e7d32;
+}
+
+.btn-generate {
+  background-color: #b58539;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.generated-tag {
+  font-size: 0.75rem;
+  color: #7d857f;
+  background-color: #e8ede9;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+
 
 
 
