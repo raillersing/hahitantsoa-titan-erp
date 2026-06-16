@@ -35,6 +35,14 @@ HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LIST_PATH = (
 HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH = (
     "/api/v1/hahitantsoa/event-drafts/{event_draft_pk}/amendment-requests/{id}/"
 )
+HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LINE_LIST_PATH = (
+    "/api/v1/hahitantsoa/event-drafts/{event_draft_pk}/amendment-requests/"
+    "{amendment_request_pk}/lines/"
+)
+HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LINE_DETAIL_PATH = (
+    "/api/v1/hahitantsoa/event-drafts/{event_draft_pk}/amendment-requests/"
+    "{amendment_request_pk}/lines/{id}/"
+)
 HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/confirm/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/confirm/",
@@ -218,6 +226,18 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "patch",
     }
     assert "delete" not in paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH]
+    assert HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LINE_LIST_PATH in paths
+    assert set(paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LINE_LIST_PATH]) >= {
+        "get",
+        "post",
+    }
+    assert HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LINE_DETAIL_PATH in paths
+    assert set(paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LINE_DETAIL_PATH]) >= {
+        "get",
+        "put",
+        "patch",
+        "delete",
+    }
     confirmation_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS)
     assert confirmation_path in paths
     assert set(paths[confirmation_path]) == {"post"}
@@ -339,6 +359,22 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "created_at",
         "updated_at",
     }.issubset(amendment_request_schema["properties"])
+
+    amendment_request_line_operation = paths[
+        HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LINE_LIST_PATH
+    ]["post"]
+    amendment_request_line_schema_reference = amendment_request_line_operation["responses"]["201"][
+        "content"
+    ]["application/json"]["schema"]
+    amendment_request_line_schema = _resolve_schema(schema, amendment_request_line_schema_reference)
+    assert {
+        "id",
+        "inventory_item_id",
+        "inventory_item_name",
+        "inventory_item_kind",
+        "quantity",
+        "notes",
+    }.issubset(amendment_request_line_schema["properties"])
 
     confirmation_operation = paths[confirmation_path]["post"]
     confirmation_schema_reference = confirmation_operation["responses"]["200"]["content"][

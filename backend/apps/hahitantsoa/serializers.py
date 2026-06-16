@@ -256,6 +256,103 @@ class HahitantsoaEventDraftAmendmentRequestLineSerializer(serializers.ModelSeria
         read_only_fields = fields
 
 
+class HahitantsoaEventDraftAmendmentRequestLineCreateSerializer(serializers.Serializer):
+    inventory_item_id = serializers.PrimaryKeyRelatedField(
+        source="inventory_item",
+        queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
+    )
+    quantity = serializers.IntegerField(min_value=1)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_inventory_item_id(self, inventory_item: InventoryItem) -> InventoryItem:
+        try:
+            assert_hahitantsoa_shared_inventory_item_kind(inventory_item.kind)
+        except ValueError as error:
+            raise serializers.ValidationError(
+                "Inventory item kind is not allowed for Hahitantsoa amendment request lines."
+            ) from error
+
+        if not inventory_item.is_active or inventory_item.is_deleted:
+            raise serializers.ValidationError("Inventory item must be active.")
+
+        return inventory_item
+
+    def create(self, validated_data):
+        amendment_request = self.context["amendment_request"]
+        actor = self.context["actor"]
+        inventory_item = validated_data["inventory_item"]
+
+        with transaction.atomic():
+            existing_line = (
+                HahitantsoaEventDraftAmendmentRequestLine.objects.select_for_update()
+                .filter(
+                    amendment_request=amendment_request,
+                    inventory_item=inventory_item,
+                )
+                .first()
+            )
+
+            if existing_line is not None:
+                existing_line.quantity = validated_data["quantity"]
+                existing_line.notes = validated_data.get("notes", "")
+                existing_line.is_deleted = False
+                existing_line.deleted_at = None
+                existing_line.updated_by = actor
+                existing_line.full_clean()
+                existing_line.save()
+                return existing_line
+
+            line = HahitantsoaEventDraftAmendmentRequestLine(
+                amendment_request=amendment_request,
+                inventory_item=inventory_item,
+                quantity=validated_data["quantity"],
+                notes=validated_data.get("notes", ""),
+                created_by=actor,
+                updated_by=actor,
+            )
+            line.full_clean()
+            line.save()
+            return line
+
+
+class HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer(serializers.ModelSerializer):
+    inventory_item_id = serializers.PrimaryKeyRelatedField(
+        source="inventory_item",
+        queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
+        required=False,
+    )
+
+    class Meta:
+        model = HahitantsoaEventDraftAmendmentRequestLine
+        fields = (
+            "inventory_item_id",
+            "quantity",
+            "notes",
+        )
+
+    def validate_inventory_item_id(self, inventory_item: InventoryItem) -> InventoryItem:
+        try:
+            assert_hahitantsoa_shared_inventory_item_kind(inventory_item.kind)
+        except ValueError as error:
+            raise serializers.ValidationError(
+                "Inventory item kind is not allowed for Hahitantsoa amendment request lines."
+            ) from error
+
+        if not inventory_item.is_active or inventory_item.is_deleted:
+            raise serializers.ValidationError("Inventory item must be active.")
+
+        return inventory_item
+
+    def update(self, instance, validated_data):
+        for field in ("inventory_item", "quantity", "notes"):
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
+
+        instance.full_clean()
+        instance.save()
+        return instance
+
+
 class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, max_length=255)
     notes = serializers.CharField(required=False, allow_blank=True)
@@ -501,6 +598,8 @@ __all__ = [
     "HahitantsoaDiscoveryItemSerializer",
     "HahitantsoaEventDraftAmendmentRequestCreateSerializer",
     "HahitantsoaEventDraftAmendmentRequestLineSerializer",
+    "HahitantsoaEventDraftAmendmentRequestLineCreateSerializer",
+    "HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer",
     "HahitantsoaEventDraftAmendmentRequestResultSerializer",
     "HahitantsoaEventDraftAmendmentRequestSerializer",
     "HahitantsoaEventDraftAmendmentRequestUpdateSerializer",
