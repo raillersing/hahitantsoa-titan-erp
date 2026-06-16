@@ -56,6 +56,15 @@ DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",
 TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
     "/api/v1/documents/titan/proforma-drafts/{reservation_draft_id}/preview/",
 )
+RESERVATION_DRAFT_DOCUMENT_INSTANCE_LIST_PATH = (
+    "/api/v1/documents/reservation-drafts/{reservation_draft_id}/instances/"
+)
+RESERVATION_DRAFT_DOCUMENT_INSTANCE_DETAIL_PATH = (
+    "/api/v1/documents/reservation-drafts/{reservation_draft_id}/instances/{id}/"
+)
+RESERVATION_DRAFT_DOCUMENT_INSTANCE_GENERATE_PATH = (
+    "/api/v1/documents/reservation-drafts/{reservation_draft_id}/instances/{id}/generate/"
+)
 WRITE_METHODS = {"post", "put", "patch", "delete"}
 
 
@@ -134,6 +143,13 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
     for path in confirmed_read_only_paths:
         assert path in paths
         _assert_get_only(paths[path])
+
+    assert RESERVATION_DRAFT_DOCUMENT_INSTANCE_LIST_PATH in paths
+    assert set(paths[RESERVATION_DRAFT_DOCUMENT_INSTANCE_LIST_PATH]) >= {"get", "post"}
+    assert RESERVATION_DRAFT_DOCUMENT_INSTANCE_DETAIL_PATH in paths
+    _assert_get_only(paths[RESERVATION_DRAFT_DOCUMENT_INSTANCE_DETAIL_PATH])
+    assert RESERVATION_DRAFT_DOCUMENT_INSTANCE_GENERATE_PATH in paths
+    assert set(paths[RESERVATION_DRAFT_DOCUMENT_INSTANCE_GENERATE_PATH]) == {"post"}
 
 
 def test_openapi_schema_exposes_minimal_hahitantsoa_discovery_contract(client) -> None:

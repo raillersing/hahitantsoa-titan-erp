@@ -2,7 +2,9 @@ from dataclasses import asdict
 
 from rest_framework import serializers
 
+from apps.documents.models import DocumentInstance
 from apps.documents.registry import DocumentTemplateDefinition
+from apps.documents.services import get_supported_reservation_draft_document_template_keys
 
 
 class DocumentTemplateDefinitionSerializer(serializers.Serializer):
@@ -64,3 +66,59 @@ class TitanProformaDraftPreviewSerializer(serializers.Serializer):
     template = DocumentTemplateDefinitionSerializer()
     reservation_draft = TitanProformaDraftPreviewReservationSerializer()
     scope_flags = RuntimeDocumentScopeFlagsSerializer()
+
+
+class DocumentInstanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentInstance
+        fields = (
+            "id",
+            "reservation_draft",
+            "customer",
+            "template_key",
+            "template_version",
+            "template_label",
+            "business_scope",
+            "document_type",
+            "template_status",
+            "template_source_kind",
+            "template_source_reference",
+            "template_path",
+            "template_preview_path",
+            "template_validated_by_client",
+            "template_notes",
+            "reservation_public_reference",
+            "reservation_status",
+            "customer_display_name",
+            "customer_email",
+            "customer_phone",
+            "customer_address",
+            "status",
+            "prepared_at",
+            "prepared_by",
+            "voided_at",
+            "voided_by",
+            "void_reason",
+            "content_checksum",
+            "storage_path",
+            "generated_content_size_bytes",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class DocumentInstanceCreateSerializer(serializers.Serializer):
+    template_key = serializers.ChoiceField(
+        choices=tuple(get_supported_reservation_draft_document_template_keys())
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class DocumentInstanceGenerateSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    status = serializers.CharField()
+    content_checksum = serializers.CharField()
+    storage_path = serializers.CharField()
+    generated_content_size_bytes = serializers.IntegerField()
