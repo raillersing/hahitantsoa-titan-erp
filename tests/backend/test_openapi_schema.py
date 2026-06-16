@@ -212,7 +212,12 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
     assert HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LIST_PATH in paths
     assert set(paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LIST_PATH]) >= {"get", "post"}
     assert HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH in paths
-    _assert_get_only(paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH])
+    assert set(paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH]) >= {
+        "get",
+        "put",
+        "patch",
+    }
+    assert "delete" not in paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH]
     confirmation_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS)
     assert confirmation_path in paths
     assert set(paths[confirmation_path]) == {"post"}
