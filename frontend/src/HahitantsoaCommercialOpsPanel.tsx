@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
+import PaymentWorkflowPanel from "./PaymentWorkflowPanel";
+
 import {
   getReservationDrafts,
   getDocumentTemplates,
@@ -48,11 +50,12 @@ const SECTIONS: CommercialSection[] = [
     id: "payments",
     title: "Payments & Receipts",
     badge: "Payments",
-    status: "pending_backend",
-    statusLabel: "Pending Backend Integration",
+    status: "partially_connected",
+    statusLabel: "Partially Connected",
     description: "Record provider deposits, payments validation, and issue transactional receipts.",
     businessRule: "Payment provider status is not reservation status.",
   },
+
   {
     id: "logistics",
     title: "Logistics & Delivery",
@@ -314,6 +317,11 @@ export function HahitantsoaCommercialOpsPanel() {
                 <div className="artifact-preview-wrapper" style={{ marginTop: "24px" }}>
                   <DocumentArtifactPreviewPanel />
                 </div>
+              </div>
+            ) : null}
+            {sec.id === "payments" && sec.status !== "pending_backend" ? (
+              <div className="embedded-payments-panel">
+                <PaymentWorkflowPanel />
               </div>
             ) : null}
           </div>

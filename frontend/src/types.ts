@@ -342,3 +342,52 @@ export type DocumentInstanceCreatePayload = {
 
 
 
+// ---- Payments ----
+
+export type PaymentKind =
+  | 'deposit'
+  | 'balance'
+  | 'caution'
+  | 'owner_injection'
+  | 'investor_injection'
+  | 'date_reservation'
+  | 'other';
+
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'other';
+
+export type PaymentStatus = 'pending' | 'confirmed' | 'failed' | 'cancelled' | 'reconciled';
+
+export type Payment = {
+  id: string;
+  reservation_draft: string | null;
+  receipt_document: DocumentInstance | null;
+  payment_kind: PaymentKind;
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  amount: string;
+  paid_at: string | null;
+  external_reference: string;
+  source_label: string;
+  notes: string;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PaymentCreatePayload = {
+  reservation_draft?: string | null;
+  payment_kind: PaymentKind;
+  payment_method: PaymentMethod;
+  payment_status?: PaymentStatus;
+  amount: string;
+  external_reference?: string;
+  source_label?: string;
+  notes?: string;
+};
+
+export type PaymentConfirmPayload = {
+  paid_at?: string;
+  external_reference?: string;
+  notes?: string;
+};
