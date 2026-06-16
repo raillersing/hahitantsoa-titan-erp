@@ -31,6 +31,8 @@ const MOCK_PAYMENT_CONFIRMED = {
   paid_at: '2026-06-01T11:00:00Z',
   receipt_document: {
     id: 'doc-0001',
+    reservation_draft: 'draft-0001',
+    customer: 'cust-0001',
     status: 'generated' as const,
     template_key: 'shared.payment_receipt.v1',
     template_version: '1',
