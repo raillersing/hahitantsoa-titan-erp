@@ -4,7 +4,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create", "task-branch-start", "frontend-quality", "ci-diagnostics", "worktree-clean")]
+    [ValidateSet("task-start", "finalize-pr", "repo-status", "pr-checks", "pr-create", "task-branch-start", "frontend-quality", "ci-diagnostics", "worktree-clean", "main-ci-diagnostics")]
     [string]$Mode,
 
     [Parameter(Mandatory=$false)]
@@ -35,7 +35,16 @@ param(
     [string]$TaskBase = "main",
 
     [Parameter(Mandatory=$false)]
-    [string]$RunId
+    [string]$RunId,
+
+    [Parameter(Mandatory=$false)]
+    [string]$CommitSha,
+
+    [Parameter(Mandatory=$false)]
+    [string]$Branch = "main",
+
+    [Parameter(Mandatory=$false)]
+    [switch]$Watch
 )
 
 # Enforce parameters based on mode
@@ -107,6 +116,16 @@ if ($Mode -eq "worktree-clean") {
         exit 2
     }
 }
+if ($Mode -eq "main-ci-diagnostics") {
+    if (-not $CommitSha) {
+        Write-Error "CommitSha is required for main-ci-diagnostics mode."
+        exit 2
+    }
+    if (-not $Branch) {
+        Write-Error "Branch is required for main-ci-diagnostics mode."
+        exit 2
+    }
+}
 
 # Resolve the WSL path dynamically from the script location
 $WslAdapterPath = $PSScriptRoot.Replace("\", "/").Replace("Y:", "").Replace("//wsl$/Ubuntu", "").Replace("//wsl.localhost/Ubuntu", "") + "/erp-antigravity-wsl-adapter"
@@ -159,6 +178,15 @@ if ($Mode -eq "worktree-clean") {
     if ($TaskWorktree) {
         $ArgList += "--task-worktree"
         $ArgList += $TaskWorktree
+    }
+}
+if ($Mode -eq "main-ci-diagnostics") {
+    $ArgList += "--commit"
+    $ArgList += $CommitSha
+    $ArgList += "--branch"
+    $ArgList += $Branch
+    if ($Watch) {
+        $ArgList += "--watch"
     }
 }
 
