@@ -122,6 +122,9 @@ export function HahitantsoaEventDraftsPanel({
   const isAmendmentPreflightLoading = amendmentPreflightState.status === "loading";
   const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading || isPreflightLoading || isAmendmentPreflightLoading;
 
+  const isReadOnly = draftDetailState.status === "loaded" && draftDetailState.draft.status !== "draft";
+  const formDisabled = isDisabled || isReadOnly;
+
 
   // Customers state
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -565,6 +568,14 @@ export function HahitantsoaEventDraftsPanel({
       {draftDetailState.status === "loaded" && (
         <div className="availability-results">
           <h3>Manage Draft: {draftDetailState.draft.public_reference}</h3>
+
+          {isReadOnly && (
+            <div className="notice warning-notice" role="alert" style={{ marginBottom: "1rem" }}>
+              <h4>Confirmed & Immutable Event Draft</h4>
+              <p>This event draft has been confirmed and is read-only. Mutations are disabled.</p>
+            </div>
+          )}
+
           <form className="availability-form" onSubmit={handleUpdateDraft}>
             <label>
               Event Name
@@ -572,7 +583,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="text"
                 value={editEventName}
                 onChange={(e) => setEditEventName(e.target.value)}
-                disabled={isDisabled}
+                disabled={formDisabled}
               />
             </label>
             <label>
@@ -581,7 +592,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="text"
                 value={editVenueName}
                 onChange={(e) => setEditVenueName(e.target.value)}
-                disabled={isDisabled}
+                disabled={formDisabled}
               />
             </label>
             <label>
@@ -589,7 +600,7 @@ export function HahitantsoaEventDraftsPanel({
               <textarea
                 value={editLocationDetails}
                 onChange={(e) => setEditLocationDetails(e.target.value)}
-                disabled={isDisabled}
+                disabled={formDisabled}
               />
             </label>
             <label>
@@ -597,7 +608,7 @@ export function HahitantsoaEventDraftsPanel({
               <textarea
                 value={editServiceNotes}
                 onChange={(e) => setEditServiceNotes(e.target.value)}
-                disabled={isDisabled}
+                disabled={formDisabled}
               />
             </label>
             <label>
@@ -606,7 +617,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="datetime-local"
                 value={editStartAt}
                 onChange={(e) => setEditStartAt(e.target.value)}
-                disabled={isDisabled}
+                disabled={formDisabled}
               />
             </label>
             <label>
@@ -615,7 +626,7 @@ export function HahitantsoaEventDraftsPanel({
                 type="datetime-local"
                 value={editEndAt}
                 onChange={(e) => setEditEndAt(e.target.value)}
-                disabled={isDisabled}
+                disabled={formDisabled}
               />
             </label>
             <label>
@@ -623,13 +634,13 @@ export function HahitantsoaEventDraftsPanel({
               <textarea
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
-                disabled={isDisabled}
+                disabled={formDisabled}
               />
             </label>
 
             <h4>Lines</h4>
             {editLines.map((line, idx) => (
-              <fieldset key={idx} disabled={isDisabled}>
+              <fieldset key={idx} disabled={formDisabled}>
                 <legend>Line {idx + 1}</legend>
                 <label>
                   Item
@@ -643,7 +654,7 @@ export function HahitantsoaEventDraftsPanel({
                         true,
                       )
                     }
-                    disabled={isDisabled}
+                    disabled={formDisabled}
                   >
                     {inventoryItems.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -666,7 +677,7 @@ export function HahitantsoaEventDraftsPanel({
                         true,
                       )
                     }
-                    disabled={isDisabled}
+                    disabled={formDisabled}
                   />
                 </label>
                 <label>
@@ -676,22 +687,22 @@ export function HahitantsoaEventDraftsPanel({
                     onChange={(e) =>
                       updateLineField(idx, "notes", e.target.value, true)
                     }
-                    disabled={isDisabled}
+                    disabled={formDisabled}
                   />
                 </label>
                 <button
                   type="button"
                   onClick={() => removeLine(idx, true)}
-                  disabled={isDisabled || editLines.length <= 1}
+                  disabled={formDisabled || editLines.length <= 1}
                 >
                   Remove Line
                 </button>
               </fieldset>
             ))}
-            <button type="button" onClick={() => addLine(true)} disabled={isDisabled}>
+            <button type="button" onClick={() => addLine(true)} disabled={formDisabled}>
               Add Line
             </button>
-            <button type="submit" disabled={isDisabled}>
+            <button type="submit" disabled={formDisabled}>
               {isActionLoading ? "Saving..." : "Save Changes"}
             </button>
           </form>
@@ -700,14 +711,14 @@ export function HahitantsoaEventDraftsPanel({
             <button
               type="button"
               onClick={() => handleCheckAvailability(draftDetailState.draft.id)}
-              disabled={isDisabled}
+              disabled={isDisabled || isReadOnly}
             >
               {isAvailabilityLoading ? "Checking Availability..." : "Check Cascading Availability"}
             </button>
             <button
               type="button"
               onClick={() => handleCheckPreflight(draftDetailState.draft.id)}
-              disabled={isDisabled}
+              disabled={isDisabled || isReadOnly}
               style={{ marginLeft: "1rem" }}
             >
               {isPreflightLoading ? "Running Preflight Check..." : "Check Confirmation Preflight"}
@@ -724,7 +735,7 @@ export function HahitantsoaEventDraftsPanel({
               type="button"
               className="error-btn"
               onClick={() => handleDeleteDraft(draftDetailState.draft.id)}
-              disabled={isDisabled}
+              disabled={isDisabled || isReadOnly}
               style={{ marginLeft: "1rem", backgroundColor: "#b91c1c" }}
             >
               {isActionLoading ? "Deleting Draft..." : "Delete Draft"}

@@ -549,6 +549,52 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(container).toHaveTextContent("draft_not_confirmed_for_amendment");
     });
   });
+
+  it("renders a confirmed event draft as read-only with disabled inputs and buttons", async () => {
+    const confirmedDraft: HahitantsoaEventDraft = {
+      ...DRAFTS[0],
+      status: "confirmed",
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/v1/customers/") {
+        return Promise.resolve(jsonResponse(CUSTOMERS));
+      }
+      if (url === "/api/v1/hahitantsoa/event-drafts/") {
+        return Promise.resolve(jsonResponse([confirmedDraft]));
+      }
+      if (url.includes(`/api/v1/hahitantsoa/event-drafts/${confirmedDraft.id}/`)) {
+        return Promise.resolve(jsonResponse(confirmedDraft));
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    // Check readonly alert is displayed
+    expect(screen.getByText("Confirmed & Immutable Event Draft")).toBeInTheDocument();
+
+    // Verify fields and buttons are disabled
+    const eventNameInputs = screen.getAllByLabelText("Event Name");
+    expect(eventNameInputs[0]).toBeDisabled(); // The edit input should be disabled
+    expect(screen.getByRole("button", { name: "Save Changes" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Check Cascading Availability" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Check Confirmation Preflight" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete Draft" })).toBeDisabled();
+
+    // Verify Check Amendment Preflight remains enabled
+    expect(screen.getByRole("button", { name: "Check Amendment Preflight" })).not.toBeDisabled();
+  });
 });
 
 
