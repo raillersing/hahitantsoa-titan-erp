@@ -1424,32 +1424,36 @@ export function HahitantsoaEventDraftsPanel({
                                 </span>
                               </p>
 
-                              {amendmentRequestPreflights[req.id]?.data?.lines && amendmentRequestPreflights[req.id]?.data!.lines.length > 0 && (
-                                <table className="availability-preflight-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Item</th>
-                                      <th>Qty</th>
-                                      <th>Status</th>
-                                      <th>Conflicts</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {amendmentRequestPreflights[req.id]?.data?.lines.map((ln) => (
-                                      <tr key={ln.amendment_request_line_id}>
-                                        <td>{ln.inventory_item_name} ({ln.inventory_item_kind})</td>
-                                        <td>{ln.quantity}</td>
-                                        <td>
-                                          <span className={`status-badge status-${ln.status}`}>
-                                            {ln.status}
-                                          </span>
-                                        </td>
-                                        <td>{ln.conflict_count}</td>
+                              {(() => {
+                                const preflight = amendmentRequestPreflights[req.id];
+                                if (!preflight || preflight.status !== "loaded" || !preflight.data) return null;
+                                return preflight.data.lines && preflight.data.lines.length > 0 && (
+                                  <table className="availability-preflight-table">
+                                    <thead>
+                                      <tr>
+                                        <th>Item</th>
+                                        <th>Qty</th>
+                                        <th>Status</th>
+                                        <th>Conflicts</th>
                                       </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              )}
+                                    </thead>
+                                    <tbody>
+                                      {preflight.data.lines.map((ln) => (
+                                        <tr key={ln.amendment_request_line_id}>
+                                          <td>{ln.inventory_item_name} ({ln.inventory_item_kind})</td>
+                                          <td>{ln.quantity}</td>
+                                          <td>
+                                            <span className={`status-badge status-${ln.status}`}>
+                                              {ln.status}
+                                            </span>
+                                          </td>
+                                          <td>{ln.conflict_count}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                );
+                              })()}
                             </div>
                           )}
                         </div>
