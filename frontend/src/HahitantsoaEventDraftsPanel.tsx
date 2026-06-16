@@ -729,15 +729,15 @@ export function HahitantsoaEventDraftsPanel({
           )}
           {preflightState.status === "loaded" && (
             <div
-              className="notice"
-              style={{
-                marginTop: "1rem",
-                borderLeftColor: preflightState.preflight.can_confirm ? "#059669" : "#dc2626",
-                backgroundColor: preflightState.preflight.can_confirm ? "hsl(142, 70%, 97%)" : "hsl(346, 100%, 98%)",
-                color: preflightState.preflight.can_confirm ? "hsl(142, 76%, 15%)" : "hsl(346, 84%, 20%)"
-              }}
+              className={`notice ${
+                preflightState.preflight.can_confirm
+                  ? "success-notice"
+                  : "error-notice"
+              }`}
+              style={{ marginTop: "1rem" }}
             >
-              <h4>Confirmation Preflight Report</h4>
+              <div>
+                <h4>Confirmation Preflight Report</h4>
               <p><strong>Public Reference:</strong> {preflightState.preflight.public_reference}</p>
               <p><strong>Status:</strong> {preflightState.preflight.status}</p>
               <p><strong>Active Line Count:</strong> {preflightState.preflight.active_line_count}</p>
@@ -778,6 +778,7 @@ export function HahitantsoaEventDraftsPanel({
                   </button>
                 </div>
               )}
+              </div>
             </div>
           )}
         </div>
