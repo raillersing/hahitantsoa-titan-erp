@@ -7,11 +7,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     testTimeout: 30000,
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
   },
   server: {
     proxy: {
