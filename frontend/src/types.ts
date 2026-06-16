@@ -193,3 +193,14 @@ export type HahitantsoaEventDraftAvailabilityPreview = {
   lines: HahitantsoaEventDraftAvailabilityLinePreview[];
 };
 
+export type HahitantsoaEventDraftConfirmationPreflight = {
+  event_draft_id: string;
+  public_reference: string;
+  status: string;
+  can_confirm: boolean;
+  blockers: string[];
+  active_line_count: number;
+  unavailable_line_count: number;
+};
+
+

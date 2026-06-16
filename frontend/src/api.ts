@@ -12,6 +12,7 @@ import type {
   HahitantsoaEventDraftCreatePayload,
   HahitantsoaEventDraftUpdatePayload,
   HahitantsoaEventDraftAvailabilityPreview,
+  HahitantsoaEventDraftConfirmationPreflight,
 } from "./types";
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
@@ -240,4 +241,15 @@ export function getHahitantsoaEventDraftAvailabilityPreview(
     signal,
   );
 }
+
+export function getHahitantsoaEventDraftConfirmationPreflight(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftConfirmationPreflight> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/confirmation-preflight/`,
+    signal,
+  );
+}
+
 

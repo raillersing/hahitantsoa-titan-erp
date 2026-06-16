@@ -93,7 +93,28 @@ function jsonResponse(payload: object, status = 200): Response {
   });
 }
 
-function mockHahitantsoaFetch(options: { failList?: boolean; failDetail?: boolean; failCreate?: boolean; failDelete?: boolean; failPreview?: boolean } = {}) {
+function mockHahitantsoaFetch(options: {
+  failList?: boolean;
+  failDetail?: boolean;
+  failCreate?: boolean;
+  failDelete?: boolean;
+  failPreview?: boolean;
+  failPreflight?: boolean;
+  preflightCanConfirm?: boolean;
+  preflightBlockers?: string[];
+} = {}) {
+  const canConfirm = options.preflightCanConfirm ?? true;
+  const blockers = options.preflightBlockers ?? [];
+  const preflightPayload = {
+    event_draft_id: DRAFTS[0].id,
+    public_reference: DRAFTS[0].public_reference,
+    status: DRAFTS[0].status,
+    can_confirm: canConfirm,
+    blockers: blockers,
+    active_line_count: 1,
+    unavailable_line_count: canConfirm ? 0 : 1,
+  };
+
   return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
 
@@ -117,6 +138,11 @@ function mockHahitantsoaFetch(options: { failList?: boolean; failDetail?: boolea
       if (url.endsWith("/availability-preview/")) {
         return Promise.resolve(
           options.failPreview ? jsonResponse({}, 500) : jsonResponse(AVAILABILITY_PREVIEW)
+        );
+      }
+      if (url.endsWith("/confirmation-preflight/")) {
+        return Promise.resolve(
+          options.failPreflight ? jsonResponse({}, 500) : jsonResponse(preflightPayload)
         );
       }
       if (init?.method === "DELETE") {
@@ -262,5 +288,136 @@ describe("HahitantsoaEventDraftsPanel", () => {
 
     resolvePromise(null);
   });
+
+  it("renders a successful confirmation preflight report", async () => {
+    mockHahitantsoaFetch({ preflightCanConfirm: true });
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Confirmation Preflight Report")).toBeInTheDocument();
+      expect(screen.getByText("Yes (Ready)")).toBeInTheDocument();
+    });
+  });
+
+  it("renders a blocked preflight report with blockers", async () => {
+    mockHahitantsoaFetch({
+      preflightCanConfirm: false,
+      preflightBlockers: ["Conflict item-1 on 2026-06-06"],
+    });
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Confirmation Preflight Report")).toBeInTheDocument();
+      expect(screen.getByText("No (Blocked)")).toBeInTheDocument();
+      expect(screen.getByText("Conflict item-1 on 2026-06-06")).toBeInTheDocument();
+    });
+  });
+
+  it("disables preflight actions and form when preflight is in flight", async () => {
+    let resolvePromise!: (val: any) => void;
+    const pendingPromise = new Promise((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/v1/customers/") {
+        return Promise.resolve(jsonResponse(CUSTOMERS));
+      }
+      if (url === "/api/v1/hahitantsoa/event-drafts/") {
+        return Promise.resolve(jsonResponse(DRAFTS));
+      }
+      if (url.includes("/api/v1/hahitantsoa/event-drafts/")) {
+        if (url.endsWith("/confirmation-preflight/")) {
+          return pendingPromise.then(() =>
+            jsonResponse({
+              event_draft_id: DRAFTS[0].id,
+              public_reference: DRAFTS[0].public_reference,
+              status: DRAFTS[0].status,
+              can_confirm: true,
+              blockers: [],
+              active_line_count: 1,
+              unavailable_line_count: 0,
+            })
+          );
+        }
+        return Promise.resolve(jsonResponse(DRAFTS[0]));
+      }
+      return Promise.reject(new Error(`Unhandled URL: ${url}`));
+    });
+
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    // Run Preflight Check
+    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+
+    // Check loading indicator and disabled state
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Running Preflight Check..." })
+      ).toBeDisabled();
+      screen.getAllByLabelText("Event Name").forEach(input => {
+        expect(input).toBeDisabled();
+      });
+    });
+
+    resolvePromise(null);
+  });
+
+  it("displays an error state when preflight fetch fails", async () => {
+    mockHahitantsoaFetch({ failPreflight: true });
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+
+    await waitFor(() => {
+      expect(screen.getByText("The requested data could not be loaded.")).toBeInTheDocument();
+    });
+  });
 });
+
 

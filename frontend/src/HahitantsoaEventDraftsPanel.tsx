@@ -7,12 +7,14 @@ import {
   updateHahitantsoaEventDraft,
   deleteHahitantsoaEventDraft,
   getHahitantsoaEventDraftAvailabilityPreview,
+  getHahitantsoaEventDraftConfirmationPreflight,
 } from "./api";
 import type {
   Customer,
   InventoryItem,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftAvailabilityPreview,
+  HahitantsoaEventDraftConfirmationPreflight,
 } from "./types";
 
 type DraftListState =
@@ -32,11 +34,18 @@ type AvailabilityPreviewState =
   | { status: "loaded"; preview: HahitantsoaEventDraftAvailabilityPreview }
   | { status: "error"; message: string };
 
+type PreflightState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "loaded"; preflight: HahitantsoaEventDraftConfirmationPreflight }
+  | { status: "error"; message: string };
+
 type ActionState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "success"; message: string }
   | { status: "error"; message: string };
+
 
 type HahitantsoaEventDraftsPanelProps = {
   inventoryItems?: InventoryItem[];
@@ -88,10 +97,16 @@ export function HahitantsoaEventDraftsPanel({
     status: "idle",
   });
 
+  const [preflightState, setPreflightState] = useState<PreflightState>({
+    status: "idle",
+  });
+
   const isActionLoading = actionState.status === "loading";
   const isDetailLoading = draftDetailState.status === "loading";
   const isAvailabilityLoading = availabilityPreviewState.status === "loading";
-  const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading;
+  const isPreflightLoading = preflightState.status === "loading";
+  const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading || isPreflightLoading;
+
 
   // Customers state
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -217,6 +232,7 @@ export function HahitantsoaEventDraftsPanel({
   const handleViewDetails = async (draftId: string) => {
     setDraftDetailState({ status: "loading" });
     setAvailabilityPreviewState({ status: "idle" });
+    setPreflightState({ status: "idle" });
     try {
       const draft = await getHahitantsoaEventDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
@@ -289,6 +305,9 @@ export function HahitantsoaEventDraftsPanel({
       if (availabilityPreviewState.status === "loaded") {
         handleCheckAvailability(draftId);
       }
+      if (preflightState.status === "loaded") {
+        handleCheckPreflight(draftId);
+      }
     } catch (err) {
       setActionState({
         status: "error",
@@ -307,6 +326,7 @@ export function HahitantsoaEventDraftsPanel({
       setActionState({ status: "success", message: "Draft deleted." });
       setDraftDetailState({ status: "idle" });
       setAvailabilityPreviewState({ status: "idle" });
+      setPreflightState({ status: "idle" });
       fetchDrafts();
     } catch (err) {
       setActionState({
@@ -330,6 +350,24 @@ export function HahitantsoaEventDraftsPanel({
           err instanceof Error
             ? err.message
             : "Failed to load availability preview.",
+      });
+    }
+  };
+
+  const handleCheckPreflight = async (draftId: string) => {
+    setPreflightState({ status: "loading" });
+    try {
+      const preflight = await getHahitantsoaEventDraftConfirmationPreflight(
+        draftId,
+      );
+      setPreflightState({ status: "loaded", preflight });
+    } catch (err) {
+      setPreflightState({
+        status: "error",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to load confirmation preflight.",
       });
     }
   };
@@ -608,6 +646,14 @@ export function HahitantsoaEventDraftsPanel({
             </button>
             <button
               type="button"
+              onClick={() => handleCheckPreflight(draftDetailState.draft.id)}
+              disabled={isDisabled}
+              style={{ marginLeft: "1rem" }}
+            >
+              {isPreflightLoading ? "Running Preflight Check..." : "Check Confirmation Preflight"}
+            </button>
+            <button
+              type="button"
               className="error-btn"
               onClick={() => handleDeleteDraft(draftDetailState.draft.id)}
               disabled={isDisabled}
@@ -635,7 +681,7 @@ export function HahitantsoaEventDraftsPanel({
               </p>
               <ul>
                 {availabilityPreviewState.preview.lines.map((line) => (
-                  <li key={line.event_draft_line_id}>
+                   <li key={line.event_draft_line_id}>
                     {line.inventory_item_name} (x{line.quantity}) -{" "}
                     <strong
                       style={{
@@ -649,6 +695,46 @@ export function HahitantsoaEventDraftsPanel({
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {preflightState.status === "loading" && (
+            <p className="status">Running confirmation preflight checks...</p>
+          )}
+          {preflightState.status === "error" && (
+            <p className="status error">{preflightState.message}</p>
+          )}
+          {preflightState.status === "loaded" && (
+            <div
+              className="notice"
+              style={{
+                marginTop: "1rem",
+                borderLeftColor: preflightState.preflight.can_confirm ? "#059669" : "#dc2626",
+                backgroundColor: preflightState.preflight.can_confirm ? "hsl(142, 70%, 97%)" : "hsl(346, 100%, 98%)",
+                color: preflightState.preflight.can_confirm ? "hsl(142, 76%, 15%)" : "hsl(346, 84%, 20%)"
+              }}
+            >
+              <h4>Confirmation Preflight Report</h4>
+              <p><strong>Public Reference:</strong> {preflightState.preflight.public_reference}</p>
+              <p><strong>Status:</strong> {preflightState.preflight.status}</p>
+              <p><strong>Active Line Count:</strong> {preflightState.preflight.active_line_count}</p>
+              <p><strong>Unavailable Line Count:</strong> {preflightState.preflight.unavailable_line_count}</p>
+              <p>
+                <strong>Can Confirm:</strong>{" "}
+                <span style={{ fontWeight: "bold" }}>
+                  {preflightState.preflight.can_confirm ? "Yes (Ready)" : "No (Blocked)"}
+                </span>
+              </p>
+              {preflightState.preflight.blockers.length > 0 && (
+                <div style={{ marginTop: "0.5rem" }}>
+                  <strong>Blockers:</strong>
+                  <ul style={{ marginTop: "0.25rem", paddingLeft: "1.2rem" }}>
+                    {preflightState.preflight.blockers.map((blocker, idx) => (
+                      <li key={idx}>{blocker}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>
