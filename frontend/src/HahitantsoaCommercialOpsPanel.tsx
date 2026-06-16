@@ -240,20 +240,23 @@ export function HahitantsoaCommercialOpsPanel() {
                   <form className="prepare-instance-form" onSubmit={handlePrepareInstance}>
                     <h4>Prepare Document Instance</h4>
                     <div className="prepare-fields">
-                      <select
-                        id="template-select"
-                        value={selectedTemplateKey}
-                        onChange={(e) => setSelectedTemplateKey(e.target.value)}
-                        required
-                        disabled={loading}
-                      >
-                        <option value="">-- Choose Template --</option>
-                        {templates.map((t) => (
-                          <option key={t.key} value={t.key}>
-                            {t.label} ({t.document_type})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="form-group">
+                        <label htmlFor="template-select">Choose Template</label>
+                        <select
+                          id="template-select"
+                          value={selectedTemplateKey}
+                          onChange={(e) => setSelectedTemplateKey(e.target.value)}
+                          required
+                          disabled={loading}
+                        >
+                          <option value="">-- Choose Template --</option>
+                          {templates.map((t) => (
+                            <option key={t.key} value={t.key}>
+                              {t.label} ({t.document_type})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <input
                         id="instance-notes"
                         type="text"
