@@ -5,9 +5,10 @@ import AvailabilityPanel from "./AvailabilityPanel";
 import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
 import HahitantsoaEventDraftsPanel from "./HahitantsoaEventDraftsPanel";
+import DashboardPanel from "./DashboardPanel";
 import type { InventoryItem } from "./types";
 
-type AppScope = "titan" | "hahitantsoa";
+type AppScope = "dashboard" | "titan" | "hahitantsoa";
 
 type InventoryState =
   | { status: "loading" }
@@ -24,6 +25,16 @@ type ModuleDefinition = {
 };
 
 const MODULES: ModuleDefinition[] = [
+  {
+    scope: "dashboard",
+    navLabel: "Dashboard",
+    heading: "ERP Overview",
+    eyebrow: "System Dashboard",
+    description:
+      "A consolidated view of the ERP modules, providing quick access and summary metrics across business scopes.",
+    boundaryNote:
+      "This panel operates in read-only mode to visualize general system status.",
+  },
   {
     scope: "titan",
     navLabel: "Titan",
@@ -47,12 +58,12 @@ const MODULES: ModuleDefinition[] = [
 ];
 
 function isAppScope(value: string | null): value is AppScope {
-  return value === "titan" || value === "hahitantsoa";
+  return value === "dashboard" || value === "titan" || value === "hahitantsoa";
 }
 
 function readScopeFromHash(hash: string): AppScope {
   const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
-  return isAppScope(normalizedHash) ? normalizedHash : "titan";
+  return isAppScope(normalizedHash) ? normalizedHash : "dashboard";
 }
 
 function writeScopeHash(scope: AppScope) {
@@ -181,44 +192,48 @@ function App() {
             <p className="module-boundary">{activeModule.boundaryNote}</p>
           </div>
 
-          {activeScope === "titan" ? (
+          {activeScope === "dashboard" && (
+            <DashboardPanel onNavigate={(scope) => setActiveScope(scope)} />
+          )}
+
+          {activeScope === "titan" && (
             <>
-          {inventoryState.status === "loading" ? (
-            <p className="status">Loading inventory...</p>
-          ) : null}
+              {inventoryState.status === "loading" ? (
+                <p className="status">Loading inventory...</p>
+              ) : null}
 
-          {inventoryState.status === "error" ? (
-            <section className="notice" role="alert">
-              <h2>Inventory unavailable</h2>
-              <p>{inventoryState.message}</p>
-              <p>For local development, sign in through the backend Browsable API first.</p>
-            </section>
-          ) : null}
+              {inventoryState.status === "error" ? (
+                <section className="notice" role="alert">
+                  <h2>Inventory unavailable</h2>
+                  <p>{inventoryState.message}</p>
+                  <p>For local development, sign in through the backend Browsable API first.</p>
+                </section>
+              ) : null}
 
-          {inventoryState.status === "loaded" ? (
-            <section className="inventory-section" aria-label="Inventory items">
-              <div className="section-heading">
-                <h2>Items</h2>
-                <span>{inventoryState.items.length}</span>
-              </div>
+              {inventoryState.status === "loaded" ? (
+                <section className="inventory-section" aria-label="Inventory items">
+                  <div className="section-heading">
+                    <h2>Items</h2>
+                    <span>{inventoryState.items.length}</span>
+                  </div>
 
-              {inventoryState.items.length === 0 ? (
-                <p className="status">No inventory items are currently visible.</p>
-              ) : (
-                <ul className="inventory-list">
-                  {inventoryState.items.map((item) => (
-                    <li className="inventory-row" key={item.id}>
-                      <div>
-                        <h3>{item.name}</h3>
-                        {item.description ? <p>{item.description}</p> : null}
-                      </div>
-                      <span className="kind-pill">{kindLabel(item.kind)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ) : null}
+                  {inventoryState.items.length === 0 ? (
+                    <p className="status">No inventory items are currently visible.</p>
+                  ) : (
+                    <ul className="inventory-list">
+                      {inventoryState.items.map((item) => (
+                        <li className="inventory-row" key={item.id}>
+                          <div>
+                            <h3>{item.name}</h3>
+                            {item.description ? <p>{item.description}</p> : null}
+                          </div>
+                          <span className="kind-pill">{kindLabel(item.kind)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ) : null}
 
               <AvailabilityPanel
                 inventoryItems={
@@ -227,7 +242,9 @@ function App() {
               />
               <DocumentArtifactPreviewPanel />
             </>
-          ) : (
+          )}
+
+          {activeScope === "hahitantsoa" && (
             <>
               <HahitantsoaDiscoveryPanel
                 onSelectConcept={(eventName, venueName) => {

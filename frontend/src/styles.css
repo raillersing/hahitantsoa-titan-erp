@@ -754,6 +754,113 @@ fieldset:disabled {
   background: #18352a;
 }
 
+/* Dashboard Panel Premium Aesthetics */
+.dashboard-section {
+  margin: 24px 24px 0;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 24px;
+}
+
+.metric-card {
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  background: linear-gradient(135deg, #ffffff 0%, #f7faf8 100%);
+  border: 1px solid rgba(113, 132, 121, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(31, 42, 37, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px rgba(31, 42, 37, 0.08);
+  border-color: rgba(35, 76, 61, 0.4);
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.metric-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #22483a;
+}
+
+.metric-badge {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  background: rgba(35, 76, 61, 0.1);
+  color: #22483a;
+  border-radius: 6px;
+}
+
+.metric-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #172026;
+  margin: 0 0 8px;
+  line-height: 1;
+}
+
+.metric-desc {
+  font-size: 0.9rem;
+  color: #5d665f;
+  margin: 0 0 20px;
+  flex-grow: 1;
+}
+
+.metric-action-btn {
+  align-self: flex-start;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #22483a;
+  border-radius: 8px;
+  background: transparent;
+  color: #22483a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.metric-action-btn:hover {
+  background: #22483a;
+  color: #ffffff;
+}
+
+.dashboard-welcome {
+  margin: 0 24px 24px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(245, 238, 216, 0.5), rgba(230, 238, 233, 0.4));
+  border: 1px dashed #b7c9c0;
+  border-radius: 16px;
+}
+
+.dashboard-welcome h3 {
+  color: #5c5337;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.dashboard-welcome p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #4b584f;
+  line-height: 1.6;
+}
+
+
 
 
 
