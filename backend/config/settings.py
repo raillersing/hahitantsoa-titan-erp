@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.documents.apps.DocumentsConfig",
     "apps.customers.apps.CustomersConfig",
     "apps.hahitantsoa.apps.HahitantsoaConfig",
+    "apps.payments.apps.PaymentsConfig",
     "rest_framework",
     "drf_spectacular",
 ]

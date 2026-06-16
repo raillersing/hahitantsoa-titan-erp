@@ -12,6 +12,7 @@ urlpatterns = [
     path("api/v1/documents/", include("apps.documents.urls")),
     path("api/v1/", include("apps.customers.urls")),
     path("api/v1/hahitantsoa/", include("apps.hahitantsoa.urls")),
+    path("api/v1/payments/", include("apps.payments.urls")),
     path("readyz/", readyz, name="readyz"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

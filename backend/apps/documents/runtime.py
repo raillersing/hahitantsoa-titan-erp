@@ -10,12 +10,16 @@ from django.template.loader import render_to_string
 
 from apps.documents.commercial import build_reservation_draft_commercial_document_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.documents.payment_receipts import build_payment_receipt_context
 
 
 class DocumentRuntimeGenerationError(ValueError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+PAYMENT_RECEIPT_PAYMENT_NOT_FOUND = "payment_receipt_payment_not_found"
 
 
 @dataclass(frozen=True)
@@ -60,15 +64,30 @@ def generate_document_instance_html(
             code="invalid_document_status_for_generation",
         )
 
-    context = build_reservation_draft_commercial_document_context(
-        reservation_draft=document_instance.reservation_draft,
-        template_key=document_instance.template_key,
-    )
+    if document_instance.template_key == "shared.payment_receipt.v1":
+        from apps.payments.models import Payment
 
-    if context.template.key == "titan.proforma.v1":
-        template_path = "documents/titan_proforma.html"
+        payment = (
+            Payment.objects.select_related("reservation_draft", "reservation_draft__customer")
+            .filter(receipt_document=document_instance)
+            .first()
+        )
+        if payment is None:
+            raise DocumentRuntimeGenerationError(
+                "Payment receipt document is not linked to a payment source.",
+                code=PAYMENT_RECEIPT_PAYMENT_NOT_FOUND,
+            )
+        context = build_payment_receipt_context(payment=payment)
+        template_path = "documents/shared_payment_receipt.html"
     else:
+        context = build_reservation_draft_commercial_document_context(
+            reservation_draft=document_instance.reservation_draft,
+            template_key=document_instance.template_key,
+        )
         template_path = context.template.template_path
+
+    if document_instance.template_key == "titan.proforma.v1":
+        template_path = "documents/titan_proforma.html"
 
     html_content = render_to_string(template_path, {"context": context})
 
