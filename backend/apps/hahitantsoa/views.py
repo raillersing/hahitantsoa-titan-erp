@@ -12,6 +12,7 @@ from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBou
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
+    HahitantsoaEventDraftAmendmentPreflightSerializer,
     HahitantsoaEventDraftAvailabilityPreviewSerializer,
     HahitantsoaEventDraftConfirmationPreflightSerializer,
     HahitantsoaEventDraftConfirmationResultSerializer,
@@ -147,6 +148,21 @@ class HahitantsoaEventDraftConfirmationPreflightAPIView(APIView):
 
         event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
         response_serializer = HahitantsoaEventDraftConfirmationPreflightSerializer.from_event_draft(
+            event_draft=event_draft
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaEventDraftAmendmentPreflightAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(responses=HahitantsoaEventDraftAmendmentPreflightSerializer)
+    def get(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
+        response_serializer = HahitantsoaEventDraftAmendmentPreflightSerializer.from_event_draft(
             event_draft=event_draft
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)

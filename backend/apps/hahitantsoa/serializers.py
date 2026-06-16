@@ -6,10 +6,12 @@ from apps.customers.models import Customer
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.hahitantsoa.services import (
+    HahitantsoaEventDraftAmendmentPreflight,
     HahitantsoaEventDraftAvailabilityPreview,
     HahitantsoaEventDraftConfirmationPreflight,
     HahitantsoaEventDraftConfirmationResult,
     HahitantsoaSharedAvailabilityItemPreview,
+    get_hahitantsoa_event_draft_amendment_preflight,
     get_hahitantsoa_event_draft_availability_preview,
     get_hahitantsoa_event_draft_confirmation_preflight,
     get_hahitantsoa_shared_availability_item_previews,
@@ -168,6 +170,34 @@ class HahitantsoaEventDraftConfirmationPreflightSerializer(serializers.Serialize
     def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
         return cls.from_preflight(
             get_hahitantsoa_event_draft_confirmation_preflight(event_draft=event_draft)
+        )
+
+
+class HahitantsoaEventDraftAmendmentPreflightSerializer(serializers.Serializer):
+    event_draft_id = serializers.UUIDField()
+    public_reference = serializers.CharField()
+    status = serializers.CharField()
+    can_amend = serializers.BooleanField()
+    blockers = serializers.ListField(child=serializers.CharField())
+    active_line_count = serializers.IntegerField()
+
+    @classmethod
+    def from_preflight(cls, preflight: HahitantsoaEventDraftAmendmentPreflight):
+        return cls(
+            {
+                "event_draft_id": preflight.event_draft_id,
+                "public_reference": preflight.public_reference,
+                "status": preflight.status,
+                "can_amend": preflight.can_amend,
+                "blockers": list(preflight.blockers),
+                "active_line_count": preflight.active_line_count,
+            }
+        )
+
+    @classmethod
+    def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
+        return cls.from_preflight(
+            get_hahitantsoa_event_draft_amendment_preflight(event_draft=event_draft)
         )
 
 
@@ -383,6 +413,7 @@ __all__ = [
     "HahitantsoaSharedAvailabilityResponseSerializer",
     "HahitantsoaEventDraftAvailabilityLinePreviewSerializer",
     "HahitantsoaEventDraftAvailabilityPreviewSerializer",
+    "HahitantsoaEventDraftAmendmentPreflightSerializer",
     "HahitantsoaEventDraftConfirmationPreflightSerializer",
     "HahitantsoaEventDraftConfirmationResultSerializer",
     "HahitantsoaEventDraftLineSerializer",

@@ -751,6 +751,85 @@ def test_second_user_cannot_access_another_users_confirmation_preflight(
     assert response.status_code == 404
 
 
+def test_confirmed_event_draft_amendment_preflight_allows_confirmed_owner_draft(
+    authenticated_client,
+) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=user, item=_item(kind="article"))
+    availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/amendment-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["event_draft_id"] == str(draft.id)
+    assert payload["status"] == "confirmed"
+    assert payload["can_amend"] is True
+    assert payload["blockers"] == []
+    assert payload["active_line_count"] == 1
+    assert InventoryAvailability.objects.count() == availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_draft_event_draft_amendment_preflight_blocks_unconfirmed_draft(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Draft amendment preflight",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=user,
+    )
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/amendment-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "draft"
+    assert payload["can_amend"] is False
+    assert payload["blockers"] == ["draft_not_confirmed_for_amendment"]
+    assert payload["active_line_count"] == 1
+
+
+def test_second_user_cannot_access_another_users_amendment_preflight(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+
+    response = authenticated_client_two.get(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/amendment-preflight/"
+    )
+
+    assert response.status_code == 404
+
+
+def test_event_draft_amendment_preflight_rejects_write_methods(authenticated_client) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=user, item=_item(kind="article"))
+
+    response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/amendment-preflight/")
+
+    assert response.status_code == 405
+
+
 def test_authenticated_user_can_confirm_own_event_draft(
     authenticated_client,
     django_user_model,
@@ -976,6 +1055,9 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     preflight_response = authenticated_client_two.get(
         f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/"
     )
+    amendment_preflight_response = authenticated_client_two.get(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/amendment-preflight/"
+    )
     confirm_response = authenticated_client_two.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirm/")
 
     assert list_response.status_code == 200
@@ -985,6 +1067,7 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     assert delete_response.status_code == 404
     assert preview_response.status_code == 404
     assert preflight_response.status_code == 404
+    assert amendment_preflight_response.status_code == 404
     assert confirm_response.status_code == 404
     draft.refresh_from_db()
     line = draft.lines.get()
