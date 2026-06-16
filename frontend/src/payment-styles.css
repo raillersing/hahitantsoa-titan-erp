@@ -1,0 +1,364 @@
+/* ─── Payment Status Tokens ───────────────────────────────────────────────── */
+
+:root {
+  --payment-status-pending: #d48c00;
+  --payment-status-confirmed: #2e7d32;
+  --payment-status-failed: #c62828;
+  --payment-status-cancelled: #616161;
+  --payment-status-reconciled: #1565c0;
+  --muted-fg: #757575;
+}
+
+/* ─── Payment Workflow Panel ──────────────────────────────────────────────── */
+
+.embedded-payments-panel {
+  margin-top: 20px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 16px;
+}
+
+.payment-workflow-panel {
+  font-size: 0.875rem;
+}
+
+.payment-workflow-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.payment-workflow-panel__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.payment-workflow-panel__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.payment-workflow-panel__refresh,
+.payment-workflow-panel__new {
+  font-size: 0.8rem;
+  padding: 5px 12px;
+  border: 1px solid #c8d6e0;
+  border-radius: 5px;
+  background: #f4f8fb;
+  color: #3d5c72;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.payment-workflow-panel__refresh:hover,
+.payment-workflow-panel__new:hover {
+  background: #e0ecf4;
+}
+
+.payment-workflow-panel__refresh:disabled,
+.payment-workflow-panel__new:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.payment-workflow-panel__loading,
+.payment-workflow-panel__empty {
+  padding: 16px;
+  text-align: center;
+  color: #8a9aaa;
+  font-size: 0.85rem;
+  background: #f9fbfc;
+  border-radius: 6px;
+}
+
+.payment-workflow-panel__error {
+  padding: 10px 14px;
+  background: #fff3f3;
+  color: #b71c1c;
+  border: 1px solid #ffcdd2;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+/* ─── Payment List ────────────────────────────────────────────────────────── */
+
+.payment-workflow-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 7px;
+  flex-wrap: wrap;
+}
+
+.payment-row__meta {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.payment-row__kind {
+  font-weight: 600;
+  color: #2c3e50;
+  text-transform: capitalize;
+}
+
+.payment-row__method {
+  color: #607080;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.payment-row__source {
+  color: #7c8fa0;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.payment-row__amount {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1a2a3a;
+  white-space: nowrap;
+}
+
+.payment-row__currency {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #9aacba;
+}
+
+.payment-row__status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.payment-confirm-btn {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  background: #e8f4ea;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.payment-confirm-btn:hover {
+  background: #c8e6c9;
+}
+
+.payment-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.payment-row__receipt-badge {
+  font-size: 0.75rem;
+  color: #1565c0;
+  background: #e3f2fd;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #90caf9;
+  white-space: nowrap;
+}
+
+/* ─── Create Payment Form ─────────────────────────────────────────────────── */
+
+.payment-create-form {
+  background: #f5f9fc;
+  border: 1px solid #d4e3ef;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.payment-form__heading {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 12px;
+}
+
+.payment-form__row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.payment-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.payment-form__field--wide {
+  flex: 2;
+  min-width: 200px;
+}
+
+.payment-form__field--full {
+  flex: 4;
+  min-width: 100%;
+}
+
+.payment-form__field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #546070;
+}
+
+.payment-form__field input,
+.payment-form__field select,
+.payment-form__field textarea {
+  border: 1px solid #c8d6e0;
+  border-radius: 5px;
+  padding: 6px 9px;
+  font-size: 0.83rem;
+  color: #2c3e50;
+  background: #ffffff;
+  transition: border-color 0.15s;
+}
+
+.payment-form__field input:focus,
+.payment-form__field select:focus,
+.payment-form__field textarea:focus {
+  outline: none;
+  border-color: #4da8da;
+}
+
+.payment-form__required {
+  color: #e05252;
+  font-weight: 400;
+}
+
+.payment-form__error {
+  padding: 8px 12px;
+  background: #fff3f3;
+  color: #b71c1c;
+  border: 1px solid #ffcdd2;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  margin-bottom: 10px;
+}
+
+.payment-form__submit {
+  padding: 7px 18px;
+  background: #2e7d32;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.83rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.payment-form__submit:hover {
+  background: #1b5e20;
+}
+
+.payment-form__submit:disabled {
+  background: #a5d6a7;
+  cursor: not-allowed;
+}
+
+/* ─── Confirm Dialog ──────────────────────────────────────────────────────── */
+
+.confirm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-dialog__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.confirm-dialog__panel {
+  position: relative;
+  z-index: 201;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 24px 28px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.confirm-dialog__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0 0 8px;
+}
+
+.confirm-dialog__hint {
+  font-size: 0.83rem;
+  color: #607080;
+  margin: 0 0 16px;
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.confirm-dialog__btn {
+  padding: 7px 18px;
+  border-radius: 6px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.confirm-dialog__btn--cancel {
+  background: #f0f0f0;
+  color: #546070;
+  border: 1px solid #c8d6e0;
+}
+
+.confirm-dialog__btn--cancel:hover {
+  background: #dde8f0;
+}
+
+.confirm-dialog__btn--confirm {
+  background: #2e7d32;
+  color: #ffffff;
+  border: none;
+}
+
+.confirm-dialog__btn--confirm:hover {
+  background: #1b5e20;
+}
+
+.confirm-dialog__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

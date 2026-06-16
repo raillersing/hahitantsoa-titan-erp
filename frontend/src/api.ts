@@ -24,7 +24,11 @@ import type {
   DocumentTemplateDefinition,
   DocumentInstance,
   DocumentInstanceCreatePayload,
+  Payment,
+  PaymentCreatePayload,
+  PaymentConfirmPayload,
 } from "./types";
+
 
 export class ApiError extends Error {
   status: number;
@@ -498,5 +502,32 @@ export function generateReservationDraftDocumentInstance(
 }
 
 
+// ---- Payments ----
 
+export function getPayments(
+  signal?: AbortSignal,
+): Promise<Payment[]> {
+  return getAuthenticatedJson('/api/v1/payments/', signal);
+}
 
+export function createPayment(
+  payload: PaymentCreatePayload,
+  signal?: AbortSignal,
+): Promise<Payment> {
+  return postAuthenticatedJson('/api/v1/payments/', payload, signal);
+}
+
+export function getPayment(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Payment> {
+  return getAuthenticatedJson(`/api/v1/payments/${id}/`, signal);
+}
+
+export function confirmPayment(
+  id: string,
+  payload: PaymentConfirmPayload,
+  signal?: AbortSignal,
+): Promise<Payment> {
+  return postAuthenticatedJson(`/api/v1/payments/${id}/confirm/`, payload, signal);
+}
