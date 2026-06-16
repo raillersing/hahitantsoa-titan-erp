@@ -292,4 +292,28 @@ describe("App", () => {
     );
     expect(window.location.hash).toBe("#hahitantsoa");
   });
+
+  it("navigates to Commercial Ops scope from nav button and dashboard quick action", async () => {
+    window.history.replaceState(null, "", "/");
+    mockAppFetch({ inventoryItems: [] });
+
+    render(<App />);
+
+    // Click quick nav action in Dashboard panel
+    const commOpsQuickBtn = await screen.findByRole("button", { name: /View Operations/i });
+    fireEvent.click(commOpsQuickBtn);
+
+    expect(
+      await screen.findByRole("heading", { name: "Commercial Operations" }),
+    ).toBeInTheDocument();
+    expect(window.location.hash).toBe("#commercial-ops");
+
+    // Switch back to Dashboard via tab and verify
+    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    expect(window.location.hash).toBe("#dashboard");
+
+    // Switch to Commercial Ops via navigation button
+    fireEvent.click(screen.getByRole("button", { name: "Commercial Ops" }));
+    expect(window.location.hash).toBe("#commercial-ops");
+  });
 });

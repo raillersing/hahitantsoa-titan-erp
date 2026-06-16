@@ -8,7 +8,7 @@ type DashboardMetrics = {
 };
 
 type DashboardPanelProps = {
-  onNavigate: (scope: "titan" | "hahitantsoa") => void;
+  onNavigate: (scope: "titan" | "hahitantsoa" | "commercial-ops") => void;
 };
 
 function DashboardPanel({ onNavigate }: DashboardPanelProps) {
@@ -123,6 +123,22 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
             onClick={() => onNavigate("titan")}
           >
             Check Availability &rarr;
+          </button>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-header">
+            <h3>Commercial Operations</h3>
+            <span className="metric-badge">Operations</span>
+          </div>
+          <p className="metric-value">-</p>
+          <p className="metric-desc">Billing, payments capture, operational logistics, returns, and damages closeout.</p>
+          <button
+            type="button"
+            className="metric-action-btn"
+            onClick={() => onNavigate("commercial-ops")}
+          >
+            View Operations &rarr;
           </button>
         </div>
       </div>
