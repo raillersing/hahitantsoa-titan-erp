@@ -6,9 +6,10 @@ import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
 import HahitantsoaEventDraftsPanel from "./HahitantsoaEventDraftsPanel";
 import DashboardPanel from "./DashboardPanel";
+import HahitantsoaCommercialOpsPanel from "./HahitantsoaCommercialOpsPanel";
 import type { InventoryItem } from "./types";
 
-type AppScope = "dashboard" | "titan" | "hahitantsoa";
+type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops";
 
 type InventoryState =
   | { status: "loading" }
@@ -55,10 +56,25 @@ const MODULES: ModuleDefinition[] = [
     boundaryNote:
       "This module remains exploratory. It does not expose reservation creation, payment, contract or inventory blocking controls.",
   },
+  {
+    scope: "commercial-ops",
+    navLabel: "Commercial Ops",
+    heading: "Commercial Operations",
+    eyebrow: "Operations module",
+    description:
+      "Operational closeout tracking across Hahitantsoa and Titan business scopes: documents, payments, billing, logistics, returns, breakage, and stock ledger.",
+    boundaryNote:
+      "This panel acts as a foundation. Actions not yet supported by backend services are marked as pending integration.",
+  },
 ];
 
 function isAppScope(value: string | null): value is AppScope {
-  return value === "dashboard" || value === "titan" || value === "hahitantsoa";
+  return (
+    value === "dashboard" ||
+    value === "titan" ||
+    value === "hahitantsoa" ||
+    value === "commercial-ops"
+  );
 }
 
 function readScopeFromHash(hash: string): AppScope {
@@ -260,6 +276,10 @@ function App() {
                 prefillVenueName={prefillVenueName}
               />
             </>
+          )}
+
+          {activeScope === "commercial-ops" && (
+            <HahitantsoaCommercialOpsPanel />
           )}
         </section>
       </div>

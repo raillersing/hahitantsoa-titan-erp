@@ -1201,11 +1201,128 @@ fieldset:disabled {
   font-weight: 600;
 }
 
+
 .card-footer-actions {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
+
+/* Commercial Operations Dashboard styling */
+.commercial-ops-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.commercial-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.commercial-card {
+  border: 1px solid rgba(113, 132, 121, 0.22);
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(31, 42, 37, 0.03);
+}
+
+.commercial-card h3 {
+  margin: 12px 0 8px 0;
+  font-size: 1.15rem;
+  color: #1f2a25;
+}
+
+.commercial-card p.desc {
+  font-size: 0.95rem;
+  color: #5d665f;
+  margin-bottom: 12px;
+  flex-grow: 1;
+}
+
+.commercial-card p.rule {
+  font-size: 0.85rem;
+  background-color: #f7f6f2;
+  border-left: 3px solid #b58539;
+  padding: 6px 10px;
+  margin: 0 0 16px 0;
+  color: #6a6f6b;
+  border-radius: 0 6px 6px 0;
+}
+
+.commercial-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.commercial-card .section-badge {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: bold;
+  color: #b58539;
+}
+
+.commercial-card .status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.commercial-card .status-badge.status-connected {
+  background-color: #e3f2fd;
+  color: #1e88e5;
+}
+
+.commercial-card .status-badge.status-partially_connected {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px dashed #2e7d32;
+}
+
+.commercial-card .status-badge.status-pending_backend {
+  background-color: #fff3e0;
+  color: #ef6c00;
+  border: 1px dashed #ef6c00;
+}
+
+.commercial-card .pending-state-overlay {
+  background-color: #faf9f6;
+  border: 1px dashed #d1c9b8;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: auto;
+}
+
+.commercial-card .pending-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #c67c00;
+  margin-bottom: 4px;
+}
+
+.commercial-card .pending-helper {
+  font-size: 0.8rem;
+  color: #7d776a;
+  margin: 0;
+}
+
+.commercial-card .embedded-documents-panel {
+  margin-top: 12px;
+  border-top: 1px solid #dde4de;
+  padding-top: 16px;
+}
+
 
 
 
