@@ -40,6 +40,13 @@ def _amendment_request_line_list_url(event_draft_id, amendment_request_id) -> st
     )
 
 
+def _amendment_request_availability_preflight_url(event_draft_id, amendment_request_id) -> str:
+    return (
+        f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/"
+        f"{amendment_request_id}/availability-preflight/"
+    )
+
+
 def _amendment_request_line_detail_url(event_draft_id, amendment_request_id, line_id) -> str:
     return (
         f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/"
@@ -1284,6 +1291,135 @@ def test_wrong_event_draft_amendment_request_path_returns_404_for_line_endpoints
 
     assert list_response.status_code == 404
     assert detail_response.status_code == 404
+
+
+def test_owner_can_read_amendment_request_availability_preflight_without_side_effects(
+    authenticated_client,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    original_item = _item(name="Original article", kind="article")
+    draft = _confirmed_draft(user=owner, item=original_item)
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        reason="Availability preview",
+        created_by=owner,
+    )
+    available_item = _item(name="Available material", kind="material")
+    unavailable_item = _item(name="Unavailable article", kind="article")
+    HahitantsoaEventDraftAmendmentRequestLine.objects.create(
+        amendment_request=amendment_request,
+        inventory_item=available_item,
+        quantity=2,
+        notes="Should stay available",
+        created_by=owner,
+    )
+    previewed_line = HahitantsoaEventDraftAmendmentRequestLine.objects.create(
+        amendment_request=amendment_request,
+        inventory_item=unavailable_item,
+        quantity=1,
+        notes="Should conflict",
+        created_by=owner,
+    )
+    InventoryAvailability.objects.create(
+        inventory_item=unavailable_item,
+        status="reserved",
+        start_at=draft.start_at,
+        end_at=draft.end_at,
+        notes="Blocking availability",
+    )
+    inventory_availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+    original_line = draft.lines.get()
+
+    response = authenticated_client.get(
+        _amendment_request_availability_preflight_url(draft.id, amendment_request.id)
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["amendment_request_id"] == str(amendment_request.id)
+    assert payload["event_draft_id"] == str(draft.id)
+    assert payload["public_reference"] == draft.public_reference
+    assert payload["status"] == amendment_request.status
+    assert payload["line_count"] == 2
+    assert payload["available_line_count"] == 1
+    assert payload["unavailable_line_count"] == 1
+    assert [line["inventory_item_name"] for line in payload["lines"]] == [
+        "Available material",
+        "Unavailable article",
+    ]
+    assert [line["status"] for line in payload["lines"]] == ["available", "unavailable"]
+    assert payload["lines"][1]["amendment_request_line_id"] == str(previewed_line.id)
+    assert payload["lines"][1]["conflict_count"] >= 1
+    draft.refresh_from_db()
+    original_line.refresh_from_db()
+    assert draft.status == "confirmed"
+    assert original_line.inventory_item_id == original_item.id
+    assert original_line.quantity == 1
+    assert original_line.is_deleted is False
+    assert InventoryAvailability.objects.count() == inventory_availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_second_user_cannot_access_another_users_amendment_request_availability_preflight(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        created_by=owner,
+    )
+
+    response = authenticated_client_two.get(
+        _amendment_request_availability_preflight_url(draft.id, amendment_request.id)
+    )
+
+    assert response.status_code == 404
+
+
+def test_wrong_event_draft_amendment_request_path_returns_404_for_availability_preflight(
+    authenticated_client,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    first_draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    second_draft = _confirmed_draft(user=owner, item=_item(kind="material"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=first_draft,
+        created_by=owner,
+    )
+
+    response = authenticated_client.get(
+        _amendment_request_availability_preflight_url(second_draft.id, amendment_request.id)
+    )
+
+    assert response.status_code == 404
+
+
+def test_amendment_request_availability_preflight_rejects_write_methods(
+    authenticated_client,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        created_by=owner,
+    )
+
+    response = authenticated_client.post(
+        _amendment_request_availability_preflight_url(draft.id, amendment_request.id)
+    )
+
+    assert response.status_code == 405
 
 
 def test_second_user_cannot_update_another_users_amendment_request(

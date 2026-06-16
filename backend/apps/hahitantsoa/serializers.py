@@ -12,6 +12,7 @@ from apps.hahitantsoa.models import (
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.hahitantsoa.services import (
     HahitantsoaEventDraftAmendmentPreflight,
+    HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
     HahitantsoaEventDraftAmendmentRequestResult,
     HahitantsoaEventDraftAvailabilityPreview,
     HahitantsoaEventDraftConfirmationPreflight,
@@ -19,6 +20,7 @@ from apps.hahitantsoa.services import (
     HahitantsoaSharedAvailabilityItemPreview,
     create_hahitantsoa_event_draft_amendment_request,
     get_hahitantsoa_event_draft_amendment_preflight,
+    get_hahitantsoa_event_draft_amendment_request_availability_preview,
     get_hahitantsoa_event_draft_availability_preview,
     get_hahitantsoa_event_draft_confirmation_preflight,
     get_hahitantsoa_shared_availability_item_previews,
@@ -205,6 +207,67 @@ class HahitantsoaEventDraftAmendmentPreflightSerializer(serializers.Serializer):
     def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
         return cls.from_preflight(
             get_hahitantsoa_event_draft_amendment_preflight(event_draft=event_draft)
+        )
+
+
+class HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreviewSerializer(
+    serializers.Serializer
+):
+    amendment_request_line_id = serializers.UUIDField()
+    quantity = serializers.IntegerField()
+    inventory_item_id = serializers.UUIDField()
+    inventory_item_name = serializers.CharField()
+    inventory_item_kind = serializers.CharField()
+    status = serializers.CharField()
+    conflict_count = serializers.IntegerField()
+
+
+class HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer(serializers.Serializer):
+    amendment_request_id = serializers.UUIDField()
+    event_draft_id = serializers.UUIDField()
+    public_reference = serializers.CharField()
+    status = serializers.CharField()
+    start_at = serializers.DateTimeField()
+    end_at = serializers.DateTimeField()
+    line_count = serializers.IntegerField()
+    available_line_count = serializers.IntegerField()
+    unavailable_line_count = serializers.IntegerField()
+    lines = HahitantsoaEventDraftAmendmentRequestAvailabilityLinePreviewSerializer(many=True)
+
+    @classmethod
+    def from_preflight(cls, preflight: HahitantsoaEventDraftAmendmentRequestAvailabilityPreview):
+        return cls(
+            {
+                "amendment_request_id": preflight.amendment_request_id,
+                "event_draft_id": preflight.event_draft_id,
+                "public_reference": preflight.public_reference,
+                "status": preflight.status,
+                "start_at": preflight.start_at,
+                "end_at": preflight.end_at,
+                "line_count": preflight.line_count,
+                "available_line_count": preflight.available_line_count,
+                "unavailable_line_count": preflight.unavailable_line_count,
+                "lines": [
+                    {
+                        "amendment_request_line_id": line.amendment_request_line_id,
+                        "quantity": line.quantity,
+                        "inventory_item_id": line.inventory_item_id,
+                        "inventory_item_name": line.inventory_item_name,
+                        "inventory_item_kind": line.inventory_item_kind,
+                        "status": line.status,
+                        "conflict_count": line.conflict_count,
+                    }
+                    for line in preflight.lines
+                ],
+            }
+        )
+
+    @classmethod
+    def from_amendment_request(cls, *, amendment_request: HahitantsoaEventDraftAmendmentRequest):
+        return cls.from_preflight(
+            get_hahitantsoa_event_draft_amendment_request_availability_preview(
+                amendment_request=amendment_request
+            )
         )
 
 
@@ -597,6 +660,7 @@ class HahitantsoaEventDraftConfirmationResultSerializer(serializers.Serializer):
 __all__ = [
     "HahitantsoaDiscoveryItemSerializer",
     "HahitantsoaEventDraftAmendmentRequestCreateSerializer",
+    "HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer",
     "HahitantsoaEventDraftAmendmentRequestLineSerializer",
     "HahitantsoaEventDraftAmendmentRequestLineCreateSerializer",
     "HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer",
