@@ -63,6 +63,16 @@ class HahitantsoaEventDraftConfirmationPreflight:
 
 
 @dataclass(frozen=True)
+class HahitantsoaEventDraftAmendmentPreflight:
+    event_draft_id: str
+    public_reference: str
+    status: str
+    can_amend: bool
+    blockers: tuple[str, ...]
+    active_line_count: int
+
+
+@dataclass(frozen=True)
 class HahitantsoaEventDraftConfirmationResult:
     event_draft: HahitantsoaEventDraft
     blocked_item_count: int
@@ -246,6 +256,26 @@ def assert_hahitantsoa_event_draft_mutable(*, event_draft: HahitantsoaEventDraft
             "Confirmed Hahitantsoa event drafts are immutable until amendment workflow exists.",
             code="confirmed_draft_is_immutable",
         )
+
+
+def get_hahitantsoa_event_draft_amendment_preflight(
+    *,
+    event_draft: HahitantsoaEventDraft,
+) -> HahitantsoaEventDraftAmendmentPreflight:
+    active_line_count = len(_active_hahitantsoa_event_draft_lines(event_draft=event_draft))
+    blockers: list[str] = []
+
+    if not _is_confirmed(event_draft=event_draft):
+        blockers.append("draft_not_confirmed_for_amendment")
+
+    return HahitantsoaEventDraftAmendmentPreflight(
+        event_draft_id=str(event_draft.id),
+        public_reference=event_draft.public_reference,
+        status=event_draft.status,
+        can_amend=not blockers,
+        blockers=tuple(blockers),
+        active_line_count=active_line_count,
+    )
 
 
 def _lock_inventory_items_for_active_lines(*, active_lines: tuple) -> tuple[InventoryItem, ...]:

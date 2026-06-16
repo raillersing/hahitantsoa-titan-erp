@@ -25,6 +25,10 @@ HAHITANTSOA_EVENT_DRAFT_CONFIRMATION_PREFLIGHT_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/confirmation-preflight/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/confirmation-preflight/",
 )
+HAHITANTSOA_EVENT_DRAFT_AMENDMENT_PREFLIGHT_PATHS = (
+    "/api/v1/hahitantsoa/event-drafts/{id}/amendment-preflight/",
+    "/api/v1/hahitantsoa/event-drafts/{pk}/amendment-preflight/",
+)
 HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/confirm/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/confirm/",
@@ -196,6 +200,9 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
     )
     assert confirmation_preflight_path in paths
     _assert_get_only(paths[confirmation_preflight_path])
+    amendment_preflight_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_AMENDMENT_PREFLIGHT_PATHS)
+    assert amendment_preflight_path in paths
+    _assert_get_only(paths[amendment_preflight_path])
     confirmation_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS)
     assert confirmation_path in paths
     assert set(paths[confirmation_path]) == {"post"}
@@ -276,6 +283,20 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "active_line_count",
         "unavailable_line_count",
     }.issubset(confirmation_preflight_schema["properties"])
+
+    amendment_preflight_operation = paths[amendment_preflight_path]["get"]
+    amendment_preflight_schema_reference = amendment_preflight_operation["responses"]["200"][
+        "content"
+    ]["application/json"]["schema"]
+    amendment_preflight_schema = _resolve_schema(schema, amendment_preflight_schema_reference)
+    assert {
+        "event_draft_id",
+        "public_reference",
+        "status",
+        "can_amend",
+        "blockers",
+        "active_line_count",
+    }.issubset(amendment_preflight_schema["properties"])
 
     confirmation_operation = paths[confirmation_path]["post"]
     confirmation_schema_reference = confirmation_operation["responses"]["200"]["content"][
