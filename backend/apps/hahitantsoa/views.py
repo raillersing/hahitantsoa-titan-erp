@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
 )
 from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
@@ -18,6 +19,9 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAmendmentPreflightSerializer,
     HahitantsoaEventDraftAmendmentRequestCreateSerializer,
+    HahitantsoaEventDraftAmendmentRequestLineCreateSerializer,
+    HahitantsoaEventDraftAmendmentRequestLineSerializer,
+    HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer,
     HahitantsoaEventDraftAmendmentRequestResultSerializer,
     HahitantsoaEventDraftAmendmentRequestSerializer,
     HahitantsoaEventDraftAmendmentRequestUpdateSerializer,
@@ -286,6 +290,114 @@ class HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView(generics.Retrie
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
+
+
+class HahitantsoaEventDraftAmendmentRequestLineListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    def _get_amendment_request(self):
+        from django.shortcuts import get_object_or_404
+
+        return get_object_or_404(
+            HahitantsoaEventDraftAmendmentRequest.objects.filter(
+                event_draft__in=visible_hahitantsoa_event_drafts(user=self.request.user),
+                event_draft_id=self.kwargs["event_draft_pk"],
+            ),
+            pk=self.kwargs["amendment_request_pk"],
+        )
+
+    def get_queryset(self):
+        amendment_request = self._get_amendment_request()
+        return (
+            HahitantsoaEventDraftAmendmentRequestLine.objects.filter(
+                amendment_request=amendment_request,
+                is_deleted=False,
+            )
+            .select_related("inventory_item", "amendment_request")
+            .order_by("created_at", "id")
+        )
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return HahitantsoaEventDraftAmendmentRequestLineCreateSerializer
+        return HahitantsoaEventDraftAmendmentRequestLineSerializer
+
+    @extend_schema(
+        responses={
+            200: HahitantsoaEventDraftAmendmentRequestLineSerializer(many=True),
+            201: HahitantsoaEventDraftAmendmentRequestLineSerializer,
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        request=HahitantsoaEventDraftAmendmentRequestLineCreateSerializer,
+        responses={201: HahitantsoaEventDraftAmendmentRequestLineSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        amendment_request = self._get_amendment_request()
+        serializer = self.get_serializer(
+            data=request.data,
+            context={
+                "amendment_request": amendment_request,
+                "actor": request.user,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        line = serializer.save()
+        payload = HahitantsoaEventDraftAmendmentRequestLineSerializer(line)
+        return Response(payload.data, status=status.HTTP_201_CREATED)
+
+
+class HahitantsoaEventDraftAmendmentRequestLineRetrieveUpdateDestroyAPIView(
+    generics.RetrieveUpdateDestroyAPIView
+):
+    http_method_names = ["get", "put", "patch", "delete", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        return (
+            HahitantsoaEventDraftAmendmentRequestLine.objects.filter(
+                amendment_request__event_draft__in=visible_hahitantsoa_event_drafts(
+                    user=self.request.user
+                ),
+                amendment_request__event_draft_id=self.kwargs["event_draft_pk"],
+                amendment_request_id=self.kwargs["amendment_request_pk"],
+                is_deleted=False,
+            )
+            .select_related("inventory_item", "amendment_request")
+            .order_by("created_at", "id")
+        )
+
+    def get_serializer_class(self):
+        if self.request.method in {"PUT", "PATCH"}:
+            return HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer
+        return HahitantsoaEventDraftAmendmentRequestLineSerializer
+
+    @extend_schema(
+        request=HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer,
+        responses={200: HahitantsoaEventDraftAmendmentRequestLineSerializer},
+    )
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        payload = HahitantsoaEventDraftAmendmentRequestLineSerializer(serializer.instance)
+        return Response(payload.data, status=status.HTTP_200_OK)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        instance.is_deleted = True
+        instance.deleted_at = timezone.now()
+        instance.updated_by = self.request.user
+        instance.save(update_fields=["is_deleted", "deleted_at", "updated_by", "updated_at"])
 
 
 class HahitantsoaEventDraftConfirmAPIView(APIView):

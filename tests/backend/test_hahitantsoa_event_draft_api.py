@@ -34,6 +34,19 @@ def _amendment_request_detail_url(event_draft_id, amendment_request_id) -> str:
     return f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/{amendment_request_id}/"
 
 
+def _amendment_request_line_list_url(event_draft_id, amendment_request_id) -> str:
+    return (
+        f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/{amendment_request_id}/lines/"
+    )
+
+
+def _amendment_request_line_detail_url(event_draft_id, amendment_request_id, line_id) -> str:
+    return (
+        f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/"
+        f"{amendment_request_id}/lines/{line_id}/"
+    )
+
+
 @pytest.fixture
 def authenticated_client(django_user_model):
     client = Client()
@@ -1097,6 +1110,180 @@ def test_amendment_request_responses_include_proposed_lines(
         "Updated article",
         "Updated material",
     ]
+
+
+def test_owner_can_create_list_read_update_and_soft_delete_amendment_request_lines(
+    authenticated_client,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        reason="Need proposal lines",
+        created_by=owner,
+    )
+    original_line = draft.lines.get()
+    first_item = _item(name="Proposal article", kind="article")
+    restored_item = _item(name="Proposal material", kind="material")
+    inventory_availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+
+    create_response = authenticated_client.post(
+        _amendment_request_line_list_url(draft.id, amendment_request.id),
+        data={
+            "inventory_item_id": str(first_item.id),
+            "quantity": 2,
+            "notes": "First proposal",
+        },
+        content_type="application/json",
+    )
+
+    assert create_response.status_code == 201
+    line_id = create_response.json()["id"]
+    line = HahitantsoaEventDraftAmendmentRequestLine.objects.get(pk=line_id)
+    assert line.created_by == owner
+    assert line.updated_by == owner
+
+    list_response = authenticated_client.get(
+        _amendment_request_line_list_url(draft.id, amendment_request.id)
+    )
+    detail_response = authenticated_client.get(
+        _amendment_request_line_detail_url(draft.id, amendment_request.id, line.id)
+    )
+
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert [item["id"] for item in list_response.json()] == [str(line.id)]
+    assert detail_response.json()["inventory_item_id"] == str(first_item.id)
+
+    update_response = authenticated_client.patch(
+        _amendment_request_line_detail_url(draft.id, amendment_request.id, line.id),
+        data={
+            "inventory_item_id": str(restored_item.id),
+            "quantity": 5,
+            "notes": "Updated proposal",
+        },
+        content_type="application/json",
+    )
+
+    assert update_response.status_code == 200
+    line.refresh_from_db()
+    assert line.inventory_item_id == restored_item.id
+    assert line.quantity == 5
+    assert line.notes == "Updated proposal"
+    assert line.updated_by == owner
+
+    delete_response = authenticated_client.delete(
+        _amendment_request_line_detail_url(draft.id, amendment_request.id, line.id)
+    )
+    assert delete_response.status_code == 204
+    line.refresh_from_db()
+    assert line.is_deleted is True
+    assert line.deleted_at is not None
+    assert line.updated_by == owner
+
+    restore_response = authenticated_client.post(
+        _amendment_request_line_list_url(draft.id, amendment_request.id),
+        data={
+            "inventory_item_id": str(restored_item.id),
+            "quantity": 7,
+            "notes": "Restored proposal",
+        },
+        content_type="application/json",
+    )
+    assert restore_response.status_code == 201
+    assert restore_response.json()["id"] == str(line.id)
+    line.refresh_from_db()
+    assert line.is_deleted is False
+    assert line.deleted_at is None
+    assert line.quantity == 7
+    assert line.notes == "Restored proposal"
+
+    draft.refresh_from_db()
+    original_line.refresh_from_db()
+    assert draft.status == "confirmed"
+    assert draft.lines.filter(is_deleted=False).count() == 1
+    assert original_line.is_deleted is False
+    assert InventoryAvailability.objects.count() == inventory_availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_second_user_cannot_access_another_users_amendment_request_lines(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        created_by=owner,
+    )
+    line = HahitantsoaEventDraftAmendmentRequestLine.objects.create(
+        amendment_request=amendment_request,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=owner,
+    )
+
+    list_response = authenticated_client_two.get(
+        _amendment_request_line_list_url(draft.id, amendment_request.id)
+    )
+    create_response = authenticated_client_two.post(
+        _amendment_request_line_list_url(draft.id, amendment_request.id),
+        data={"inventory_item_id": str(_item(kind="material").id), "quantity": 1},
+        content_type="application/json",
+    )
+    detail_response = authenticated_client_two.get(
+        _amendment_request_line_detail_url(draft.id, amendment_request.id, line.id)
+    )
+    update_response = authenticated_client_two.patch(
+        _amendment_request_line_detail_url(draft.id, amendment_request.id, line.id),
+        data={"quantity": 2},
+        content_type="application/json",
+    )
+    delete_response = authenticated_client_two.delete(
+        _amendment_request_line_detail_url(draft.id, amendment_request.id, line.id)
+    )
+
+    assert list_response.status_code == 404
+    assert create_response.status_code == 404
+    assert detail_response.status_code == 404
+    assert update_response.status_code == 404
+    assert delete_response.status_code == 404
+
+
+def test_wrong_event_draft_amendment_request_path_returns_404_for_line_endpoints(
+    authenticated_client,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    first_draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    second_draft = _confirmed_draft(user=owner, item=_item(kind="material"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=first_draft,
+        created_by=owner,
+    )
+    line = HahitantsoaEventDraftAmendmentRequestLine.objects.create(
+        amendment_request=amendment_request,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=owner,
+    )
+
+    list_response = authenticated_client.get(
+        _amendment_request_line_list_url(second_draft.id, amendment_request.id)
+    )
+    detail_response = authenticated_client.get(
+        _amendment_request_line_detail_url(second_draft.id, amendment_request.id, line.id)
+    )
+
+    assert list_response.status_code == 404
+    assert detail_response.status_code == 404
 
 
 def test_second_user_cannot_update_another_users_amendment_request(

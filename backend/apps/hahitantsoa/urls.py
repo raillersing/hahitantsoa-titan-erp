@@ -3,6 +3,8 @@ from django.urls import path
 from apps.hahitantsoa.views import (
     HahitantsoaDiscoveryItemsAPIView,
     HahitantsoaEventDraftAmendmentPreflightAPIView,
+    HahitantsoaEventDraftAmendmentRequestLineListCreateAPIView,
+    HahitantsoaEventDraftAmendmentRequestLineRetrieveUpdateDestroyAPIView,
     HahitantsoaEventDraftAmendmentRequestListCreateAPIView,
     HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView,
     HahitantsoaEventDraftAvailabilityPreviewAPIView,
@@ -58,6 +60,19 @@ urlpatterns = [
         "event-drafts/<uuid:event_draft_pk>/amendment-requests/<uuid:pk>/",
         HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView.as_view(),
         name="hahitantsoa-event-draft-amendment-request-detail",
+    ),
+    path(
+        "event-drafts/<uuid:event_draft_pk>/amendment-requests/<uuid:amendment_request_pk>/lines/",
+        HahitantsoaEventDraftAmendmentRequestLineListCreateAPIView.as_view(),
+        name="hahitantsoa-event-draft-amendment-request-line-list",
+    ),
+    path(
+        (
+            "event-drafts/<uuid:event_draft_pk>/amendment-requests/"
+            "<uuid:amendment_request_pk>/lines/<uuid:pk>/"
+        ),
+        HahitantsoaEventDraftAmendmentRequestLineRetrieveUpdateDestroyAPIView.as_view(),
+        name="hahitantsoa-event-draft-amendment-request-line-detail",
     ),
     path(
         "event-drafts/<uuid:pk>/confirm/",
