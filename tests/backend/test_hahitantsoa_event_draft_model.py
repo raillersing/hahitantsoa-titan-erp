@@ -5,7 +5,12 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from apps.customers.models import Customer
-from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
+from apps.hahitantsoa.models import (
+    HahitantsoaEventDraft,
+    HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftAmendmentRequestLine,
+    HahitantsoaEventDraftLine,
+)
 from apps.inventory.models import InventoryItem
 
 pytestmark = pytest.mark.django_db
@@ -117,6 +122,54 @@ def test_hahitantsoa_event_draft_line_rejects_material_pack() -> None:
     assert error.value.message_dict == {
         "inventory_item": [
             "Inventory item kind is not allowed for Hahitantsoa shared event drafts."
+        ]
+    }
+
+
+def test_hahitantsoa_event_draft_amendment_request_line_accepts_shared_inventory_item() -> None:
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Amendment line event",
+        start_at=start_at,
+        end_at=end_at,
+    )
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(event_draft=draft)
+    line = HahitantsoaEventDraftAmendmentRequestLine(
+        amendment_request=amendment_request,
+        inventory_item=_item(kind="article"),
+        quantity=3,
+        notes="Proposed change",
+    )
+
+    line.full_clean()
+    line.save()
+
+    persisted = HahitantsoaEventDraftAmendmentRequest.objects.get(pk=amendment_request.pk)
+    assert persisted.lines.count() == 1
+
+
+def test_hahitantsoa_event_draft_amendment_request_line_rejects_material_pack() -> None:
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Amendment pack forbidden event",
+        start_at=start_at,
+        end_at=end_at,
+    )
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(event_draft=draft)
+    line = HahitantsoaEventDraftAmendmentRequestLine(
+        amendment_request=amendment_request,
+        inventory_item=_item(kind="material_pack"),
+        quantity=1,
+    )
+
+    with pytest.raises(ValidationError) as error:
+        line.full_clean()
+
+    assert error.value.message_dict == {
+        "inventory_item": [
+            "Inventory item kind is not allowed for Hahitantsoa amendment request lines."
         ]
     }
 

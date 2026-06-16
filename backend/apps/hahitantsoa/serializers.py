@@ -6,6 +6,7 @@ from apps.customers.models import Customer
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
 )
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
@@ -209,6 +210,11 @@ class HahitantsoaEventDraftAmendmentPreflightSerializer(serializers.Serializer):
 
 class HahitantsoaEventDraftAmendmentRequestSerializer(serializers.ModelSerializer):
     event_draft_id = serializers.UUIDField(source="event_draft.id", read_only=True)
+    lines = serializers.SerializerMethodField()
+
+    def get_lines(self, amendment_request: HahitantsoaEventDraftAmendmentRequest):
+        lines = amendment_request.lines.filter(is_deleted=False).select_related("inventory_item")
+        return HahitantsoaEventDraftAmendmentRequestLineSerializer(lines, many=True).data
 
     class Meta:
         model = HahitantsoaEventDraftAmendmentRequest
@@ -218,6 +224,7 @@ class HahitantsoaEventDraftAmendmentRequestSerializer(serializers.ModelSerialize
             "status",
             "reason",
             "notes",
+            "lines",
             "created_at",
             "updated_at",
         )
@@ -225,9 +232,28 @@ class HahitantsoaEventDraftAmendmentRequestSerializer(serializers.ModelSerialize
             "id",
             "event_draft_id",
             "status",
+            "lines",
             "created_at",
             "updated_at",
         )
+
+
+class HahitantsoaEventDraftAmendmentRequestLineSerializer(serializers.ModelSerializer):
+    inventory_item_id = serializers.UUIDField(source="inventory_item.id", read_only=True)
+    inventory_item_name = serializers.CharField(source="inventory_item.name", read_only=True)
+    inventory_item_kind = serializers.CharField(source="inventory_item.kind", read_only=True)
+
+    class Meta:
+        model = HahitantsoaEventDraftAmendmentRequestLine
+        fields = (
+            "id",
+            "inventory_item_id",
+            "inventory_item_name",
+            "inventory_item_kind",
+            "quantity",
+            "notes",
+        )
+        read_only_fields = fields
 
 
 class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializer):
@@ -474,6 +500,7 @@ class HahitantsoaEventDraftConfirmationResultSerializer(serializers.Serializer):
 __all__ = [
     "HahitantsoaDiscoveryItemSerializer",
     "HahitantsoaEventDraftAmendmentRequestCreateSerializer",
+    "HahitantsoaEventDraftAmendmentRequestLineSerializer",
     "HahitantsoaEventDraftAmendmentRequestResultSerializer",
     "HahitantsoaEventDraftAmendmentRequestSerializer",
     "HahitantsoaEventDraftAmendmentRequestUpdateSerializer",

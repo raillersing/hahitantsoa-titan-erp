@@ -193,6 +193,7 @@ class HahitantsoaEventDraftAmendmentRequestListCreateAPIView(generics.ListCreate
         return (
             HahitantsoaEventDraftAmendmentRequest.objects.filter(event_draft=event_draft)
             .select_related("event_draft")
+            .prefetch_related("lines__inventory_item")
             .order_by("created_at", "id")
         )
 
@@ -266,6 +267,7 @@ class HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView(generics.Retrie
                 event_draft_id=self.kwargs["event_draft_pk"],
             )
             .select_related("event_draft")
+            .prefetch_related("lines__inventory_item")
             .order_by("created_at", "id")
         )
 

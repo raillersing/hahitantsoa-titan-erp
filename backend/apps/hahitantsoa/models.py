@@ -223,3 +223,59 @@ class HahitantsoaEventDraftAmendmentRequest(UUIDModel, TimestampedModel, Auditab
 
     def __str__(self) -> str:
         return f"{self.event_draft} amendment request {self.id}"
+
+
+class HahitantsoaEventDraftAmendmentRequestLine(
+    UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel
+):
+    amendment_request = models.ForeignKey(
+        HahitantsoaEventDraftAmendmentRequest,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    inventory_item = models.ForeignKey(
+        InventoryItem,
+        on_delete=models.PROTECT,
+        related_name="hahitantsoa_event_draft_amendment_request_lines",
+    )
+    quantity = models.PositiveIntegerField(default=1)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        verbose_name = "Hahitantsoa event draft amendment request line"
+        verbose_name_plural = "Hahitantsoa event draft amendment request lines"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gte=1),
+                name="hahitantsoa_event_draft_amendment_request_line_quantity_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["amendment_request", "inventory_item"],
+                name="hahitantsoa_event_draft_amendment_request_line_unique_item",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.quantity < 1:
+            raise ValidationError({"quantity": "Quantity must be greater than zero."})
+
+        try:
+            assert_hahitantsoa_shared_inventory_item_kind(self.inventory_item.kind)
+        except ValueError as error:
+            raise ValidationError(
+                {
+                    "inventory_item": (
+                        "Inventory item kind is not allowed for Hahitantsoa "
+                        "amendment request lines."
+                    )
+                }
+            ) from error
+
+        if not self.inventory_item.is_active or self.inventory_item.is_deleted:
+            raise ValidationError(
+                {"inventory_item": "Hahitantsoa amendment request item must be active."}
+            )
+
+    def __str__(self) -> str:
+        return f"{self.amendment_request} - {self.inventory_item} x {self.quantity}"

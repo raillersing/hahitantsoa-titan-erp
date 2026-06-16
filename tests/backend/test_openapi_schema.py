@@ -335,6 +335,7 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "status",
         "reason",
         "notes",
+        "lines",
         "created_at",
         "updated_at",
     }.issubset(amendment_request_schema["properties"])

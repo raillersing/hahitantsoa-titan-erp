@@ -9,6 +9,7 @@ from apps.customers.models import Customer
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
 )
 from apps.inventory.models import InventoryAvailability, InventoryItem
@@ -891,6 +892,7 @@ def test_owner_can_create_list_and_read_amendment_request_for_confirmed_draft(
     )
     assert detail_response.status_code == 200
     assert detail_response.json()["id"] == str(amendment_request.id)
+    assert detail_response.json()["lines"] == []
 
 
 def test_amendment_request_creation_rejects_draft_state_original(authenticated_client) -> None:
@@ -1031,6 +1033,7 @@ def test_owner_can_update_amendment_request_metadata_without_side_effects(
     assert payload["notes"] == "Updated notes"
     assert payload["status"] == "draft"
     assert payload["event_draft_id"] == str(draft.id)
+    assert payload["lines"] == []
     amendment_request.refresh_from_db()
     draft.refresh_from_db()
     assert amendment_request.reason == "Updated reason"
@@ -1042,6 +1045,58 @@ def test_owner_can_update_amendment_request_metadata_without_side_effects(
     assert draft.status == "confirmed"
     assert InventoryAvailability.objects.count() == inventory_availability_count
     assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_amendment_request_responses_include_proposed_lines(
+    authenticated_client,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        reason="Need proposed line changes",
+        created_by=owner,
+    )
+    first_item = _item(name="Updated article", kind="article")
+    second_item = _item(name="Updated material", kind="material")
+    HahitantsoaEventDraftAmendmentRequestLine.objects.create(
+        amendment_request=amendment_request,
+        inventory_item=first_item,
+        quantity=4,
+        notes="Increase quantity",
+        created_by=owner,
+    )
+    HahitantsoaEventDraftAmendmentRequestLine.objects.create(
+        amendment_request=amendment_request,
+        inventory_item=second_item,
+        quantity=1,
+        notes="Add shared material",
+        created_by=owner,
+    )
+
+    list_response = authenticated_client.get(_amendment_request_list_url(draft.id))
+    detail_response = authenticated_client.get(
+        _amendment_request_detail_url(draft.id, amendment_request.id)
+    )
+
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+
+    list_payload = list_response.json()
+    assert len(list_payload) == 1
+    assert [line["inventory_item_kind"] for line in list_payload[0]["lines"]] == [
+        "article",
+        "material",
+    ]
+    assert [line["quantity"] for line in list_payload[0]["lines"]] == [4, 1]
+
+    detail_payload = detail_response.json()
+    assert [line["inventory_item_name"] for line in detail_payload["lines"]] == [
+        "Updated article",
+        "Updated material",
+    ]
 
 
 def test_second_user_cannot_update_another_users_amendment_request(
