@@ -157,7 +157,7 @@ export type HahitantsoaEventDraftLine = {
 export type HahitantsoaEventDraft = {
   id: string;
   public_reference: string;
-  status: "draft";
+  status: "draft" | "confirmed";
   customer_id: string;
   customer_display_name: string;
   event_name: string;
