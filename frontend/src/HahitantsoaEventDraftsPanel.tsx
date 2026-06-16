@@ -570,7 +570,7 @@ export function HahitantsoaEventDraftsPanel({
           <h3>Manage Draft: {draftDetailState.draft.public_reference}</h3>
 
           {isReadOnly && (
-            <div className="notice warning-notice" role="alert" style={{ marginBottom: "1rem" }}>
+            <div className="notice warning-notice" role="alert">
               <h4>Confirmed & Immutable Event Draft</h4>
               <p>This event draft has been confirmed and is read-only. Mutations are disabled.</p>
             </div>
@@ -707,7 +707,7 @@ export function HahitantsoaEventDraftsPanel({
             </button>
           </form>
 
-          <div style={{ marginTop: "1rem" }}>
+          <div className="hahitantsoa-actions">
             <button
               type="button"
               onClick={() => handleCheckAvailability(draftDetailState.draft.id)}
@@ -719,7 +719,6 @@ export function HahitantsoaEventDraftsPanel({
               type="button"
               onClick={() => handleCheckPreflight(draftDetailState.draft.id)}
               disabled={isDisabled || isReadOnly}
-              style={{ marginLeft: "1rem" }}
             >
               {isPreflightLoading ? "Running Preflight Check..." : "Check Confirmation Preflight"}
             </button>
@@ -727,16 +726,14 @@ export function HahitantsoaEventDraftsPanel({
               type="button"
               onClick={() => handleCheckAmendmentPreflight(draftDetailState.draft.id)}
               disabled={isDisabled}
-              style={{ marginLeft: "1rem" }}
             >
               {isAmendmentPreflightLoading ? "Running Amendment Preflight..." : "Check Amendment Preflight"}
             </button>
             <button
               type="button"
-              className="error-btn"
+              className="danger-btn"
               onClick={() => handleDeleteDraft(draftDetailState.draft.id)}
               disabled={isDisabled || isReadOnly}
-              style={{ marginLeft: "1rem", backgroundColor: "#b91c1c" }}
             >
               {isActionLoading ? "Deleting Draft..." : "Delete Draft"}
             </button>
@@ -749,31 +746,25 @@ export function HahitantsoaEventDraftsPanel({
             <p className="status error">{availabilityPreviewState.message}</p>
           )}
           {availabilityPreviewState.status === "loaded" && (
-            <div
-              className="notice"
-              style={{ marginTop: "1rem", borderLeftColor: "#059669" }}
-            >
-              <h4>Cascading Availability Report</h4>
-              <p>
-                Status: {availabilityPreviewState.preview.available_line_count}{" "}
-                / {availabilityPreviewState.preview.line_count} lines available.
-              </p>
-              <ul>
-                {availabilityPreviewState.preview.lines.map((line) => (
-                   <li key={line.event_draft_line_id}>
-                    {line.inventory_item_name} (x{line.quantity}) -{" "}
-                    <strong
-                      style={{
-                        color:
-                          line.status === "available" ? "#059669" : "#dc2626",
-                      }}
-                    >
-                      {line.status}
-                    </strong>{" "}
-                    ({line.conflict_count} conflicts)
-                  </li>
-                ))}
-              </ul>
+            <div className="notice report-panel success-notice">
+              <div>
+                <h4>Cascading Availability Report</h4>
+                <p>
+                  Status: {availabilityPreviewState.preview.available_line_count}{" "}
+                  / {availabilityPreviewState.preview.line_count} lines available.
+                </p>
+                <ul>
+                  {availabilityPreviewState.preview.lines.map((line) => (
+                    <li key={line.event_draft_line_id}>
+                      {line.inventory_item_name} (x{line.quantity}) -{" "}
+                      <strong className={line.status === "available" ? "status-available" : "status-unavailable"}>
+                        {line.status}
+                      </strong>{" "}
+                      ({line.conflict_count} conflicts)
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           )}
 
@@ -785,55 +776,46 @@ export function HahitantsoaEventDraftsPanel({
           )}
           {preflightState.status === "loaded" && (
             <div
-              className={`notice ${
+              className={`notice report-panel ${
                 preflightState.preflight.can_confirm
                   ? "success-notice"
                   : "error-notice"
               }`}
-              style={{ marginTop: "1rem" }}
             >
               <div>
                 <h4>Confirmation Preflight Report</h4>
-              <p><strong>Public Reference:</strong> {preflightState.preflight.public_reference}</p>
-              <p><strong>Status:</strong> {preflightState.preflight.status}</p>
-              <p><strong>Active Line Count:</strong> {preflightState.preflight.active_line_count}</p>
-              <p><strong>Unavailable Line Count:</strong> {preflightState.preflight.unavailable_line_count}</p>
-              <p>
-                <strong>Can Confirm:</strong>{" "}
-                <span style={{ fontWeight: "bold" }}>
-                  {preflightState.preflight.can_confirm ? "Yes (Ready)" : "No (Blocked)"}
-                </span>
-              </p>
-              {preflightState.preflight.blockers.length > 0 && (
-                <div style={{ marginTop: "0.5rem" }}>
-                  <strong>Blockers:</strong>
-                  <ul style={{ marginTop: "0.25rem", paddingLeft: "1.2rem" }}>
-                    {preflightState.preflight.blockers.map((blocker, idx) => (
-                      <li key={idx}>{blocker}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {preflightState.preflight.can_confirm && (
-                <div style={{ marginTop: "1rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => handleConfirmDraft(draftDetailState.draft.id)}
-                    disabled={isDisabled}
-                    style={{
-                      backgroundColor: "#059669",
-                      color: "#ffffff",
-                      border: "none",
-                      padding: "8px 16px",
-                      borderRadius: "6px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Confirm Event Draft
-                  </button>
-                </div>
-              )}
+                <p><strong>Public Reference:</strong> {preflightState.preflight.public_reference}</p>
+                <p><strong>Status:</strong> {preflightState.preflight.status}</p>
+                <p><strong>Active Line Count:</strong> {preflightState.preflight.active_line_count}</p>
+                <p><strong>Unavailable Line Count:</strong> {preflightState.preflight.unavailable_line_count}</p>
+                <p>
+                  <strong>Can Confirm:</strong>{" "}
+                  <span style={{ fontWeight: "bold" }}>
+                    {preflightState.preflight.can_confirm ? "Yes (Ready)" : "No (Blocked)"}
+                  </span>
+                </p>
+                {preflightState.preflight.blockers.length > 0 && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <strong>Blockers:</strong>
+                    <ul style={{ marginTop: "0.25rem", paddingLeft: "1.2rem" }}>
+                      {preflightState.preflight.blockers.map((blocker, idx) => (
+                        <li key={idx}>{blocker}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {preflightState.preflight.can_confirm && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <button
+                      type="button"
+                      className="btn-confirm-action"
+                      onClick={() => handleConfirmDraft(draftDetailState.draft.id)}
+                      disabled={isDisabled}
+                    >
+                      Confirm Event Draft
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -846,12 +828,11 @@ export function HahitantsoaEventDraftsPanel({
           )}
           {amendmentPreflightState.status === "loaded" && (
             <div
-              className={`notice ${
+              className={`notice report-panel ${
                 amendmentPreflightState.preflight.can_amend
                   ? "success-notice"
                   : "error-notice"
               }`}
-              style={{ marginTop: "1rem" }}
             >
               <div>
                 <h4>Amendment Preflight Report</h4>

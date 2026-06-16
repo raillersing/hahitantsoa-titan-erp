@@ -587,7 +587,13 @@ describe("HahitantsoaEventDraftsPanel", () => {
     // Verify fields and buttons are disabled
     const eventNameInputs = screen.getAllByLabelText("Event Name");
     expect(eventNameInputs[0]).toBeDisabled(); // The edit input should be disabled
-    expect(screen.getByRole("button", { name: "Save Changes" })).toBeDisabled();
+    
+    // Save Changes button is a submit button in the edit form
+    const forms = document.querySelectorAll("form.availability-form");
+    const editForm = forms[0];
+    const saveButton = editForm.querySelector("button[type='submit']");
+    expect(saveButton).toBeDisabled();
+
     expect(screen.getByRole("button", { name: "Check Cascading Availability" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Check Confirmation Preflight" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete Draft" })).toBeDisabled();

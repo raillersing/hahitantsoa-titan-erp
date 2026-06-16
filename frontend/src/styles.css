@@ -600,6 +600,12 @@ fieldset:disabled {
   color: hsl(210, 95%, 20%) !important;
 }
 
+.warning-notice {
+  background-color: hsl(36, 100%, 97%) !important;
+  border-left: 5px solid hsl(36, 95%, 45%) !important;
+  color: hsl(36, 95%, 20%) !important;
+}
+
 .notice {
   display: flex;
   align-items: center;
@@ -635,4 +641,89 @@ fieldset:disabled {
 .notice button:hover {
   opacity: 1;
 }
+
+/* Preflight and Action Button Polish */
+.hahitantsoa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.hahitantsoa-actions button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #b7c9c0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #22483a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hahitantsoa-actions button:hover:not(:disabled) {
+  border-color: #22483a;
+  background: #f4f8f6;
+}
+
+.hahitantsoa-actions button.primary-btn {
+  background: #22483a;
+  border-color: #22483a;
+  color: #ffffff;
+}
+
+.hahitantsoa-actions button.primary-btn:hover:not(:disabled) {
+  background: #18352a;
+}
+
+.hahitantsoa-actions button.danger-btn {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #ffffff;
+}
+
+.hahitantsoa-actions button.danger-btn:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+/* Report Styles */
+.report-panel {
+  margin: 16px 24px;
+}
+
+.report-panel ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.report-panel li {
+  margin-bottom: 4px;
+}
+
+.report-panel .btn-confirm-action {
+  background-color: #059669;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.report-panel .btn-confirm-action:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+.status-available {
+  color: #059669;
+  font-weight: bold;
+}
+
+.status-unavailable {
+  color: #dc2626;
+  font-weight: bold;
+}
+
 
