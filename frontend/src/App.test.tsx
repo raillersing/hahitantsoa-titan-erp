@@ -304,8 +304,8 @@ describe("App", () => {
     fireEvent.click(commOpsQuickBtn);
 
     expect(
-      await screen.findByRole("heading", { name: "Commercial Operations", level: 2 }),
-    ).toBeInTheDocument();
+      await screen.findByRole("button", { name: "Commercial Ops" }),
+    ).toHaveAttribute("aria-current", "page");
     expect(window.location.hash).toBe("#commercial-ops");
 
     // Switch back to Dashboard via tab and verify
