@@ -1,19 +1,31 @@
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, OpenApiTypes, extend_schema, inline_serializer
-from rest_framework import serializers
+from rest_framework import serializers, status
+from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.documents.commercial import CommercialDocumentContextError
+from apps.documents.models import DocumentInstance
 from apps.documents.registry import (
     get_document_template_definition,
     list_document_template_definitions,
 )
+from apps.documents.runtime import DocumentRuntimeGenerationError
+from apps.documents.selectors import list_document_instances_for_reservation_draft
 from apps.documents.serializers import (
+    DocumentInstanceCreateSerializer,
+    DocumentInstanceGenerateSerializer,
+    DocumentInstanceSerializer,
     DocumentTemplateDefinitionSerializer,
     TitanProformaDraftPreviewSerializer,
 )
 from apps.documents.services import (
+    create_document_instance_from_reservation_draft,
+    generate_reservation_draft_document_instance_html,
+    get_reservation_draft_document_instance_or_404,
     get_titan_proforma_draft_preview_payload_service,
 )
 from apps.reservations.models import ReservationDraft
@@ -142,3 +154,125 @@ class DocumentInstancePrivateArtifactAPIView(APIView):
         )
 
         return HttpResponse(content, content_type="text/html; charset=utf-8")
+
+
+def active_reservation_drafts_for_document_runtime():
+    return (
+        ReservationDraft.objects.filter(is_deleted=False)
+        .select_related("customer")
+        .prefetch_related("lines__inventory_item")
+        .order_by("-created_at", "public_reference")
+    )
+
+
+class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "post":
+            return DocumentInstanceCreateSerializer
+        return DocumentInstanceSerializer
+
+    def get_reservation_draft(self) -> ReservationDraft:
+        return get_object_or_404(
+            active_reservation_drafts_for_document_runtime(),
+            pk=self.kwargs["reservation_draft_id"],
+        )
+
+    def get_queryset(self):
+        reservation_draft = self.get_reservation_draft()
+        return list_document_instances_for_reservation_draft(reservation_draft=reservation_draft)
+
+    @extend_schema(
+        responses=DocumentInstanceSerializer(many=True),
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        request=DocumentInstanceCreateSerializer,
+        responses={201: DocumentInstanceSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reservation_draft = self.get_reservation_draft()
+
+        try:
+            instance = create_document_instance_from_reservation_draft(
+                reservation_draft=reservation_draft,
+                template_key=serializer.validated_data["template_key"],
+                actor=request.user,
+                notes=serializer.validated_data.get("notes", ""),
+            )
+        except CommercialDocumentContextError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        response_serializer = DocumentInstanceSerializer(instance)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ReservationDraftDocumentInstanceRetrieveAPIView(RetrieveAPIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    serializer_class = DocumentInstanceSerializer
+    lookup_field = "id"
+
+    def get_object(self):
+        reservation_draft = get_object_or_404(
+            active_reservation_drafts_for_document_runtime(),
+            pk=self.kwargs["reservation_draft_id"],
+        )
+        try:
+            return get_reservation_draft_document_instance_or_404(
+                reservation_draft=reservation_draft,
+                document_instance_id=self.kwargs["id"],
+            )
+        except DocumentInstance.DoesNotExist:
+            raise Http404("Document instance not found.")
+
+
+class ReservationDraftDocumentInstanceGenerateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: DocumentInstanceGenerateSerializer,
+            400: OpenApiResponse(description="Document instance is not in a generatable state."),
+        },
+    )
+    def post(self, request, reservation_draft_id, id):
+        reservation_draft = get_object_or_404(
+            active_reservation_drafts_for_document_runtime(),
+            pk=reservation_draft_id,
+        )
+        try:
+            instance = generate_reservation_draft_document_instance_html(
+                reservation_draft=reservation_draft,
+                document_instance_id=id,
+                actor=request.user,
+            )
+        except DocumentInstance.DoesNotExist:
+            raise Http404("Document instance not found.")
+        except DocumentRuntimeGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = DocumentInstanceGenerateSerializer(
+            {
+                "id": instance.id,
+                "status": instance.status,
+                "content_checksum": instance.content_checksum,
+                "storage_path": instance.storage_path,
+                "generated_content_size_bytes": instance.generated_content_size_bytes,
+            }
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)

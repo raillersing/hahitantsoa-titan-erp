@@ -3,14 +3,41 @@ from __future__ import annotations
 from django.db import transaction
 from django.utils import timezone
 
+from apps.audit.services import record_audit_event_on_commit
 from apps.documents.commercial import (
     CommercialDocumentContext,
+    CommercialDocumentContextError,
     build_reservation_draft_commercial_document_context,
 )
 from apps.documents.models import DocumentInstance
+from apps.documents.runtime import generate_document_instance_html
+from apps.documents.selectors import get_document_instance_by_id
 from apps.reservations.models import ReservationDraft
 
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
+SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
+    "titan.proforma.v1",
+    "titan.material_contract.v1",
+    "titan.material_amendment.v1",
+    "titan.invoice.v1",
+)
+UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
+    "unsupported_reservation_draft_document_template_key"
+)
+
+
+def get_supported_reservation_draft_document_template_keys() -> tuple[str, ...]:
+    return SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS
+
+
+def validate_supported_reservation_draft_document_template_key(template_key: str) -> None:
+    if template_key in SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS:
+        return
+
+    raise CommercialDocumentContextError(
+        f"Unsupported reservation draft document template key: {template_key}",
+        code=UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY,
+    )
 
 
 def active_reservation_drafts_for_commercial_document_context():
@@ -155,9 +182,10 @@ def create_document_instance_from_reservation_draft(
         reservation_draft=reservation_draft,
         template_key=template_key,
     )
+    validate_supported_reservation_draft_document_template_key(template_key)
     actor_id = getattr(actor, "pk", None)
 
-    return DocumentInstance.objects.create(
+    instance = DocumentInstance.objects.create(
         **commercial_document_context_to_document_instance_kwargs(
             reservation_draft=reservation_draft,
             context=context,
@@ -165,3 +193,53 @@ def create_document_instance_from_reservation_draft(
             notes=notes,
         )
     )
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.instance_prepared",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={
+            "reservation_draft_id": str(reservation_draft.id),
+            "template_key": template_key,
+            "status": instance.status,
+        },
+    )
+    return instance
+
+
+def get_reservation_draft_document_instance_or_404(
+    *,
+    reservation_draft: ReservationDraft,
+    document_instance_id,
+) -> DocumentInstance:
+    instance = get_document_instance_by_id(document_instance_id=document_instance_id)
+    if instance is None or instance.reservation_draft_id != reservation_draft.id:
+        raise DocumentInstance.DoesNotExist
+    return instance
+
+
+@transaction.atomic
+def generate_reservation_draft_document_instance_html(
+    *,
+    reservation_draft: ReservationDraft,
+    document_instance_id,
+    actor: object | None = None,
+) -> DocumentInstance:
+    instance = get_reservation_draft_document_instance_or_404(
+        reservation_draft=reservation_draft,
+        document_instance_id=document_instance_id,
+    )
+    result = generate_document_instance_html(document_instance=instance, actor=actor)
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.instance_generated",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={
+            "reservation_draft_id": str(reservation_draft.id),
+            "template_key": instance.template_key,
+            "status": instance.status,
+            "content_checksum": result.content_checksum,
+        },
+    )
+    return result.document_instance

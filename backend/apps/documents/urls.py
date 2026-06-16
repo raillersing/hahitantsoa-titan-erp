@@ -4,6 +4,9 @@ from apps.documents.views import (
     DocumentInstancePrivateArtifactAPIView,
     DocumentTemplateDefinitionAPIView,
     DocumentTemplateRegistryAPIView,
+    ReservationDraftDocumentInstanceGenerateAPIView,
+    ReservationDraftDocumentInstanceListCreateAPIView,
+    ReservationDraftDocumentInstanceRetrieveAPIView,
     TitanProformaDraftPreviewAPIView,
 )
 
@@ -27,5 +30,20 @@ urlpatterns = [
         "instances/<uuid:id>/artifact/",
         DocumentInstancePrivateArtifactAPIView.as_view(),
         name="document-instance-private-artifact",
+    ),
+    path(
+        "reservation-drafts/<uuid:reservation_draft_id>/instances/",
+        ReservationDraftDocumentInstanceListCreateAPIView.as_view(),
+        name="reservation-draft-document-instance-list",
+    ),
+    path(
+        "reservation-drafts/<uuid:reservation_draft_id>/instances/<uuid:id>/",
+        ReservationDraftDocumentInstanceRetrieveAPIView.as_view(),
+        name="reservation-draft-document-instance-detail",
+    ),
+    path(
+        "reservation-drafts/<uuid:reservation_draft_id>/instances/<uuid:id>/generate/",
+        ReservationDraftDocumentInstanceGenerateAPIView.as_view(),
+        name="reservation-draft-document-instance-generate",
     ),
 ]
