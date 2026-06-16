@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -37,6 +38,22 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
         choices=HahitantsoaEventDraftStatus.choices,
         default=HahitantsoaEventDraftStatus.DRAFT,
     )
+    contract_signed_at = models.DateTimeField(null=True, blank=True)
+    contract_signed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    required_deposit_received_at = models.DateTimeField(null=True, blank=True)
+    required_deposit_received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     event_name = models.CharField(max_length=255)
     venue_name = models.CharField(max_length=255, blank=True)
     location_details = models.TextField(blank=True)
@@ -57,6 +74,32 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
             models.CheckConstraint(
                 condition=models.Q(end_at__gt=models.F("start_at")),
                 name="hahitantsoa_event_draft_end_after_start",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(contract_signed_at__isnull=True)
+                        & models.Q(contract_signed_by__isnull=True)
+                    )
+                    | (
+                        models.Q(contract_signed_at__isnull=False)
+                        & models.Q(contract_signed_by__isnull=False)
+                    )
+                ),
+                name="hahitantsoa_event_draft_contract_signed_marker_complete",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(required_deposit_received_at__isnull=True)
+                        & models.Q(required_deposit_received_by__isnull=True)
+                    )
+                    | (
+                        models.Q(required_deposit_received_at__isnull=False)
+                        & models.Q(required_deposit_received_by__isnull=False)
+                    )
+                ),
+                name="hahitantsoa_event_draft_required_deposit_received_marker_complete",
             ),
         ]
 

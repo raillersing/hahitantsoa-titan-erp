@@ -119,3 +119,80 @@ def test_hahitantsoa_event_draft_line_rejects_material_pack() -> None:
             "Inventory item kind is not allowed for Hahitantsoa shared event drafts."
         ]
     }
+
+
+def test_hahitantsoa_event_draft_accepts_complete_prerequisite_markers(
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-prereq-user",
+        password="test-password",
+    )
+    draft = HahitantsoaEventDraft(
+        customer=_customer(),
+        event_name="Prerequisite-ready event",
+        start_at=start_at,
+        end_at=end_at,
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+        required_deposit_received_at=timezone.now(),
+        required_deposit_received_by=actor,
+    )
+
+    draft.full_clean()
+
+
+def test_hahitantsoa_event_draft_rejects_partial_contract_signed_marker(
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-contract-user",
+        password="test-password",
+    )
+    draft = HahitantsoaEventDraft(
+        customer=_customer(),
+        event_name="Partial contract marker event",
+        start_at=start_at,
+        end_at=end_at,
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+    )
+    draft.required_deposit_received_by = actor
+    draft.required_deposit_received_at = None
+
+    with pytest.raises(ValidationError) as error:
+        draft.full_clean()
+
+    assert "__all__" in error.value.message_dict
+    assert "hahitantsoa_event_draft_required_deposit_received_marker_complete" in str(
+        error.value.message_dict["__all__"][0]
+    )
+
+
+def test_hahitantsoa_event_draft_rejects_partial_required_deposit_marker(
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-deposit-user",
+        password="test-password",
+    )
+    draft = HahitantsoaEventDraft(
+        customer=_customer(),
+        event_name="Partial deposit marker event",
+        start_at=start_at,
+        end_at=end_at,
+    )
+    draft.contract_signed_at = timezone.now()
+    draft.contract_signed_by = actor
+    draft.required_deposit_received_at = timezone.now()
+
+    with pytest.raises(ValidationError) as error:
+        draft.full_clean()
+
+    assert "__all__" in error.value.message_dict
+    assert "hahitantsoa_event_draft_required_deposit_received_marker_complete" in str(
+        error.value.message_dict["__all__"][0]
+    )

@@ -10,7 +10,10 @@ from apps.inventory.models import InventoryAvailability, InventoryItem
 from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+    RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
+    RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
 )
+from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
 
@@ -496,9 +499,14 @@ def test_event_draft_availability_preview_rejects_write_methods(authenticated_cl
 
 def test_authenticated_user_can_read_event_draft_confirmation_preflight(
     authenticated_client,
+    django_user_model,
 ) -> None:
     start_at, end_at = _period()
     user = authenticated_client.test_user
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-preflight-marker-user",
+        password="test-password",
+    )
     item = _item(name="Available shared article", kind="article")
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
@@ -506,6 +514,10 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
         start_at=start_at,
         end_at=end_at,
         created_by=user,
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+        required_deposit_received_at=timezone.now(),
+        required_deposit_received_by=actor,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -514,6 +526,7 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
         created_by=user,
     )
     availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 
@@ -529,6 +542,7 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
         "unavailable_line_count": 0,
     }
     assert InventoryAvailability.objects.count() == availability_count
+    assert ReservationDraft.objects.count() == reservation_count
 
 
 def test_event_draft_confirmation_preflight_reports_blockers_without_inventory_write(
@@ -557,6 +571,7 @@ def test_event_draft_confirmation_preflight_reports_blockers_without_inventory_w
         end_at=end_at,
     )
     availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 
@@ -571,8 +586,11 @@ def test_event_draft_confirmation_preflight_reports_blockers_without_inventory_w
     assert payload["blockers"] == [
         RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
         RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
+        RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
+        RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
     ]
     assert InventoryAvailability.objects.count() == availability_count
+    assert ReservationDraft.objects.count() == reservation_count
 
 
 def test_event_draft_confirmation_preflight_blocks_empty_active_lines(
@@ -597,6 +615,7 @@ def test_event_draft_confirmation_preflight_blocks_empty_active_lines(
     line.deleted_at = timezone.now()
     line.save(update_fields=["is_deleted", "deleted_at"])
     availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 
@@ -607,6 +626,75 @@ def test_event_draft_confirmation_preflight_blocks_empty_active_lines(
     assert payload["unavailable_line_count"] == 0
     assert payload["blockers"] == [RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA]
     assert InventoryAvailability.objects.count() == availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_is_missing(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-deposit-ready-user",
+        password="test-password",
+    )
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Missing contract marker",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        required_deposit_received_at=timezone.now(),
+        required_deposit_received_by=actor,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=user,
+    )
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["can_confirm"] is False
+    assert payload["blockers"] == [RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT]
+
+
+def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_is_missing(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-contract-ready-user",
+        password="test-password",
+    )
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Missing deposit marker",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=user,
+    )
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["can_confirm"] is False
+    assert payload["blockers"] == [RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT]
 
 
 def test_second_user_cannot_access_another_users_confirmation_preflight(
