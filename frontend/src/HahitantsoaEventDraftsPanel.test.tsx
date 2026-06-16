@@ -102,9 +102,11 @@ function mockHahitantsoaFetch(options: {
   failPreflight?: boolean;
   failConfirm?: boolean;
   preflightCanConfirm?: boolean;
+  preflightCanAmend?: boolean;
   preflightBlockers?: string[];
 } = {}) {
   const canConfirm = options.preflightCanConfirm ?? true;
+  const canAmend = options.preflightCanAmend ?? true;
   const blockers = options.preflightBlockers ?? [];
   const preflightPayload = {
     event_draft_id: DRAFTS[0].id,
@@ -144,6 +146,19 @@ function mockHahitantsoaFetch(options: {
       if (url.endsWith("/confirmation-preflight/")) {
         return Promise.resolve(
           options.failPreflight ? jsonResponse({}, 500) : jsonResponse(preflightPayload)
+        );
+      }
+      if (url.endsWith("/amendment-preflight/")) {
+        const amendmentPreflightPayload = {
+          event_draft_id: DRAFTS[0].id,
+          public_reference: DRAFTS[0].public_reference,
+          status: DRAFTS[0].status,
+          can_amend: canAmend,
+          blockers: blockers,
+          active_line_count: 1,
+        };
+        return Promise.resolve(
+          options.failPreflight ? jsonResponse({}, 500) : jsonResponse(amendmentPreflightPayload)
         );
       }
       if (url.endsWith("/confirm/")) {
@@ -483,6 +498,55 @@ describe("HahitantsoaEventDraftsPanel", () => {
       const alertNode = screen.getByRole("alert");
       expect(alertNode).toHaveClass("notice", "error-notice");
       expect(alertNode).toHaveTextContent("The requested data could not be loaded.");
+    });
+  });
+
+  it("handles amendment preflight check successfully", async () => {
+    mockHahitantsoaFetch({ preflightCanAmend: true });
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+
+    await waitFor(() => {
+      const heading = screen.getByRole("heading", { name: "Amendment Preflight Report" });
+      const container = heading.closest(".notice");
+      expect(container).toBeInTheDocument();
+      expect(container).toHaveTextContent(/Can Amend:\s*Yes \(Ready\)/i);
+    });
+  });
+
+  it("renders blockers during amendment preflight when blocked", async () => {
+    mockHahitantsoaFetch({ preflightCanAmend: false, preflightBlockers: ["draft_not_confirmed_for_amendment"] });
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+
+    await waitFor(() => {
+      const heading = screen.getByRole("heading", { name: "Amendment Preflight Report" });
+      const container = heading.closest(".notice");
+      expect(container).toBeInTheDocument();
+      expect(container).toHaveTextContent(/Can Amend:\s*No \(Blocked\)/i);
+      expect(container).toHaveTextContent("draft_not_confirmed_for_amendment");
     });
   });
 });

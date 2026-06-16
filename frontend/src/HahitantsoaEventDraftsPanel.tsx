@@ -8,6 +8,7 @@ import {
   deleteHahitantsoaEventDraft,
   getHahitantsoaEventDraftAvailabilityPreview,
   getHahitantsoaEventDraftConfirmationPreflight,
+  getHahitantsoaEventDraftAmendmentPreflight,
   confirmHahitantsoaEventDraft,
 } from "./api";
 import type {
@@ -16,6 +17,7 @@ import type {
   HahitantsoaEventDraft,
   HahitantsoaEventDraftAvailabilityPreview,
   HahitantsoaEventDraftConfirmationPreflight,
+  HahitantsoaEventDraftAmendmentPreflight,
   HahitantsoaEventDraftConfirmationResult,
 } from "./types";
 
@@ -40,6 +42,12 @@ type PreflightState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "loaded"; preflight: HahitantsoaEventDraftConfirmationPreflight }
+  | { status: "error"; message: string };
+
+type AmendmentPreflightState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "loaded"; preflight: HahitantsoaEventDraftAmendmentPreflight }
   | { status: "error"; message: string };
 
 type ActionState =
@@ -103,11 +111,16 @@ export function HahitantsoaEventDraftsPanel({
     status: "idle",
   });
 
+  const [amendmentPreflightState, setAmendmentPreflightState] = useState<AmendmentPreflightState>({
+    status: "idle",
+  });
+
   const isActionLoading = actionState.status === "loading";
   const isDetailLoading = draftDetailState.status === "loading";
   const isAvailabilityLoading = availabilityPreviewState.status === "loading";
   const isPreflightLoading = preflightState.status === "loading";
-  const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading || isPreflightLoading;
+  const isAmendmentPreflightLoading = amendmentPreflightState.status === "loading";
+  const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading || isPreflightLoading || isAmendmentPreflightLoading;
 
 
   // Customers state
@@ -235,6 +248,7 @@ export function HahitantsoaEventDraftsPanel({
     setDraftDetailState({ status: "loading" });
     setAvailabilityPreviewState({ status: "idle" });
     setPreflightState({ status: "idle" });
+    setAmendmentPreflightState({ status: "idle" });
     try {
       const draft = await getHahitantsoaEventDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
@@ -310,6 +324,9 @@ export function HahitantsoaEventDraftsPanel({
       if (preflightState.status === "loaded") {
         handleCheckPreflight(draftId);
       }
+      if (amendmentPreflightState.status === "loaded") {
+        handleCheckAmendmentPreflight(draftId);
+      }
     } catch (err) {
       setActionState({
         status: "error",
@@ -329,6 +346,7 @@ export function HahitantsoaEventDraftsPanel({
       setDraftDetailState({ status: "idle" });
       setAvailabilityPreviewState({ status: "idle" });
       setPreflightState({ status: "idle" });
+      setAmendmentPreflightState({ status: "idle" });
       fetchDrafts();
     } catch (err) {
       setActionState({
@@ -374,6 +392,24 @@ export function HahitantsoaEventDraftsPanel({
     }
   };
 
+  const handleCheckAmendmentPreflight = async (draftId: string) => {
+    setAmendmentPreflightState({ status: "loading" });
+    try {
+      const preflight = await getHahitantsoaEventDraftAmendmentPreflight(
+        draftId,
+      );
+      setAmendmentPreflightState({ status: "loaded", preflight });
+    } catch (err) {
+      setAmendmentPreflightState({
+        status: "error",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to load amendment preflight.",
+      });
+    }
+  };
+
   const handleConfirmDraft = async (draftId: string) => {
     setActionState({ status: "loading" });
     try {
@@ -386,6 +422,7 @@ export function HahitantsoaEventDraftsPanel({
       setDraftDetailState({ status: "idle" });
       setAvailabilityPreviewState({ status: "idle" });
       setPreflightState({ status: "idle" });
+      setAmendmentPreflightState({ status: "idle" });
       fetchDrafts();
     } catch (err) {
       setActionState({
@@ -677,6 +714,14 @@ export function HahitantsoaEventDraftsPanel({
             </button>
             <button
               type="button"
+              onClick={() => handleCheckAmendmentPreflight(draftDetailState.draft.id)}
+              disabled={isDisabled}
+              style={{ marginLeft: "1rem" }}
+            >
+              {isAmendmentPreflightLoading ? "Running Amendment Preflight..." : "Check Amendment Preflight"}
+            </button>
+            <button
+              type="button"
               className="error-btn"
               onClick={() => handleDeleteDraft(draftDetailState.draft.id)}
               disabled={isDisabled}
@@ -778,6 +823,46 @@ export function HahitantsoaEventDraftsPanel({
                   </button>
                 </div>
               )}
+              </div>
+            </div>
+          )}
+
+          {amendmentPreflightState.status === "loading" && (
+            <p className="status">Running amendment preflight checks...</p>
+          )}
+          {amendmentPreflightState.status === "error" && (
+            <p className="status error">{amendmentPreflightState.message}</p>
+          )}
+          {amendmentPreflightState.status === "loaded" && (
+            <div
+              className={`notice ${
+                amendmentPreflightState.preflight.can_amend
+                  ? "success-notice"
+                  : "error-notice"
+              }`}
+              style={{ marginTop: "1rem" }}
+            >
+              <div>
+                <h4>Amendment Preflight Report</h4>
+                <p><strong>Public Reference:</strong> {amendmentPreflightState.preflight.public_reference}</p>
+                <p><strong>Status:</strong> {amendmentPreflightState.preflight.status}</p>
+                <p><strong>Active Line Count:</strong> {amendmentPreflightState.preflight.active_line_count}</p>
+                <p>
+                  <strong>Can Amend:</strong>{" "}
+                  <span style={{ fontWeight: "bold" }}>
+                    {amendmentPreflightState.preflight.can_amend ? "Yes (Ready)" : "No (Blocked)"}
+                  </span>
+                </p>
+                {amendmentPreflightState.preflight.blockers.length > 0 && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <strong>Blockers:</strong>
+                    <ul style={{ marginTop: "0.25rem", paddingLeft: "1.2rem" }}>
+                      {amendmentPreflightState.preflight.blockers.map((blocker, idx) => (
+                        <li key={idx}>{blocker}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </div>
           )}

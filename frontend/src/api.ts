@@ -13,6 +13,7 @@ import type {
   HahitantsoaEventDraftUpdatePayload,
   HahitantsoaEventDraftAvailabilityPreview,
   HahitantsoaEventDraftConfirmationPreflight,
+  HahitantsoaEventDraftAmendmentPreflight,
 } from "./types";
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
@@ -248,6 +249,16 @@ export function getHahitantsoaEventDraftConfirmationPreflight(
 ): Promise<HahitantsoaEventDraftConfirmationPreflight> {
   return getAuthenticatedJson(
     `/api/v1/hahitantsoa/event-drafts/${draftId}/confirmation-preflight/`,
+    signal,
+  );
+}
+
+export function getHahitantsoaEventDraftAmendmentPreflight(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraftAmendmentPreflight> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-preflight/`,
     signal,
   );
 }

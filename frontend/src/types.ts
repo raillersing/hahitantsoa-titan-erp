@@ -203,6 +203,15 @@ export type HahitantsoaEventDraftConfirmationPreflight = {
   unavailable_line_count: number;
 };
 
+export type HahitantsoaEventDraftAmendmentPreflight = {
+  event_draft_id: string;
+  public_reference: string;
+  status: string;
+  can_amend: boolean;
+  blockers: string[];
+  active_line_count: number;
+};
+
 export type HahitantsoaEventDraftConfirmationResult = {
   status: string;
   public_reference: string;
