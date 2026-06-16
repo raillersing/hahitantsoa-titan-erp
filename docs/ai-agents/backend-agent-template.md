@@ -7,6 +7,24 @@ Backend prompts should stay short and reference:
 
 - [`agent-command-runbook.md`](agent-command-runbook.md)
 - [`orchestrator-task-queue.md`](orchestrator-task-queue.md)
+- [`prompt-contracts/backend-orchestrator.md`](prompt-contracts/backend-orchestrator.md)
+
+Backend orchestration prompts must also reference:
+
+- Agent A through Agent F in this template
+- official wrappers when applicable
+- the medium-bundle policy
+- hard stop conditions
+
+Default backend orchestration role policy:
+
+- the orchestrator assigns only relevant agents
+- Agent A implements
+- Agent B reviews independently
+- Agents C, D, E, and F are used only when relevant
+- reporting alone is not a stopping condition
+- after merge and green `main` CI, continue to the next clear backend bundle unless a
+  hard stop condition occurs
 
 Backend agents work in the backend worktree only. Their mutable scope is limited to
 `backend/`, `tests/backend/`, and backend audits unless the task explicitly authorizes

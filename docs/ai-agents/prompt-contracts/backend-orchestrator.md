@@ -8,6 +8,8 @@
 ## Purpose
 
 Keep backend orchestration prompts short, repeatable, and reviewable.
+This contract consolidates the existing backend orchestration workflow; it does not
+define a new one.
 
 ## Maximum Autonomy
 
@@ -18,13 +20,26 @@ Keep backend orchestration prompts short, repeatable, and reviewable.
 
 ## Required References
 
-Backend prompts should reference, not duplicate:
+Backend prompts should stay short and reference, not duplicate:
 
 - `docs/ai-agents/agent-profiles.md`
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
+- `docs/ai-agents/backend-agent-template.md`
 - `docs/ai-agents/orchestrator-state.md`
 - `docs/ai-agents/parallel-agent-policy.md`
+
+Every backend orchestration prompt must explicitly reference:
+
+- `docs/ai-agents/agent-command-runbook.md`
+- `docs/ai-agents/orchestrator-task-queue.md`
+- Agent A through Agent F in `docs/ai-agents/backend-agent-template.md`
+- official wrappers when applicable:
+  - `scripts/dev/erp-backend-compose-ci`
+  - `scripts/dev/erp-agent-scope-guard`
+  - `scripts/dev/erp-worktree-preflight`
+- medium-bundle policy
+- hard stop conditions
 
 ## Required Inputs
 
@@ -38,6 +53,7 @@ Backend prompts should reference, not duplicate:
 - exact checks to run
 - whether commit, push, PR creation are authorized
 - whether the prompt is implement-only or review-only
+- whether the orchestrator should continue automatically after merge and green `main` CI
 
 Executable profiles run the integrated task-start baseline first. Live baseline wins over
 stale docs.
@@ -60,6 +76,51 @@ task explicitly authorizes it.
 - missing or contradictory backend contract
 - CI failure that would require unapproved scope expansion
 - the agent would need to extend scope to "finish faster"
+
+## Backend Medium-Bundle Policy
+
+Backend orchestration prompts must assign medium-sized coherent bundles.
+
+A valid backend medium bundle:
+
+- has one clear backend theme
+- contains 2 to 4 closely related sub-tasks maximum
+- touches one bounded backend area
+- has one coherent test surface
+- avoids mixing unrelated domains
+
+Avoid:
+
+- one-assertion or one-tiny-serializer PRs
+- broad bundles that mix amendment, inventory, documents, payment, frontend, or unrelated
+  refactors
+
+## Backend Agent Assignment Policy
+
+The orchestrator assigns only relevant backend agents.
+
+- Agent A implements the approved backend scope.
+- Agent B performs an independent review before merge readiness.
+- Agent C is used only when test, rollback, or failure-mode review is relevant.
+- Agent D is used only when architecture or scope-boundary review is relevant.
+- Agent E is used only when migrations, constraints, locking, or data integrity are
+  relevant.
+- Agent F is used only when documentation, status, runbook, or PR reporting review is
+  relevant.
+
+Review agents report findings; they do not silently mutate files.
+
+## Required Backend Continuation Rule
+
+Reporting alone is not a stopping condition.
+
+After a successful merge and green `main` CI:
+
+- sync `main`
+- confirm the merged commit is green on `main`
+- clean task branches and worktrees when authorized
+- immediately continue to the next clear backend bundle unless a hard stop condition
+  occurs
 
 ## Expected Outputs
 
