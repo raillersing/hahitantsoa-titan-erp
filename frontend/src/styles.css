@@ -726,4 +726,12 @@ fieldset:disabled {
   font-weight: bold;
 }
 
+/* Form creation block spacing */
+.hahitantsoa-creation-section {
+  margin-top: 32px;
+  border-top: 1px solid #d6dfdb;
+  padding-top: 24px;
+}
+
+
 
