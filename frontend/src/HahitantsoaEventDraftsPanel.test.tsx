@@ -118,6 +118,18 @@ function mockHahitantsoaFetch(options: {
     unavailable_line_count: canConfirm ? 0 : 1,
   };
 
+  const amendmentRequests = [
+    {
+      id: "request-1",
+      event_draft_id: DRAFTS[0].id,
+      status: "draft" as const,
+      reason: "Initial reason",
+      notes: "Initial notes",
+      created_at: "2026-06-16T10:00:00Z",
+      updated_at: "2026-06-16T10:00:00Z",
+    }
+  ];
+
   return vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
     const url = String(input);
 
@@ -172,6 +184,31 @@ function mockHahitantsoaFetch(options: {
                 event_draft: DRAFTS[0],
               })
         );
+      }
+      if (url.includes("/amendment-requests/")) {
+        if (init?.method === "POST") {
+          const body = JSON.parse(init.body as string);
+          const newReq = {
+            id: `request-${amendmentRequests.length + 1}`,
+            event_draft_id: DRAFTS[0].id,
+            status: "draft" as const,
+            reason: body.reason || "",
+            notes: body.notes || "",
+            created_at: "2026-06-16T10:00:00Z",
+            updated_at: "2026-06-16T10:00:00Z",
+          };
+          amendmentRequests.push(newReq);
+          return Promise.resolve(jsonResponse({ amendment_request: newReq }, 201));
+        }
+        if (init?.method === "PATCH") {
+          const body = JSON.parse(init.body as string);
+          const reqId = url.split("/").filter(Boolean).pop();
+          const req = amendmentRequests.find(r => r.id === reqId) || amendmentRequests[0];
+          req.reason = body.reason !== undefined ? body.reason : req.reason;
+          req.notes = body.notes !== undefined ? body.notes : req.notes;
+          return Promise.resolve(jsonResponse(req));
+        }
+        return Promise.resolve(jsonResponse(amendmentRequests));
       }
       if (init?.method === "DELETE") {
         return Promise.resolve(
@@ -668,6 +705,55 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("The event name is too long.")).toBeInTheDocument();
       expect(screen.getByText("The venue is already fully booked for this date.")).toBeInTheDocument();
       expect(createInput).toHaveClass("invalid-input-highlight");
+    });
+  });
+
+  it("manages amendment requests successfully (list, create, edit)", async () => {
+    mockHahitantsoaFetch();
+    render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("View & Manage"));
+
+    // Verify existing amendment request lists correctly
+    await waitFor(() => {
+      expect(screen.getByText("Initial reason")).toBeInTheDocument();
+      expect(screen.getByText("Initial notes")).toBeInTheDocument();
+    });
+
+    const section = screen.getByText("Amendment Requests").closest(".amendment-requests-section")!;
+
+    // Create a new amendment request
+    const createSection = section.querySelector(".create-amendment-section")!;
+    const reasonInput = createSection.querySelector("input[type='text']") as HTMLInputElement;
+    const notesInput = createSection.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(reasonInput, { target: { value: "Reason text" } });
+    fireEvent.change(notesInput, { target: { value: "Notes text" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit Amendment Request" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Reason text")).toBeInTheDocument();
+      expect(screen.getByText("Notes text")).toBeInTheDocument();
+    });
+
+    // Edit the request
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit Request" })[0]);
+
+    const editForm = section.querySelector(".edit-amendment-form")!;
+    const editReasonInput = editForm.querySelector("input[type='text']") as HTMLInputElement;
+    const editNotesInput = editForm.querySelector("textarea") as HTMLTextAreaElement;
+    fireEvent.change(editReasonInput, { target: { value: "Updated reason" } });
+    fireEvent.change(editNotesInput, { target: { value: "Updated notes" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Updated reason")).toBeInTheDocument();
+      expect(screen.getByText("Updated notes")).toBeInTheDocument();
     });
   });
 });

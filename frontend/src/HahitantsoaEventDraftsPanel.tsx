@@ -10,6 +10,9 @@ import {
   getHahitantsoaEventDraftConfirmationPreflight,
   getHahitantsoaEventDraftAmendmentPreflight,
   confirmHahitantsoaEventDraft,
+  getHahitantsoaEventDraftAmendmentRequests,
+  createHahitantsoaEventDraftAmendmentRequest,
+  updateHahitantsoaEventDraftAmendmentRequest,
   ApiError,
 } from "./api";
 import type {
@@ -20,6 +23,7 @@ import type {
   HahitantsoaEventDraftConfirmationPreflight,
   HahitantsoaEventDraftAmendmentPreflight,
   HahitantsoaEventDraftConfirmationResult,
+  HahitantsoaEventDraftAmendmentRequest,
 } from "./types";
 
 type DraftListState =
@@ -121,12 +125,21 @@ export function HahitantsoaEventDraftsPanel({
     status: "idle",
   });
 
+  const [amendmentRequests, setAmendmentRequests] = useState<HahitantsoaEventDraftAmendmentRequest[]>([]);
+  const [amendmentRequestsLoading, setAmendmentRequestsLoading] = useState(false);
+  const [amendmentRequestsError, setAmendmentRequestsError] = useState("");
+  const [newAmendmentReason, setNewAmendmentReason] = useState("");
+  const [newAmendmentNotes, setNewAmendmentNotes] = useState("");
+  const [editingAmendmentId, setEditingAmendmentId] = useState<string | null>(null);
+  const [editingAmendmentReason, setEditingAmendmentReason] = useState("");
+  const [editingAmendmentNotes, setEditingAmendmentNotes] = useState("");
+
   const isActionLoading = actionState.status === "loading";
   const isDetailLoading = draftDetailState.status === "loading";
   const isAvailabilityLoading = availabilityPreviewState.status === "loading";
   const isPreflightLoading = preflightState.status === "loading";
   const isAmendmentPreflightLoading = amendmentPreflightState.status === "loading";
-  const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading || isPreflightLoading || isAmendmentPreflightLoading;
+  const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading || isPreflightLoading || isAmendmentPreflightLoading || amendmentRequestsLoading;
 
   const isReadOnly = draftDetailState.status === "loaded" && draftDetailState.draft.status !== "draft";
   const formDisabled = isDisabled || isReadOnly;
@@ -266,12 +279,77 @@ export function HahitantsoaEventDraftsPanel({
     }
   };
 
+  const fetchAmendmentRequests = async (draftId: string) => {
+    setAmendmentRequestsLoading(true);
+    setAmendmentRequestsError("");
+    try {
+      const data = await getHahitantsoaEventDraftAmendmentRequests(draftId);
+      setAmendmentRequests(data);
+    } catch (err) {
+      setAmendmentRequestsError(
+        err instanceof Error ? err.message : "Failed to load amendment requests."
+      );
+    } finally {
+      setAmendmentRequestsLoading(false);
+    }
+  };
+
+  const handleCreateAmendmentRequest = async (e: FormEvent, draftId: string) => {
+    e.preventDefault();
+    setFieldErrors({});
+    setActionState({ status: "loading" });
+    try {
+      await createHahitantsoaEventDraftAmendmentRequest(draftId, {
+        reason: newAmendmentReason,
+        notes: newAmendmentNotes,
+      });
+      setNewAmendmentReason("");
+      setNewAmendmentNotes("");
+      setActionState({ status: "success", message: "Amendment request created successfully." });
+      void fetchAmendmentRequests(draftId);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(err.errors);
+      }
+      setActionState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to create amendment request.",
+      });
+    }
+  };
+
+  const handleUpdateAmendmentRequest = async (e: FormEvent, draftId: string, requestId: string) => {
+    e.preventDefault();
+    setFieldErrors({});
+    setActionState({ status: "loading" });
+    try {
+      await updateHahitantsoaEventDraftAmendmentRequest(draftId, requestId, {
+        reason: editingAmendmentReason,
+        notes: editingAmendmentNotes,
+      });
+      setEditingAmendmentId(null);
+      setEditingAmendmentReason("");
+      setEditingAmendmentNotes("");
+      setActionState({ status: "success", message: "Amendment request updated successfully." });
+      void fetchAmendmentRequests(draftId);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setFieldErrors(err.errors);
+      }
+      setActionState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to update amendment request.",
+      });
+    }
+  };
+
   const handleViewDetails = async (draftId: string) => {
     setDraftDetailState({ status: "loading" });
     setAvailabilityPreviewState({ status: "idle" });
     setPreflightState({ status: "idle" });
     setAmendmentPreflightState({ status: "idle" });
     setFieldErrors({});
+    setAmendmentRequests([]);
     try {
       const draft = await getHahitantsoaEventDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
@@ -289,6 +367,7 @@ export function HahitantsoaEventDraftsPanel({
           notes: l.notes,
         })),
       );
+      void fetchAmendmentRequests(draftId);
     } catch (err) {
       setDraftDetailState({
         status: "error",
@@ -949,6 +1028,138 @@ export function HahitantsoaEventDraftsPanel({
               </div>
             </div>
           )}
+
+          <div className="amendment-requests-section">
+            <h3>Amendment Requests</h3>
+
+            {amendmentRequestsLoading && <p className="status">Loading amendment requests...</p>}
+            {amendmentRequestsError && <p className="status error">{amendmentRequestsError}</p>}
+
+            {!amendmentRequestsLoading && amendmentRequests.length === 0 && (
+              <p className="no-amendments-text">No amendment requests found for this draft.</p>
+            )}
+
+            {!amendmentRequestsLoading && amendmentRequests.length > 0 && (
+              <ul className="amendment-requests-list">
+                {amendmentRequests.map((req) => (
+                  <li key={req.id} className="amendment-request-card">
+                    {editingAmendmentId === req.id ? (
+                      <form onSubmit={(e) => handleUpdateAmendmentRequest(e, draftDetailState.draft.id, req.id)} className="edit-amendment-form">
+                        <label>
+                          Reason
+                          <input
+                            type="text"
+                            required
+                            className={fieldErrors.reason ? "invalid-input-highlight" : ""}
+                            value={editingAmendmentReason}
+                            onChange={(e) => {
+                              setEditingAmendmentReason(e.target.value);
+                              if (fieldErrors.reason) {
+                                setFieldErrors(curr => ({ ...curr, reason: undefined }));
+                              }
+                            }}
+                          />
+                          {fieldErrors.reason && (
+                            <span className="field-error-text" role="alert">{fieldErrors.reason.join(", ")}</span>
+                          )}
+                        </label>
+                        <label>
+                          Notes
+                          <textarea
+                            className={fieldErrors.notes ? "invalid-input-highlight" : ""}
+                            value={editingAmendmentNotes}
+                            onChange={(e) => {
+                              setEditingAmendmentNotes(e.target.value);
+                              if (fieldErrors.notes) {
+                                setFieldErrors(curr => ({ ...curr, notes: undefined }));
+                              }
+                            }}
+                          />
+                          {fieldErrors.notes && (
+                            <span className="field-error-text" role="alert">{fieldErrors.notes.join(", ")}</span>
+                          )}
+                        </label>
+                        <div className="form-actions">
+                          <button type="submit" disabled={isDisabled}>Save</button>
+                          <button type="button" onClick={() => setEditingAmendmentId(null)} disabled={isDisabled}>Cancel</button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="amendment-request-details">
+                        <div className="amendment-header">
+                          <span className={`status-badge status-${req.status}`}>
+                            {req.status}
+                          </span>
+                          <span className="timestamp">
+                            {formatDateTime(req.created_at)}
+                          </span>
+                        </div>
+                        <p><strong>Reason:</strong> {req.reason || <em>No reason provided</em>}</p>
+                        {req.notes && <p><strong>Notes:</strong> {req.notes}</p>}
+                        <button
+                          type="button"
+                          className="edit-btn"
+                          disabled={isDisabled}
+                          onClick={() => {
+                            setEditingAmendmentId(req.id);
+                            setEditingAmendmentReason(req.reason);
+                            setEditingAmendmentNotes(req.notes);
+                          }}
+                        >
+                          Edit Request
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="create-amendment-section">
+              <h4>Create Amendment Request</h4>
+              <form onSubmit={(e) => handleCreateAmendmentRequest(e, draftDetailState.draft.id)} className="availability-form">
+                <label>
+                  Reason
+                  <input
+                    type="text"
+                    required
+                    className={fieldErrors.reason ? "invalid-input-highlight" : ""}
+                    value={newAmendmentReason}
+                    onChange={(e) => {
+                      setNewAmendmentReason(e.target.value);
+                      if (fieldErrors.reason) {
+                        setFieldErrors(curr => ({ ...curr, reason: undefined }));
+                      }
+                    }}
+                    disabled={isDisabled}
+                  />
+                  {fieldErrors.reason && (
+                    <span className="field-error-text" role="alert">{fieldErrors.reason.join(", ")}</span>
+                  )}
+                </label>
+                <label>
+                  Notes
+                  <textarea
+                    className={fieldErrors.notes ? "invalid-input-highlight" : ""}
+                    value={newAmendmentNotes}
+                    onChange={(e) => {
+                      setNewAmendmentNotes(e.target.value);
+                      if (fieldErrors.notes) {
+                        setFieldErrors(curr => ({ ...curr, notes: undefined }));
+                      }
+                    }}
+                    disabled={isDisabled}
+                  />
+                  {fieldErrors.notes && (
+                    <span className="field-error-text" role="alert">{fieldErrors.notes.join(", ")}</span>
+                  )}
+                </label>
+                <button type="submit" disabled={isDisabled}>
+                  Submit Amendment Request
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
       )}
 

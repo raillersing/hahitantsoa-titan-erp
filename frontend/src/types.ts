@@ -219,4 +219,24 @@ export type HahitantsoaEventDraftConfirmationResult = {
   event_draft: HahitantsoaEventDraft;
 };
 
+export type HahitantsoaEventDraftAmendmentRequest = {
+  id: string;
+  event_draft_id: string;
+  status: "draft";
+  reason: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type HahitantsoaEventDraftAmendmentRequestCreatePayload = {
+  reason?: string;
+  notes?: string;
+};
+
+export type HahitantsoaEventDraftAmendmentRequestUpdatePayload = {
+  reason?: string;
+  notes?: string;
+};
+
 
