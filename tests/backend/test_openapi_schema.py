@@ -29,6 +29,12 @@ HAHITANTSOA_EVENT_DRAFT_AMENDMENT_PREFLIGHT_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/amendment-preflight/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/amendment-preflight/",
 )
+HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LIST_PATH = (
+    "/api/v1/hahitantsoa/event-drafts/{event_draft_pk}/amendment-requests/"
+)
+HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH = (
+    "/api/v1/hahitantsoa/event-drafts/{event_draft_pk}/amendment-requests/{id}/"
+)
 HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/confirm/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/confirm/",
@@ -203,6 +209,10 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
     amendment_preflight_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_AMENDMENT_PREFLIGHT_PATHS)
     assert amendment_preflight_path in paths
     _assert_get_only(paths[amendment_preflight_path])
+    assert HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LIST_PATH in paths
+    assert set(paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LIST_PATH]) >= {"get", "post"}
+    assert HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH in paths
+    _assert_get_only(paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_DETAIL_PATH])
     confirmation_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS)
     assert confirmation_path in paths
     assert set(paths[confirmation_path]) == {"post"}
@@ -297,6 +307,32 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "blockers",
         "active_line_count",
     }.issubset(amendment_preflight_schema["properties"])
+
+    amendment_request_create_operation = paths[HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_LIST_PATH][
+        "post"
+    ]
+    amendment_request_response_schema_reference = amendment_request_create_operation["responses"][
+        "201"
+    ]["content"]["application/json"]["schema"]
+    amendment_request_result_schema = _resolve_schema(
+        schema,
+        amendment_request_response_schema_reference,
+    )
+    assert set(amendment_request_result_schema["properties"]) == {"amendment_request"}
+
+    amendment_request_schema_reference = amendment_request_result_schema["properties"][
+        "amendment_request"
+    ]
+    amendment_request_schema = _resolve_schema(schema, amendment_request_schema_reference)
+    assert {
+        "id",
+        "event_draft_id",
+        "status",
+        "reason",
+        "notes",
+        "created_at",
+        "updated_at",
+    }.issubset(amendment_request_schema["properties"])
 
     confirmation_operation = paths[confirmation_path]["post"]
     confirmation_schema_reference = confirmation_operation["responses"]["200"]["content"][

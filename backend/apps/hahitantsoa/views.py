@@ -7,12 +7,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
+from apps.hahitantsoa.models import (
+    HahitantsoaEventDraft,
+    HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftLine,
+)
 from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAmendmentPreflightSerializer,
+    HahitantsoaEventDraftAmendmentRequestCreateSerializer,
+    HahitantsoaEventDraftAmendmentRequestResultSerializer,
+    HahitantsoaEventDraftAmendmentRequestSerializer,
     HahitantsoaEventDraftAvailabilityPreviewSerializer,
     HahitantsoaEventDraftConfirmationPreflightSerializer,
     HahitantsoaEventDraftConfirmationResultSerializer,
@@ -166,6 +173,96 @@ class HahitantsoaEventDraftAmendmentPreflightAPIView(APIView):
             event_draft=event_draft
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaEventDraftAmendmentRequestListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    def _get_event_draft(self):
+        from django.shortcuts import get_object_or_404
+
+        return get_object_or_404(
+            visible_hahitantsoa_event_drafts(user=self.request.user),
+            pk=self.kwargs["event_draft_pk"],
+        )
+
+    def get_queryset(self):
+        event_draft = self._get_event_draft()
+        return (
+            HahitantsoaEventDraftAmendmentRequest.objects.filter(event_draft=event_draft)
+            .select_related("event_draft")
+            .order_by("created_at", "id")
+        )
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return HahitantsoaEventDraftAmendmentRequestCreateSerializer
+        return HahitantsoaEventDraftAmendmentRequestSerializer
+
+    @extend_schema(
+        responses={
+            200: HahitantsoaEventDraftAmendmentRequestSerializer(many=True),
+            201: HahitantsoaEventDraftAmendmentRequestResultSerializer,
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        request=HahitantsoaEventDraftAmendmentRequestCreateSerializer,
+        responses={201: HahitantsoaEventDraftAmendmentRequestResultSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        event_draft = self._get_event_draft()
+        serializer = self.get_serializer(
+            data=request.data,
+            context={
+                "event_draft": event_draft,
+                "actor": request.user,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            amendment_request = serializer.save()
+        except PermissionError as error:
+            return Response(
+                {"detail": str(error)},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except ReservationLifecycleStateError as error:
+            return Response(
+                {
+                    "detail": str(error),
+                    "code": getattr(error, "code", None),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = serializer.context["result"]
+        payload = HahitantsoaEventDraftAmendmentRequestResultSerializer.from_result(result)
+        headers = self.get_success_headers(
+            HahitantsoaEventDraftAmendmentRequestSerializer(amendment_request).data
+        )
+        return Response(payload.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class HahitantsoaEventDraftAmendmentRequestRetrieveAPIView(generics.RetrieveAPIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+    serializer_class = HahitantsoaEventDraftAmendmentRequestSerializer
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        return (
+            HahitantsoaEventDraftAmendmentRequest.objects.filter(
+                event_draft__in=visible_hahitantsoa_event_drafts(user=self.request.user),
+                event_draft_id=self.kwargs["event_draft_pk"],
+            )
+            .select_related("event_draft")
+            .order_by("created_at", "id")
+        )
 
 
 class HahitantsoaEventDraftConfirmAPIView(APIView):

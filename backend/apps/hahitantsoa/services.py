@@ -5,7 +5,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
-from apps.hahitantsoa.models import HahitantsoaEventDraft
+from apps.hahitantsoa.models import (
+    HahitantsoaEventDraft,
+    HahitantsoaEventDraftAmendmentRequest,
+)
 from apps.hahitantsoa.selectors import _get_available_hahitantsoa_shared_inventory_items_for_period
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus, InventoryItem
 from apps.reservations.attribution import capture_reservation_sensitive_actor_attribution
@@ -76,6 +79,11 @@ class HahitantsoaEventDraftAmendmentPreflight:
 class HahitantsoaEventDraftConfirmationResult:
     event_draft: HahitantsoaEventDraft
     blocked_item_count: int
+
+
+@dataclass(frozen=True)
+class HahitantsoaEventDraftAmendmentRequestResult:
+    amendment_request: HahitantsoaEventDraftAmendmentRequest
 
 
 def get_hahitantsoa_shared_availability_item_previews(
@@ -276,6 +284,55 @@ def get_hahitantsoa_event_draft_amendment_preflight(
         blockers=tuple(blockers),
         active_line_count=active_line_count,
     )
+
+
+def create_hahitantsoa_event_draft_amendment_request(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None,
+    reason: str = "",
+    notes: str = "",
+) -> HahitantsoaEventDraftAmendmentRequestResult:
+    capture_reservation_sensitive_actor_attribution(actor=actor)
+
+    with transaction.atomic():
+        locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
+
+        if locked_event_draft.is_deleted:
+            raise ReservationLifecycleStateError(
+                "Hahitantsoa event draft must not be soft-deleted.",
+                code="soft_deleted_draft",
+            )
+
+        preflight = get_hahitantsoa_event_draft_amendment_preflight(event_draft=locked_event_draft)
+        if not preflight.can_amend:
+            raise ReservationLifecycleStateError(
+                "Hahitantsoa event draft amendment request preflight failed: "
+                + ", ".join(preflight.blockers),
+                code=preflight.blockers[0] if preflight.blockers else "amendment_not_allowed",
+            )
+
+        amendment_request = HahitantsoaEventDraftAmendmentRequest(
+            event_draft=locked_event_draft,
+            reason=reason,
+            notes=notes,
+            created_by=actor,
+        )
+        amendment_request.full_clean()
+        amendment_request.save()
+
+        record_audit_event_on_commit(
+            actor=actor,
+            action="hahitantsoa.event_draft.amendment_request.created",
+            target_type="hahitantsoa_event_draft_amendment_request",
+            target_id=str(amendment_request.id),
+            metadata={
+                "event_draft_id": str(locked_event_draft.id),
+                "status": amendment_request.status,
+            },
+        )
+
+        return HahitantsoaEventDraftAmendmentRequestResult(amendment_request=amendment_request)
 
 
 def _lock_inventory_items_for_active_lines(*, active_lines: tuple) -> tuple[InventoryItem, ...]:

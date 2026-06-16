@@ -3,14 +3,20 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.customers.models import Customer
-from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
+from apps.hahitantsoa.models import (
+    HahitantsoaEventDraft,
+    HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftLine,
+)
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.hahitantsoa.services import (
     HahitantsoaEventDraftAmendmentPreflight,
+    HahitantsoaEventDraftAmendmentRequestResult,
     HahitantsoaEventDraftAvailabilityPreview,
     HahitantsoaEventDraftConfirmationPreflight,
     HahitantsoaEventDraftConfirmationResult,
     HahitantsoaSharedAvailabilityItemPreview,
+    create_hahitantsoa_event_draft_amendment_request,
     get_hahitantsoa_event_draft_amendment_preflight,
     get_hahitantsoa_event_draft_availability_preview,
     get_hahitantsoa_event_draft_confirmation_preflight,
@@ -198,6 +204,58 @@ class HahitantsoaEventDraftAmendmentPreflightSerializer(serializers.Serializer):
     def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
         return cls.from_preflight(
             get_hahitantsoa_event_draft_amendment_preflight(event_draft=event_draft)
+        )
+
+
+class HahitantsoaEventDraftAmendmentRequestSerializer(serializers.ModelSerializer):
+    event_draft_id = serializers.UUIDField(source="event_draft.id", read_only=True)
+
+    class Meta:
+        model = HahitantsoaEventDraftAmendmentRequest
+        fields = (
+            "id",
+            "event_draft_id",
+            "status",
+            "reason",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "event_draft_id",
+            "status",
+            "created_at",
+            "updated_at",
+        )
+
+
+class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+    def create(self, validated_data):
+        event_draft = self.context["event_draft"]
+        actor = self.context["actor"]
+        result = create_hahitantsoa_event_draft_amendment_request(
+            event_draft=event_draft,
+            actor=actor,
+            reason=validated_data.get("reason", ""),
+            notes=validated_data.get("notes", ""),
+        )
+        self.context["result"] = result
+        return result.amendment_request
+
+
+class HahitantsoaEventDraftAmendmentRequestResultSerializer(serializers.Serializer):
+    amendment_request = HahitantsoaEventDraftAmendmentRequestSerializer()
+
+    @classmethod
+    def from_result(cls, result: HahitantsoaEventDraftAmendmentRequestResult):
+        return cls(
+            {
+                "amendment_request": result.amendment_request,
+            }
         )
 
 
@@ -409,6 +467,9 @@ class HahitantsoaEventDraftConfirmationResultSerializer(serializers.Serializer):
 
 __all__ = [
     "HahitantsoaDiscoveryItemSerializer",
+    "HahitantsoaEventDraftAmendmentRequestCreateSerializer",
+    "HahitantsoaEventDraftAmendmentRequestResultSerializer",
+    "HahitantsoaEventDraftAmendmentRequestSerializer",
     "HahitantsoaSharedAvailabilityItemPreviewSerializer",
     "HahitantsoaSharedAvailabilityResponseSerializer",
     "HahitantsoaEventDraftAvailabilityLinePreviewSerializer",

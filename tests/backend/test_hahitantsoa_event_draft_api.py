@@ -5,7 +5,11 @@ from django.test import Client
 from django.utils import timezone
 
 from apps.customers.models import Customer
-from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
+from apps.hahitantsoa.models import (
+    HahitantsoaEventDraft,
+    HahitantsoaEventDraftAmendmentRequest,
+    HahitantsoaEventDraftLine,
+)
 from apps.inventory.models import InventoryAvailability, InventoryItem
 from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
@@ -18,6 +22,14 @@ from apps.reservations.models import ReservationDraft
 pytestmark = pytest.mark.django_db
 
 EVENT_DRAFT_LIST_URL = "/api/v1/hahitantsoa/event-drafts/"
+
+
+def _amendment_request_list_url(event_draft_id) -> str:
+    return f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/"
+
+
+def _amendment_request_detail_url(event_draft_id, amendment_request_id) -> str:
+    return f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/{amendment_request_id}/"
 
 
 @pytest.fixture
@@ -828,6 +840,159 @@ def test_event_draft_amendment_preflight_rejects_write_methods(authenticated_cli
     response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/amendment-preflight/")
 
     assert response.status_code == 405
+
+
+def test_owner_can_create_list_and_read_amendment_request_for_confirmed_draft(
+    authenticated_client,
+) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=user, item=_item(kind="article"))
+    inventory_availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+
+    create_response = authenticated_client.post(
+        _amendment_request_list_url(draft.id),
+        data={
+            "reason": "Customer changed event timing",
+            "notes": "Need to review the confirmed material mix.",
+        },
+        content_type="application/json",
+    )
+
+    assert create_response.status_code == 201
+    create_payload = create_response.json()
+    amendment_request_payload = create_payload["amendment_request"]
+    amendment_request_id = amendment_request_payload["id"]
+    assert amendment_request_payload["event_draft_id"] == str(draft.id)
+    assert amendment_request_payload["status"] == "draft"
+    assert amendment_request_payload["reason"] == "Customer changed event timing"
+    assert amendment_request_payload["notes"] == "Need to review the confirmed material mix."
+
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.get(pk=amendment_request_id)
+    assert amendment_request.event_draft_id == draft.id
+    assert amendment_request.created_by == user
+    assert amendment_request.updated_by is None
+    draft.refresh_from_db()
+    assert draft.status == "confirmed"
+    assert draft.updated_by == user
+    assert InventoryAvailability.objects.count() == inventory_availability_count
+    assert ReservationDraft.objects.count() == reservation_count
+    assert amendment_request.created_at is not None
+
+    list_response = authenticated_client.get(_amendment_request_list_url(draft.id))
+    assert list_response.status_code == 200
+    assert [item["id"] for item in list_response.json()] == [str(amendment_request.id)]
+
+    detail_response = authenticated_client.get(
+        _amendment_request_detail_url(draft.id, amendment_request.id)
+    )
+    assert detail_response.status_code == 200
+    assert detail_response.json()["id"] == str(amendment_request.id)
+
+
+def test_amendment_request_creation_rejects_draft_state_original(authenticated_client) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Draft amendment request target",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=user,
+    )
+    inventory_availability_count = InventoryAvailability.objects.count()
+
+    response = authenticated_client.post(
+        _amendment_request_list_url(draft.id),
+        data={"reason": "Should fail"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == "draft_not_confirmed_for_amendment"
+    assert HahitantsoaEventDraftAmendmentRequest.objects.count() == 0
+    assert InventoryAvailability.objects.count() == inventory_availability_count
+    draft.refresh_from_db()
+    assert draft.status == "draft"
+
+
+def test_amendment_request_creation_requires_reservation_sensitive_staff(
+    authenticated_client,
+) -> None:
+    user = authenticated_client.test_user
+    draft = _confirmed_draft(user=user, item=_item(kind="article"))
+
+    response = authenticated_client.post(
+        _amendment_request_list_url(draft.id),
+        data={"reason": "Needs staff boundary"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    assert (
+        response.json()["detail"]
+        == "Actor is not allowed to perform a reservation-sensitive write."
+    )
+    assert HahitantsoaEventDraftAmendmentRequest.objects.count() == 0
+
+
+def test_amendment_request_creation_returns_404_for_deleted_original(authenticated_client) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=user, item=_item(kind="article"))
+    draft.is_deleted = True
+    draft.deleted_at = timezone.now()
+    draft.save(update_fields=["is_deleted", "deleted_at"])
+
+    response = authenticated_client.post(
+        _amendment_request_list_url(draft.id),
+        data={"reason": "Should stay hidden"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+    assert HahitantsoaEventDraftAmendmentRequest.objects.count() == 0
+
+
+def test_second_user_cannot_access_another_users_amendment_requests(
+    authenticated_client,
+    authenticated_client_two,
+) -> None:
+    owner = authenticated_client.test_user
+    owner.is_staff = True
+    owner.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=owner, item=_item(kind="article"))
+    amendment_request = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        reason="Owner-only change",
+        created_by=owner,
+    )
+
+    list_response = authenticated_client_two.get(_amendment_request_list_url(draft.id))
+    create_response = authenticated_client_two.post(
+        _amendment_request_list_url(draft.id),
+        data={"reason": "Should not see draft"},
+        content_type="application/json",
+    )
+    detail_response = authenticated_client_two.get(
+        _amendment_request_detail_url(draft.id, amendment_request.id)
+    )
+
+    assert list_response.status_code == 404
+    assert create_response.status_code == 404
+    assert detail_response.status_code == 404
 
 
 def test_authenticated_user_can_confirm_own_event_draft(

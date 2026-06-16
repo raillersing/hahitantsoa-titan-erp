@@ -19,6 +19,15 @@ class HahitantsoaEventDraftStatus(models.TextChoices):
 HAHITANTSOA_EVENT_DRAFT_STATUS_VALUES = [status.value for status in HahitantsoaEventDraftStatus]
 
 
+class HahitantsoaEventDraftAmendmentRequestStatus(models.TextChoices):
+    DRAFT = "draft", "draft"
+
+
+HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_STATUS_VALUES = [
+    status.value for status in HahitantsoaEventDraftAmendmentRequestStatus
+]
+
+
 def generate_hahitantsoa_event_draft_public_reference() -> str:
     return f"HED-{uuid.uuid4().hex[:12].upper()}"
 
@@ -183,3 +192,34 @@ class HahitantsoaEventDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, Au
 
     def __str__(self) -> str:
         return f"{self.event_draft} - {self.inventory_item} x {self.quantity}"
+
+
+class HahitantsoaEventDraftAmendmentRequest(UUIDModel, TimestampedModel, AuditableModel):
+    event_draft = models.ForeignKey(
+        HahitantsoaEventDraft,
+        on_delete=models.PROTECT,
+        related_name="amendment_requests",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=HahitantsoaEventDraftAmendmentRequestStatus.choices,
+        default=HahitantsoaEventDraftAmendmentRequestStatus.DRAFT,
+    )
+    reason = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        verbose_name = "Hahitantsoa event draft amendment request"
+        verbose_name_plural = "Hahitantsoa event draft amendment requests"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(
+                    status__in=HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_STATUS_VALUES
+                ),
+                name="hahitantsoa_event_draft_amendment_request_status_allowed",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.event_draft} amendment request {self.id}"
