@@ -6,6 +6,7 @@ official detailed multi-agent workflow.
 Keep prompts short and reference these official documents instead of repeating long
 command lists:
 
+- `docs/ai-agents/AI_ORCHESTRATION_INDEX.md`
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
 - `docs/ai-agents/backend-agent-template.md` for backend Agent A-F role selection
@@ -15,6 +16,7 @@ command lists:
   selection
 - `docs/ai-agents/prompt-contracts/frontend-orchestrator.md` for frontend orchestrator
   prompts
+- `docs/ai-agents/NEW_CONVERSATION_STARTERS.md` for official short handoff starters
 
 - One task, one branch, one controlled PR.
 - One agent, one worktree, one branch, one non-overlapping scope.

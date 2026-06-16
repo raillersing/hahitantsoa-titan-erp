@@ -51,9 +51,11 @@ Frontend roles:
 
 ## Required documents
 
+- [AI orchestration index](AI_ORCHESTRATION_INDEX.md)
 - [Agent command runbook](agent-command-runbook.md)
 - [Backend agent template](backend-agent-template.md)
 - [Autonomous agent policy](autonomous-agent-policy.md)
+- [New conversation starters](NEW_CONVERSATION_STARTERS.md)
 - [Frontend agent template](frontend-agent-template.md)
 - [GitHub repository rules checklist](github-repository-rules-checklist.md)
 - [Macro-goal contract](macro-goal-contract.md)
@@ -89,6 +91,7 @@ One agent equals one worktree equals one branch equals one non-overlapping scope
 - review agent: non-mutating unless explicitly authorized
 
 Prompts should stay short and reference the
+[AI orchestration index](AI_ORCHESTRATION_INDEX.md),
 [Agent command runbook](agent-command-runbook.md),
 [Macro-goal orchestrator](macro-goal-orchestrator.md),
 [Task queue schema](task-queue-schema.md), and the applicable prompt contract instead of
