@@ -1,7 +1,12 @@
 from rest_framework import serializers
 
-from apps.inventory.models import InventoryItem
+from apps.documents.models import DocumentInstance
+from apps.inventory.models import (
+    InventoryItem,
+    InventoryStockMovement,
+)
 from apps.inventory.scope import assert_titan_allowed_item_kind
+from apps.reservations.models import ReservationDraft
 
 
 class InventoryItemSerializer(serializers.ModelSerializer):
@@ -41,3 +46,55 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             ) from error
 
         return item_kind.value
+
+
+class InventoryStockMovementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryStockMovement
+        fields = (
+            "id",
+            "inventory_item",
+            "reservation_draft",
+            "document_instance",
+            "movement_type",
+            "direction",
+            "quantity",
+            "source_label",
+            "notes",
+            "effective_at",
+            "validated_at",
+            "validated_by",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        )
+        read_only_fields = fields
+
+
+class InventoryStockMovementCreateSerializer(serializers.Serializer):
+    inventory_item = serializers.PrimaryKeyRelatedField(
+        queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
+    )
+    reservation_draft = serializers.PrimaryKeyRelatedField(
+        queryset=ReservationDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    document_instance = serializers.PrimaryKeyRelatedField(
+        queryset=DocumentInstance.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    movement_type = serializers.ChoiceField(
+        choices=InventoryStockMovement._meta.get_field("movement_type").choices
+    )
+    direction = serializers.ChoiceField(
+        choices=InventoryStockMovement._meta.get_field("direction").choices,
+        required=False,
+        allow_null=True,
+    )
+    quantity = serializers.IntegerField(min_value=1)
+    source_label = serializers.CharField(required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    effective_at = serializers.DateTimeField(required=False)

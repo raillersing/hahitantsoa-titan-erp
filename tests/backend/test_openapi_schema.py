@@ -4,6 +4,8 @@ INVENTORY_DETAIL_PATHS = (
     "/api/v1/inventory/items/{id}/",
     "/api/v1/inventory/items/{pk}/",
 )
+INVENTORY_STOCK_MOVEMENT_LIST_PATH = "/api/v1/inventory/stock-movements/"
+INVENTORY_STOCK_MOVEMENT_DETAIL_PATH = "/api/v1/inventory/stock-movements/{id}/"
 RESERVATION_AVAILABILITY_SUMMARY_PATH = "/api/v1/reservations/availability-summary/"
 RESERVATION_AVAILABLE_ITEM_PREVIEWS_PATH = "/api/v1/reservations/available-item-previews/"
 RESERVATION_ITEM_AVAILABILITY_PREVIEW_PATHS = (
@@ -159,6 +161,10 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
     _assert_get_only(paths[PAYMENT_DETAIL_PATH])
     assert PAYMENT_CONFIRM_PATH in paths
     assert set(paths[PAYMENT_CONFIRM_PATH]) == {"post"}
+    assert INVENTORY_STOCK_MOVEMENT_LIST_PATH in paths
+    assert set(paths[INVENTORY_STOCK_MOVEMENT_LIST_PATH]) >= {"get", "post"}
+    assert INVENTORY_STOCK_MOVEMENT_DETAIL_PATH in paths
+    _assert_get_only(paths[INVENTORY_STOCK_MOVEMENT_DETAIL_PATH])
 
 
 def test_openapi_schema_exposes_minimal_hahitantsoa_discovery_contract(client) -> None:
