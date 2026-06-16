@@ -724,6 +724,97 @@ def test_second_user_cannot_access_another_users_confirmation_preflight(
     assert response.status_code == 404
 
 
+def test_authenticated_user_can_confirm_own_event_draft(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-confirm-api-user",
+        password="test-password",
+    )
+    item = _item(name="Confirmable shared article", kind="article")
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Confirm via API",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+        required_deposit_received_at=timezone.now(),
+        required_deposit_received_by=actor,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        created_by=user,
+    )
+    availability_count = InventoryAvailability.objects.count()
+    reservation_count = ReservationDraft.objects.count()
+
+    response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirm/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "confirmed"
+    assert payload["public_reference"] == draft.public_reference
+    assert payload["blocked_item_count"] == 1
+    assert payload["event_draft"]["id"] == str(draft.id)
+    assert payload["event_draft"]["status"] == "confirmed"
+    draft.refresh_from_db()
+    assert draft.status == "confirmed"
+    assert draft.confirmed_at is not None
+    assert InventoryAvailability.objects.count() == availability_count + 1
+    assert InventoryAvailability.objects.get(hahitantsoa_event_draft=draft).status == "reserved"
+    assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_event_draft_confirm_returns_preflight_blockers_without_mutating_state(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-confirm-blocker-user",
+        password="test-password",
+    )
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Blocked confirm API",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=user,
+    )
+    availability_count = InventoryAvailability.objects.count()
+
+    response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirm/")
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == "confirmation_preflight_failed"
+    assert payload["blockers"] == [RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT]
+    draft.refresh_from_db()
+    assert draft.status == "draft"
+    assert draft.confirmed_at is None
+    assert InventoryAvailability.objects.count() == availability_count
+
+
 def test_second_user_cannot_list_read_update_delete_or_preview_another_users_draft(
     authenticated_client,
     authenticated_client_two,
@@ -759,6 +850,7 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     preflight_response = authenticated_client_two.get(
         f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/"
     )
+    confirm_response = authenticated_client_two.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirm/")
 
     assert list_response.status_code == 200
     assert list_response.json() == []
@@ -767,6 +859,7 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     assert delete_response.status_code == 404
     assert preview_response.status_code == 404
     assert preflight_response.status_code == 404
+    assert confirm_response.status_code == 404
     draft.refresh_from_db()
     line = draft.lines.get()
     assert draft.created_by == owner

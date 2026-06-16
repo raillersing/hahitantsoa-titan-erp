@@ -8,6 +8,7 @@ from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.hahitantsoa.services import (
     HahitantsoaEventDraftAvailabilityPreview,
     HahitantsoaEventDraftConfirmationPreflight,
+    HahitantsoaEventDraftConfirmationResult,
     HahitantsoaSharedAvailabilityItemPreview,
     get_hahitantsoa_event_draft_availability_preview,
     get_hahitantsoa_event_draft_confirmation_preflight,
@@ -358,12 +359,32 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         return instance
 
 
+class HahitantsoaEventDraftConfirmationResultSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    public_reference = serializers.CharField()
+    blocked_item_count = serializers.IntegerField()
+    event_draft = HahitantsoaEventDraftSerializer()
+
+    @classmethod
+    def from_result(cls, result: HahitantsoaEventDraftConfirmationResult):
+        return cls(
+            {
+                "status": "confirmed",
+                "public_reference": result.event_draft.public_reference,
+                "blocked_item_count": result.blocked_item_count,
+                "event_draft": result.event_draft,
+            }
+        )
+
+
 __all__ = [
     "HahitantsoaDiscoveryItemSerializer",
     "HahitantsoaSharedAvailabilityItemPreviewSerializer",
     "HahitantsoaSharedAvailabilityResponseSerializer",
     "HahitantsoaEventDraftAvailabilityLinePreviewSerializer",
     "HahitantsoaEventDraftAvailabilityPreviewSerializer",
+    "HahitantsoaEventDraftConfirmationPreflightSerializer",
+    "HahitantsoaEventDraftConfirmationResultSerializer",
     "HahitantsoaEventDraftLineSerializer",
     "HahitantsoaEventDraftSerializer",
     "ReservationAvailabilityPreviewRequestSerializer",

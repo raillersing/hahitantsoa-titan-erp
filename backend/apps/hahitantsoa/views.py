@@ -14,9 +14,16 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAvailabilityPreviewSerializer,
     HahitantsoaEventDraftConfirmationPreflightSerializer,
+    HahitantsoaEventDraftConfirmationResultSerializer,
     HahitantsoaEventDraftSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
+)
+from apps.hahitantsoa.services import confirm_hahitantsoa_event_draft
+from apps.reservations.confirmation import (
+    ReservationConfirmationPreflightError,
+    ReservationLifecycleError,
+    ReservationLifecycleStateError,
 )
 from apps.reservations.periods import validate_reservation_period
 
@@ -140,6 +147,45 @@ class HahitantsoaEventDraftConfirmationPreflightAPIView(APIView):
             event_draft=event_draft
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaEventDraftConfirmAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(responses=HahitantsoaEventDraftConfirmationResultSerializer)
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
+
+        try:
+            result = confirm_hahitantsoa_event_draft(event_draft=event_draft, actor=request.user)
+        except PermissionError as error:
+            return Response(
+                {"detail": str(error)},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except ReservationConfirmationPreflightError as error:
+            return Response(
+                {
+                    "detail": str(error),
+                    "code": error.code,
+                    "blockers": error.blockers,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {
+                    "detail": str(error),
+                    "code": getattr(error, "code", None),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = HahitantsoaEventDraftConfirmationResultSerializer.from_result(result)
+        return Response(payload.data, status=status.HTTP_200_OK)
 
 
 class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyAPIView):

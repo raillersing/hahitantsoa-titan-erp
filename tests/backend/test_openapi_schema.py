@@ -25,6 +25,10 @@ HAHITANTSOA_EVENT_DRAFT_CONFIRMATION_PREFLIGHT_PATHS = (
     "/api/v1/hahitantsoa/event-drafts/{id}/confirmation-preflight/",
     "/api/v1/hahitantsoa/event-drafts/{pk}/confirmation-preflight/",
 )
+HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS = (
+    "/api/v1/hahitantsoa/event-drafts/{id}/confirm/",
+    "/api/v1/hahitantsoa/event-drafts/{pk}/confirm/",
+)
 DOCUMENT_TEMPLATE_REGISTRY_PATH = "/api/v1/documents/templates/"
 DOCUMENT_TEMPLATE_DETAIL_PATHS = ("/api/v1/documents/templates/{template_key}/",)
 TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
@@ -192,6 +196,9 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
     )
     assert confirmation_preflight_path in paths
     _assert_get_only(paths[confirmation_preflight_path])
+    confirmation_path = _get_path(paths, HAHITANTSOA_EVENT_DRAFT_CONFIRM_PATHS)
+    assert confirmation_path in paths
+    assert set(paths[confirmation_path]) == {"post"}
 
     create_operation = paths[HAHITANTSOA_EVENT_DRAFT_LIST_PATH]["post"]
     response_schema = create_operation["responses"]["201"]["content"]["application/json"]["schema"]
@@ -269,6 +276,18 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "active_line_count",
         "unavailable_line_count",
     }.issubset(confirmation_preflight_schema["properties"])
+
+    confirmation_operation = paths[confirmation_path]["post"]
+    confirmation_schema_reference = confirmation_operation["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]
+    confirmation_schema = _resolve_schema(schema, confirmation_schema_reference)
+    assert {
+        "status",
+        "public_reference",
+        "blocked_item_count",
+        "event_draft",
+    }.issubset(confirmation_schema["properties"])
 
 
 def test_openapi_schema_exposes_documents_template_contract(client) -> None:
