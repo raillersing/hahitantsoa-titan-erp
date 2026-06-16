@@ -148,15 +148,11 @@ export function HahitantsoaEventDraftsPanel({
 
   // Effect to adopt prefills when they change
   useEffect(() => {
-    if (prefillEventName) {
-      setNewEventName(prefillEventName);
-    }
+    setNewEventName(prefillEventName);
   }, [prefillEventName]);
 
   useEffect(() => {
-    if (prefillVenueName) {
-      setNewVenueName(prefillVenueName);
-    }
+    setNewVenueName(prefillVenueName);
   }, [prefillVenueName]);
 
   // Update State
