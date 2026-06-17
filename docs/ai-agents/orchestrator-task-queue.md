@@ -2,9 +2,9 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), F148E at `2d96134` (PR #268), F148A Claude Code governance at `3b9835c` (PR #269), F148F campaign plan at `298abf3` (PR #271), F148G production readiness at `dcb57fb` (PR #272), F148H agent handoff at `273705d` (PR #273), and F145H excess receivable foundation at `d45a2fe` (PR #274).
-- Current `origin/main` HEAD is `d45a2fe` (F145H damage/loss excess receivable invoice foundation).
-- F148B Claude tooling guard alignment is open as PR #270 on branch `chore/f148b-claude-tooling-guard-alignment`. This is a new follow-up tooling task, not the prior merged F148B wrapper PR #265.
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), F148E at `2d96134` (PR #268), F148A Claude Code governance at `3b9835c` (PR #269), F148F campaign plan at `298abf3` (PR #271), F148G production readiness at `dcb57fb` (PR #272), F148H agent handoff at `273705d` (PR #273), F145H excess receivable foundation at `d45a2fe` (PR #274), F148B tooling guard alignment at `1be744a` (PR #270), and F149A Docker lifecycle hygiene at `c44612f` (PR #275).
+- Current `origin/main` HEAD is `c44612f` (F149A agent CI Docker lifecycle hygiene).
+- F149B worktree finalizer main-sync repair is the active agent-tools task.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -421,24 +421,51 @@ Validation:
 - git diff --check — PASS
 - Confirmed no forbidden mutations
 
-### F148H
+### F149A
 
 Status:
-- open PR — awaiting human merge
-- baseline: origin/main at `dcb57fb`
-- branch: `docs/f148h-agent-handoff`
-- scope: agent governance handoff + next-bundle plan (third and final bundle of campaign)
+- merged as PR #275
+- baseline: origin/main at `1be744a`
+- branch: `feat/f149a-agent-ci-docker-lifecycle-hygiene` (merged)
+- scope: agent CI Docker lifecycle hygiene
 
 Scope delivered:
-- `docs/audits/F148H_AGENT_HANDOFF_NEXT_BUNDLES.md` — agent roles, handoff protocol,
-  next backend bundle (F145I billing), next frontend bundle (F147G panel wiring),
-  worktree separation rules, finalization script observation
-- No backend, frontend, test, script, or .github files modified
+- `scripts/dev/erp-docker-agent-cleanup` — dry-run-safe Docker cleanup wrapper
+- `docs/ai-agents/agent-command-runbook.md` — Docker cleanup section, post-merge cleanup rules
+- `docs/audits/F149A_AGENT_CI_DOCKER_LIFECYCLE_HYGIENE.md` — audit documentation
 
 Validation:
-- bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
+- bash scripts/dev/erp-agent-scope-guard agent-tools — PASS
 - git diff --check — PASS
-- Confirmed no forbidden mutations
+- bash -n scripts/dev/erp-docker-agent-cleanup — PASS
+- scripts/dev/erp-docker-agent-cleanup — dry-run output correct
+- PR CI green, main CI green after merge
+
+### F149B
+
+Status:
+- active agent-tools task
+- baseline: origin/main at `c44612f`
+- branch: `feat/f149b-worktree-finalizer-main-sync-repair`
+- scope: repair erp-pr-worktree-finalize main-sync bug
+
+Scope:
+- fix `scripts/dev/erp-pr-worktree-finalize` to use `MAIN_PATH` (main repo root)
+  instead of `$REPO_ROOT` (task worktree root) after merge
+- update `docs/ai-agents/agent-command-runbook.md` with validation patterns
+- update `docs/ai-agents/orchestrator-task-queue.md`
+- `docs/audits/F149B_WORKTREE_FINALIZER_MAIN_SYNC_REPAIR.md` — audit documentation
+- tooling only
+
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-tools — PASS
+- git diff --check — PASS
+- scripts/dev/erp-pr-worktree-finalize --help — shows usage
+- grep proving cd "$MAIN_PATH" appears twice and cd "$REPO_ROOT" appears zero times in post-merge paths
+- grep proving --match-head-commit in merge command
+- grep proving no --delete-branch in executable merge command
+- PR CI green before merge
+- main CI green after merge
 
 ## Later Repair Track
 

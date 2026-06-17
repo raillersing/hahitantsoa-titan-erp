@@ -28,6 +28,8 @@ Purpose:
   - requiring all CI checks completed with success before merge
   - merging with gh pr merge --squash --match-head-commit and without --delete-branch
   - confirming PR state becomes MERGED and main CI is green
+  - switching to the main repository root (MAIN_PATH from git worktree list) to
+    sync main, because the task worktree is still on the feature branch
   - removing the clean worktree with git worktree remove
   - deleting the local branch with git branch -D after MERGED confirmation
   - deleting the remote branch with git push origin --delete --prune
@@ -257,11 +259,20 @@ done
 # After a squash merge the task branch is no longer an ancestor of origin/main, so
 # pulling origin/main into the task branch would fail. Switch to the root worktree
 # (which must remain on main) and fast-forward main from there.
+# MAIN_PATH was derived from git worktree list --porcelain (first entry is the main repo).
 echo "INFO: Returning to root worktree to sync main..."
-cd "$REPO_ROOT"
+if [ -z "$MAIN_PATH" ]; then
+  echo "ERROR: MAIN_PATH is empty; cannot determine main repository path"
+  exit 1
+fi
+if [ ! -d "$MAIN_PATH" ]; then
+  echo "ERROR: main repository path missing: $MAIN_PATH"
+  exit 1
+fi
+cd "$MAIN_PATH"
 
 if [ "$(git branch --show-current)" != "main" ]; then
-  echo "ERROR: root worktree is not on main; cannot sync main safely"
+  echo "ERROR: MAIN_PATH is not on main; cannot sync main safely"
   exit 1
 fi
 
@@ -312,7 +323,7 @@ fi
 echo "OK: Worktree removed."
 
 # After worktree removal, the current directory is orphaned. Switch to main repo root.
-cd "$REPO_ROOT"
+cd "$MAIN_PATH"
 
 # ----- Delete local branch -----
 echo "INFO: Deleting local branch: $BRANCH"
