@@ -3,6 +3,8 @@ from django.apps import apps
 from apps.inventory.models import (
     InventoryAvailability,
     InventoryItem,
+    InventoryReturnOperation,
+    InventoryReturnOperationLine,
     InventoryStockMovement,
 )
 
@@ -24,3 +26,5 @@ def test_inventory_app_registry_contains_inventory_models() -> None:
     assert InventoryItem in inventory_models
     assert InventoryAvailability in inventory_models
     assert InventoryStockMovement in inventory_models
+    assert InventoryReturnOperation in inventory_models
+    assert InventoryReturnOperationLine in inventory_models

@@ -6,6 +6,9 @@ INVENTORY_DETAIL_PATHS = (
 )
 INVENTORY_STOCK_MOVEMENT_LIST_PATH = "/api/v1/inventory/stock-movements/"
 INVENTORY_STOCK_MOVEMENT_DETAIL_PATH = "/api/v1/inventory/stock-movements/{id}/"
+INVENTORY_RETURN_OPERATION_LIST_PATH = "/api/v1/inventory/return-operations/"
+INVENTORY_RETURN_OPERATION_DETAIL_PATH = "/api/v1/inventory/return-operations/{id}/"
+INVENTORY_RETURN_OPERATION_VALIDATE_PATH = "/api/v1/inventory/return-operations/{id}/validate/"
 RESERVATION_AVAILABILITY_SUMMARY_PATH = "/api/v1/reservations/availability-summary/"
 RESERVATION_AVAILABLE_ITEM_PREVIEWS_PATH = "/api/v1/reservations/available-item-previews/"
 RESERVATION_ITEM_AVAILABILITY_PREVIEW_PATHS = (
@@ -165,6 +168,12 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
     assert set(paths[INVENTORY_STOCK_MOVEMENT_LIST_PATH]) >= {"get", "post"}
     assert INVENTORY_STOCK_MOVEMENT_DETAIL_PATH in paths
     _assert_get_only(paths[INVENTORY_STOCK_MOVEMENT_DETAIL_PATH])
+    assert INVENTORY_RETURN_OPERATION_LIST_PATH in paths
+    assert set(paths[INVENTORY_RETURN_OPERATION_LIST_PATH]) >= {"get", "post"}
+    assert INVENTORY_RETURN_OPERATION_DETAIL_PATH in paths
+    _assert_get_only(paths[INVENTORY_RETURN_OPERATION_DETAIL_PATH])
+    assert INVENTORY_RETURN_OPERATION_VALIDATE_PATH in paths
+    assert set(paths[INVENTORY_RETURN_OPERATION_VALIDATE_PATH]) == {"post"}
 
 
 def test_openapi_schema_exposes_minimal_hahitantsoa_discovery_contract(client) -> None:

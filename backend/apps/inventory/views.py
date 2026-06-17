@@ -8,13 +8,18 @@ from rest_framework.views import APIView
 from apps.inventory.models import InventoryItem
 from apps.inventory.serializers import (
     InventoryItemSerializer,
+    InventoryReturnOperationCreateSerializer,
+    InventoryReturnOperationSerializer,
     InventoryStockMovementCreateSerializer,
     InventoryStockMovementSerializer,
 )
 from apps.inventory.services import (
     InventoryStockMovementError,
+    active_inventory_return_operations,
     active_inventory_stock_movements,
+    create_inventory_return_operation,
     create_inventory_stock_movement,
+    validate_inventory_return_operation,
 )
 
 
@@ -88,3 +93,87 @@ class InventoryStockMovementRetrieveAPIView(APIView):
             raise Http404("Inventory stock movement not found.")
 
         return Response(InventoryStockMovementSerializer(movement).data)
+
+
+class InventoryReturnOperationListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "post":
+            return InventoryReturnOperationCreateSerializer
+        return InventoryReturnOperationSerializer
+
+    def get_queryset(self):
+        return active_inventory_return_operations()
+
+    @extend_schema(
+        request=InventoryReturnOperationCreateSerializer,
+        responses={
+            201: InventoryReturnOperationSerializer,
+            400: OpenApiResponse(description="Return operation validation failed."),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            return_operation = create_inventory_return_operation(
+                actor=request.user,
+                **serializer.validated_data,
+            )
+        except InventoryStockMovementError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            InventoryReturnOperationSerializer(return_operation).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class InventoryReturnOperationRetrieveAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        return_operation = active_inventory_return_operations().filter(id=id).first()
+        if return_operation is None:
+            raise Http404("Inventory return operation not found.")
+
+        return Response(InventoryReturnOperationSerializer(return_operation).data)
+
+
+class InventoryReturnOperationValidateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: InventoryReturnOperationSerializer,
+            400: OpenApiResponse(description="Return operation validation failed."),
+        },
+    )
+    def post(self, request, id):
+        return_operation = active_inventory_return_operations().filter(id=id).first()
+        if return_operation is None:
+            raise Http404("Inventory return operation not found.")
+
+        try:
+            result = validate_inventory_return_operation(
+                return_operation=return_operation,
+                actor=request.user,
+            )
+        except InventoryStockMovementError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            InventoryReturnOperationSerializer(result.return_operation).data,
+            status=status.HTTP_200_OK,
+        )

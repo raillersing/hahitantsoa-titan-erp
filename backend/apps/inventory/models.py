@@ -42,6 +42,18 @@ class InventoryStockMovementDirection(models.TextChoices):
     OUTBOUND = "outbound", "outbound"
 
 
+class InventoryReturnOperationStatus(models.TextChoices):
+    DRAFT = "draft", "draft"
+    VALIDATED = "validated", "validated"
+
+
+class InventoryReturnOperationLineConditionStatus(models.TextChoices):
+    INTACT = "intact", "intact"
+    DAMAGED = "damaged", "damaged"
+    MISSING = "missing", "missing"
+    MIXED = "mixed", "mixed"
+
+
 FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS = {
     InventoryStockMovementType.OUTBOUND_DELIVERY: InventoryStockMovementDirection.OUTBOUND,
     InventoryStockMovementType.DAMAGE: InventoryStockMovementDirection.OUTBOUND,
@@ -147,6 +159,20 @@ class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
         on_delete=models.PROTECT,
         related_name="inventory_stock_movements",
     )
+    return_operation = models.ForeignKey(
+        "inventory.InventoryReturnOperation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
+    return_operation_line = models.ForeignKey(
+        "inventory.InventoryReturnOperationLine",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
     movement_type = models.CharField(max_length=32, choices=InventoryStockMovementType.choices)
     direction = models.CharField(
         max_length=16,
@@ -238,3 +264,182 @@ class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
 
     def __str__(self) -> str:
         return f"{self.inventory_item} {self.movement_type} {self.direction} x {self.quantity}"
+
+
+class InventoryReturnOperation(UUIDModel, TimestampedModel, AuditableModel):
+    reservation_draft = models.ForeignKey(
+        "reservations.ReservationDraft",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="return_operations",
+    )
+    document_instance = models.ForeignKey(
+        "documents.DocumentInstance",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="return_operations",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=InventoryReturnOperationStatus.choices,
+        default=InventoryReturnOperationStatus.DRAFT,
+    )
+    notes = models.TextField(blank=True)
+    validated_at = models.DateTimeField(null=True, blank=True)
+    validated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        verbose_name = "Inventory return operation"
+        verbose_name_plural = "Inventory return operations"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(status=InventoryReturnOperationStatus.DRAFT)
+                        & models.Q(validated_at__isnull=True)
+                    )
+                    | (
+                        models.Q(status=InventoryReturnOperationStatus.VALIDATED)
+                        & models.Q(validated_at__isnull=False)
+                    )
+                ),
+                name="inventory_return_operation_status_validated_at_consistent",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.status == InventoryReturnOperationStatus.VALIDATED and self.validated_by_id is None:
+            raise ValidationError(
+                {"validated_by": "Validated return operations require validated_by."}
+            )
+
+        if self.status == InventoryReturnOperationStatus.DRAFT and self.validated_by_id is not None:
+            raise ValidationError(
+                {"validated_by": "Draft return operations cannot have validated_by."}
+            )
+
+    def __str__(self) -> str:
+        return f"Return operation {self.id} ({self.status})"
+
+
+class InventoryReturnOperationLine(UUIDModel, TimestampedModel, AuditableModel):
+    return_operation = models.ForeignKey(
+        InventoryReturnOperation,
+        on_delete=models.CASCADE,
+        related_name="lines",
+    )
+    inventory_item = models.ForeignKey(
+        InventoryItem,
+        on_delete=models.PROTECT,
+        related_name="return_operation_lines",
+    )
+    expected_quantity = models.PositiveIntegerField()
+    returned_quantity = models.PositiveIntegerField(default=0)
+    damaged_quantity = models.PositiveIntegerField(default=0)
+    missing_quantity = models.PositiveIntegerField(default=0)
+    condition_status = models.CharField(
+        max_length=32,
+        choices=InventoryReturnOperationLineConditionStatus.choices,
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        verbose_name = "Inventory return operation line"
+        verbose_name_plural = "Inventory return operation lines"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(expected_quantity__gt=0),
+                name="inventory_return_operation_line_expected_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(returned_quantity__gte=0),
+                name="inventory_return_operation_line_returned_quantity_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(damaged_quantity__gte=0),
+                name="inventory_return_operation_line_damaged_quantity_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(missing_quantity__gte=0),
+                name="inventory_return_operation_line_missing_quantity_non_negative",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.expected_quantity <= 0:
+            raise ValidationError(
+                {"expected_quantity": "Expected quantity must be greater than zero."}
+            )
+
+        if self.damaged_quantity > self.returned_quantity:
+            raise ValidationError(
+                {"damaged_quantity": "Damaged quantity cannot exceed returned quantity."}
+            )
+
+        if self.returned_quantity + self.missing_quantity > self.expected_quantity:
+            raise ValidationError(
+                {
+                    "missing_quantity": (
+                        "Returned quantity plus missing quantity cannot exceed expected quantity."
+                    )
+                }
+            )
+
+        intact_quantity = self.returned_quantity - self.damaged_quantity
+        condition_status = InventoryReturnOperationLineConditionStatus(self.condition_status)
+
+        if condition_status == InventoryReturnOperationLineConditionStatus.INTACT:
+            if intact_quantity <= 0 or self.damaged_quantity != 0 or self.missing_quantity != 0:
+                raise ValidationError(
+                    {"condition_status": ("Intact lines require returned intact quantity only.")}
+                )
+        elif condition_status == InventoryReturnOperationLineConditionStatus.DAMAGED:
+            if self.damaged_quantity <= 0 or intact_quantity != 0 or self.missing_quantity != 0:
+                raise ValidationError(
+                    {"condition_status": ("Damaged lines require damaged returned quantity only.")}
+                )
+        elif condition_status == InventoryReturnOperationLineConditionStatus.MISSING:
+            if self.returned_quantity != 0 or self.missing_quantity <= 0:
+                raise ValidationError(
+                    {
+                        "condition_status": (
+                            "Missing lines require missing quantity and no returned quantity."
+                        )
+                    }
+                )
+        elif condition_status == InventoryReturnOperationLineConditionStatus.MIXED:
+            categories = sum(
+                [
+                    intact_quantity > 0,
+                    self.damaged_quantity > 0,
+                    self.missing_quantity > 0,
+                ]
+            )
+            if categories < 2:
+                raise ValidationError(
+                    {
+                        "condition_status": (
+                            "Mixed lines require at least two non-zero result categories."
+                        )
+                    }
+                )
+
+        if not self.inventory_item.is_active or self.inventory_item.is_deleted:
+            raise ValidationError({"inventory_item": "Return operation item must be active."})
+
+    @property
+    def intact_quantity(self) -> int:
+        return self.returned_quantity - self.damaged_quantity
+
+    def __str__(self) -> str:
+        return f"{self.return_operation} - {self.inventory_item} x {self.expected_quantity}"

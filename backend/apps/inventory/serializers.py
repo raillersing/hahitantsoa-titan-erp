@@ -3,6 +3,8 @@ from rest_framework import serializers
 from apps.documents.models import DocumentInstance
 from apps.inventory.models import (
     InventoryItem,
+    InventoryReturnOperation,
+    InventoryReturnOperationLine,
     InventoryStockMovement,
 )
 from apps.inventory.scope import assert_titan_allowed_item_kind
@@ -98,3 +100,77 @@ class InventoryStockMovementCreateSerializer(serializers.Serializer):
     source_label = serializers.CharField(required=False, allow_blank=True, default="")
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     effective_at = serializers.DateTimeField(required=False)
+
+
+class InventoryReturnOperationLineSerializer(serializers.ModelSerializer):
+    intact_quantity = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = InventoryReturnOperationLine
+        fields = (
+            "id",
+            "inventory_item",
+            "expected_quantity",
+            "returned_quantity",
+            "damaged_quantity",
+            "missing_quantity",
+            "condition_status",
+            "notes",
+            "intact_quantity",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        )
+        read_only_fields = fields
+
+
+class InventoryReturnOperationSerializer(serializers.ModelSerializer):
+    lines = InventoryReturnOperationLineSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = InventoryReturnOperation
+        fields = (
+            "id",
+            "reservation_draft",
+            "document_instance",
+            "status",
+            "notes",
+            "validated_at",
+            "validated_by",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+            "lines",
+        )
+        read_only_fields = fields
+
+
+class InventoryReturnOperationLineCreateSerializer(serializers.Serializer):
+    inventory_item = serializers.PrimaryKeyRelatedField(
+        queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
+    )
+    expected_quantity = serializers.IntegerField(min_value=1)
+    returned_quantity = serializers.IntegerField(min_value=0)
+    damaged_quantity = serializers.IntegerField(min_value=0, required=False, default=0)
+    missing_quantity = serializers.IntegerField(min_value=0, required=False, default=0)
+    condition_status = serializers.ChoiceField(
+        choices=InventoryReturnOperationLine._meta.get_field("condition_status").choices
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class InventoryReturnOperationCreateSerializer(serializers.Serializer):
+    reservation_draft = serializers.PrimaryKeyRelatedField(
+        queryset=ReservationDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    document_instance = serializers.PrimaryKeyRelatedField(
+        queryset=DocumentInstance.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    lines = InventoryReturnOperationLineCreateSerializer(many=True, allow_empty=False)
