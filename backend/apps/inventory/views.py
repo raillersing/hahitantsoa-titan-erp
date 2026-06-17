@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, status
@@ -5,7 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.inventory.models import InventoryItem
+from apps.documents.serializers import DocumentInstanceSerializer
+from apps.inventory.models import (
+    InventoryDamageLossExcessReceivable,
+    InventoryItem,
+)
 from apps.inventory.serializers import (
     InventoryDamageLossSettlementCreateSerializer,
     InventoryDamageLossSettlementExecutionCreateSerializer,
@@ -28,6 +33,7 @@ from apps.inventory.services import (
     create_inventory_return_operation,
     create_inventory_stock_movement,
     execute_inventory_damage_loss_settlement_execution,
+    generate_excess_receivable_invoice_document,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
 )
@@ -355,3 +361,45 @@ class InventoryDamageLossSettlementExecutionExecuteAPIView(APIView):
             InventoryDamageLossSettlementExecutionSerializer(result.execution).data,
             status=status.HTTP_200_OK,
         )
+
+
+class InventoryExcessReceivableGenerateInvoiceAPIView(APIView):
+    http_method_names = ["post"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiResponse(
+                response=DocumentInstanceSerializer,
+                description="Excess receivable invoice document generated successfully.",
+            ),
+            400: OpenApiResponse(description="Invalid excess receivable state or missing data."),
+            404: OpenApiResponse(description="Excess receivable not found."),
+            500: OpenApiResponse(description="Internal server error during invoice generation."),
+        },
+    )
+    def post(self, request, id):
+        try:
+            excess_receivable = InventoryDamageLossExcessReceivable.objects.get(id=id)
+        except InventoryDamageLossExcessReceivable.DoesNotExist:
+            raise Http404("Excess receivable not found.")
+
+        try:
+            document_instance = generate_excess_receivable_invoice_document(
+                excess_receivable=excess_receivable,
+                actor=request.user,
+            )
+        except ValidationError as e:
+            return Response(
+                {"detail": str(e), "code": "validation_error"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            return Response(
+                {"detail": str(e), "code": "internal_error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        serializer = DocumentInstanceSerializer(document_instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)

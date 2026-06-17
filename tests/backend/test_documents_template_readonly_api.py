@@ -13,7 +13,7 @@ BREAKAGE_REPAIR_TEMPLATE_KEY = "shared.breakage_repair_invoice.v1"
 BREAKAGE_REPAIR_TEMPLATE_PATH = f"/api/v1/documents/templates/{BREAKAGE_REPAIR_TEMPLATE_KEY}/"
 UNKNOWN_TEMPLATE_KEY = "shared.unknown_template.v1"
 UNKNOWN_TEMPLATE_PATH = f"/api/v1/documents/templates/{UNKNOWN_TEMPLATE_KEY}/"
-EXPECTED_TEMPLATE_COUNT = 17
+EXPECTED_TEMPLATE_COUNT = 18
 EXPECTED_BREAKAGE_TEMPLATE_SOURCE = (
     "docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf"
 )

@@ -9,10 +9,16 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
+from apps.documents.excess_receivable import (
+    EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY,
+    build_excess_receivable_invoice_context,
+)
+from apps.documents.models import DocumentInstance
 from apps.inventory.models import (
     FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS,
     InventoryCautionRefundObligation,
     InventoryDamageLossExcessReceivable,
+    InventoryDamageLossExcessReceivableStatus,
     InventoryDamageLossSettlement,
     InventoryDamageLossSettlementExecution,
     InventoryDamageLossSettlementExecutionStatus,
@@ -689,3 +695,115 @@ def execute_inventory_damage_loss_settlement_execution(
         refund_obligation=refund_obligation,
         excess_receivable=excess_receivable,
     )
+
+
+@transaction.atomic
+def generate_excess_receivable_invoice_document(
+    *,
+    excess_receivable: InventoryDamageLossExcessReceivable,
+    actor: object | None = None,
+    notes: str = "",
+) -> DocumentInstance:
+    """
+    Generate an invoice/document for an excess receivable and link it to the settlement.
+
+    Args:
+        excess_receivable: The excess receivable to generate an invoice for
+        actor: The user performing the action
+        notes: Optional notes to include with the document instance
+
+    Returns:
+        The generated DocumentInstance
+
+    Raises:
+        ValidationError: If the excess receivable is not in PENDING_INVOICE
+            status or has zero amount
+    """
+    # Cross-app runtime import is local to keep the module import cycle-safe.
+    from apps.documents.runtime import generate_document_instance_html
+
+    # Validate that the excess receivable is ready for invoicing
+    if excess_receivable.status != InventoryDamageLossExcessReceivableStatus.PENDING_INVOICE:
+        raise ValidationError(
+            f"Excess receivable must be in PENDING_INVOICE status to generate invoice. "
+            f"Current status: {excess_receivable.status}"
+        )
+
+    if excess_receivable.amount <= 0:
+        raise ValidationError("Excess receivable must have a positive amount to generate invoice.")
+
+    # Get the actor ID for audit trails
+    actor_id = getattr(actor, "pk", None) if actor else None
+
+    # Build the context for the excess receivable invoice
+    context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
+
+    # Create the DocumentInstance with the excess receivable invoice template
+    template_key = EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY
+    instance = DocumentInstance.objects.create(
+        reservation_draft=None,  # Not directly linked to a reservation draft
+        customer=None,  # Will be set from context below
+        template_key=context.template.key,
+        template_version=context.template.version,
+        template_label=context.template.label,
+        business_scope=context.template.business_scope,
+        document_type=context.template.document_type,
+        template_status=context.template.status,
+        template_source_kind=context.template.source_kind,
+        template_source_reference=context.template.source_reference,
+        template_path=context.template.template_path,
+        template_preview_path=context.template.preview_path,
+        template_validated_by_client=context.template.validated_by_client,
+        template_notes=context.template.notes,
+        # Customer and reservation data from context
+        reservation_public_reference=context.excess_receivable.reservation_public_reference,
+        reservation_status=context.excess_receivable.reservation_status,
+        customer_display_name=context.excess_receivable.customer_display_name,
+        customer_email=context.excess_receivable.customer_email,
+        customer_phone=context.excess_receivable.customer_phone,
+        customer_address=context.excess_receivable.customer_address,
+        status="prepared",
+        prepared_at=timezone.now(),
+        prepared_by_id=actor_id,
+        notes=notes,
+    )
+
+    # Link the document instance to the settlement
+    settlement = excess_receivable.settlement_execution.settlement
+    settlement.document_instance = instance
+    settlement.save(update_fields=["document_instance", "updated_at"])
+
+    # Generate the document HTML content
+    result = generate_document_instance_html(document_instance=instance, actor=actor)
+
+    # Update the excess receivable status to INVOICED
+    excess_receivable.status = InventoryDamageLossExcessReceivableStatus.INVOICED
+    excess_receivable.save(update_fields=["status", "updated_at"])
+
+    # Record audit events
+    record_audit_event_on_commit(
+        actor=actor,
+        action="excess_receivable.invoice_document_prepared",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={
+            "excess_receivable_id": str(excess_receivable.id),
+            "template_key": template_key,
+            "status": instance.status,
+        },
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="excess_receivable.invoice_document_generated",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={
+            "excess_receivable_id": str(excess_receivable.id),
+            "template_key": template_key,
+            "status": instance.status,
+            "content_checksum": result.content_checksum,
+        },
+    )
+
+    return instance

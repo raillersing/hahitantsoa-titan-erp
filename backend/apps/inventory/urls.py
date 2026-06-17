@@ -7,6 +7,7 @@ from apps.inventory.views import (
     InventoryDamageLossSettlementListCreateAPIView,
     InventoryDamageLossSettlementRetrieveAPIView,
     InventoryDamageLossSettlementValidateAPIView,
+    InventoryExcessReceivableGenerateInvoiceAPIView,
     InventoryItemListAPIView,
     InventoryItemRetrieveAPIView,
     InventoryReturnOperationListCreateAPIView,
@@ -46,6 +47,11 @@ urlpatterns = [
         "api/v1/inventory/return-operations/<uuid:id>/",
         InventoryReturnOperationRetrieveAPIView.as_view(),
         name="inventory-return-operation-detail",
+    ),
+    path(
+        "api/v1/inventory/excess-receivables/<uuid:id>/generate-invoice/",
+        InventoryExcessReceivableGenerateInvoiceAPIView.as_view(),
+        name="inventory-excess-receivable-generate-invoice",
     ),
     path(
         "api/v1/inventory/return-operations/<uuid:id>/validate/",

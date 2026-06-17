@@ -9,8 +9,10 @@ from django.db import transaction
 from django.template.loader import render_to_string
 
 from apps.documents.commercial import build_reservation_draft_commercial_document_context
+from apps.documents.excess_receivable import build_excess_receivable_invoice_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
+from apps.inventory.models import InventoryDamageLossExcessReceivable
 
 
 class DocumentRuntimeGenerationError(ValueError):
@@ -79,6 +81,25 @@ def generate_document_instance_html(
             )
         context = build_payment_receipt_context(payment=payment)
         template_path = "documents/shared_payment_receipt.html"
+    elif document_instance.template_key == "shared.damage_loss_excess_invoice.v1":
+        # Fetch the excess receivable linked to this document instance
+        excess_receivable = (
+            InventoryDamageLossExcessReceivable.objects.select_related(
+                "settlement_execution__settlement__return_operation__reservation_draft__customer"
+            )
+            .filter(settlement_execution__settlement__document_instance=document_instance)
+            .first()
+        )
+
+        if excess_receivable is None:
+            raise DocumentRuntimeGenerationError(
+                "Excess receivable document is not linked to an excess receivable source.",
+                code="EXCESS_RECEIVABLE_DOCUMENT_NOT_LINKED",
+            )
+
+        # Build context for excess receivable invoice
+        context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
+        template_path = "documents/shared_damage_loss_excess_invoice.html"
     else:
         context = build_reservation_draft_commercial_document_context(
             reservation_draft=document_instance.reservation_draft,
