@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+COMPOSE_FILE="$REPO_ROOT/compose.agent-ci.yaml"
+
+# Derive compose project name from the main git working tree (not the worktree basename)
+# so that label matching works regardless of worktree path.
+# --git-common-dir returns the main repo's .git path even from worktrees.
+GIT_COMMON_DIR="$(git rev-parse --git-common-dir)"
+MAIN_REPO_ROOT="$(CDPATH= cd -- "$GIT_COMMON_DIR/.." && pwd -P)"
+COMPOSE_PROJECT="$(basename "$MAIN_REPO_ROOT")"
+
+cd "$REPO_ROOT"
+
+DRY_RUN=1
+ALLOW_VOLUMES=0
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-docker-agent-cleanup [options]
+
+Options:
+  --apply               Perform changes (default is dry-run).
+  --dangerous-allow-volume-removal
+                        Allow removal of ERP agent CI volumes (postgres, redis data).
+                        This is destructive and must be explicitly authorized.
+  --help                Show this help.
+
+Purpose:
+  Safely stop and remove ERP agent CI Docker containers, networks, and
+  optionally volumes created by compose.agent-ci.yaml.
+
+  Designed to prevent accumulation of orphan agent CI infrastructure without
+  affecting production, n8n, or other non-ERP containers.
+
+Guarantees:
+  - Never removes Docker volumes unless --dangerous-allow-volume-removal is set.
+  - Never touches n8n or any container not created by compose.agent-ci.yaml.
+  - Never touches backend/frontend dependency caches (.venv, node_modules, pip, npm).
+  - Dry-run by default; use --apply to perform changes.
+
+Examples:
+  scripts/dev/erp-docker-agent-cleanup
+  scripts/dev/erp-docker-agent-cleanup --apply
+  scripts/dev/erp-docker-agent-cleanup --apply --dangerous-allow-volume-removal
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --apply)
+      DRY_RUN=0
+      ;;
+    --dangerous-allow-volume-removal)
+      ALLOW_VOLUMES=1
+      ;;
+    help|--help|-h)
+      print_usage
+      exit 0
+      ;;
+    -*)
+      echo "ERROR: unknown option: $1"
+      print_usage
+      exit 2
+      ;;
+    *)
+      echo "ERROR: unexpected argument: $1"
+      print_usage
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if [ ! -f "$COMPOSE_FILE" ]; then
+  echo "ERROR: missing compose file: $COMPOSE_FILE"
+  exit 1
+fi
+
+# ----- Label filter for ERP agent CI resources -----
+# Docker Compose applies labels: com.docker.compose.project=<project>
+COMPOSE_LABEL="com.docker.compose.project=${COMPOSE_PROJECT}"
+
+echo "============================================================"
+echo "ERP Agent CI Docker Cleanup"
+echo "============================================================"
+echo "COMPOSE_FILE: $COMPOSE_FILE"
+echo "COMPOSE_PROJECT: $COMPOSE_PROJECT"
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "MODE: dry-run (use --apply to perform changes)"
+else
+  echo "MODE: apply"
+fi
+
+if [ "$ALLOW_VOLUMES" -eq 1 ]; then
+  echo "VOLUMES: removal allowed (--dangerous-allow-volume-removal set)"
+else
+  echo "VOLUMES: preserved (use --dangerous-allow-volume-removal to allow removal)"
+fi
+
+echo ""
+
+# ----- Identify and stop/remove ERP agent CI containers -----
+echo "--- Containers ---"
+ERP_CONTAINERS="$(
+  docker ps -a --filter "label=${COMPOSE_LABEL}" \
+    --format '{{.Names}}' 2>/dev/null || true
+)"
+
+if [ -z "$ERP_CONTAINERS" ]; then
+  echo "No ERP agent CI containers found."
+else
+  echo "$ERP_CONTAINERS" | while IFS= read -r container; do
+    echo "Container: $container"
+    if [ "$DRY_RUN" -eq 0 ]; then
+      echo "  -> Stopping..."
+      docker stop "$container" 2>/dev/null || true
+      echo "  -> Removing..."
+      docker rm "$container" 2>/dev/null || true
+    else
+      echo "  -> WOULD stop and remove"
+    fi
+  done
+fi
+
+echo ""
+
+# ----- Identify and remove ERP agent CI networks -----
+echo "--- Networks ---"
+ERP_NETWORKS="$(
+  docker network ls --filter "label=${COMPOSE_LABEL}" \
+    --format '{{.Name}}' 2>/dev/null || true
+)"
+
+if [ -z "$ERP_NETWORKS" ]; then
+  echo "No ERP agent CI networks found."
+else
+  echo "$ERP_NETWORKS" | while IFS= read -r network; do
+    # Skip default networks that may be in use
+    case "$network" in
+      bridge|host|none)
+        echo "Skipping default network: $network"
+        continue
+        ;;
+    esac
+    echo "Network: $network"
+    if [ "$DRY_RUN" -eq 0 ]; then
+      echo "  -> Removing..."
+      docker network rm "$network" 2>/dev/null || true
+    else
+      echo "  -> WOULD remove"
+    fi
+  done
+fi
+
+echo ""
+
+# ----- Optionally remove ERP agent CI volumes -----
+echo "--- Volumes ---"
+if [ "$ALLOW_VOLUMES" -eq 1 ]; then
+  ERP_VOLUMES="$(
+    docker volume ls --filter "label=${COMPOSE_LABEL}" \
+      --format '{{.Name}}' 2>/dev/null || true
+  )"
+
+  if [ -z "$ERP_VOLUMES" ]; then
+    echo "No ERP agent CI volumes found."
+  else
+    echo "$ERP_VOLUMES" | while IFS= read -r volume; do
+      echo "Volume: $volume"
+      if [ "$DRY_RUN" -eq 0 ]; then
+        echo "  -> Removing..."
+        docker volume rm "$volume" 2>/dev/null || true
+      else
+        echo "  -> WOULD remove"
+      fi
+    done
+  fi
+else
+  echo "ERP agent CI volumes preserved (use --dangerous-allow-volume-removal to allow removal)."
+  echo "Volumes are intentionally kept to preserve test data and avoid expensive rebuilds."
+  echo "Expected volumes (from compose.agent-ci.yaml):"
+  echo "  - postgres_agent_ci_data"
+  echo "  - redis_agent_ci_data"
+fi
+
+echo ""
+
+# ----- Safety confirmation -----
+echo "--- Non-ERP resources (untouched) ---"
+echo "The following resources were NOT modified:"
+echo "  - n8n container"
+echo "  - Docker volumes (unless --dangerous-allow-volume-removal was set)"
+echo "  - Backend dependency caches (.venv, ~/.cache/pip)"
+echo "  - Frontend dependency caches (node_modules, ~/.npm)"
+echo "  - Any non-ERP containers or networks"
+echo ""
+
+echo "============================================================"
+if [ "$DRY_RUN" -eq 1 ]; then
+  echo "Dry-run complete. Run with --apply to perform cleanup."
+else
+  echo "Cleanup complete."
+fi
+echo "============================================================"
