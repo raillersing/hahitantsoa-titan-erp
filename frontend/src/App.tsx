@@ -7,7 +7,9 @@ import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
 import HahitantsoaEventDraftsPanel from "./HahitantsoaEventDraftsPanel";
 import DashboardPanel from "./DashboardPanel";
 import HahitantsoaCommercialOpsPanel from "./HahitantsoaCommercialOpsPanel";
+import TitanStockMovementPanel from "./TitanStockMovementPanel";
 import type { InventoryItem } from "./types";
+
 
 type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops";
 
@@ -252,6 +254,11 @@ function App() {
               ) : null}
 
               <AvailabilityPanel
+                inventoryItems={
+                  inventoryState.status === "loaded" ? inventoryState.items : []
+                }
+              />
+              <TitanStockMovementPanel
                 inventoryItems={
                   inventoryState.status === "loaded" ? inventoryState.items : []
                 }

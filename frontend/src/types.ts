@@ -462,3 +462,43 @@ export type StockMovementRecord = {
   created_at: string;
   updated_at: string;
 };
+
+// ---- Inventory Stock Movements (live backend — api/v1/inventory/stock-movements/) ----
+
+export type InventoryStockMovementType =
+  | 'outbound_delivery'
+  | 'inbound_return'
+  | 'adjustment_in'
+  | 'adjustment_out'
+  | 'damage'
+  | 'loss'
+  | 'other';
+
+export type InventoryStockMovementDirection = 'inbound' | 'outbound';
+
+export type InventoryStockMovement = {
+  id: string;
+  inventory_item: string;
+  reservation_draft: string | null;
+  movement_type: InventoryStockMovementType;
+  direction: InventoryStockMovementDirection;
+  quantity: number;
+  source_label: string;
+  notes: string;
+  effective_at: string;
+  validated_at: string;
+  validated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockMovementCreatePayload = {
+  inventory_item: string;
+  reservation_draft?: string | null;
+  movement_type: InventoryStockMovementType;
+  direction: InventoryStockMovementDirection;
+  quantity: number;
+  source_label?: string;
+  notes?: string;
+  effective_at?: string;
+};
