@@ -9,6 +9,151 @@
     "docs/ai-agents/NEW_CONVERSATION_STARTERS.md",
     "docs/ai-agents/review-agent-template.md",
     "docs/ai-agents/cross-agent-compatibility.md",
-    "docs/ai-agents/tooling/opencode-workflow.md"
-  ]
+    "docs/ai-agents/tooling/opencode-workflow.md",
+    "docs/ai-agents/backend-agent-template.md",
+    "docs/ai-agents/frontend-agent-template.md",
+    "docs/ai-agents/prompt-contracts/backend-orchestrator.md",
+    "docs/ai-agents/prompt-contracts/frontend-orchestrator.md",
+    "docs/ai-agents/orchestrator-task-queue.md"
+  ],
+  "agent": {
+    "backend-orchestrator": {
+      "description": "Backend orchestration adapter — references docs/ai-agents contracts",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/agents/backend-orchestrator.md}",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "ask",
+        "write": "ask",
+        "bash": {
+          "*": "ask",
+          "git status *": "allow",
+          "git diff *": "allow",
+          "git log *": "allow",
+          "git branch *": "allow",
+          "git rev-parse *": "allow",
+          "git merge-base *": "allow",
+          "git fetch *": "allow",
+          "gh pr view *": "allow",
+          "gh run list *": "allow"
+        },
+        "task": "ask",
+        "webfetch": "deny",
+        "websearch": "deny"
+      }
+    },
+    "frontend-orchestrator": {
+      "description": "Frontend orchestration adapter — references docs/ai-agents contracts",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/agents/frontend-orchestrator.md}",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "ask",
+        "write": "ask",
+        "bash": {
+          "*": "ask",
+          "git status *": "allow",
+          "git diff *": "allow",
+          "git log *": "allow",
+          "git branch *": "allow",
+          "git rev-parse *": "allow",
+          "git fetch *": "allow",
+          "gh pr view *": "allow"
+        },
+        "task": "ask",
+        "webfetch": "deny",
+        "websearch": "deny"
+      }
+    },
+    "docs-agent": {
+      "description": "Docs/audit adapter — read and write docs without system mutation",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/agents/docs-agent.md}",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "ask",
+        "write": "ask",
+        "bash": {
+          "*": "ask",
+          "git status *": "allow",
+          "git diff *": "allow",
+          "git log *": "allow",
+          "git branch *": "allow",
+          "git rev-parse *": "allow"
+        },
+        "task": "deny",
+        "webfetch": "deny",
+        "websearch": "deny"
+      }
+    },
+    "review-agent": {
+      "description": "Independent review adapter — read-only inspection, no mutation",
+      "mode": "subagent",
+      "prompt": "{file:.opencode/agents/review-agent.md}",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "write": "deny",
+        "bash": {
+          "*": "ask",
+          "git status *": "allow",
+          "git diff *": "allow",
+          "git log *": "allow",
+          "git branch *": "allow",
+          "git rev-parse *": "allow",
+          "git merge-base *": "allow",
+          "gh pr view *": "allow",
+          "gh pr checks *": "allow"
+        },
+        "task": "deny",
+        "webfetch": "deny",
+        "websearch": "deny"
+      }
+    }
+  },
+  "command": {
+    "task-start": {
+      "description": "Run integrated task-start baseline per agent-command-runbook.md",
+      "agent": "backend-orchestrator",
+      "template": "Run the project-approved task-start baseline as the first command. Use:\n\nscripts/dev/erp-logged-run task-start <<'EOF'\nset -euo pipefail\nbash scripts/dev/erp-agent-task-start\nEOF\n\nThen confirm: branch, baseline commit, clean status."
+    },
+    "worktree-preflight": {
+      "description": "Run erp-worktree-preflight and erp-agent-scope-guard",
+      "agent": "backend-orchestrator",
+      "template": "Run the worktree preflight and scope guard for the active task profile:\n\nscripts/dev/erp-logged-run task-preflight <<'EOF'\nset -euo pipefail\nscripts/dev/erp-worktree-preflight\nscripts/dev/erp-agent-scope-guard backend|frontend|agent-tools\nEOF\n\nReport any mismatch or forbidden paths."
+    },
+    "pr-create": {
+      "description": "Create a PR following the runbook convention",
+      "agent": "docs-agent",
+      "template": "Push the current branch and create a PR:\n\n1. git push -u origin $(git branch --show-current)\n2. gh pr create --base main --head $(git branch --show-current) --title \"type(scope): concise summary\" --body \"PR body following task-prompt-template.md\"\n3. gh pr checks PR-NUMBER --watch --interval 15\n\nDo NOT merge. Report the PR URL."
+    }
+  },
+  "permission": {
+    "*": "ask",
+    "edit": "ask",
+    "write": "ask",
+    "bash": {
+      "*": "ask",
+      "git status *": "allow",
+      "git diff *": "allow",
+      "git log *": "allow",
+      "git branch *": "allow",
+      "git rev-parse *": "allow"
+    },
+    "task": "ask",
+    "webfetch": "ask",
+    "websearch": "ask"
+  }
 }

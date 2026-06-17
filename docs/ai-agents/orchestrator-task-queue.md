@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44` and F145B at merge commit `27973be`.
-- Current `origin/main` HEAD is `db9fd45` (feat(frontend): commercial operations foundation shell (#251)).
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, and F147B at merge commit `26ba1de`.
+- Current `origin/main` HEAD is `84a76ea` (Merge pull request #259).
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -171,9 +171,9 @@ Expected validation:
 ### F147B
 
 Status:
-- completed compliance smoke test
+- merged
 - baseline: origin/main at db9fd45
-- branch: docs/f147b-orchestrator-compliance-smoke-test
+- branch: docs/f147b-orchestrator-compliance-smoke-test (merged as PR #253)
 - scope: orchestrator compliance smoke test, docs/audits audit file, task queue update
 
 Result:
@@ -181,10 +181,31 @@ Result:
 - gap identified: erp-agent-scope-guard lacks a dedicated `agent-docs` profile
 - agent-command-runbook.md reviewed — no correction needed
 
-### F147C (recommended next safe bundle)
+### F147C
 
 Status:
-- recommended next agents/docs governance task after F147B merge
+- completed agents/docs governance task
+- baseline: origin/main at 84a76ea
+- branch: docs/f147c-opencode-project-config
+- scope: OpenCode project config with adapter agents, commands, and permissions
+
+Scope delivered:
+- opencode.json — updated with agent/command/permission config
+- .opencode/agents/ — backend-orchestrator, frontend-orchestrator, docs-agent, review-agent adapters
+- .opencode/commands/ — task-start, worktree-preflight, pr-create commands
+- All agents reference existing docs/ai-agents contracts — no duplication
+- Permissions default to ask/deny for risky actions
+- No automatic merge
+
+Expected validation:
+- git diff --check
+- PR CI green before merge
+- main CI green after merge
+
+### F147D (recommended next safe bundle)
+
+Status:
+- recommended next agents/docs governance task after F147C merge
 
 Scope:
 - add `agent-docs` profile to erp-agent-scope-guard
