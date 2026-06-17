@@ -293,6 +293,37 @@ scripts/dev/erp-pr-finalize-from-root PR-NUMBER \
 EOF
 ```
 
+### Worktree PR Finalization
+
+_Available after F148B merge._
+
+As an alternative to root-only finalization, a dedicated worktree may finalize its own PR
+using `scripts/dev/erp-pr-worktree-finalize`. This avoids the `cannot delete branch used
+by worktree` error by:
+
+- merging with `gh pr merge --squash --match-head-commit` without `--delete-branch`
+- confirming PR state becomes MERGED and main CI is green
+- removing the worktree with `git worktree remove`
+- deleting the local and remote branches after the worktree is gone
+- pruning stale worktree metadata
+
+Only use this when the worktree is dedicated to the task and the user has explicitly
+authorized finalization. Hard stops are enforced for dirty worktrees, unmergeable PRs,
+failing CI, and missing arguments.
+
+```sh
+scripts/dev/erp-logged-run task-pr-worktree-finalize <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-pr-worktree-finalize PR-NUMBER \
+  --worktree /path/to/worktree \
+  --branch branch-name
+EOF
+```
+
+If both `--worktree` and `--branch` are omitted, the script uses the current worktree and
+branch.
+
 ### PR Check Finalization Rules
 
 - **Required Checks:** Verification of required PR checks via `gh pr checks <PR> --required` is preferred when configured on the branch protection rules.

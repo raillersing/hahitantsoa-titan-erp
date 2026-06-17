@@ -1,0 +1,290 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+PR_NUMBER=""
+WORKTREE_PATH=""
+BRANCH=""
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-pr-worktree-finalize <pr-number> [options]
+
+Options:
+  --worktree <path>     Path to the worktree to remove after merge (default: current worktree path).
+  --branch <branch>     Branch to delete after merge (default: current branch).
+  --help                Show this help.
+
+Purpose:
+  Safely finalize a PR from its own dedicated worktree by:
+  - requiring a clean worktree and valid PR argument
+  - requiring PR state OPEN and mergeable MERGEABLE
+  - merging with gh pr merge --squash --match-head-commit and without --delete-branch
+  - confirming PR state becomes MERGED and main CI is green
+  - removing the clean worktree with git worktree remove
+  - deleting the local branch with git branch -D after MERGED confirmation
+  - deleting the remote branch with git push origin --delete --prune
+  - pruning stale worktree metadata
+
+Hard stops:
+  - Worktree is dirty
+  - PR is not OPEN or not MERGEABLE
+  - Required checks are not passing
+  - PR does not become MERGED after merge attempt
+  - Main CI is not green
+  - Worktree removal fails
+  - Branch or PR arguments are missing
+
+Notes:
+  This helper never reads, sources, prints, copies, or creates .env.
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --worktree)
+      shift
+      WORKTREE_PATH="${1:-}"
+      ;;
+    --branch)
+      shift
+      BRANCH="${1:-}"
+      ;;
+    --help|-h|help)
+      print_usage
+      exit 0
+      ;;
+    -*)
+      echo "ERROR: unknown option: $1"
+      print_usage
+      exit 2
+      ;;
+    *)
+      if [ -n "$PR_NUMBER" ]; then
+        echo "ERROR: only one PR number may be provided"
+        print_usage
+        exit 2
+      fi
+      PR_NUMBER="$1"
+      ;;
+  esac
+  shift
+done
+
+if [ -z "$PR_NUMBER" ]; then
+  print_usage
+  exit 2
+fi
+
+# ----- Hard stop: worktree must be clean -----
+STATUS_OUTPUT="$(git status --short)"
+if [ -n "$STATUS_OUTPUT" ]; then
+  echo "ERROR: worktree is dirty. Commit or stash changes before finalizing."
+  printf '%s\n' "$STATUS_OUTPUT"
+  exit 1
+fi
+echo "OK: worktree is clean."
+
+# ----- Determine worktree and branch -----
+CURRENT_PATH="$(cd "$REPO_ROOT" && pwd -P)"
+if [ -z "$WORKTREE_PATH" ]; then
+  WORKTREE_PATH="$CURRENT_PATH"
+fi
+if [ -z "$BRANCH" ]; then
+  BRANCH="$(git branch --show-current 2>/dev/null || true)"
+  if [ -z "$BRANCH" ]; then
+    echo "ERROR: cannot determine current branch. Provide --branch."
+    exit 1
+  fi
+fi
+
+# ----- Hard stop: branch must not be main/master -----
+case "$BRANCH" in
+  main|master)
+    echo "ERROR: refusing to finalize protected branch: $BRANCH"
+    exit 1
+    ;;
+esac
+
+# ----- Hard stop: worktree must not be the main repo -----
+MAIN_PATH=""
+while IFS= read -r line; do
+  case "$line" in
+    worktree\ *)
+      path="${line#worktree }"
+      if [ -z "$MAIN_PATH" ]; then
+        MAIN_PATH="$path"
+      fi
+      ;;
+  esac
+done < <(git worktree list --porcelain)
+
+if [ "$WORKTREE_PATH" = "$MAIN_PATH" ]; then
+  echo "ERROR: refusing to remove the main repository worktree"
+  exit 1
+fi
+
+# ----- Hard stop: worktree must exist -----
+if [ ! -d "$WORKTREE_PATH" ]; then
+  echo "ERROR: worktree path not found: $WORKTREE_PATH"
+  exit 1
+fi
+
+echo "PR: #$PR_NUMBER"
+echo "WORKTREE: $WORKTREE_PATH"
+echo "BRANCH: $BRANCH"
+
+# ----- Fetch PR metadata -----
+PR_HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')"
+PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+PR_MERGEABLE="$(gh pr view "$PR_NUMBER" --json mergeable --jq '.mergeable')"
+PR_TITLE="$(gh pr view "$PR_NUMBER" --json title --jq '.title')"
+PR_BASE_BRANCH="$(gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName')"
+PR_HEAD_BRANCH="$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')"
+
+if [ "$PR_BASE_BRANCH" != "main" ]; then
+  echo "ERROR: PR #$PR_NUMBER does not target main (targets: $PR_BASE_BRANCH)"
+  exit 1
+fi
+
+if [ "$PR_HEAD_BRANCH" != "$BRANCH" ]; then
+  echo "ERROR: PR head branch '$PR_HEAD_BRANCH' differs from task branch '$BRANCH'"
+  exit 1
+fi
+
+# ----- Hard stop: PR must be OPEN before merge -----
+if [ "$PR_STATE" != "OPEN" ]; then
+  echo "ERROR: PR #$PR_NUMBER must be OPEN; got $PR_STATE"
+  exit 1
+fi
+
+# ----- Hard stop: PR must be mergeable -----
+if [ "$PR_MERGEABLE" != "MERGEABLE" ]; then
+  echo "ERROR: PR #$PR_NUMBER is not mergeable: $PR_MERGEABLE"
+  exit 1
+fi
+
+# ----- Hard stop: required checks must pass -----
+echo "INFO: Validating required checks for PR #$PR_NUMBER..."
+required_ok=0
+if gh pr checks "$PR_NUMBER" --required >/dev/null 2>&1; then
+  required_ok=1
+fi
+
+if [ "$required_ok" -eq 1 ]; then
+  echo "OK: Required checks verified via gh pr checks --required."
+else
+  echo "INFO: gh pr checks --required did not report success. Validating statusCheckRollup..."
+  failed_count="$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null)] | length' 2>/dev/null || echo "0")"
+  if [ "${failed_count:-0}" -gt 0 ]; then
+    echo "ERROR: One or more required checks have failed."
+    gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null) | "Check run \(.name) is \(.conclusion)"'
+    exit 1
+  fi
+fi
+
+# ----- Merge PR without --delete-branch -----
+echo "INFO: Merging PR #$PR_NUMBER..."
+gh pr merge "$PR_NUMBER" --squash --match-head-commit "$PR_HEAD_SHA"
+
+echo "INFO: Waiting for PR state to become MERGED..."
+for attempt in $(seq 1 30); do
+  PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+  if [ "$PR_STATE" = "MERGED" ]; then
+    echo "OK: PR #$PR_NUMBER is MERGED."
+    break
+  fi
+  if [ "$attempt" -eq 30 ]; then
+    echo "ERROR: PR #$PR_NUMBER did not become MERGED within timeout (state: $PR_STATE)"
+    exit 1
+  fi
+  sleep 5
+done
+
+# ----- Pull updated main -----
+git fetch origin --prune
+git pull --ff-only origin main
+
+# ----- Hard stop: wait for main CI green -----
+CURRENT_MAIN_SHA="$(git rev-parse HEAD)"
+echo "INFO: Waiting for main CI run for SHA $CURRENT_MAIN_SHA..."
+
+MAIN_CI_RUN_ID=""
+for attempt in $(seq 1 45); do
+  MAIN_CI_RUN_ID="$(gh run list --branch main --event push --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$CURRENT_MAIN_SHA\") | .databaseId" 2>/dev/null | head -n 1 || true)"
+  if [ -n "$MAIN_CI_RUN_ID" ]; then
+    echo "OK: Found main CI run: $MAIN_CI_RUN_ID"
+    break
+  fi
+  echo "INFO: Awaiting CI trigger... (attempt $attempt/45)"
+  sleep 10
+done
+
+if [ -z "$MAIN_CI_RUN_ID" ]; then
+  echo "ERROR: No main CI run found for SHA $CURRENT_MAIN_SHA"
+  exit 1
+fi
+
+STATUS="$(gh run view "$MAIN_CI_RUN_ID" --json status --jq '.status')"
+if [ "$STATUS" != "completed" ]; then
+  echo "INFO: Main CI run is $STATUS. Watching run $MAIN_CI_RUN_ID..."
+  gh run watch "$MAIN_CI_RUN_ID" --interval 10 --exit-status || true
+fi
+
+CONCLUSION="$(gh run view "$MAIN_CI_RUN_ID" --json conclusion --jq '.conclusion')"
+if [ "$CONCLUSION" != "success" ]; then
+  echo "ERROR: Main CI run conclusion is: $CONCLUSION (expected success)"
+  exit 1
+fi
+
+echo "OK: Main CI is green."
+
+# ----- Remove worktree -----
+echo "INFO: Removing worktree: $WORKTREE_PATH"
+if ! git worktree remove "$WORKTREE_PATH"; then
+  echo "ERROR: Failed to remove worktree: $WORKTREE_PATH"
+  echo "Recovery: ensure no shell or process still holds the directory."
+  exit 1
+fi
+echo "OK: Worktree removed."
+
+# ----- Delete local branch -----
+echo "INFO: Deleting local branch: $BRANCH"
+LATEST_PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+if [ "$LATEST_PR_STATE" != "MERGED" ]; then
+  echo "ERROR: refusing forced branch deletion because PR #$PR_NUMBER is not MERGED: $LATEST_PR_STATE"
+  exit 1
+fi
+
+if git rev-parse --verify "refs/heads/$BRANCH" >/dev/null 2>&1; then
+  git branch -D "$BRANCH"
+  echo "OK: Local branch deleted: $BRANCH"
+else
+  echo "INFO: Local branch already absent: $BRANCH"
+fi
+
+# ----- Delete remote branch and prune -----
+if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+  echo "INFO: Deleting remote branch: $BRANCH"
+  git push origin --delete "$BRANCH" || true
+fi
+
+git remote prune origin
+
+# ----- Print final state -----
+echo "FINALIZED_PR: #$PR_NUMBER"
+echo "PR_TITLE: $PR_TITLE"
+echo "MAIN_CI_RUN_ID: $MAIN_CI_RUN_ID"
+
+echo
+echo "==== FINAL GIT STATUS ===="
+git status --short
+
+echo
+echo "==== FINAL WORKTREE LIST ===="
+git worktree list

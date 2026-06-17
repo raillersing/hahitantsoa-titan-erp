@@ -51,7 +51,6 @@ Status:
 Scope:
 - documents runtime and commercial artifact completion
 - backend-only implementation
-- no frontend modification
 
 Expected worktree:
 - backend-dedicated worktree only
@@ -258,6 +257,29 @@ Validation:
 - bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
 - git diff --check — PASS
 - PR CI green before merge (last run: success)
+
+### F148B
+
+Status:
+- open PR — awaiting human merge
+- baseline: origin/main at 50ec2b0
+- branch: docs/f148a-completion-audit
+- scope: add safe worktree PR finalization wrapper
+
+Scope delivered:
+- scripts/dev/erp-pr-worktree-finalize — worktree-safe PR finalization script
+- docs/ai-agents/agent-command-runbook.md — updated with worktree finalization section
+- docs/audits/F148B_SAFE_WORKTREE_PR_FINALIZATION.md — audit note
+
+New wrapper command:
+- `scripts/dev/erp-pr-worktree-finalize <pr-number>` — merges PR without --delete-branch,
+  confirms MERGED + green main CI, removes worktree, deletes branch, prunes refs
+
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-tools — PASS
+- bash scripts/dev/erp-pr-worktree-finalize --help — shows usage
+- git diff --check — PASS
+- PR CI green before merge
 
 ## Later Repair Track
 
