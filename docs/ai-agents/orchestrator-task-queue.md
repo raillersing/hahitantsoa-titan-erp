@@ -101,11 +101,20 @@ Scope:
 ### F145F
 
 Status:
-- queued after F145E
+- active backend task after F145E
 
 Scope:
-- end-to-end commercial acceptance
-- backend-only implementation unless separately approved otherwise
+- damage/loss settlement foundation
+- backend-only implementation
+
+### F145G
+
+Status:
+- queued after F145F
+
+Scope:
+- caution refund, excess invoice, and later commercial closeout foundations
+- backend-only implementation
 
 ## Frontend Next Task
 

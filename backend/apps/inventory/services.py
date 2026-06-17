@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
 from apps.inventory.models import (
     FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS,
+    InventoryDamageLossSettlement,
+    InventoryDamageLossSettlementLine,
+    InventoryDamageLossSettlementStatus,
     InventoryItem,
     InventoryReturnOperation,
     InventoryReturnOperationLine,
@@ -17,6 +22,7 @@ from apps.inventory.models import (
     InventoryStockMovementDirection,
     InventoryStockMovementType,
 )
+from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 
 
 class InventoryStockMovementError(ValueError):
@@ -29,12 +35,22 @@ INVALID_INVENTORY_STOCK_MOVEMENT_DIRECTION = "invalid_inventory_stock_movement_d
 INVALID_INVENTORY_STOCK_MOVEMENT = "invalid_inventory_stock_movement"
 INVALID_RETURN_OPERATION_STATE = "invalid_return_operation_state"
 INVALID_RETURN_OPERATION = "invalid_return_operation"
+INVALID_DAMAGE_LOSS_SETTLEMENT_STATE = "invalid_damage_loss_settlement_state"
+INVALID_DAMAGE_LOSS_SETTLEMENT = "invalid_damage_loss_settlement"
+INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE = (
+    "invalid_damage_loss_settlement_return_operation_state"
+)
 
 
 @dataclass(frozen=True)
 class ReturnOperationValidationResult:
     return_operation: InventoryReturnOperation
     stock_movements: tuple[InventoryStockMovement, ...]
+
+
+@dataclass(frozen=True)
+class DamageLossSettlementValidationResult:
+    settlement: InventoryDamageLossSettlement
 
 
 def active_inventory_stock_movements():
@@ -58,6 +74,21 @@ def active_inventory_return_operations():
             "updated_by",
         )
         .prefetch_related("lines", "lines__inventory_item")
+        .order_by("-created_at", "id")
+    )
+
+
+def active_inventory_damage_loss_settlements():
+    return (
+        InventoryDamageLossSettlement.objects.select_related(
+            "return_operation",
+            "return_operation__reservation_draft",
+            "document_instance",
+            "validated_by",
+            "created_by",
+            "updated_by",
+        )
+        .prefetch_related("lines", "lines__return_operation_line")
         .order_by("-created_at", "id")
     )
 
@@ -165,6 +196,87 @@ def create_inventory_stock_movement(
         },
     )
     return movement
+
+
+def _coerce_decimal_amount(value) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
+
+
+def calculate_caution_available_for_return_operation(
+    return_operation: InventoryReturnOperation,
+) -> Decimal:
+    if return_operation.reservation_draft_id is None:
+        return Decimal("0.00")
+
+    aggregate = Payment.objects.filter(
+        reservation_draft=return_operation.reservation_draft,
+        payment_kind=PaymentKind.CAUTION,
+        payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+    ).aggregate(total=Sum("amount"))
+    return aggregate["total"] or Decimal("0.00")
+
+
+@transaction.atomic
+def create_inventory_damage_loss_settlement(
+    *,
+    return_operation: InventoryReturnOperation,
+    lines: list[dict] | tuple[dict, ...],
+    actor: object | None = None,
+    document_instance=None,
+    notes: str = "",
+) -> InventoryDamageLossSettlement:
+    actor_id = getattr(actor, "pk", None)
+    settlement = InventoryDamageLossSettlement(
+        return_operation=return_operation,
+        document_instance=document_instance,
+        notes=notes,
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
+    )
+    try:
+        settlement.full_clean()
+        settlement.save()
+        line_models = []
+        for line_data in lines:
+            line = InventoryDamageLossSettlementLine(
+                settlement=settlement,
+                created_by_id=actor_id,
+                updated_by_id=actor_id,
+                **line_data,
+            )
+            line.full_clean()
+            line_models.append(line)
+    except ValidationError as error:
+        first_field_errors = next(iter(error.message_dict.values()), error.messages)
+        message = first_field_errors[0] if first_field_errors else "Invalid damage/loss settlement."
+        raise InventoryStockMovementError(
+            message,
+            code=(
+                INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE
+                if "return_operation" in error.message_dict
+                else INVALID_DAMAGE_LOSS_SETTLEMENT
+            ),
+        ) from error
+
+    InventoryDamageLossSettlementLine.objects.bulk_create(line_models)
+    record_audit_event_on_commit(
+        actor=actor,
+        action="inventory.damage_loss_settlement_created",
+        target_type="inventory_damage_loss_settlement",
+        target_id=str(settlement.id),
+        metadata={
+            "return_operation_id": str(settlement.return_operation_id),
+            "reservation_draft_id": (
+                str(settlement.return_operation.reservation_draft_id)
+                if settlement.return_operation.reservation_draft_id
+                else None
+            ),
+            "line_count": len(line_models),
+        },
+    )
+    return settlement
 
 
 @transaction.atomic
@@ -315,3 +427,89 @@ def validate_inventory_return_operation(
         return_operation=locked_return_operation,
         stock_movements=tuple(stock_movements),
     )
+
+
+@transaction.atomic
+def validate_inventory_damage_loss_settlement(
+    *,
+    settlement: InventoryDamageLossSettlement,
+    actor: object | None = None,
+) -> DamageLossSettlementValidationResult:
+    locked_settlement = InventoryDamageLossSettlement.objects.select_for_update().get(
+        pk=settlement.pk
+    )
+    locked_settlement = InventoryDamageLossSettlement.objects.select_related(
+        "return_operation",
+        "return_operation__reservation_draft",
+    ).get(pk=locked_settlement.pk)
+    locked_lines = list(
+        InventoryDamageLossSettlementLine.objects.filter(settlement=locked_settlement).order_by(
+            "created_at", "id"
+        )
+    )
+    if locked_settlement.settlement_status != InventoryDamageLossSettlementStatus.DRAFT:
+        raise InventoryStockMovementError(
+            "Damage/loss settlement is not in draft state.",
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT_STATE,
+        )
+
+    if locked_settlement.return_operation.status != InventoryReturnOperationStatus.VALIDATED:
+        raise InventoryStockMovementError(
+            "Damage/loss settlement requires a validated return operation.",
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE,
+        )
+
+    damage_loss_total = sum(
+        (_coerce_decimal_amount(line.total_amount) for line in locked_lines),
+        Decimal("0.00"),
+    )
+    caution_available = calculate_caution_available_for_return_operation(
+        locked_settlement.return_operation
+    )
+    caution_applied = min(damage_loss_total, caution_available)
+    refund_due = max(caution_available - damage_loss_total, Decimal("0.00"))
+    excess_due = max(damage_loss_total - caution_available, Decimal("0.00"))
+    actor_id = getattr(actor, "pk", None)
+    validated_at = timezone.now()
+
+    locked_settlement.damage_loss_total = damage_loss_total
+    locked_settlement.caution_available = caution_available
+    locked_settlement.caution_applied = caution_applied
+    locked_settlement.refund_due = refund_due
+    locked_settlement.excess_due = excess_due
+    locked_settlement.settlement_status = InventoryDamageLossSettlementStatus.VALIDATED
+    locked_settlement.validated_at = validated_at
+    locked_settlement.validated_by_id = actor_id
+    locked_settlement.updated_by_id = actor_id
+    try:
+        locked_settlement.full_clean()
+    except ValidationError as error:
+        first_field_errors = next(iter(error.message_dict.values()), error.messages)
+        message = first_field_errors[0] if first_field_errors else "Invalid damage/loss settlement."
+        raise InventoryStockMovementError(
+            message,
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT,
+        ) from error
+    locked_settlement.save()
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="inventory.damage_loss_settlement_validated",
+        target_type="inventory_damage_loss_settlement",
+        target_id=str(locked_settlement.id),
+        metadata={
+            "return_operation_id": str(locked_settlement.return_operation_id),
+            "reservation_draft_id": (
+                str(locked_settlement.return_operation.reservation_draft_id)
+                if locked_settlement.return_operation.reservation_draft_id
+                else None
+            ),
+            "damage_loss_total": str(damage_loss_total),
+            "caution_available": str(caution_available),
+            "caution_applied": str(caution_applied),
+            "refund_due": str(refund_due),
+            "excess_due": str(excess_due),
+            "line_count": len(locked_lines),
+        },
+    )
+    return DamageLossSettlementValidationResult(settlement=locked_settlement)

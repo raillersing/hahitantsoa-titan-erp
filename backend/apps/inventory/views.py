@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 
 from apps.inventory.models import InventoryItem
 from apps.inventory.serializers import (
+    InventoryDamageLossSettlementCreateSerializer,
+    InventoryDamageLossSettlementSerializer,
     InventoryItemSerializer,
     InventoryReturnOperationCreateSerializer,
     InventoryReturnOperationSerializer,
@@ -15,10 +17,13 @@ from apps.inventory.serializers import (
 )
 from apps.inventory.services import (
     InventoryStockMovementError,
+    active_inventory_damage_loss_settlements,
     active_inventory_return_operations,
     active_inventory_stock_movements,
+    create_inventory_damage_loss_settlement,
     create_inventory_return_operation,
     create_inventory_stock_movement,
+    validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
 )
 
@@ -175,5 +180,89 @@ class InventoryReturnOperationValidateAPIView(APIView):
 
         return Response(
             InventoryReturnOperationSerializer(result.return_operation).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class InventoryDamageLossSettlementListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "post":
+            return InventoryDamageLossSettlementCreateSerializer
+        return InventoryDamageLossSettlementSerializer
+
+    def get_queryset(self):
+        return active_inventory_damage_loss_settlements()
+
+    @extend_schema(
+        request=InventoryDamageLossSettlementCreateSerializer,
+        responses={
+            201: InventoryDamageLossSettlementSerializer,
+            400: OpenApiResponse(description="Damage/loss settlement validation failed."),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            settlement = create_inventory_damage_loss_settlement(
+                actor=request.user,
+                **serializer.validated_data,
+            )
+        except InventoryStockMovementError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            InventoryDamageLossSettlementSerializer(settlement).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class InventoryDamageLossSettlementRetrieveAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        settlement = active_inventory_damage_loss_settlements().filter(id=id).first()
+        if settlement is None:
+            raise Http404("Inventory damage/loss settlement not found.")
+
+        return Response(InventoryDamageLossSettlementSerializer(settlement).data)
+
+
+class InventoryDamageLossSettlementValidateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: InventoryDamageLossSettlementSerializer,
+            400: OpenApiResponse(description="Damage/loss settlement validation failed."),
+        },
+    )
+    def post(self, request, id):
+        settlement = active_inventory_damage_loss_settlements().filter(id=id).first()
+        if settlement is None:
+            raise Http404("Inventory damage/loss settlement not found.")
+
+        try:
+            result = validate_inventory_damage_loss_settlement(
+                settlement=settlement,
+                actor=request.user,
+            )
+        except InventoryStockMovementError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            InventoryDamageLossSettlementSerializer(result.settlement).data,
             status=status.HTTP_200_OK,
         )

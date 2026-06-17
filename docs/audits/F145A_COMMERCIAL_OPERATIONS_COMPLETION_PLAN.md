@@ -237,6 +237,15 @@ Needed backend surfaces:
 - inventory adjustment linkage from damage/loss outcomes;
 - auditable resolution flow for returned, damaged, missing, or repairable items.
 
+Later bundles after the first settlement foundation remain explicitly required for:
+
+- inventory default valuation sources;
+- pricing or barème tables;
+- per-transaction amount overrides;
+- discount or remise handling;
+- caution refund execution;
+- excess damage/loss invoice generation.
+
 ### End-To-End Commercial Acceptance
 
 Needed backend surfaces:

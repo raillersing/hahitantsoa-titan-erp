@@ -1,6 +1,9 @@
 from django.urls import path
 
 from apps.inventory.views import (
+    InventoryDamageLossSettlementListCreateAPIView,
+    InventoryDamageLossSettlementRetrieveAPIView,
+    InventoryDamageLossSettlementValidateAPIView,
     InventoryItemListAPIView,
     InventoryItemRetrieveAPIView,
     InventoryReturnOperationListCreateAPIView,
@@ -45,5 +48,20 @@ urlpatterns = [
         "api/v1/inventory/return-operations/<uuid:id>/validate/",
         InventoryReturnOperationValidateAPIView.as_view(),
         name="inventory-return-operation-validate",
+    ),
+    path(
+        "api/v1/inventory/damage-loss-settlements/",
+        InventoryDamageLossSettlementListCreateAPIView.as_view(),
+        name="inventory-damage-loss-settlement-list",
+    ),
+    path(
+        "api/v1/inventory/damage-loss-settlements/<uuid:id>/",
+        InventoryDamageLossSettlementRetrieveAPIView.as_view(),
+        name="inventory-damage-loss-settlement-detail",
+    ),
+    path(
+        "api/v1/inventory/damage-loss-settlements/<uuid:id>/validate/",
+        InventoryDamageLossSettlementValidateAPIView.as_view(),
+        name="inventory-damage-loss-settlement-validate",
     ),
 ]
