@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, and F147D at merge commit `50ec2b0`.
-- Current `origin/main` HEAD is `50ec2b0` (Merge pull request #262).
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, F148A at `b5c8dca` (PR #264), and F148B at `c8ba67b` (PR #265).
+- Current `origin/main` HEAD is `c8ba67b` (Merge pull request #265).
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -243,27 +243,21 @@ Validation:
 ### F148A
 
 Status:
-- open PR #264 — awaiting human merge
+- merged as PR #264
 - baseline: origin/main at 50ec2b0
-- branch: docs/f148a-completion-audit
+- branch: docs/f148a-completion-audit (merged)
 - scope: application-wide completion audit — compute 10-domain weighted completion from repository evidence
 
 Scope delivered:
 - docs/audits/F148A_APPLICATION_WIDE_COMPLETION_AUDIT.md — 10-domain weighted audit, evidence, gaps, risks, next-5 bundles
 - Estimated overall completion: 59.5%
-- Provides baseline percentages for planning the next work cycle
-
-Validation:
-- bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
-- git diff --check — PASS
-- PR CI green before merge (last run: success)
 
 ### F148B
 
 Status:
-- open PR — awaiting human merge
-- baseline: origin/main at 50ec2b0
-- branch: docs/f148a-completion-audit
+- merged as PR #265
+- baseline: origin/main at 50ec2b0 (main has advanced since)
+- branch: docs/f148a-completion-audit (merged as F148B on same branch)
 - scope: add safe worktree PR finalization wrapper
 
 Scope delivered:
@@ -271,9 +265,32 @@ Scope delivered:
 - docs/ai-agents/agent-command-runbook.md — updated with worktree finalization section
 - docs/audits/F148B_SAFE_WORKTREE_PR_FINALIZATION.md — audit note
 
-New wrapper command:
-- `scripts/dev/erp-pr-worktree-finalize <pr-number>` — merges PR without --delete-branch,
-  confirms MERGED + green main CI, removes worktree, deletes branch, prunes refs
+### F148C
+
+Status:
+- open PR — awaiting human merge
+- baseline: origin/main at c8ba67b
+- branch: tools/f148c-finalizer-validation
+- scope: validate and harden the worktree PR finalization wrapper
+
+Scope delivered:
+- scripts/dev/erp-pr-worktree-finalize — hardened with pending-checks guard,
+  branch-uniqueness check, worktree-removal safety (cd to REPO_ROOT after remove),
+  and root-worktree refusal
+- docs/ai-agents/agent-command-runbook.md — updated worktree finalization section
+  with clarified execution context, one-task-one-branch enforcement, simplified
+  default invocation
+- docs/audits/F148C_FINALIZER_VALIDATION.md — audit note
+
+Validated findings:
+- Pending checks bug: statusCheckRollup filter excluded null-conclusion checks,
+  allowing merge while CI still running (FIXED: explicit pending check added)
+- Orphaned worktree: final git commands ran from removed worktree directory
+  (FIXED: cd to REPO_ROOT before branch deletion and status)
+- Root-only rule: runbook said only root/main may merge (FIXED: added exception
+  for worktree finalization wrapper)
+- One-task-one-branch: no cross-worktree check existed
+  (FIXED: branch-uniqueness check added before merge)
 
 Validation:
 - bash scripts/dev/erp-agent-scope-guard agent-tools — PASS

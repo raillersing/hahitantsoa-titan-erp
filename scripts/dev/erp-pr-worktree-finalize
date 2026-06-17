@@ -21,9 +21,11 @@ Options:
   --help                Show this help.
 
 Purpose:
-  Safely finalize a PR from its own dedicated worktree by:
+  Safely finalize a PR from its own dedicated task worktree by:
+  - requiring execution from the task worktree (not root/main)
   - requiring a clean worktree and valid PR argument
   - requiring PR state OPEN and mergeable MERGEABLE
+  - requiring all CI checks completed with success before merge
   - merging with gh pr merge --squash --match-head-commit and without --delete-branch
   - confirming PR state becomes MERGED and main CI is green
   - removing the clean worktree with git worktree remove
@@ -34,10 +36,11 @@ Purpose:
 Hard stops:
   - Worktree is dirty
   - PR is not OPEN or not MERGEABLE
-  - Required checks are not passing
+  - Any CI check is still pending or has failed
   - PR does not become MERGED after merge attempt
   - Main CI is not green
   - Worktree removal fails
+  - Branch is checked out in another worktree
   - Branch or PR arguments are missing
 
 Notes:
@@ -81,6 +84,42 @@ if [ -z "$PR_NUMBER" ]; then
   exit 2
 fi
 
+require_option_value() {
+  local name="$1"
+  local value="$2"
+  if [ -z "$value" ] || [[ "$value" == --* ]]; then
+    echo "ERROR: missing value for $name"
+    exit 2
+  fi
+}
+
+if [ -n "$WORKTREE_PATH" ]; then
+  require_option_value "--worktree" "$WORKTREE_PATH"
+fi
+if [ -n "$BRANCH" ]; then
+  require_option_value "--branch" "$BRANCH"
+fi
+
+# ----- Hard stop: must not be the main-root worktree -----
+CURRENT_PATH="$(cd "$REPO_ROOT" && pwd -P)"
+MAIN_PATH=""
+while IFS= read -r line; do
+  case "$line" in
+    worktree\ *)
+      path="${line#worktree }"
+      if [ -z "$MAIN_PATH" ]; then
+        MAIN_PATH="$path"
+      fi
+      ;;
+  esac
+done < <(git worktree list --porcelain)
+
+if [ "$CURRENT_PATH" = "$MAIN_PATH" ]; then
+  echo "ERROR: this script must run from the task worktree, not from root/main."
+  echo "Use scripts/dev/erp-pr-finalize-from-root for root-based finalization."
+  exit 1
+fi
+
 # ----- Hard stop: worktree must be clean -----
 STATUS_OUTPUT="$(git status --short)"
 if [ -n "$STATUS_OUTPUT" ]; then
@@ -90,8 +129,7 @@ if [ -n "$STATUS_OUTPUT" ]; then
 fi
 echo "OK: worktree is clean."
 
-# ----- Determine worktree and branch -----
-CURRENT_PATH="$(cd "$REPO_ROOT" && pwd -P)"
+# ----- Determine worktree and branch (default to current) -----
 if [ -z "$WORKTREE_PATH" ]; then
   WORKTREE_PATH="$CURRENT_PATH"
 fi
@@ -111,19 +149,7 @@ case "$BRANCH" in
     ;;
 esac
 
-# ----- Hard stop: worktree must not be the main repo -----
-MAIN_PATH=""
-while IFS= read -r line; do
-  case "$line" in
-    worktree\ *)
-      path="${line#worktree }"
-      if [ -z "$MAIN_PATH" ]; then
-        MAIN_PATH="$path"
-      fi
-      ;;
-  esac
-done < <(git worktree list --porcelain)
-
+# ----- Hard stop: worktree path must not be the main repo -----
 if [ "$WORKTREE_PATH" = "$MAIN_PATH" ]; then
   echo "ERROR: refusing to remove the main repository worktree"
   exit 1
@@ -157,6 +183,15 @@ if [ "$PR_HEAD_BRANCH" != "$BRANCH" ]; then
   exit 1
 fi
 
+# ----- Hard stop: branch must not be checked out in another worktree -----
+BRANCH_WORKTREE_COUNT="$(git worktree list --porcelain | grep -c "refs/heads/$BRANCH" 2>/dev/null || true)"
+if [ "$BRANCH_WORKTREE_COUNT" -gt 1 ]; then
+  echo "ERROR: branch '$BRANCH' is checked out in $BRANCH_WORKTREE_COUNT worktrees."
+  echo "Each task must use one dedicated branch in one dedicated worktree."
+  git worktree list | grep "refs/heads/$BRANCH" || true
+  exit 1
+fi
+
 # ----- Hard stop: PR must be OPEN before merge -----
 if [ "$PR_STATE" != "OPEN" ]; then
   echo "ERROR: PR #$PR_NUMBER must be OPEN; got $PR_STATE"
@@ -169,8 +204,9 @@ if [ "$PR_MERGEABLE" != "MERGEABLE" ]; then
   exit 1
 fi
 
-# ----- Hard stop: required checks must pass -----
-echo "INFO: Validating required checks for PR #$PR_NUMBER..."
+# ----- Hard stop: all CI checks must be completed with success -----
+echo "INFO: Validating CI checks for PR #$PR_NUMBER..."
+# First check: gh pr checks --required (preferred when configured)
 required_ok=0
 if gh pr checks "$PR_NUMBER" --required >/dev/null 2>&1; then
   required_ok=1
@@ -180,13 +216,24 @@ if [ "$required_ok" -eq 1 ]; then
   echo "OK: Required checks verified via gh pr checks --required."
 else
   echo "INFO: gh pr checks --required did not report success. Validating statusCheckRollup..."
-  failed_count="$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null)] | length' 2>/dev/null || echo "0")"
-  if [ "${failed_count:-0}" -gt 0 ]; then
-    echo "ERROR: One or more required checks have failed."
-    gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null) | "Check run \(.name) is \(.conclusion)"'
-    exit 1
-  fi
 fi
+
+# Always validate full statusCheckRollup for pending checks
+PENDING_COUNT="$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.status != "COMPLETED")] | length' 2>/dev/null || echo "0")"
+if [ "${PENDING_COUNT:-0}" -gt 0 ]; then
+  echo "ERROR: One or more CI checks are still pending. Wait for completion before finalizing."
+  gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.status != "COMPLETED") | "Check run \(.name) is \(.status)"'
+  exit 1
+fi
+
+FAILED_COUNT="$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null)] | length' 2>/dev/null || echo "0")"
+if [ "${FAILED_COUNT:-0}" -gt 0 ]; then
+  echo "ERROR: One or more CI checks have failed."
+  gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null) | "Check run \(.name) is \(.conclusion)"'
+  exit 1
+fi
+
+echo "OK: All CI checks completed with success."
 
 # ----- Merge PR without --delete-branch -----
 echo "INFO: Merging PR #$PR_NUMBER..."
@@ -252,6 +299,9 @@ if ! git worktree remove "$WORKTREE_PATH"; then
   exit 1
 fi
 echo "OK: Worktree removed."
+
+# After worktree removal, the current directory is orphaned. Switch to main repo root.
+cd "$REPO_ROOT"
 
 # ----- Delete local branch -----
 echo "INFO: Deleting local branch: $BRANCH"
