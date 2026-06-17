@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 import PaymentWorkflowPanel from "./PaymentWorkflowPanel";
+import LogisticsDeliveryPanel from "./LogisticsDeliveryPanel";
+import ReturnsHandlingPanel from "./ReturnsHandlingPanel";
+import BreakageLossPanel from "./BreakageLossPanel";
+import StockMovementLedgerPanel from "./StockMovementLedgerPanel";
+
 
 import {
   getReservationDrafts,
@@ -323,6 +328,18 @@ export function HahitantsoaCommercialOpsPanel() {
               <div className="embedded-payments-panel">
                 <PaymentWorkflowPanel />
               </div>
+            ) : null}
+            {sec.id === "logistics" && sec.status !== "pending_backend" ? (
+              <LogisticsDeliveryPanel />
+            ) : null}
+            {sec.id === "returns" && sec.status !== "pending_backend" ? (
+              <ReturnsHandlingPanel />
+            ) : null}
+            {sec.id === "breakage" && sec.status !== "pending_backend" ? (
+              <BreakageLossPanel />
+            ) : null}
+            {sec.id === "stock" && sec.status !== "pending_backend" ? (
+              <StockMovementLedgerPanel />
             ) : null}
           </div>
         ))}

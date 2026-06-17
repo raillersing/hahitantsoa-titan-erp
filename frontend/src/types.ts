@@ -391,3 +391,74 @@ export type PaymentConfirmPayload = {
   external_reference?: string;
   notes?: string;
 };
+
+// ---- Logistics & Delivery (pending backend) ----
+
+export type DeliveryStatus = 'scheduled' | 'in_transit' | 'delivered' | 'failed';
+
+export type DeliveryRecord = {
+  id: string;
+  reservation_draft: string | null;
+  reference: string;
+  status: DeliveryStatus;
+  scheduled_at: string | null;
+  delivered_at: string | null;
+  operator_name: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// ---- Returns Handling (pending backend) ----
+
+export type ReturnStatus = 'pending' | 'partial' | 'complete' | 'disputed';
+
+export type ReturnRecord = {
+  id: string;
+  reservation_draft: string | null;
+  reference: string;
+  status: ReturnStatus;
+  returned_at: string | null;
+  items_returned: number;
+  items_missing: number;
+  operator_name: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// ---- Breakage & Loss (pending backend) ----
+
+export type BreakageStatus = 'reported' | 'assessed' | 'invoiced' | 'resolved';
+
+export type BreakageRecord = {
+  id: string;
+  reservation_draft: string | null;
+  reference: string;
+  status: BreakageStatus;
+  reported_at: string | null;
+  item_description: string;
+  estimated_value: string;
+  invoice_reference: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+// ---- Stock Movement Ledger (pending backend) ----
+
+export type StockMovementKind = 'inbound' | 'outbound' | 'adjustment' | 'write_off';
+
+export type StockMovementRecord = {
+  id: string;
+  reservation_draft: string | null;
+  reference: string;
+  kind: StockMovementKind;
+  item_description: string;
+  quantity: number;
+  committed_at: string | null;
+  operator_name: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
