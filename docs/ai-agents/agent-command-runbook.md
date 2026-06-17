@@ -199,6 +199,48 @@ scripts/dev/erp-quality-check frontend
 EOF
 ```
 
+## Standard Docker Agent Cleanup
+
+_Introduced in F149A._
+
+Agent CI Docker containers, networks, and volumes can accumulate across multiple
+backend validation sessions. Use `scripts/dev/erp-docker-agent-cleanup` to
+safely clean up resources created by `compose.agent-ci.yaml`.
+
+Dry-run by default. Use `--apply` to perform changes:
+
+```sh
+scripts/dev/erp-logged-run docker-agent-cleanup <<'EOF'
+set -euo pipefail
+
+bash scripts/dev/erp-docker-agent-cleanup --apply
+EOF
+```
+
+To also remove agent CI volumes (postgres and redis test data), which speeds up
+cleanup but destroys cached test state:
+
+```sh
+scripts/dev/erp-logged-run docker-agent-cleanup-with-volumes <<'EOF'
+set -euo pipefail
+
+bash scripts/dev/erp-docker-agent-cleanup --apply --dangerous-allow-volume-removal
+EOF
+```
+
+**Rules:**
+- The wrapper never removes Docker volumes without the
+  `--dangerous-allow-volume-removal` flag. This prevents accidental data loss.
+- The wrapper never touches n8n or any container not created by
+  `compose.agent-ci.yaml`.
+- Backend/frontend dependency caches (`.venv`, `~/.cache/pip`, `node_modules`,
+  `~/.npm`) are never affected.
+- Running `erp-docker-agent-cleanup` is safe even when no ERP containers exist;
+  it reports "none found" and exits cleanly.
+- To keep test environments fast without keeping orphan containers alive, run the
+  cleanup after each backend session and use `--dangerous-allow-volume-removal`
+  sparingly — preserved volumes avoid expensive postgres/redis data rebuilds.
+
 ## Standard PR, CI, And Main CI Commands
 
 Before commit:
@@ -504,7 +546,15 @@ git status --short
 EOF
 ```
 
-Optional branch cleanup when explicitly authorized:
+### Branch and Worktree Cleanup
+
+_Container cleanup rules added in F149A; branch/worktree cleanup rules refined in F149A._
+
+After a PR is merged, the task branch, worktree, and any agent CI Docker resources
+should be cleaned up to prevent accumulation.
+
+Branch cleanup when explicitly authorized. Never use `gh pr merge --delete-branch`,
+which is unsafe when a worktree is checked out on the branch:
 
 ```sh
 scripts/dev/erp-logged-run task-branch-cleanup <<'EOF'
@@ -514,6 +564,56 @@ git branch -d branch-name
 git push origin --delete branch-name
 EOF
 ```
+
+Worktree cleanup using the dedicated wrapper. The wrapper refuses to run on dirty
+worktrees, secret-like paths, or the main worktree:
+
+```sh
+scripts/dev/erp-logged-run task-worktree-cleanup <<'EOF'
+set -euo pipefail
+
+bash scripts/dev/erp-worktree-clean-after-merge --apply branch-name
+EOF
+```
+
+Alternatively, finalize the PR from the task worktree itself using
+`erp-pr-worktree-finalize`, which handles merge, branch deletion, worktree
+removal, and main CI verification in one step:
+
+```sh
+scripts/dev/erp-logged-run task-pr-finalize <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-pr-worktree-finalize PR-NUMBER
+EOF
+```
+
+### Docker Container Cleanup After Backend Sessions
+
+After a backend validation session ends, stale agent CI containers may remain.
+Clean them with the dry-run-safe wrapper:
+
+```sh
+scripts/dev/erp-logged-run docker-cleanup-after-backend <<'EOF'
+set -euo pipefail
+
+bash scripts/dev/erp-docker-agent-cleanup --apply
+EOF
+```
+
+**Cleanup rules to prevent accumulation:**
+1. After every backend session, run `erp-docker-agent-cleanup --apply` to stop
+   and remove containers and networks.
+2. Preserve volumes by default (no `--dangerous-allow-volume-removal`) so test
+   data is reused and postgres/redis do not need to rebuild from scratch.
+3. Run full cleanup with `--dangerous-allow-volume-removal` only when explicitly
+   authorized, and only when a complete fresh state is required.
+4. Remove merged branches using `git branch -d` and `git push origin --delete`,
+   never `gh pr merge --delete-branch` (unsafe with active worktrees).
+5. Remove stale worktrees using `erp-worktree-clean-after-merge` or
+   `erp-pr-worktree-finalize`, never `rm -rf`.
+6. Never manually delete `.git/worktrees/` metadata — use `git worktree prune`
+   or the dedicated wrappers.
 
 ## PR Script Validation Patterns
 
@@ -588,3 +688,7 @@ Never use:
 - After merge of F138B/F138C, `scripts/dev/erp-backend-compose-ci`,
   `scripts/dev/erp-agent-scope-guard`, and `scripts/dev/erp-worktree-preflight` become
   standard required wrappers where applicable.
+- After merge of F149A, `scripts/dev/erp-docker-agent-cleanup` becomes the standard
+  wrapper for cleaning up agent CI Docker resources. Use it instead of raw
+  `docker compose down` or `docker stop` to avoid accidentally affecting n8n or
+  non-ERP resources.
