@@ -1,0 +1,9 @@
+{
+  "deny": [
+    ".env",
+    ".env.*",
+    "secrets/**",
+    "**/secrets/**",
+    "docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATION.md"
+  ]
+}
