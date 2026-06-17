@@ -3,7 +3,7 @@
 ## Current State
 
 - `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), F148E at `2d96134` (PR #268), and F148A Claude Code governance at `3b9835c` (PR #269).
-- Current `origin/main` HEAD is `3b9835c` (Merge pull request #269, F148A Claude Code governance).
+- Current `origin/main` HEAD is `298abf3` (Merge pull request #271, F148F campaign plan).
 - F148B Claude tooling guard alignment is open as PR #270 on branch `chore/f148b-claude-tooling-guard-alignment`.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
@@ -377,6 +377,25 @@ Status:
 Scope delivered:
 - `docs/audits/F148F_DOCS_ONLY_CAMPAIGN_PLAN.md` — campaign plan: discovery, bundling, execution order, hard stops
 - `docs/ai-agents/orchestrator-task-queue.md` — updated (F148A→merged, F148B→open, F148C/D/E→merged, HEAD→3b9835c)
+- No backend, frontend, test, script, or .github files modified
+
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
+- git diff --check — PASS
+- Confirmed no forbidden mutations
+
+### F148G
+
+Status:
+- open PR — awaiting human merge
+- baseline: origin/main at `298abf3`
+- branch: `docs/f148g-production-readiness`
+- scope: production readiness / QA infrastructure audit (docs-only, second bundle of campaign)
+
+Scope delivered:
+- `docs/audits/F148G_PRODUCTION_READINESS_AUDIT.md` — audit of QA gaps: no conftest/fixtures,
+  no E2E tests, no coverage, no tsc in CI, no production deployment config, no CI concurrency,
+  no pre-commit hooks, no secret scanning in CI
 - No backend, frontend, test, script, or .github files modified
 
 Validation:
