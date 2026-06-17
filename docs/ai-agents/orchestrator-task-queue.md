@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, and F147C at merge commit `b148de9`.
-- Current `origin/main` HEAD is `9551caa` (Merge pull request #261).
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, and F147D at merge commit `50ec2b0`.
+- Current `origin/main` HEAD is `50ec2b0` (Merge pull request #262).
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -240,6 +240,24 @@ Validation:
 - git diff --check — PASS
 - PR CI green before merge
 - main CI green after merge
+
+### F148A
+
+Status:
+- completed agents/docs governance task
+- baseline: origin/main at 50ec2b0
+- branch: docs/f148a-completion-audit
+- scope: application-wide completion audit — compute 10-domain weighted completion from repository evidence
+
+Scope delivered:
+- docs/audits/F148A_APPLICATION_WIDE_COMPLETION_AUDIT.md — 10-domain weighted audit, evidence, gaps, risks, next-5 bundles
+- Estimated overall completion: 59.5%
+- Provides baseline percentages for planning the next work cycle
+
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
+- git diff --check — PASS
+- PR CI green before merge
 
 ## Later Repair Track
 
