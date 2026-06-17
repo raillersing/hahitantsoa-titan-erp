@@ -337,7 +337,7 @@ EOF
 
 ### Worktree PR Finalization
 
-_Merged in F148B, validated in F148C._
+_Merged in F148B, validated in F148C, main-sync bug fixed in F149B._
 
 A dedicated task worktree may finalize its own PR using
 `scripts/dev/erp-pr-worktree-finalize`. This avoids the `cannot delete branch used by
@@ -347,14 +347,20 @@ One task = one dedicated branch = one dedicated worktree. The script enforces th
 refusing to run from the root/main worktree and by checking that the branch is not
 checked out in another worktree.
 
+After merge, the script switches to the main repository root (derived from
+`git worktree list --porcelain`) to sync `main`, because the task worktree is still
+on the feature branch and `git pull --ff-only origin main` would fail there.
+This was the main-sync bug fixed in F149B.
+
 Workflow:
 
 1. merging with `gh pr merge --squash --match-head-commit` without `--delete-branch`
 2. requiring all CI checks completed with SUCCESS (rejects pending or failed checks)
 3. confirming PR state becomes MERGED and main CI is green
-4. removing the clean worktree with `git worktree remove`
-5. deleting the local and remote branches after the worktree is gone
-6. pruning stale worktree metadata
+4. switching to the main repository root (MAIN_PATH) to sync `main`
+5. removing the clean worktree with `git worktree remove`
+6. deleting the local and remote branches after the worktree is gone
+7. pruning stale worktree metadata
 
 Only use this when the worktree is dedicated to the task and the user has explicitly
 authorized finalization. Hard stops are enforced for dirty worktrees, unmergeable PRs,
@@ -383,6 +389,38 @@ scripts/dev/erp-pr-worktree-finalize PR-NUMBER \
   --branch branch-name
 EOF
 ```
+
+### Finalizer Main-Sync Validation
+
+_Added in F149B._
+
+When reviewing a PR that modifies `erp-pr-worktree-finalize`, verify the main-sync
+path is correct:
+
+Static validation:
+
+```sh
+scripts/dev/erp-logged-run finalizer-verify-main-sync <<'EOF'
+set -euo pipefail
+
+# Verify post-merge cd targets MAIN_PATH, not REPO_ROOT
+grep -n 'cd "\$MAIN_PATH"' scripts/dev/erp-pr-worktree-finalize
+echo "---"
+# Verify merge still uses --match-head-commit
+grep -n 'gh pr merge.*--match-head-commit' scripts/dev/erp-pr-worktree-finalize
+echo "---"
+# Verify no --delete-branch in executable merge command
+git show PR_REF:scripts/dev/erp-pr-worktree-finalize | grep -En 'gh pr merge' | grep -- '--delete-branch' || echo "No --delete-branch found (PASS)"
+EOF
+```
+
+Expected results:
+- `cd "$MAIN_PATH"` appears on two lines (post-merge main sync, and after worktree removal)
+- `gh pr merge` includes `--match-head-commit` in the executable call (not just help text)
+- No `--delete-branch` result from the grep
+
+If any of these fail, the finalizer main-sync behaviour is broken and the PR must
+stop until fixed.
 
 ### PR Check Finalization Rules
 
