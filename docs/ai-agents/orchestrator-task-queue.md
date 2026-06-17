@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, and F147B at merge commit `26ba1de`.
-- Current `origin/main` HEAD is `84a76ea` (Merge pull request #259).
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, and F147C at merge commit `b148de9`.
+- Current `origin/main` HEAD is `9551caa` (Merge pull request #261).
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -211,28 +211,24 @@ Expected validation:
 - PR CI green before merge
 - main CI green after merge
 
-### F147D (recommended next safe bundle)
+### F147D
 
 Status:
-- recommended next agents/docs governance task after F147C merge
+- completed agents/docs governance task
+- baseline: origin/main at 9551caa
+- branch: tools/f147d-agent-docs-scope-guard
+- scope: add agent-docs profile to erp-agent-scope-guard
 
-Scope:
-- add `agent-docs` profile to erp-agent-scope-guard
-- profile should allow: `docs/ai-agents/`, `docs/audits/`
-- profile should forbid: `backend/`, `frontend/`, `.env` and secret-like files
-- no other scope expansion
+Scope delivered:
+- scripts/dev/erp-agent-scope-guard — added agent-docs case with check_blocked + check_allowed_only
+- docs/audits/F147D_AGENT_DOCS_SCOPE_GUARD_PROFILE.md — audit note
+- Profile allows: docs/ai-agents/, docs/audits/, opencode.json, .opencode/
+- Profile forbids: backend/, frontend/, tests/, scripts/dev/, .github/, .env*, secrets, dependency manifests
 
-Expected worktree:
-- agent-tools or agent-docs dedicated worktree only
-
-Stop conditions:
-- any backend or frontend code change
-- any scope drift beyond the scope guard change
-- any .env interaction
-
-Expected validation:
-- bash scripts/dev/erp-agent-scope-guard agent-docs
-- git diff --check
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-docs — correctly blocks script changes
+- bash scripts/dev/erp-agent-scope-guard agent-tools — passes for this PR
+- git diff --check — PASS
 - PR CI green before merge
 - main CI green after merge
 

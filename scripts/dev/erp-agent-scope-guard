@@ -9,7 +9,7 @@ cd "$REPO_ROOT"
 print_usage() {
   cat <<'USAGE'
 Usage:
-  scripts/dev/erp-agent-scope-guard <backend|frontend|agent-tools>
+  scripts/dev/erp-agent-scope-guard <backend|frontend|agent-tools|agent-docs>
 
 Purpose:
   Stop early when the current worktree or branch diff contains files outside the
@@ -25,6 +25,11 @@ Profiles:
   agent-tools
     Forbid backend, frontend, .github, dependency manifests, .env-like files, and
     secret-looking files. Allow only scripts/dev, compose.agent-ci.yaml, and docs/audits.
+
+  agent-docs
+    Forbid backend, frontend, tests, scripts/dev, .github, dependency manifests,
+    .env-like files, and secret-looking files. Allow only docs/ai-agents, docs/audits,
+    opencode.json, and .opencode/.
 
 Notes:
   This guard inspects file paths only. It does not open or read secret contents.
@@ -107,6 +112,13 @@ case "$PROFILE" in
     check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
     check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
     check_allowed_only '^(scripts/dev/|compose\.agent-ci\.yaml$|docs/audits/)'
+    ;;
+  agent-docs)
+    check_blocked '^(backend/|backend$|frontend/|frontend$|tests/|tests$|scripts/dev/|scripts/dev$|\.github/|\.github$)' "application, test, or script paths are out of scope"
+    check_blocked '^(package\.json|package-lock\.json|pyproject\.toml|requirements[^/]*\.txt|poetry\.lock|pnpm-lock\.yaml|yarn\.lock)$' "dependency manifests are out of scope"
+    check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
+    check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
+    check_allowed_only '^(docs/ai-agents/|docs/audits/|opencode\.json$|\.opencode/)'
     ;;
   help|--help|-h)
     print_usage
