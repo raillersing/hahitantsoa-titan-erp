@@ -271,13 +271,13 @@ Root-only finalization rule:
 
 - PR finalization is a separate phase from PR creation.
 - Task worktrees may commit, push, open PRs, and wait for PR CI.
-- Only the main-root worktree at `/home/raillersing/projects/hahitantsoa-titan-erp`
+- The main-root worktree at `/home/raillersing/projects/hahitantsoa-titan-erp`
   may merge PRs, sync `main`, wait for post-merge `main` CI, remove task worktrees, and
-  delete task branches.
-- Do not run `gh pr merge` from a temporary worktree.
+  delete task branches using `scripts/dev/erp-pr-finalize-from-root`.
+- A dedicated task worktree may finalize its own PR using
+  `scripts/dev/erp-pr-worktree-finalize` (see below).
+- Do not run raw `gh pr merge` from any worktree. Always use the approved wrapper.
 - Do not use `gh pr merge --delete-branch` from a task worktree.
-- Codex may finalize only through `scripts/dev/erp-pr-finalize-from-root` or an
-  equivalent logged command executed from root `main`.
 
 Root-main finalization helper:
 
@@ -295,21 +295,42 @@ EOF
 
 ### Worktree PR Finalization
 
-_Available after F148B merge._
+_Merged in F148B, validated in F148C._
 
-As an alternative to root-only finalization, a dedicated worktree may finalize its own PR
-using `scripts/dev/erp-pr-worktree-finalize`. This avoids the `cannot delete branch used
-by worktree` error by:
+A dedicated task worktree may finalize its own PR using
+`scripts/dev/erp-pr-worktree-finalize`. This avoids the `cannot delete branch used by
+worktree` error by running from the task worktree itself.
 
-- merging with `gh pr merge --squash --match-head-commit` without `--delete-branch`
-- confirming PR state becomes MERGED and main CI is green
-- removing the worktree with `git worktree remove`
-- deleting the local and remote branches after the worktree is gone
-- pruning stale worktree metadata
+One task = one dedicated branch = one dedicated worktree. The script enforces this by
+refusing to run from the root/main worktree and by checking that the branch is not
+checked out in another worktree.
+
+Workflow:
+
+1. merging with `gh pr merge --squash --match-head-commit` without `--delete-branch`
+2. requiring all CI checks completed with SUCCESS (rejects pending or failed checks)
+3. confirming PR state becomes MERGED and main CI is green
+4. removing the clean worktree with `git worktree remove`
+5. deleting the local and remote branches after the worktree is gone
+6. pruning stale worktree metadata
 
 Only use this when the worktree is dedicated to the task and the user has explicitly
 authorized finalization. Hard stops are enforced for dirty worktrees, unmergeable PRs,
-failing CI, and missing arguments.
+pending/failed CI, non-unique branch checkouts, and missing arguments.
+
+Run from the task worktree (not from root/main). Both `--worktree` and `--branch` default
+to the current worktree and branch, so they can be omitted in the standard case:
+
+```sh
+scripts/dev/erp-logged-run task-pr-worktree-finalize <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-pr-worktree-finalize PR-NUMBER
+EOF
+```
+
+When the task worktree path or branch differs from the current context (edge case only),
+provide them explicitly:
 
 ```sh
 scripts/dev/erp-logged-run task-pr-worktree-finalize <<'EOF'
@@ -320,9 +341,6 @@ scripts/dev/erp-pr-worktree-finalize PR-NUMBER \
   --branch branch-name
 EOF
 ```
-
-If both `--worktree` and `--branch` are omitted, the script uses the current worktree and
-branch.
 
 ### PR Check Finalization Rules
 
@@ -496,6 +514,56 @@ git branch -d branch-name
 git push origin --delete branch-name
 EOF
 ```
+
+## PR Script Validation Patterns
+
+When reviewing a PR that creates or modifies a script under `scripts/dev/`, validators
+often need to run the script to check its `--help` output or grep for sensitive patterns.
+Two common mistakes have been documented during F148C review.
+
+### Materialise Before Executing
+
+Problem: `git show <pr>:scripts/dev/script | bash -s -- --help` breaks scripts that
+use `BASH_SOURCE[0]` to compute `SCRIPT_DIR` or `REPO_ROOT`, because stdin piping loses
+the script path context. The script either fails or produces wrong paths.
+
+Safe approach — materialise to a temp file, then execute:
+
+```sh
+scripts/dev/erp-logged-run pr-script-inspect <<'EOF'
+set -euo pipefail
+
+tmp=$(mktemp /tmp/pr-script.XXXXXX)
+git show PR_REF:scripts/dev/script-name > "$tmp"
+chmod +x "$tmp"
+"$tmp" --help
+rm -f "$tmp"
+EOF
+```
+
+Replace `PR_REF` with the PR's commit or `origin/branch-name` and
+`scripts/dev/script-name` with the target path.
+
+### Safe Grep for `--delete-branch`
+
+Problem: A broad `grep --delete-branch` on the script file produces false positives
+when the string appears in `--help` usage text or comments that say "without
+`--delete-branch`".
+
+Safe approach — grep only executable `gh pr merge` invocations that actually pass the
+flag, excluding help text and comments:
+
+```sh
+scripts/dev/erp-logged-run pr-script-grep <<'EOF'
+set -euo pipefail
+
+git show PR_REF:scripts/dev/script-name | grep -En 'gh pr merge' | grep -- '--delete-branch'
+EOF
+```
+
+An empty result confirms the flag does not appear in any `gh pr merge` invocation.
+If the result is non-empty, inspect each hit to verify it is not inside a `cat <<'USAGE'`
+heredoc or a comment.
 
 ## Forbidden Commands
 
