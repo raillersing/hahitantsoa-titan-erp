@@ -72,3 +72,21 @@ the script must run from the task worktree.
 - `bash scripts/dev/erp-pr-worktree-finalize --help` — shows updated usage
 - `git diff --check` — PASS
 - PR CI green — verified
+
+## Review Hardening (F148C repair)
+
+During review of the hardened script, two recurring validation mistakes were documented
+and remediated in `docs/ai-agents/agent-command-runbook.md` under a new
+**PR Script Validation Patterns** section:
+
+1. **Piped `git show` breaks `BASH_SOURCE`**:
+   `git show <ref>:script | bash -s -- --help` strips the script path, so any
+   `BASH_SOURCE[0]`-based path resolution fails. The runbook now prescribes materialising
+   to a temp file with `mktemp` before execution.
+
+2. **Broad `--delete-branch` grep false positives**:
+   Grepping the entire file for `--delete-branch` hits help-text lines like "without
+   `--delete-branch`". The runbook now prescribes scoping the grep to `gh pr merge`
+   invocations only: `grep -En 'gh pr merge' | grep -- '--delete-branch'`.
+
+These patterns should be used by any agent validating script changes in future PRs.

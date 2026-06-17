@@ -515,6 +515,56 @@ git push origin --delete branch-name
 EOF
 ```
 
+## PR Script Validation Patterns
+
+When reviewing a PR that creates or modifies a script under `scripts/dev/`, validators
+often need to run the script to check its `--help` output or grep for sensitive patterns.
+Two common mistakes have been documented during F148C review.
+
+### Materialise Before Executing
+
+Problem: `git show <pr>:scripts/dev/script | bash -s -- --help` breaks scripts that
+use `BASH_SOURCE[0]` to compute `SCRIPT_DIR` or `REPO_ROOT`, because stdin piping loses
+the script path context. The script either fails or produces wrong paths.
+
+Safe approach — materialise to a temp file, then execute:
+
+```sh
+scripts/dev/erp-logged-run pr-script-inspect <<'EOF'
+set -euo pipefail
+
+tmp=$(mktemp /tmp/pr-script.XXXXXX)
+git show PR_REF:scripts/dev/script-name > "$tmp"
+chmod +x "$tmp"
+"$tmp" --help
+rm -f "$tmp"
+EOF
+```
+
+Replace `PR_REF` with the PR's commit or `origin/branch-name` and
+`scripts/dev/script-name` with the target path.
+
+### Safe Grep for `--delete-branch`
+
+Problem: A broad `grep --delete-branch` on the script file produces false positives
+when the string appears in `--help` usage text or comments that say "without
+`--delete-branch`".
+
+Safe approach — grep only executable `gh pr merge` invocations that actually pass the
+flag, excluding help text and comments:
+
+```sh
+scripts/dev/erp-logged-run pr-script-grep <<'EOF'
+set -euo pipefail
+
+git show PR_REF:scripts/dev/script-name | grep -En 'gh pr merge' | grep -- '--delete-branch'
+EOF
+```
+
+An empty result confirms the flag does not appear in any `gh pr merge` invocation.
+If the result is non-empty, inspect each hit to verify it is not inside a `cat <<'USAGE'`
+heredoc or a comment.
+
 ## Forbidden Commands
 
 Never use:
