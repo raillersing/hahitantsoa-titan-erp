@@ -244,7 +244,7 @@ Validation:
 ### F148A
 
 Status:
-- completed agents/docs governance task
+- open PR #264 — awaiting human merge
 - baseline: origin/main at 50ec2b0
 - branch: docs/f148a-completion-audit
 - scope: application-wide completion audit — compute 10-domain weighted completion from repository evidence
@@ -257,7 +257,7 @@ Scope delivered:
 Validation:
 - bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
 - git diff --check — PASS
-- PR CI green before merge
+- PR CI green before merge (last run: success)
 
 ## Later Repair Track
 

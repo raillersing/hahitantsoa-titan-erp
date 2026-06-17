@@ -6,7 +6,7 @@ This report presents a comprehensive application-wide audit of the Hahitantsoa/T
 system as of 2026-06-17. The audit covers all backend, frontend, CI/tooling, testing,
 and documentation domains.
 
-**Estimated overall completion: 59.5%**
+**Estimated overall completion: 59.5%** (confidence: medium — see §3)
 
 The backend is significantly ahead of the frontend. Core domains (inventory, reservations,
 hahitantsoa event drafts, documents) are functionally complete on the backend but the
@@ -22,8 +22,8 @@ frontend lags in auth, customer management, billing, and logistics. Three apps (
 | **HEAD** | `50ec2b0` — `tools(scope-guard): add agent-docs profile (#262)` |
 | **origin/main** | `50ec2b0` |
 | **Main CI** | Green — last 3 runs all `success` |
-| **Open PRs** | PR #263 (feat/f145g merged), PR #260, #262 (merged) |
-| **Active worktrees** | Backend F145G, frontend F147F, docs F148A (this) |
+| **Open PRs** | PR #264 (this audit) — only open PR |
+| **Active worktrees** | `main` (50ec2b0) — base repo; `feat/f145h-excess-damage-loss-invoice-foundation` — backend; `feat/f147f-antigravity-frontend-ux-hardening` — frontend; `docs/f148a-completion-audit` — this branch; 2 detached HEAD worktrees |
 | **Total apps** | 11 (8 registered in `INSTALLED_APPS`) |
 | **Total backend test files** | 89 (14,230 lines) |
 | **Total frontend test files** | 13 (~86 test cases) |
@@ -47,6 +47,12 @@ and is justified by evidence from the repository. Evidence includes:
 - Documentation and audit records
 
 No progress is invented. Domains with only placeholder shells are scored accordingly.
+
+**Confidence: medium.** Backend file counts (test files, models, endpoints) derive from
+subagent exploration, not from independently verified `find` or `grep` counts across the
+full repository. A full independent count may shift individual domain scores by ±0.05,
+which would move the overall percentage by ±0.5–1.0 points. The percentages nonetheless
+give a reliable directional picture for planning.
 
 ---
 
