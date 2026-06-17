@@ -1,0 +1,213 @@
+/* ─── Titan Panel Styles ──────────────────────────────────────────────────── */
+/* Used by: TitanStockMovementPanel                                            */
+
+.titan-stock-panel {
+  font-size: 0.875rem;
+  margin-top: 24px;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 16px;
+}
+
+.titan-stock-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.titan-stock-panel__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.titan-stock-panel__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.titan-stock-panel__refresh,
+.titan-stock-panel__toggle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid #c8d6e0;
+  background: #f4f8fb;
+  color: #3a4a5a;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.titan-stock-panel__refresh:hover,
+.titan-stock-panel__toggle:hover {
+  background: #e8eef3;
+}
+
+.titan-stock-panel__refresh:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.titan-stock-panel__error {
+  font-size: 0.8rem;
+  color: #c0392b;
+  background: #fdf2f2;
+  border: 1px solid #f5c6cb;
+  border-radius: 5px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.titan-stock-panel__empty {
+  font-size: 0.8rem;
+  color: #a0b0c0;
+  margin: 8px 0;
+}
+
+/* ─── Stock Movement List ─────────────────────────────────────────────────── */
+
+.titan-stock-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.titan-stock-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #e8eef3;
+  border-radius: 6px;
+  background: #ffffff;
+  flex-wrap: wrap;
+}
+
+.titan-stock-row__dir {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.titan-stock-row__dir--inbound {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.titan-stock-row__dir--outbound {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.titan-stock-row__type {
+  font-size: 0.8rem;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.titan-stock-row__qty {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #3a4a5a;
+  white-space: nowrap;
+}
+
+.titan-stock-row__ref {
+  font-size: 0.78rem;
+  color: #607080;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titan-stock-row__date {
+  font-size: 0.75rem;
+  color: #a0b0c0;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+/* ─── Stock Movement Create Form ──────────────────────────────────────────── */
+
+.titan-stock-form {
+  background: #f8fbfd;
+  border: 1px solid #dce8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.titan-stock-form__row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.titan-stock-form__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #4a5a6a;
+  min-width: 140px;
+  flex: 1;
+}
+
+.titan-stock-form__label--wide {
+  flex: 2;
+}
+
+.titan-stock-form__label input,
+.titan-stock-form__label select {
+  padding: 6px 8px;
+  border: 1px solid #c8d6e0;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  background: #ffffff;
+  color: #2c3e50;
+}
+
+.titan-stock-form__error {
+  font-size: 0.8rem;
+  color: #c0392b;
+  background: #fdf2f2;
+  border: 1px solid #f5c6cb;
+  border-radius: 5px;
+  padding: 6px 10px;
+}
+
+.titan-stock-form__submit {
+  align-self: flex-start;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 16px;
+  border-radius: 5px;
+  border: none;
+  background: #2c7be5;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.titan-stock-form__submit:hover:not(:disabled) {
+  background: #1a6ad4;
+}
+
+.titan-stock-form__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -531,3 +531,17 @@ export function confirmPayment(
 ): Promise<Payment> {
   return postAuthenticatedJson(`/api/v1/payments/${id}/confirm/`, payload, signal);
 }
+// ---- Inventory Stock Movements ----
+
+export function getStockMovements(
+  signal?: AbortSignal,
+): Promise<import('./types').InventoryStockMovement[]> {
+  return getAuthenticatedJson('/api/v1/inventory/stock-movements/', signal);
+}
+
+export function createStockMovement(
+  payload: import('./types').StockMovementCreatePayload,
+  signal?: AbortSignal,
+): Promise<import('./types').InventoryStockMovement> {
+  return postAuthenticatedJson('/api/v1/inventory/stock-movements/', payload, signal);
+}

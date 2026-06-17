@@ -58,6 +58,10 @@ function mockAppFetch(options: {
       return Promise.resolve(jsonResponse(discoveryResponse));
     }
 
+    if (url === "/api/v1/inventory/stock-movements/") {
+      return Promise.resolve(jsonResponse([]));
+    }
+
     return Promise.resolve(jsonResponse({}, 404));
   });
 }
