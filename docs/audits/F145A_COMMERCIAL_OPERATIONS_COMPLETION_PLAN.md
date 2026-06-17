@@ -243,6 +243,7 @@ Later bundles after the first settlement foundation remain explicitly required f
 - pricing or barème tables;
 - per-transaction amount overrides;
 - discount or remise handling;
+- durable damage/loss settlement execution and obligation ledgers;
 - caution refund execution;
 - excess damage/loss invoice generation.
 

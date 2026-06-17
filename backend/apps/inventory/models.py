@@ -75,6 +75,24 @@ class InventoryDamageLossSettlementAmountSource(models.TextChoices):
     OVERRIDE = "override", "override"
 
 
+class InventoryDamageLossSettlementExecutionStatus(models.TextChoices):
+    DRAFT = "draft", "draft"
+    EXECUTED = "executed", "executed"
+    CANCELLED = "cancelled", "cancelled"
+
+
+class InventoryCautionRefundObligationStatus(models.TextChoices):
+    PENDING = "pending", "pending"
+    SETTLED = "settled", "settled"
+    CANCELLED = "cancelled", "cancelled"
+
+
+class InventoryDamageLossExcessReceivableStatus(models.TextChoices):
+    PENDING_INVOICE = "pending_invoice", "pending_invoice"
+    INVOICED = "invoiced", "invoiced"
+    CANCELLED = "cancelled", "cancelled"
+
+
 FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS = {
     InventoryStockMovementType.OUTBOUND_DELIVERY: InventoryStockMovementDirection.OUTBOUND,
     InventoryStockMovementType.DAMAGE: InventoryStockMovementDirection.OUTBOUND,
@@ -659,3 +677,184 @@ class InventoryDamageLossSettlementLine(UUIDModel, TimestampedModel, AuditableMo
 
     def __str__(self) -> str:
         return f"{self.settlement} - {self.settlement_line_kind} x {self.quantity}"
+
+
+class InventoryDamageLossSettlementExecution(UUIDModel, TimestampedModel, AuditableModel):
+    settlement = models.OneToOneField(
+        InventoryDamageLossSettlement,
+        on_delete=models.PROTECT,
+        related_name="execution",
+    )
+    status = models.CharField(
+        max_length=32,
+        choices=InventoryDamageLossSettlementExecutionStatus.choices,
+        default=InventoryDamageLossSettlementExecutionStatus.DRAFT,
+    )
+    executed_at = models.DateTimeField(null=True, blank=True)
+    executed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    damage_loss_total_snapshot = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    caution_available_snapshot = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    caution_applied_snapshot = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    refund_due_snapshot = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    excess_due_snapshot = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        verbose_name = "Inventory damage/loss settlement execution"
+        verbose_name_plural = "Inventory damage/loss settlement executions"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(damage_loss_total_snapshot__gte=0),
+                name="inventory_damage_loss_execution_total_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(caution_available_snapshot__gte=0),
+                name="inventory_damage_loss_execution_caution_available_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(caution_applied_snapshot__gte=0),
+                name="inventory_damage_loss_execution_caution_applied_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(refund_due_snapshot__gte=0),
+                name="inventory_damage_loss_execution_refund_due_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(excess_due_snapshot__gte=0),
+                name="inventory_damage_loss_execution_excess_due_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(status=InventoryDamageLossSettlementExecutionStatus.DRAFT)
+                        & models.Q(executed_at__isnull=True)
+                        & models.Q(executed_by__isnull=True)
+                    )
+                    | (
+                        models.Q(status=InventoryDamageLossSettlementExecutionStatus.CANCELLED)
+                        & models.Q(executed_at__isnull=True)
+                        & models.Q(executed_by__isnull=True)
+                    )
+                    | (
+                        models.Q(status=InventoryDamageLossSettlementExecutionStatus.EXECUTED)
+                        & models.Q(executed_at__isnull=False)
+                        & models.Q(executed_by__isnull=False)
+                    )
+                ),
+                name="inventory_damage_loss_execution_status_marker_consistent",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if (
+            self.status == InventoryDamageLossSettlementExecutionStatus.EXECUTED
+            and self.executed_by_id is None
+        ):
+            raise ValidationError({"executed_by": "Executed records require executed_by."})
+
+        if (
+            self.status != InventoryDamageLossSettlementExecutionStatus.EXECUTED
+            and self.executed_by_id is not None
+        ):
+            raise ValidationError({"executed_by": "Only executed records may keep executed_by."})
+
+        if self.settlement_id and (
+            self.settlement.settlement_status != InventoryDamageLossSettlementStatus.VALIDATED
+        ):
+            raise ValidationError(
+                {"settlement": "Settlement execution requires a validated settlement."}
+            )
+
+    def __str__(self) -> str:
+        return f"Damage/loss execution {self.id} ({self.status})"
+
+
+class InventoryCautionRefundObligation(UUIDModel, TimestampedModel, AuditableModel):
+    settlement_execution = models.OneToOneField(
+        InventoryDamageLossSettlementExecution,
+        on_delete=models.PROTECT,
+        related_name="refund_obligation",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(
+        max_length=32,
+        choices=InventoryCautionRefundObligationStatus.choices,
+        default=InventoryCautionRefundObligationStatus.PENDING,
+    )
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        verbose_name = "Inventory caution refund obligation"
+        verbose_name_plural = "Inventory caution refund obligations"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="inventory_caution_refund_obligation_amount_positive",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if (
+            self.settlement_execution_id
+            and self.settlement_execution.status
+            != InventoryDamageLossSettlementExecutionStatus.EXECUTED
+        ):
+            raise ValidationError(
+                {
+                    "settlement_execution": (
+                        "Refund obligations require an executed settlement execution."
+                    )
+                }
+            )
+
+    def __str__(self) -> str:
+        return f"Refund obligation {self.amount} ({self.status})"
+
+
+class InventoryDamageLossExcessReceivable(UUIDModel, TimestampedModel, AuditableModel):
+    settlement_execution = models.OneToOneField(
+        InventoryDamageLossSettlementExecution,
+        on_delete=models.PROTECT,
+        related_name="excess_receivable",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(
+        max_length=32,
+        choices=InventoryDamageLossExcessReceivableStatus.choices,
+        default=InventoryDamageLossExcessReceivableStatus.PENDING_INVOICE,
+    )
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        verbose_name = "Inventory damage/loss excess receivable"
+        verbose_name_plural = "Inventory damage/loss excess receivables"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=0),
+                name="inventory_damage_loss_excess_receivable_amount_positive",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if (
+            self.settlement_execution_id
+            and self.settlement_execution.status
+            != InventoryDamageLossSettlementExecutionStatus.EXECUTED
+        ):
+            raise ValidationError(
+                {
+                    "settlement_execution": (
+                        "Excess receivables require an executed settlement execution."
+                    )
+                }
+            )
+
+    def __str__(self) -> str:
+        return f"Excess receivable {self.amount} ({self.status})"

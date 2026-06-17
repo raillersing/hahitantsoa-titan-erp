@@ -11,7 +11,11 @@ from django.utils import timezone
 from apps.audit.services import record_audit_event_on_commit
 from apps.inventory.models import (
     FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS,
+    InventoryCautionRefundObligation,
+    InventoryDamageLossExcessReceivable,
     InventoryDamageLossSettlement,
+    InventoryDamageLossSettlementExecution,
+    InventoryDamageLossSettlementExecutionStatus,
     InventoryDamageLossSettlementLine,
     InventoryDamageLossSettlementStatus,
     InventoryItem,
@@ -40,6 +44,11 @@ INVALID_DAMAGE_LOSS_SETTLEMENT = "invalid_damage_loss_settlement"
 INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE = (
     "invalid_damage_loss_settlement_return_operation_state"
 )
+INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION = "invalid_damage_loss_settlement_execution"
+INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_STATE = "invalid_damage_loss_settlement_execution_state"
+INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_SETTLEMENT_STATE = (
+    "invalid_damage_loss_settlement_execution_settlement_state"
+)
 
 
 @dataclass(frozen=True)
@@ -51,6 +60,13 @@ class ReturnOperationValidationResult:
 @dataclass(frozen=True)
 class DamageLossSettlementValidationResult:
     settlement: InventoryDamageLossSettlement
+
+
+@dataclass(frozen=True)
+class DamageLossSettlementExecutionResult:
+    execution: InventoryDamageLossSettlementExecution
+    refund_obligation: InventoryCautionRefundObligation | None
+    excess_receivable: InventoryDamageLossExcessReceivable | None
 
 
 def active_inventory_stock_movements():
@@ -89,6 +105,20 @@ def active_inventory_damage_loss_settlements():
             "updated_by",
         )
         .prefetch_related("lines", "lines__return_operation_line")
+        .order_by("-created_at", "id")
+    )
+
+
+def active_inventory_damage_loss_settlement_executions():
+    return (
+        InventoryDamageLossSettlementExecution.objects.select_related(
+            "settlement",
+            "settlement__return_operation",
+            "executed_by",
+            "created_by",
+            "updated_by",
+        )
+        .select_related("refund_obligation", "excess_receivable")
         .order_by("-created_at", "id")
     )
 
@@ -277,6 +307,52 @@ def create_inventory_damage_loss_settlement(
         },
     )
     return settlement
+
+
+@transaction.atomic
+def create_inventory_damage_loss_settlement_execution(
+    *,
+    settlement: InventoryDamageLossSettlement,
+    actor: object | None = None,
+    notes: str = "",
+) -> InventoryDamageLossSettlementExecution:
+    actor_id = getattr(actor, "pk", None)
+    execution = InventoryDamageLossSettlementExecution(
+        settlement=settlement,
+        notes=notes,
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
+    )
+    try:
+        execution.full_clean()
+        execution.save()
+    except ValidationError as error:
+        first_field_errors = next(iter(error.message_dict.values()), error.messages)
+        message = (
+            first_field_errors[0]
+            if first_field_errors
+            else "Invalid damage/loss settlement execution."
+        )
+        raise InventoryStockMovementError(
+            message,
+            code=(
+                INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_SETTLEMENT_STATE
+                if "settlement" in error.message_dict
+                else INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION
+            ),
+        ) from error
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="inventory.damage_loss_settlement_execution_created",
+        target_type="inventory_damage_loss_settlement_execution",
+        target_id=str(execution.id),
+        metadata={
+            "settlement_id": str(execution.settlement_id),
+            "return_operation_id": str(execution.settlement.return_operation_id),
+        },
+    )
+    return execution
 
 
 @transaction.atomic
@@ -513,3 +589,103 @@ def validate_inventory_damage_loss_settlement(
         },
     )
     return DamageLossSettlementValidationResult(settlement=locked_settlement)
+
+
+@transaction.atomic
+def execute_inventory_damage_loss_settlement_execution(
+    *,
+    execution: InventoryDamageLossSettlementExecution,
+    actor: object | None = None,
+) -> DamageLossSettlementExecutionResult:
+    locked_execution = InventoryDamageLossSettlementExecution.objects.select_for_update().get(
+        pk=execution.pk
+    )
+    locked_execution = InventoryDamageLossSettlementExecution.objects.select_related(
+        "settlement",
+        "settlement__return_operation",
+    ).get(pk=locked_execution.pk)
+    if locked_execution.status != InventoryDamageLossSettlementExecutionStatus.DRAFT:
+        raise InventoryStockMovementError(
+            "Damage/loss settlement execution is not in draft state.",
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_STATE,
+        )
+
+    if (
+        locked_execution.settlement.settlement_status
+        != InventoryDamageLossSettlementStatus.VALIDATED
+    ):
+        raise InventoryStockMovementError(
+            "Damage/loss settlement execution requires a validated settlement.",
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION_SETTLEMENT_STATE,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+    executed_at = timezone.now()
+    locked_settlement = locked_execution.settlement
+    locked_execution.damage_loss_total_snapshot = locked_settlement.damage_loss_total
+    locked_execution.caution_available_snapshot = locked_settlement.caution_available
+    locked_execution.caution_applied_snapshot = locked_settlement.caution_applied
+    locked_execution.refund_due_snapshot = locked_settlement.refund_due
+    locked_execution.excess_due_snapshot = locked_settlement.excess_due
+    locked_execution.status = InventoryDamageLossSettlementExecutionStatus.EXECUTED
+    locked_execution.executed_at = executed_at
+    locked_execution.executed_by_id = actor_id
+    locked_execution.updated_by_id = actor_id
+    try:
+        locked_execution.full_clean()
+    except ValidationError as error:
+        first_field_errors = next(iter(error.message_dict.values()), error.messages)
+        message = (
+            first_field_errors[0]
+            if first_field_errors
+            else "Invalid damage/loss settlement execution."
+        )
+        raise InventoryStockMovementError(
+            message,
+            code=INVALID_DAMAGE_LOSS_SETTLEMENT_EXECUTION,
+        ) from error
+    locked_execution.save()
+
+    refund_obligation = None
+    if locked_execution.refund_due_snapshot > Decimal("0.00"):
+        refund_obligation = InventoryCautionRefundObligation(
+            settlement_execution=locked_execution,
+            amount=locked_execution.refund_due_snapshot,
+            created_by_id=actor_id,
+            updated_by_id=actor_id,
+        )
+        refund_obligation.full_clean()
+        refund_obligation.save()
+
+    excess_receivable = None
+    if locked_execution.excess_due_snapshot > Decimal("0.00"):
+        excess_receivable = InventoryDamageLossExcessReceivable(
+            settlement_execution=locked_execution,
+            amount=locked_execution.excess_due_snapshot,
+            created_by_id=actor_id,
+            updated_by_id=actor_id,
+        )
+        excess_receivable.full_clean()
+        excess_receivable.save()
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="inventory.damage_loss_settlement_execution_executed",
+        target_type="inventory_damage_loss_settlement_execution",
+        target_id=str(locked_execution.id),
+        metadata={
+            "settlement_id": str(locked_execution.settlement_id),
+            "damage_loss_total_snapshot": str(locked_execution.damage_loss_total_snapshot),
+            "caution_available_snapshot": str(locked_execution.caution_available_snapshot),
+            "caution_applied_snapshot": str(locked_execution.caution_applied_snapshot),
+            "refund_due_snapshot": str(locked_execution.refund_due_snapshot),
+            "excess_due_snapshot": str(locked_execution.excess_due_snapshot),
+            "refund_obligation_id": str(refund_obligation.id) if refund_obligation else None,
+            "excess_receivable_id": str(excess_receivable.id) if excess_receivable else None,
+        },
+    )
+    return DamageLossSettlementExecutionResult(
+        execution=locked_execution,
+        refund_obligation=refund_obligation,
+        excess_receivable=excess_receivable,
+    )

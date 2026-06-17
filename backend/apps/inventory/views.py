@@ -8,6 +8,8 @@ from rest_framework.views import APIView
 from apps.inventory.models import InventoryItem
 from apps.inventory.serializers import (
     InventoryDamageLossSettlementCreateSerializer,
+    InventoryDamageLossSettlementExecutionCreateSerializer,
+    InventoryDamageLossSettlementExecutionSerializer,
     InventoryDamageLossSettlementSerializer,
     InventoryItemSerializer,
     InventoryReturnOperationCreateSerializer,
@@ -17,12 +19,15 @@ from apps.inventory.serializers import (
 )
 from apps.inventory.services import (
     InventoryStockMovementError,
+    active_inventory_damage_loss_settlement_executions,
     active_inventory_damage_loss_settlements,
     active_inventory_return_operations,
     active_inventory_stock_movements,
     create_inventory_damage_loss_settlement,
+    create_inventory_damage_loss_settlement_execution,
     create_inventory_return_operation,
     create_inventory_stock_movement,
+    execute_inventory_damage_loss_settlement_execution,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
 )
@@ -264,5 +269,89 @@ class InventoryDamageLossSettlementValidateAPIView(APIView):
 
         return Response(
             InventoryDamageLossSettlementSerializer(result.settlement).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class InventoryDamageLossSettlementExecutionListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "post":
+            return InventoryDamageLossSettlementExecutionCreateSerializer
+        return InventoryDamageLossSettlementExecutionSerializer
+
+    def get_queryset(self):
+        return active_inventory_damage_loss_settlement_executions()
+
+    @extend_schema(
+        request=InventoryDamageLossSettlementExecutionCreateSerializer,
+        responses={
+            201: InventoryDamageLossSettlementExecutionSerializer,
+            400: OpenApiResponse(description="Damage/loss settlement execution validation failed."),
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            execution = create_inventory_damage_loss_settlement_execution(
+                actor=request.user,
+                **serializer.validated_data,
+            )
+        except InventoryStockMovementError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            InventoryDamageLossSettlementExecutionSerializer(execution).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class InventoryDamageLossSettlementExecutionRetrieveAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, id):
+        execution = active_inventory_damage_loss_settlement_executions().filter(id=id).first()
+        if execution is None:
+            raise Http404("Inventory damage/loss settlement execution not found.")
+
+        return Response(InventoryDamageLossSettlementExecutionSerializer(execution).data)
+
+
+class InventoryDamageLossSettlementExecutionExecuteAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: InventoryDamageLossSettlementExecutionSerializer,
+            400: OpenApiResponse(description="Damage/loss settlement execution failed."),
+        },
+    )
+    def post(self, request, id):
+        execution = active_inventory_damage_loss_settlement_executions().filter(id=id).first()
+        if execution is None:
+            raise Http404("Inventory damage/loss settlement execution not found.")
+
+        try:
+            result = execute_inventory_damage_loss_settlement_execution(
+                execution=execution,
+                actor=request.user,
+            )
+        except InventoryStockMovementError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            InventoryDamageLossSettlementExecutionSerializer(result.execution).data,
             status=status.HTTP_200_OK,
         )
