@@ -92,10 +92,23 @@ Claude Code hooks are deferred in F148A. The project will add hooks only after t
 format is explicitly confirmed from official Claude Code documentation and the hook is
 clearly safe. Until then, `.claude/settings.json` uses only `deny` rules.
 
+## F148B tooling alignment
+
+F148B aligns the project tooling so Claude Code paths are officially accepted:
+
+- `scripts/dev/erp-agent-scope-guard` now recognizes `CLAUDE.md` and `.claude/`
+  under the `agent-docs` profile.
+- `scripts/dev/erp-pr-worktree-finalize` is executable and safely returns to the
+  root worktree to fast-forward `main` after a squash merge, instead of trying to
+  pull `origin/main` into the task branch.
+
+Hooks remain deferred until the official Claude Code hook format is confirmed safe.
+
 ## F147F pilot path
 
-F147F remains paused while F148A is open. Do not resume or modify F147F during F148A.
+F147F remains paused while F148A and F148B are open. Do not resume or modify F147F
+until F148B is merged and `main` CI is green.
 
-After F148A is merged and `main` CI is green, F147F may become the first Claude Code pilot
-task. That transition requires an explicit new orchestrator assignment; it does not
-happen automatically.
+After F148A and F148B are merged and `main` CI is green, F147F may become the first
+Claude Code pilot task. That transition requires an explicit new orchestrator
+assignment; it does not happen automatically.
