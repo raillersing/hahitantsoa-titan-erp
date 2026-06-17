@@ -253,7 +253,18 @@ for attempt in $(seq 1 30); do
   sleep 5
 done
 
-# ----- Pull updated main -----
+# ----- Sync main from the root worktree -----
+# After a squash merge the task branch is no longer an ancestor of origin/main, so
+# pulling origin/main into the task branch would fail. Switch to the root worktree
+# (which must remain on main) and fast-forward main from there.
+echo "INFO: Returning to root worktree to sync main..."
+cd "$REPO_ROOT"
+
+if [ "$(git branch --show-current)" != "main" ]; then
+  echo "ERROR: root worktree is not on main; cannot sync main safely"
+  exit 1
+fi
+
 git fetch origin --prune
 git pull --ff-only origin main
 

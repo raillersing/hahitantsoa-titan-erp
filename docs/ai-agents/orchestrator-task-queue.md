@@ -2,9 +2,9 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), F148E at `2d96134` (PR #268), and F148A Claude Code governance at `3b9835c` (PR #269).
-- Current `origin/main` HEAD is `dcb57fb` (Merge pull request #272, F148G production readiness audit).
-- F148B Claude tooling guard alignment is open as PR #270 on branch `chore/f148b-claude-tooling-guard-alignment`.
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), F148E at `2d96134` (PR #268), F148A Claude Code governance at `3b9835c` (PR #269), F148F campaign plan at `298abf3` (PR #271), F148G production readiness at `dcb57fb` (PR #272), F148H agent handoff at `273705d` (PR #273), and F145H excess receivable foundation at `d45a2fe` (PR #274).
+- Current `origin/main` HEAD is `d45a2fe` (F145H damage/loss excess receivable invoice foundation).
+- F148B Claude tooling guard alignment is open as PR #270 on branch `chore/f148b-claude-tooling-guard-alignment`. This is a new follow-up tooling task, not the prior merged F148B wrapper PR #265.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -248,6 +248,8 @@ Status:
 - baseline: origin/main at `2d96134`
 - branch: `docs/f148a-claude-code-project-integration` (merged)
 - scope: Claude Code project integration and governance
+- worktree: removed
+- note: the original F148A completion audit was merged as PR #264 on a different branch (`docs/f148a-completion-audit`). This entry tracks the Claude Code onboarding task that reused the F148A letter.
 
 Scope delivered:
 - `CLAUDE.md` — Claude Code workflow instructions
@@ -260,36 +262,52 @@ Validation:
 - main CI green after merge
 - No backend, frontend, test, or script files modified
 
+Validation:
+- `git diff --check` — PASS
+- Scope manually verified; only the four allowed files changed
+- PR CI green before merge
+- `main` CI green after merge
+
 ### F148B
 
 Status:
-- open PR — awaiting human merge
-- baseline: origin/main at `3b9835c`
+- open — Claude Code tooling guard and finalize-wrapper alignment
+- baseline: origin/main at `d45a2fe`
 - branch: `chore/f148b-claude-tooling-guard-alignment`
 - worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f148b-claude-tooling-guard`
-- scope: align Claude Code tooling guards
+- note: this is a new follow-up tooling task. The prior F148B worktree PR finalization wrapper was merged as PR #265.
 
-Scope delivered:
-- `scripts/dev/erp-agent-scope-guard` — updated to allow `.claude/` and `CLAUDE.md` paths
-- `scripts/dev/erp-pr-worktree-finalize` — minor alignment
-- `docs/ai-agents/tooling/claude-code-orchestration.md` — updated
-- `docs/ai-agents/orchestrator-task-queue.md` — updated
+Scope:
+- update `scripts/dev/erp-agent-scope-guard` so the `agent-docs` profile accepts Claude Code governance paths (`CLAUDE.md`, `.claude/settings.json`, `docs/ai-agents/tooling/claude-code-orchestration.md`)
+- update `scripts/dev/erp-pr-worktree-finalize` to be executable and to safely return to the root worktree to fast-forward `main` after a squash merge
+- update `docs/ai-agents/tooling/claude-code-orchestration.md`
+- update `docs/ai-agents/orchestrator-task-queue.md`
+- tooling/governance only
 
-Validation:
-- PR CI pending — awaiting human merge
+Allowed files:
+- `scripts/dev/erp-agent-scope-guard`
+- `scripts/dev/erp-pr-worktree-finalize`
+- `docs/ai-agents/tooling/claude-code-orchestration.md`
+- `docs/ai-agents/orchestrator-task-queue.md`
 
-### F148B
+Stop conditions:
+- any required backend/frontend/test change
+- any required `.env` or secrets access
+- any touch to F147F or its worktree
+- any touch to `docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATION.md`
+- any scope drift outside the allowed files
 
-Status:
-- merged as PR #265
-- baseline: origin/main at 50ec2b0 (main has advanced since)
-- branch: docs/f148a-completion-audit (merged as F148B on same branch)
-- scope: add safe worktree PR finalization wrapper
+Coexistence:
+- Claude Code does not replace Codex, Antigravity, or OpenCode
+- F147F remains paused and must not be resumed until F148B is merged and `main` CI is green
+- F147F may later serve as the first Claude Code pilot task after explicit orchestrator assignment
 
-Scope delivered:
-- scripts/dev/erp-pr-worktree-finalize — worktree-safe PR finalization script
-- docs/ai-agents/agent-command-runbook.md — updated with worktree finalization section
-- docs/audits/F148B_SAFE_WORKTREE_PR_FINALIZATION.md — audit note
+Expected validation:
+- `git diff --check` — PASS
+- `bash scripts/dev/erp-agent-scope-guard agent-docs` — must pass for F148B changed files
+- `scripts/dev/erp-pr-worktree-finalize` — executable bit set
+- PR CI green before merge
+- `main` CI green after merge
 
 ### F148C
 
