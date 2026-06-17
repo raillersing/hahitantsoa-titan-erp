@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, F148A at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), and F148C at `dbe03ce` (PR #266).
-- Current `origin/main` HEAD is `dbe03ce` (Merge pull request #266, F148C).
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, F148A at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), and F148D at `f355def` (PR #267).
+- Current `origin/main` HEAD is `f355def` (Merge pull request #267, F148D).
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -303,9 +303,9 @@ Validation:
 ### F148D
 
 Status:
-- open PR — awaiting human merge
+- merged as PR #267
 - baseline: origin/main at dbe03ce
-- branch: docs/f148d-opencode-backend-dry-run
+- branch: docs/f148d-opencode-backend-dry-run (merged)
 - scope: OpenCode backend orchestrator dry-run audit (docs-only while Codex is active on F145H)
 
 Scope delivered:
@@ -313,6 +313,26 @@ Scope delivered:
   covering main state, active worktrees, F148A backend findings, safe next bundles,
   recommended next bundle (F145I billing), OpenCode role assessment, risks/stops
 - docs/ai-agents/orchestrator-task-queue.md — updated (F148C→merged, F148D→open)
+- No backend, frontend, test, script, or .github files modified
+
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
+- git diff --check — PASS
+- Confirmed no forbidden mutations
+
+### F148E
+
+Status:
+- open PR — awaiting human merge
+- baseline: origin/main at f355def
+- branch: docs/f148e-opencode-frontend-dry-run
+- scope: OpenCode frontend orchestrator dry-run audit (docs-only while Antigravity is active on F147F)
+
+Scope delivered:
+- docs/audits/F148E_OPENCODE_FRONTEND_ORCHESTRATOR_DRY_RUN.md — comprehensive dry-run audit
+  covering main state, active worktrees, F148A frontend findings, safe next bundles,
+  recommended next bundle (F147G wire 3 pending panels), OpenCode role assessment, risks/stops
+- docs/ai-agents/orchestrator-task-queue.md — updated (F148D→merged, F148E→open)
 - No backend, frontend, test, script, or .github files modified
 
 Validation:
