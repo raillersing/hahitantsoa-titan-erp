@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, F148A at `b5c8dca` (PR #264), and F148B at `c8ba67b` (PR #265).
-- Current `origin/main` HEAD is `c8ba67b` (Merge pull request #265).
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, F148A at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), and F148C at `dbe03ce` (PR #266).
+- Current `origin/main` HEAD is `dbe03ce` (Merge pull request #266, F148C).
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -268,9 +268,9 @@ Scope delivered:
 ### F148C
 
 Status:
-- open PR — awaiting human merge
+- merged as PR #266
 - baseline: origin/main at c8ba67b
-- branch: tools/f148c-finalizer-validation
+- branch: tools/f148c-finalizer-validation (merged)
 - scope: validate and harden the worktree PR finalization wrapper
 
 Scope delivered:
@@ -281,6 +281,8 @@ Scope delivered:
   with clarified execution context, one-task-one-branch enforcement, simplified
   default invocation
 - docs/audits/F148C_FINALIZER_VALIDATION.md — audit note
+- F148C runbook documented safe PR validation: materialise-to-tempfile before bash,
+  scoped grep for --delete-branch
 
 Validated findings:
 - Pending checks bug: statusCheckRollup filter excluded null-conclusion checks,
@@ -297,6 +299,26 @@ Validation:
 - bash scripts/dev/erp-pr-worktree-finalize --help — shows usage
 - git diff --check — PASS
 - PR CI green before merge
+
+### F148D
+
+Status:
+- open PR — awaiting human merge
+- baseline: origin/main at dbe03ce
+- branch: docs/f148d-opencode-backend-dry-run
+- scope: OpenCode backend orchestrator dry-run audit (docs-only while Codex is active on F145H)
+
+Scope delivered:
+- docs/audits/F148D_OPENCODE_BACKEND_ORCHESTRATOR_DRY_RUN.md — comprehensive dry-run audit
+  covering main state, active worktrees, F148A backend findings, safe next bundles,
+  recommended next bundle (F145I billing), OpenCode role assessment, risks/stops
+- docs/ai-agents/orchestrator-task-queue.md — updated (F148C→merged, F148D→open)
+- No backend, frontend, test, script, or .github files modified
+
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
+- git diff --check — PASS
+- Confirmed no forbidden mutations
 
 ## Later Repair Track
 
