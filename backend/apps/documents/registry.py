@@ -265,6 +265,20 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         validated_by_client=True,
         notes="Validated source template for breakage and repair invoice documents.",
     ),
+    DocumentTemplateDefinition(
+        key="shared.damage_loss_excess_invoice.v1",
+        label="Facture d'excédent de perte et de dommage",
+        business_scope="shared",
+        document_type="damage_loss_excess_invoice",
+        version="v1",
+        status="validated_source_template",
+        source_kind="source_pdf",
+        source_reference="docs/references/source/templates/Template_Facture_Excess_Perte_Dommage_v1.pdf",
+        template_path="backend/apps/documents/templates_documents/shared/damage_loss_excess_invoice/v1/template.html",
+        preview_path="docs/references/source/templates/Template_Facture_Excess_Perte_Dommage_v1.pdf",
+        validated_by_client=True,
+        notes="Validated source template for damage/loss excess invoice documents.",
+    ),
 )
 
 
