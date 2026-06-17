@@ -2,7 +2,10 @@ from django.apps import apps
 
 from apps.inventory.models import (
     InventoryAvailability,
+    InventoryCautionRefundObligation,
+    InventoryDamageLossExcessReceivable,
     InventoryDamageLossSettlement,
+    InventoryDamageLossSettlementExecution,
     InventoryDamageLossSettlementLine,
     InventoryItem,
     InventoryReturnOperation,
@@ -31,4 +34,7 @@ def test_inventory_app_registry_contains_inventory_models() -> None:
     assert InventoryReturnOperation in inventory_models
     assert InventoryReturnOperationLine in inventory_models
     assert InventoryDamageLossSettlement in inventory_models
+    assert InventoryDamageLossSettlementExecution in inventory_models
+    assert InventoryCautionRefundObligation in inventory_models
+    assert InventoryDamageLossExcessReceivable in inventory_models
     assert InventoryDamageLossSettlementLine in inventory_models

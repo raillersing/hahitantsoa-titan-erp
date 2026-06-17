@@ -110,10 +110,19 @@ Scope:
 ### F145G
 
 Status:
-- queued after F145F
+- active backend task after F145F
 
 Scope:
-- caution refund, excess invoice, and later commercial closeout foundations
+- damage/loss settlement execution foundation
+- backend-only implementation
+
+### F145H
+
+Status:
+- queued after F145G
+
+Scope:
+- caution refund execution and excess invoice foundations
 - backend-only implementation
 
 ## Frontend Next Task

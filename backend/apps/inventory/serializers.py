@@ -4,7 +4,10 @@ from rest_framework import serializers
 
 from apps.documents.models import DocumentInstance
 from apps.inventory.models import (
+    InventoryCautionRefundObligation,
+    InventoryDamageLossExcessReceivable,
     InventoryDamageLossSettlement,
+    InventoryDamageLossSettlementExecution,
     InventoryDamageLossSettlementLine,
     InventoryItem,
     InventoryReturnOperation,
@@ -263,3 +266,68 @@ class InventoryDamageLossSettlementCreateSerializer(serializers.Serializer):
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     lines = InventoryDamageLossSettlementLineCreateSerializer(many=True, allow_empty=False)
+
+
+class InventoryCautionRefundObligationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryCautionRefundObligation
+        fields = (
+            "id",
+            "amount",
+            "status",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        )
+        read_only_fields = fields
+
+
+class InventoryDamageLossExcessReceivableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryDamageLossExcessReceivable
+        fields = (
+            "id",
+            "amount",
+            "status",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        )
+        read_only_fields = fields
+
+
+class InventoryDamageLossSettlementExecutionSerializer(serializers.ModelSerializer):
+    refund_obligation = InventoryCautionRefundObligationSerializer(read_only=True)
+    excess_receivable = InventoryDamageLossExcessReceivableSerializer(read_only=True)
+
+    class Meta:
+        model = InventoryDamageLossSettlementExecution
+        fields = (
+            "id",
+            "settlement",
+            "status",
+            "executed_at",
+            "executed_by",
+            "damage_loss_total_snapshot",
+            "caution_available_snapshot",
+            "caution_applied_snapshot",
+            "refund_due_snapshot",
+            "excess_due_snapshot",
+            "notes",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+            "refund_obligation",
+            "excess_receivable",
+        )
+        read_only_fields = fields
+
+
+class InventoryDamageLossSettlementExecutionCreateSerializer(serializers.Serializer):
+    settlement = serializers.PrimaryKeyRelatedField(
+        queryset=InventoryDamageLossSettlement.objects.select_related("return_operation"),
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
