@@ -1,7 +1,11 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.documents.models import DocumentInstance
 from apps.inventory.models import (
+    InventoryDamageLossSettlement,
+    InventoryDamageLossSettlementLine,
     InventoryItem,
     InventoryReturnOperation,
     InventoryReturnOperationLine,
@@ -174,3 +178,88 @@ class InventoryReturnOperationCreateSerializer(serializers.Serializer):
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     lines = InventoryReturnOperationLineCreateSerializer(many=True, allow_empty=False)
+
+
+class InventoryDamageLossSettlementLineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryDamageLossSettlementLine
+        fields = (
+            "id",
+            "return_operation_line",
+            "manual_label",
+            "settlement_line_kind",
+            "quantity",
+            "unit_amount",
+            "amount_source",
+            "total_amount",
+            "notes",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        )
+        read_only_fields = fields
+
+
+class InventoryDamageLossSettlementSerializer(serializers.ModelSerializer):
+    lines = InventoryDamageLossSettlementLineSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = InventoryDamageLossSettlement
+        fields = (
+            "id",
+            "return_operation",
+            "document_instance",
+            "settlement_status",
+            "damage_loss_total",
+            "caution_available",
+            "caution_applied",
+            "refund_due",
+            "excess_due",
+            "notes",
+            "validated_at",
+            "validated_by",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+            "lines",
+        )
+        read_only_fields = fields
+
+
+class InventoryDamageLossSettlementLineCreateSerializer(serializers.Serializer):
+    return_operation_line = serializers.PrimaryKeyRelatedField(
+        queryset=InventoryReturnOperationLine.objects.select_related("return_operation"),
+        required=False,
+        allow_null=True,
+    )
+    manual_label = serializers.CharField(required=False, allow_blank=True, default="")
+    settlement_line_kind = serializers.ChoiceField(
+        choices=InventoryDamageLossSettlementLine._meta.get_field("settlement_line_kind").choices
+    )
+    quantity = serializers.IntegerField(min_value=1)
+    unit_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+    amount_source = serializers.ChoiceField(
+        choices=InventoryDamageLossSettlementLine._meta.get_field("amount_source").choices,
+        required=False,
+        default="manual",
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class InventoryDamageLossSettlementCreateSerializer(serializers.Serializer):
+    return_operation = serializers.PrimaryKeyRelatedField(
+        queryset=InventoryReturnOperation.objects.prefetch_related("lines"),
+    )
+    document_instance = serializers.PrimaryKeyRelatedField(
+        queryset=DocumentInstance.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    lines = InventoryDamageLossSettlementLineCreateSerializer(many=True, allow_empty=False)
