@@ -2,9 +2,9 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), and F148E at `2d96134` (PR #268).
-- Current `origin/main` HEAD is `2d96134` (Merge pull request #268, F148E).
-- A new F148A Claude Code integration/governance task is open on branch `docs/f148a-claude-code-project-integration`. This task reuses the F148A letter for the Claude Code onboarding work and does not affect the already-merged completion audit.
+- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), F148E at `2d96134` (PR #268), and F148A Claude Code governance at `3b9835c` (PR #269).
+- Current `origin/main` HEAD is `3b9835c` (Merge pull request #269, F148A Claude Code governance).
+- F148B Claude tooling guard alignment is open as PR #270 on branch `chore/f148b-claude-tooling-guard-alignment`.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -244,42 +244,39 @@ Validation:
 ### F148A
 
 Status:
-- open — Claude Code project integration and governance
+- merged as PR #269
 - baseline: origin/main at `2d96134`
-- branch: `docs/f148a-claude-code-project-integration`
-- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f148a-claude-code`
-- note: the original F148A completion audit was merged as PR #264 on a different branch (`docs/f148a-completion-audit`). This entry tracks the new Claude Code onboarding task that reuses the F148A letter.
+- branch: `docs/f148a-claude-code-project-integration` (merged)
+- scope: Claude Code project integration and governance
 
-Scope:
-- integrate Claude Code cleanly into the project workflow
-- create `CLAUDE.md`, `docs/ai-agents/tooling/claude-code-orchestration.md`, and `.claude/settings.json`
-- update `docs/ai-agents/orchestrator-task-queue.md`
-- docs/tooling/governance only
+Scope delivered:
+- `CLAUDE.md` — Claude Code workflow instructions
+- `.claude/settings.json` — Claude Code project settings
+- `docs/ai-agents/tooling/claude-code-orchestration.md` — Claude Code orchestration documentation
+- `docs/ai-agents/orchestrator-task-queue.md` — updated
 
-Allowed files:
-- `CLAUDE.md`
-- `.claude/settings.json`
-- `docs/ai-agents/tooling/claude-code-orchestration.md`
-- `docs/ai-agents/orchestrator-task-queue.md`
+Validation:
+- PR CI green (both Backend quality and Frontend quality passed)
+- main CI green after merge
+- No backend, frontend, test, or script files modified
 
-Stop conditions:
-- any required backend/frontend/test/script change
-- any required `.env` or secrets access
-- any touch to F147F or its worktree
-- any touch to `docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATION.md`
-- any scope drift outside the allowed files
+### F148B
 
-Coexistence:
-- Claude Code does not replace Codex, Antigravity, or OpenCode
-- F147F remains paused and must not be resumed until F148A is merged and `main` CI is green
-- F147F may later serve as the first Claude Code pilot task after explicit orchestrator assignment
+Status:
+- open PR — awaiting human merge
+- baseline: origin/main at `3b9835c`
+- branch: `chore/f148b-claude-tooling-guard-alignment`
+- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f148b-claude-tooling-guard`
+- scope: align Claude Code tooling guards
 
-Expected validation:
-- `git diff --check` — PASS
-- `bash scripts/dev/erp-agent-scope-guard agent-docs` — will flag `.claude/` and `CLAUDE.md` as outside the current `agent-docs` profile; this is expected because F148A introduces new Claude Code paths before the scope guard is updated to recognize them
-- Manual scope review confirms only the four allowed files are changed
-- PR CI green before merge
-- `main` CI green after merge
+Scope delivered:
+- `scripts/dev/erp-agent-scope-guard` — updated to allow `.claude/` and `CLAUDE.md` paths
+- `scripts/dev/erp-pr-worktree-finalize` — minor alignment
+- `docs/ai-agents/tooling/claude-code-orchestration.md` — updated
+- `docs/ai-agents/orchestrator-task-queue.md` — updated
+
+Validation:
+- PR CI pending — awaiting human merge
 
 ### F148B
 
@@ -362,6 +359,24 @@ Scope delivered:
   covering main state, active worktrees, F148A frontend findings, safe next bundles,
   recommended next bundle (F147G wire 3 pending panels), OpenCode role assessment, risks/stops
 - docs/ai-agents/orchestrator-task-queue.md — updated (F148D→merged, F148E→open)
+- No backend, frontend, test, script, or .github files modified
+
+Validation:
+- bash scripts/dev/erp-agent-scope-guard agent-docs — PASS
+- git diff --check — PASS
+- Confirmed no forbidden mutations
+
+### F148F
+
+Status:
+- open PR — awaiting human merge
+- baseline: origin/main at `3b9835c`
+- branch: `docs/f148f-campaign-plan`
+- scope: docs-only campaign plan + queue refresh (first bundle of docs-only campaign)
+
+Scope delivered:
+- `docs/audits/F148F_DOCS_ONLY_CAMPAIGN_PLAN.md` — campaign plan: discovery, bundling, execution order, hard stops
+- `docs/ai-agents/orchestrator-task-queue.md` — updated (F148A→merged, F148B→open, F148C/D/E→merged, HEAD→3b9835c)
 - No backend, frontend, test, script, or .github files modified
 
 Validation:
