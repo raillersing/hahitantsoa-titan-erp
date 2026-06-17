@@ -203,6 +203,10 @@ describe("App", () => {
         return Promise.resolve(jsonResponse([]));
       }
 
+      if (url === "/api/v1/inventory/stock-movements/") {
+        return Promise.resolve(jsonResponse([]));
+      }
+
       return Promise.resolve(jsonResponse({}, 404));
     });
 
@@ -230,6 +234,10 @@ describe("App", () => {
       }
 
       if (url === "/api/v1/reservations/drafts/") {
+        return Promise.resolve(jsonResponse([]));
+      }
+
+      if (url === "/api/v1/inventory/stock-movements/") {
         return Promise.resolve(jsonResponse([]));
       }
 
