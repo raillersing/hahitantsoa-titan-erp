@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from apps.identity.roles import ROLE_GROUP_NAME_BY_ROLE, IdentityRole
+from apps.identity.selectors import user_has_application_role
 
 RESERVATION_SENSITIVE_PERMISSION_DENIED_MESSAGE = (
     "Actor is not allowed to perform a reservation-sensitive write."
@@ -40,6 +41,12 @@ def actor_has_identity_role(*, actor: object | None, role: IdentityRole) -> bool
         return any(getattr(group, "name", None) == group_name for group in groups_iterable())
 
     return any(getattr(group, "name", None) == group_name for group in group_manager)
+
+
+def actor_has_application_role(*, actor: object | None, role_slug: str) -> bool:
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+    return user_has_application_role(user=actor, role_slug=role_slug)
 
 
 def is_reservation_sensitive_actor(*, actor: object | None) -> bool:
