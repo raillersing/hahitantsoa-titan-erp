@@ -65,14 +65,12 @@ def issue_billing_invoice_for_excess_receivable(
     locked_receivable = InventoryDamageLossExcessReceivable.objects.select_for_update().get(
         pk=excess_receivable.pk
     )
-    locked_receivable = (
-        InventoryDamageLossExcessReceivable.objects.select_related(
-            "settlement_execution",
-            "settlement_execution__settlement",
-            "settlement_execution__settlement__return_operation",
-            "settlement_execution__settlement__return_operation__reservation_draft",
-        ).get(pk=locked_receivable.pk)
-    )
+    locked_receivable = InventoryDamageLossExcessReceivable.objects.select_related(
+        "settlement_execution",
+        "settlement_execution__settlement",
+        "settlement_execution__settlement__return_operation",
+        "settlement_execution__settlement__return_operation__reservation_draft",
+    ).get(pk=locked_receivable.pk)
 
     if hasattr(locked_receivable, "billing_invoice"):
         raise BillingLifecycleError(
