@@ -1,7 +1,16 @@
 # Billing
 
-Role prevu : accueillir la future facturation, les paiements et les soldes.
+This app now owns the first bounded billing foundation for Titan commercial
+closeout flows.
 
-Hors perimetre F13 : aucune logique de paiement, recu, echeance ou solde n'est implementee.
+Implemented scope:
+- issue billing invoices for inventory damage/loss excess receivables;
+- keep a durable billing invoice record linked to the generated document;
+- settle an open billing invoice with one confirmed payment of the exact same amount;
+- expose authenticated billing invoice read and settle endpoints.
 
-Aucun modele, migration, serializer, viewset ou endpoint n'est cree dans ce domaine.
+Still out of scope:
+- partial settlements;
+- installment schedules or due-date workflows;
+- refunds, tax logic, legal numbering, or accounting exports;
+- frontend activation.

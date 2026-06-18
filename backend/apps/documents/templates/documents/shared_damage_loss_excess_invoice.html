@@ -1,0 +1,11 @@
+<html>
+  <body>
+    <h1>Facture excedent dommage/perte</h1>
+    <p>Document: {{ context.template.label }}</p>
+    <p>Reference facture: {{ context.excess_receivable.excess_receivable_id }}</p>
+    <p>Client: {{ context.excess_receivable.customer_display_name }}</p>
+    <p>Reservation: {{ context.excess_receivable.reservation_public_reference }}</p>
+    <p>Statut reservation: {{ context.excess_receivable.reservation_status }}</p>
+    <p>Montant: {{ context.excess_receivable.amount }}</p>
+  </body>
+</html>
