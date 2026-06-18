@@ -2,16 +2,15 @@
 
 ## Current State
 
-- `origin/main` HEAD is `2bd3e3e0e4efd18a460ba3943cda3bbc69b121c2`
-  (`fix(tools): F149B worktree finalizer main-sync repair`, PR #276).
-- `main` CI is green through PR #276 as verified on 2026-06-18.
+- `origin/main` HEAD is `ec036b8439ca1106cffc863278ed2291ffab40e9`
+  (`feat(logistics): support delivery and return note runtime docs`, PR #280).
+- `main` CI is green through PR #280 as verified on 2026-06-18.
 - F145A through F145H are merged on `main`.
 - F145H is no longer local-only, dirty, or PR-pending. It merged as PR #274 on
   2026-06-17.
 - The current commercial-track implementation gaps are:
-  - billing / invoicing
-  - identity / role management
-  - logistics / delivery
+  - identity / role management API, models, and administration (beyond the narrow #279 stub)
+  - logistics app models, services, and endpoints (beyond document-level runtime support)
   - frontend activation of merged commercial backend foundations
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
@@ -90,42 +89,55 @@ Scope delivered:
 ### Recommended next backend bundle
 
 Status:
-- next backend commercial bundle after F149A merge
+- active backend bundle after PR #280 merge
+
+Completed since F149A:
+- PR #278 feat(billing): add invoice settlement foundation — merged
+- PR #279 feat(identity): add reservation-sensitive role foundation — merged
+- PR #280 feat(logistics): support delivery and return note runtime docs — merged
+- PR #281 docs(queue): refresh task queue after PRs #278/#279/#280 — open
+- PR #282 feat(identity): add role management models, services, API, and tests — open
+- PR #284 feat(logistics): add logistics event models, services, API, and tests — open
 
 Recommended scope:
-- billing / invoice settlement foundation
+- caution refund execution workflow and settlement linkage
+  - service-layer execution for InventoryCautionRefundObligation
+  - linking refund execution to payment creation and billing settlement
+  - REST endpoint for triggering refund execution
+  - focused transaction-safe tests (Agent E required)
 
 Reason:
-- the biggest backend commercial gap after F145H is the still-empty `billing` domain
-- the F149A audit found billing, identity, logistics, and frontend activation as the
-  largest live completion gaps
-- billing is the clearest next backend-owned bundle that can progress without starting
-  frontend work in the same PR
+- billing (#278), identity (#279/#282), and logistics (#280/#284) foundations are now in place
+- the InventoryCautionRefundObligation model exists but has no execution workflow
+- closing the commercial closeout loop (refund → payment → settlement) is the clearest next backend-only gap
 
 Allowed scope:
-- backend billing implementation
-- backend billing tests
-- backend commercial audit/status docs needed for that bundle
+- backend inventory/billing/payment execution services
+- backend tests for refund execution and settlement linkage
+- backend audit/status docs needed for that bundle
 
 Forbidden scope:
 - frontend files
 - Antigravity/tooling files
 - F140D
-- `.env`, secrets, quarantine, or unrelated worktrees
+- .env, secrets, quarantine, or unrelated worktrees
+- new pricing or discount models outside the approved scope
 
 Hard stops:
 - any required frontend change
 - any required touch to Antigravity/tooling work
 - any ambiguity about unrelated dirty state
-- any need to broaden into identity or logistics without an explicit new bundle
+- any need to broaden into broad pricing or logistics expansion without an explicit new bundle
 
 Expected validation:
 - backend-focused quality checks
-- focused billing/payment tests
-- `git diff --check`
+- Django check and migration verification (Agent E required)
+- focused refund/settlement/payment tests
+- git diff --check
 - PR CI green before merge
-- `main` CI green after merge
+- main CI green after merge
 - cleanup of the task worktree/branch after merge
+
 
 ## Frontend Catch-Up Status
 
