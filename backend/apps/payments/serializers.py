@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.documents.serializers import DocumentInstanceSerializer
@@ -63,6 +65,11 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Confirmed or reconciled payments must be created through the confirm workflow."
             )
+        return value
+
+    def validate_amount(self, value: Decimal) -> Decimal:
+        if value is None or value <= Decimal("0.00"):
+            raise serializers.ValidationError("Amount must be greater than zero.")
         return value
 
     def validate(self, attrs):
