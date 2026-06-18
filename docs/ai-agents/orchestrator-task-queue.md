@@ -2,187 +2,214 @@
 
 ## Current State
 
-- `main` includes F137B at merge commit `b9dab44`, F145B at commit `27973be`, F147B at merge commit `26ba1de`, F147C at merge commit `b148de9`, F147D at merge commit `50ec2b0`, the original F148A completion audit at `b5c8dca` (PR #264), F148B at `c8ba67b` (PR #265), F148C at `dbe03ce` (PR #266), F148D at `f355def` (PR #267), F148E at `2d96134` (PR #268), F148A Claude Code governance at `3b9835c` (PR #269), F148F campaign plan at `298abf3` (PR #271), F148G production readiness at `dcb57fb` (PR #272), F148H agent handoff at `273705d` (PR #273), F145H excess receivable foundation at `d45a2fe` (PR #274), F148B tooling guard alignment at `1be744a` (PR #270), and F149A Docker lifecycle hygiene at `c44612f` (PR #275).
-- Current `origin/main` HEAD is `c44612f` (F149A agent CI Docker lifecycle hygiene).
-- F149B worktree finalizer main-sync repair is the active agent-tools task.
+- `origin/main` HEAD is `2bd3e3e0e4efd18a460ba3943cda3bbc69b121c2`
+  (`fix(tools): F149B worktree finalizer main-sync repair`, PR #276).
+- `main` CI is green through PR #276 as verified on 2026-06-18.
+- F145A through F145H are merged on `main`.
+- F145H is no longer local-only, dirty, or PR-pending. It merged as PR #274 on
+  2026-06-17.
+- The current commercial-track implementation gaps are:
+  - billing / invoicing
+  - identity / role management
+  - logistics / delivery
+  - frontend activation of merged commercial backend foundations
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
-- The script wrappers from F138B/F138C are mandatory only after that PR is merged.
 
-## Active Backend Task
+## Backend Commercial Operations Status
 
 ### F145A
 
 Status:
-- active backend task
+- merged as PR #249
 
-Scope:
-- source-traced commercial operations completion plan only
-- docs/task-queue updates only
-- no backend business-code implementation
-- no frontend modification
-
-Expected worktree:
-- backend-dedicated worktree only
-
-Stop conditions:
-- any required frontend change
-- any required backend business-code implementation
-- any need to inspect or use `.env`
-- any missing legal/fiscal/business source that would force invention
-- any touch to F140D, quarantine, or unrelated worktrees
-
-Expected validation:
-- `git diff --check`
-- `bash scripts/dev/erp-task-queue-validate` when queue changes
-- docs validation when present
-- Agent F docs review
-- Agent B final review
-- PR CI green before merge
-- main CI green after merge
-
-## Backend Next Task
+Scope delivered:
+- commercial operations completion plan
 
 ### F145B
 
 Status:
-- next backend task after F145A approval
+- merged as PR #250
 
-Scope:
-- documents runtime and commercial artifact completion
-- backend-only implementation
-
-Expected worktree:
-- backend-dedicated worktree only
-
-Stop conditions:
-- any required frontend change
-- any fiscal/payment rule invention
-- any `.env` interaction
-- any scope drift into logistics, payment, returns, or unrelated frontend work
-
-Expected validation:
-- backend-focused quality checks
-- focused document/runtime tests
-- `git diff --check`
-- PR CI green before merge
-- main CI green after merge
-
-## Backend Follow-Up Queue
+Scope delivered:
+- documents runtime and commercial artifact foundation
 
 ### F145C
 
 Status:
-- queued after F145B
+- merged as PR #254
 
-Scope:
-- billing and payment foundation
-- backend-only implementation
+Scope delivered:
+- payment foundation
 
 ### F145D
 
 Status:
-- queued after F145C
+- merged as PR #255
 
-Scope:
-- stock movement and logistics foundation
-- backend-only implementation
+Scope delivered:
+- stock movement ledger foundation
 
 ### F145E
 
 Status:
-- queued after F145D
+- merged as PR #259
 
-Scope:
-- returns and damage/loss foundation
-- backend-only implementation
+Scope delivered:
+- return inspection foundation
 
 ### F145F
 
 Status:
-- active backend task after F145E
+- merged as PR #261
 
-Scope:
+Scope delivered:
 - damage/loss settlement foundation
-- backend-only implementation
 
 ### F145G
 
 Status:
-- active backend task after F145F
+- merged as PR #263
 
-Scope:
+Scope delivered:
 - damage/loss settlement execution foundation
-- backend-only implementation
 
 ### F145H
 
 Status:
-- queued after F145G
+- merged as PR #274
 
-Scope:
-- caution refund execution and excess invoice foundations
-- backend-only implementation
+Scope delivered:
+- excess receivable invoice foundation
+- caution refund and excess receivable data-model foundations within the commercial
+  closeout flow
 
-## Frontend Next Task
+## Next Backend Commercial Bundle
 
-### F137C
+### Recommended next backend bundle
 
 Status:
-- next frontend task
+- next backend commercial bundle after F149A merge
 
-Scope:
-- continue the frontend delivery sequence after F137B
-- stay inside approved frontend files and approved backend contracts
+Recommended scope:
+- billing / invoice settlement foundation
 
-Expected worktree:
-- frontend-dedicated worktree only
+Reason:
+- the biggest backend commercial gap after F145H is the still-empty `billing` domain
+- the F149A audit found billing, identity, logistics, and frontend activation as the
+  largest live completion gaps
+- billing is the clearest next backend-owned bundle that can progress without starting
+  frontend work in the same PR
 
-Stop conditions:
-- any required backend code change
-- any `.env` interaction
-- any public document URL, storage-path exposure, or unapproved API invention
+Allowed scope:
+- backend billing implementation
+- backend billing tests
+- backend commercial audit/status docs needed for that bundle
+
+Forbidden scope:
+- frontend files
+- Antigravity/tooling files
+- F140D
+- `.env`, secrets, quarantine, or unrelated worktrees
+
+Hard stops:
+- any required frontend change
+- any required touch to Antigravity/tooling work
+- any ambiguity about unrelated dirty state
+- any need to broaden into identity or logistics without an explicit new bundle
 
 Expected validation:
-- frontend tests
-- frontend build
+- backend-focused quality checks
+- focused billing/payment tests
 - `git diff --check`
 - PR CI green before merge
-- main CI green after merge
+- `main` CI green after merge
+- cleanup of the task worktree/branch after merge
 
-## Frontend Follow-Up Queue
+## Frontend Catch-Up Status
 
-### F137D
-
-Status:
-- queued after F137C
-
-Scope:
-- frontend-only continuation
-- exact scope must be restated in the task prompt before implementation
-
-Stop conditions:
-- any backend dependency that is not already approved
-- any cross-worktree contamination
-
-Expected validation:
-- frontend-focused checks only unless the approved scope says otherwise
-
-### F137E
+### Current state
 
 Status:
-- queued after F137D
+- frontend is behind merged backend commercial foundations
 
-Scope:
-- frontend-only continuation
-- keep the Titan boundary and approved backend contract constraints intact
+Largest gaps:
+- returns handling activation
+- breakage/loss activation
+- stock movement ledger activation
+- auth / role-aware UX
+- customer and billing surfaces
 
-Stop conditions:
-- same stop conditions as F137D unless the approved task says otherwise
+Constraint:
+- frontend catch-up remains a separate workstream and must not be folded into backend
+  bundles without explicit authorization
 
-Expected validation:
-- frontend-focused checks only unless the approved scope says otherwise
+## Workflow Improvement Gates
+
+### Fallback model safety gate
+
+- Any Kimi or other fallback-model output must be treated as untrusted until it is
+  repository-verified.
+- No bundle is considered healthy solely because a model reported success.
+- If fallback-model work is suspected to be broken, the orchestrator must verify:
+  - current branch and worktree state
+  - real file diff
+  - PR existence/state
+  - CI result
+  - whether the code is actually merged on `main`
+
+### Done-means-done gate
+
+- A bundle is not complete when it is only drafted, reported, or locally committed.
+- Done means:
+  - committed intentionally
+  - PR opened
+  - PR CI green
+  - merged
+  - post-merge `main` CI green
+  - worktree/branch cleanup completed or explicitly handed off
+
+### Stale task queue gate
+
+- Before starting a new bundle, compare this queue with live repo truth:
+  - `git rev-parse HEAD`
+  - `git worktree list --porcelain`
+  - `gh pr list`
+  - latest `main` CI status
+- If the queue is stale, update the queue or record the mismatch before routing the next
+  bundle.
+
+### Backend/frontend matrix gate
+
+- Each new bundle prompt must explicitly classify the task as:
+  - backend-only
+  - frontend-only
+  - docs-only
+  - agent-tools only
+- The prompt must also state the approved cross-boundary rule:
+  - no cross-boundary mutation, or
+  - the minimum explicitly approved contract repair only
+
+### Dirty worktree and PR gate
+
+- Before a new bundle starts, verify:
+  - no ambiguous dirty files in the target worktree
+  - no unrelated untracked files inside the task scope
+  - branch state is clear
+  - PR state is known
+- If there is ambiguity about whether a dirty file is user work or unrelated residue,
+  stop and resolve that ambiguity before implementation starts.
+
+## Validation Expectations For Docs/Queue Mutations
+
+- `git diff --check`
+- `bash scripts/dev/erp-task-queue-validate`
+- `bash scripts/dev/erp-agent-profile-validate` when agent docs are touched
+- Agent F documentation review
+- Agent B final review
+- PR CI green before merge
+- post-merge `main` CI green
 
 ## Agents/Docs Governance Queue
 
