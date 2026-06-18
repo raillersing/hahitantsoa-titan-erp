@@ -12,10 +12,14 @@ from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
 from apps.payments.services import (
+    INVALID_PAYMENT_CANCEL_STATE,
     INVALID_PAYMENT_CONFIRMATION_STATE,
+    INVALID_PAYMENT_RECONCILE_STATE,
     PaymentLifecycleError,
+    cancel_payment,
     confirm_payment,
     create_payment,
+    reconcile_payment,
 )
 from apps.reservations.models import ReservationDraft
 
@@ -156,3 +160,110 @@ def test_confirm_payment_rejects_non_pending_state(django_user_model) -> None:
         confirm_payment(payment=payment, actor=actor)
 
     assert error_info.value.code == INVALID_PAYMENT_CONFIRMATION_STATE
+
+
+def test_cancel_payment_transitions_pending_to_cancelled(
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="payment-canceller", password="test-pass"
+    )
+    payment = create_payment(
+        actor=actor,
+        payment_kind=PaymentKind.OTHER,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("100000.00"),
+        source_label="Standalone payment",
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        cancelled = cancel_payment(
+            payment=payment,
+            actor=actor,
+            notes="Customer requested cancellation",
+        )
+
+    payment.refresh_from_db()
+    assert payment.payment_status == PaymentStatus.CANCELLED
+    assert payment.notes == "Customer requested cancellation"
+    assert cancelled.payment_status == PaymentStatus.CANCELLED
+    assert AuditEvent.objects.filter(action="payment.cancelled", target_id=str(payment.id)).exists()
+
+
+def test_cancel_payment_rejects_non_pending_state(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="payment-invalid-cancel", password="test-pass"
+    )
+    payment = create_payment(
+        actor=actor,
+        payment_kind=PaymentKind.OTHER,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.CANCELLED,
+        amount=Decimal("1000.00"),
+        source_label="Already cancelled",
+    )
+
+    with pytest.raises(PaymentLifecycleError) as error_info:
+        cancel_payment(payment=payment, actor=actor)
+
+    assert error_info.value.code == INVALID_PAYMENT_CANCEL_STATE
+
+
+def test_reconcile_payment_transitions_confirmed_to_reconciled(
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="payment-reconciler", password="test-pass"
+    )
+    reservation = _reservation_draft()
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation,
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("500000.00"),
+        source_label="Client deposit",
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        result = confirm_payment(payment=payment, actor=actor)
+
+    confirmed_payment = result.payment
+
+    with django_capture_on_commit_callbacks(execute=True):
+        reconciled = reconcile_payment(
+            payment=confirmed_payment,
+            actor=actor,
+            notes="Reconciled after bank statement review",
+        )
+
+    confirmed_payment.refresh_from_db()
+    assert confirmed_payment.payment_status == PaymentStatus.RECONCILED
+    assert confirmed_payment.notes == "Reconciled after bank statement review"
+    assert reconciled.payment_status == PaymentStatus.RECONCILED
+    assert AuditEvent.objects.filter(
+        action="payment.reconciled", target_id=str(confirmed_payment.id)
+    ).exists()
+
+
+def test_reconcile_payment_rejects_non_confirmed_state(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="payment-invalid-reconcile", password="test-pass"
+    )
+    payment = create_payment(
+        actor=actor,
+        payment_kind=PaymentKind.OTHER,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("1000.00"),
+        source_label="Pending payment",
+    )
+
+    with pytest.raises(PaymentLifecycleError) as error_info:
+        reconcile_payment(payment=payment, actor=actor)
+
+    assert error_info.value.code == INVALID_PAYMENT_RECONCILE_STATE
