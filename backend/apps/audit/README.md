@@ -1,11 +1,18 @@
 # Audit
 
-Role : accueillir les journaux d'audit, la tracabilite et les evenements sensibles.
+This app hosts backend audit event recording and read-only retrieval.
 
-F121C ajoute une fondation minimale pour enregistrer les succes durables d'actions sensibles :
+## Implemented scope
 
-- `AuditEvent` persiste l'acteur optionnel, l'action, la cible et des metadonnees minimales ;
-- `record_audit_event_on_commit(...)` planifie la creation uniquement apres commit reussi ;
-- un rollback annule le callback et ne laisse aucun faux audit de succes.
+- `AuditEvent` model with actor, action, target_type, target_id, metadata, and timestamps.
+- `record_audit_event_on_commit` service for fire-and-forget audit recording via `transaction.on_commit`.
+- Read-only REST API (`views.py` + `urls.py`):
+  - `GET /api/v1/audit/events/` ? list audit events, filterable by `action`, `target_type`, and `actor_id`.
+  - `GET /api/v1/audit/events/<id>/` ? retrieve a single audit event.
+- All endpoints require `HasReservationSensitiveAccess`.
+- Selectors (`selectors.py`) provide filtered queryset helpers.
 
-F121C ne cree aucun endpoint, serializer, view, event bus, integration Celery ou workflow de confirmation. Les audits de refus et d'echec restent hors perimetre jusqu'a une decision technique dediee.
+## Still out of scope
+
+- No write endpoints for audit events (events are only created via service layer internally).
+- No bulk export or external streaming.
