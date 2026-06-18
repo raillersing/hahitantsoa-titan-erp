@@ -109,6 +109,10 @@ def generate_document_instance_html(
 
     if document_instance.template_key == "titan.proforma.v1":
         template_path = "documents/titan_proforma.html"
+    elif document_instance.template_key == "titan.delivery_note.v1":
+        template_path = "documents/titan_delivery_note.html"
+    elif document_instance.template_key == "shared.return_note.v1":
+        template_path = "documents/shared_return_note.html"
 
     html_content = render_to_string(template_path, {"context": context})
 

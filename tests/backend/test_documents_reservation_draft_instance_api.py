@@ -248,6 +248,104 @@ def test_document_instance_create_rejects_unsupported_template_key(authenticated
     assert "template_key" in payload
 
 
+@pytest.mark.parametrize(
+    ("template_key", "expected_label"),
+    (
+        ("titan.delivery_note.v1", "Bon de livraison Titan"),
+        ("shared.return_note.v1", "Bon de retour"),
+    ),
+)
+def test_document_instance_create_supports_logistics_note_templates(
+    authenticated_client,
+    django_capture_on_commit_callbacks,
+    template_key: str,
+    expected_label: str,
+) -> None:
+    draft = _draft_with_line()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = authenticated_client.post(
+            _list_url(draft.id),
+            data={"template_key": template_key, "notes": "Logistics document"},
+            content_type="application/json",
+        )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["template_key"] == template_key
+    assert payload["template_label"] == expected_label
+    assert payload["status"] == DocumentInstanceStatus.PREPARED
+
+
+@pytest.mark.parametrize(
+    ("template_key", "template_label", "template_path", "expected_fragment"),
+    (
+        (
+            "titan.delivery_note.v1",
+            "Bon de livraison Titan",
+            "backend/apps/documents/templates_documents/titan/bl/v1/template.html",
+            "Delivered Items",
+        ),
+        (
+            "shared.return_note.v1",
+            "Bon de retour",
+            "backend/apps/documents/templates_documents/shared/bon_retour/v1/template.html",
+            "Returned Items",
+        ),
+    ),
+)
+def test_document_instance_generate_supports_logistics_note_templates(
+    authenticated_client,
+    template_key: str,
+    template_label: str,
+    template_path: str,
+    expected_fragment: str,
+) -> None:
+    draft = _draft_with_line()
+    instance = DocumentInstance.objects.create(
+        reservation_draft=draft,
+        customer=draft.customer,
+        template_key=template_key,
+        template_version="v1",
+        template_label=template_label,
+        business_scope="shared" if template_key.startswith("shared.") else "titan",
+        document_type="return_note" if template_key.startswith("shared.") else "delivery_note",
+        template_status=(
+            "generated_draft_template"
+            if template_key.startswith("shared.")
+            else "validated_source_template"
+        ),
+        template_source_kind=(
+            "generated_from_brand_style" if template_key.startswith("shared.") else "source_pdf"
+        ),
+        template_source_reference="docs/references/source/Document_A_CDC_Technique_Evenementiel_v3.4.pdf",
+        template_path=template_path,
+        template_preview_path=template_path.replace("template.html", "preview.pdf"),
+        template_validated_by_client=template_key == "titan.delivery_note.v1",
+        template_notes="Logistics note template",
+        reservation_public_reference=draft.public_reference,
+        reservation_status=draft.status,
+        customer_display_name=draft.customer.display_name,
+        customer_email=draft.customer.email,
+        customer_phone=draft.customer.phone,
+        customer_address=draft.customer.address,
+        status=DocumentInstanceStatus.PREPARED,
+    )
+
+    response = authenticated_client.post(_generate_url(draft.id, instance.id))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == DocumentInstanceStatus.GENERATED
+
+    instance.refresh_from_db()
+    with runtime_module.default_storage.open(instance.storage_path, "rb") as f:
+        html = f.read().decode("utf-8")
+
+    assert expected_fragment in html
+    assert draft.public_reference in html
+
+
 def test_document_instance_generate_returns_400_for_non_prepared_instance(
     authenticated_client,
 ) -> None:
