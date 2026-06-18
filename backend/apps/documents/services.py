@@ -17,9 +17,11 @@ from apps.reservations.models import ReservationDraft
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
 SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "titan.proforma.v1",
+    "titan.delivery_note.v1",
     "titan.material_contract.v1",
     "titan.material_amendment.v1",
     "titan.invoice.v1",
+    "shared.return_note.v1",
 )
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"
