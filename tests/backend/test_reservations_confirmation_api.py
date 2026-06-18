@@ -108,7 +108,9 @@ def test_confirm_draft_success_by_group_mapped_non_staff_user(client, django_use
         username="group-operator",
         is_staff=False,
     )
-    operator.groups.add(Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value))
+    operator.groups.add(
+        Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value)
+    )
     draft = _prepare_confirmable_draft(django_user_model=django_user_model, staff_user=staff)
 
     client.force_login(operator)
