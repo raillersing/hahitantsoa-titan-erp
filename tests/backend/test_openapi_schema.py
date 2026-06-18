@@ -78,6 +78,9 @@ TITAN_PROFORMA_DRAFT_PREVIEW_PATHS = (
 PAYMENT_LIST_PATH = "/api/v1/payments/"
 PAYMENT_DETAIL_PATH = "/api/v1/payments/{id}/"
 PAYMENT_CONFIRM_PATH = "/api/v1/payments/{id}/confirm/"
+BILLING_INVOICE_LIST_PATH = "/api/v1/billing/invoices/"
+BILLING_INVOICE_DETAIL_PATH = "/api/v1/billing/invoices/{id}/"
+BILLING_INVOICE_SETTLE_PATH = "/api/v1/billing/invoices/{id}/settle/"
 RESERVATION_DRAFT_DOCUMENT_INSTANCE_LIST_PATH = (
     "/api/v1/documents/reservation-drafts/{reservation_draft_id}/instances/"
 )
@@ -178,6 +181,12 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
     _assert_get_only(paths[PAYMENT_DETAIL_PATH])
     assert PAYMENT_CONFIRM_PATH in paths
     assert set(paths[PAYMENT_CONFIRM_PATH]) == {"post"}
+    assert BILLING_INVOICE_LIST_PATH in paths
+    _assert_get_only(paths[BILLING_INVOICE_LIST_PATH])
+    assert BILLING_INVOICE_DETAIL_PATH in paths
+    _assert_get_only(paths[BILLING_INVOICE_DETAIL_PATH])
+    assert BILLING_INVOICE_SETTLE_PATH in paths
+    assert set(paths[BILLING_INVOICE_SETTLE_PATH]) == {"post"}
     assert INVENTORY_STOCK_MOVEMENT_LIST_PATH in paths
     assert set(paths[INVENTORY_STOCK_MOVEMENT_LIST_PATH]) >= {"get", "post"}
     assert INVENTORY_STOCK_MOVEMENT_DETAIL_PATH in paths

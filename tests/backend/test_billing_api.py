@@ -1,0 +1,116 @@
+from decimal import Decimal
+
+import pytest
+from tests.backend.test_inventory_damage_loss_settlement_execution_services import (
+    _validated_settlement,
+)
+
+from apps.billing.models import BillingInvoice
+from apps.inventory.services import (
+    create_inventory_damage_loss_settlement_execution,
+    execute_inventory_damage_loss_settlement_execution,
+)
+from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
+from apps.payments.services import confirm_payment, create_payment
+
+pytestmark = pytest.mark.django_db
+
+BILLING_INVOICE_LIST_URL = "/api/v1/billing/invoices/"
+
+
+@pytest.fixture
+def authenticated_client(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="billing-api-user",
+        password="test-pass",
+    )
+    client.force_login(user)
+    return client
+
+
+def _issued_invoice(django_user_model):
+    from apps.billing.services import issue_billing_invoice_for_excess_receivable
+
+    actor, reservation_draft, settlement = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("10000.00"),
+        unit_amount=Decimal("25000.00"),
+    )
+    execution = create_inventory_damage_loss_settlement_execution(
+        actor=actor,
+        settlement=settlement,
+    )
+    result = execute_inventory_damage_loss_settlement_execution(execution=execution, actor=actor)
+    invoice = issue_billing_invoice_for_excess_receivable(
+        excess_receivable=result.excess_receivable,
+        actor=actor,
+    )
+    return actor, reservation_draft, invoice
+
+
+def test_billing_invoice_list_requires_authentication(client) -> None:
+    response = client.get(BILLING_INVOICE_LIST_URL)
+
+    assert response.status_code in {401, 403}
+
+
+def test_authenticated_user_can_list_retrieve_and_settle_billing_invoice(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    actor, reservation_draft, invoice = _issued_invoice(django_user_model)
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.MOBILE_MONEY,
+        payment_status=PaymentStatus.PENDING,
+        amount=invoice.amount,
+        source_label="Billing API settlement",
+    )
+
+    confirmed_payment = confirm_payment(payment=payment, actor=actor).payment
+
+    list_response = authenticated_client.get(BILLING_INVOICE_LIST_URL)
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
+    assert list_response.json()[0]["invoice_status"] == "open"
+
+    detail_response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}{invoice.id}/")
+    assert detail_response.status_code == 200
+    assert detail_response.json()["id"] == str(invoice.id)
+
+    settle_response = authenticated_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice.id}/settle/",
+        data={"payment": str(confirmed_payment.id), "notes": "API settlement"},
+        content_type="application/json",
+    )
+    assert settle_response.status_code == 200
+    payload = settle_response.json()
+    assert payload["invoice_status"] == "settled"
+    assert payload["settlement"]["payment"]["id"] == str(confirmed_payment.id)
+    assert BillingInvoice.objects.get(pk=invoice.pk).invoice_status == "settled"
+
+
+def test_inventory_excess_receivable_generate_invoice_creates_billing_invoice(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    actor, _, settlement = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("10000.00"),
+        unit_amount=Decimal("25000.00"),
+    )
+    execution = create_inventory_damage_loss_settlement_execution(
+        actor=actor,
+        settlement=settlement,
+    )
+    result = execute_inventory_damage_loss_settlement_execution(execution=execution, actor=actor)
+
+    response = authenticated_client.post(
+        f"/api/v1/inventory/excess-receivables/{result.excess_receivable.id}/generate-invoice/",
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert BillingInvoice.objects.filter(excess_receivable=result.excess_receivable).exists()

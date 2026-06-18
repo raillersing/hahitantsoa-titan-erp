@@ -33,7 +33,6 @@ from apps.inventory.services import (
     create_inventory_return_operation,
     create_inventory_stock_movement,
     execute_inventory_damage_loss_settlement_execution,
-    generate_excess_receivable_invoice_document,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
 )
@@ -380,15 +379,26 @@ class InventoryExcessReceivableGenerateInvoiceAPIView(APIView):
         },
     )
     def post(self, request, id):
+        from apps.billing.services import (
+            BillingLifecycleError,
+            issue_billing_invoice_for_excess_receivable,
+        )
+
         try:
             excess_receivable = InventoryDamageLossExcessReceivable.objects.get(id=id)
         except InventoryDamageLossExcessReceivable.DoesNotExist:
             raise Http404("Excess receivable not found.")
 
         try:
-            document_instance = generate_excess_receivable_invoice_document(
+            invoice = issue_billing_invoice_for_excess_receivable(
                 excess_receivable=excess_receivable,
                 actor=request.user,
+            )
+            document_instance = invoice.document_instance
+        except BillingLifecycleError as e:
+            return Response(
+                {"detail": str(e), "code": e.code},
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except ValidationError as e:
             return Response(
