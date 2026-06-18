@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -28,13 +29,20 @@ def authenticated_client(client, django_user_model):
     return client
 
 
-def _issued_invoice(django_user_model):
+def _issued_invoice(
+    django_user_model,
+    *,
+    caution_amount=Decimal("10000.00"),
+    unit_amount=Decimal("25000.00"),
+    quantity=1,
+):
     from apps.billing.services import issue_billing_invoice_for_excess_receivable
 
     actor, reservation_draft, settlement = _validated_settlement(
         django_user_model,
-        caution_amount=Decimal("10000.00"),
-        unit_amount=Decimal("25000.00"),
+        caution_amount=caution_amount,
+        unit_amount=unit_amount,
+        quantity=quantity,
     )
     execution = create_inventory_damage_loss_settlement_execution(
         actor=actor,
@@ -114,3 +122,112 @@ def test_inventory_excess_receivable_generate_invoice_creates_billing_invoice(
 
     assert response.status_code == 200
     assert BillingInvoice.objects.filter(excess_receivable=result.excess_receivable).exists()
+
+
+def test_billing_invoice_list_filter_by_status(authenticated_client, django_user_model):
+    actor1, rd1, open_invoice = _issued_invoice(django_user_model, quantity=1)
+    actor2, rd2, settled_invoice = _issued_invoice(django_user_model, quantity=2)
+
+    payment = create_payment(
+        actor=actor2,
+        reservation_draft=rd2,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.MOBILE_MONEY,
+        payment_status=PaymentStatus.PENDING,
+        amount=settled_invoice.amount,
+        source_label="Billing settlement",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor2).payment
+
+    authenticated_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{settled_invoice.id}/settle/",
+        data={"payment": str(confirmed_payment.id)},
+        content_type="application/json",
+    )
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?status=open")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(open_invoice.id)
+    assert results[0]["invoice_status"] == "open"
+
+
+def test_billing_invoice_list_filter_by_source_kind(authenticated_client, django_user_model):
+    actor, _, invoice = _issued_invoice(django_user_model)
+
+    response = authenticated_client.get(
+        f"{BILLING_INVOICE_LIST_URL}?source_kind=inventory_damage_loss_excess_receivable"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(invoice.id)
+
+
+def test_billing_invoice_list_filter_by_reservation_draft_id(
+    authenticated_client, django_user_model
+):
+    actor1, rd1, invoice1 = _issued_invoice(django_user_model, quantity=1)
+    actor2, rd2, invoice2 = _issued_invoice(django_user_model, quantity=2)
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?reservation_draft_id={rd1.id}")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(invoice1.id)
+
+
+def test_billing_invoice_list_filter_by_amount_range(authenticated_client, django_user_model):
+    actor1, _, low_invoice = _issued_invoice(
+        django_user_model, caution_amount=Decimal("5000.00"), unit_amount=Decimal("15000.00")
+    )
+    actor2, _, high_invoice = _issued_invoice(
+        django_user_model, caution_amount=Decimal("10000.00"), unit_amount=Decimal("40000.00")
+    )
+
+    assert low_invoice.amount < high_invoice.amount
+
+    mid_amount = (low_invoice.amount + high_invoice.amount) / 2
+
+    response = authenticated_client.get(
+        f"{BILLING_INVOICE_LIST_URL}?min_amount={low_invoice.amount}&max_amount={mid_amount}"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert Decimal(results[0]["amount"]) == low_invoice.amount
+
+
+def test_billing_invoice_list_filter_by_issued_date_range(authenticated_client, django_user_model):
+    actor, _, invoice = _issued_invoice(django_user_model)
+
+    past = (invoice.issued_at - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    future = (invoice.issued_at + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+
+    response = authenticated_client.get(
+        f"{BILLING_INVOICE_LIST_URL}?issued_after={past}&issued_before={future}"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(invoice.id)
+
+    too_past = (invoice.issued_at + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?issued_after={too_past}")
+    assert response.status_code == 200
+    assert len(response.json()) == 0
+
+
+def test_billing_invoice_list_search_by_customer_name(authenticated_client, django_user_model):
+    actor, _, invoice = _issued_invoice(django_user_model)
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?search=Settlement+model")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(invoice.id)
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?search=NonExistentCustomer")
+    assert response.status_code == 200
+    assert len(response.json()) == 0
