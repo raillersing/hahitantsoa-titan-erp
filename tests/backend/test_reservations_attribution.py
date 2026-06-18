@@ -1,8 +1,10 @@
 from dataclasses import FrozenInstanceError, dataclass
 
 import pytest
+from django.contrib.auth.models import Group
 from django.utils import timezone
 
+from apps.identity.roles import IdentityRole
 from apps.reservations.attribution import (
     ReservationSensitiveActorAttribution,
     capture_reservation_sensitive_actor_attribution,
@@ -75,3 +77,17 @@ def test_attribution_capture_does_not_require_reservation_object() -> None:
     attribution = capture_reservation_sensitive_actor_attribution(actor=actor)
 
     assert attribution.actor_id == 1
+
+
+@pytest.mark.django_db
+def test_group_mapped_actor_attribution_is_allowed(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="attribution-group-user",
+        password="test-pass",
+        is_staff=False,
+    )
+    actor.groups.add(Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value))
+
+    attribution = capture_reservation_sensitive_actor_attribution(actor=actor)
+
+    assert attribution.actor_id == actor.pk

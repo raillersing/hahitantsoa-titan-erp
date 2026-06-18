@@ -1,11 +1,13 @@
 from datetime import timedelta
 
 import pytest
+from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.identity.roles import IdentityRole
 from apps.inventory.models import InventoryAvailability, InventoryItem
 from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
@@ -99,6 +101,25 @@ def test_confirm_draft_success_by_staff(client, django_user_model) -> None:
     assert InventoryAvailability.objects.filter(reservation_draft=draft).count() == 1
 
 
+def test_confirm_draft_success_by_group_mapped_non_staff_user(client, django_user_model) -> None:
+    staff = _actor(django_user_model=django_user_model, username="prep-staff", is_staff=True)
+    operator = _actor(
+        django_user_model=django_user_model,
+        username="group-operator",
+        is_staff=False,
+    )
+    operator.groups.add(Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value))
+    draft = _prepare_confirmable_draft(django_user_model=django_user_model, staff_user=staff)
+
+    client.force_login(operator)
+    response = client.post(_confirm_url(draft=draft))
+
+    assert response.status_code == 200
+    draft.refresh_from_db()
+    assert draft.status == ReservationDraftStatus.CONFIRMED
+    assert draft.confirmed_by_id == operator.id
+
+
 def test_confirm_draft_rejects_non_staff_authenticated_user(client, django_user_model) -> None:
     staff = _actor(django_user_model=django_user_model, username="staff-u", is_staff=True)
     non_staff = _actor(django_user_model=django_user_model, username="normal-u", is_staff=False)
@@ -108,9 +129,8 @@ def test_confirm_draft_rejects_non_staff_authenticated_user(client, django_user_
     response = client.post(_confirm_url(draft=draft))
 
     assert response.status_code == 403
-    assert (
-        response.json()["detail"]
-        == "Actor is not allowed to perform a reservation-sensitive write."
+    assert response.json()["detail"] == (
+        "Actor is not allowed to perform a reservation-sensitive write."
     )
     draft.refresh_from_db()
     assert draft.status == ReservationDraftStatus.DRAFT

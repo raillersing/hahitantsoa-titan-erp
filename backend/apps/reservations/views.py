@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.inventory.models import InventoryItem
 from apps.reservations.models import ReservationDraft
 from apps.reservations.periods import validate_reservation_period
@@ -125,7 +126,7 @@ class ReservationDraftRetrieveAPIView(generics.RetrieveUpdateAPIView):
 
 
 class ReservationDraftConfirmAPIView(APIView):
-    permission_classes = [IsAuthenticatedReservationDraftBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     def post(self, request, pk):
         from django.shortcuts import get_object_or_404
