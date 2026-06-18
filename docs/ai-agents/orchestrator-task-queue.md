@@ -2,16 +2,15 @@
 
 ## Current State
 
-- `origin/main` HEAD is `2bd3e3e0e4efd18a460ba3943cda3bbc69b121c2`
-  (`fix(tools): F149B worktree finalizer main-sync repair`, PR #276).
-- `main` CI is green through PR #276 as verified on 2026-06-18.
+- `origin/main` HEAD is `ec036b8439ca1106cffc863278ed2291ffab40e9`
+  (`feat(logistics): support delivery and return note runtime docs`, PR #280).
+- `main` CI is green through PR #280 as verified on 2026-06-18.
 - F145A through F145H are merged on `main`.
 - F145H is no longer local-only, dirty, or PR-pending. It merged as PR #274 on
   2026-06-17.
 - The current commercial-track implementation gaps are:
-  - billing / invoicing
-  - identity / role management
-  - logistics / delivery
+  - identity / role management API, models, and administration (beyond the narrow #279 stub)
+  - logistics app models, services, and endpoints (beyond document-level runtime support)
   - frontend activation of merged commercial backend foundations
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
