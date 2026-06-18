@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
 import pytest
+from django.contrib.auth.models import Group
 
+from apps.identity.roles import IdentityRole
 from apps.reservations.authorization import (
     is_reservation_sensitive_staff_actor,
     require_reservation_sensitive_staff_actor,
@@ -70,3 +72,15 @@ def test_require_helper_allows_reservation_sensitive_staff_actor() -> None:
     actor = ActorStub(is_authenticated=True, is_staff=True, is_active=True)
 
     require_reservation_sensitive_staff_actor(actor=actor)
+
+
+@pytest.mark.django_db
+def test_authenticated_group_mapped_non_staff_actor_is_allowed(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="reservation-sensitive-group-user",
+        password="test-pass",
+        is_staff=False,
+    )
+    actor.groups.add(Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value))
+
+    assert is_reservation_sensitive_staff_actor(actor=actor) is True
