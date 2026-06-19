@@ -35,6 +35,8 @@ Every frontend orchestration prompt must explicitly reference:
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
 - Agent FE-A through Agent FE-F in `docs/ai-agents/frontend-agent-template.md`
+- `docs/design/DESIGN.md` when UI/UX, layout, workflow clarity, or review is relevant
+- `docs/ai-agents/tooling/frontend-specialist-skills.md` when skill-loading guidance is relevant
 - official wrappers when applicable:
   - `scripts/dev/erp-agent-scope-guard`
   - `scripts/dev/erp-worktree-preflight`
@@ -128,6 +130,16 @@ After a successful merge and green `main` CI:
 
 Deliverables must be in chat and/or an approved repository file. A private-only report
 must not be the sole deliverable.
+
+## Design Guidance Rule
+
+Frontend orchestration should keep `frontend-agent-template.md` and
+`frontend-quality-workflow.md` authoritative while adding explicit design references:
+
+- Agents must read `docs/design/DESIGN.md` for ERP UI/UX guidance when relevant.
+- If skills are supported, agents should load or reference
+  `erp-ui-ux-design-review` and any relevant ERP frontend skills.
+- If skills are not supported, agents still use `docs/design/DESIGN.md` directly.
 
 ## Final Report Format
 
