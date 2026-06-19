@@ -50,6 +50,15 @@ of:
 If static docs disagree with the live baseline, report the mismatch and follow the live
 baseline.
 
+Root dirty-state preflight rule:
+
+- Before starting a new task branch or worktree, verify the root repository on `main`
+  is clean enough to serve as the canonical baseline.
+- If root `main` contains unrelated dirty or untracked files, stop and report the exact
+  paths before creating or resyncing a task worktree.
+- Do not treat root dirtiness as harmless background noise; it is a workflow hard stop
+  until the operator confirms the intended baseline.
+
 ## Recurring Error Matrix
 
 When a repeated workflow error appears, use
@@ -163,6 +172,21 @@ scripts/dev/erp-backend-compose-ci run --rm backend python -m ruff check backend
 EOF
 ```
 
+When `backend/` or `tests/backend/` changes, focused pytest alone is not enough before
+push. Run backend quality gates or, at minimum:
+
+```sh
+scripts/dev/erp-logged-run backend-focused-quality <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-backend-compose-ci run --rm backend python -m ruff check backend tests
+scripts/dev/erp-backend-compose-ci run --rm backend python -m pytest tests/backend/path_or_module.py -q
+EOF
+```
+
+If Ruff is skipped locally, expect PR CI to catch style/import violations and stop the
+bundle.
+
 ```sh
 scripts/dev/erp-logged-run backend-compose-down <<'EOF'
 set -euo pipefail
@@ -228,6 +252,18 @@ bash scripts/dev/erp-docker-agent-cleanup --apply
 EOF
 ```
 
+If the original task worktree was already removed, target the former worktree's Compose
+project explicitly by basename:
+
+```sh
+scripts/dev/erp-logged-run docker-agent-cleanup-recovery <<'EOF'
+set -euo pipefail
+
+bash scripts/dev/erp-docker-agent-cleanup \
+  --project-name hahitantsoa-titan-erp-task-name
+EOF
+```
+
 To also remove agent CI volumes (postgres and redis test data), which speeds up
 cleanup but destroys cached test state:
 
@@ -244,6 +280,10 @@ EOF
   `--dangerous-allow-volume-removal` flag. This prevents accidental data loss.
 - The wrapper never touches n8n or any container not created by
   `compose.agent-ci.yaml`.
+- The wrapper defaults to the active worktree basename because Docker Compose project
+  naming follows the worktree directory name in this repository.
+- `--project-name` is the approved recovery path when the original worktree no longer
+  exists; only ERP-prefixed project names are allowed.
 - Backend/frontend dependency caches (`.venv`, `~/.cache/pip`, `node_modules`,
   `~/.npm`) are never affected.
 - Running `erp-docker-agent-cleanup` is safe even when no ERP containers exist;
@@ -303,7 +343,7 @@ Wait for PR CI:
 scripts/dev/erp-logged-run task-pr-checks <<'EOF'
 set -euo pipefail
 
-gh pr checks pr-number --watch --interval 10
+gh pr checks pr-number --watch --interval 30
 EOF
 ```
 
@@ -314,7 +354,7 @@ scripts/dev/erp-logged-run task-main-ci <<'EOF'
 set -euo pipefail
 
 gh run list --branch main --limit 5
-gh run watch run-id --interval 10
+gh run watch run-id --interval 30
 EOF
 ```
 
@@ -376,6 +416,15 @@ Workflow:
 Only use this when the worktree is dedicated to the task and the user has explicitly
 authorized finalization. Hard stops are enforced for dirty worktrees, unmergeable PRs,
 pending/failed CI, non-unique branch checkouts, and missing arguments.
+
+Recovery behavior:
+
+- If the PR is already `MERGED`, the finalizer must not stop just because the merge step
+  is no longer needed.
+- In that case it must continue with exact-SHA `main` CI verification, task Docker
+  cleanup, worktree removal when still present, and branch cleanup.
+- If GitHub CLI calls fail transiently because of TLS, GraphQL, or API errors, retry the
+  exact `gh` command before declaring a hard stop.
 
 Run from the task worktree (not from root/main). Both `--worktree` and `--branch` default
 to the current worktree and branch, so they can be omitted in the standard case:
@@ -487,6 +536,9 @@ gh run view "$run_id" --json databaseId,headSha,status,conclusion,url
 gh run watch "$run_id" --interval 30
 EOF
 ```
+
+If the post-merge verification is resumed after the PR is already merged, reuse this
+same exact-SHA main CI flow instead of reopening merge logic.
 
 If `main` CI fails after merge, or the conclusion of the SHA-bound run is not success:
 
