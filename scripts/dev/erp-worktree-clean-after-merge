@@ -280,6 +280,16 @@ fi
 
 echo "MODE: apply"
 
+# ----- Docker cleanup before worktree removal -----
+echo "INFO: Cleaning up Docker Compose project for worktree..."
+if [ -f "$SCRIPT_DIR/erp-docker-agent-cleanup" ]; then
+  bash "$SCRIPT_DIR/erp-docker-agent-cleanup" --apply --no-logs || {
+    echo "WARN: Docker cleanup returned non-zero; continuing with worktree removal."
+  }
+else
+  echo "WARN: erp-docker-agent-cleanup not found; skipping Docker cleanup."
+fi
+
 if [ "$cleanup_mode" = "registered-worktree" ]; then
   if ! git worktree remove "$target_path"; then
     echo "ERROR: worktree removal failed for '$target_path'"

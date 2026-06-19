@@ -313,6 +313,16 @@ fi
 
 echo "OK: Main CI is green."
 
+# ----- Docker cleanup before worktree removal -----
+echo "INFO: Cleaning up Docker Compose project for worktree..."
+if [ -f "$SCRIPT_DIR/erp-docker-agent-cleanup" ]; then
+  bash "$SCRIPT_DIR/erp-docker-agent-cleanup" --apply --no-logs || {
+    echo "WARN: Docker cleanup returned non-zero; continuing with worktree removal."
+  }
+else
+  echo "WARN: erp-docker-agent-cleanup not found; skipping Docker cleanup."
+fi
+
 # ----- Remove worktree -----
 echo "INFO: Removing worktree: $WORKTREE_PATH"
 if ! git worktree remove "$WORKTREE_PATH"; then

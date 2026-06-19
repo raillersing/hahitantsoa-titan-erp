@@ -5,9 +5,6 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/compose.agent-ci.yaml"
 
-# Derive compose project name from the main git working tree (not the worktree basename)
-# so that label matching works regardless of worktree path.
-# --git-common-dir returns the main repo's .git path even from worktrees.
 GIT_COMMON_DIR="$(git rev-parse --git-common-dir)"
 MAIN_REPO_ROOT="$(CDPATH= cd -- "$GIT_COMMON_DIR/.." && pwd -P)"
 COMPOSE_PROJECT="$(basename "$MAIN_REPO_ROOT")"
@@ -16,36 +13,32 @@ cd "$REPO_ROOT"
 
 DRY_RUN=1
 ALLOW_VOLUMES=0
+SHOW_LOGS=1
 
 print_usage() {
-  cat <<'USAGE'
+  cat <<"USAGE"
 Usage:
   scripts/dev/erp-docker-agent-cleanup [options]
 
 Options:
   --apply               Perform changes (default is dry-run).
   --dangerous-allow-volume-removal
-                        Allow removal of ERP agent CI volumes (postgres, redis data).
-                        This is destructive and must be explicitly authorized.
+                        Allow removal of ERP agent CI volumes.
+  --no-logs             Suppress docker ps/system df logging.
   --help                Show this help.
 
 Purpose:
   Safely stop and remove ERP agent CI Docker containers, networks, and
   optionally volumes created by compose.agent-ci.yaml.
 
-  Designed to prevent accumulation of orphan agent CI infrastructure without
-  affecting production, n8n, or other non-ERP containers.
+  Uses docker compose down --remove-orphans as the primary cleanup
+  mechanism, scoped to the ERP project.
 
 Guarantees:
-  - Never removes Docker volumes unless --dangerous-allow-volume-removal is set.
-  - Never touches n8n or any container not created by compose.agent-ci.yaml.
-  - Never touches backend/frontend dependency caches (.venv, node_modules, pip, npm).
+  - Never removes volumes unless --dangerous-allow-volume-removal is set.
+  - Never touches n8n or non-ERP containers.
   - Dry-run by default; use --apply to perform changes.
-
-Examples:
-  scripts/dev/erp-docker-agent-cleanup
-  scripts/dev/erp-docker-agent-cleanup --apply
-  scripts/dev/erp-docker-agent-cleanup --apply --dangerous-allow-volume-removal
+  - Logs docker ps and docker system df before and after cleanup.
 USAGE
 }
 
@@ -56,6 +49,9 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dangerous-allow-volume-removal)
       ALLOW_VOLUMES=1
+      ;;
+    --no-logs)
+      SHOW_LOGS=0
       ;;
     help|--help|-h)
       print_usage
@@ -80,8 +76,6 @@ if [ ! -f "$COMPOSE_FILE" ]; then
   exit 1
 fi
 
-# ----- Label filter for ERP agent CI resources -----
-# Docker Compose applies labels: com.docker.compose.project=<project>
 COMPOSE_LABEL="com.docker.compose.project=${COMPOSE_PROJECT}"
 
 echo "============================================================"
@@ -89,6 +83,7 @@ echo "ERP Agent CI Docker Cleanup"
 echo "============================================================"
 echo "COMPOSE_FILE: $COMPOSE_FILE"
 echo "COMPOSE_PROJECT: $COMPOSE_PROJECT"
+echo "TIMESTAMP: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "MODE: dry-run (use --apply to perform changes)"
@@ -97,22 +92,53 @@ else
 fi
 
 if [ "$ALLOW_VOLUMES" -eq 1 ]; then
-  echo "VOLUMES: removal allowed (--dangerous-allow-volume-removal set)"
+  echo "VOLUMES: removal allowed"
 else
-  echo "VOLUMES: preserved (use --dangerous-allow-volume-removal to allow removal)"
+  echo "VOLUMES: preserved"
 fi
 
 echo ""
 
-# ----- Identify and stop/remove ERP agent CI containers -----
-echo "--- Containers ---"
+# Pre-cleanup logging
+if [ "$SHOW_LOGS" -eq 1 ]; then
+  echo "--- Pre-cleanup state ---"
+  echo "Running containers:"
+  docker ps --format "table {{.Names}}	{{.Image}}	{{.Status}}" 2>/dev/null || echo "(unable to list)"
+  echo ""
+  echo "Disk usage:"
+  docker system df 2>/dev/null || echo "(unable to show)"
+  echo ""
+fi
+
+# Primary cleanup: docker compose down (project-scoped)
+echo "--- Primary cleanup: docker compose down --remove-orphans ---"
+
+DOWN_FLAGS=("--remove-orphans")
+if [ "$ALLOW_VOLUMES" -eq 1 ]; then
+  DOWN_FLAGS+=("-v")
+fi
+
+if [ "$DRY_RUN" -eq 0 ]; then
+  echo "Executing: docker compose -f $COMPOSE_FILE down ${DOWN_FLAGS[*]}"
+  docker compose -f "$COMPOSE_FILE" down "${DOWN_FLAGS[@]}" || {
+    echo "WARN: docker compose down exited non-zero; proceeding to fallback."
+  }
+else
+  echo "WOULD execute: docker compose -f $COMPOSE_FILE down ${DOWN_FLAGS[*]}"
+fi
+
+echo ""
+
+# Fallback cleanup: label-based removal
+echo "--- Fallback cleanup: label-based removal ---"
+
 ERP_CONTAINERS="$(
   docker ps -a --filter "label=${COMPOSE_LABEL}" \
-    --format '{{.Names}}' 2>/dev/null || true
+    --format "{{.Names}}" 2>/dev/null || true
 )"
 
 if [ -z "$ERP_CONTAINERS" ]; then
-  echo "No ERP agent CI containers found."
+  echo "No leftover ERP containers found."
 else
   echo "$ERP_CONTAINERS" | while IFS= read -r container; do
     echo "Container: $container"
@@ -129,18 +155,15 @@ fi
 
 echo ""
 
-# ----- Identify and remove ERP agent CI networks -----
-echo "--- Networks ---"
 ERP_NETWORKS="$(
   docker network ls --filter "label=${COMPOSE_LABEL}" \
-    --format '{{.Name}}' 2>/dev/null || true
+    --format "{{.Name}}" 2>/dev/null || true
 )"
 
 if [ -z "$ERP_NETWORKS" ]; then
-  echo "No ERP agent CI networks found."
+  echo "No leftover ERP networks found."
 else
   echo "$ERP_NETWORKS" | while IFS= read -r network; do
-    # Skip default networks that may be in use
     case "$network" in
       bridge|host|none)
         echo "Skipping default network: $network"
@@ -159,16 +182,15 @@ fi
 
 echo ""
 
-# ----- Optionally remove ERP agent CI volumes -----
-echo "--- Volumes ---"
 if [ "$ALLOW_VOLUMES" -eq 1 ]; then
+  echo "--- Volume removal ---"
   ERP_VOLUMES="$(
     docker volume ls --filter "label=${COMPOSE_LABEL}" \
-      --format '{{.Name}}' 2>/dev/null || true
+      --format "{{.Name}}" 2>/dev/null || true
   )"
 
   if [ -z "$ERP_VOLUMES" ]; then
-    echo "No ERP agent CI volumes found."
+    echo "No ERP volumes found."
   else
     echo "$ERP_VOLUMES" | while IFS= read -r volume; do
       echo "Volume: $volume"
@@ -181,22 +203,30 @@ if [ "$ALLOW_VOLUMES" -eq 1 ]; then
     done
   fi
 else
-  echo "ERP agent CI volumes preserved (use --dangerous-allow-volume-removal to allow removal)."
-  echo "Volumes are intentionally kept to preserve test data and avoid expensive rebuilds."
-  echo "Expected volumes (from compose.agent-ci.yaml):"
+  echo "--- Volumes preserved ---"
+  echo "Volumes are intentionally kept to preserve test data."
   echo "  - postgres_agent_ci_data"
   echo "  - redis_agent_ci_data"
 fi
 
 echo ""
 
-# ----- Safety confirmation -----
+# Post-cleanup logging
+if [ "$SHOW_LOGS" -eq 1 ]; then
+  echo "--- Post-cleanup state ---"
+  echo "Running containers:"
+  docker ps --format "table {{.Names}}	{{.Image}}	{{.Status}}" 2>/dev/null || echo "(unable to list)"
+  echo ""
+  echo "Disk usage:"
+  docker system df 2>/dev/null || echo "(unable to show)"
+  echo ""
+fi
+
 echo "--- Non-ERP resources (untouched) ---"
-echo "The following resources were NOT modified:"
+echo "Resources NOT modified:"
 echo "  - n8n container"
-echo "  - Docker volumes (unless --dangerous-allow-volume-removal was set)"
-echo "  - Backend dependency caches (.venv, ~/.cache/pip)"
-echo "  - Frontend dependency caches (node_modules, ~/.npm)"
+echo "  - Docker volumes (unless dangerous-allow set)"
+echo "  - Backend/frontend dependency caches"
 echo "  - Any non-ERP containers or networks"
 echo ""
 
