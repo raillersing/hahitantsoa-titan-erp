@@ -237,7 +237,14 @@ class InventoryDamageLossSettlementListCreateAPIView(generics.ListCreateAPIView)
         return InventoryDamageLossSettlementSerializer
 
     def get_queryset(self):
-        return active_inventory_damage_loss_settlements()
+        qs = active_inventory_damage_loss_settlements()
+        settlement_status = self.request.query_params.get("settlement_status")
+        if settlement_status:
+            qs = qs.filter(settlement_status=settlement_status)
+        return_operation = self.request.query_params.get("return_operation")
+        if return_operation:
+            qs = qs.filter(return_operation=return_operation)
+        return qs
 
     @extend_schema(
         request=InventoryDamageLossSettlementCreateSerializer,
