@@ -93,9 +93,9 @@ const SECTIONS: CommercialSection[] = [
     id: "stock",
     title: "Stock Movement Ledger",
     badge: "Inventory",
-    status: "pending_backend",
-    statusLabel: "Pending Backend Integration",
-    description: "Record physical movement ledger logs, reconciliation notes, and active stock count.",
+    status: "partially_connected",
+    statusLabel: "Partially Connected",
+    description: "View stock movement ledger with movement types, directions, and quantities.",
     businessRule: "Durable adjustments are posted only on atomic committed operations.",
   },
 ];

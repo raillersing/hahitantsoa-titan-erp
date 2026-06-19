@@ -494,25 +494,7 @@ export type InventoryDamageLossSettlement = {
   updated_by: string | null;
 };
 
-// ---- Stock Movement Ledger (pending backend) ----
-
-export type StockMovementKind = 'inbound' | 'outbound' | 'adjustment' | 'write_off';
-
-export type StockMovementRecord = {
-  id: string;
-  reservation_draft: string | null;
-  reference: string;
-  kind: StockMovementKind;
-  item_description: string;
-  quantity: number;
-  committed_at: string | null;
-  operator_name: string;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-};
-
-// ---- Inventory Stock Movements (live backend — api/v1/inventory/stock-movements/) ----
+// ---- Inventory Stock Movements (live backend — /api/v1/inventory/stock-movements/) ----
 
 export type InventoryStockMovementType =
   | 'outbound_delivery'
