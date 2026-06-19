@@ -116,3 +116,41 @@ def test_inventory_item_detail_rejects_write_methods(authenticated_client, metho
     )
 
     assert response.status_code == 405
+
+
+@pytest.mark.django_db
+def test_inventory_item_list_filter_by_name(authenticated_client):
+    matching = InventoryItem.objects.create(name="Projector XL", kind="material")
+    InventoryItem.objects.create(name="Speaker", kind="article")
+
+    response = authenticated_client.get("/api/v1/inventory/items/?name=Projector")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+@pytest.mark.django_db
+def test_inventory_item_list_filter_by_kind(authenticated_client):
+    matching = InventoryItem.objects.create(name="LED Panel", kind="material")
+    InventoryItem.objects.create(name="Cable pack", kind="material_pack")
+
+    response = authenticated_client.get("/api/v1/inventory/items/?kind=material")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+@pytest.mark.django_db
+def test_inventory_item_list_filter_by_description(authenticated_client):
+    matching = InventoryItem.objects.create(
+        name="Camera A", kind="material", description="4K professional camera"
+    )
+    InventoryItem.objects.create(name="Camera B", kind="material", description="HD consumer camera")
+
+    response = authenticated_client.get("/api/v1/inventory/items/?description=professional")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
