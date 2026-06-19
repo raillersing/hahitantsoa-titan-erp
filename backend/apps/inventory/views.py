@@ -120,7 +120,14 @@ class InventoryReturnOperationListCreateAPIView(generics.ListCreateAPIView):
         return InventoryReturnOperationSerializer
 
     def get_queryset(self):
-        return active_inventory_return_operations()
+        qs = active_inventory_return_operations()
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        reservation_draft = self.request.query_params.get("reservation_draft")
+        if reservation_draft:
+            qs = qs.filter(reservation_draft=reservation_draft)
+        return qs
 
     @extend_schema(
         request=InventoryReturnOperationCreateSerializer,
