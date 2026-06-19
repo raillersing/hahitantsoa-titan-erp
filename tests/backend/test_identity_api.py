@@ -1,7 +1,8 @@
+from datetime import UTC, datetime
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from datetime import UTC, datetime
 
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 from apps.identity.roles import IdentityRole
