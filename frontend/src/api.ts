@@ -23,6 +23,7 @@ import type {
   HahitantsoaEventDraftAmendmentRequestLineCreatePayload,
   HahitantsoaEventDraftAmendmentRequestLineUpdatePayload,
   HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
+  InventoryDamageLossSettlement,
   InventoryReturnOperation,
   DocumentTemplateDefinition,
   DocumentInstance,
@@ -568,4 +569,11 @@ export function getReturnOperations(
   signal?: AbortSignal,
 ): Promise<InventoryReturnOperation[]> {
   return getAuthenticatedJson('/api/v1/inventory/return-operations/', signal);
+}
+// ---- Damage & Loss Settlements ----
+
+export function getDamageLossSettlements(
+  signal?: AbortSignal,
+): Promise<InventoryDamageLossSettlement[]> {
+  return getAuthenticatedJson('/api/v1/inventory/damage-loss-settlements/', signal);
 }

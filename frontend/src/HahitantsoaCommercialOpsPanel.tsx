@@ -84,9 +84,9 @@ const SECTIONS: CommercialSection[] = [
     id: "breakage",
     title: "Breakage & Loss",
     badge: "Damage",
-    status: "pending_backend",
-    statusLabel: "Pending Backend Integration",
-    description: "Assess damaged items, initiate repair tickets, and issue breakage invoices.",
+    status: "partially_connected",
+    statusLabel: "Partially Connected",
+    description: "View damage & loss settlements with line-level amounts and totals.",
     businessRule: "Commercial adjustment occurs on confirmed resolution notes.",
   },
   {
