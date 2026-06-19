@@ -50,6 +50,17 @@ of:
 If static docs disagree with the live baseline, report the mismatch and follow the live
 baseline.
 
+## Recurring Error Matrix
+
+When a repeated workflow error appears, use
+[`docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md`](../audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md)
+as the first routing aid.
+
+- Match the symptom to the error pattern.
+- Load the listed skill(s) before improvising a workaround.
+- Run the listed validation command(s) before trusting the recovery.
+- Stop if the matrix says the issue is a hard stop or would require forbidden scope.
+
 ## Integrated Task-Start Baseline
 
 Executable agent tasks must begin by running the project-approved task-start baseline as
