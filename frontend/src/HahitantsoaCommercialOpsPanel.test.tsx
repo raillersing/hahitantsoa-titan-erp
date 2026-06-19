@@ -88,6 +88,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
     vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
+    vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
 
     render(<HahitantsoaCommercialOpsPanel />);
 
@@ -113,6 +114,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
     vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
+    vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
 
     render(<HahitantsoaCommercialOpsPanel />);
 
@@ -126,7 +128,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     expect(screen.getByTestId("card-logistics")).toHaveTextContent("Partially Connected");
     expect(screen.getByTestId("card-returns")).toHaveTextContent("Partially Connected");
     expect(screen.getByTestId("card-breakage")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-stock")).toHaveTextContent("Pending Backend Integration");
+    expect(screen.getByTestId("card-stock")).toHaveTextContent("Partially Connected");
 
   });
 
@@ -138,6 +140,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
     vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
+    vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
     const instancesSpy = vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
     const createSpy = vi.spyOn(api, "createReservationDraftDocumentInstance").mockResolvedValue(MOCK_INSTANCES[0]);
     const generateSpy = vi.spyOn(api, "generateReservationDraftDocumentInstance").mockResolvedValue({
