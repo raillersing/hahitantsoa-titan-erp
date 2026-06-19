@@ -2,12 +2,12 @@
 
 ## Current State
 
-- `origin/main` HEAD is `e504ba1` (post PRs #283–#286, #293, #300, #301, #302, #303, #304, #305, #307, #308 merges).
+- `origin/main` HEAD is `3969ad9` (post PRs #283–#301, #302–#313 merges).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
-- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh).
+- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills).
 - Open PRs:
   - None in backend commercial queue; all closed and merged.
 - F147F frontend worktree is paused and must not be touched.
@@ -532,52 +532,90 @@ Phase 3 (PR #305):
 - `.agents/skills/business-boundaries/SKILL.md`
 - `.agents/skills/post-merge-cleanup/SKILL.md`
 
-Phase 4 (optional — F150A migration to `.agents/skills/`):
-- not yet started; deferred per audit recommendation (optional)
+Phase 4 (F150A migration to `.agents/skills/`):
+- completed as F151C-2 (PR #312) — 8 frontend skills promoted with `erp-frontend-*` names
 
 ### F151C-0
 
 Status:
-- active agent-docs task
-- baseline: origin/main at `a2e9e95`
-- branch: `docs/f151c0-skills-portfolio-audit`
+- **COMPLETED** — merged as PR #308
+- main HEAD at merge: `e504ba1`
 - scope: agent skills portfolio audit and rationalization plan (docs-only audit)
+- audit published: `docs/audits/F151C0_AGENT_SKILLS_PORTFOLIO_AUDIT.md`
 
-Scope:
-- inventory all 18 skills across `.agents/skills/` and `.opencode/skills/`
-- classify each as KEEP, PROMOTE, MERGE, RENAME, DELETE, or ADD-MISSING
-- detect duplicate responsibilities across skills
-- detect missing project-critical skills (backend, frontend, docs, QA, tooling, permissions, billing/payment, audit events, migrations, API contracts)
-- decide frontend skill promotion from `.opencode/skills/` to `.agents/skills/`
-- recommend final target architecture
-- produce `docs/audits/F151C0_AGENT_SKILLS_PORTFOLIO_AUDIT.md`
-- update `docs/ai-agents/orchestrator-task-queue.md`
+Outcome:
+- 18 skills inventoried, classified, and rationalized
+- 2 deleted, 8 renamed, 8 promoted, 5 missing identified
+- Final target: 21 skills under `.agents/skills/` with `erp-*` naming
 
-Allowed files:
-- `docs/audits/F151C0_AGENT_SKILLS_PORTFOLIO_AUDIT.md`
-- `docs/ai-agents/orchestrator-task-queue.md`
+### F151C-1
 
-Forbidden:
-- `backend/`, `frontend/`, `tests/`, `.github/`, dependency manifests, `.env`, secrets
-- `.agents/skills/` — read-only, no mutations
-- `.opencode/skills/` — read-only, no mutations
-- PR #306 branch/worktree
-- F147F paused worktree, F150B Codex backend worktree
+Status:
+- **COMPLETED** — merged as PRs #310, #311
+- main HEAD after campaign: `cca61e2`
+- scope: rename all `.agents/skills/` skills to `erp-*` prefix, delete 2 superseded skills
 
-Hard stops:
-- any need to mutate backend/frontend/tests
-- any need to mutate skills before audit approval
-- any need to touch PR #306
-- any need to read `.env` or secrets
-- scope guard fails
+Scope delivered:
+- RENAMED (8): `hahitantsoa-erp-task-start`→`erp-task-start`, `backend-quality-gates`→`erp-quality-gates`, `backend-agent-roles`→`erp-agent-roles`, `backend-ci-workflow`→`erp-ci-workflow`, `worktree-discipline`→`erp-worktree-discipline`, `secret-handling`→`erp-secret-handling`, `business-boundaries`→`erp-business-boundaries`, `post-merge-cleanup`→`erp-post-merge-cleanup`
+- DELETED (2): `hahitantsoa-erp-backend-validation`, `hahitantsoa-erp-pr-lifecycle`
+- UPDATED: `docs/ai-agents/tooling/agent-shared-skills.md` — new skill names, Onboarding section, Discovery section
 
-Validation:
-- `bash scripts/dev/erp-agent-scope-guard agent-docs` — PASS
-- `git diff --check` — PASS
-- confirm no backend/frontend/test/.github/.env/dependency manifest mutations
-- confirm no `.agents/skills/` or `.opencode/skills/` mutations
-- PR CI green before merge
-- `main` CI green after merge
+### F151C-2
+
+Status:
+- **COMPLETED** — merged as PR #312
+- main HEAD at merge: `cca61e2`
+- scope: promote 8 frontend skills from `.opencode/skills/` to `.agents/skills/` with `erp-frontend-*` names
+
+Scope delivered:
+- PROMOTED (8): `frontend-scope-guard`→`erp-frontend-scope-guard`, `react-typescript-quality`→`erp-frontend-typescript-quality`, `frontend-api-contracts`→`erp-frontend-api-contracts`, `frontend-testing`→`erp-frontend-testing`, `frontend-accessibility-ux`→`erp-frontend-accessibility-ux`, `frontend-error-recovery`→`erp-frontend-error-recovery`, `frontend-state-forms`→`erp-frontend-state-forms`, `frontend-performance-maintainability`→`erp-frontend-performance-maintainability`
+- DELETED: all 8 original `.opencode/skills/` directories
+- UPDATED: `docs/ai-agents/tooling/frontend-specialist-skills.md` — updated paths and names
+- UPDATED: `docs/ai-agents/tooling/agent-shared-skills.md` — added frontend skills table
+
+### F151C-3
+
+Status:
+- **COMPLETED** — merged as PR #313
+- main HEAD at merge: `cca61e2`
+- scope: create 5 missing skills identified in F151C-0 audit
+
+Scope delivered:
+- `.agents/skills/erp-migration-safety/SKILL.md` — migration necessity, reversibility, constraints, locking, rollback
+- `.agents/skills/erp-security-review/SKILL.md` — authorization, permissions, input validation
+- `.agents/skills/erp-agent-role-assignment/SKILL.md` — role assignment quick reference for orchestrators
+- `.agents/skills/erp-api-contracts/SKILL.md` — API contract design, review, and cross-boundary protocol
+- `.agents/skills/erp-scope-guard-setup/SKILL.md` — scope guard profiles, usage, and troubleshooting
+- UPDATED: `docs/ai-agents/tooling/agent-shared-skills.md` — added all 5 new skills to table
+
+### Final skills portfolio (21 skills)
+
+```
+.agents/skills/
+├── erp-task-start/                  # Onboarding
+├── erp-quality-gates/               # Backend quality
+├── erp-agent-roles/                 # Backend roles
+├── erp-ci-workflow/                 # CI workflow
+├── erp-worktree-discipline/         # Worktree rules
+├── erp-secret-handling/             # Secret rules
+├── erp-business-boundaries/         # Business domain rules
+├── erp-post-merge-cleanup/          # Post-merge cleanup
+├── erp-migration-safety/            # Migration safety (NEW)
+├── erp-security-review/             # Security review (NEW)
+├── erp-agent-role-assignment/       # Role assignment (NEW)
+├── erp-api-contracts/               # API contracts (NEW)
+├── erp-scope-guard-setup/           # Scope guard setup (NEW)
+├── erp-frontend-scope-guard/        # Frontend scope
+├── erp-frontend-typescript-quality/ # TypeScript quality
+├── erp-frontend-api-contracts/      # Frontend API contracts
+├── erp-frontend-testing/            # Frontend testing
+├── erp-frontend-accessibility-ux/   # Accessibility/UX
+├── erp-frontend-error-recovery/     # Error recovery
+├── erp-frontend-state-forms/        # State/forms
+└── erp-frontend-performance-maintainability/  # Performance
+
+.opencode/skills/                    # (empty after promotion)
+```
 
 ## Later Repair Track
 
