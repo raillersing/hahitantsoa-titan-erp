@@ -2,21 +2,17 @@
 
 ## Current State
 
-- `origin/main` HEAD is `9efa62109afe44d67562677bdd1152f1283d092b`
-  (`docs(tooling): F149A Graphify pilot plan ? docs-only evaluation`, PR #283).
+- `origin/main` HEAD is `cd8a9a4` (post PRs #283–#286, #293, #300, #301 merges).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
-- Open backend PRs awaiting human merge:
-  - PR #284 `feat/logistics-app-foundation` ? logistics models, services, API, tests
-  - PR #285 `feat/audit-read-api-foundation` ? audit event read-only REST API
-  - PR #286 `feat/customer-write-api-foundation` ? customer create, update, soft-delete
-  - PR #287 `feat/payment-operational-completion` ? payment cancel/reconcile endpoints
-  - PR #288 `feat/billing-invoice-list-filtering` ? billing invoice list filtering/search
-  - PR #289 `feat/customer-list-filtering` ? customer list filtering by name/email/phone
-  - PR #290 `feat/payment-negative-permission-tests` ? payment negative-permission tests
-  - PR #291 `feat/billing-invoice-cancellation` ? billing invoice cancellation endpoint
-  - PR #292 `feat/reservation-draft-list-filtering` ? reservation draft list filtering
+- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API).
+- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills).
+- Open PRs:
+  - PR #294 `feat/inventory-item-list-filtering` — non-draft, inventory item list filtering
+  - PRs #295–#299 — draft, various inventory/hahitantsoa filtering PRs
+- F147F frontend worktree is paused and must not be touched.
+- F150B backend worktree is active for Codex and must not be touched.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -500,6 +496,44 @@ Validation:
 - grep proving cd "$MAIN_PATH" appears twice and cd "$REPO_ROOT" appears zero times in post-merge paths
 - grep proving --match-head-commit in merge command
 - grep proving no --delete-branch in executable merge command
+- PR CI green before merge
+- main CI green after merge
+
+### F151A-0
+
+Status:
+- active agent-docs task
+- baseline: origin/main at `cd8a9a4`
+- branch: `docs/f151a0-agent-workflow-skills-readiness-review`
+- scope: agent workflow and skills readiness review (docs-only audit)
+
+Scope:
+- inventory current agent governance files, wrappers, and existing skills
+- identify repeated procedures that are good skill candidates vs must-stay-in-docs
+- check scope guard compatibility for `.agents/skills/`
+- recommend minimal first skill set for F151B
+- produce `docs/audits/F151A0_AGENT_WORKFLOW_SKILLS_READINESS_REVIEW.md`
+- update `docs/ai-agents/orchestrator-task-queue.md`
+
+Allowed files:
+- `docs/audits/F151A0_AGENT_WORKFLOW_SKILLS_READINESS_REVIEW.md`
+- `docs/ai-agents/orchestrator-task-queue.md`
+
+Forbidden:
+- backend/, frontend/, tests/, .github/, dependency manifests, .env, secrets
+- F147F paused worktree, F150B Codex backend worktree
+- `.agents/skills/` (not yet scope-guard-compatible)
+
+Hard stops:
+- any need to touch backend/frontend/tests
+- any need to touch F147F or F150B
+- any need to read .env or secrets
+- scope guard blocks the intended docs-only changes
+
+Expected validation:
+- `bash scripts/dev/erp-agent-scope-guard agent-docs` — PASS
+- `git diff --check` — PASS
+- confirm no backend/frontend/test/.github/.env/dependency manifest mutations
 - PR CI green before merge
 - main CI green after merge
 
