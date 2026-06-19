@@ -1,4 +1,5 @@
 import type {
+  BillingInvoice,
   Customer,
   HahitantsoaDiscoveryResponse,
   InventoryItem,
@@ -530,6 +531,13 @@ export function confirmPayment(
   signal?: AbortSignal,
 ): Promise<Payment> {
   return postAuthenticatedJson(`/api/v1/payments/${id}/confirm/`, payload, signal);
+}
+// ---- Billing Invoices ----
+
+export function getBillingInvoices(
+  signal?: AbortSignal,
+): Promise<BillingInvoice[]> {
+  return getAuthenticatedJson('/api/v1/billing/invoices/', signal);
 }
 // ---- Inventory Stock Movements ----
 

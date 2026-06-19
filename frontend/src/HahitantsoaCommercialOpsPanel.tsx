@@ -5,6 +5,7 @@ import LogisticsDeliveryPanel from "./LogisticsDeliveryPanel";
 import ReturnsHandlingPanel from "./ReturnsHandlingPanel";
 import BreakageLossPanel from "./BreakageLossPanel";
 import StockMovementLedgerPanel from "./StockMovementLedgerPanel";
+import BillingInvoicePanel from "./BillingInvoicePanel";
 
 
 import {
@@ -46,8 +47,8 @@ const SECTIONS: CommercialSection[] = [
     id: "billing",
     title: "Billing & Invoices",
     badge: "Billing",
-    status: "pending_backend",
-    statusLabel: "Pending Backend Integration",
+    status: "partially_connected",
+    statusLabel: "Partially Connected",
     description: "Track invoices status, totals summaries, and accounting ledger allocations.",
     businessRule: "Invoice lifecycle runs independently of event confirmation state.",
   },
@@ -328,6 +329,9 @@ export function HahitantsoaCommercialOpsPanel() {
               <div className="embedded-payments-panel">
                 <PaymentWorkflowPanel />
               </div>
+            ) : null}
+            {sec.id === "billing" && sec.status !== "pending_backend" ? (
+              <BillingInvoicePanel />
             ) : null}
             {sec.id === "logistics" && sec.status !== "pending_backend" ? (
               <LogisticsDeliveryPanel />
