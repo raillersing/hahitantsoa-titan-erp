@@ -626,9 +626,13 @@ scripts/dev/erp-pr-worktree-finalize PR-NUMBER
 EOF
 ```
 
-### Docker Container Cleanup After Backend Sessions
+﻿### Docker Container Cleanup After Backend Sessions
 
 After a backend validation session ends, stale agent CI containers may remain.
+The wrapper now uses `docker compose down --remove-orphans` as the **primary**
+cleanup mechanism, which is project-scoped and never touches unrelated containers.
+Manual label-based cleanup is used only as a fallback for leftovers.
+
 Clean them with the dry-run-safe wrapper:
 
 ```sh
@@ -639,18 +643,29 @@ bash scripts/dev/erp-docker-agent-cleanup --apply
 EOF
 ```
 
+**New behavior:**
+- `docker compose down --remove-orphans` is the primary cleanup method.
+- `--dangerous-allow-volume-removal` adds `-v` to the compose down command.
+- `docker ps` and `docker system df` are logged before and after cleanup
+  (suppress with `--no-logs` for scripted/automated cleanup).
+- `erp-pr-worktree-finalize` and `erp-worktree-clean-after-merge` now
+  **automatically** call `erp-docker-agent-cleanup --apply --no-logs`
+  before removing the worktree, preventing residual containers after merge.
+
 **Cleanup rules to prevent accumulation:**
 1. After every backend session, run `erp-docker-agent-cleanup --apply` to stop
    and remove containers and networks.
-2. Preserve volumes by default (no `--dangerous-allow-volume-removal`) so test
+2. Prefer `docker compose run --rm` for one-shot validation containers so they
+   self-remove on exit.
+3. Preserve volumes by default (no `--dangerous-allow-volume-removal`) so test
    data is reused and postgres/redis do not need to rebuild from scratch.
-3. Run full cleanup with `--dangerous-allow-volume-removal` only when explicitly
+4. Run full cleanup with `--dangerous-allow-volume-removal` only when explicitly
    authorized, and only when a complete fresh state is required.
-4. Remove merged branches using `git branch -d` and `git push origin --delete`,
+5. Remove merged branches using `git branch -d` and `git push origin --delete`,
    never `gh pr merge --delete-branch` (unsafe with active worktrees).
-5. Remove stale worktrees using `erp-worktree-clean-after-merge` or
+6. Remove stale worktrees using `erp-worktree-clean-after-merge` or
    `erp-pr-worktree-finalize`, never `rm -rf`.
-6. Never manually delete `.git/worktrees/` metadata — use `git worktree prune`
+7. Never manually delete `.git/worktrees/` metadata — use `git worktree prune`
    or the dedicated wrappers.
 
 ## PR Script Validation Patterns
