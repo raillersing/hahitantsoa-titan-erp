@@ -18,6 +18,11 @@ Shared skills provide load-on-demand checklists and procedures for repetitive ag
 | [`erp-secret-handling`](../../.agents/skills/erp-secret-handling/SKILL.md) | Never-read-.env and log hygiene rules | All agents |
 | [`erp-business-boundaries`](../../.agents/skills/erp-business-boundaries/SKILL.md) | Titan vs Hahitantsoa domain rules | All agents |
 | [`erp-post-merge-cleanup`](../../.agents/skills/erp-post-merge-cleanup/SKILL.md) | Branch/worktree/Docker cleanup procedure | All agents after merge |
+| [`erp-migration-safety`](../../.agents/skills/erp-migration-safety/SKILL.md) | Migration necessity, reversibility, and rollback checklist | Backend agents |
+| [`erp-security-review`](../../.agents/skills/erp-security-review/SKILL.md) | Authorization, permissions, and input validation checklist | Backend agents |
+| [`erp-agent-role-assignment`](../../.agents/skills/erp-agent-role-assignment/SKILL.md) | Role assignment quick reference for orchestrators | Orchestrator agents |
+| [`erp-api-contracts`](../../.agents/skills/erp-api-contracts/SKILL.md) | API contract design and cross-boundary protocol | Backend & frontend agents |
+| [`erp-scope-guard-setup`](../../.agents/skills/erp-scope-guard-setup/SKILL.md) | Scope guard profiles, usage, and troubleshooting | All agents |
 
 ### Frontend Skills
 
