@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-frontend-ci
+
+Purpose:
+  Run frontend local validation from any ERP worktree root.
+
+  Steps:
+    1. Scope guard (frontend profile)
+    2. Dependency check — runs `npm ci` if vitest/tsc/vite are missing
+    3. npm test
+    4. npm run build
+    5. Manifest integrity check — fails if package.json or
+       package-lock.json changed unexpectedly
+
+  The script never runs `npm audit fix` and never mutates dependency
+  manifest files intentionally.  The post-run integrity check catches
+  any accidental manifest mutations.
+USAGE
+}
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+esac
+
+# ── Preflight: frontend directory existence ────────────────────────────────
+if [ ! -f "$REPO_ROOT/frontend/package.json" ]; then
+  echo "ERROR: frontend/package.json not found — is this an ERP worktree root?"
+  exit 1
+fi
+
+# ── Step 1: Scope guard ────────────────────────────────────────────────────
+echo "============================================================"
+echo "F152B frontend-ci scope guard"
+echo "============================================================"
+bash "$SCRIPT_DIR/erp-agent-scope-guard" frontend
+
+# ── Step 2: Dependency check (lightweight npm ci) ─────────────────────────
+echo ""
+echo "============================================================"
+echo "F152B frontend-ci dependency check"
+echo "============================================================"
+
+NEED_CI=false
+for bin in vitest tsc vite; do
+  if [ ! -x "frontend/node_modules/.bin/$bin" ]; then
+    echo "  MISSING: frontend/node_modules/.bin/$bin"
+    NEED_CI=true
+  fi
+done
+
+if [ "$NEED_CI" = true ]; then
+  echo "  → Running npm ci (no audit fix)"
+  (cd frontend && npm ci)
+  echo "  → npm ci complete"
+else
+  echo "  → All required binaries present — skipping npm ci"
+fi
+
+# ── Capture manifest checksums before validation ───────────────────────────
+manifest_ok() {
+  pkg_ck=$(sha256sum "$REPO_ROOT/frontend/package.json" 2>/dev/null | cut -d' ' -f1)
+  lock_ck=$(sha256sum "$REPO_ROOT/frontend/package-lock.json" 2>/dev/null | cut -d' ' -f1)
+}
+
+manifest_ok
+PKG_CHECKSUM_BEFORE="$pkg_ck"
+LOCK_CHECKSUM_BEFORE="$lock_ck"
+
+# ── Step 3: npm test ───────────────────────────────────────────────────────
+echo ""
+echo "============================================================"
+echo "F152B frontend-ci npm test"
+echo "============================================================"
+(cd frontend && npm test)
+
+# ── Step 4: npm run build ──────────────────────────────────────────────────
+echo ""
+echo "============================================================"
+echo "F152B frontend-ci npm run build"
+echo "============================================================"
+(cd frontend && npm run build)
+
+# ── Step 5: Manifest integrity check ──────────────────────────────────────
+echo ""
+echo "============================================================"
+echo "F152B frontend-ci manifest integrity check"
+echo "============================================================"
+
+manifest_ok
+
+HAS_ERROR=false
+
+if [ "$pkg_ck" != "$PKG_CHECKSUM_BEFORE" ]; then
+  echo "  FAIL: frontend/package.json changed during validation"
+  HAS_ERROR=true
+fi
+
+if [ "$lock_ck" != "$LOCK_CHECKSUM_BEFORE" ]; then
+  echo "  FAIL: frontend/package-lock.json changed during validation"
+  HAS_ERROR=true
+fi
+
+if [ "$HAS_ERROR" = true ]; then
+  echo ""
+  echo "ERROR: dependency manifest mutation detected."
+  echo "  Run 'git diff frontend/package.json frontend/package-lock.json'"
+  echo "  to inspect changes, then revert any unintended mutations."
+  exit 1
+fi
+
+echo "  → Manifests unchanged — PASS"
+
+echo ""
+echo "============================================================"
+echo "F152B frontend-ci — ALL CHECKS PASSED"
+echo "============================================================"

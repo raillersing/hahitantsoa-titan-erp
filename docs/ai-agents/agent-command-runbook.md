@@ -211,20 +211,27 @@ scripts/dev/erp-agent-scope-guard frontend
 EOF
 ```
 
-Standard frontend validation:
+Standard frontend validation (F152B — wrapped):
 
 ```sh
 scripts/dev/erp-logged-run frontend-quality <<'EOF'
 set -euo pipefail
 
-cd frontend
-npm ci
-npm test
-npm run build
+scripts/dev/erp-frontend-ci
 EOF
 ```
 
-Fast existing helper:
+The wrapper (`scripts/dev/erp-frontend-ci`) performs:
+1. Frontend scope guard
+2. Automatic `npm ci` when vitest/tsc/vite are missing in `node_modules`
+3. `npm test`
+4. `npm run build`
+5. Manifest integrity check — fails if `package.json` or
+   `package-lock.json` changed unexpectedly
+
+It never runs `npm audit fix`.
+
+Fast existing helper (pre-F152B, kept for compatibility):
 
 ```sh
 scripts/dev/erp-logged-run frontend-quality-helper <<'EOF'

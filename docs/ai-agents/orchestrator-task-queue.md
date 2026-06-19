@@ -2,18 +2,17 @@
 
 ## Current State
 
-- `origin/main` HEAD is `a3ccf9a` at the last recorded queue refresh and must be
-  revalidated against live repo state before the next bundle starts.
+- `origin/main` HEAD is `d6296f0` (merge of F147F PR #322 and F151E PR #316).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
 - PR #318 (identity role and assignment list filtering) is merged and serves as the
   trigger case for workflow hardening in F152A.
-- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills), #314 (F151C queue update).
+- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills), #314 (F151C queue update), #316 (F151E interval alignment), #322 (F147F frontend UX hardening).
 - Open PRs:
   - None in backend commercial queue; all closed and merged.
-- F147F frontend worktree is paused and must not be touched.
+- F147F is merged as PR #322 — worktree and branch cleaned up.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -668,7 +667,8 @@ Status:
 ### F151E
 
 Status:
-- active agent-docs task
+- **COMPLETED** — merged as PR #316
+- main HEAD at merge: `76d61ef` (pre‑F147F)
 - scope: align CI watch interval policy — replace `--interval 15` with `--interval 30` in runbook and F151D matrix
 
 Scope delivered:
@@ -676,20 +676,36 @@ Scope delivered:
 - `docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md` — 4 `--interval 15` → `--interval 30`
 - `docs/ai-agents/orchestrator-task-queue.md` — updated
 
+### F152B
+
+Status:
+- active agent-tools/docs bundle
+- branch: `chore/f152b-frontend-ci-wrapper`
+- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f152b`
+
+Scope:
+- create `scripts/dev/erp-frontend-ci` — local frontend validation wrapper
+- update `docs/ai-agents/agent-command-runbook.md` — reference the new wrapper
+- update `docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md` — add `vitest: not found` pattern
+- update `docs/ai-agents/orchestrator-task-queue.md` — F147F merged, F152B active
+
 Allowed files:
-- `docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md`
+- `scripts/dev/erp-frontend-ci`
 - `docs/ai-agents/agent-command-runbook.md`
+- `docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
+- `.agents/skills/erp-frontend-testing/SKILL.md` (optional, brief reference)
 
 Forbidden:
-- `backend/`, `frontend/`, `tests/`, `.github/`, `.agents/skills/`, `scripts/dev/`, dependency manifests, `.env`, secrets
-- F147F paused worktree
-- identity-role-filter worktree or branch
+- `backend/`, `frontend/src/`, `frontend/package.json`, `frontend/package-lock.json`, `.github/`, `.env`, secrets
+- active backend worktree/branch (`feat/payment-refund-api-hardening`)
 
 Validation:
+- `bash -n scripts/dev/erp-frontend-ci`
+- `bash scripts/dev/erp-agent-scope-guard agent-tools`
 - `bash scripts/dev/erp-agent-scope-guard agent-docs`
 - `git diff --check`
-- grep to confirm no `--interval 15` remains in F151D/runbook CI-watch examples
+- run `scripts/dev/erp-frontend-ci` from the worktree
 - PR CI green before merge
 - main CI green after merge
 
