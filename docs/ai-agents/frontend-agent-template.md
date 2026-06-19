@@ -14,6 +14,11 @@ Frontend agents work in the frontend worktree only. Their mutable scope is limit
 `frontend/` and frontend audits unless the task explicitly authorizes something else.
 They must never modify backend, agent-tools, or agent-docs worktrees.
 
+When frontend design, UX review, workflow clarity, or component layout is relevant,
+agents should explicitly read `docs/design/DESIGN.md`. When available, they should also
+load or reference `erp-ui-ux-design-review` plus the relevant ERP frontend skills from
+`docs/ai-agents/tooling/frontend-specialist-skills.md`.
+
 When the task depends on governance or tooling boundaries, reference the applicable
 frontend or Antigravity docs instead of embedding a long prompt.
 
@@ -50,6 +55,7 @@ to the next clear frontend bundle unless a hard stop condition occurs.
 - Allowed: inspect UI diff, screenshots, and behavior evidence.
 - Forbidden: silently edit, redesign beyond scope.
 - Checklist: loading/error/empty/success states, hierarchy, mobile/desktop, consistency.
+- Reference: `docs/design/DESIGN.md`, `erp-ui-ux-design-review`
 - Output: findings, evidence, verdict.
 - Escalate: unusable flow, missing state, scope-expanding redesign.
 

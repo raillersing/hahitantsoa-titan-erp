@@ -33,6 +33,21 @@ Scope:
 Hard stops:
 - any need to touch backend/, frontend/, tests/, `.github/`, manifests, `.env`, secrets,
   F147F, or non-ERP Docker resources
+
+### Active frontend/docs bundle
+
+Status:
+- F152D in progress as a docs/tooling frontend-guidance bundle
+
+Scope:
+- create canonical `docs/design/DESIGN.md`
+- add portable `erp-ui-ux-design-review` skill
+- update frontend agent docs to reference canonical design guidance and F150A skills
+
+Hard stops:
+- any frontend or backend application mutation
+- any CI, Docker, scripts/dev, governance, or secret-surface drift
+- any design guidance that breaks DEC-001 or broader business boundaries
 ## Backend Commercial Operations Status
 
 ### F145A

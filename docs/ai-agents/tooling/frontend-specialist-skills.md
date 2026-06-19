@@ -12,6 +12,7 @@ canonical workflow docs in `docs/ai-agents/`. They were promoted from
 
 | Skill | File | Purpose |
 |---|---|---|
+| `erp-ui-ux-design-review` | `.agents/skills/erp-ui-ux-design-review/SKILL.md` | Portable ERP design review checklist that points to `docs/design/DESIGN.md` |
 | `erp-frontend-scope-guard` | `.agents/skills/erp-frontend-scope-guard/SKILL.md` | Verify changes stay in approved frontend files and respect business boundaries |
 | `erp-frontend-typescript-quality` | `.agents/skills/erp-frontend-typescript-quality/SKILL.md` | TypeScript strictness, React patterns, consistent conventions |
 | `erp-frontend-api-contracts` | `.agents/skills/erp-frontend-api-contracts/SKILL.md` | Confirm API calls match confirmed backend contracts |
@@ -21,12 +22,20 @@ canonical workflow docs in `docs/ai-agents/`. They were promoted from
 | `erp-frontend-state-forms` | `.agents/skills/erp-frontend-state-forms/SKILL.md` | Controlled form state, validation, and data-fetching patterns |
 | `erp-frontend-performance-maintainability` | `.agents/skills/erp-frontend-performance-maintainability/SKILL.md` | Render performance, bundle hygiene, and long-term maintainability |
 
+## Canonical Design Source
+
+- `docs/design/DESIGN.md` is the canonical cross-agent UI/UX source for
+  Hahitantsoa/Titan ERP.
+- Agents should read it even if their runtime does not auto-load local skills.
+- `erp-ui-ux-design-review` exists to route agents back to that document and to
+  the relevant F150A frontend skills.
+
 ## When Each Agent Should Load Skills
 
 | Agent | Load |
 |---|---|
-| Agent FE-A (Implementer) | `erp-frontend-scope-guard` at task start; `erp-frontend-typescript-quality` + `erp-frontend-api-contracts` + `erp-frontend-state-forms` during implementation; `erp-frontend-testing` when writing tests |
-| Agent FE-B (UI/UX Reviewer) | `erp-frontend-accessibility-ux` during review |
+| Agent FE-A (Implementer) | Read `docs/design/DESIGN.md`; load `erp-frontend-scope-guard` at task start; load `erp-ui-ux-design-review` for workflow/layout guidance; load `erp-frontend-typescript-quality` + `erp-frontend-api-contracts` + `erp-frontend-state-forms` during implementation; load `erp-frontend-testing` when writing tests |
+| Agent FE-B (UI/UX Reviewer) | Read `docs/design/DESIGN.md`; load `erp-ui-ux-design-review` + `erp-frontend-accessibility-ux` during review |
 | Agent FE-C (Accessibility Reviewer) | `erp-frontend-accessibility-ux` during review |
 | Agent FE-D (Test Reviewer) | `erp-frontend-testing` during review |
 | Agent FE-E (API Contract Reviewer) | `erp-frontend-api-contracts` during review |
