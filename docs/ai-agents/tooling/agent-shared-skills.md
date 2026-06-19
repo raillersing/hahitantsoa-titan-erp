@@ -8,22 +8,16 @@ Shared skills provide load-on-demand checklists and procedures for repetitive ag
 
 ## Available Skills
 
-### Backend Agent Skills
-
-| Skill | Purpose |
-|-------|---------|
-| [`backend-quality-gates`](../../.agents/skills/backend-quality-gates/SKILL.md) | Pre-commit quality verification for backend PRs |
-| [`backend-agent-roles`](../../.agents/skills/backend-agent-roles/SKILL.md) | Role-specific checklists for backend agents A–F |
-| [`backend-ci-workflow`](../../.agents/skills/backend-ci-workflow/SKILL.md) | CI wait, merge, and post-merge validation |
-
-### Cross-Agent Skills
-
-| Skill | Purpose |
-|-------|---------|
-| [`worktree-discipline`](../../.agents/skills/worktree-discipline/SKILL.md) | One-agent-one-worktree rules |
-| [`secret-handling`](../../.agents/skills/secret-handling/SKILL.md) | Never-read-.env and log hygiene rules |
-| [`business-boundaries`](../../.agents/skills/business-boundaries/SKILL.md) | Titan vs Hahitantsoa domain rules |
-| [`post-merge-cleanup`](../../.agents/skills/post-merge-cleanup/SKILL.md) | Branch/worktree/Docker cleanup procedure |
+| Skill | Purpose | Applies to |
+|-------|---------|------------|
+| [`erp-task-start`](../../.agents/skills/erp-task-start/SKILL.md) | Mandatory task-start baseline and scope check | All executable agents |
+| [`erp-quality-gates`](../../.agents/skills/erp-quality-gates/SKILL.md) | Pre-commit quality verification for backend PRs | Backend agents |
+| [`erp-agent-roles`](../../.agents/skills/erp-agent-roles/SKILL.md) | Role-specific checklists for backend agents A–F | Backend agents |
+| [`erp-ci-workflow`](../../.agents/skills/erp-ci-workflow/SKILL.md) | CI wait, merge, and post-merge validation | All agents opening PRs |
+| [`erp-worktree-discipline`](../../.agents/skills/erp-worktree-discipline/SKILL.md) | One-agent-one-worktree rules | All agents |
+| [`erp-secret-handling`](../../.agents/skills/erp-secret-handling/SKILL.md) | Never-read-.env and log hygiene rules | All agents |
+| [`erp-business-boundaries`](../../.agents/skills/erp-business-boundaries/SKILL.md) | Titan vs Hahitantsoa domain rules | All agents |
+| [`erp-post-merge-cleanup`](../../.agents/skills/erp-post-merge-cleanup/SKILL.md) | Branch/worktree/Docker cleanup procedure | All agents after merge |
 
 ### Frontend Skills (OpenCode-specific)
 
@@ -42,21 +36,21 @@ Frontend specialist skills live under [`.opencode/skills/`](../../.opencode/skil
 
 ```sh
 # Load a skill by name
-skill backend-quality-gates
+skill erp-quality-gates
 ```
 
 ### Codex
 
 ```sh
 # Codex loads skills from .agents/skills/ automatically
-@skills backend-quality-gates
+@skills erp-quality-gates
 ```
 
 ### Claude Code
 
 ```sh
 # Claude Code loads skills from .agents/skills/ automatically
-@skills backend-quality-gates
+@skills erp-quality-gates
 ```
 
 ## For Each Skill, Know
@@ -64,6 +58,27 @@ skill backend-quality-gates
 - **When to load** — at which phase of the task
 - **What it checks** — the core checklist items
 - **Where the source is** — which canonical document to reference if clarification is needed
+
+## Onboarding for New Skills
+
+When a new skill is added to `.agents/skills/`:
+
+1. Add a row to the table above.
+2. Update the skills portfolio audit (`F151C0`) if relevant.
+3. Ensure the skill has `name` and `description` frontmatter.
+4. Confirm no duplicate `name` values across `.agents/skills/` and `.opencode/skills/`.
+5. Verify the skill follows model-agnostic and agent-agnostic conventions.
+6. Update this guide if the skill changes existing loading or usage rules.
+
+## Discovery
+
+Agents can discover available skills by listing directories under `.agents/skills/`:
+
+```sh
+ls .agents/skills/*/SKILL.md
+```
+
+Each skill's `name` and `description` frontmatter fields allow agents to determine relevance without loading the full content.
 
 ## References
 

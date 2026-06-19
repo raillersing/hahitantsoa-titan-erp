@@ -1,9 +1,9 @@
 ---
-name: backend-agent-roles
+name: erp-agent-roles
 description: Role-specific checklists for Titan ERP backend agents A through F. Use when assigning or acting as a backend agent in the multi-agent workflow.
 ---
 
-# Backend Agent Roles
+# ERP Agent Roles
 
 Load the relevant role section when assigned a backend agent role.
 

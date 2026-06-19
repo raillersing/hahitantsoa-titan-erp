@@ -1,9 +1,9 @@
 ---
-name: hahitantsoa-erp-task-start
-description: Run the mandatory Titan ERP executable-task baseline and scope check for Codex in the repo worktree. Use when a Codex task can execute commands or mutate files in this repository. Do not use for plan-only agents or as a replacement for the canonical governance docs.
+name: erp-task-start
+description: Run the mandatory Titan ERP executable-task baseline and scope check in the repo worktree. Use when an agent task can execute commands or mutate files in this repository.
 ---
 
-# Hahitantsoa ERP Task Start
+# ERP Task Start
 
 Run this skill at the beginning of every executable Codex task in this repository.
 

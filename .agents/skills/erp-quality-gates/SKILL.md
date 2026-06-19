@@ -1,9 +1,9 @@
 ---
-name: backend-quality-gates
+name: erp-quality-gates
 description: Pre-commit quality verification checklist for Titan ERP backend PRs. Use when implementing or reviewing a backend change before pushing.
 ---
 
-# Backend Quality Gates
+# ERP Quality Gates
 
 Use after implementing a backend change, before commit and push.
 
@@ -24,6 +24,7 @@ Verify that all backend quality gates pass before opening a PR.
 - [ ] Backend work stays in the backend worktree only
 - [ ] `git diff --check` passes
 - [ ] Agent scope guard passes for the active profile
+- [ ] No host Python — use `scripts/dev/erp-backend-compose-ci` or `scripts/ci/backend-quality` for backend validation
 
 ## When to use me
 
