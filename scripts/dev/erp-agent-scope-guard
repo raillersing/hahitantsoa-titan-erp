@@ -27,9 +27,10 @@ Profiles:
     secret-looking files. Allow only scripts/dev, compose.agent-ci.yaml, docs/audits, and docs/ai-agents.
 
   agent-docs
-    Forbid backend, frontend, tests, scripts/dev, .github, dependency manifests,
-    .env-like files, and secret-looking files. Allow only docs/ai-agents, docs/audits,
-    opencode.json, .opencode/, CLAUDE.md, and .claude/ settings.
+    Forbid backend, frontend, tests, .github, dependency manifests, .env-like files,
+    and secret-looking files. Allow docs/ai-agents, docs/audits, agent skill docs,
+    and the narrow ERP workflow helper script surface used by combined governance
+    bundles.
 
 Notes:
   This guard inspects file paths only. It does not open or read secret contents.
@@ -114,11 +115,11 @@ case "$PROFILE" in
     check_allowed_only '^(scripts/dev/|compose\.agent-ci\.yaml$|docs/audits/|docs/ai-agents/)'
     ;;
   agent-docs)
-    check_blocked '^(backend/|backend$|frontend/|frontend$|tests/|tests$|scripts/dev/|scripts/dev$|\.github/|\.github$)' "application, test, or script paths are out of scope"
+    check_blocked '^(backend/|backend$|frontend/|frontend$|tests/|tests$|\.github/|\.github$)' "application, test, or GitHub workflow paths are out of scope"
     check_blocked '^(package\.json|package-lock\.json|pyproject\.toml|requirements[^/]*\.txt|poetry\.lock|pnpm-lock\.yaml|yarn\.lock)$' "dependency manifests are out of scope"
     check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
     check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
-    check_allowed_only '^(docs/ai-agents/|docs/audits/|opencode\.json$|\.opencode/|\.agents/skills/|CLAUDE\.md$|\.claude/)'
+    check_allowed_only '^(docs/ai-agents/|docs/audits/|opencode\.json$|\.opencode/|\.agents/skills/|CLAUDE\.md$|\.claude/|compose\.agent-ci\.yaml$|scripts/dev/erp-[A-Za-z0-9._-]+$)'
     ;;
   help|--help|-h)
     print_usage

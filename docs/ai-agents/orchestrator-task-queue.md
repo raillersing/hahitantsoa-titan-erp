@@ -2,11 +2,14 @@
 
 ## Current State
 
-- `origin/main` HEAD is `a3ccf9a` (post PRs #283–#314 merges).
+- `origin/main` HEAD is `a3ccf9a` at the last recorded queue refresh and must be
+  revalidated against live repo state before the next bundle starts.
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
+- PR #318 (identity role and assignment list filtering) is merged and serves as the
+  trigger case for workflow hardening in F152A.
 - Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills), #314 (F151C queue update).
 - Open PRs:
   - None in backend commercial queue; all closed and merged.
@@ -14,6 +17,22 @@
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
+
+### Active workflow improvement bundle
+
+Status:
+- F152A in progress as an agent-tools/docs-only hardening bundle
+
+Scope:
+- PR finalization recovery for already-merged PRs
+- backend quality-gate guidance hardening
+- explicit Docker cleanup by ERP Compose project name
+- root dirty-state preflight clarification
+- recurring-errors matrix and runbook updates
+
+Hard stops:
+- any need to touch backend/, frontend/, tests/, `.github/`, manifests, `.env`, secrets,
+  F147F, or non-ERP Docker resources
 ## Backend Commercial Operations Status
 
 ### F145A
@@ -258,12 +277,26 @@ Scope delivered:
 - Profile allows: docs/ai-agents/, docs/audits/, opencode.json, .opencode/
 - Profile forbids: backend/, frontend/, tests/, scripts/dev/, .github/, .env*, secrets, dependency manifests
 
+### F152A
+
+Status:
+- active agent-tools/docs bundle
+- branch: `chore/f152a-workflow-recovery-hardening`
+- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f152a-workflow-recovery-hardening`
+
+Scope:
+- harden `erp-pr-worktree-finalize` for already-merged recovery
+- harden `erp-docker-agent-cleanup` for explicit ERP Compose project targeting
+- allow `agent-docs` scope validation for narrow ERP workflow helper scripts in mixed governance bundles
+- update runbook and recurring-errors audit with PR #318 lessons
+- create F152A workflow recovery audit note
+
 Validation:
-- bash scripts/dev/erp-agent-scope-guard agent-docs — correctly blocks script changes
-- bash scripts/dev/erp-agent-scope-guard agent-tools — passes for this PR
-- git diff --check — PASS
-- PR CI green before merge
-- `main` CI green after merge
+- `bash scripts/dev/erp-agent-scope-guard agent-tools`
+- `bash scripts/dev/erp-agent-scope-guard agent-docs`
+- `git diff --check`
+- `shellcheck` if available, otherwise `bash -n`, on changed shell scripts
+- dry-run Docker cleanup verification only unless explicit safe-apply context exists
 
 ### F148A
 

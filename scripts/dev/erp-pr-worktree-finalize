@@ -10,6 +10,27 @@ PR_NUMBER=""
 WORKTREE_PATH=""
 BRANCH=""
 
+gh_retry() {
+  local attempt=1
+  local max_attempts="${GH_RETRY_ATTEMPTS:-4}"
+  local delay_seconds="${GH_RETRY_DELAY_SECONDS:-5}"
+
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      echo "ERROR: command failed after $attempt attempt(s): $*" >&2
+      return 1
+    fi
+
+    echo "WARN: transient GitHub command failure (attempt $attempt/$max_attempts): $*" >&2
+    sleep "$delay_seconds"
+    attempt=$((attempt + 1))
+  done
+}
+
 print_usage() {
   cat <<'USAGE'
 Usage:
@@ -24,12 +45,14 @@ Purpose:
   Safely finalize a PR from its own dedicated task worktree by:
   - requiring execution from the task worktree (not root/main)
   - requiring a clean worktree and valid PR argument
-  - requiring PR state OPEN and mergeable MERGEABLE
+  - allowing PR state OPEN for merge or MERGED for post-merge recovery
+  - requiring mergeable MERGEABLE only when the PR still needs merging
   - requiring all CI checks completed with success before merge
   - merging with gh pr merge --squash --match-head-commit and without --delete-branch
   - confirming PR state becomes MERGED and main CI is green
   - switching to the main repository root (MAIN_PATH from git worktree list) to
     sync main, because the task worktree is still on the feature branch
+  - cleaning the task worktree Docker Compose project by explicit project name
   - removing the clean worktree with git worktree remove
   - deleting the local branch with git branch -D after MERGED confirmation
   - deleting the remote branch with git push origin --delete --prune
@@ -37,7 +60,8 @@ Purpose:
 
 Hard stops:
   - Worktree is dirty
-  - PR is not OPEN or not MERGEABLE
+  - PR is neither OPEN nor MERGED
+  - PR is OPEN but not MERGEABLE
   - Any CI check is still pending or has failed
   - PR does not become MERGED after merge attempt
   - Main CI is not green
@@ -168,12 +192,12 @@ echo "WORKTREE: $WORKTREE_PATH"
 echo "BRANCH: $BRANCH"
 
 # ----- Fetch PR metadata -----
-PR_HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')"
-PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
-PR_MERGEABLE="$(gh pr view "$PR_NUMBER" --json mergeable --jq '.mergeable')"
-PR_TITLE="$(gh pr view "$PR_NUMBER" --json title --jq '.title')"
-PR_BASE_BRANCH="$(gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName')"
-PR_HEAD_BRANCH="$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')"
+PR_HEAD_SHA="$(gh_retry gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')"
+PR_STATE="$(gh_retry gh pr view "$PR_NUMBER" --json state --jq '.state')"
+PR_MERGEABLE="$(gh_retry gh pr view "$PR_NUMBER" --json mergeable --jq '.mergeable')"
+PR_TITLE="$(gh_retry gh pr view "$PR_NUMBER" --json title --jq '.title')"
+PR_BASE_BRANCH="$(gh_retry gh pr view "$PR_NUMBER" --json baseRefName --jq '.baseRefName')"
+PR_HEAD_BRANCH="$(gh_retry gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')"
 
 if [ "$PR_BASE_BRANCH" != "main" ]; then
   echo "ERROR: PR #$PR_NUMBER does not target main (targets: $PR_BASE_BRANCH)"
@@ -194,66 +218,74 @@ if [ "$BRANCH_WORKTREE_COUNT" -gt 1 ]; then
   exit 1
 fi
 
-# ----- Hard stop: PR must be OPEN before merge -----
-if [ "$PR_STATE" != "OPEN" ]; then
-  echo "ERROR: PR #$PR_NUMBER must be OPEN; got $PR_STATE"
+# ----- Hard stop: PR must be OPEN or MERGED -----
+if [ "$PR_STATE" != "OPEN" ] && [ "$PR_STATE" != "MERGED" ]; then
+  echo "ERROR: PR #$PR_NUMBER must be OPEN or MERGED; got $PR_STATE"
   exit 1
 fi
 
-# ----- Hard stop: PR must be mergeable -----
-if [ "$PR_MERGEABLE" != "MERGEABLE" ]; then
+# ----- Hard stop: OPEN PR must be mergeable -----
+if [ "$PR_STATE" = "OPEN" ] && [ "$PR_MERGEABLE" != "MERGEABLE" ]; then
   echo "ERROR: PR #$PR_NUMBER is not mergeable: $PR_MERGEABLE"
   exit 1
 fi
 
-# ----- Hard stop: all CI checks must be completed with success -----
-echo "INFO: Validating CI checks for PR #$PR_NUMBER..."
-# First check: gh pr checks --required (preferred when configured)
-required_ok=0
-if gh pr checks "$PR_NUMBER" --required >/dev/null 2>&1; then
-  required_ok=1
-fi
-
-if [ "$required_ok" -eq 1 ]; then
-  echo "OK: Required checks verified via gh pr checks --required."
-else
-  echo "INFO: gh pr checks --required did not report success. Validating statusCheckRollup..."
-fi
-
-# Always validate full statusCheckRollup for pending checks
-PENDING_COUNT="$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.status != "COMPLETED")] | length' 2>/dev/null || echo "0")"
-if [ "${PENDING_COUNT:-0}" -gt 0 ]; then
-  echo "ERROR: One or more CI checks are still pending. Wait for completion before finalizing."
-  gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.status != "COMPLETED") | "Check run \(.name) is \(.status)"'
-  exit 1
-fi
-
-FAILED_COUNT="$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null)] | length' 2>/dev/null || echo "0")"
-if [ "${FAILED_COUNT:-0}" -gt 0 ]; then
-  echo "ERROR: One or more CI checks have failed."
-  gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null) | "Check run \(.name) is \(.conclusion)"'
-  exit 1
-fi
-
-echo "OK: All CI checks completed with success."
-
-# ----- Merge PR without --delete-branch -----
-echo "INFO: Merging PR #$PR_NUMBER..."
-gh pr merge "$PR_NUMBER" --squash --match-head-commit "$PR_HEAD_SHA"
-
-echo "INFO: Waiting for PR state to become MERGED..."
-for attempt in $(seq 1 30); do
-  PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
-  if [ "$PR_STATE" = "MERGED" ]; then
-    echo "OK: PR #$PR_NUMBER is MERGED."
-    break
+if [ "$PR_STATE" = "OPEN" ]; then
+  # ----- Hard stop: all CI checks must be completed with success -----
+  echo "INFO: Validating CI checks for PR #$PR_NUMBER..."
+  # First check: gh pr checks --required (preferred when configured)
+  required_ok=0
+  if gh_retry gh pr checks "$PR_NUMBER" --required >/dev/null 2>&1; then
+    required_ok=1
   fi
-  if [ "$attempt" -eq 30 ]; then
-    echo "ERROR: PR #$PR_NUMBER did not become MERGED within timeout (state: $PR_STATE)"
+
+  if [ "$required_ok" -eq 1 ]; then
+    echo "OK: Required checks verified via gh pr checks --required."
+  else
+    echo "INFO: gh pr checks --required did not report success. Validating statusCheckRollup..."
+  fi
+
+  # Always validate full statusCheckRollup for pending checks
+  PENDING_COUNT="$(gh_retry gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.status != "COMPLETED")] | length' 2>/dev/null || echo "0")"
+  if [ "${PENDING_COUNT:-0}" -gt 0 ]; then
+    echo "ERROR: One or more CI checks are still pending. Wait for completion before finalizing."
+    gh_retry gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.status != "COMPLETED") | "Check run \(.name) is \(.status)"'
     exit 1
   fi
-  sleep 5
-done
+
+  FAILED_COUNT="$(gh_retry gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null)] | length' 2>/dev/null || echo "0")"
+  if [ "${FAILED_COUNT:-0}" -gt 0 ]; then
+    echo "ERROR: One or more CI checks have failed."
+    gh_retry gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null) | "Check run \(.name) is \(.conclusion)"'
+    exit 1
+  fi
+
+  echo "OK: All CI checks completed with success."
+else
+  echo "INFO: PR #$PR_NUMBER is already MERGED. Skipping mergeability and PR-CI merge gating, and continuing with main CI verification plus cleanup."
+fi
+
+if [ "$PR_STATE" = "OPEN" ]; then
+  # ----- Merge PR without --delete-branch -----
+  echo "INFO: Merging PR #$PR_NUMBER..."
+  gh_retry gh pr merge "$PR_NUMBER" --squash --match-head-commit "$PR_HEAD_SHA"
+
+  echo "INFO: Waiting for PR state to become MERGED..."
+  for attempt in $(seq 1 30); do
+    PR_STATE="$(gh_retry gh pr view "$PR_NUMBER" --json state --jq '.state')"
+    if [ "$PR_STATE" = "MERGED" ]; then
+      echo "OK: PR #$PR_NUMBER is MERGED."
+      break
+    fi
+    if [ "$attempt" -eq 30 ]; then
+      echo "ERROR: PR #$PR_NUMBER did not become MERGED within timeout (state: $PR_STATE)"
+      exit 1
+    fi
+    sleep 5
+  done
+else
+  echo "OK: PR #$PR_NUMBER is already MERGED."
+fi
 
 # ----- Sync main from the root worktree -----
 # After a squash merge the task branch is no longer an ancestor of origin/main, so
@@ -285,7 +317,7 @@ echo "INFO: Waiting for main CI run for SHA $CURRENT_MAIN_SHA..."
 
 MAIN_CI_RUN_ID=""
 for attempt in $(seq 1 45); do
-  MAIN_CI_RUN_ID="$(gh run list --branch main --event push --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$CURRENT_MAIN_SHA\") | .databaseId" 2>/dev/null | head -n 1 || true)"
+  MAIN_CI_RUN_ID="$(gh_retry gh run list --branch main --event push --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$CURRENT_MAIN_SHA\") | .databaseId" 2>/dev/null | head -n 1 || true)"
   if [ -n "$MAIN_CI_RUN_ID" ]; then
     echo "OK: Found main CI run: $MAIN_CI_RUN_ID"
     break
@@ -299,13 +331,13 @@ if [ -z "$MAIN_CI_RUN_ID" ]; then
   exit 1
 fi
 
-STATUS="$(gh run view "$MAIN_CI_RUN_ID" --json status --jq '.status')"
+STATUS="$(gh_retry gh run view "$MAIN_CI_RUN_ID" --json status --jq '.status')"
 if [ "$STATUS" != "completed" ]; then
   echo "INFO: Main CI run is $STATUS. Watching run $MAIN_CI_RUN_ID..."
-  gh run watch "$MAIN_CI_RUN_ID" --interval 10 --exit-status || true
+  gh_retry gh run watch "$MAIN_CI_RUN_ID" --interval 30 --exit-status || true
 fi
 
-CONCLUSION="$(gh run view "$MAIN_CI_RUN_ID" --json conclusion --jq '.conclusion')"
+CONCLUSION="$(gh_retry gh run view "$MAIN_CI_RUN_ID" --json conclusion --jq '.conclusion')"
 if [ "$CONCLUSION" != "success" ]; then
   echo "ERROR: Main CI run conclusion is: $CONCLUSION (expected success)"
   exit 1
@@ -315,8 +347,9 @@ echo "OK: Main CI is green."
 
 # ----- Docker cleanup before worktree removal -----
 echo "INFO: Cleaning up Docker Compose project for worktree..."
+WORKTREE_COMPOSE_PROJECT="$(basename "$WORKTREE_PATH")"
 if [ -f "$SCRIPT_DIR/erp-docker-agent-cleanup" ]; then
-  bash "$SCRIPT_DIR/erp-docker-agent-cleanup" --apply --no-logs || {
+  bash "$SCRIPT_DIR/erp-docker-agent-cleanup" --apply --no-logs --project-name "$WORKTREE_COMPOSE_PROJECT" || {
     echo "WARN: Docker cleanup returned non-zero; continuing with worktree removal."
   }
 else
@@ -337,7 +370,7 @@ cd "$MAIN_PATH"
 
 # ----- Delete local branch -----
 echo "INFO: Deleting local branch: $BRANCH"
-LATEST_PR_STATE="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+LATEST_PR_STATE="$(gh_retry gh pr view "$PR_NUMBER" --json state --jq '.state')"
 if [ "$LATEST_PR_STATE" != "MERGED" ]; then
   echo "ERROR: refusing forced branch deletion because PR #$PR_NUMBER is not MERGED: $LATEST_PR_STATE"
   exit 1
