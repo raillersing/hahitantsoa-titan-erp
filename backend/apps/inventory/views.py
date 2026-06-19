@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.documents.serializers import DocumentInstanceSerializer
+from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.inventory.models import (
     InventoryDamageLossExcessReceivable,
     InventoryItem,
@@ -72,6 +73,11 @@ class InventoryItemRetrieveAPIView(generics.RetrieveAPIView):
 class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasReservationSensitiveAccess()]
+        return [permission() for permission in self.permission_classes]
 
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
@@ -140,6 +146,11 @@ class InventoryReturnOperationListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasReservationSensitiveAccess()]
+        return [permission() for permission in self.permission_classes]
+
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
             return InventoryReturnOperationCreateSerializer
@@ -196,7 +207,7 @@ class InventoryReturnOperationRetrieveAPIView(APIView):
 
 class InventoryReturnOperationValidateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=None,
@@ -230,6 +241,11 @@ class InventoryReturnOperationValidateAPIView(APIView):
 class InventoryDamageLossSettlementListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasReservationSensitiveAccess()]
+        return [permission() for permission in self.permission_classes]
 
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
@@ -287,7 +303,7 @@ class InventoryDamageLossSettlementRetrieveAPIView(APIView):
 
 class InventoryDamageLossSettlementValidateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=None,
@@ -321,6 +337,11 @@ class InventoryDamageLossSettlementValidateAPIView(APIView):
 class InventoryDamageLossSettlementExecutionListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasReservationSensitiveAccess()]
+        return [permission() for permission in self.permission_classes]
 
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
@@ -378,7 +399,7 @@ class InventoryDamageLossSettlementExecutionRetrieveAPIView(APIView):
 
 class InventoryDamageLossSettlementExecutionExecuteAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=None,
@@ -411,7 +432,7 @@ class InventoryDamageLossSettlementExecutionExecuteAPIView(APIView):
 
 class InventoryExcessReceivableGenerateInvoiceAPIView(APIView):
     http_method_names = ["post"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=None,

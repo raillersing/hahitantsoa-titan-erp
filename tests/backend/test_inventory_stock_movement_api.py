@@ -22,6 +22,24 @@ def authenticated_client(client, django_user_model):
     return client
 
 
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="movement-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
+    return client
+
+
 def _inventory_item() -> InventoryItem:
     return InventoryItem.objects.create(
         name="API Movement Light",
@@ -53,11 +71,14 @@ def test_stock_movement_list_requires_authentication(client) -> None:
     assert response.status_code in {401, 403}
 
 
-def test_authenticated_user_can_create_list_and_read_stock_movement(authenticated_client) -> None:
+def test_sensitive_user_can_create_and_authenticated_user_can_read_stock_movement(
+    sensitive_client,
+    authenticated_client,
+) -> None:
     inventory_item = _inventory_item()
     reservation_draft = _reservation_draft()
 
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         STOCK_MOVEMENT_LIST_URL,
         data={
             "inventory_item": str(inventory_item.id),
@@ -84,10 +105,46 @@ def test_authenticated_user_can_create_list_and_read_stock_movement(authenticate
     assert detail_response.json()["id"] == payload["id"]
 
 
-def test_stock_movement_create_rejects_other_without_explicit_direction(
-    authenticated_client,
-) -> None:
+def test_stock_movement_create_requires_authentication(client) -> None:
+    response = client.post(
+        STOCK_MOVEMENT_LIST_URL,
+        data={
+            "inventory_item": str(_inventory_item().id),
+            "movement_type": "other",
+            "direction": "outbound",
+            "quantity": 1,
+            "source_label": "Manual note",
+            "notes": "Anon attempt",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_stock_movement_create_requires_sensitive_access(authenticated_client) -> None:
+    inventory_item = _inventory_item()
+    reservation_draft = _reservation_draft()
+
     response = authenticated_client.post(
+        STOCK_MOVEMENT_LIST_URL,
+        data={
+            "inventory_item": str(inventory_item.id),
+            "reservation_draft": str(reservation_draft.id),
+            "movement_type": "outbound_delivery",
+            "quantity": 2,
+            "notes": "Non-sensitive attempt",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_stock_movement_create_rejects_other_without_explicit_direction(
+    sensitive_client,
+) -> None:
+    response = sensitive_client.post(
         STOCK_MOVEMENT_LIST_URL,
         data={
             "inventory_item": str(_inventory_item().id),
@@ -103,9 +160,9 @@ def test_stock_movement_create_rejects_other_without_explicit_direction(
 
 
 def test_stock_movement_create_rejects_standalone_without_source_and_notes(
-    authenticated_client,
+    sensitive_client,
 ) -> None:
-    response = authenticated_client.post(
+    response = sensitive_client.post(
         STOCK_MOVEMENT_LIST_URL,
         data={
             "inventory_item": str(_inventory_item().id),
@@ -123,8 +180,8 @@ def test_stock_movement_create_rejects_standalone_without_source_and_notes(
 
 
 @pytest.mark.parametrize("method", ["put", "patch", "delete"])
-def test_stock_movement_detail_rejects_write_methods(authenticated_client, method: str) -> None:
-    create_response = authenticated_client.post(
+def test_stock_movement_detail_rejects_write_methods(sensitive_client, method: str) -> None:
+    create_response = sensitive_client.post(
         STOCK_MOVEMENT_LIST_URL,
         data={
             "inventory_item": str(_inventory_item().id),
@@ -137,7 +194,7 @@ def test_stock_movement_detail_rejects_write_methods(authenticated_client, metho
         content_type="application/json",
     )
     movement_id = create_response.json()["id"]
-    request_method = getattr(authenticated_client, method)
+    request_method = getattr(sensitive_client, method)
 
     response = request_method(
         f"{STOCK_MOVEMENT_LIST_URL}{movement_id}/",

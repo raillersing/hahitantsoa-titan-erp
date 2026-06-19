@@ -29,6 +29,24 @@ def authenticated_client(client, django_user_model):
     return client
 
 
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="return-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
+    return client
+
+
 def _inventory_item(name: str) -> InventoryItem:
     return InventoryItem.objects.create(
         name=name,
@@ -86,7 +104,8 @@ def test_return_operation_list_requires_authentication(client) -> None:
     assert response.status_code in {401, 403}
 
 
-def test_authenticated_user_can_create_read_and_validate_return_operation(
+def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_return_operation(
+    sensitive_client,
     authenticated_client,
 ) -> None:
     reservation_draft = _reservation_draft()
@@ -94,7 +113,7 @@ def test_authenticated_user_can_create_read_and_validate_return_operation(
     intact_item = _inventory_item("Return API intact")
     mixed_item = _inventory_item("Return API mixed")
 
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         RETURN_OPERATION_LIST_URL,
         data={
             "reservation_draft": str(reservation_draft.id),
@@ -138,7 +157,7 @@ def test_authenticated_user_can_create_read_and_validate_return_operation(
     assert detail_response.status_code == 200
     assert detail_response.json()["id"] == payload["id"]
 
-    validate_response = authenticated_client.post(
+    validate_response = sensitive_client.post(
         f"{RETURN_OPERATION_LIST_URL}{payload['id']}/validate/",
         content_type="application/json",
     )
@@ -148,9 +167,62 @@ def test_authenticated_user_can_create_read_and_validate_return_operation(
     assert InventoryStockMovement.objects.filter(return_operation_id=payload["id"]).count() == 4
 
 
-def test_return_operation_validate_rejects_second_validation(authenticated_client) -> None:
+def test_return_operation_create_requires_authentication(client) -> None:
+    response = client.post(
+        RETURN_OPERATION_LIST_URL,
+        data={"notes": "Anon attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_return_operation_create_requires_sensitive_access(authenticated_client) -> None:
+    response = authenticated_client.post(
+        RETURN_OPERATION_LIST_URL,
+        data={"notes": "Non-sensitive attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_return_operation_validate_requires_sensitive_access(
+    sensitive_client,
+    authenticated_client,
+) -> None:
+    intact_item = _inventory_item("Return API validate split")
+
+    create_response = sensitive_client.post(
+        RETURN_OPERATION_LIST_URL,
+        data={
+            "lines": [
+                {
+                    "inventory_item": str(intact_item.id),
+                    "expected_quantity": 1,
+                    "returned_quantity": 1,
+                    "damaged_quantity": 0,
+                    "missing_quantity": 0,
+                    "condition_status": "intact",
+                    "notes": "",
+                }
+            ]
+        },
+        content_type="application/json",
+    )
+    return_operation_id = create_response.json()["id"]
+
+    response = authenticated_client.post(
+        f"{RETURN_OPERATION_LIST_URL}{return_operation_id}/validate/",
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_return_operation_validate_rejects_second_validation(sensitive_client) -> None:
     item = _inventory_item("Return API revalidate")
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         RETURN_OPERATION_LIST_URL,
         data={
             "lines": [
@@ -169,11 +241,11 @@ def test_return_operation_validate_rejects_second_validation(authenticated_clien
     )
     return_operation_id = create_response.json()["id"]
 
-    first_response = authenticated_client.post(
+    first_response = sensitive_client.post(
         f"{RETURN_OPERATION_LIST_URL}{return_operation_id}/validate/",
         content_type="application/json",
     )
-    second_response = authenticated_client.post(
+    second_response = sensitive_client.post(
         f"{RETURN_OPERATION_LIST_URL}{return_operation_id}/validate/",
         content_type="application/json",
     )
@@ -184,9 +256,9 @@ def test_return_operation_validate_rejects_second_validation(authenticated_clien
 
 
 @pytest.mark.parametrize("method", ["put", "patch", "delete"])
-def test_return_operation_detail_rejects_write_methods(authenticated_client, method: str) -> None:
+def test_return_operation_detail_rejects_write_methods(sensitive_client, method: str) -> None:
     item = _inventory_item("Return API immutable")
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         RETURN_OPERATION_LIST_URL,
         data={
             "lines": [
@@ -204,7 +276,7 @@ def test_return_operation_detail_rejects_write_methods(authenticated_client, met
         content_type="application/json",
     )
     return_operation_id = create_response.json()["id"]
-    request_method = getattr(authenticated_client, method)
+    request_method = getattr(sensitive_client, method)
 
     response = request_method(
         f"{RETURN_OPERATION_LIST_URL}{return_operation_id}/",
