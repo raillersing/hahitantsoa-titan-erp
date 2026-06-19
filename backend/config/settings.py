@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.payments.apps.PaymentsConfig",
     "apps.billing.apps.BillingConfig",
     "apps.identity.apps.IdentityConfig",
+    "apps.logistics.apps.LogisticsConfig",
     "rest_framework",
     "drf_spectacular",
 ]
