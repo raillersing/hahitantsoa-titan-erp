@@ -1,10 +1,12 @@
 from datetime import timedelta
 
 import pytest
-from django.urls import NoReverseMatch, get_resolver, reverse
+from django.contrib.auth.models import Group
+from django.urls import reverse
 from django.utils import timezone
 
 from apps.customers.models import Customer
+from apps.identity.roles import IdentityRole
 from apps.inventory.models import InventoryItem
 from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
@@ -103,27 +105,91 @@ def test_read_only_reservation_endpoints_reject_write_methods(
     assert response.status_code == 405
 
 
-def test_lifecycle_write_routes_do_not_exist() -> None:
-    missing_route_names = (
+def test_lifecycle_write_routes_exist() -> None:
+    expected_route_names = (
         "reservation-draft-confirm",
         "reservation-draft-cancel",
         "reservation-draft-mark-contract-signed",
         "reservation-draft-mark-required-deposit-received",
     )
 
-    for route_name in missing_route_names:
-        with pytest.raises(NoReverseMatch):
-            reverse(route_name)
+    draft = _draft()
 
-    route_patterns = {str(pattern.pattern) for pattern in get_resolver().url_patterns}
-    forbidden_path_fragments = (
-        "confirm",
-        "cancel",
-        "contract-signed",
-        "required-deposit",
+    for route_name in expected_route_names:
+        assert reverse(route_name, kwargs={"pk": draft.id})
+
+    assert "confirm" in reverse("reservation-draft-confirm", kwargs={"pk": draft.id})
+    assert "cancel" in reverse("reservation-draft-cancel", kwargs={"pk": draft.id})
+    assert "contract-signed" in reverse(
+        "reservation-draft-mark-contract-signed",
+        kwargs={"pk": draft.id},
     )
-    assert all(
-        fragment not in pattern
-        for fragment in forbidden_path_fragments
-        for pattern in route_patterns
+    assert "required-deposit-received" in reverse(
+        "reservation-draft-mark-required-deposit-received",
+        kwargs={"pk": draft.id},
     )
+
+
+@pytest.mark.parametrize(
+    "route_name",
+    (
+        "reservation-draft-confirm",
+        "reservation-draft-cancel",
+        "reservation-draft-mark-contract-signed",
+        "reservation-draft-mark-required-deposit-received",
+    ),
+)
+def test_lifecycle_write_routes_reject_unauthenticated_access(client, route_name: str) -> None:
+    draft = _draft()
+
+    response = client.post(reverse(route_name, kwargs={"pk": draft.id}))
+
+    assert response.status_code in {401, 403}
+
+
+@pytest.mark.parametrize(
+    "route_name",
+    (
+        "reservation-draft-confirm",
+        "reservation-draft-cancel",
+        "reservation-draft-mark-contract-signed",
+        "reservation-draft-mark-required-deposit-received",
+    ),
+)
+def test_lifecycle_write_routes_reject_non_staff_authenticated_user(
+    authenticated_client,
+    route_name: str,
+) -> None:
+    draft = _draft()
+
+    response = authenticated_client.post(reverse(route_name, kwargs={"pk": draft.id}))
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "route_name",
+    (
+        "reservation-draft-confirm",
+        "reservation-draft-cancel",
+        "reservation-draft-mark-contract-signed",
+        "reservation-draft-mark-required-deposit-received",
+    ),
+)
+def test_lifecycle_write_routes_allow_group_mapped_operator(
+    client,
+    django_user_model,
+    route_name: str,
+) -> None:
+    user = django_user_model.objects.create_user(
+        username=f"mapped-{route_name}",
+        password="test-password",
+        is_staff=False,
+    )
+    user.groups.add(Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value))
+    draft = _draft()
+
+    client.force_login(user)
+    response = client.post(reverse(route_name, kwargs={"pk": draft.id}))
+
+    assert response.status_code != 403
