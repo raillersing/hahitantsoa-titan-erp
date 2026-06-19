@@ -62,6 +62,14 @@ function mockAppFetch(options: {
       return Promise.resolve(jsonResponse([]));
     }
 
+    if (url === "/api/v1/payments/") {
+      return Promise.resolve(jsonResponse([]));
+    }
+
+    if (url === "/api/v1/hahitantsoa/event-drafts/") {
+      return Promise.resolve(jsonResponse([]));
+    }
+
     return Promise.resolve(jsonResponse({}, 404));
   });
 }
