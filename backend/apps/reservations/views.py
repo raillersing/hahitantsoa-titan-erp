@@ -192,3 +192,107 @@ class ReservationDraftConfirmAPIView(APIView):
             "reservation_draft": ReservationDraftSerializer(confirmed_draft).data,
         }
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class ReservationDraftCancelAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        from apps.reservations.confirmation import (
+            ReservationLifecycleError,
+            ReservationLifecycleStateError,
+            cancel_confirmed_reservation_draft,
+        )
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+
+        try:
+            result = cancel_confirmed_reservation_draft(reservation_draft=draft, actor=request.user)
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cancelled_draft = result.reservation_draft
+        payload = {
+            "status": "cancelled",
+            "public_reference": cancelled_draft.public_reference,
+            "released_block_count": result.released_block_count,
+            "reservation_draft": ReservationDraftSerializer(cancelled_draft).data,
+        }
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class ReservationDraftMarkContractSignedAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        from apps.reservations.confirmation import (
+            ReservationLifecycleError,
+            ReservationLifecycleStateError,
+            mark_reservation_draft_contract_signed,
+        )
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+
+        try:
+            marked_draft = mark_reservation_draft_contract_signed(
+                reservation_draft=draft,
+                actor=request.user,
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = {
+            "status": marked_draft.status,
+            "public_reference": marked_draft.public_reference,
+            "reservation_draft": ReservationDraftSerializer(marked_draft).data,
+        }
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class ReservationDraftMarkRequiredDepositReceivedAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        from apps.reservations.confirmation import (
+            ReservationLifecycleError,
+            ReservationLifecycleStateError,
+            mark_reservation_draft_required_deposit_received,
+        )
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+
+        try:
+            marked_draft = mark_reservation_draft_required_deposit_received(
+                reservation_draft=draft,
+                actor=request.user,
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = {
+            "status": marked_draft.status,
+            "public_reference": marked_draft.public_reference,
+            "reservation_draft": ReservationDraftSerializer(marked_draft).data,
+        }
+        return Response(payload, status=status.HTTP_200_OK)

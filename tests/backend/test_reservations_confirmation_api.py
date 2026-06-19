@@ -79,6 +79,18 @@ def _confirm_url(*, draft: ReservationDraft) -> str:
     return reverse("reservation-draft-confirm", kwargs={"pk": draft.id})
 
 
+def _cancel_url(*, draft: ReservationDraft) -> str:
+    return reverse("reservation-draft-cancel", kwargs={"pk": draft.id})
+
+
+def _contract_signed_url(*, draft: ReservationDraft) -> str:
+    return reverse("reservation-draft-mark-contract-signed", kwargs={"pk": draft.id})
+
+
+def _required_deposit_url(*, draft: ReservationDraft) -> str:
+    return reverse("reservation-draft-mark-required-deposit-received", kwargs={"pk": draft.id})
+
+
 def test_confirm_draft_success_by_staff(client, django_user_model) -> None:
     staff = _actor(django_user_model=django_user_model, is_staff=True)
     draft = _prepare_confirmable_draft(django_user_model=django_user_model, staff_user=staff)
@@ -213,3 +225,102 @@ def test_confirm_draft_rollback_on_failure(client, django_user_model) -> None:
 
     draft.refresh_from_db()
     assert draft.status == ReservationDraftStatus.DRAFT
+
+
+def test_mark_contract_signed_success_by_staff(client, django_user_model) -> None:
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    draft = _draft()
+    _line(reservation_draft=draft, inventory_item=_item())
+
+    client.force_login(staff)
+    response = client.post(_contract_signed_url(draft=draft))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == ReservationDraftStatus.DRAFT
+    assert payload["public_reference"] == draft.public_reference
+    assert payload["reservation_draft"]["id"] == str(draft.id)
+
+    draft.refresh_from_db()
+    assert draft.contract_signed_at is not None
+    assert draft.contract_signed_by_id == staff.id
+
+
+def test_mark_required_deposit_received_success_by_staff(client, django_user_model) -> None:
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    draft = _draft()
+    _line(reservation_draft=draft, inventory_item=_item())
+
+    client.force_login(staff)
+    response = client.post(_required_deposit_url(draft=draft))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == ReservationDraftStatus.DRAFT
+    assert payload["public_reference"] == draft.public_reference
+
+    draft.refresh_from_db()
+    assert draft.required_deposit_received_at is not None
+    assert draft.required_deposit_received_by_id == staff.id
+
+
+def test_cancel_confirmed_draft_success_by_staff(client, django_user_model) -> None:
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    draft = _prepare_confirmable_draft(django_user_model=django_user_model, staff_user=staff)
+
+    client.force_login(staff)
+    confirm_response = client.post(_confirm_url(draft=draft))
+    assert confirm_response.status_code == 200
+
+    response = client.post(_cancel_url(draft=draft))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "cancelled"
+    assert payload["public_reference"] == draft.public_reference
+    assert payload["released_block_count"] == 1
+    assert payload["reservation_draft"]["status"] == "cancelled"
+
+    draft.refresh_from_db()
+    assert draft.status == ReservationDraftStatus.CANCELLED
+    assert draft.cancelled_by_id == staff.id
+    assert (
+        InventoryAvailability.objects.filter(reservation_draft=draft, is_deleted=False).count() == 0
+    )
+
+
+def test_cancel_confirmed_draft_returns_400_for_unconfirmed_draft(
+    client,
+    django_user_model,
+) -> None:
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    draft = _draft()
+    _line(reservation_draft=draft, inventory_item=_item())
+
+    client.force_login(staff)
+    response = client.post(_cancel_url(draft=draft))
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == "draft_not_confirmed"
+
+
+def test_cancel_confirmed_draft_returns_404_for_missing_or_soft_deleted_draft(
+    client,
+    django_user_model,
+) -> None:
+    import uuid
+
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    client.force_login(staff)
+
+    response = client.post(reverse("reservation-draft-cancel", kwargs={"pk": uuid.uuid4()}))
+    assert response.status_code == 404
+
+    draft = _prepare_confirmable_draft(django_user_model=django_user_model, staff_user=staff)
+    draft.is_deleted = True
+    draft.deleted_at = timezone.now()
+    draft.save()
+
+    response = client.post(_cancel_url(draft=draft))
+    assert response.status_code == 404
