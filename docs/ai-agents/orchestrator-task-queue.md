@@ -2,16 +2,21 @@
 
 ## Current State
 
-- `origin/main` HEAD is `ec036b8439ca1106cffc863278ed2291ffab40e9`
-  (`feat(logistics): support delivery and return note runtime docs`, PR #280).
-- `main` CI is green through PR #280 as verified on 2026-06-18.
+- `origin/main` HEAD is `9efa62109afe44d67562677bdd1152f1283d092b`
+  (`docs(tooling): F149A Graphify pilot plan ? docs-only evaluation`, PR #283).
+- `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
-- F145H is no longer local-only, dirty, or PR-pending. It merged as PR #274 on
-  2026-06-17.
-- The current commercial-track implementation gaps are:
-  - identity / role management API, models, and administration (beyond the narrow #279 stub)
-  - logistics app models, services, and endpoints (beyond document-level runtime support)
-  - frontend activation of merged commercial backend foundations
+- Identity / role management foundation merged as PR #282.
+- Open backend PRs awaiting human merge:
+  - PR #284 `feat/logistics-app-foundation` ? logistics models, services, API, tests
+  - PR #285 `feat/audit-read-api-foundation` ? audit event read-only REST API
+  - PR #286 `feat/customer-write-api-foundation` ? customer create, update, soft-delete
+  - PR #287 `feat/payment-operational-completion` ? payment cancel/reconcile endpoints
+  - PR #288 `feat/billing-invoice-list-filtering` ? billing invoice list filtering/search
+  - PR #289 `feat/customer-list-filtering` ? customer list filtering by name/email/phone
+  - PR #290 `feat/payment-negative-permission-tests` ? payment negative-permission tests
+  - PR #291 `feat/billing-invoice-cancellation` ? billing invoice cancellation endpoint
+  - PR #292 `feat/reservation-draft-list-filtering` ? reservation draft list filtering
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
@@ -89,21 +94,24 @@ Scope delivered:
 ### Recommended next backend bundle
 
 Status:
-- next backend commercial bundle after F149A merge
+- next backend commercial bundle after PR #283 merge and current open PRs
 
 Recommended scope:
-- billing / invoice settlement foundation
+- inventory item list filtering and search
 
 Reason:
-- the biggest backend commercial gap after F145H is the still-empty `billing` domain
-- the F149A audit found billing, identity, logistics, and frontend activation as the
-  largest live completion gaps
-- billing is the clearest next backend-owned bundle that can progress without starting
-  frontend work in the same PR
+- billing foundation, payment operational completion, customer write endpoints,
+  reservation draft filtering, and identity role management are already implemented
+  or in open PRs
+- inventory is one of the most frequently read domains and its list endpoint currently
+  has no query-param filtering
+- list filtering is a coherent, bounded medium bundle that follows the established
+  pattern of recent PRs #288, #289, and #292
+- it requires no migrations, no frontend changes, and no new business decisions
 
 Allowed scope:
-- backend billing implementation
-- backend billing tests
+- backend inventory item list filtering (name, kind, is_active)
+- backend inventory item tests for filtering
 - backend commercial audit/status docs needed for that bundle
 
 Forbidden scope:
@@ -111,12 +119,14 @@ Forbidden scope:
 - Antigravity/tooling files
 - F140D
 - `.env`, secrets, quarantine, or unrelated worktrees
+- broad inventory refactor beyond list filtering
 
 Hard stops:
 - any required frontend change
 - any required touch to Antigravity/tooling work
 - any ambiguity about unrelated dirty state
-- any need to broaden into identity or logistics without an explicit new bundle
+- any need to broaden into valuation, warehouse operations, or logistics without
+  explicit authorization
 
 Expected validation:
 - backend-focused quality checks
