@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from django.contrib.auth.models import Group
 from django.core.files.storage import FileSystemStorage
 from rest_framework.test import APIRequestFactory, force_authenticate
 
@@ -9,6 +10,7 @@ import apps.documents.selectors as document_selectors
 from apps.audit.models import AuditEvent
 from apps.documents.models import DocumentInstanceStatus
 from apps.documents.views import DocumentInstancePrivateArtifactAPIView
+from apps.identity.roles import IdentityRole
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -53,18 +55,66 @@ def test_private_artifact_api_requires_authentication(api_factory) -> None:
     assert response.status_code in {401, 403}
 
 
-def test_private_artifact_api_not_found(api_factory, authenticated_user) -> None:
+def test_private_artifact_api_rejects_non_sensitive_authenticated_user(
+    api_factory,
+    authenticated_user,
+) -> None:
     instance_id = uuid4()
     view = DocumentInstancePrivateArtifactAPIView.as_view()
     request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
     response = view(request, id=instance_id)
-    assert response.status_code == 404
-    # Ensure no audit event was created
+    assert response.status_code == 403
     assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
-def test_private_artifact_api_not_generated(api_factory, authenticated_user, monkeypatch) -> None:
+def test_private_artifact_api_allows_staff_actor_on_not_found(
+    api_factory,
+    django_user_model,
+) -> None:
     instance_id = uuid4()
+    sensitive_user = django_user_model.objects.create_user(
+        username="document-artifact-staff",
+        password="test-pass",
+        is_staff=True,
+    )
+    view = DocumentInstancePrivateArtifactAPIView.as_view()
+    request = _request(api_factory, "get", _artifact_url(instance_id), sensitive_user)
+    response = view(request, id=instance_id)
+    assert response.status_code == 404
+    assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
+
+
+def test_private_artifact_api_allows_group_mapped_sensitive_actor_on_not_found(
+    api_factory,
+    django_user_model,
+) -> None:
+    instance_id = uuid4()
+    mapped_user = django_user_model.objects.create_user(
+        username="document-artifact-group",
+        password="test-pass",
+        is_staff=False,
+    )
+    mapped_user.groups.add(
+        Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value)
+    )
+    view = DocumentInstancePrivateArtifactAPIView.as_view()
+    request = _request(api_factory, "get", _artifact_url(instance_id), mapped_user)
+    response = view(request, id=instance_id)
+    assert response.status_code == 404
+    assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
+
+
+def test_private_artifact_api_not_generated(
+    api_factory,
+    django_user_model,
+    monkeypatch,
+) -> None:
+    instance_id = uuid4()
+    sensitive_user = django_user_model.objects.create_user(
+        username="document-artifact-not-generated",
+        password="test-pass",
+        is_staff=True,
+    )
     fake_instance = SimpleNamespace(
         id=instance_id,
         status=DocumentInstanceStatus.PREPARED,
@@ -76,17 +126,23 @@ def test_private_artifact_api_not_generated(api_factory, authenticated_user, mon
         lambda document_instance_id: fake_instance if document_instance_id == instance_id else None,
     )
     view = DocumentInstancePrivateArtifactAPIView.as_view()
-    request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
+    request = _request(api_factory, "get", _artifact_url(instance_id), sensitive_user)
     response = view(request, id=instance_id)
     assert response.status_code == 404
-    # Ensure no audit event was created
     assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
 def test_private_artifact_api_missing_storage_path(
-    api_factory, authenticated_user, monkeypatch
+    api_factory,
+    django_user_model,
+    monkeypatch,
 ) -> None:
     instance_id = uuid4()
+    sensitive_user = django_user_model.objects.create_user(
+        username="document-artifact-missing-path",
+        password="test-pass",
+        is_staff=True,
+    )
     fake_instance = SimpleNamespace(
         id=instance_id,
         status=DocumentInstanceStatus.GENERATED,
@@ -98,17 +154,23 @@ def test_private_artifact_api_missing_storage_path(
         lambda document_instance_id: fake_instance if document_instance_id == instance_id else None,
     )
     view = DocumentInstancePrivateArtifactAPIView.as_view()
-    request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
+    request = _request(api_factory, "get", _artifact_url(instance_id), sensitive_user)
     response = view(request, id=instance_id)
     assert response.status_code == 404
-    # Ensure no audit event was created
     assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
 def test_private_artifact_api_file_not_found_in_storage(
-    api_factory, authenticated_user, monkeypatch
+    api_factory,
+    django_user_model,
+    monkeypatch,
 ) -> None:
     instance_id = uuid4()
+    sensitive_user = django_user_model.objects.create_user(
+        username="document-artifact-file-missing",
+        password="test-pass",
+        is_staff=True,
+    )
     fake_instance = SimpleNamespace(
         id=instance_id,
         status=DocumentInstanceStatus.GENERATED,
@@ -120,19 +182,26 @@ def test_private_artifact_api_file_not_found_in_storage(
         lambda document_instance_id: fake_instance if document_instance_id == instance_id else None,
     )
     view = DocumentInstancePrivateArtifactAPIView.as_view()
-    request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
+    request = _request(api_factory, "get", _artifact_url(instance_id), sensitive_user)
     response = view(request, id=instance_id)
     assert response.status_code == 404
-    # Ensure no audit event was created
     assert not AuditEvent.objects.filter(action="document.artifact_accessed").exists()
 
 
 def test_private_artifact_api_success(
-    api_factory, authenticated_user, isolated_document_storage, monkeypatch
+    api_factory,
+    django_user_model,
+    isolated_document_storage,
+    monkeypatch,
 ) -> None:
     instance_id = uuid4()
     storage_path = f"documents/{instance_id}/checksum.html"
     html_content = "<html><body>Private Document Artifact</body></html>"
+    sensitive_user = django_user_model.objects.create_user(
+        username="document-artifact-success",
+        password="test-pass",
+        is_staff=True,
+    )
 
     # Write the fake file to our isolated storage
     from django.core.files.base import ContentFile
@@ -154,7 +223,7 @@ def test_private_artifact_api_success(
     )
 
     view = DocumentInstancePrivateArtifactAPIView.as_view()
-    request = _request(api_factory, "get", _artifact_url(instance_id), authenticated_user)
+    request = _request(api_factory, "get", _artifact_url(instance_id), sensitive_user)
     response = view(request, id=instance_id)
 
     assert response.status_code == 200
@@ -168,16 +237,25 @@ def test_private_artifact_api_success(
         target_id=str(instance_id),
     ).first()
     assert audit_event is not None
-    assert audit_event.actor == authenticated_user
+    assert audit_event.actor == sensitive_user
     assert audit_event.metadata["template_key"] == "test-template"
     assert audit_event.metadata["content_checksum"] == "abc123checksum"
     assert audit_event.metadata["generated_content_size_bytes"] == len(html_content)
 
 
 @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
-def test_private_artifact_api_get_only(api_factory, authenticated_user, method: str) -> None:
+def test_private_artifact_api_get_only(
+    api_factory,
+    django_user_model,
+    method: str,
+) -> None:
     instance_id = uuid4()
+    sensitive_user = django_user_model.objects.create_user(
+        username=f"document-artifact-method-{method}",
+        password="test-pass",
+        is_staff=True,
+    )
     view = DocumentInstancePrivateArtifactAPIView.as_view()
-    request = _request(api_factory, method, _artifact_url(instance_id), authenticated_user)
+    request = _request(api_factory, method, _artifact_url(instance_id), sensitive_user)
     response = view(request, id=instance_id)
     assert response.status_code == 405

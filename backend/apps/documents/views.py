@@ -28,6 +28,7 @@ from apps.documents.services import (
     get_reservation_draft_document_instance_or_404,
     get_titan_proforma_draft_preview_payload_service,
 )
+from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.reservations.models import ReservationDraft
 
 
@@ -103,7 +104,7 @@ class TitanProformaDraftPreviewAPIView(APIView):
 
 class DocumentInstancePrivateArtifactAPIView(APIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         responses={
