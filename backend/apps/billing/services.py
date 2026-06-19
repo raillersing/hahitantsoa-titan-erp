@@ -23,6 +23,7 @@ from .models import (
 INVALID_BILLING_INVOICE_SOURCE_STATE = "invalid_billing_invoice_source_state"
 INVALID_BILLING_INVOICE_STATUS = "invalid_billing_invoice_status"
 INVALID_BILLING_SETTLEMENT_PAYMENT = "invalid_billing_settlement_payment"
+INVALID_BILLING_INVOICE_CANCEL_STATE = "invalid_billing_invoice_cancel_state"
 BILLING_INVOICE_ALREADY_EXISTS = "billing_invoice_already_exists"
 
 
@@ -201,3 +202,46 @@ def settle_billing_invoice(
         },
     )
     return BillingInvoiceSettlementResult(invoice=locked_invoice, settlement=settlement)
+
+
+@transaction.atomic
+def cancel_billing_invoice(
+    *,
+    invoice: BillingInvoice,
+    actor: object | None = None,
+    notes: str = "",
+) -> BillingInvoice:
+    locked_invoice = BillingInvoice.objects.select_for_update().get(pk=invoice.pk)
+    locked_invoice = BillingInvoice.objects.select_related("settlement").get(pk=locked_invoice.pk)
+
+    if locked_invoice.invoice_status != BillingInvoiceStatus.OPEN:
+        raise BillingLifecycleError(
+            "Billing invoice must be open before cancellation.",
+            code=INVALID_BILLING_INVOICE_CANCEL_STATE,
+        )
+
+    if hasattr(locked_invoice, "settlement"):
+        raise BillingLifecycleError(
+            "Billing invoice is already settled.",
+            code=INVALID_BILLING_INVOICE_STATUS,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+    locked_invoice.invoice_status = BillingInvoiceStatus.CANCELLED
+    if notes:
+        locked_invoice.notes = notes
+    locked_invoice.updated_by_id = actor_id
+    locked_invoice.full_clean()
+    locked_invoice.save()
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.invoice_cancelled",
+        target_type="billing_invoice",
+        target_id=str(locked_invoice.id),
+        metadata={
+            "amount": str(locked_invoice.amount),
+            "source_kind": locked_invoice.source_kind,
+        },
+    )
+    return locked_invoice
