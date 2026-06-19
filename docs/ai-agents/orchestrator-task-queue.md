@@ -2,12 +2,12 @@
 
 ## Current State
 
-- `origin/main` HEAD is `3969ad9` (post PRs #283–#301, #302–#313 merges).
+- `origin/main` HEAD is `a3ccf9a` (post PRs #283–#314 merges).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
-- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills).
+- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills), #314 (F151C queue update).
 - Open PRs:
   - None in backend commercial queue; all closed and merged.
 - F147F frontend worktree is paused and must not be touched.
@@ -616,6 +616,34 @@ Status:
   - `git diff --check`
 - next step:
   - review the matrix for consistency, then open a docs PR when the diff is clean
+
+### F151E
+
+Status:
+- active agent-docs task
+- scope: align CI watch interval policy — replace `--interval 15` with `--interval 30` in runbook and F151D matrix
+
+Scope delivered:
+- `docs/ai-agents/agent-command-runbook.md` — 2 `--interval 15` → `--interval 30`; added rationale note
+- `docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md` — 4 `--interval 15` → `--interval 30`
+- `docs/ai-agents/orchestrator-task-queue.md` — updated
+
+Allowed files:
+- `docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md`
+- `docs/ai-agents/agent-command-runbook.md`
+- `docs/ai-agents/orchestrator-task-queue.md`
+
+Forbidden:
+- `backend/`, `frontend/`, `tests/`, `.github/`, `.agents/skills/`, `scripts/dev/`, dependency manifests, `.env`, secrets
+- F147F paused worktree
+- identity-role-filter worktree or branch
+
+Validation:
+- `bash scripts/dev/erp-agent-scope-guard agent-docs`
+- `git diff --check`
+- grep to confirm no `--interval 15` remains in F151D/runbook CI-watch examples
+- PR CI green before merge
+- main CI green after merge
 
 ### Final skills portfolio (21 skills)
 

@@ -444,7 +444,9 @@ stop until fixed.
 ### Pre-merge CI wait
 
 After opening a PR, the agent must wait for all required CI checks to complete with a
-`SUCCESS` conclusion before requesting human merge.
+`SUCCESS` conclusion before requesting human merge. Backend CI commonly takes several
+minutes, so `--interval 30` (30 seconds) is the preferred watch interval — rapid polling
+is unnecessary and produces noisy output.
 
 Use:
 
@@ -452,7 +454,7 @@ Use:
 scripts/dev/erp-logged-run task-pr-checks <<'EOF'
 set -euo pipefail
 
-gh pr checks PR-NUMBER --watch --interval 15
+gh pr checks PR-NUMBER --watch --interval 30
 EOF
 ```
 
@@ -482,7 +484,7 @@ current_main_sha="$(git rev-parse HEAD)"
 run_id="$(gh run list --branch main --event push --json databaseId,headSha --jq ".[] | select(.headSha == \"$current_main_sha\") | .databaseId" | head -n 1)"
 
 gh run view "$run_id" --json databaseId,headSha,status,conclusion,url
-gh run watch "$run_id" --interval 15
+gh run watch "$run_id" --interval 30
 EOF
 ```
 
