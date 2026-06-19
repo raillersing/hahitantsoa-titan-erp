@@ -1,5 +1,5 @@
 ---
-name: frontend-api-contracts
+name: erp-frontend-api-contracts
 description: Verify frontend API calls match confirmed backend contracts — path, method, payload, auth, error handling
 ---
 

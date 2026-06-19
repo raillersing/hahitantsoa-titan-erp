@@ -1,5 +1,5 @@
 ---
-name: frontend-error-recovery
+name: erp-frontend-error-recovery
 description: Error boundary patterns, graceful degradation, and user-facing error communication checklist
 ---
 

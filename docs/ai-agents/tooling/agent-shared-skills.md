@@ -19,9 +19,20 @@ Shared skills provide load-on-demand checklists and procedures for repetitive ag
 | [`erp-business-boundaries`](../../.agents/skills/erp-business-boundaries/SKILL.md) | Titan vs Hahitantsoa domain rules | All agents |
 | [`erp-post-merge-cleanup`](../../.agents/skills/erp-post-merge-cleanup/SKILL.md) | Branch/worktree/Docker cleanup procedure | All agents after merge |
 
-### Frontend Skills (OpenCode-specific)
+### Frontend Skills
 
-Frontend specialist skills live under [`.opencode/skills/`](../../.opencode/skills) and are documented in [`frontend-specialist-skills.md`](frontend-specialist-skills.md).
+| Skill | Purpose | Applies to |
+|-------|---------|------------|
+| [`erp-frontend-scope-guard`](../../.agents/skills/erp-frontend-scope-guard/SKILL.md) | Verify frontend scope and business boundaries | Frontend agents |
+| [`erp-frontend-typescript-quality`](../../.agents/skills/erp-frontend-typescript-quality/SKILL.md) | TypeScript strictness and React patterns | Frontend agents |
+| [`erp-frontend-api-contracts`](../../.agents/skills/erp-frontend-api-contracts/SKILL.md) | Confirm API calls match backend contracts | Frontend agents |
+| [`erp-frontend-testing`](../../.agents/skills/erp-frontend-testing/SKILL.md) | Vitest + RTL test coverage | Frontend agents |
+| [`erp-frontend-accessibility-ux`](../../.agents/skills/erp-frontend-accessibility-ux/SKILL.md) | WCAG and UX consistency | Frontend agents |
+| [`erp-frontend-error-recovery`](../../.agents/skills/erp-frontend-error-recovery/SKILL.md) | Error handling and graceful degradation | Frontend agents |
+| [`erp-frontend-state-forms`](../../.agents/skills/erp-frontend-state-forms/SKILL.md) | Form state and data fetching patterns | Frontend agents |
+| [`erp-frontend-performance-maintainability`](../../.agents/skills/erp-frontend-performance-maintainability/SKILL.md) | Performance and maintainability | Frontend agents |
+
+Frontend specialist skills are documented in detail in [`frontend-specialist-skills.md`](frontend-specialist-skills.md).
 
 ## Usage Rules
 

@@ -1,5 +1,5 @@
 ---
-name: frontend-state-forms
+name: erp-frontend-state-forms
 description: Form handling, validation, data fetching, and client-side state management patterns
 ---
 

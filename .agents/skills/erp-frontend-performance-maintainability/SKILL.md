@@ -1,5 +1,5 @@
 ---
-name: frontend-performance-maintainability
+name: erp-frontend-performance-maintainability
 description: Checklist for render performance, bundle hygiene, and long-term maintainability of frontend code
 ---
 
