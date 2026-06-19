@@ -11,6 +11,7 @@ from .serializers import BillingInvoiceSerializer, BillingInvoiceSettleSerialize
 from .services import (
     BillingLifecycleError,
     active_billing_invoices,
+    cancel_billing_invoice,
     settle_billing_invoice,
 )
 
@@ -97,5 +98,38 @@ class BillingInvoiceSettleAPIView(APIView):
 
         return Response(
             BillingInvoiceSerializer(result.invoice).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class BillingInvoiceCancelAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedBillingBoundary]
+
+    @extend_schema(
+        responses={
+            200: BillingInvoiceSerializer,
+            400: OpenApiResponse(description="Billing invoice cancellation failed."),
+        },
+    )
+    def post(self, request, id):
+        invoice = active_billing_invoices().filter(id=id).first()
+        if invoice is None:
+            raise Http404("Billing invoice not found.")
+
+        try:
+            cancelled_invoice = cancel_billing_invoice(
+                invoice=invoice,
+                actor=request.user,
+                notes=request.data.get("notes", ""),
+            )
+        except BillingLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            BillingInvoiceSerializer(cancelled_invoice).data,
             status=status.HTTP_200_OK,
         )

@@ -180,10 +180,14 @@ def test_billing_invoice_list_filter_by_reservation_draft_id(
 
 def test_billing_invoice_list_filter_by_amount_range(authenticated_client, django_user_model):
     actor1, _, low_invoice = _issued_invoice(
-        django_user_model, caution_amount=Decimal("5000.00"), unit_amount=Decimal("15000.00")
+        django_user_model,
+        caution_amount=Decimal("5000.00"),
+        unit_amount=Decimal("15000.00"),
     )
     actor2, _, high_invoice = _issued_invoice(
-        django_user_model, caution_amount=Decimal("10000.00"), unit_amount=Decimal("40000.00")
+        django_user_model,
+        caution_amount=Decimal("10000.00"),
+        unit_amount=Decimal("40000.00"),
     )
 
     assert low_invoice.amount < high_invoice.amount
@@ -231,3 +235,82 @@ def test_billing_invoice_list_search_by_customer_name(authenticated_client, djan
     response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?search=NonExistentCustomer")
     assert response.status_code == 200
     assert len(response.json()) == 0
+
+
+def test_billing_invoice_cancel_requires_authentication(client) -> None:
+    response = client.post(
+        f"{BILLING_INVOICE_LIST_URL}00000000-0000-0000-0000-000000000000/cancel/",
+        data={},
+        content_type="application/json",
+    )
+    assert response.status_code in {401, 403}
+
+
+def test_authenticated_user_can_cancel_open_billing_invoice(
+    authenticated_client, django_user_model
+) -> None:
+    actor, _, invoice = _issued_invoice(django_user_model)
+
+    response = authenticated_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice.id}/cancel/",
+        data={"notes": "Cancelled by accountant"},
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["invoice_status"] == "cancelled"
+    assert payload["notes"] == "Cancelled by accountant"
+    assert BillingInvoice.objects.get(pk=invoice.pk).invoice_status == "cancelled"
+
+
+def test_billing_invoice_cancel_fails_when_already_settled(
+    authenticated_client, django_user_model
+) -> None:
+    actor, reservation_draft, invoice = _issued_invoice(django_user_model)
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.MOBILE_MONEY,
+        payment_status=PaymentStatus.PENDING,
+        amount=invoice.amount,
+        source_label="Billing settlement",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor).payment
+
+    settle_response = authenticated_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice.id}/settle/",
+        data={"payment": str(confirmed_payment.id)},
+        content_type="application/json",
+    )
+    assert settle_response.status_code == 200
+
+    cancel_response = authenticated_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice.id}/cancel/",
+        data={},
+        content_type="application/json",
+    )
+    assert cancel_response.status_code == 400
+    payload = cancel_response.json()
+    assert payload["code"] == "invalid_billing_invoice_cancel_state"
+
+
+def test_billing_invoice_cancel_fails_when_already_cancelled(
+    authenticated_client, django_user_model
+) -> None:
+    actor, _, invoice = _issued_invoice(django_user_model)
+
+    authenticated_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice.id}/cancel/",
+        data={},
+        content_type="application/json",
+    )
+
+    cancel_response = authenticated_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice.id}/cancel/",
+        data={},
+        content_type="application/json",
+    )
+    assert cancel_response.status_code == 400
+    payload = cancel_response.json()
+    assert payload["code"] == "invalid_billing_invoice_cancel_state"
