@@ -142,6 +142,7 @@ def test_assignment_list_staff_allowed(staff_authenticated_client, sample_role):
 
 def test_assignment_list_filters_by_role_and_date_range(staff_authenticated_client):
     user = User.objects.create_user(username="target-filter", password="p")
+    other_user = User.objects.create_user(username="target-filter-2", password="p")
     role_a = ApplicationRole.objects.create(name="Role A", slug="role-a")
     role_b = ApplicationRole.objects.create(name="Role B", slug="role-b")
     early = UserRoleAssignment.objects.create(user=user, role=role_a)
@@ -152,7 +153,7 @@ def test_assignment_list_filters_by_role_and_date_range(staff_authenticated_clie
     UserRoleAssignment.objects.filter(id=middle.id).update(
         assigned_at=datetime(2026, 1, 2, 9, 0, tzinfo=datetime_timezone.utc)
     )
-    late = UserRoleAssignment.objects.create(user=user, role=role_a)
+    late = UserRoleAssignment.objects.create(user=other_user, role=role_a)
     UserRoleAssignment.objects.filter(id=late.id).update(
         assigned_at=datetime(2026, 1, 4, 9, 0, tzinfo=datetime_timezone.utc)
     )
