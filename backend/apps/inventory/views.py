@@ -47,7 +47,17 @@ class InventoryItemListAPIView(generics.ListAPIView):
     serializer_class = InventoryItemSerializer
 
     def get_queryset(self):
-        return active_inventory_items()
+        qs = active_inventory_items()
+        name_param = self.request.query_params.get("name")
+        if name_param:
+            qs = qs.filter(name__icontains=name_param)
+        kind_param = self.request.query_params.get("kind")
+        if kind_param:
+            qs = qs.filter(kind=kind_param)
+        description_param = self.request.query_params.get("description")
+        if description_param:
+            qs = qs.filter(description__icontains=description_param)
+        return qs
 
 
 class InventoryItemRetrieveAPIView(generics.RetrieveAPIView):
