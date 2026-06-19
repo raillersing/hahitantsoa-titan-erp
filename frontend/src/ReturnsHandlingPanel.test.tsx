@@ -1,23 +1,86 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as api from './api';
 import ReturnsHandlingPanel from './ReturnsHandlingPanel';
+import type { InventoryReturnOperation } from './types';
+
+const MOCK_OPERATIONS: InventoryReturnOperation[] = [
+  {
+    id: 'ret-1',
+    reservation_draft: 'rd-1111',
+    document_instance: null,
+    status: 'draft',
+    notes: '',
+    validated_at: null,
+    validated_by: null,
+    lines: [
+      {
+        id: 'line-1',
+        inventory_item: 'item-1',
+        expected_quantity: 10,
+        returned_quantity: 8,
+        damaged_quantity: 1,
+        missing_quantity: 1,
+        condition_status: 'mixed',
+        notes: '',
+        intact_quantity: 7,
+        created_at: '2026-06-10T10:00:00Z',
+        updated_at: '2026-06-10T10:00:00Z',
+        created_by: null,
+        updated_by: null,
+      },
+    ],
+    created_at: '2026-06-10T10:00:00Z',
+    updated_at: '2026-06-10T10:00:00Z',
+    created_by: null,
+    updated_by: null,
+  },
+];
 
 describe('ReturnsHandlingPanel', () => {
-  it('renders the panel with pending backend notice', () => {
-    render(<ReturnsHandlingPanel />);
-    expect(screen.getByTestId('returns-handling-panel')).toBeInTheDocument();
-    expect(screen.getByText('Returns Log')).toBeInTheDocument();
-    expect(screen.getByText(/Pending Backend Contract/)).toBeInTheDocument();
-    expect(screen.getByText(/Returns Handling backend routes are not yet merged/)).toBeInTheDocument();
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it('renders the pending notice with status role', () => {
+  it('shows loading state initially', () => {
+    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
     render(<ReturnsHandlingPanel />);
-    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText('Loading return operations...')).toBeInTheDocument();
   });
 
-  it('does not render the returns list when no records exist', () => {
+  it('renders the panel with heading', async () => {
+    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
     render(<ReturnsHandlingPanel />);
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Returns Log')).toBeInTheDocument();
+    });
+  });
+
+  it('shows empty state when no operations exist', async () => {
+    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+    render(<ReturnsHandlingPanel />);
+    await waitFor(() => {
+      expect(screen.getByText('No return operations found.')).toBeInTheDocument();
+    });
+  });
+
+  it('shows error state when API call fails', async () => {
+    vi.spyOn(api, 'getReturnOperations').mockRejectedValue(
+      new Error('Network error'),
+    );
+    render(<ReturnsHandlingPanel />);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+    });
+  });
+
+  it('renders return operation details correctly', async () => {
+    vi.spyOn(api, 'getReturnOperations').mockResolvedValue(MOCK_OPERATIONS);
+    render(<ReturnsHandlingPanel />);
+    await waitFor(() => {
+      expect(screen.getByText('Draft')).toBeInTheDocument();
+    });
+    expect(screen.getByText('8 returned / 1 missing')).toBeInTheDocument();
+    expect(screen.getByText('1 line')).toBeInTheDocument();
   });
 });
