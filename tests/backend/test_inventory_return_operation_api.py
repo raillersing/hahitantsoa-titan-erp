@@ -7,6 +7,8 @@ from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
     InventoryItem,
+    InventoryReturnOperation,
+    InventoryReturnOperationLine,
     InventoryReturnOperationStatus,
     InventoryStockMovement,
 )
@@ -211,3 +213,76 @@ def test_return_operation_detail_rejects_write_methods(authenticated_client, met
     )
 
     assert response.status_code == 405
+
+
+def test_return_operation_list_filter_by_status(authenticated_client, django_user_model):
+    item = _inventory_item("Filter status")
+    user = django_user_model.objects.create_user(username="validator", password="pass")
+    matching = InventoryReturnOperation.objects.create(
+        status=InventoryReturnOperationStatus.VALIDATED,
+        validated_at=timezone.now(),
+        validated_by=user,
+    )
+    InventoryReturnOperationLine.objects.create(
+        return_operation=matching,
+        inventory_item=item,
+        expected_quantity=1,
+        returned_quantity=1,
+        damaged_quantity=0,
+        missing_quantity=0,
+        condition_status="intact",
+    )
+    other = InventoryReturnOperation.objects.create(
+        status=InventoryReturnOperationStatus.DRAFT,
+    )
+    InventoryReturnOperationLine.objects.create(
+        return_operation=other,
+        inventory_item=item,
+        expected_quantity=1,
+        returned_quantity=1,
+        damaged_quantity=0,
+        missing_quantity=0,
+        condition_status="intact",
+    )
+    response = authenticated_client.get(f"{RETURN_OPERATION_LIST_URL}?status=validated")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+def test_return_operation_list_filter_by_reservation_draft(authenticated_client):
+    item = _inventory_item("Filter draft")
+    draft = _reservation_draft()
+    matching = InventoryReturnOperation.objects.create(
+        reservation_draft=draft,
+        status=InventoryReturnOperationStatus.DRAFT,
+    )
+    InventoryReturnOperationLine.objects.create(
+        return_operation=matching,
+        inventory_item=item,
+        expected_quantity=1,
+        returned_quantity=1,
+        damaged_quantity=0,
+        missing_quantity=0,
+        condition_status="intact",
+    )
+    other = InventoryReturnOperation.objects.create(
+        status=InventoryReturnOperationStatus.DRAFT,
+    )
+    InventoryReturnOperationLine.objects.create(
+        return_operation=other,
+        inventory_item=item,
+        expected_quantity=1,
+        returned_quantity=1,
+        damaged_quantity=0,
+        missing_quantity=0,
+        condition_status="intact",
+    )
+    response = authenticated_client.get(
+        f"{RETURN_OPERATION_LIST_URL}?reservation_draft={str(draft.id)}"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
