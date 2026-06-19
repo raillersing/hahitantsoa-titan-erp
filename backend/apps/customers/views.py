@@ -21,7 +21,17 @@ class CustomerListAPIView(generics.ListAPIView):
     serializer_class = CustomerSerializer
 
     def get_queryset(self):
-        return active_customers()
+        qs = active_customers()
+        name_param = self.request.query_params.get("name")
+        if name_param:
+            qs = qs.filter(display_name__icontains=name_param)
+        email_param = self.request.query_params.get("email")
+        if email_param:
+            qs = qs.filter(email__icontains=email_param)
+        phone_param = self.request.query_params.get("phone")
+        if phone_param:
+            qs = qs.filter(phone__icontains=phone_param)
+        return qs
 
 
 class CustomerRetrieveAPIView(generics.RetrieveAPIView):

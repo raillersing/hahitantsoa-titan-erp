@@ -107,3 +107,66 @@ def test_customer_detail_rejects_write_methods(authenticated_client, method: str
     )
 
     assert response.status_code == 405
+
+
+def test_customer_list_filter_by_name(authenticated_client):
+    Customer.objects.create(
+        display_name="Alice Wonderland",
+        email="alice@example.test",
+        phone="+261340000001",
+        address="Antananarivo",
+    )
+    Customer.objects.create(
+        display_name="Bob Builder",
+        email="bob@example.test",
+        phone="+261340000002",
+        address="Antananarivo",
+    )
+
+    response = authenticated_client.get(f"{CUSTOMER_LIST_URL}?name=Alice")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["display_name"] == "Alice Wonderland"
+
+
+def test_customer_list_filter_by_email(authenticated_client):
+    Customer.objects.create(
+        display_name="Charlie Chaplin",
+        email="charlie.special@example.test",
+        phone="+261340000003",
+        address="Antananarivo",
+    )
+    Customer.objects.create(
+        display_name="Dave Developer",
+        email="dave@example.test",
+        phone="+261340000004",
+        address="Antananarivo",
+    )
+
+    response = authenticated_client.get(f"{CUSTOMER_LIST_URL}?email=charlie.special")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["display_name"] == "Charlie Chaplin"
+
+
+def test_customer_list_filter_by_phone(authenticated_client):
+    Customer.objects.create(
+        display_name="Eve Entrepreneur",
+        email="eve@example.test",
+        phone="+261340000555",
+        address="Antananarivo",
+    )
+    Customer.objects.create(
+        display_name="Frank Farmer",
+        email="frank@example.test",
+        phone="+261340000006",
+        address="Antananarivo",
+    )
+
+    response = authenticated_client.get(f"{CUSTOMER_LIST_URL}?phone=555")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["display_name"] == "Eve Entrepreneur"
