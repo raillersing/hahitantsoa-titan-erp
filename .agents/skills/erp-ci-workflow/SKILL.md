@@ -1,11 +1,19 @@
 ---
-name: backend-ci-workflow
-description: CI wait, merge, and post-merge validation procedure for Titan ERP backend PRs. Use after opening a PR and before and after merge.
+name: erp-ci-workflow
+description: CI wait, merge, and post-merge validation procedure for Titan ERP PRs. Use after opening a PR and before and after merge.
 ---
 
-# Backend CI Workflow
+# ERP CI Workflow
 
 Use after opening a PR and after merge to validate CI.
+
+## Phase: PR Creation
+
+- [ ] Reconfirm the diff is limited to approved files
+- [ ] Commit only allowed tracked files
+- [ ] Check PR file scope before trusting CI — a scope violation in CI must stop the merge
+- [ ] Open the PR only when authorized, with task-approved title and scope statement
+- [ ] Treat PR creation/waiting and PR finalization as separate phases
 
 ## Pre-Merge CI Wait
 
@@ -20,6 +28,7 @@ Use after opening a PR and after merge to validate CI.
 - [ ] Use only from the root worktree (`/home/raillersing/projects/hahitantsoa-titan-erp`)
 - [ ] Use: `gh pr merge PR-NUMBER --squash --match-head-commit COMMIT_SHA --delete-branch`
 - [ ] Do not use raw `gh pr merge` from a task worktree
+- [ ] No external `jq` in finalization scripts — use native `gh --json --jq`
 - [ ] Verify PR state becomes `MERGED`
 
 ## Post-Merge Main CI Validation

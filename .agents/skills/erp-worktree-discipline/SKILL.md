@@ -1,9 +1,9 @@
 ---
-name: worktree-discipline
+name: erp-worktree-discipline
 description: One-agent-one-worktree rules for Titan ERP. Use when starting any task to confirm the correct worktree and branch are being used.
 ---
 
-# Worktree Discipline
+# ERP Worktree Discipline
 
 Load at the start of every task to confirm you are in the correct worktree.
 

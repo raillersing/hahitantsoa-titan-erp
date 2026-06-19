@@ -1,9 +1,9 @@
 ---
-name: post-merge-cleanup
+name: erp-post-merge-cleanup
 description: Branch, worktree, and Docker cleanup procedure after Titan ERP PR merge. Use after a PR is merged and post-merge main CI is green.
 ---
 
-# Post-Merge Cleanup
+# ERP Post-Merge Cleanup
 
 Load after a PR is merged and post-merge main CI is confirmed green.
 

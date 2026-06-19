@@ -1,9 +1,9 @@
 ---
-name: secret-handling
+name: erp-secret-handling
 description: Never-read-.env and log hygiene rules for Titan ERP agents. Use at the start of any task and before running commands that access the filesystem.
 ---
 
-# Secret Handling
+# ERP Secret Handling
 
 Load at the start of every task and before any command that accesses the filesystem.
 
