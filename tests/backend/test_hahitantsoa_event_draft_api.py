@@ -1730,3 +1730,55 @@ def test_event_draft_detail_hides_soft_deleted_lines_after_update(authenticated_
     assert detail_response.status_code == 200
     assert len(detail_response.json()["lines"]) == 1
     assert detail_response.json()["lines"][0]["inventory_item_id"] == str(second_item.id)
+
+
+def test_event_draft_list_filter_by_status(authenticated_client) -> None:
+    user = authenticated_client.test_user
+    start_at, end_at = _period()
+    matching = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Confirmed event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        status="confirmed",
+    )
+    HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Draft event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        status="draft",
+    )
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}?status=confirmed")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+def test_event_draft_list_filter_by_customer(authenticated_client) -> None:
+    user = authenticated_client.test_user
+    start_at, end_at = _period()
+    customer_a = _customer("Customer A")
+    customer_b = _customer("Customer B")
+    matching = HahitantsoaEventDraft.objects.create(
+        customer=customer_a,
+        event_name="Event A",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    HahitantsoaEventDraft.objects.create(
+        customer=customer_b,
+        event_name="Event B",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}?customer={str(customer_a.id)}")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
