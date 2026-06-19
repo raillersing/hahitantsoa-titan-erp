@@ -130,7 +130,14 @@ class HahitantsoaEventDraftListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = HahitantsoaEventDraftSerializer
 
     def get_queryset(self):
-        return visible_hahitantsoa_event_drafts(user=self.request.user)
+        qs = visible_hahitantsoa_event_drafts(user=self.request.user)
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        customer = self.request.query_params.get("customer")
+        if customer:
+            qs = qs.filter(customer=customer)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
