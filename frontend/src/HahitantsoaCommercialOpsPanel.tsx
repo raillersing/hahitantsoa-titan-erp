@@ -75,9 +75,9 @@ const SECTIONS: CommercialSection[] = [
     id: "returns",
     title: "Returns Handling",
     badge: "Returns",
-    status: "pending_backend",
-    statusLabel: "Pending Backend Integration",
-    description: "Verify returned materials quantities, update logs, and trigger closeout.",
+    status: "partially_connected",
+    statusLabel: "Partially Connected",
+    description: "View return operations with line-level item tracking and quantities.",
     businessRule: "Tracks returned vs missing items snapshot.",
   },
   {

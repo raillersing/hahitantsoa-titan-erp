@@ -415,22 +415,39 @@ export type LogisticsEvent = {
   updated_by: string | null;
 };
 
-// ---- Returns Handling (pending backend) ----
+// ---- Returns Handling ----
 
-export type ReturnStatus = 'pending' | 'partial' | 'complete' | 'disputed';
+export type ReturnOperationStatus = 'draft' | 'validated';
 
-export type ReturnRecord = {
+export type InventoryReturnOperationLine = {
   id: string;
-  reservation_draft: string | null;
-  reference: string;
-  status: ReturnStatus;
-  returned_at: string | null;
-  items_returned: number;
-  items_missing: number;
-  operator_name: string;
+  inventory_item: string;
+  expected_quantity: number;
+  returned_quantity: number;
+  damaged_quantity: number;
+  missing_quantity: number;
+  condition_status: 'intact' | 'damaged' | 'missing' | 'mixed';
   notes: string;
+  intact_quantity: number;
   created_at: string;
   updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type InventoryReturnOperation = {
+  id: string;
+  reservation_draft: string | null;
+  document_instance: string | null;
+  status: ReturnOperationStatus;
+  notes: string;
+  validated_at: string | null;
+  validated_by: string | null;
+  lines: InventoryReturnOperationLine[];
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
 };
 
 // ---- Breakage & Loss (pending backend) ----

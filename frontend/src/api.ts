@@ -23,6 +23,7 @@ import type {
   HahitantsoaEventDraftAmendmentRequestLineCreatePayload,
   HahitantsoaEventDraftAmendmentRequestLineUpdatePayload,
   HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
+  InventoryReturnOperation,
   DocumentTemplateDefinition,
   DocumentInstance,
   DocumentInstanceCreatePayload,
@@ -560,4 +561,11 @@ export function getLogisticsEvents(
   signal?: AbortSignal,
 ): Promise<LogisticsEvent[]> {
   return getAuthenticatedJson('/api/v1/logistics/events/', signal);
+}
+// ---- Return Operations ----
+
+export function getReturnOperations(
+  signal?: AbortSignal,
+): Promise<InventoryReturnOperation[]> {
+  return getAuthenticatedJson('/api/v1/inventory/return-operations/', signal);
 }
