@@ -2,6 +2,7 @@ import sys
 from datetime import timedelta
 
 import pytest
+from django.contrib.auth.models import Group
 from django.core.files.storage import FileSystemStorage
 from django.utils import timezone
 
@@ -9,6 +10,7 @@ import apps.documents.runtime as runtime_module
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.identity.roles import IdentityRole
 from apps.inventory.models import InventoryAvailability, InventoryItem
 from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
@@ -26,6 +28,21 @@ def authenticated_user(django_user_model):
 @pytest.fixture
 def authenticated_client(client, authenticated_user):
     client.force_login(authenticated_user)
+    return client
+
+
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="docs-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(client, sensitive_user):
+    client.force_login(sensitive_user)
     return client
 
 
@@ -96,15 +113,27 @@ def test_document_instance_list_create_requires_authentication(client) -> None:
     assert response.status_code in {401, 403}
 
 
-def test_authenticated_user_can_create_and_list_reservation_draft_document_instances(
-    authenticated_client,
-    authenticated_user,
+def test_document_instance_create_requires_sensitive_access(authenticated_client) -> None:
+    draft = _draft_with_line()
+
+    response = authenticated_client.post(
+        _list_url(draft.id),
+        data={"template_key": "titan.proforma.v1", "notes": "Prepared for review"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_sensitive_staff_can_create_and_list_reservation_draft_document_instances(
+    sensitive_client,
+    sensitive_user,
     django_capture_on_commit_callbacks,
 ) -> None:
     draft = _draft_with_line()
 
     with django_capture_on_commit_callbacks(execute=True):
-        create_response = authenticated_client.post(
+        create_response = sensitive_client.post(
             _list_url(draft.id),
             data={"template_key": "titan.proforma.v1", "notes": "Prepared for review"},
             content_type="application/json",
@@ -119,7 +148,7 @@ def test_authenticated_user_can_create_and_list_reservation_draft_document_insta
     assert created_payload["content_checksum"] is None
     assert created_payload["storage_path"] is None
 
-    list_response = authenticated_client.get(_list_url(draft.id))
+    list_response = sensitive_client.get(_list_url(draft.id))
 
     assert list_response.status_code == 200
     payload = list_response.json()
@@ -129,12 +158,75 @@ def test_authenticated_user_can_create_and_list_reservation_draft_document_insta
 
     audit_event = AuditEvent.objects.filter(action="document.instance_prepared").first()
     assert audit_event is not None
-    assert audit_event.actor_id == authenticated_user.id
+    assert audit_event.actor_id == sensitive_user.id
     assert audit_event.target_id == created_payload["id"]
 
 
-def test_document_instance_detail_and_generate_keep_reservation_and_inventory_unchanged(
+def test_group_mapped_sensitive_actor_can_create_document_instance(
+    client,
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    mapped_user = django_user_model.objects.create_user(
+        username="docs-sensitive-group",
+        password="test-pass",
+        is_staff=False,
+    )
+    mapped_user.groups.add(
+        Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value)
+    )
+    draft = _draft_with_line()
+
+    client.force_login(mapped_user)
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(
+            _list_url(draft.id),
+            data={"template_key": "titan.proforma.v1", "notes": "Prepared for review"},
+            content_type="application/json",
+        )
+
+    assert response.status_code == 201
+
+
+def test_authenticated_user_can_list_reservation_draft_document_instances(
     authenticated_client,
+) -> None:
+    draft = _draft_with_line()
+    instance = DocumentInstance.objects.create(
+        reservation_draft=draft,
+        customer=draft.customer,
+        template_key="titan.proforma.v1",
+        template_version="v1",
+        template_label="Proforma Titan",
+        business_scope="titan",
+        document_type="proforma",
+        template_status="validated_source_template",
+        template_source_kind="source_pdf",
+        template_source_reference="docs/references/source/Document_A.pdf",
+        template_path="backend/apps/documents/templates_documents/titan/proforma/v1/template.html",
+        template_preview_path="backend/apps/documents/templates_documents/titan/proforma/v1/preview.pdf",
+        template_validated_by_client=True,
+        template_notes="Prepared for review",
+        reservation_public_reference=draft.public_reference,
+        reservation_status=draft.status,
+        customer_display_name=draft.customer.display_name,
+        customer_email=draft.customer.email,
+        customer_phone=draft.customer.phone,
+        customer_address=draft.customer.address,
+        status=DocumentInstanceStatus.PREPARED,
+    )
+
+    list_response = authenticated_client.get(_list_url(draft.id))
+
+    assert list_response.status_code == 200
+    payload = list_response.json()
+    assert len(payload) == 1
+    assert payload[0]["id"] == str(instance.id)
+    assert payload[0]["template_label"] == "Proforma Titan"
+
+
+def test_document_instance_detail_and_generate_keep_reservation_and_inventory_unchanged(
+    sensitive_client,
     django_capture_on_commit_callbacks,
 ) -> None:
     draft = _draft_with_line()
@@ -167,13 +259,13 @@ def test_document_instance_detail_and_generate_keep_reservation_and_inventory_un
         customer_address=draft.customer.address,
     )
 
-    detail_response = authenticated_client.get(_detail_url(draft.id, instance.id))
+    detail_response = sensitive_client.get(_detail_url(draft.id, instance.id))
 
     assert detail_response.status_code == 200
     assert detail_response.json()["id"] == str(instance.id)
 
     with django_capture_on_commit_callbacks(execute=True):
-        generate_response = authenticated_client.post(_generate_url(draft.id, instance.id))
+        generate_response = sensitive_client.post(_generate_url(draft.id, instance.id))
 
     assert generate_response.status_code == 200
     generated_payload = generate_response.json()
@@ -199,8 +291,39 @@ def test_document_instance_detail_and_generate_keep_reservation_and_inventory_un
     ).exists()
 
 
+def test_document_instance_generate_requires_sensitive_access(authenticated_client) -> None:
+    draft = _draft_with_line()
+    instance = DocumentInstance.objects.create(
+        reservation_draft=draft,
+        customer=draft.customer,
+        template_key="titan.proforma.v1",
+        template_version="v1",
+        template_label="Proforma Titan",
+        business_scope="titan",
+        document_type="proforma",
+        template_status="validated_source_template",
+        template_source_kind="source_pdf",
+        template_source_reference="docs/references/source/Document_A.pdf",
+        template_path="backend/apps/documents/templates_documents/titan/proforma/v1/template.html",
+        template_preview_path="backend/apps/documents/templates_documents/titan/proforma/v1/preview.pdf",
+        template_validated_by_client=True,
+        template_notes="Template notes",
+        reservation_public_reference=draft.public_reference,
+        reservation_status=draft.status,
+        customer_display_name=draft.customer.display_name,
+        customer_email=draft.customer.email,
+        customer_phone=draft.customer.phone,
+        customer_address=draft.customer.address,
+        status=DocumentInstanceStatus.PREPARED,
+    )
+
+    response = authenticated_client.post(_generate_url(draft.id, instance.id))
+
+    assert response.status_code == 403
+
+
 def test_document_instance_detail_and_generate_return_404_for_wrong_reservation_draft_path(
-    authenticated_client,
+    sensitive_client,
 ) -> None:
     draft = _draft_with_line()
     other_draft = _draft_with_line()
@@ -227,17 +350,17 @@ def test_document_instance_detail_and_generate_return_404_for_wrong_reservation_
         customer_address=draft.customer.address,
     )
 
-    detail_response = authenticated_client.get(_detail_url(other_draft.id, instance.id))
-    generate_response = authenticated_client.post(_generate_url(other_draft.id, instance.id))
+    detail_response = sensitive_client.get(_detail_url(other_draft.id, instance.id))
+    generate_response = sensitive_client.post(_generate_url(other_draft.id, instance.id))
 
     assert detail_response.status_code == 404
     assert generate_response.status_code == 404
 
 
-def test_document_instance_create_rejects_unsupported_template_key(authenticated_client) -> None:
+def test_document_instance_create_rejects_unsupported_template_key(sensitive_client) -> None:
     draft = _draft_with_line()
 
-    response = authenticated_client.post(
+    response = sensitive_client.post(
         _list_url(draft.id),
         data={"template_key": "shared.payment_receipt.v1"},
         content_type="application/json",
@@ -256,7 +379,7 @@ def test_document_instance_create_rejects_unsupported_template_key(authenticated
     ),
 )
 def test_document_instance_create_supports_logistics_note_templates(
-    authenticated_client,
+    sensitive_client,
     django_capture_on_commit_callbacks,
     template_key: str,
     expected_label: str,
@@ -264,7 +387,7 @@ def test_document_instance_create_supports_logistics_note_templates(
     draft = _draft_with_line()
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = authenticated_client.post(
+        response = sensitive_client.post(
             _list_url(draft.id),
             data={"template_key": template_key, "notes": "Logistics document"},
             content_type="application/json",
@@ -295,7 +418,7 @@ def test_document_instance_create_supports_logistics_note_templates(
     ),
 )
 def test_document_instance_generate_supports_logistics_note_templates(
-    authenticated_client,
+    sensitive_client,
     template_key: str,
     template_label: str,
     template_path: str,
@@ -332,7 +455,7 @@ def test_document_instance_generate_supports_logistics_note_templates(
         status=DocumentInstanceStatus.PREPARED,
     )
 
-    response = authenticated_client.post(_generate_url(draft.id, instance.id))
+    response = sensitive_client.post(_generate_url(draft.id, instance.id))
 
     assert response.status_code == 200
     payload = response.json()
@@ -347,7 +470,7 @@ def test_document_instance_generate_supports_logistics_note_templates(
 
 
 def test_document_instance_generate_returns_400_for_non_prepared_instance(
-    authenticated_client,
+    sensitive_client,
 ) -> None:
     draft = _draft_with_line()
     instance = DocumentInstance.objects.create(
@@ -375,7 +498,7 @@ def test_document_instance_generate_returns_400_for_non_prepared_instance(
         content_checksum="a" * 64,
     )
 
-    response = authenticated_client.post(_generate_url(draft.id, instance.id))
+    response = sensitive_client.post(_generate_url(draft.id, instance.id))
 
     assert response.status_code == 400
     payload = response.json()
