@@ -2,12 +2,12 @@
 
 ## Current State
 
-- `origin/main` HEAD is `cd8a9a4` (post PRs #283–#286, #293, #300, #301 merges).
+- `origin/main` HEAD is `12c1f3c` (post PRs #283–#286, #293, #300, #301, #302, #303, #304, #305 merges).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API).
-- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills).
+- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills).
 - Open PRs:
   - PR #294 `feat/inventory-item-list-filtering` — non-draft, inventory item list filtering
   - PRs #295–#299 — draft, various inventory/hahitantsoa filtering PRs
@@ -502,40 +502,46 @@ Validation:
 ### F151A-0
 
 Status:
-- active agent-docs task
-- baseline: origin/main at `cd8a9a4`
-- branch: `docs/f151a0-agent-workflow-skills-readiness-review`
+- **COMPLETED** — merged as PR #302
+- main HEAD at merge: `f63144d`
 - scope: agent workflow and skills readiness review (docs-only audit)
 
-Scope:
-- inventory current agent governance files, wrappers, and existing skills
-- identify repeated procedures that are good skill candidates vs must-stay-in-docs
-- check scope guard compatibility for `.agents/skills/`
-- recommend minimal first skill set for F151B
-- produce `docs/audits/F151A0_AGENT_WORKFLOW_SKILLS_READINESS_REVIEW.md`
-- update `docs/ai-agents/orchestrator-task-queue.md`
+Scope delivered:
+- `docs/audits/F151A0_AGENT_WORKFLOW_SKILLS_READINESS_REVIEW.md` — full audit report
+- `docs/ai-agents/orchestrator-task-queue.md` — queue update
 
-Allowed files:
-- `docs/audits/F151A0_AGENT_WORKFLOW_SKILLS_READINESS_REVIEW.md`
-- `docs/ai-agents/orchestrator-task-queue.md`
+### F151A-1
 
-Forbidden:
-- backend/, frontend/, tests/, .github/, dependency manifests, .env, secrets
-- F147F paused worktree, F150B Codex backend worktree
-- `.agents/skills/` (not yet scope-guard-compatible)
+Status:
+- **COMPLETED** — merged as PR #303
+- main HEAD at merge: `fa9dda5`
+- scope: scope guard update for `.agents/skills/`
 
-Hard stops:
-- any need to touch backend/frontend/tests
-- any need to touch F147F or F150B
-- any need to read .env or secrets
-- scope guard blocks the intended docs-only changes
+Scope delivered:
+- `scripts/dev/erp-agent-scope-guard` — added `\.agents/skills/` to `agent-docs` allowed pattern
 
-Expected validation:
-- `bash scripts/dev/erp-agent-scope-guard agent-docs` — PASS
-- `git diff --check` — PASS
-- confirm no backend/frontend/test/.github/.env/dependency manifest mutations
-- PR CI green before merge
-- main CI green after merge
+### F151B (Phases 2 & 3)
+
+Status:
+- **COMPLETED** — merged as PRs #304, #305
+- main HEAD after campaign: `12c1f3c`
+- scope: shared agent skills integration (7 skills + usage guide)
+
+Scope delivered:
+Phase 2 (PR #304):
+- `.agents/skills/backend-quality-gates/SKILL.md`
+- `.agents/skills/backend-agent-roles/SKILL.md`
+- `.agents/skills/backend-ci-workflow/SKILL.md`
+- `docs/ai-agents/tooling/agent-shared-skills.md` — usage guide
+
+Phase 3 (PR #305):
+- `.agents/skills/worktree-discipline/SKILL.md`
+- `.agents/skills/secret-handling/SKILL.md`
+- `.agents/skills/business-boundaries/SKILL.md`
+- `.agents/skills/post-merge-cleanup/SKILL.md`
+
+Phase 4 (optional — F150A migration to `.agents/skills/`):
+- not yet started; deferred per audit recommendation (optional)
 
 ## Later Repair Track
 
