@@ -2,12 +2,12 @@
 
 ## Current State
 
-- `origin/main` HEAD is `12c1f3c` (post PRs #283–#286, #293, #300, #301, #302, #303, #304, #305 merges).
+- `origin/main` HEAD is `a2e9e95` (post PRs #283–#286, #293, #300, #301, #302, #303, #304, #305, #307 merges).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API).
-- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills).
+- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh).
 - Open PRs:
   - PR #294 `feat/inventory-item-list-filtering` — non-draft, inventory item list filtering
   - PRs #295–#299 — draft, various inventory/hahitantsoa filtering PRs
@@ -542,6 +542,50 @@ Phase 3 (PR #305):
 
 Phase 4 (optional — F150A migration to `.agents/skills/`):
 - not yet started; deferred per audit recommendation (optional)
+
+### F151C-0
+
+Status:
+- active agent-docs task
+- baseline: origin/main at `a2e9e95`
+- branch: `docs/f151c0-skills-portfolio-audit`
+- scope: agent skills portfolio audit and rationalization plan (docs-only audit)
+
+Scope:
+- inventory all 18 skills across `.agents/skills/` and `.opencode/skills/`
+- classify each as KEEP, PROMOTE, MERGE, RENAME, DELETE, or ADD-MISSING
+- detect duplicate responsibilities across skills
+- detect missing project-critical skills (backend, frontend, docs, QA, tooling, permissions, billing/payment, audit events, migrations, API contracts)
+- decide frontend skill promotion from `.opencode/skills/` to `.agents/skills/`
+- recommend final target architecture
+- produce `docs/audits/F151C0_AGENT_SKILLS_PORTFOLIO_AUDIT.md`
+- update `docs/ai-agents/orchestrator-task-queue.md`
+
+Allowed files:
+- `docs/audits/F151C0_AGENT_SKILLS_PORTFOLIO_AUDIT.md`
+- `docs/ai-agents/orchestrator-task-queue.md`
+
+Forbidden:
+- `backend/`, `frontend/`, `tests/`, `.github/`, dependency manifests, `.env`, secrets
+- `.agents/skills/` — read-only, no mutations
+- `.opencode/skills/` — read-only, no mutations
+- PR #306 branch/worktree
+- F147F paused worktree, F150B Codex backend worktree
+
+Hard stops:
+- any need to mutate backend/frontend/tests
+- any need to mutate skills before audit approval
+- any need to touch PR #306
+- any need to read `.env` or secrets
+- scope guard fails
+
+Validation:
+- `bash scripts/dev/erp-agent-scope-guard agent-docs` — PASS
+- `git diff --check` — PASS
+- confirm no backend/frontend/test/.github/.env/dependency manifest mutations
+- confirm no `.agents/skills/` or `.opencode/skills/` mutations
+- PR CI green before merge
+- main CI green after merge
 
 ## Later Repair Track
 
