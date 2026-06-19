@@ -47,6 +47,7 @@ def active_billing_invoices():
         "excess_receivable__settlement_execution__settlement__return_operation__reservation_draft",
         "document_instance",
         "reservation_draft",
+        "reservation_draft__customer",
         "settled_by",
         "settlement",
         "settlement__payment",
