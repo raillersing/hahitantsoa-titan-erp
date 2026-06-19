@@ -3,6 +3,7 @@ import type {
   Customer,
   HahitantsoaDiscoveryResponse,
   InventoryItem,
+  LogisticsEvent,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
   ReservationDraft,
@@ -552,4 +553,11 @@ export function createStockMovement(
   signal?: AbortSignal,
 ): Promise<import('./types').InventoryStockMovement> {
   return postAuthenticatedJson('/api/v1/inventory/stock-movements/', payload, signal);
+}
+// ---- Logistics Events ----
+
+export function getLogisticsEvents(
+  signal?: AbortSignal,
+): Promise<LogisticsEvent[]> {
+  return getAuthenticatedJson('/api/v1/logistics/events/', signal);
 }

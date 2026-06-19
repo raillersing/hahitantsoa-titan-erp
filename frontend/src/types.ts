@@ -392,21 +392,27 @@ export type PaymentConfirmPayload = {
   notes?: string;
 };
 
-// ---- Logistics & Delivery (pending backend) ----
+// ---- Logistics & Delivery ----
 
-export type DeliveryStatus = 'scheduled' | 'in_transit' | 'delivered' | 'failed';
+export type LogisticsEventType = 'delivery' | 'pickup';
 
-export type DeliveryRecord = {
+export type LogisticsEventStatus = 'planned' | 'dispatched' | 'completed' | 'cancelled';
+
+export type LogisticsEvent = {
   id: string;
-  reservation_draft: string | null;
-  reference: string;
-  status: DeliveryStatus;
+  reservation_draft: string;
+  event_type: LogisticsEventType;
+  status: LogisticsEventStatus;
   scheduled_at: string | null;
-  delivered_at: string | null;
-  operator_name: string;
+  executed_at: string | null;
+  address: string;
+  contact_name: string;
+  contact_phone: string;
   notes: string;
   created_at: string;
   updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
 };
 
 // ---- Returns Handling (pending backend) ----
