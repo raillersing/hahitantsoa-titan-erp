@@ -4,7 +4,7 @@ import pytest
 from django.utils import timezone
 
 from apps.customers.models import Customer
-from apps.inventory.models import InventoryItem
+from apps.inventory.models import InventoryItem, InventoryStockMovement
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
@@ -146,3 +146,109 @@ def test_stock_movement_detail_rejects_write_methods(authenticated_client, metho
     )
 
     assert response.status_code == 405
+
+
+def test_stock_movement_list_filter_by_movement_type(authenticated_client):
+    item = _inventory_item()
+    matching = InventoryStockMovement.objects.create(
+        inventory_item=item,
+        movement_type="outbound_delivery",
+        direction="outbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    InventoryStockMovement.objects.create(
+        inventory_item=item,
+        movement_type="damage",
+        direction="outbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    url = f"{STOCK_MOVEMENT_LIST_URL}?movement_type=outbound_delivery"
+    response = authenticated_client.get(url)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+def test_stock_movement_list_filter_by_direction(authenticated_client):
+    item = _inventory_item()
+    matching = InventoryStockMovement.objects.create(
+        inventory_item=item,
+        movement_type="inbound_return",
+        direction="inbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    InventoryStockMovement.objects.create(
+        inventory_item=item,
+        movement_type="outbound_delivery",
+        direction="outbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    response = authenticated_client.get(f"{STOCK_MOVEMENT_LIST_URL}?direction=inbound")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+def test_stock_movement_list_filter_by_inventory_item(authenticated_client):
+    item_a = _inventory_item()
+    item_b = InventoryItem.objects.create(name="Other item", kind="material")
+    matching = InventoryStockMovement.objects.create(
+        inventory_item=item_a,
+        movement_type="outbound_delivery",
+        direction="outbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    InventoryStockMovement.objects.create(
+        inventory_item=item_b,
+        movement_type="outbound_delivery",
+        direction="outbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    url = f"{STOCK_MOVEMENT_LIST_URL}?inventory_item={str(item_a.id)}"
+    response = authenticated_client.get(url)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+def test_stock_movement_list_filter_by_reservation_draft(authenticated_client):
+    item = _inventory_item()
+    draft = _reservation_draft()
+    matching = InventoryStockMovement.objects.create(
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type="outbound_delivery",
+        direction="outbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    InventoryStockMovement.objects.create(
+        inventory_item=item,
+        movement_type="outbound_delivery",
+        direction="outbound",
+        quantity=1,
+        source_label="Test filter",
+        notes="Test filter",
+    )
+    url = f"{STOCK_MOVEMENT_LIST_URL}?reservation_draft={str(draft.id)}"
+    response = authenticated_client.get(url)
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)

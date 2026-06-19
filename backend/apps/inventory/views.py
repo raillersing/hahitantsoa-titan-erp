@@ -69,7 +69,23 @@ class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):
         return InventoryStockMovementSerializer
 
     def get_queryset(self):
-        return active_inventory_stock_movements()
+        qs = active_inventory_stock_movements()
+        movement_type = self.request.query_params.get("movement_type")
+        if movement_type:
+            qs = qs.filter(movement_type=movement_type)
+        direction = self.request.query_params.get("direction")
+        if direction:
+            qs = qs.filter(direction=direction)
+        inventory_item = self.request.query_params.get("inventory_item")
+        if inventory_item:
+            qs = qs.filter(inventory_item=inventory_item)
+        reservation_draft = self.request.query_params.get("reservation_draft")
+        if reservation_draft:
+            qs = qs.filter(reservation_draft=reservation_draft)
+        return_operation = self.request.query_params.get("return_operation")
+        if return_operation:
+            qs = qs.filter(return_operation=return_operation)
+        return qs
 
     @extend_schema(
         request=InventoryStockMovementCreateSerializer,
