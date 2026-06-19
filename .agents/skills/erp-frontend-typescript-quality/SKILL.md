@@ -1,5 +1,5 @@
 ---
-name: react-typescript-quality
+name: erp-frontend-typescript-quality
 description: TypeScript strictness, React patterns, and code quality checklist for frontend components
 ---
 

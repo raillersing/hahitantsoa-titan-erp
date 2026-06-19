@@ -1,5 +1,5 @@
 ---
-name: frontend-accessibility-ux
+name: erp-frontend-accessibility-ux
 description: WCAG fundamentals, keyboard navigation, semantic HTML, and user experience consistency checklist
 ---
 

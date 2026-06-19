@@ -1,5 +1,5 @@
 ---
-name: frontend-scope-guard
+name: erp-frontend-scope-guard
 description: Verify that frontend changes stay within approved files, avoid backend drift, and respect the Hahitantsoa/Titan business boundary
 ---
 

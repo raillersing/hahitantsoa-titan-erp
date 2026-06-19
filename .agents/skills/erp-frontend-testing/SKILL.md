@@ -1,5 +1,5 @@
 ---
-name: frontend-testing
+name: erp-frontend-testing
 description: Component and page test checklist — coverage, mocking, edge cases, and regression safety for Vitest + RTL
 ---
 
