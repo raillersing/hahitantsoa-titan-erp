@@ -492,6 +492,38 @@ export type InventoryStockMovement = {
   updated_at: string;
 };
 
+// ---- Billing Invoices (live backend — /api/v1/billing/invoices/) ----
+
+export type BillingInvoiceStatus = 'open' | 'settled' | 'cancelled';
+
+export type BillingInvoiceSettlement = {
+  id: string;
+  payment: Payment;
+  amount: string;
+  settled_at: string;
+  settled_by: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingInvoice = {
+  id: string;
+  excess_receivable: string | null;
+  document_instance: DocumentInstance | null;
+  reservation_draft: string | null;
+  source_kind: string;
+  invoice_status: BillingInvoiceStatus;
+  amount: string;
+  issued_at: string;
+  settled_at: string | null;
+  settled_by: string | null;
+  notes: string;
+  settlement: BillingInvoiceSettlement | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type StockMovementCreatePayload = {
   inventory_item: string;
   reservation_draft?: string | null;
