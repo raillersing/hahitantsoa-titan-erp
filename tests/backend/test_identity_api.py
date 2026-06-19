@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from datetime import datetime, timezone as datetime_timezone
+from datetime import UTC, datetime
 
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 from apps.identity.roles import IdentityRole
@@ -127,12 +127,12 @@ def test_assignment_list_staff_allowed(staff_authenticated_client, sample_role):
     user = User.objects.create_user(username="target", password="p")
     first = UserRoleAssignment.objects.create(user=user, role=sample_role)
     UserRoleAssignment.objects.filter(id=first.id).update(
-        assigned_at=datetime(2026, 1, 1, 10, 0, tzinfo=datetime_timezone.utc)
+        assigned_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
     )
     second_role = ApplicationRole.objects.create(name="Second", slug="second")
     second = UserRoleAssignment.objects.create(user=user, role=second_role)
     UserRoleAssignment.objects.filter(id=second.id).update(
-        assigned_at=datetime(2026, 1, 3, 10, 0, tzinfo=datetime_timezone.utc)
+        assigned_at=datetime(2026, 1, 3, 10, 0, tzinfo=UTC)
     )
     response = staff_authenticated_client.get(IDENTITY_ASSIGNMENT_LIST_URL)
     assert response.status_code == 200
@@ -147,15 +147,15 @@ def test_assignment_list_filters_by_role_and_date_range(staff_authenticated_clie
     role_b = ApplicationRole.objects.create(name="Role B", slug="role-b")
     early = UserRoleAssignment.objects.create(user=user, role=role_a)
     UserRoleAssignment.objects.filter(id=early.id).update(
-        assigned_at=datetime(2026, 1, 1, 9, 0, tzinfo=datetime_timezone.utc)
+        assigned_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
     )
     middle = UserRoleAssignment.objects.create(user=user, role=role_b)
     UserRoleAssignment.objects.filter(id=middle.id).update(
-        assigned_at=datetime(2026, 1, 2, 9, 0, tzinfo=datetime_timezone.utc)
+        assigned_at=datetime(2026, 1, 2, 9, 0, tzinfo=UTC)
     )
     late = UserRoleAssignment.objects.create(user=other_user, role=role_a)
     UserRoleAssignment.objects.filter(id=late.id).update(
-        assigned_at=datetime(2026, 1, 4, 9, 0, tzinfo=datetime_timezone.utc)
+        assigned_at=datetime(2026, 1, 4, 9, 0, tzinfo=UTC)
     )
 
     response = staff_authenticated_client.get(
