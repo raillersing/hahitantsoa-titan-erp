@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from tests.backend.test_payments_refund import _pending_refund_obligation
 
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
@@ -8,6 +9,7 @@ from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentSta
 pytestmark = pytest.mark.django_db
 
 PAYMENT_LIST_URL = "/api/v1/payments/"
+PAYMENT_REFUND_CREATE_URL = "/api/v1/payments/refund/"
 
 
 @pytest.fixture
@@ -94,6 +96,24 @@ def test_payment_confirm_requires_authentication(client):
     assert response.status_code in {401, 403}
 
 
+def test_refund_payment_create_requires_authentication(client):
+    response = client.post(
+        PAYMENT_REFUND_CREATE_URL,
+        data={"refund_obligation_id": "00000000-0000-0000-0000-000000000000"},
+        content_type="application/json",
+    )
+    assert response.status_code in {401, 403}
+
+
+def test_refund_payment_confirm_requires_authentication(client):
+    response = client.post(
+        "/api/v1/payments/00000000-0000-0000-0000-000000000000/refund-confirm/",
+        data={},
+        content_type="application/json",
+    )
+    assert response.status_code in {401, 403}
+
+
 @pytest.mark.parametrize("method", ["put", "patch", "delete"])
 def test_payment_list_rejects_write_methods(authenticated_client, method):
     request_method = getattr(authenticated_client, method)
@@ -121,6 +141,42 @@ def test_payment_confirm_rejects_non_post_methods(authenticated_client, pending_
     request_method = getattr(authenticated_client, method)
     response = request_method(
         f"{PAYMENT_LIST_URL}{pending_payment.id}/confirm/",
+        data={},
+        content_type="application/json",
+    )
+    assert response.status_code == 405
+
+
+@pytest.mark.parametrize("method", ["get", "put", "patch", "delete"])
+def test_refund_payment_create_rejects_non_post_methods(authenticated_client, method):
+    request_method = getattr(authenticated_client, method)
+    response = request_method(
+        PAYMENT_REFUND_CREATE_URL,
+        data={"refund_obligation_id": "00000000-0000-0000-0000-000000000000"},
+        content_type="application/json",
+    )
+    assert response.status_code == 405
+
+
+@pytest.mark.parametrize("method", ["get", "put", "patch", "delete"])
+def test_refund_payment_confirm_rejects_non_post_methods(
+    authenticated_client,
+    django_user_model,
+    method,
+):
+    _, obligation, _ = _pending_refund_obligation(django_user_model)
+    refund_payment = Payment.objects.create(
+        payment_kind=PaymentKind.REFUND,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+        payment_status=PaymentStatus.PENDING,
+        amount=obligation.amount,
+        refund_obligation=obligation,
+        source_label="Caution refund",
+    )
+
+    request_method = getattr(authenticated_client, method)
+    response = request_method(
+        f"{PAYMENT_LIST_URL}{refund_payment.id}/refund-confirm/",
         data={},
         content_type="application/json",
     )
@@ -199,3 +255,46 @@ def test_payment_confirm_fails_from_cancelled(authenticated_client, cancelled_pa
     assert response.status_code == 400
     payload = response.json()
     assert payload["code"] == "invalid_payment_confirmation_state"
+
+
+def test_refund_payment_create_rejects_non_pending_obligation(
+    authenticated_client,
+    django_user_model,
+):
+    _, obligation, _ = _pending_refund_obligation(django_user_model)
+    obligation.status = "settled"
+    obligation.save(update_fields=["status"])
+
+    response = authenticated_client.post(
+        PAYMENT_REFUND_CREATE_URL,
+        data={"refund_obligation_id": str(obligation.id)},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "refund_obligation_id" in response.json()
+
+
+def test_refund_payment_confirm_fails_from_cancelled(
+    authenticated_client,
+    django_user_model,
+):
+    _, obligation, _ = _pending_refund_obligation(django_user_model)
+    refund_payment = Payment.objects.create(
+        payment_kind=PaymentKind.REFUND,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+        payment_status=PaymentStatus.CANCELLED,
+        amount=obligation.amount,
+        refund_obligation=obligation,
+        source_label="Caution refund",
+    )
+
+    response = authenticated_client.post(
+        f"{PAYMENT_LIST_URL}{refund_payment.id}/refund-confirm/",
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == "invalid_payment_refund_state"

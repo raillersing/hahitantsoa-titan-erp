@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from tests.backend.test_payments_refund import _pending_refund_obligation
 
 from apps.documents.models import DocumentInstanceStatus
 from apps.payments.models import PaymentStatus
@@ -8,6 +9,7 @@ from apps.payments.models import PaymentStatus
 pytestmark = pytest.mark.django_db
 
 PAYMENT_LIST_URL = "/api/v1/payments/"
+PAYMENT_REFUND_CREATE_URL = "/api/v1/payments/refund/"
 
 
 @pytest.fixture
@@ -87,6 +89,65 @@ def test_payment_create_rejects_confirmed_status(authenticated_client) -> None:
 def test_payment_confirm_returns_404_for_unknown_payment(authenticated_client) -> None:
     response = authenticated_client.post(
         "/api/v1/payments/00000000-0000-0000-0000-000000000000/confirm/",
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+
+
+def test_authenticated_user_can_create_and_confirm_refund_payment(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    _, obligation, _ = _pending_refund_obligation(django_user_model)
+
+    create_response = authenticated_client.post(
+        PAYMENT_REFUND_CREATE_URL,
+        data={
+            "refund_obligation_id": str(obligation.id),
+            "notes": "Customer caution refund",
+        },
+        content_type="application/json",
+    )
+
+    assert create_response.status_code == 201
+    create_payload = create_response.json()
+    assert create_payload["payment_kind"] == "refund"
+    assert create_payload["payment_status"] == PaymentStatus.PENDING
+    assert Decimal(create_payload["amount"]) == obligation.amount
+    assert create_payload["refund_obligation"] == str(obligation.id)
+    assert create_payload["receipt_document"] is None
+
+    confirm_response = authenticated_client.post(
+        f"{PAYMENT_LIST_URL}{create_payload['id']}/refund-confirm/",
+        data={"notes": "Refund issued"},
+        content_type="application/json",
+    )
+
+    assert confirm_response.status_code == 200
+    confirm_payload = confirm_response.json()
+    assert confirm_payload["payment_kind"] == "refund"
+    assert confirm_payload["payment_status"] == PaymentStatus.CONFIRMED
+    assert Decimal(confirm_payload["amount"]) == obligation.amount
+    assert confirm_payload["receipt_document"]["template_key"] == "shared.payment_refund_receipt.v1"
+    assert confirm_payload["receipt_document"]["status"] == DocumentInstanceStatus.GENERATED
+
+
+def test_refund_payment_create_rejects_unknown_obligation(authenticated_client) -> None:
+    response = authenticated_client.post(
+        PAYMENT_REFUND_CREATE_URL,
+        data={"refund_obligation_id": "00000000-0000-0000-0000-000000000000"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "refund_obligation_id" in response.json()
+
+
+def test_refund_payment_confirm_returns_404_for_unknown_payment(authenticated_client) -> None:
+    response = authenticated_client.post(
+        "/api/v1/payments/00000000-0000-0000-0000-000000000000/refund-confirm/",
         data={},
         content_type="application/json",
     )
