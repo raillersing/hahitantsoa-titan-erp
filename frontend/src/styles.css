@@ -1460,3 +1460,53 @@ fieldset:disabled {
 
 
 
+
+/* ─── Error Boundary Fallback ─────────────────────────────────────────────── */
+
+.error-boundary-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.error-boundary-fallback__inner {
+  max-width: 480px;
+  text-align: center;
+  padding: 40px 32px;
+  background: #ffffff;
+  border: 1px solid #e0e7ef;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+}
+
+.error-boundary-fallback__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #c0392b;
+  margin: 0 0 12px;
+}
+
+.error-boundary-fallback__message {
+  font-size: 0.88rem;
+  color: #607080;
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+
+.error-boundary-fallback__retry {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: none;
+  background: #2c7be5;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.error-boundary-fallback__retry:hover {
+  background: #1a6ad4;
+}

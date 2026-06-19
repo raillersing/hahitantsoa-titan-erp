@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { getInventoryItems, getHahitantsoaEventDrafts, getReservationDrafts } from "./api";
+import { getInventoryItems, getHahitantsoaEventDrafts, getReservationDrafts, getPayments } from "./api";
+
 
 type DashboardMetrics = {
   inventoryCount: number;
   eventDraftCount: number;
   reservationDraftCount: number;
+  paymentCount: number;
 };
+
 
 type DashboardPanelProps = {
   onNavigate: (scope: "titan" | "hahitantsoa" | "commercial-ops") => void;
@@ -16,7 +19,9 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
     inventoryCount: 0,
     eventDraftCount: 0,
     reservationDraftCount: 0,
+    paymentCount: 0,
   });
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -25,17 +30,20 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
 
     async function fetchDashboardData() {
       try {
-        const [items, eventDrafts, reservationDrafts] = await Promise.all([
+        const [items, eventDrafts, reservationDrafts, payments] = await Promise.all([
           getInventoryItems(controller.signal),
           getHahitantsoaEventDrafts(controller.signal),
           getReservationDrafts(controller.signal),
+          getPayments(controller.signal).catch(() => [] as import('./types').Payment[]),
         ]);
 
         setMetrics({
           inventoryCount: items.length,
           eventDraftCount: eventDrafts.length,
           reservationDraftCount: reservationDrafts.length,
+          paymentCount: payments.length,
         });
+
         setLoading(false);
       } catch (err) {
         if (controller.signal.aborted) return;
@@ -131,7 +139,7 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
             <h3>Commercial Operations</h3>
             <span className="metric-badge">Operations</span>
           </div>
-          <p className="metric-value">-</p>
+          <p className="metric-value">{metrics.paymentCount}</p>
           <p className="metric-desc">Billing, payments capture, operational logistics, returns, and damages closeout.</p>
           <button
             type="button"
