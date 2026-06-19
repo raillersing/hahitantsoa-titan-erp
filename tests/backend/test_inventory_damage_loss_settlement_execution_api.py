@@ -8,6 +8,7 @@ from tests.backend.test_inventory_damage_loss_settlement_model import (
 
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
+    InventoryDamageLossSettlementExecution,
     InventoryStockMovement,
 )
 from apps.inventory.services import (
@@ -286,3 +287,60 @@ def test_execution_detail_rejects_write_methods(
     )
 
     assert response.status_code == 405
+
+
+def test_execution_list_filter_by_status(authenticated_client, django_user_model):
+    _, settlement_a = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("0.00"),
+        line_amount=Decimal("10000.00"),
+    )
+    _, settlement_b = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("0.00"),
+        line_amount=Decimal("20000.00"),
+    )
+    matching = InventoryDamageLossSettlementExecution.objects.create(
+        settlement=settlement_a,
+        status="draft",
+    )
+    user = django_user_model.objects.create_user(username="exec-filter", password="pass")
+    InventoryDamageLossSettlementExecution.objects.create(
+        settlement=settlement_b,
+        status="executed",
+        executed_at=__import__("django.utils.timezone", fromlist=["timezone"]).now(),
+        executed_by=user,
+    )
+    response = authenticated_client.get(f"{DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL}?status=draft")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+def test_execution_list_filter_by_settlement(authenticated_client, django_user_model):
+    _, settlement_a = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("0.00"),
+        line_amount=Decimal("10000.00"),
+    )
+    _, settlement_b = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("0.00"),
+        line_amount=Decimal("20000.00"),
+    )
+    matching = InventoryDamageLossSettlementExecution.objects.create(
+        settlement=settlement_a,
+        status="draft",
+    )
+    InventoryDamageLossSettlementExecution.objects.create(
+        settlement=settlement_b,
+        status="draft",
+    )
+    response = authenticated_client.get(
+        f"{DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL}?settlement={str(settlement_a.id)}"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)

@@ -328,7 +328,14 @@ class InventoryDamageLossSettlementExecutionListCreateAPIView(generics.ListCreat
         return InventoryDamageLossSettlementExecutionSerializer
 
     def get_queryset(self):
-        return active_inventory_damage_loss_settlement_executions()
+        qs = active_inventory_damage_loss_settlement_executions()
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        settlement = self.request.query_params.get("settlement")
+        if settlement:
+            qs = qs.filter(settlement=settlement)
+        return qs
 
     @extend_schema(
         request=InventoryDamageLossSettlementExecutionCreateSerializer,
