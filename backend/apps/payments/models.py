@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.common.models import AuditableModel, TimestampedModel, UUIDModel
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.inventory.models import InventoryCautionRefundObligationStatus
 from apps.reservations.models import ReservationDraft
 
 
@@ -19,6 +20,7 @@ class PaymentKind(models.TextChoices):
     OWNER_INJECTION = "owner_injection", "owner_injection"
     INVESTOR_INJECTION = "investor_injection", "investor_injection"
     DATE_RESERVATION = "date_reservation", "date_reservation"
+    REFUND = "refund", "refund"
     OTHER = "other", "other"
 
 
@@ -58,6 +60,13 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
         blank=True,
         on_delete=models.PROTECT,
         related_name="payment_receipt",
+    )
+    refund_obligation = models.ForeignKey(
+        "inventory.InventoryCautionRefundObligation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="refund_payments",
     )
     payment_kind = models.CharField(max_length=32, choices=PaymentKind.choices)
     payment_method = models.CharField(max_length=32, choices=PaymentMethod.choices)
@@ -121,6 +130,16 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
                 ),
                 name="payment_confirmed_marker_consistent",
             ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(payment_kind=PaymentKind.REFUND)
+                        & models.Q(refund_obligation__isnull=False)
+                    )
+                    | ~models.Q(payment_kind=PaymentKind.REFUND)
+                ),
+                name="payment_refund_requires_obligation",
+            ),
         ]
 
     def clean(self) -> None:
@@ -177,6 +196,17 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
         if self.payment_status in CONFIRMED_PAYMENT_STATUS_VALUES:
             if self.confirmed_at is None:
                 self.confirmed_at = timezone.now()
+
+        if self.payment_kind == PaymentKind.REFUND:
+            if self.refund_obligation_id is None:
+                raise ValidationError(
+                    {"refund_obligation": "Refund payments require a linked refund obligation."}
+                )
+            if (
+                self.refund_obligation_id
+                and self.refund_obligation.status != InventoryCautionRefundObligationStatus.PENDING
+            ):
+                raise ValidationError({"refund_obligation": "Refund obligation must be pending."})
 
     def __str__(self) -> str:
         return f"{self.payment_kind} {self.amount} ({self.payment_status})"

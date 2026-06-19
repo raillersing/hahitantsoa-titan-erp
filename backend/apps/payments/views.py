@@ -10,13 +10,17 @@ from .serializers import (
     PaymentConfirmSerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
+    RefundPaymentConfirmSerializer,
+    RefundPaymentCreateSerializer,
 )
 from .services import (
     PaymentLifecycleError,
     active_payments,
     cancel_payment,
     confirm_payment,
+    confirm_refund_payment,
     create_payment,
+    create_refund_payment,
     reconcile_payment,
 )
 
@@ -163,3 +167,68 @@ class PaymentReconcileAPIView(APIView):
             )
 
         return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
+
+
+class RefundPaymentCreateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedPaymentBoundary]
+
+    @extend_schema(
+        request=RefundPaymentCreateSerializer,
+        responses={
+            201: PaymentSerializer,
+            400: OpenApiResponse(description="Refund payment creation failed."),
+        },
+    )
+    def post(self, request):
+        serializer = RefundPaymentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            payment = create_refund_payment(
+                refund_obligation=serializer.validated_data["refund_obligation_id"],
+                actor=request.user,
+                notes=serializer.validated_data.get("notes"),
+            )
+        except PaymentLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
+
+
+class RefundPaymentConfirmAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedPaymentBoundary]
+
+    @extend_schema(
+        request=RefundPaymentConfirmSerializer,
+        responses={
+            200: PaymentSerializer,
+            400: OpenApiResponse(description="Refund payment confirmation failed."),
+            404: OpenApiResponse(description="Payment not found."),
+        },
+    )
+    def post(self, request, id):
+        serializer = RefundPaymentConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        payment = active_payments().filter(id=id).first()
+        if payment is None:
+            raise Http404("Payment not found.")
+
+        try:
+            result = confirm_refund_payment(
+                payment=payment,
+                actor=request.user,
+                **serializer.validated_data,
+            )
+        except PaymentLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(PaymentSerializer(result.payment).data, status=status.HTTP_200_OK)
