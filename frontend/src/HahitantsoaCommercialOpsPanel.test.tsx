@@ -85,6 +85,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([]);
     vi.spyOn(api, "getPayments").mockResolvedValue([]);
     vi.spyOn(api, "getBillingInvoices").mockResolvedValue([]);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
 
     render(<HahitantsoaCommercialOpsPanel />);
 
@@ -107,7 +108,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([]);
     vi.spyOn(api, "getPayments").mockResolvedValue([]);
     vi.spyOn(api, "getBillingInvoices").mockResolvedValue([]);
-
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
 
     render(<HahitantsoaCommercialOpsPanel />);
 
@@ -118,7 +119,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     expect(screen.getByTestId("card-billing")).toHaveTextContent("Partially Connected");
     // Payments is partially connected: PaymentWorkflowPanel embeds live backend payment endpoints
     expect(screen.getByTestId("card-payments")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-logistics")).toHaveTextContent("Pending Backend Integration");
+    expect(screen.getByTestId("card-logistics")).toHaveTextContent("Partially Connected");
     expect(screen.getByTestId("card-returns")).toHaveTextContent("Pending Backend Integration");
     expect(screen.getByTestId("card-breakage")).toHaveTextContent("Pending Backend Integration");
     expect(screen.getByTestId("card-stock")).toHaveTextContent("Pending Backend Integration");
@@ -130,6 +131,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     const templatesSpy = vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES);
     vi.spyOn(api, "getPayments").mockResolvedValue([]);
     vi.spyOn(api, "getBillingInvoices").mockResolvedValue([]);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
     const instancesSpy = vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
     const createSpy = vi.spyOn(api, "createReservationDraftDocumentInstance").mockResolvedValue(MOCK_INSTANCES[0]);
     const generateSpy = vi.spyOn(api, "generateReservationDraftDocumentInstance").mockResolvedValue({

@@ -66,9 +66,9 @@ const SECTIONS: CommercialSection[] = [
     id: "logistics",
     title: "Logistics & Delivery",
     badge: "Logistics",
-    status: "pending_backend",
-    statusLabel: "Pending Backend Integration",
-    description: "Prepare internal release notes and customer delivery execution checklists.",
+    status: "partially_connected",
+    statusLabel: "Partially Connected",
+    description: "View and track delivery events from logistics operations.",
     businessRule: "Requires explicit operator and date validation indicators.",
   },
   {
