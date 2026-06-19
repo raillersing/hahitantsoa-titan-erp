@@ -30,7 +30,19 @@ class ApplicationRoleListAPIView(generics.ListAPIView):
     serializer_class = ApplicationRoleSerializer
 
     def get_queryset(self):
-        return ApplicationRole.objects.filter(is_active=True).order_by("name")
+        queryset = ApplicationRole.objects.order_by("name")
+        name = self.request.query_params.get("name")
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+        is_system_managed = self.request.query_params.get("is_system_managed")
+        if is_system_managed is not None:
+            queryset = queryset.filter(is_system_managed=is_system_managed.lower() in ("true", "1"))
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() in ("true", "1"))
+        else:
+            queryset = queryset.filter(is_active=True)
+        return queryset
 
 
 class UserRoleAssignmentListAPIView(generics.ListAPIView):
@@ -43,6 +55,15 @@ class UserRoleAssignmentListAPIView(generics.ListAPIView):
         user_id = self.request.query_params.get("user_id")
         if user_id:
             queryset = queryset.filter(user__id=user_id)
+        role_id = self.request.query_params.get("role_id")
+        if role_id:
+            queryset = queryset.filter(role__id=role_id)
+        assigned_after = self.request.query_params.get("assigned_after")
+        if assigned_after:
+            queryset = queryset.filter(assigned_at__gte=assigned_after)
+        assigned_before = self.request.query_params.get("assigned_before")
+        if assigned_before:
+            queryset = queryset.filter(assigned_at__lte=assigned_before)
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() in ("true", "1"))

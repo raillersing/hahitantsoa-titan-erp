@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -67,6 +69,53 @@ def test_role_list_operator_allowed(operator_authenticated_client):
     assert response.status_code == 200
 
 
+def test_role_list_filters_by_name_and_system_flags(staff_authenticated_client):
+    active_system = ApplicationRole.objects.create(
+        name="Accounting Lead",
+        slug="accounting-lead",
+        is_system_managed=True,
+        is_active=True,
+    )
+    ApplicationRole.objects.create(
+        name="Archive Clerk",
+        slug="archive-clerk",
+        is_system_managed=False,
+        is_active=True,
+    )
+    ApplicationRole.objects.create(
+        name="Dormant Reviewer",
+        slug="dormant-reviewer",
+        is_system_managed=False,
+        is_active=False,
+    )
+
+    response = staff_authenticated_client.get(
+        IDENTITY_ROLE_LIST_URL,
+        {"name": "Accounting", "is_system_managed": "true", "is_active": "true"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [row["slug"] for row in data] == [active_system.slug]
+
+
+def test_role_list_can_include_inactive_roles_when_requested(staff_authenticated_client):
+    ApplicationRole.objects.create(
+        name="Inactive Role",
+        slug="inactive-role",
+        is_active=False,
+    )
+
+    response = staff_authenticated_client.get(
+        IDENTITY_ROLE_LIST_URL,
+        {"is_active": "false"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert {row["slug"] for row in data} == {"inactive-role"}
+
+
 # ---- assignment list ----
 
 
@@ -77,11 +126,52 @@ def test_assignment_list_regular_user_forbidden(regular_authenticated_client):
 
 def test_assignment_list_staff_allowed(staff_authenticated_client, sample_role):
     user = User.objects.create_user(username="target", password="p")
-    UserRoleAssignment.objects.create(user=user, role=sample_role)
+    first = UserRoleAssignment.objects.create(user=user, role=sample_role)
+    UserRoleAssignment.objects.filter(id=first.id).update(
+        assigned_at=datetime(2026, 1, 1, 10, 0, tzinfo=UTC)
+    )
+    second_role = ApplicationRole.objects.create(name="Second", slug="second")
+    second = UserRoleAssignment.objects.create(user=user, role=second_role)
+    UserRoleAssignment.objects.filter(id=second.id).update(
+        assigned_at=datetime(2026, 1, 3, 10, 0, tzinfo=UTC)
+    )
     response = staff_authenticated_client.get(IDENTITY_ASSIGNMENT_LIST_URL)
     assert response.status_code == 200
     data = response.json()
-    assert len(data) >= 1
+    assert {row["id"] for row in data} >= {str(first.id), str(second.id)}
+
+
+def test_assignment_list_filters_by_role_and_date_range(staff_authenticated_client):
+    user = User.objects.create_user(username="target-filter", password="p")
+    other_user = User.objects.create_user(username="target-filter-2", password="p")
+    role_a = ApplicationRole.objects.create(name="Role A", slug="role-a")
+    role_b = ApplicationRole.objects.create(name="Role B", slug="role-b")
+    early = UserRoleAssignment.objects.create(user=user, role=role_a)
+    UserRoleAssignment.objects.filter(id=early.id).update(
+        assigned_at=datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+    )
+    middle = UserRoleAssignment.objects.create(user=user, role=role_b)
+    UserRoleAssignment.objects.filter(id=middle.id).update(
+        assigned_at=datetime(2026, 1, 2, 9, 0, tzinfo=UTC)
+    )
+    late = UserRoleAssignment.objects.create(user=other_user, role=role_a)
+    UserRoleAssignment.objects.filter(id=late.id).update(
+        assigned_at=datetime(2026, 1, 4, 9, 0, tzinfo=UTC)
+    )
+
+    response = staff_authenticated_client.get(
+        IDENTITY_ASSIGNMENT_LIST_URL,
+        {
+            "role_id": str(role_b.id),
+            "assigned_after": "2026-01-01T12:00:00Z",
+            "assigned_before": "2026-01-03T12:00:00Z",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [row["id"] for row in data] == [str(middle.id)]
+    assert str(early.id) not in {row["id"] for row in data}
 
 
 # ---- sync system roles ----
