@@ -26,14 +26,35 @@ def authenticated_client(client, authenticated_user):
     return client
 
 
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="payment-api-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
+    return client
+
+
 def test_payment_list_requires_authentication(client) -> None:
     response = client.get(PAYMENT_LIST_URL)
 
     assert response.status_code in {401, 403}
 
 
-def test_authenticated_user_can_create_list_and_confirm_payment(authenticated_client) -> None:
-    create_response = authenticated_client.post(
+def test_sensitive_user_can_create_confirm_and_authenticated_user_can_list_payment(
+    sensitive_client,
+    authenticated_client,
+) -> None:
+    create_response = sensitive_client.post(
         PAYMENT_LIST_URL,
         data={
             "payment_kind": "date_reservation",
@@ -55,7 +76,7 @@ def test_authenticated_user_can_create_list_and_confirm_payment(authenticated_cl
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
 
-    confirm_response = authenticated_client.post(
+    confirm_response = sensitive_client.post(
         f"{PAYMENT_LIST_URL}{create_payload['id']}/confirm/",
         data={"external_reference": "MVOLA-001-CONFIRMED"},
         content_type="application/json",
@@ -69,8 +90,66 @@ def test_authenticated_user_can_create_list_and_confirm_payment(authenticated_cl
     assert confirm_payload["receipt_document"]["status"] == DocumentInstanceStatus.GENERATED
 
 
-def test_payment_create_rejects_confirmed_status(authenticated_client) -> None:
+def test_payment_create_requires_authentication(client) -> None:
+    response = client.post(
+        PAYMENT_LIST_URL,
+        data={
+            "payment_kind": "date_reservation",
+            "payment_method": "mobile_money",
+            "payment_status": "pending",
+            "amount": "250000.00",
+            "source_label": "Anon attempt",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_payment_create_requires_sensitive_access(authenticated_client) -> None:
     response = authenticated_client.post(
+        PAYMENT_LIST_URL,
+        data={
+            "payment_kind": "date_reservation",
+            "payment_method": "mobile_money",
+            "payment_status": "pending",
+            "amount": "250000.00",
+            "source_label": "Non-sensitive attempt",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_payment_confirm_requires_sensitive_access(
+    sensitive_client,
+    authenticated_client,
+) -> None:
+    create_response = sensitive_client.post(
+        PAYMENT_LIST_URL,
+        data={
+            "payment_kind": "date_reservation",
+            "payment_method": "mobile_money",
+            "payment_status": "pending",
+            "amount": "250000.00",
+            "source_label": "Confirm split payment",
+        },
+        content_type="application/json",
+    )
+    payment_id = create_response.json()["id"]
+
+    response = authenticated_client.post(
+        f"{PAYMENT_LIST_URL}{payment_id}/confirm/",
+        data={"external_reference": "NON-SENSITIVE-CONFIRM"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_payment_create_rejects_confirmed_status(sensitive_client) -> None:
+    response = sensitive_client.post(
         PAYMENT_LIST_URL,
         data={
             "payment_kind": "deposit",
@@ -86,8 +165,8 @@ def test_payment_create_rejects_confirmed_status(authenticated_client) -> None:
     assert "payment_status" in response.json()
 
 
-def test_payment_confirm_returns_404_for_unknown_payment(authenticated_client) -> None:
-    response = authenticated_client.post(
+def test_payment_confirm_returns_404_for_unknown_payment(sensitive_client) -> None:
+    response = sensitive_client.post(
         "/api/v1/payments/00000000-0000-0000-0000-000000000000/confirm/",
         data={},
         content_type="application/json",
@@ -96,13 +175,13 @@ def test_payment_confirm_returns_404_for_unknown_payment(authenticated_client) -
     assert response.status_code == 404
 
 
-def test_authenticated_user_can_create_and_confirm_refund_payment(
-    authenticated_client,
+def test_sensitive_user_can_create_and_confirm_refund_payment(
+    sensitive_client,
     django_user_model,
 ) -> None:
     _, obligation, _ = _pending_refund_obligation(django_user_model)
 
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         PAYMENT_REFUND_CREATE_URL,
         data={
             "refund_obligation_id": str(obligation.id),
@@ -119,7 +198,7 @@ def test_authenticated_user_can_create_and_confirm_refund_payment(
     assert create_payload["refund_obligation"] == str(obligation.id)
     assert create_payload["receipt_document"] is None
 
-    confirm_response = authenticated_client.post(
+    confirm_response = sensitive_client.post(
         f"{PAYMENT_LIST_URL}{create_payload['id']}/refund-confirm/",
         data={"notes": "Refund issued"},
         content_type="application/json",
@@ -134,8 +213,8 @@ def test_authenticated_user_can_create_and_confirm_refund_payment(
     assert confirm_payload["receipt_document"]["status"] == DocumentInstanceStatus.GENERATED
 
 
-def test_refund_payment_create_rejects_unknown_obligation(authenticated_client) -> None:
-    response = authenticated_client.post(
+def test_refund_payment_create_rejects_unknown_obligation(sensitive_client) -> None:
+    response = sensitive_client.post(
         PAYMENT_REFUND_CREATE_URL,
         data={"refund_obligation_id": "00000000-0000-0000-0000-000000000000"},
         content_type="application/json",
@@ -145,8 +224,8 @@ def test_refund_payment_create_rejects_unknown_obligation(authenticated_client) 
     assert "refund_obligation_id" in response.json()
 
 
-def test_refund_payment_confirm_returns_404_for_unknown_payment(authenticated_client) -> None:
-    response = authenticated_client.post(
+def test_refund_payment_confirm_returns_404_for_unknown_payment(sensitive_client) -> None:
+    response = sensitive_client.post(
         "/api/v1/payments/00000000-0000-0000-0000-000000000000/refund-confirm/",
         data={},
         content_type="application/json",

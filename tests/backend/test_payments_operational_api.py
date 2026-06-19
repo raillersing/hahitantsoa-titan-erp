@@ -28,6 +28,24 @@ def authenticated_client(client, authenticated_user):
     return client
 
 
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="payment-ops-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
+    return client
+
+
 def _generated_receipt_document():
     return DocumentInstance.objects.create(
         template_key="shared.payment_receipt.v1",
@@ -86,8 +104,51 @@ def confirmed_payment(authenticated_user):
     )
 
 
-def test_cancel_payment_from_pending(authenticated_client, pending_payment):
+def test_payment_cancel_requires_authentication(client, pending_payment) -> None:
+    response = client.post(
+        f"{PAYMENT_LIST_URL}{pending_payment.id}/cancel/",
+        data={"notes": "Anon attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_payment_cancel_requires_sensitive_access(authenticated_client, pending_payment) -> None:
     response = authenticated_client.post(
+        f"{PAYMENT_LIST_URL}{pending_payment.id}/cancel/",
+        data={"notes": "Non-sensitive attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_payment_reconcile_requires_authentication(client, confirmed_payment) -> None:
+    response = client.post(
+        f"{PAYMENT_LIST_URL}{confirmed_payment.id}/reconcile/",
+        data={"notes": "Anon attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_payment_reconcile_requires_sensitive_access(
+    authenticated_client,
+    confirmed_payment,
+) -> None:
+    response = authenticated_client.post(
+        f"{PAYMENT_LIST_URL}{confirmed_payment.id}/reconcile/",
+        data={"notes": "Non-sensitive attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_cancel_payment_from_pending(sensitive_client, pending_payment):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL + str(pending_payment.id) + "/cancel/",
         data={"notes": "Cancelled by customer"},
         content_type="application/json",
@@ -98,8 +159,8 @@ def test_cancel_payment_from_pending(authenticated_client, pending_payment):
     assert payload["notes"] == "Cancelled by customer"
 
 
-def test_cancel_payment_fails_from_confirmed(authenticated_client, confirmed_payment):
-    response = authenticated_client.post(
+def test_cancel_payment_fails_from_confirmed(sensitive_client, confirmed_payment):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL + str(confirmed_payment.id) + "/cancel/",
         data={},
         content_type="application/json",
@@ -109,8 +170,8 @@ def test_cancel_payment_fails_from_confirmed(authenticated_client, confirmed_pay
     assert payload["code"] == "invalid_payment_cancel_state"
 
 
-def test_cancel_payment_returns_404_for_unknown_payment(authenticated_client):
-    response = authenticated_client.post(
+def test_cancel_payment_returns_404_for_unknown_payment(sensitive_client):
+    response = sensitive_client.post(
         "/api/v1/payments/00000000-0000-0000-0000-000000000000/cancel/",
         data={},
         content_type="application/json",
@@ -118,8 +179,8 @@ def test_cancel_payment_returns_404_for_unknown_payment(authenticated_client):
     assert response.status_code == 404
 
 
-def test_reconcile_payment_from_confirmed(authenticated_client, confirmed_payment):
-    response = authenticated_client.post(
+def test_reconcile_payment_from_confirmed(sensitive_client, confirmed_payment):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL + str(confirmed_payment.id) + "/reconcile/",
         data={"notes": "Reconciled by accountant"},
         content_type="application/json",
@@ -130,8 +191,8 @@ def test_reconcile_payment_from_confirmed(authenticated_client, confirmed_paymen
     assert payload["notes"] == "Reconciled by accountant"
 
 
-def test_reconcile_payment_fails_from_pending(authenticated_client, pending_payment):
-    response = authenticated_client.post(
+def test_reconcile_payment_fails_from_pending(sensitive_client, pending_payment):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL + str(pending_payment.id) + "/reconcile/",
         data={},
         content_type="application/json",
@@ -141,8 +202,8 @@ def test_reconcile_payment_fails_from_pending(authenticated_client, pending_paym
     assert payload["code"] == "invalid_payment_reconcile_state"
 
 
-def test_reconcile_payment_returns_404_for_unknown_payment(authenticated_client):
-    response = authenticated_client.post(
+def test_reconcile_payment_returns_404_for_unknown_payment(sensitive_client):
+    response = sensitive_client.post(
         "/api/v1/payments/00000000-0000-0000-0000-000000000000/reconcile/",
         data={},
         content_type="application/json",

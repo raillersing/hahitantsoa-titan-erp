@@ -5,6 +5,8 @@ from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.identity.permissions import HasReservationSensitiveAccess
+
 from .permissions import IsAuthenticatedPaymentBoundary
 from .serializers import (
     PaymentConfirmSerializer,
@@ -28,6 +30,11 @@ from .services import (
 class PaymentListCreateAPIView(ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticatedPaymentBoundary]
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasReservationSensitiveAccess()]
+        return [permission() for permission in self.permission_classes]
 
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
@@ -73,7 +80,7 @@ class PaymentRetrieveAPIView(RetrieveAPIView):
 
 class PaymentConfirmAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedPaymentBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=PaymentConfirmSerializer,
@@ -107,7 +114,7 @@ class PaymentConfirmAPIView(APIView):
 
 class PaymentCancelAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedPaymentBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         responses={
@@ -139,7 +146,7 @@ class PaymentCancelAPIView(APIView):
 
 class PaymentReconcileAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedPaymentBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         responses={
@@ -171,7 +178,7 @@ class PaymentReconcileAPIView(APIView):
 
 class RefundPaymentCreateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedPaymentBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=RefundPaymentCreateSerializer,
@@ -201,7 +208,7 @@ class RefundPaymentCreateAPIView(APIView):
 
 class RefundPaymentConfirmAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedPaymentBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=RefundPaymentConfirmSerializer,
