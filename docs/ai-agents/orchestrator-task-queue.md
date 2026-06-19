@@ -2,21 +2,18 @@
 
 ## Current State
 
-- `origin/main` HEAD is `a2e9e95` (post PRs #283–#286, #293, #300, #301, #302, #303, #304, #305, #307 merges).
+- `origin/main` HEAD is `e504ba1` (post PRs #283–#286, #293, #300, #301, #302, #303, #304, #305, #307, #308 merges).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
 - Identity / role management foundation merged as PR #282.
-- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API).
+- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
 - Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh).
 - Open PRs:
-  - PR #294 `feat/inventory-item-list-filtering` — non-draft, inventory item list filtering
-  - PRs #295–#299 — draft, various inventory/hahitantsoa filtering PRs
+  - None in backend commercial queue; all closed and merged.
 - F147F frontend worktree is paused and must not be touched.
-- F150B backend worktree is active for Codex and must not be touched.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
-
 ## Backend Commercial Operations Status
 
 ### F145A
@@ -90,24 +87,21 @@ Scope delivered:
 ### Recommended next backend bundle
 
 Status:
-- next backend commercial bundle after PR #283 merge and current open PRs
+- next backend commercial bundle after full PR queue integration and main green
 
 Recommended scope:
-- inventory item list filtering and search
+- identity role list filtering and negative permission tests
 
 Reason:
-- billing foundation, payment operational completion, customer write endpoints,
-  reservation draft filtering, and identity role management are already implemented
-  or in open PRs
-- inventory is one of the most frequently read domains and its list endpoint currently
-  has no query-param filtering
-- list filtering is a coherent, bounded medium bundle that follows the established
-  pattern of recent PRs #288, #289, and #292
+- identity/role management foundation (PR #282) is merged and functional
+- the next natural increment is list filtering (ApplicationRole by name/scope, UserRoleAssignment by role/assigned date range) and negative permission tests for identity endpoints
+- this follows the established pattern of recent PRs #288-#292 and #290
 - it requires no migrations, no frontend changes, and no new business decisions
 
 Allowed scope:
-- backend inventory item list filtering (name, kind, is_active)
-- backend inventory item tests for filtering
+- backend ApplicationRole list filtering (name, scope)
+- backend UserRoleAssignment list filtering enhancements (role, assigned date range)
+- backend identity negative permission and failure-mode tests
 - backend commercial audit/status docs needed for that bundle
 
 Forbidden scope:
@@ -115,23 +109,21 @@ Forbidden scope:
 - Antigravity/tooling files
 - F140D
 - `.env`, secrets, quarantine, or unrelated worktrees
-- broad inventory refactor beyond list filtering
+- broad identity refactor beyond list filtering and focused tests
 
 Hard stops:
 - any required frontend change
 - any required touch to Antigravity/tooling work
 - any ambiguity about unrelated dirty state
-- any need to broaden into valuation, warehouse operations, or logistics without
-  explicit authorization
+- any need to broaden into RBAC enforcement on commercial endpoints without explicit authorization
 
 Expected validation:
 - backend-focused quality checks
-- focused billing/payment tests
+- focused identity tests
 - `git diff --check`
 - PR CI green before merge
 - `main` CI green after merge
 - cleanup of the task worktree/branch after merge
-
 ## Frontend Catch-Up Status
 
 ### Current state
@@ -248,9 +240,9 @@ Scope delivered:
 - No automatic merge
 
 Expected validation:
-- git diff --check
+- `git diff --check`
 - PR CI green before merge
-- main CI green after merge
+- `main` CI green after merge
 
 ### F147D
 
@@ -271,7 +263,7 @@ Validation:
 - bash scripts/dev/erp-agent-scope-guard agent-tools — passes for this PR
 - git diff --check — PASS
 - PR CI green before merge
-- main CI green after merge
+- `main` CI green after merge
 
 ### F148A
 
@@ -291,7 +283,7 @@ Scope delivered:
 
 Validation:
 - PR CI green (both Backend quality and Frontend quality passed)
-- main CI green after merge
+- `main` CI green after merge
 - No backend, frontend, test, or script files modified
 
 Validation:
@@ -497,7 +489,7 @@ Validation:
 - grep proving --match-head-commit in merge command
 - grep proving no --delete-branch in executable merge command
 - PR CI green before merge
-- main CI green after merge
+- `main` CI green after merge
 
 ### F151A-0
 
@@ -585,7 +577,7 @@ Validation:
 - confirm no backend/frontend/test/.github/.env/dependency manifest mutations
 - confirm no `.agents/skills/` or `.opencode/skills/` mutations
 - PR CI green before merge
-- main CI green after merge
+- `main` CI green after merge
 
 ## Later Repair Track
 
