@@ -81,6 +81,23 @@ def generate_document_instance_html(
             )
         context = build_payment_receipt_context(payment=payment)
         template_path = "documents/shared_payment_receipt.html"
+    elif document_instance.template_key == "shared.payment_refund_receipt.v1":
+        from apps.payments.models import Payment
+
+        payment = (
+            Payment.objects.select_related(
+                "refund_obligation__settlement_execution__settlement__return_operation__reservation_draft__customer"
+            )
+            .filter(receipt_document=document_instance)
+            .first()
+        )
+        if payment is None:
+            raise DocumentRuntimeGenerationError(
+                "Payment refund receipt document is not linked to a payment source.",
+                code="payment_refund_receipt_payment_not_found",
+            )
+        context = build_payment_receipt_context(payment=payment)
+        template_path = "documents/shared_payment_refund_receipt.html"
     elif document_instance.template_key == "shared.damage_loss_excess_invoice.v1":
         # Fetch the excess receivable linked to this document instance
         excess_receivable = (

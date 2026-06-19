@@ -3,9 +3,10 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.documents.serializers import DocumentInstanceSerializer
+from apps.inventory.models import InventoryCautionRefundObligation
 from apps.reservations.models import ReservationDraft
 
-from .models import Payment, PaymentStatus
+from .models import Payment, PaymentKind, PaymentStatus
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -17,6 +18,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             "id",
             "reservation_draft",
             "receipt_document",
+            "refund_obligation",
             "payment_kind",
             "payment_method",
             "payment_status",
@@ -72,6 +74,13 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Amount must be greater than zero.")
         return value
 
+    def validate_payment_kind(self, value: str) -> str:
+        if value == PaymentKind.REFUND:
+            raise serializers.ValidationError(
+                "Refund payments must be created through the dedicated refund endpoint."
+            )
+        return value
+
     def validate(self, attrs):
         reservation_draft = attrs.get("reservation_draft")
         source_label = (attrs.get("source_label") or "").strip()
@@ -90,4 +99,23 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
 class PaymentConfirmSerializer(serializers.Serializer):
     paid_at = serializers.DateTimeField(required=False)
     external_reference = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class RefundPaymentCreateSerializer(serializers.Serializer):
+    refund_obligation_id = serializers.UUIDField(required=True)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_refund_obligation_id(self, value):
+        try:
+            obligation = InventoryCautionRefundObligation.objects.get(id=value)
+        except InventoryCautionRefundObligation.DoesNotExist:
+            raise serializers.ValidationError("Refund obligation not found.")
+        if obligation.status != "pending":
+            raise serializers.ValidationError("Refund obligation must be pending.")
+        return obligation
+
+
+class RefundPaymentConfirmSerializer(serializers.Serializer):
+    paid_at = serializers.DateTimeField(required=False)
     notes = serializers.CharField(required=False, allow_blank=True)
