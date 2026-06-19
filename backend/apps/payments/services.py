@@ -21,6 +21,8 @@ class PaymentLifecycleError(ValueError):
 
 
 INVALID_PAYMENT_CONFIRMATION_STATE = "invalid_payment_confirmation_state"
+INVALID_PAYMENT_CANCEL_STATE = "invalid_payment_cancel_state"
+INVALID_PAYMENT_RECONCILE_STATE = "invalid_payment_reconcile_state"
 PAYMENT_RECEIPT_TEMPLATE_NOT_FOUND = "payment_receipt_template_not_found"
 
 
@@ -187,3 +189,74 @@ def confirm_payment(
         payment=payment,
         receipt_document=receipt_document,
     )
+
+
+@transaction.atomic
+def cancel_payment(
+    *,
+    payment: Payment,
+    actor: object | None = None,
+    notes: str | None = None,
+) -> Payment:
+    if payment.payment_status != PaymentStatus.PENDING:
+        raise PaymentLifecycleError(
+            f"Cannot cancel payment from status: {payment.payment_status}",
+            code=INVALID_PAYMENT_CANCEL_STATE,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+    payment.payment_status = PaymentStatus.CANCELLED
+    if notes is not None:
+        payment.notes = notes
+    payment.updated_by_id = actor_id
+    payment.full_clean()
+    payment.save()
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="payment.cancelled",
+        target_type="payment",
+        target_id=str(payment.id),
+        metadata={
+            "payment_kind": payment.payment_kind,
+            "payment_method": payment.payment_method,
+            "amount": str(payment.amount),
+        },
+    )
+    return payment
+
+
+@transaction.atomic
+def reconcile_payment(
+    *,
+    payment: Payment,
+    actor: object | None = None,
+    notes: str | None = None,
+) -> Payment:
+    if payment.payment_status != PaymentStatus.CONFIRMED:
+        raise PaymentLifecycleError(
+            f"Cannot reconcile payment from status: {payment.payment_status}",
+            code=INVALID_PAYMENT_RECONCILE_STATE,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+    payment.payment_status = PaymentStatus.RECONCILED
+    if notes is not None:
+        payment.notes = notes
+    payment.updated_by_id = actor_id
+    payment.full_clean()
+    payment.save()
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="payment.reconciled",
+        target_type="payment",
+        target_id=str(payment.id),
+        metadata={
+            "payment_kind": payment.payment_kind,
+            "payment_method": payment.payment_method,
+            "amount": str(payment.amount),
+            "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
+        },
+    )
+    return payment
