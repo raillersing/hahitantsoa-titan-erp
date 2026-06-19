@@ -588,6 +588,35 @@ Scope delivered:
 - `.agents/skills/erp-scope-guard-setup/SKILL.md` — scope guard profiles, usage, and troubleshooting
 - UPDATED: `docs/ai-agents/tooling/agent-shared-skills.md` — added all 5 new skills to table
 
+### F151D
+
+Status:
+- **IN PROGRESS**
+- task: recurring errors to skills matrix
+- scope: add a docs/audits matrix mapping recurring ERP workflow errors to the
+  correct skills, validation commands, prevention rules, and hard stops; add a short
+  runbook pointer; update the queue status entry
+- allowed scope:
+  - `docs/audits/F151D_RECURRING_ERRORS_TO_SKILLS_MATRIX.md`
+  - `docs/ai-agents/agent-command-runbook.md`
+  - `docs/ai-agents/orchestrator-task-queue.md`
+- forbidden scope:
+  - `backend/`
+  - `frontend/`
+  - `tests/`
+  - `.github/`
+  - dependency manifests
+  - `.env` or secrets
+  - `.agents/skills/`
+  - paused F147F worktree
+  - identity-role-filter worktree or branch
+  - unrelated active worktrees
+- validation:
+  - `bash scripts/dev/erp-agent-scope-guard agent-docs`
+  - `git diff --check`
+- next step:
+  - review the matrix for consistency, then open a docs PR when the diff is clean
+
 ### Final skills portfolio (21 skills)
 
 ```
