@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -112,7 +113,25 @@ class ReservationDraftListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = ReservationDraftSerializer
 
     def get_queryset(self):
-        return active_reservation_drafts()
+        qs = active_reservation_drafts()
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        customer_id = self.request.query_params.get("customer_id")
+        if customer_id:
+            qs = qs.filter(customer_id=customer_id)
+        start_after = self.request.query_params.get("start_after")
+        if start_after:
+            qs = qs.filter(start_at__gte=start_after)
+        start_before = self.request.query_params.get("start_before")
+        if start_before:
+            qs = qs.filter(start_at__lte=start_before)
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(
+                Q(public_reference__icontains=search) | Q(customer__display_name__icontains=search)
+            )
+        return qs
 
 
 class ReservationDraftRetrieveAPIView(generics.RetrieveUpdateAPIView):

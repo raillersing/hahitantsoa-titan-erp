@@ -429,3 +429,123 @@ def test_reservation_draft_update_does_not_create_commercial_side_effects(
     draft.refresh_from_db()
     assert draft.status == "draft"
     assert InventoryAvailability.objects.count() == 0
+
+
+def test_reservation_draft_list_filter_by_status(authenticated_client):
+    start_at, end_at = _period()
+    draft_draft = ReservationDraft.objects.create(
+        customer=_customer("Draft Client"),
+        start_at=start_at,
+        end_at=end_at,
+        status="draft",
+    )
+    confirmed_draft = ReservationDraft.objects.create(
+        customer=_customer("Confirmed Client"),
+        start_at=start_at,
+        end_at=end_at,
+        status="confirmed",
+        confirmed_at=timezone.now(),
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft_draft,
+        inventory_item=_item("Draft item"),
+        quantity=1,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=confirmed_draft,
+        inventory_item=_item("Confirmed item"),
+        quantity=1,
+    )
+
+    response = authenticated_client.get(f"{DRAFT_LIST_URL}?status=confirmed")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(confirmed_draft.id)
+
+
+def test_reservation_draft_list_filter_by_customer_id(authenticated_client):
+    start_at, end_at = _period()
+    customer_a = _customer("Client A")
+    customer_b = _customer("Client B")
+    draft_a = ReservationDraft.objects.create(
+        customer=customer_a,
+        start_at=start_at,
+        end_at=end_at,
+    )
+    draft_b = ReservationDraft.objects.create(
+        customer=customer_b,
+        start_at=start_at,
+        end_at=end_at,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft_a,
+        inventory_item=_item("Item A"),
+        quantity=1,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft_b,
+        inventory_item=_item("Item B"),
+        quantity=1,
+    )
+
+    response = authenticated_client.get(f"{DRAFT_LIST_URL}?customer_id={customer_a.id}")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(draft_a.id)
+
+
+def test_reservation_draft_list_filter_by_start_at_range(authenticated_client):
+    now = timezone.now().replace(microsecond=0)
+    past_draft = ReservationDraft.objects.create(
+        customer=_customer("Past Client"),
+        start_at=now - timedelta(days=2),
+        end_at=now - timedelta(days=1),
+    )
+    future_draft = ReservationDraft.objects.create(
+        customer=_customer("Future Client"),
+        start_at=now + timedelta(days=2),
+        end_at=now + timedelta(days=3),
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=past_draft,
+        inventory_item=_item("Past item"),
+        quantity=1,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=future_draft,
+        inventory_item=_item("Future item"),
+        quantity=1,
+    )
+
+    past_str = (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    response = authenticated_client.get(f"{DRAFT_LIST_URL}?start_after={past_str}")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(future_draft.id)
+
+
+def test_reservation_draft_list_search_by_public_reference(authenticated_client):
+    start_at, end_at = _period()
+    draft = ReservationDraft.objects.create(
+        customer=_customer("Search Client"),
+        start_at=start_at,
+        end_at=end_at,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=_item("Search item"),
+        quantity=1,
+    )
+
+    response = authenticated_client.get(f"{DRAFT_LIST_URL}?search={draft.public_reference[:5]}")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(draft.id)
+
+    response = authenticated_client.get(f"{DRAFT_LIST_URL}?search=NonExistentRef")
+    assert response.status_code == 200
+    assert len(response.json()) == 0
