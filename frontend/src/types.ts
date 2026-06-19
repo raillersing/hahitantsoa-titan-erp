@@ -450,22 +450,48 @@ export type InventoryReturnOperation = {
   updated_by: string | null;
 };
 
-// ---- Breakage & Loss (pending backend) ----
+// ---- Damage & Loss ----
 
-export type BreakageStatus = 'reported' | 'assessed' | 'invoiced' | 'resolved';
+export type SettlementStatus = 'draft' | 'validated' | 'cancelled';
 
-export type BreakageRecord = {
+export type SettlementLineKind = 'damage' | 'loss' | 'repair' | 'non_inventory_damage' | 'other';
+
+export type SettlementAmountSource = 'manual' | 'inventory_default' | 'pricing_table' | 'override';
+
+export type InventoryDamageLossSettlementLine = {
   id: string;
-  reservation_draft: string | null;
-  reference: string;
-  status: BreakageStatus;
-  reported_at: string | null;
-  item_description: string;
-  estimated_value: string;
-  invoice_reference: string;
+  return_operation_line: string | null;
+  manual_label: string;
+  settlement_line_kind: SettlementLineKind;
+  quantity: number;
+  unit_amount: number;
+  amount_source: SettlementAmountSource;
+  total_amount: number;
   notes: string;
   created_at: string;
   updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type InventoryDamageLossSettlement = {
+  id: string;
+  return_operation: string;
+  document_instance: string | null;
+  settlement_status: SettlementStatus;
+  damage_loss_total: number;
+  caution_available: number;
+  caution_applied: number;
+  refund_due: number;
+  excess_due: number;
+  notes: string;
+  validated_at: string | null;
+  validated_by: string | null;
+  lines: InventoryDamageLossSettlementLine[];
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
 };
 
 // ---- Stock Movement Ledger (pending backend) ----
