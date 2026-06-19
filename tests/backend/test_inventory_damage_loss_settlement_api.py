@@ -6,7 +6,11 @@ from django.utils import timezone
 
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance
-from apps.inventory.models import InventoryItem, InventoryStockMovement
+from apps.inventory.models import (
+    InventoryDamageLossSettlement,
+    InventoryItem,
+    InventoryStockMovement,
+)
 from apps.inventory.services import (
     create_inventory_return_operation,
     validate_inventory_return_operation,
@@ -55,9 +59,9 @@ def _reservation_draft() -> ReservationDraft:
 
 
 def _validated_return_operation(django_user_model):
-    actor = django_user_model.objects.create_user(
+    actor, _ = django_user_model.objects.get_or_create(
         username="settlement-api-helper",
-        password="test-pass",
+        defaults={"password": "test-pass"},
     )
     reservation_draft = _reservation_draft()
     return_operation = create_inventory_return_operation(
@@ -309,3 +313,50 @@ def test_damage_loss_settlement_detail_rejects_write_methods(
     )
 
     assert response.status_code == 405
+
+
+def test_damage_loss_settlement_list_filter_by_settlement_status(
+    authenticated_client, django_user_model
+):
+    _, return_operation = _validated_return_operation(django_user_model)
+    user = django_user_model.objects.create_user(username="dls-validator", password="pass")
+    matching = InventoryDamageLossSettlement.objects.create(
+        return_operation=return_operation,
+        settlement_status="validated",
+        validated_at=timezone.now(),
+        validated_by=user,
+    )
+    _, return_operation_other = _validated_return_operation(django_user_model)
+    InventoryDamageLossSettlement.objects.create(
+        return_operation=return_operation_other,
+        settlement_status="cancelled",
+    )
+    response = authenticated_client.get(
+        f"{DAMAGE_LOSS_SETTLEMENT_LIST_URL}?settlement_status=validated"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
+
+
+def test_damage_loss_settlement_list_filter_by_return_operation(
+    authenticated_client, django_user_model
+):
+    _, return_operation_a = _validated_return_operation(django_user_model)
+    matching = InventoryDamageLossSettlement.objects.create(
+        return_operation=return_operation_a,
+        settlement_status="draft",
+    )
+    _, return_operation_b = _validated_return_operation(django_user_model)
+    InventoryDamageLossSettlement.objects.create(
+        return_operation=return_operation_b,
+        settlement_status="draft",
+    )
+    response = authenticated_client.get(
+        f"{DAMAGE_LOSS_SETTLEMENT_LIST_URL}?return_operation={str(return_operation_a.id)}"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["id"] == str(matching.id)
