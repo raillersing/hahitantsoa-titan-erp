@@ -10,10 +10,11 @@ import HahitantsoaEventDraftsPanel from "./HahitantsoaEventDraftsPanel";
 import DashboardPanel from "./DashboardPanel";
 import HahitantsoaCommercialOpsPanel from "./HahitantsoaCommercialOpsPanel";
 import TitanStockMovementPanel from "./TitanStockMovementPanel";
+import CustomerPanel from "./CustomerPanel";
 import type { InventoryItem } from "./types";
 
 
-type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops";
+type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers";
 
 type InventoryState =
   | { status: "loading" }
@@ -61,6 +62,16 @@ const MODULES: ModuleDefinition[] = [
       "This module remains exploratory. It does not expose reservation creation, payment, contract or inventory blocking controls.",
   },
   {
+    scope: "customers",
+    navLabel: "Customers",
+    heading: "Customer Management",
+    eyebrow: "Customer module",
+    description:
+      "Create, view, and manage customer records. Supports search and write operations for authorised operators.",
+    boundaryNote:
+      "Read operations are available to all authenticated users. Write operations require reservation-sensitive access.",
+  },
+  {
     scope: "commercial-ops",
     navLabel: "Commercial Ops",
     heading: "Commercial Operations",
@@ -77,6 +88,7 @@ function isAppScope(value: string | null): value is AppScope {
     value === "dashboard" ||
     value === "titan" ||
     value === "hahitantsoa" ||
+    value === "customers" ||
     value === "commercial-ops"
   );
 }
@@ -310,6 +322,10 @@ function App() {
                 prefillVenueName={prefillVenueName}
               />
             </>
+          )}
+
+          {activeScope === "customers" && (
+            <CustomerPanel />
           )}
 
           {activeScope === "commercial-ops" && (

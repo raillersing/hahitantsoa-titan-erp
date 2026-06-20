@@ -1,6 +1,8 @@
 import type {
   BillingInvoice,
   Customer,
+  CustomerCreatePayload,
+  CustomerUpdatePayload,
   HahitantsoaDiscoveryResponse,
   InventoryItem,
   LogisticsEvent,
@@ -153,6 +155,66 @@ export function getInventoryItems(
 
 export function getCustomers(signal?: AbortSignal): Promise<Customer[]> {
   return getAuthenticatedJson("/api/v1/customers/", signal);
+}
+
+export function getCustomer(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Customer> {
+  return getAuthenticatedJson(`/api/v1/customers/${id}/`, signal);
+}
+
+export function createCustomer(
+  payload: CustomerCreatePayload,
+  signal?: AbortSignal,
+): Promise<Customer> {
+  return postAuthenticatedJson("/api/v1/customers/create/", payload, signal);
+}
+
+export function updateCustomer(
+  id: string,
+  payload: CustomerUpdatePayload,
+  signal?: AbortSignal,
+): Promise<Customer> {
+  return postAuthenticatedJson(
+    `/api/v1/customers/${id}/update/`,
+    payload,
+    signal,
+  );
+}
+
+export async function deleteCustomer(
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`/api/v1/customers/${id}/delete/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+    signal,
+  });
+  if (!response.ok) {
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+}
+
+export async function checkCustomerWritePermission(
+  signal?: AbortSignal,
+): Promise<boolean> {
+  try {
+    const response = await fetch("/api/v1/customers/create/", {
+      method: "OPTIONS",
+      credentials: "include",
+      signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 export function getHahitantsoaDiscoveryItems(
