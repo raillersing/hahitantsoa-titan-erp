@@ -5,6 +5,7 @@ from tests.backend.test_payments_refund import _pending_refund_obligation
 
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
+from apps.payments.services import create_refund_payment
 
 pytestmark = pytest.mark.django_db
 
@@ -23,6 +24,24 @@ def authenticated_user(django_user_model):
 @pytest.fixture
 def authenticated_client(client, authenticated_user):
     client.force_login(authenticated_user)
+    return client
+
+
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="payment-negative-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
     return client
 
 
@@ -137,8 +156,8 @@ def test_payment_retrieve_rejects_write_methods(authenticated_client, pending_pa
 
 
 @pytest.mark.parametrize("method", ["get", "put", "patch", "delete"])
-def test_payment_confirm_rejects_non_post_methods(authenticated_client, pending_payment, method):
-    request_method = getattr(authenticated_client, method)
+def test_payment_confirm_rejects_non_post_methods(sensitive_client, pending_payment, method):
+    request_method = getattr(sensitive_client, method)
     response = request_method(
         f"{PAYMENT_LIST_URL}{pending_payment.id}/confirm/",
         data={},
@@ -148,8 +167,8 @@ def test_payment_confirm_rejects_non_post_methods(authenticated_client, pending_
 
 
 @pytest.mark.parametrize("method", ["get", "put", "patch", "delete"])
-def test_refund_payment_create_rejects_non_post_methods(authenticated_client, method):
-    request_method = getattr(authenticated_client, method)
+def test_refund_payment_create_rejects_non_post_methods(sensitive_client, method):
+    request_method = getattr(sensitive_client, method)
     response = request_method(
         PAYMENT_REFUND_CREATE_URL,
         data={"refund_obligation_id": "00000000-0000-0000-0000-000000000000"},
@@ -160,7 +179,7 @@ def test_refund_payment_create_rejects_non_post_methods(authenticated_client, me
 
 @pytest.mark.parametrize("method", ["get", "put", "patch", "delete"])
 def test_refund_payment_confirm_rejects_non_post_methods(
-    authenticated_client,
+    sensitive_client,
     django_user_model,
     method,
 ):
@@ -174,7 +193,7 @@ def test_refund_payment_confirm_rejects_non_post_methods(
         source_label="Caution refund",
     )
 
-    request_method = getattr(authenticated_client, method)
+    request_method = getattr(sensitive_client, method)
     response = request_method(
         f"{PAYMENT_LIST_URL}{refund_payment.id}/refund-confirm/",
         data={},
@@ -186,8 +205,8 @@ def test_refund_payment_confirm_rejects_non_post_methods(
 # Failure-mode tests
 
 
-def test_payment_create_rejects_zero_amount(authenticated_client):
-    response = authenticated_client.post(
+def test_payment_create_rejects_zero_amount(sensitive_client):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL,
         data={
             "payment_kind": "deposit",
@@ -201,8 +220,8 @@ def test_payment_create_rejects_zero_amount(authenticated_client):
     assert response.status_code == 400
 
 
-def test_payment_create_rejects_negative_amount(authenticated_client):
-    response = authenticated_client.post(
+def test_payment_create_rejects_negative_amount(sensitive_client):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL,
         data={
             "payment_kind": "deposit",
@@ -216,8 +235,8 @@ def test_payment_create_rejects_negative_amount(authenticated_client):
     assert response.status_code == 400
 
 
-def test_payment_create_rejects_invalid_payment_kind(authenticated_client):
-    response = authenticated_client.post(
+def test_payment_create_rejects_invalid_payment_kind(sensitive_client):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL,
         data={
             "payment_kind": "invalid_kind",
@@ -231,8 +250,8 @@ def test_payment_create_rejects_invalid_payment_kind(authenticated_client):
     assert response.status_code == 400
 
 
-def test_payment_create_rejects_invalid_payment_method(authenticated_client):
-    response = authenticated_client.post(
+def test_payment_create_rejects_invalid_payment_method(sensitive_client):
+    response = sensitive_client.post(
         PAYMENT_LIST_URL,
         data={
             "payment_kind": "deposit",
@@ -246,8 +265,8 @@ def test_payment_create_rejects_invalid_payment_method(authenticated_client):
     assert response.status_code == 400
 
 
-def test_payment_confirm_fails_from_cancelled(authenticated_client, cancelled_payment):
-    response = authenticated_client.post(
+def test_payment_confirm_fails_from_cancelled(sensitive_client, cancelled_payment):
+    response = sensitive_client.post(
         f"{PAYMENT_LIST_URL}{cancelled_payment.id}/confirm/",
         data={},
         content_type="application/json",
@@ -258,14 +277,14 @@ def test_payment_confirm_fails_from_cancelled(authenticated_client, cancelled_pa
 
 
 def test_refund_payment_create_rejects_non_pending_obligation(
-    authenticated_client,
+    sensitive_client,
     django_user_model,
 ):
     _, obligation, _ = _pending_refund_obligation(django_user_model)
     obligation.status = "settled"
     obligation.save(update_fields=["status"])
 
-    response = authenticated_client.post(
+    response = sensitive_client.post(
         PAYMENT_REFUND_CREATE_URL,
         data={"refund_obligation_id": str(obligation.id)},
         content_type="application/json",
@@ -276,7 +295,7 @@ def test_refund_payment_create_rejects_non_pending_obligation(
 
 
 def test_refund_payment_confirm_fails_from_cancelled(
-    authenticated_client,
+    sensitive_client,
     django_user_model,
 ):
     _, obligation, _ = _pending_refund_obligation(django_user_model)
@@ -289,7 +308,7 @@ def test_refund_payment_confirm_fails_from_cancelled(
         source_label="Caution refund",
     )
 
-    response = authenticated_client.post(
+    response = sensitive_client.post(
         f"{PAYMENT_LIST_URL}{refund_payment.id}/refund-confirm/",
         data={},
         content_type="application/json",
@@ -298,3 +317,30 @@ def test_refund_payment_confirm_fails_from_cancelled(
     assert response.status_code == 400
     payload = response.json()
     assert payload["code"] == "invalid_payment_refund_state"
+
+
+def test_refund_payment_create_requires_sensitive_access(authenticated_client) -> None:
+    response = authenticated_client.post(
+        PAYMENT_REFUND_CREATE_URL,
+        data={"refund_obligation_id": "00000000-0000-0000-0000-000000000000"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_refund_payment_confirm_requires_sensitive_access(
+    sensitive_client,
+    authenticated_client,
+    django_user_model,
+) -> None:
+    actor, obligation, _ = _pending_refund_obligation(django_user_model)
+    refund_payment = create_refund_payment(refund_obligation=obligation, actor=actor)
+
+    response = authenticated_client.post(
+        f"{PAYMENT_LIST_URL}{refund_payment.id}/refund-confirm/",
+        data={"notes": "Non-sensitive attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
