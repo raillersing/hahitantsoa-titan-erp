@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.documents.services import create_document_instance_from_hahitantsoa_event_draft
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.hahitantsoa.services import (
     HahitantsoaEventDraftConfirmationResult,
@@ -13,6 +14,7 @@ from apps.hahitantsoa.services import (
 )
 from apps.inventory.availability import is_inventory_item_available
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus, InventoryItem
+from apps.payments.services import confirm_payment, create_payment
 from apps.reservations.confirmation import (
     ReservationConfirmationPreflightError,
     ReservationLifecycleStateError,
@@ -49,10 +51,6 @@ def _confirmable_draft(*, actor) -> HahitantsoaEventDraft:
         event_name="Confirmable event",
         start_at=start_at,
         end_at=end_at,
-        contract_signed_at=timezone.now(),
-        contract_signed_by=actor,
-        required_deposit_received_at=timezone.now(),
-        required_deposit_received_by=actor,
         created_by=actor,
     )
     HahitantsoaEventDraftLine.objects.create(
@@ -61,7 +59,29 @@ def _confirmable_draft(*, actor) -> HahitantsoaEventDraft:
         quantity=1,
         created_by=actor,
     )
+    _create_confirmation_truth(event_draft=draft, actor=actor)
     return draft
+
+
+def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> None:
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=event_draft,
+        template_key="hahitantsoa.contract.v1",
+        actor=actor,
+    )
+    from apps.documents.runtime import generate_document_instance_html
+
+    generate_document_instance_html(document_instance=instance, actor=actor)
+    payment = create_payment(
+        actor=actor,
+        hahitantsoa_event_draft=event_draft,
+        payment_kind="deposit",
+        payment_method="cash",
+        payment_status="pending",
+        amount="150000.00",
+        notes="Required event deposit",
+    )
+    confirm_payment(payment=payment, actor=actor)
 
 
 def test_hahitantsoa_confirmation_result_dataclass_shape() -> None:
@@ -114,9 +134,7 @@ def test_hahitantsoa_confirmation_succeeds_persists_state_blocks_and_audit(
 def test_hahitantsoa_confirmation_refuses_when_preflight_fails(django_user_model) -> None:
     actor = _actor(django_user_model=django_user_model)
     draft = _confirmable_draft(actor=actor)
-    draft.required_deposit_received_at = None
-    draft.required_deposit_received_by = None
-    draft.save(update_fields=["required_deposit_received_at", "required_deposit_received_by"])
+    draft.payments.all().delete()
 
     with pytest.raises(ReservationConfirmationPreflightError) as error_info:
         confirm_hahitantsoa_event_draft(event_draft=draft, actor=actor)
@@ -150,17 +168,67 @@ def test_hahitantsoa_confirmation_refuses_without_active_lines(django_user_model
         event_name="No lines event",
         start_at=start_at,
         end_at=end_at,
+        created_by=actor,
+    )
+    _create_confirmation_truth(event_draft=draft, actor=actor)
+
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
+        confirm_hahitantsoa_event_draft(event_draft=draft, actor=actor)
+
+    assert error_info.value.code == "draft_has_no_active_lines"
+
+
+def test_hahitantsoa_confirmation_allows_truth_without_markers(django_user_model) -> None:
+    actor = _actor(django_user_model=django_user_model, username="truth-without-markers")
+    draft = _confirmable_draft(actor=actor)
+
+    draft.contract_signed_at = None
+    draft.contract_signed_by = None
+    draft.required_deposit_received_at = None
+    draft.required_deposit_received_by = None
+    draft.save(
+        update_fields=[
+            "contract_signed_at",
+            "contract_signed_by",
+            "required_deposit_received_at",
+            "required_deposit_received_by",
+        ]
+    )
+
+    result = confirm_hahitantsoa_event_draft(event_draft=draft, actor=actor)
+
+    assert result.blocked_item_count == 1
+
+
+def test_hahitantsoa_confirmation_rejects_marker_only_without_truth(django_user_model) -> None:
+    actor = _actor(django_user_model=django_user_model, username="marker-only")
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Marker only event",
+        start_at=start_at,
+        end_at=end_at,
         contract_signed_at=timezone.now(),
         contract_signed_by=actor,
         required_deposit_received_at=timezone.now(),
         required_deposit_received_by=actor,
         created_by=actor,
     )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(name="Marker only item"),
+        quantity=1,
+        created_by=actor,
+    )
 
-    with pytest.raises(ReservationLifecycleStateError) as error_info:
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
         confirm_hahitantsoa_event_draft(event_draft=draft, actor=actor)
 
-    assert error_info.value.code == "draft_has_no_active_lines"
+    assert error_info.value.blockers == (
+        "missing_signed_contract",
+        "missing_required_data",
+        "missing_required_deposit",
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -171,6 +239,7 @@ def test_hahitantsoa_confirmation_rolls_back_blocks_when_state_persist_fails(
 
     actor = _actor(django_user_model=django_user_model)
     draft = _confirmable_draft(actor=actor)
+    audit_count_before = AuditEvent.objects.count()
 
     def raise_after_blocking(**kwargs):
         raise RuntimeError("boom after blocking")
@@ -189,4 +258,4 @@ def test_hahitantsoa_confirmation_rolls_back_blocks_when_state_persist_fails(
     assert draft.confirmed_at is None
     assert draft.confirmed_by_id is None
     assert InventoryAvailability.objects.filter(hahitantsoa_event_draft=draft).count() == 0
-    assert AuditEvent.objects.count() == 0
+    assert AuditEvent.objects.count() == audit_count_before

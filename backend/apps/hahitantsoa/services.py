@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
@@ -12,6 +13,7 @@ from apps.hahitantsoa.models import (
 )
 from apps.hahitantsoa.selectors import _get_available_hahitantsoa_shared_inventory_items_for_period
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus, InventoryItem
+from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 from apps.reservations.attribution import capture_reservation_sensitive_actor_attribution
 from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
@@ -23,6 +25,8 @@ from apps.reservations.confirmation import (
 )
 from apps.reservations.periods import ReservationPeriod, make_reservation_period
 from apps.reservations.preview import ReservationItemPreview, preview_reservation_item_request
+
+HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
 
 
 @dataclass(frozen=True)
@@ -259,6 +263,59 @@ def _is_required_deposit_received(*, event_draft: HahitantsoaEventDraft) -> bool
         event_draft.required_deposit_received_at is not None
         and event_draft.required_deposit_received_by_id is not None
     )
+
+
+def _contract_truth_documents(
+    *,
+    event_draft: HahitantsoaEventDraft,
+):
+    return DocumentInstance.objects.filter(
+        hahitantsoa_event_draft=event_draft,
+        template_key=HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
+        status__in=(
+            DocumentInstanceStatus.GENERATED,
+            DocumentInstanceStatus.ISSUED,
+        ),
+    ).order_by("created_at", "id")
+
+
+def _has_contract_document_truth(
+    *,
+    event_draft: HahitantsoaEventDraft,
+) -> bool:
+    return _contract_truth_documents(event_draft=event_draft).exists()
+
+
+def _lock_contract_truth_documents(
+    *,
+    event_draft: HahitantsoaEventDraft,
+) -> tuple[DocumentInstance, ...]:
+    return tuple(_contract_truth_documents(event_draft=event_draft).select_for_update())
+
+
+def _confirmed_required_deposit_payments(
+    *,
+    event_draft: HahitantsoaEventDraft,
+):
+    return Payment.objects.filter(
+        hahitantsoa_event_draft=event_draft,
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+    ).order_by("created_at", "id")
+
+
+def _has_confirmed_required_deposit_payment(
+    *,
+    event_draft: HahitantsoaEventDraft,
+) -> bool:
+    return _confirmed_required_deposit_payments(event_draft=event_draft).exists()
+
+
+def _lock_confirmed_required_deposit_payments(
+    *,
+    event_draft: HahitantsoaEventDraft,
+) -> tuple[Payment, ...]:
+    return tuple(_confirmed_required_deposit_payments(event_draft=event_draft).select_for_update())
 
 
 def _active_hahitantsoa_event_draft_lines(
@@ -548,29 +605,23 @@ def get_hahitantsoa_event_draft_confirmation_preflight(
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
             )
 
-    if not _is_contract_signed(event_draft=event_draft):
+    if not _has_contract_document_truth(event_draft=event_draft):
         _append_blocker(
             blockers=blockers,
             blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
         )
-        if (
-            event_draft.contract_signed_at is not None
-            or event_draft.contract_signed_by_id is not None
-        ):
+        if _is_contract_signed(event_draft=event_draft):
             _append_blocker(
                 blockers=blockers,
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
             )
 
-    if not _is_required_deposit_received(event_draft=event_draft):
+    if not _has_confirmed_required_deposit_payment(event_draft=event_draft):
         _append_blocker(
             blockers=blockers,
             blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
         )
-        if (
-            event_draft.required_deposit_received_at is not None
-            or event_draft.required_deposit_received_by_id is not None
-        ):
+        if _is_required_deposit_received(event_draft=event_draft):
             _append_blocker(
                 blockers=blockers,
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
@@ -606,6 +657,8 @@ def confirm_hahitantsoa_event_draft(
             )
 
         _lock_inventory_items_for_active_lines(active_lines=active_lines)
+        _lock_contract_truth_documents(event_draft=locked_event_draft)
+        _lock_confirmed_required_deposit_payments(event_draft=locked_event_draft)
 
         preflight = get_hahitantsoa_event_draft_confirmation_preflight(
             event_draft=locked_event_draft

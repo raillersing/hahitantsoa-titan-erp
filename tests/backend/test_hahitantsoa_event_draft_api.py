@@ -6,6 +6,7 @@ from django.test import Client
 from django.utils import timezone
 
 from apps.customers.models import Customer
+from apps.documents.services import create_document_instance_from_hahitantsoa_event_draft
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
@@ -13,6 +14,7 @@ from apps.hahitantsoa.models import (
     HahitantsoaEventDraftLine,
 )
 from apps.inventory.models import InventoryAvailability, InventoryItem
+from apps.payments.services import confirm_payment, create_payment
 from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
@@ -146,6 +148,27 @@ def _confirmed_draft(*, user, item: InventoryItem) -> HahitantsoaEventDraft:
         updated_by=user,
     )
     return draft
+
+
+def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> None:
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=event_draft,
+        template_key="hahitantsoa.contract.v1",
+        actor=actor,
+    )
+    from apps.documents.runtime import generate_document_instance_html
+
+    generate_document_instance_html(document_instance=instance, actor=actor)
+    payment = create_payment(
+        actor=actor,
+        hahitantsoa_event_draft=event_draft,
+        payment_kind="deposit",
+        payment_method="cash",
+        payment_status="pending",
+        amount="300000.00",
+        notes="API confirmation deposit",
+    )
+    confirm_payment(payment=payment, actor=actor)
 
 
 def test_hahitantsoa_event_draft_list_rejects_unauthenticated_user(client) -> None:
@@ -575,10 +598,6 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
         start_at=start_at,
         end_at=end_at,
         created_by=user,
-        contract_signed_at=timezone.now(),
-        contract_signed_by=actor,
-        required_deposit_received_at=timezone.now(),
-        required_deposit_received_by=actor,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -586,6 +605,7 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
         quantity=1,
         created_by=user,
     )
+    _create_confirmation_truth(event_draft=draft, actor=actor)
     availability_count = InventoryAvailability.objects.count()
     reservation_count = ReservationDraft.objects.count()
 
@@ -706,8 +726,6 @@ def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_i
         start_at=start_at,
         end_at=end_at,
         created_by=user,
-        required_deposit_received_at=timezone.now(),
-        required_deposit_received_by=actor,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -715,6 +733,15 @@ def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_i
         quantity=1,
         created_by=user,
     )
+    payment = create_payment(
+        actor=actor,
+        hahitantsoa_event_draft=draft,
+        payment_kind="deposit",
+        payment_method="cash",
+        payment_status="pending",
+        amount="300000.00",
+    )
+    confirm_payment(payment=payment, actor=actor)
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 
@@ -740,8 +767,6 @@ def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_
         start_at=start_at,
         end_at=end_at,
         created_by=user,
-        contract_signed_at=timezone.now(),
-        contract_signed_by=actor,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -749,6 +774,14 @@ def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_
         quantity=1,
         created_by=user,
     )
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+        actor=actor,
+    )
+    from apps.documents.runtime import generate_document_instance_html
+
+    generate_document_instance_html(document_instance=instance, actor=actor)
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 
@@ -1466,10 +1499,6 @@ def test_authenticated_user_can_confirm_own_event_draft(
         start_at=start_at,
         end_at=end_at,
         created_by=user,
-        contract_signed_at=timezone.now(),
-        contract_signed_by=actor,
-        required_deposit_received_at=timezone.now(),
-        required_deposit_received_by=actor,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -1477,6 +1506,7 @@ def test_authenticated_user_can_confirm_own_event_draft(
         quantity=1,
         created_by=user,
     )
+    _create_confirmation_truth(event_draft=draft, actor=actor)
     availability_count = InventoryAvailability.objects.count()
     reservation_count = ReservationDraft.objects.count()
 
@@ -1515,8 +1545,6 @@ def test_event_draft_confirm_returns_preflight_blockers_without_mutating_state(
         start_at=start_at,
         end_at=end_at,
         created_by=user,
-        contract_signed_at=timezone.now(),
-        contract_signed_by=actor,
     )
     HahitantsoaEventDraftLine.objects.create(
         event_draft=draft,
@@ -1524,6 +1552,14 @@ def test_event_draft_confirm_returns_preflight_blockers_without_mutating_state(
         quantity=1,
         created_by=user,
     )
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+        actor=actor,
+    )
+    from apps.documents.runtime import generate_document_instance_html
+
+    generate_document_instance_html(document_instance=instance, actor=actor)
     availability_count = InventoryAvailability.objects.count()
 
     response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirm/")
