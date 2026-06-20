@@ -579,6 +579,56 @@ export type BillingInvoice = {
   updated_at: string;
 };
 
+// ---- Identity / Role Management (live backend — /api/v1/identity/) ----
+
+export type ApplicationRole = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  is_system_managed: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UserRoleAssignment = {
+  id: string;
+  user_id: string;
+  role: ApplicationRole;
+  assigned_by_id: string | null;
+  assigned_at: string;
+  revoked_at: string | null;
+  is_active: boolean;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RoleQueryParams = {
+  name?: string;
+  is_system_managed?: boolean;
+  is_active?: boolean;
+};
+
+export type RoleAssignmentQueryParams = {
+  user_id?: string;
+  role_id?: string;
+  assigned_after?: string;
+  assigned_before?: string;
+  is_active?: boolean;
+};
+
+export type AssignRolePayload = {
+  user_id: string;
+  role_id: string;
+  notes?: string;
+};
+
+export type RevokeRolePayload = {
+  notes?: string;
+};
+
 export type StockMovementCreatePayload = {
   inventory_item: string;
   reservation_draft?: string | null;
