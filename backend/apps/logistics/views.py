@@ -31,8 +31,23 @@ class LogisticsEventListAPIView(generics.ListAPIView):
     def get_queryset(self):
         reservation_draft_id = self.request.query_params.get("reservation_draft_id")
         if reservation_draft_id:
-            return logistics_events_for_reservation_draft(reservation_draft_id=reservation_draft_id)
-        return active_logistics_events()
+            qs = logistics_events_for_reservation_draft(reservation_draft_id=reservation_draft_id)
+        else:
+            qs = active_logistics_events()
+
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        event_type_param = self.request.query_params.get("event_type")
+        if event_type_param:
+            qs = qs.filter(event_type=event_type_param)
+        scheduled_after = self.request.query_params.get("scheduled_after")
+        if scheduled_after:
+            qs = qs.filter(scheduled_at__gte=scheduled_after)
+        scheduled_before = self.request.query_params.get("scheduled_before")
+        if scheduled_before:
+            qs = qs.filter(scheduled_at__lte=scheduled_before)
+        return qs
 
 
 class LogisticsEventRetrieveAPIView(generics.RetrieveAPIView):
