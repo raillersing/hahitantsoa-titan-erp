@@ -206,6 +206,72 @@ Backend validation now uses three wrappers:
 - `scripts/dev/erp-backend-ci` for pre-push / pre-PR backend quality
 - `scripts/dev/erp-backend-migration-guard` for migration-sensitive tasks
 
+## Backend Productivity Report
+
+After each backend PR finalizes, add a short backend productivity report to the PR
+body or final repo-facing report. Keep it lightweight and evidence-based.
+
+Include:
+
+- task ID and title
+- agent used
+- backend worktree and branch
+- selected backend skills
+- whether the Backend Skill Plan was present before coding
+- whether selected skills were actually used
+- local validation commands run
+- focused validation result
+- migration guard result, if applicable
+- full backend CI wrapper result
+- PR number
+- PR CI first-pass result
+- number of CI attempts before green
+- merge SHA
+- exact-SHA `main` CI result
+- total elapsed time if known
+- blockers or hard stops
+- rework reason, if any
+- final outcome
+
+Interpretation guidance:
+
+- Good outcome: small PR, skill plan present, relevant skills only, focused tests used
+  during development, backend CI wrapper run before PR, PR CI green first try or with a
+  understood repair, exact-SHA `main` CI green
+- Warning signs: all skills selected by default, no skill plan, migration guard skipped
+  on model changes, only focused pytest run before PR, PR CI fails from a predictable
+  local issue, backend and frontend scope mixed
+- Do not optimize for raw speed alone.
+- Do not reward large PRs.
+- Do not treat PR count as productivity.
+- Prioritize merge reliability, safety, and reduced rework.
+
+Minimal future-report template:
+
+```md
+### Backend Productivity Report
+
+- Task: F153X - Short title
+- Agent: Agent A / Agent B / ...
+- Worktree/branch: `...`
+- Skills used: `...`
+- Skill plan present before coding: yes/no
+- Skills actually used: yes/no + short note
+- Local validation: `...`
+- Focused result: pass/fail
+- Migration guard: pass/fail/n-a
+- Backend CI wrapper: pass/fail
+- PR: #123
+- PR CI first pass: pass/fail
+- PR CI attempts: 1/2/...
+- Merge SHA: `...`
+- Exact-SHA main CI: pass/fail
+- Elapsed time: `...`
+- Blockers/hard stops: `...`
+- Rework reason: `...`
+- Final outcome: `...`
+```
+
 ## Backend Skill Plan
 
 Before any backend implementation, include a short Backend Skill Plan:
