@@ -143,7 +143,7 @@ function CustomerListView({
       </form>
 
       {customersState.status === "loading" ? (
-        <p className="status loading-spinner">Loading customers...</p>
+        <p className="status loading-spinner" aria-live="polite">Loading customers...</p>
       ) : null}
 
       {customersState.status === "error" ? (
@@ -166,7 +166,7 @@ function CustomerListView({
 
       {customersState.status === "loaded" ? (
         <div className="customer-list-wrapper">
-          <table className="customer-table">
+          <table className="customer-table" aria-label="Customer directory">
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -251,7 +251,7 @@ function CustomerDetailView({
         <button type="button" className="back-btn" onClick={onBack}>
           &larr; Back to list
         </button>
-        <p className="status loading-spinner">Loading customer details...</p>
+        <p className="status loading-spinner" aria-live="polite">Loading customer details...</p>
       </div>
     );
   }

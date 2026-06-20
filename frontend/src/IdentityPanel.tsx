@@ -95,7 +95,7 @@ export default function IdentityPanel() {
   }, [activeTab, loadRoles, loadAssignments]);
 
   return (
-    <section className="identity-panel">
+    <section className="identity-panel" aria-label="Identity Management">
       <div className="section-heading">
         <p className="eyebrow">Identity Management</p>
         <h2>Roles &amp; Permissions</h2>
@@ -171,12 +171,12 @@ export default function IdentityPanel() {
             <table className="data-table" aria-label="Application roles">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Slug</th>
-                  <th>Description</th>
-                  <th>System</th>
-                  <th>Active</th>
-                  <th>Created</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Slug</th>
+                  <th scope="col">Description</th>
+                  <th scope="col">System</th>
+                  <th scope="col">Active</th>
+                  <th scope="col">Created</th>
                 </tr>
               </thead>
               <tbody>
@@ -253,12 +253,12 @@ export default function IdentityPanel() {
             <table className="data-table" aria-label="User role assignments">
               <thead>
                 <tr>
-                  <th>User ID</th>
-                  <th>Role</th>
-                  <th>Assigned By</th>
-                  <th>Assigned At</th>
-                  <th>Active</th>
-                  <th>Notes</th>
+                  <th scope="col">User ID</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Assigned By</th>
+                  <th scope="col">Assigned At</th>
+                  <th scope="col">Active</th>
+                  <th scope="col">Notes</th>
                 </tr>
               </thead>
               <tbody>
