@@ -183,3 +183,7 @@ must not be the sole deliverable.
 - blockers or residual risks
 - scope confirmation
 - `No merge was performed.`
+
+For backend workflow measurement, also reference
+[`docs/audits/F153D_BACKEND_PRODUCTIVITY_AND_SKILL_ADOPTION.md`](../../audits/F153D_BACKEND_PRODUCTIVITY_AND_SKILL_ADOPTION.md)
+when the final report includes a productivity summary.

@@ -2,12 +2,13 @@
 
 ## Current State
 
-- `origin/main` HEAD is `d6296f0` (merge of F147F PR #322 and F151E PR #316).
-- `main` CI is green as verified on 2026-06-19.
+- `origin/main` HEAD is `ceacfba` (merge of F153C PR #342).
+- `main` CI is green as verified on 2026-06-20.
 - F145A through F145H are merged on `main`.
 - F153A is merged and provides the backend local CI wrappers and fast validation workflow.
 - F153B is merged and provides the backend specialist skills pack and selection guidance.
-- F153C is the current agent-docs bundle for backend skill-plan activation in the orchestrator workflow.
+- F153C is merged and provides backend skill-plan activation in the orchestrator workflow.
+- F153D is the current agent-docs bundle for backend productivity metrics and skill-adoption audit.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
 - PR #318 (identity role and assignment list filtering) is merged and serves as the
@@ -50,19 +51,18 @@ Hard stops:
 - any frontend or backend application mutation
 - any CI, Docker, scripts/dev, governance, or secret-surface drift
 - any design guidance that breaks DEC-001 or broader business boundaries
-### F153C
+### F153D
 
 Status:
 - active agent-docs bundle
-- branch: `docs/f153c-codex-backend-skill-activation`
-- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f153c-codex-backend-skill-activation`
+- branch: `docs/f153d-backend-productivity-metrics`
+- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f153d-backend-productivity-metrics`
 
 Scope:
-- activate the Backend Skill Plan in backend orchestration guidance
-- update the backend orchestrator contract and backend agent template
-- update the runbook with the required skill-plan and selection guide
-- update the recurring-errors matrix to map backend task-start and workflow issues to the new workflow
-- refresh the queue to point the next backend workflow step at F153D
+- create a lightweight backend productivity and skill-adoption tracking system
+- update the runbook with the backend productivity report section
+- update the recurring-errors matrix with adoption and reliability failures
+- refresh the queue to point the next backend workflow step at F153E if useful
 
 Hard stops:
 - backend code changes
@@ -75,10 +75,11 @@ Validation:
 - `bash scripts/dev/erp-agent-scope-guard agent-docs`
 - `git diff --check`
 - confirm no backend/frontend/scripts/.github/dependency manifest changes
+- open PR, wait for PR CI, merge with head-SHA protection, verify exact-SHA `main` CI, then clean the worktree/branch
 
 Next planned backend bundle:
-- F153D backend review-specialist guidance
-- expected focus: review role selection, backend bundle handoff, and PR finalization support
+- F153E backend workflow refinement if the measurement data shows another lightweight docs-only improvement is useful
+- expected focus: narrow follow-up based on F153D adoption findings
 
 ## Backend Commercial Operations Status
 
