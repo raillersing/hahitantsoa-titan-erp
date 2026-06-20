@@ -1510,3 +1510,71 @@ fieldset:disabled {
 .error-boundary-fallback__retry:hover {
   background: #1a6ad4;
 }
+
+/* ---- Auth / Login ---- */
+
+.login-form {
+  display: grid;
+  gap: 16px;
+  max-width: 400px;
+  padding: 24px;
+  margin: 0;
+  border: 1px solid rgba(113, 132, 121, 0.22);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 24px 70px rgba(31, 42, 37, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.login-form label {
+  display: grid;
+  gap: 6px;
+  color: #34463e;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #b7c9c0;
+  border-radius: 6px;
+  color: #172026;
+  background: #ffffff;
+}
+
+.login-form button[type="submit"] {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #22483a;
+  border-radius: 6px;
+  background: #22483a;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  justify-self: start;
+}
+
+.login-form .notice {
+  margin: 0;
+}
+
+.session-logout {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #b7c9c0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #22483a;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+
+.session-logout:hover {
+  border-color: #22483a;
+  background: #f4f8f6;
+}

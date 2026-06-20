@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import { getInventoryItems } from "./api";
+import { useAuth } from "./AuthContext";
+import LoginPanel from "./LoginPanel";
 import AvailabilityPanel from "./AvailabilityPanel";
 import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
@@ -97,6 +99,7 @@ function kindLabel(kind: InventoryItem["kind"]): string {
 }
 
 function App() {
+  const { state: authState, logout } = useAuth();
   const [activeScope, setActiveScope] = useState<AppScope>(() =>
     readScopeFromHash(window.location.hash),
   );
@@ -105,6 +108,23 @@ function App() {
   });
   const [prefillEventName, setPrefillEventName] = useState("");
   const [prefillVenueName, setPrefillVenueName] = useState("");
+
+  if (authState.status === "loading") {
+    return (
+      <main className="app-shell">
+        <header className="app-header">
+          <div className="app-intro">
+            <p className="eyebrow">Hahitantsoa / Titan ERP</p>
+            <h1>Loading...</h1>
+          </div>
+        </header>
+      </main>
+    );
+  }
+
+  if (authState.status === "unauthenticated") {
+    return <LoginPanel />;
+  }
 
   const activeModule =
     MODULES.find((moduleDefinition) => moduleDefinition.scope === activeScope) ??
@@ -162,7 +182,14 @@ function App() {
             Hahitantsoa read-only discovery surface.
           </p>
         </div>
-        <p className="session-note">Uses the existing Django session.</p>
+        <button
+          className="session-logout"
+          type="button"
+          onClick={logout}
+          aria-label="Sign out"
+        >
+          Sign out
+        </button>
       </header>
 
       <div className="shell-layout">
@@ -224,7 +251,7 @@ function App() {
                 <section className="notice" role="alert">
                   <h2>Inventory unavailable</h2>
                   <p>{inventoryState.message}</p>
-                  <p>For local development, sign in through the backend Browsable API first.</p>
+                  <p>Your session may have expired. Sign in again to continue.</p>
                 </section>
               ) : null}
 
