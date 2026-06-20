@@ -1,5 +1,5 @@
 import './operational-styles.css';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getReturnOperations } from './api';
 import type { InventoryReturnOperation } from './types';
 
@@ -40,27 +40,29 @@ export function ReturnsHandlingPanel() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      abortRef.current = new AbortController();
-      try {
-        const data = await getReturnOperations(abortRef.current.signal);
-        setOperations(Array.isArray(data) ? data : []);
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setError(err.message || 'Failed to load return operations.');
-        }
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    abortRef.current?.abort();
+    setLoading(true);
+    setError(null);
+    abortRef.current = new AbortController();
+    try {
+      const data = await getReturnOperations(abortRef.current.signal);
+      setOperations(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        setError(err.message || 'Failed to load return operations.');
       }
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
     void load();
     return () => {
       abortRef.current?.abort();
     };
-  }, []);
+  }, [load]);
 
   return (
     <div className="ops-panel" data-testid="returns-handling-panel">
@@ -77,6 +79,9 @@ export function ReturnsHandlingPanel() {
       {!loading && error && (
         <div className="notice error-notice" role="alert">
           {error}
+          <button onClick={load} aria-label="Retry loading return operations">
+            Retry
+          </button>
         </div>
       )}
 
