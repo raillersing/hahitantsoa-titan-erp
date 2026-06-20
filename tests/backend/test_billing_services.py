@@ -6,11 +6,18 @@ from tests.backend.test_inventory_damage_loss_settlement_execution_services impo
 )
 
 from apps.audit.models import AuditEvent
-from apps.billing.models import BillingInvoice, BillingInvoiceStatus
+from apps.billing.models import (
+    BillingInvoice,
+    BillingInvoiceSettlement,
+    BillingInvoiceStatus,
+)
 from apps.billing.services import (
     BILLING_INVOICE_ALREADY_EXISTS,
+    BILLING_SETTLEMENT_PAYMENT_ALREADY_USED,
+    INVALID_BILLING_INVOICE_STATUS,
     INVALID_BILLING_SETTLEMENT_PAYMENT,
     BillingLifecycleError,
+    cancel_billing_invoice,
     issue_billing_invoice_for_excess_receivable,
     settle_billing_invoice,
 )
@@ -160,3 +167,72 @@ def test_settle_billing_invoice_rejects_amount_mismatch(django_user_model) -> No
     assert error_info.value.code == INVALID_BILLING_SETTLEMENT_PAYMENT
     invoice.refresh_from_db()
     assert invoice.invoice_status == BillingInvoiceStatus.OPEN
+
+
+def test_settle_billing_invoice_rejects_payment_already_used_by_another_settlement(
+    django_user_model,
+) -> None:
+    actor, reservation_draft_a, excess_receivable_a = _executed_excess_receivable(django_user_model)
+    invoice_a = issue_billing_invoice_for_excess_receivable(
+        excess_receivable=excess_receivable_a,
+        actor=actor,
+    )
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft_a,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+        payment_status=PaymentStatus.PENDING,
+        amount=invoice_a.amount,
+        source_label="Settle invoice A",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor).payment
+    settle_billing_invoice(invoice=invoice_a, payment=confirmed_payment, actor=actor)
+
+    _, _, excess_receivable_b = _executed_excess_receivable(
+        django_user_model,
+        caution_amount=Decimal("20000.00"),
+        unit_amount=Decimal("35000.00"),
+    )
+    invoice_b = issue_billing_invoice_for_excess_receivable(
+        excess_receivable=excess_receivable_b,
+        actor=actor,
+    )
+
+    settlement_count_before = BillingInvoiceSettlement.objects.count()
+    with pytest.raises(BillingLifecycleError) as error_info:
+        settle_billing_invoice(invoice=invoice_b, payment=confirmed_payment, actor=actor)
+
+    assert error_info.value.code == BILLING_SETTLEMENT_PAYMENT_ALREADY_USED
+    invoice_a.refresh_from_db()
+    invoice_b.refresh_from_db()
+    assert invoice_a.invoice_status == BillingInvoiceStatus.SETTLED
+    assert invoice_b.invoice_status == BillingInvoiceStatus.OPEN
+    assert BillingInvoiceSettlement.objects.count() == settlement_count_before
+
+
+def test_settle_billing_invoice_rejects_cancelled_invoice(django_user_model) -> None:
+    actor, _, excess_receivable = _executed_excess_receivable(django_user_model)
+    invoice = issue_billing_invoice_for_excess_receivable(
+        excess_receivable=excess_receivable,
+        actor=actor,
+    )
+    cancel_billing_invoice(invoice=invoice, actor=actor, notes="Cancelled before settlement")
+
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=invoice.reservation_draft,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=invoice.amount,
+        source_label="Settle cancelled invoice",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor).payment
+
+    with pytest.raises(BillingLifecycleError) as error_info:
+        settle_billing_invoice(invoice=invoice, payment=confirmed_payment, actor=actor)
+
+    assert error_info.value.code == INVALID_BILLING_INVOICE_STATUS
+    invoice.refresh_from_db()
+    assert invoice.invoice_status == BillingInvoiceStatus.CANCELLED
