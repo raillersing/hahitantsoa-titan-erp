@@ -12,10 +12,11 @@ import HahitantsoaCommercialOpsPanel from "./HahitantsoaCommercialOpsPanel";
 import TitanStockMovementPanel from "./TitanStockMovementPanel";
 import CustomerPanel from "./CustomerPanel";
 import IdentityPanel from "./IdentityPanel";
+import CautionRefundPanel from "./CautionRefundPanel";
 import type { InventoryItem } from "./types";
 
 
-type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers" | "identity";
+type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers" | "identity" | "caution-refund";
 
 type InventoryState =
   | { status: "loading" }
@@ -92,6 +93,16 @@ const MODULES: ModuleDefinition[] = [
     boundaryNote:
       "Read operations display current roles and assignments. Write operations are gated behind backend identity management availability.",
   },
+  {
+    scope: "caution-refund",
+    navLabel: "Caution",
+    heading: "Caution Deposits & Refunds",
+    eyebrow: "Caution module",
+    description:
+      "Manage caution deposits and track refund amounts on damage/loss settlements.",
+    boundaryNote:
+      "Caution deposits are processed through the payment workflow. Refund operations require settlement execution.",
+  },
 ];
 
 function isAppScope(value: string | null): value is AppScope {
@@ -101,7 +112,8 @@ function isAppScope(value: string | null): value is AppScope {
     value === "hahitantsoa" ||
     value === "customers" ||
     value === "commercial-ops" ||
-    value === "identity"
+    value === "identity" ||
+    value === "caution-refund"
   );
 }
 
@@ -346,6 +358,10 @@ function App() {
 
           {activeScope === "identity" && (
             <IdentityPanel />
+          )}
+
+          {activeScope === "caution-refund" && (
+            <CautionRefundPanel />
           )}
         </section>
       </div>
