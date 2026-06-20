@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
 import {
+  checkEndpointPermission,
   createHahitantsoaEventDraft,
   getCustomers,
   getHahitantsoaEventDrafts,
@@ -178,6 +179,14 @@ export function HahitantsoaEventDraftsPanel({
   const [editingAmendmentLineQuantity, setEditingAmendmentLineQuantity] = useState(1);
   const [editingAmendmentLineNotes, setEditingAmendmentLineNotes] = useState("");
 
+  const [canWrite, setCanWrite] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission("/api/v1/hahitantsoa/event-drafts/", "OPTIONS", controller.signal).then(setCanWrite);
+    return () => controller.abort();
+  }, []);
+
   const isActionLoading = actionState.status === "loading";
   const isDetailLoading = draftDetailState.status === "loading";
   const isAvailabilityLoading = availabilityPreviewState.status === "loading";
@@ -186,7 +195,8 @@ export function HahitantsoaEventDraftsPanel({
   const isDisabled = isActionLoading || isDetailLoading || isAvailabilityLoading || isPreflightLoading || isAmendmentPreflightLoading || amendmentRequestsLoading;
 
   const isReadOnly = draftDetailState.status === "loaded" && draftDetailState.draft.status !== "draft";
-  const formDisabled = isDisabled || isReadOnly;
+  const noWriteAccess = !canWrite;
+  const formDisabled = isDisabled || isReadOnly || noWriteAccess;
 
 
   // Customers state
@@ -743,6 +753,9 @@ export function HahitantsoaEventDraftsPanel({
             Manage Hahitantsoa Event Drafts, check cascading availability for
             concept items, and trigger soft-delete lifecycle operations.
           </p>
+          {!canWrite ? (
+            <p className="status">Sign in with write access to create or modify event drafts.</p>
+          ) : null}
         </div>
       </div>
 

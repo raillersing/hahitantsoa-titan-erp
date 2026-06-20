@@ -1,6 +1,6 @@
 import './payment-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { confirmPayment, createPayment, getPayments } from './api';
+import { checkEndpointPermission, confirmPayment, createPayment, getPayments } from './api';
 import {
   Payment,
   PaymentConfirmPayload,
@@ -416,7 +416,14 @@ export default function PaymentWorkflowPanel() {
   const [error, setError] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [canWrite, setCanWrite] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission("/api/v1/payments/", "OPTIONS", controller.signal).then(setCanWrite);
+    return () => controller.abort();
+  }, []);
 
   const loadPayments = useCallback(async () => {
     setLoading(true);
@@ -464,6 +471,7 @@ export default function PaymentWorkflowPanel() {
           >
             {loading ? 'Loading...' : 'Refresh'}
           </button>
+          {canWrite ? (
           <button
             className="payment-workflow-panel__new"
             onClick={() => setShowForm((v) => !v)}
@@ -472,6 +480,9 @@ export default function PaymentWorkflowPanel() {
           >
             {showForm ? 'Close' : 'New Payment'}
           </button>
+          ) : (
+            <p className="status">Sign in with write access to create payments.</p>
+          )}
         </div>
       </div>
 

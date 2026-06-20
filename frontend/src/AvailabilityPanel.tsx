@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 
 import {
+  checkEndpointPermission,
   createReservationDraft,
   getCustomers,
   getReservationAvailabilitySummary,
@@ -135,6 +136,13 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   const [draftUpdateState, setDraftUpdateState] = useState<DraftUpdateState>({
     status: "idle",
   });
+  const [canWrite, setCanWrite] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission("/api/v1/reservations/drafts/", "OPTIONS", controller.signal).then(setCanWrite);
+    return () => controller.abort();
+  }, []);
 
   async function refreshDrafts(signal?: AbortSignal) {
     try {
@@ -778,6 +786,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               Period: {formatDateTime(draftDetailState.draft.start_at)} —{" "}
               {formatDateTime(draftDetailState.draft.end_at)}
             </p>
+            {canWrite ? (<>
             <form
               className="availability-form"
               onSubmit={handleUpdateDraftCustomer}
@@ -964,6 +973,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 Save draft lines
               </button>
             </form>
+            </>) : null}
 
             <ul className="preview-list">
               {draftDetailState.draft.lines.map((line) => (
@@ -1043,18 +1053,22 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           <div className="preview-list-section">
             <h3>Reservation draft</h3>
 
-            {customerState.status === "loading" ? (
+            {!canWrite ? (
+              <p className="status">Sign in with write access to create draft reservations.</p>
+            ) : null}
+
+            {canWrite && customerState.status === "loading" ? (
               <p className="status">Loading customers...</p>
             ) : null}
 
-            {customerState.status === "error" ? (
+            {canWrite && customerState.status === "error" ? (
               <div className="notice availability-notice" role="alert">
                 <h4>Customers unavailable</h4>
                 <p>{customerState.message}</p>
               </div>
             ) : null}
 
-            {customerState.status === "loaded" ? (
+            {canWrite && customerState.status === "loaded" ? (
               <>
                 <label>
                   Customer
