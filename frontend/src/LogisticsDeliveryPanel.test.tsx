@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import LogisticsDeliveryPanel from './LogisticsDeliveryPanel';
@@ -98,5 +98,25 @@ describe('LogisticsDeliveryPanel', () => {
       expect(screen.getByText('Planned')).toBeInTheDocument();
     });
     expect(screen.getByText('John')).toBeInTheDocument();
+  });
+
+  it('shows retry button on error and recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getLogisticsEvents');
+    spy.mockRejectedValue(new Error('Network error'));
+    render(<LogisticsDeliveryPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+    });
+
+    const retryBtn = screen.getByRole('button', { name: 'Retry loading delivery events' });
+    expect(retryBtn).toBeInTheDocument();
+
+    spy.mockResolvedValue(MOCK_DELIVERY_EVENTS);
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Planned')).toBeInTheDocument();
+    });
   });
 });
