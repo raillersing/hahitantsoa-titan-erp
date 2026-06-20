@@ -785,10 +785,10 @@ export function HahitantsoaEventDraftsPanel({
       <div className="preview-list-section">
         <h3>Existing Event Drafts</h3>
         {draftListState.status === "loading" && (
-          <p className="status">Loading drafts...</p>
+          <p className="status" aria-live="polite">Loading drafts...</p>
         )}
         {draftListState.status === "error" && (
-          <p className="status error">{draftListState.message}</p>
+          <p className="status error" role="alert">{draftListState.message}</p>
         )}
         {draftListState.status === "loaded" && (
           <>
@@ -826,10 +826,10 @@ export function HahitantsoaEventDraftsPanel({
       </div>
 
       {draftDetailState.status === "loading" && (
-        <p className="status">Loading draft details...</p>
+        <p className="status" aria-live="polite">Loading draft details...</p>
       )}
       {draftDetailState.status === "error" && (
-        <p className="status error">{draftDetailState.message}</p>
+        <p className="status error" role="alert">{draftDetailState.message}</p>
       )}
       {draftDetailState.status === "loaded" && (
         <div className="availability-results">
@@ -1069,10 +1069,10 @@ export function HahitantsoaEventDraftsPanel({
           </div>
 
           {availabilityPreviewState.status === "loading" && (
-            <p className="status">Analyzing line availability...</p>
+            <p className="status" aria-live="polite">Analyzing line availability...</p>
           )}
           {availabilityPreviewState.status === "error" && (
-            <p className="status error">{availabilityPreviewState.message}</p>
+            <p className="status error" role="alert">{availabilityPreviewState.message}</p>
           )}
           {availabilityPreviewState.status === "loaded" && (
             <div className="notice report-panel success-notice">
@@ -1098,10 +1098,10 @@ export function HahitantsoaEventDraftsPanel({
           )}
 
           {preflightState.status === "loading" && (
-            <p className="status">Running confirmation preflight checks...</p>
+            <p className="status" aria-live="polite">Running confirmation preflight checks...</p>
           )}
           {preflightState.status === "error" && (
-            <p className="status error">{preflightState.message}</p>
+            <p className="status error" role="alert">{preflightState.message}</p>
           )}
           {preflightState.status === "loaded" && (
             <div
@@ -1150,7 +1150,7 @@ export function HahitantsoaEventDraftsPanel({
           )}
 
           {amendmentPreflightState.status === "loading" && (
-            <p className="status">Running amendment preflight checks...</p>
+            <p className="status" aria-live="polite">Running amendment preflight checks...</p>
           )}
           {amendmentPreflightState.status === "error" && (
             <div className="notice error-notice" role="alert">
@@ -1201,7 +1201,7 @@ export function HahitantsoaEventDraftsPanel({
           <div className="amendment-requests-section">
             <h3>Amendment Requests</h3>
 
-            {amendmentRequestsLoading && <p className="status">Loading amendment requests...</p>}
+            {amendmentRequestsLoading && <p className="status" aria-live="polite">Loading amendment requests...</p>}
             {amendmentRequestsError && (
               <div className="notice error-notice" role="alert">
                 <p>{amendmentRequestsError}</p>
@@ -1410,11 +1410,11 @@ export function HahitantsoaEventDraftsPanel({
                           </button>
 
                           {amendmentRequestPreflights[req.id]?.status === "loading" && (
-                            <p className="status">Checking availability...</p>
+                            <p className="status" aria-live="polite">Checking availability...</p>
                           )}
 
                           {amendmentRequestPreflights[req.id]?.status === "error" && (
-                            <p className="status error">{amendmentRequestPreflights[req.id]?.error}</p>
+                            <p className="status error" role="alert">{amendmentRequestPreflights[req.id]?.error}</p>
                           )}
 
                           {amendmentRequestPreflights[req.id]?.status === "loaded" && amendmentRequestPreflights[req.id]?.data && (
@@ -1441,13 +1441,13 @@ export function HahitantsoaEventDraftsPanel({
                                 const preflight = amendmentRequestPreflights[req.id];
                                 if (!preflight || preflight.status !== "loaded" || !preflight.data) return null;
                                 return preflight.data.lines && preflight.data.lines.length > 0 && (
-                                  <table className="availability-preflight-table">
+                                  <table className="availability-preflight-table" aria-label="Amendment availability preflight">
                                     <thead>
                                       <tr>
-                                        <th>Item</th>
-                                        <th>Qty</th>
-                                        <th>Status</th>
-                                        <th>Conflicts</th>
+                                        <th scope="col">Item</th>
+                                        <th scope="col">Qty</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Conflicts</th>
                                       </tr>
                                     </thead>
                                     <tbody>

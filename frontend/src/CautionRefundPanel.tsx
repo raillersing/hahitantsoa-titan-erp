@@ -179,7 +179,7 @@ export default function CautionRefundPanel() {
   );
 
   return (
-    <section className="caution-refund-panel">
+    <section className="caution-refund-panel" aria-label="Caution and Refund Management">
       <div className="section-heading">
         <p className="eyebrow">Caution &amp; Refund Management</p>
         <h2>Caution Deposits &amp; Refunds</h2>
@@ -334,11 +334,11 @@ export default function CautionRefundPanel() {
             <table className="data-table" aria-label="Caution deposits">
               <thead>
                 <tr>
-                  <th>Amount</th>
-                  <th>Method</th>
-                  <th>Status</th>
-                  <th>Source</th>
-                  <th>Created</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Method</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Created</th>
                 </tr>
               </thead>
               <tbody>
@@ -397,13 +397,13 @@ export default function CautionRefundPanel() {
             <table className="data-table" aria-label="Settlement caution info">
               <thead>
                 <tr>
-                  <th>Settlement ID</th>
-                  <th>Damage/Loss Total</th>
-                  <th>Caution Available</th>
-                  <th>Caution Applied</th>
-                  <th>Refund Due</th>
-                  <th>Excess Due</th>
-                  <th>Status</th>
+                  <th scope="col">Settlement ID</th>
+                  <th scope="col">Damage/Loss Total</th>
+                  <th scope="col">Caution Available</th>
+                  <th scope="col">Caution Applied</th>
+                  <th scope="col">Refund Due</th>
+                  <th scope="col">Excess Due</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>

@@ -695,7 +695,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       </form>
 
       {availabilityState.status === "loading" ? (
-        <p className="status">Checking availability...</p>
+        <p className="status" aria-live="polite">Checking availability...</p>
       ) : null}
 
       {availabilityState.status === "error" ? (
@@ -725,7 +725,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         </div>
 
         {draftListState.status === "loading" ? (
-          <p className="status">Loading reservation drafts...</p>
+          <p className="status" aria-live="polite">Loading reservation drafts...</p>
         ) : null}
 
         {draftListState.status === "error" ? (
@@ -767,7 +767,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         ) : null}
 
         {draftDetailState.status === "loading" ? (
-          <p className="status">Loading reservation draft detail...</p>
+          <p className="status" aria-live="polite">Loading reservation draft detail...</p>
         ) : null}
 
         {draftDetailState.status === "error" ? (
@@ -879,7 +879,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             </form>
 
             {draftUpdateState.status === "loading" ? (
-              <p className="status">Saving draft changes...</p>
+              <p className="status" aria-live="polite">Saving draft changes...</p>
             ) : null}
 
             {draftUpdateState.status === "updated" ? (
@@ -1058,7 +1058,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             ) : null}
 
             {canWrite && customerState.status === "loading" ? (
-              <p className="status">Loading customers...</p>
+              <p className="status" aria-live="polite">Loading customers...</p>
             ) : null}
 
             {canWrite && customerState.status === "error" ? (
@@ -1103,7 +1103,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             ) : null}
 
             {draftCreationState.status === "loading" ? (
-              <p className="status">Creating reservation draft...</p>
+              <p className="status" aria-live="polite">Creating reservation draft...</p>
             ) : null}
 
             {draftCreationState.status === "error" ? (
