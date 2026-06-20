@@ -12,6 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
     InventoryAvailability,
     InventoryAvailabilityStatus,
@@ -37,6 +38,8 @@ RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT = "missing_signed_contr
 RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT = "missing_required_deposit"
 RESERVATION_CONFIRMATION_BLOCKER_PERMISSION_DENIED = "permission_denied"
 REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING = "required_deposit_payment_truth_missing"
+REQUIRED_CONTRACT_DOCUMENT_TRUTH_MISSING = "required_contract_document_truth_missing"
+RESERVATION_CONTRACT_TEMPLATE_KEY = "titan.material_contract.v1"
 CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Confirmed reservation draft {public_reference}."
 CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Cancelled reservation draft {public_reference}."
 
@@ -127,6 +130,34 @@ def _lock_confirmed_required_deposit_payments(
             reservation_draft=reservation_draft
         ).select_for_update()
     )
+
+
+def _contract_truth_documents(
+    *,
+    reservation_draft: ReservationDraft,
+):
+    return DocumentInstance.objects.filter(
+        reservation_draft=reservation_draft,
+        template_key=RESERVATION_CONTRACT_TEMPLATE_KEY,
+        status__in=(
+            DocumentInstanceStatus.GENERATED,
+            DocumentInstanceStatus.ISSUED,
+        ),
+    ).order_by("created_at", "id")
+
+
+def _has_contract_document_truth(
+    *,
+    reservation_draft: ReservationDraft,
+) -> bool:
+    return _contract_truth_documents(reservation_draft=reservation_draft).exists()
+
+
+def _lock_contract_truth_documents(
+    *,
+    reservation_draft: ReservationDraft,
+) -> tuple[DocumentInstance, ...]:
+    return tuple(_contract_truth_documents(reservation_draft=reservation_draft).select_for_update())
 
 
 def _is_confirmed(*, reservation_draft: ReservationDraft) -> bool:
@@ -430,6 +461,14 @@ def mark_reservation_draft_contract_signed(
             reservation_draft=reservation_draft
         )
         _assert_active_draft_state(reservation_draft=locked_reservation_draft)
+        if not _lock_contract_truth_documents(reservation_draft=locked_reservation_draft):
+            raise ReservationLifecyclePrerequisiteError(
+                (
+                    "Reservation draft must have a generated or issued material contract "
+                    "document before the contract marker can be recorded."
+                ),
+                code=REQUIRED_CONTRACT_DOCUMENT_TRUTH_MISSING,
+            )
         return _persist_contract_signed_marker(
             reservation_draft=locked_reservation_draft,
             attribution=attribution,
@@ -487,6 +526,7 @@ def confirm_reservation_draft(
             )
 
         _lock_inventory_items_for_active_lines(active_lines=active_lines)
+        _lock_contract_truth_documents(reservation_draft=locked_reservation_draft)
         _lock_confirmed_required_deposit_payments(reservation_draft=locked_reservation_draft)
 
         preflight = get_reservation_draft_confirmation_preflight(
@@ -619,6 +659,15 @@ def get_reservation_draft_confirmation_preflight(
                 blockers=blockers,
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
             )
+    elif not _has_contract_document_truth(reservation_draft=reservation_draft):
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
+        )
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
+        )
 
     if not _is_required_deposit_received(reservation_draft=reservation_draft):
         _append_blocker(

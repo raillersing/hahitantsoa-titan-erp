@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ context.template.label }}</title>
+</head>
+<body>
+    <h1>{{ context.template.label }}</h1>
+    <p>Reference: {{ context.reservation_draft.public_reference }}</p>
+    <p>Customer: {{ context.reservation_draft.customer.display_name }}</p>
+    <p>Window: {{ context.reservation_draft.start_at }} to {{ context.reservation_draft.end_at }}</p>
+
+    <h2>Reserved Items</h2>
+    <ul>
+    {% for line in context.reservation_draft.lines %}
+        <li>
+            {{ line.quantity }} x {{ line.inventory_item_name }}
+            ({{ line.inventory_item_kind }}){% if line.notes %} - {{ line.notes }}{% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+
+    <p>Contract generated from reservation-linked backend truth.</p>
+    <p>Notes: {{ context.reservation_draft.notes }}</p>
+</body>
+</html>

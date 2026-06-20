@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
     InventoryAvailability,
     InventoryAvailabilityStatus,
@@ -87,6 +88,35 @@ def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) ->
     confirm_payment(payment=payment, actor=actor)
 
 
+def _generated_contract_document(*, reservation_draft: ReservationDraft) -> DocumentInstance:
+    return DocumentInstance.objects.create(
+        reservation_draft=reservation_draft,
+        customer=reservation_draft.customer,
+        template_key="titan.material_contract.v1",
+        template_version="v1",
+        template_label="Contrat materiel Titan",
+        business_scope="titan",
+        document_type="material_contract",
+        template_status="generated_draft_template",
+        template_source_kind="generated_from_brand_style",
+        template_source_reference="docs/references/source/Document_A.pdf",
+        template_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/template.html",
+        template_preview_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/preview.pdf",
+        template_validated_by_client=False,
+        template_notes="Generated contract runtime template.",
+        reservation_public_reference=reservation_draft.public_reference,
+        reservation_status=reservation_draft.status,
+        customer_display_name=reservation_draft.customer.display_name,
+        customer_email=reservation_draft.customer.email,
+        customer_phone=reservation_draft.customer.phone,
+        customer_address=reservation_draft.customer.address,
+        status=DocumentInstanceStatus.GENERATED,
+        content_checksum="c" * 64,
+        storage_path="documents/contract-truth.html",
+        generated_content_size_bytes=128,
+    )
+
+
 def _snapshot_reservation_draft(draft: ReservationDraft) -> dict[str, object | None]:
     draft.refresh_from_db()
     return {
@@ -162,6 +192,7 @@ def test_confirmation_preflight_prerequisite_blockers_clear_when_markers_exist(
     item = _item(kind="material")
     actor = _actor(django_user_model=django_user_model)
     _line(reservation_draft=draft, inventory_item=item)
+    _generated_contract_document(reservation_draft=draft)
 
     draft.contract_signed_at = timezone.now()
     draft.contract_signed_by_id = actor.pk
@@ -184,6 +215,38 @@ def test_confirmation_preflight_prerequisite_blockers_clear_when_markers_exist(
 
     assert preflight.can_confirm is True
     assert preflight.blockers == ()
+
+
+def test_confirmation_preflight_blocks_marker_without_contract_document_truth(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    item = _item(kind="material")
+    actor = _actor(django_user_model=django_user_model)
+    _line(reservation_draft=draft, inventory_item=item)
+
+    draft.contract_signed_at = timezone.now()
+    draft.contract_signed_by_id = actor.pk
+    draft.required_deposit_received_at = timezone.now()
+    draft.required_deposit_received_by_id = actor.pk
+    draft.save(
+        update_fields=[
+            "contract_signed_at",
+            "contract_signed_by",
+            "required_deposit_received_at",
+            "required_deposit_received_by",
+        ]
+    )
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+
+    preflight = get_reservation_draft_confirmation_preflight(
+        reservation_draft=draft,
+        actor=actor,
+    )
+
+    assert preflight.can_confirm is False
+    assert RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT in preflight.blockers
+    assert RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA in preflight.blockers
 
 
 def test_confirmation_preflight_rejects_soft_deleted_draft(
