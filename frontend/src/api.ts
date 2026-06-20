@@ -593,7 +593,6 @@ export function getReservationDraftDocumentInstance(
     signal,
   );
 }
-
 export function generateReservationDraftDocumentInstance(
   reservationDraftId: string,
   id: string,
@@ -606,9 +605,54 @@ export function generateReservationDraftDocumentInstance(
   );
 }
 
+// ---- Hahitantsoa Event Draft Documents ----
+
+export function getHahitantsoaEventDraftDocumentInstances(
+  eventDraftId: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance[]> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${eventDraftId}/documents/`,
+    signal,
+  );
+}
+
+export function createHahitantsoaEventDraftDocumentInstance(
+  eventDraftId: string,
+  payload: DocumentInstanceCreatePayload,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${eventDraftId}/documents/`,
+    payload,
+    signal,
+  );
+}
+
+export function getHahitantsoaEventDraftDocumentInstance(
+  eventDraftId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${eventDraftId}/documents/${id}/`,
+    signal,
+  );
+}
+
+export function generateHahitantsoaEventDraftDocumentInstance(
+  eventDraftId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${eventDraftId}/documents/${id}/generate/`,
+    {},
+    signal,
+  );
+}
 
 // ---- Payments ----
-
 export function getPayments(
   signal?: AbortSignal,
 ): Promise<Payment[]> {

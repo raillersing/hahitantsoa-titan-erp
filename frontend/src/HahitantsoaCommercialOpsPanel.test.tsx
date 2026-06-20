@@ -2,9 +2,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import HahitantsoaCommercialOpsPanel from "./HahitantsoaCommercialOpsPanel";
 import * as api from "./api";
-import type { ReservationDraft, DocumentTemplateDefinition, DocumentInstance } from "./types";
+import type { ReservationDraft, HahitantsoaEventDraft, DocumentTemplateDefinition, DocumentInstance } from "./types";
 
-const MOCK_DRAFTS: ReservationDraft[] = [
+const MOCK_RESERVATION_DRAFTS: ReservationDraft[] = [
   {
     id: "draft-1",
     public_reference: "TR-1001",
@@ -20,20 +20,54 @@ const MOCK_DRAFTS: ReservationDraft[] = [
   },
 ];
 
+const MOCK_EVENT_DRAFTS: HahitantsoaEventDraft[] = [
+  {
+    id: "edraft-1",
+    public_reference: "HE-2001",
+    status: "draft",
+    customer_id: "cust-1",
+    customer_display_name: "Customer One",
+    event_name: "Wedding",
+    venue_name: "Grand Hall",
+    location_details: "Downtown",
+    service_notes: "Full service",
+    start_at: "2026-06-06T10:00:00Z",
+    end_at: "2026-06-06T12:00:00Z",
+    notes: "Notes",
+    lines: [],
+    created_at: "2026-06-01T10:00:00Z",
+    updated_at: "2026-06-01T10:00:00Z",
+  },
+];
+
 const MOCK_TEMPLATES: DocumentTemplateDefinition[] = [
   {
-    key: "hahitantsoa-delivery-note",
+    key: "hahitantsoa.contract.v1",
     business_scope: "hahitantsoa",
-    document_type: "delivery_note",
-    label: "Delivery Note",
+    document_type: "contract",
+    label: "Hahitantsoa Contract",
     version: "1.0",
     status: "active",
     source_kind: "standard",
     source_reference: "Ref A",
-    template_path: "/templates/deliv.html",
-    preview_path: "/preview/deliv.html",
+    template_path: "/templates/contract.html",
+    preview_path: "/preview/contract.html",
     validated_by_client: true,
-    notes: "Notes",
+    notes: "",
+  },
+  {
+    key: "titan.proforma.v1",
+    business_scope: "titan",
+    document_type: "proforma",
+    label: "Titan Proforma",
+    version: "1.0",
+    status: "active",
+    source_kind: "standard",
+    source_reference: "Ref B",
+    template_path: "/templates/proforma.html",
+    preview_path: "/preview/proforma.html",
+    validated_by_client: true,
+    notes: "",
   },
 ];
 
@@ -41,19 +75,20 @@ const MOCK_INSTANCES: DocumentInstance[] = [
   {
     id: "inst-1",
     reservation_draft: "draft-1",
+    hahitantsoa_event_draft: null,
     customer: "cust-1",
-    template_key: "hahitantsoa-delivery-note",
+    template_key: "hahitantsoa.contract.v1",
     template_version: "1.0",
-    template_label: "Delivery Note",
+    template_label: "Hahitantsoa Contract",
     business_scope: "hahitantsoa",
-    document_type: "delivery_note",
+    document_type: "contract",
     template_status: "active",
     template_source_kind: "standard",
     template_source_reference: "Ref A",
-    template_path: "/templates/deliv.html",
-    template_preview_path: "/preview/deliv.html",
+    template_path: "/templates/contract.html",
+    template_preview_path: "/preview/contract.html",
     template_validated_by_client: true,
-    template_notes: "Notes",
+    template_notes: "",
     reservation_public_reference: "TR-1001",
     reservation_status: "draft",
     customer_display_name: "Customer One",
@@ -75,6 +110,21 @@ const MOCK_INSTANCES: DocumentInstance[] = [
   },
 ];
 
+function mockAllApis() {
+  vi.spyOn(api, "getReservationDrafts").mockResolvedValue(MOCK_RESERVATION_DRAFTS);
+  vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue(MOCK_EVENT_DRAFTS);
+  vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES);
+  vi.spyOn(api, "getPayments").mockResolvedValue([]);
+  vi.spyOn(api, "getBillingInvoices").mockResolvedValue([]);
+  vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
+  vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
+  vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
+  vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
+  vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
+  vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
+  vi.spyOn(api, "getHahitantsoaEventDraftDocumentInstances").mockResolvedValue([]);
+}
+
 describe("HahitantsoaCommercialOpsPanel", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -82,6 +132,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
 
   it("renders all 7 commercial operations cards", async () => {
     vi.spyOn(api, "getReservationDrafts").mockResolvedValue([]);
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue([]);
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([]);
     vi.spyOn(api, "getPayments").mockResolvedValue([]);
     vi.spyOn(api, "getBillingInvoices").mockResolvedValue([]);
@@ -90,14 +141,15 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
     vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
     vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([]);
+    vi.spyOn(api, "getHahitantsoaEventDraftDocumentInstances").mockResolvedValue([]);
+    vi.spyOn(api, "getDocumentArtifactHtml").mockRejectedValue(new Error("No artifact"));
 
     render(<HahitantsoaCommercialOpsPanel />);
 
-    // Check heading and eyebrow
     expect(screen.getByText("Commercial Operations")).toBeInTheDocument();
     expect(screen.getByText("Enterprise Commercials")).toBeInTheDocument();
 
-    // Check all categories are present
     expect(screen.getByText("Documents & Contracts")).toBeInTheDocument();
     expect(screen.getByText("Billing & Invoices")).toBeInTheDocument();
     expect(screen.getByText("Payments & Receipts")).toBeInTheDocument();
@@ -109,6 +161,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
 
   it("indicates correct integration statuses across cards", async () => {
     vi.spyOn(api, "getReservationDrafts").mockResolvedValue([]);
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue([]);
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([]);
     vi.spyOn(api, "getPayments").mockResolvedValue([]);
     vi.spyOn(api, "getBillingInvoices").mockResolvedValue([]);
@@ -117,34 +170,46 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
     vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
     vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([]);
+    vi.spyOn(api, "getHahitantsoaEventDraftDocumentInstances").mockResolvedValue([]);
+    vi.spyOn(api, "getDocumentArtifactHtml").mockRejectedValue(new Error("No artifact"));
 
     render(<HahitantsoaCommercialOpsPanel />);
 
-    // Documents is partially connected because we mount DocumentArtifactPreviewPanel
     expect(screen.getByTestId("card-documents")).toHaveTextContent("Partially Connected");
-
-    // Billing is now partially connected with the live backend endpoint
     expect(screen.getByTestId("card-billing")).toHaveTextContent("Partially Connected");
-    // Payments is partially connected: PaymentWorkflowPanel embeds live backend payment endpoints
     expect(screen.getByTestId("card-payments")).toHaveTextContent("Partially Connected");
     expect(screen.getByTestId("card-logistics")).toHaveTextContent("Partially Connected");
     expect(screen.getByTestId("card-returns")).toHaveTextContent("Partially Connected");
     expect(screen.getByTestId("card-breakage")).toHaveTextContent("Partially Connected");
     expect(screen.getByTestId("card-stock")).toHaveTextContent("Partially Connected");
-
   });
 
-  it("manages preparing and generating document instances from active draft selectors", async () => {
-    const draftsSpy = vi.spyOn(api, "getReservationDrafts").mockResolvedValue(MOCK_DRAFTS);
-    const templatesSpy = vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES);
-    vi.spyOn(api, "getPayments").mockResolvedValue([]);
-    vi.spyOn(api, "getBillingInvoices").mockResolvedValue([]);
-    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
-    vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
-    vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
-    vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
-    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
-    const instancesSpy = vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
+  it("renders document tab bar and switches between Titan and Hahitantsoa tabs", async () => {
+    mockAllApis();
+    vi.spyOn(api, "getDocumentArtifactHtml").mockRejectedValue(new Error("No artifact"));
+
+    render(<HahitantsoaCommercialOpsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Titan Documents")).toBeInTheDocument();
+      expect(screen.getByText("Hahitantsoa Documents")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("titan-documents-panel")).toBeInTheDocument();
+    expect(screen.getByText("Titan Reservation Draft Documents")).toBeInTheDocument();
+
+    const hahitantsoaTab = screen.getByText("Hahitantsoa Documents");
+    fireEvent.click(hahitantsoaTab);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hahitantsoa Event Draft Documents")).toBeInTheDocument();
+    });
+  });
+
+  it("manages preparing and generating Titan document instances from draft selectors", async () => {
+    mockAllApis();
+    vi.spyOn(api, "getDocumentArtifactHtml").mockRejectedValue(new Error("No artifact"));
     const createSpy = vi.spyOn(api, "createReservationDraftDocumentInstance").mockResolvedValue(MOCK_INSTANCES[0]);
     const generateSpy = vi.spyOn(api, "generateReservationDraftDocumentInstance").mockResolvedValue({
       ...MOCK_INSTANCES[0],
@@ -154,23 +219,19 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     render(<HahitantsoaCommercialOpsPanel />);
 
     await waitFor(() => {
-      expect(draftsSpy).toHaveBeenCalled();
-      expect(templatesSpy).toHaveBeenCalled();
+      expect(screen.getByTestId("titan-documents-panel")).toBeInTheDocument();
     });
 
-    // Select reservation draft in documents section
     const draftSelect = screen.getByLabelText(/Select Reservation Draft:/i) as HTMLSelectElement;
     fireEvent.change(draftSelect, { target: { value: "draft-1" } });
 
     await waitFor(() => {
-      expect(instancesSpy).toHaveBeenCalledWith("draft-1");
-      expect(screen.getByText("Delivery Note")).toBeInTheDocument();
+      expect(screen.getByText("Hahitantsoa Contract")).toBeInTheDocument();
     });
 
-    // Prepare a new instance
     const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
-    fireEvent.change(templateSelect, { target: { value: "hahitantsoa-delivery-note" } });
-    
+    fireEvent.change(templateSelect, { target: { value: "hahitantsoa.contract.v1" } });
+
     const notesInput = screen.getByPlaceholderText("Instance Notes") as HTMLInputElement;
     fireEvent.change(notesInput, { target: { value: "New Notes" } });
 
@@ -179,12 +240,11 @@ describe("HahitantsoaCommercialOpsPanel", () => {
 
     await waitFor(() => {
       expect(createSpy).toHaveBeenCalledWith("draft-1", {
-        template_key: "hahitantsoa-delivery-note",
+        template_key: "hahitantsoa.contract.v1",
         notes: "New Notes",
       });
     });
 
-    // Click Generate HTML
     const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
     fireEvent.click(generateBtn);
 

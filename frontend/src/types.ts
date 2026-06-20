@@ -325,7 +325,8 @@ export type DocumentTemplateDefinition = {
 
 export type DocumentInstance = {
   id: string;
-  reservation_draft: string;
+  reservation_draft: string | null;
+  hahitantsoa_event_draft?: string | null;
   customer: string;
   template_key: string;
   template_version: string;
