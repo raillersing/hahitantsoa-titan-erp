@@ -54,9 +54,46 @@ Every backend orchestration prompt must explicitly reference:
 - whether commit, push, PR creation are authorized
 - whether the prompt is implement-only or review-only
 - whether the orchestrator should continue automatically after merge and green `main` CI
+- a short Backend Skill Plan that names the task slice, selected skills, validation plan, hard stops, and completion plan
 
 Executable profiles run the integrated task-start baseline first. Live baseline wins over
 stale docs.
+
+## Backend Skill Plan
+
+Every backend task prompt must start with a short Backend Skill Plan:
+
+1. Task slice
+
+   - one sentence describing the backend slice
+
+2. Selected skills
+
+   - list only the relevant backend skills, not all skills by default
+
+3. Validation plan
+
+   - focused loop: `scripts/dev/erp-backend-fast ...`
+   - migration-sensitive check: `scripts/dev/erp-backend-migration-guard`
+   - final backend gate: `scripts/dev/erp-backend-ci`
+
+4. Hard stops
+
+   - auth/security ambiguity
+   - payment/idempotency ambiguity
+   - transaction/data-integrity risk
+   - migration drift
+   - API contract ambiguity
+   - CI failure
+   - scope drift
+   - `.env`/secret need
+
+5. Completion plan
+
+   - PR checks with `gh pr checks --watch --interval 30`
+   - merge with head-SHA protection
+   - exact-SHA main CI verification
+   - cleanup only after main CI success
 
 ## Expected Mutable Scope
 

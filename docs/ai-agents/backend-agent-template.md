@@ -16,6 +16,11 @@ Backend orchestration prompts must also reference:
 - the medium-bundle policy
 - hard stop conditions
 
+Every backend task should begin with a short Backend Skill Plan that names the task
+slice, the relevant backend specialist skills, the validation wrapper(s), hard stops,
+and the completion plan. Prefer the smallest relevant skill set instead of listing all
+skills.
+
 Default backend orchestration role policy:
 
 - the orchestrator assigns only relevant agents
@@ -96,3 +101,14 @@ when applicable:
 - Checklist: status accuracy, links, commands, limitations, PR body.
 - Output: documentation findings, verdict, follow-ups.
 - Escalate: misleading claim, missing operational step, conflicting guidance.
+
+## Backend Skill Selection Guide
+
+Use the smallest specialist skill set that matches the task slice:
+
+- Auth/session/permissions: `erp-backend-auth-permission-auditor`, `erp-backend-api-contracts`, `erp-backend-test-triage`, `erp-backend-pr-finalizer`
+- Models/migrations: `erp-backend-migration-guardian`, `erp-backend-data-integrity`, `erp-backend-test-triage`, `erp-backend-pr-finalizer`
+- Payments/refunds/receipts: `erp-backend-payment-idempotency`, `erp-backend-transaction-concurrency`, `erp-backend-data-integrity`, `erp-backend-api-contracts`, `erp-backend-pr-finalizer`
+- Reservation lifecycle: `erp-backend-data-integrity`, `erp-backend-transaction-concurrency`, `erp-backend-auth-permission-auditor`, `erp-backend-test-triage`, `erp-backend-pr-finalizer`
+- Documents/private artifacts: `erp-backend-auth-permission-auditor`, `erp-backend-api-contracts`, `erp-backend-data-integrity`, `erp-backend-test-triage`, `erp-backend-pr-finalizer`
+- Simple test repair: `erp-backend-test-triage`, `erp-backend-pr-finalizer`
