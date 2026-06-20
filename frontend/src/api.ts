@@ -577,3 +577,53 @@ export function getDamageLossSettlements(
 ): Promise<InventoryDamageLossSettlement[]> {
   return getAuthenticatedJson('/api/v1/inventory/damage-loss-settlements/', signal);
 }
+
+// ---- Auth ----
+
+function getCsrfToken(): string {
+  const match = document.cookie.match(/csrftoken=([^;]+)/);
+  return match ? match[1] : "";
+}
+
+export async function login(
+  username: string,
+  password: string,
+): Promise<void> {
+  const params = new URLSearchParams({ username, password, next: "/" });
+  const response = await fetch("/api-auth/login/", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "X-CSRFToken": getCsrfToken(),
+    },
+    body: params,
+    redirect: "manual",
+  });
+
+  if (response.status < 200 || response.status >= 400) {
+    throw new Error("Login failed. Please check your credentials.");
+  }
+}
+
+export async function logout(): Promise<void> {
+  await fetch("/api-auth/logout/?next=/", {
+    credentials: "include",
+    headers: {
+      "X-CSRFToken": getCsrfToken(),
+    },
+    redirect: "manual",
+  });
+}
+
+export async function checkAuth(signal?: AbortSignal): Promise<boolean> {
+  try {
+    const response = await fetch("/api/v1/inventory/items/", {
+      credentials: "include",
+      signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}

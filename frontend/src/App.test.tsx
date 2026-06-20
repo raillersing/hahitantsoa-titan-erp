@@ -2,6 +2,15 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
+import { useAuth } from "./AuthContext";
+
+vi.mock("./AuthContext", () => ({
+  useAuth: vi.fn(() => ({
+    state: { status: "authenticated" },
+    login: vi.fn(),
+    logout: vi.fn(),
+  })),
+}));
 
 type InventoryItem = {
   id: string;
@@ -335,5 +344,25 @@ describe("App", () => {
     // Switch to Commercial Ops via navigation button
     fireEvent.click(screen.getByRole("button", { name: "Commercial Ops" }));
     expect(window.location.hash).toBe("#commercial-ops");
+  });
+
+  it("shows the login panel when the session is not authenticated", async () => {
+    window.history.replaceState(null, "", "/");
+
+    const mockUseAuth = vi.mocked(useAuth);
+    mockUseAuth.mockReturnValue({
+      state: { status: "unauthenticated", error: null },
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Username" }),
+    ).toBeInTheDocument();
   });
 });
