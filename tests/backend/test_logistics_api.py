@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -163,3 +165,136 @@ def test_transition_invalid_returns_400(staff_authenticated_client, reservation_
     )
     assert response.status_code == 400
     assert "not allowed" in response.json()["detail"]
+
+
+# list filtering
+
+
+def _create_event(
+    reservation_draft, *, event_type, status=LogisticsEventStatus.PLANNED, scheduled_at=None
+):
+    return LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=event_type,
+        status=status,
+        scheduled_at=scheduled_at,
+    )
+
+
+def _make_reservation_draft():
+    from apps.customers.models import Customer
+
+    start = timezone.now().replace(microsecond=0)
+    customer = Customer.objects.create(display_name="Filter customer")
+    return ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start,
+        end_at=start + timedelta(hours=4),
+    )
+
+
+def test_list_filter_by_status(operator_authenticated_client, reservation_draft):
+    _create_event(
+        reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    _create_event(
+        reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.DISPATCHED,
+    )
+
+    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?status=dispatched")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["status"] == "dispatched"
+
+
+def test_list_filter_by_event_type(operator_authenticated_client, reservation_draft):
+    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY)
+    _create_event(reservation_draft, event_type=LogisticsEventType.PICKUP)
+
+    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?event_type=pickup")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["event_type"] == "pickup"
+
+
+def test_list_filter_by_scheduled_date_range(operator_authenticated_client, reservation_draft):
+    past = timezone.now() - timedelta(days=2)
+    future = timezone.now() + timedelta(days=2)
+    target = timezone.now() + timedelta(hours=6)
+
+    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY, scheduled_at=past)
+    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY, scheduled_at=target)
+    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY, scheduled_at=future)
+
+    after = (timezone.now()).strftime("%Y-%m-%dT%H:%M:%S")
+    before = (target + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    response = operator_authenticated_client.get(
+        f"{LOGISTICS_EVENT_LIST_URL}?scheduled_after={after}&scheduled_before={before}"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["scheduled_at"] is not None
+
+
+def test_list_filter_by_reservation_draft_id(operator_authenticated_client, reservation_draft):
+    other_draft = _make_reservation_draft()
+    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY)
+    _create_event(other_draft, event_type=LogisticsEventType.DELIVERY)
+
+    response = operator_authenticated_client.get(
+        f"{LOGISTICS_EVENT_LIST_URL}?reservation_draft_id={reservation_draft.id}"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["reservation_draft"] == str(reservation_draft.id)
+
+
+def test_list_filter_combined_status_and_event_type(
+    operator_authenticated_client, reservation_draft
+):
+    _create_event(
+        reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    _create_event(
+        reservation_draft,
+        event_type=LogisticsEventType.PICKUP,
+        status=LogisticsEventStatus.DISPATCHED,
+    )
+    _create_event(
+        reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.DISPATCHED,
+    )
+
+    response = operator_authenticated_client.get(
+        f"{LOGISTICS_EVENT_LIST_URL}?status=dispatched&event_type=delivery"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["status"] == "dispatched"
+    assert results[0]["event_type"] == "delivery"
+
+
+def test_list_filter_status_with_no_match_returns_empty(
+    operator_authenticated_client, reservation_draft
+):
+    _create_event(
+        reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+
+    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?status=completed")
+    assert response.status_code == 200
+    assert response.json() == []
