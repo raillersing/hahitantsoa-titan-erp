@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-backend-fast <pytest-args...>
+
+Purpose:
+  Fast backend validation loop for a focused backend slice.
+
+Steps:
+  1. Confirm the repository layout is present
+  2. Run the backend scope guard
+  3. Execute focused pytest through scripts/dev/erp-backend-compose-ci
+
+Notes:
+  - Pass one or more pytest targets/options, for example:
+      scripts/dev/erp-backend-fast tests/backend/test_identity_api.py -q
+  - If no pytest arguments are supplied, the script prints this usage and exits.
+  - The script never reads, sources, or prints .env files.
+USAGE
+}
+
+if [ "$#" -eq 0 ]; then
+  print_usage
+  exit 2
+fi
+
+if [ ! -f "$REPO_ROOT/backend/manage.py" ] || [ ! -d "$REPO_ROOT/tests/backend" ]; then
+  echo "ERROR: backend project files are missing."
+  echo "Expected backend/manage.py and tests/backend under $REPO_ROOT"
+  exit 1
+fi
+
+echo "============================================================"
+echo "erp-backend-fast scope guard"
+echo "============================================================"
+bash "$SCRIPT_DIR/erp-agent-scope-guard" backend
+
+echo ""
+echo "============================================================"
+echo "erp-backend-fast focused pytest"
+echo "============================================================"
+scripts/dev/erp-backend-compose-ci run --rm backend python -m pytest "$@"
+
+echo ""
+echo "============================================================"
+echo "erp-backend-fast - ALL CHECKS PASSED"
+echo "============================================================"

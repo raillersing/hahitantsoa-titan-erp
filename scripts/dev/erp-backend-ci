@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-backend-ci [pytest-args...]
+
+Purpose:
+  Official local backend quality gate before push or PR.
+
+Steps:
+  1. Run the backend scope guard
+  2. Run Ruff format and lint checks through backend-quality
+  3. Run focused or default pytest through backend-quality
+  4. Run the backend migration guard
+
+Notes:
+  - Pass pytest arguments to forward them to the backend test step.
+  - This script never mutates code or dependency manifests intentionally.
+  - It never reads, sources, or prints .env files.
+USAGE
+}
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+esac
+
+if [ ! -f "$REPO_ROOT/backend/manage.py" ] || [ ! -d "$REPO_ROOT/tests/backend" ]; then
+  echo "ERROR: backend project files are missing."
+  echo "Expected backend/manage.py and tests/backend under $REPO_ROOT"
+  exit 1
+fi
+
+echo "============================================================"
+echo "erp-backend-ci scope guard"
+echo "============================================================"
+bash "$SCRIPT_DIR/erp-agent-scope-guard" backend
+
+echo ""
+echo "============================================================"
+echo "erp-backend-ci backend quality"
+echo "============================================================"
+scripts/dev/erp-backend-compose-ci run --rm backend bash scripts/ci/backend-quality "$@"
+
+echo ""
+echo "============================================================"
+echo "erp-backend-ci migration guard"
+echo "============================================================"
+bash "$SCRIPT_DIR/erp-backend-migration-guard"
+
+echo ""
+echo "============================================================"
+echo "erp-backend-ci - ALL CHECKS PASSED"
+echo "============================================================"

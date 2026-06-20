@@ -198,6 +198,44 @@ EOF
 If F138B/F138C is not merged yet, these wrapper commands are target-state commands and
 must be treated as pending repository capability.
 
+## Standard Backend Validation Wrappers
+
+Backend validation now uses three wrappers:
+
+- `scripts/dev/erp-backend-fast` for focused slice validation
+- `scripts/dev/erp-backend-ci` for pre-push / pre-PR backend quality
+- `scripts/dev/erp-backend-migration-guard` for migration-sensitive tasks
+
+Fast backend loop example:
+
+```sh
+scripts/dev/erp-logged-run backend-fast <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-backend-fast tests/backend/test_identity_api.py -q
+EOF
+```
+
+Pre-push and pre-PR backend validation:
+
+```sh
+scripts/dev/erp-logged-run backend-ci <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-backend-ci tests/backend/path_or_module.py -q
+EOF
+```
+
+Migration-sensitive backend tasks should use the migration guard:
+
+```sh
+scripts/dev/erp-logged-run backend-migration-guard <<'EOF'
+set -euo pipefail
+
+scripts/dev/erp-backend-migration-guard
+EOF
+```
+
 ## Standard Frontend Commands
 
 Frontend tasks start with a frontend-only scope check after F138B/F138C merge:

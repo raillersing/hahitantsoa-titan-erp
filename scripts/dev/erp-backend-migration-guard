@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-backend-migration-guard
+
+Purpose:
+  Guard backend model/migration drift before PR.
+
+Steps:
+  1. Run the backend scope guard
+  2. Run Django system checks
+  3. Run makemigrations --check --dry-run
+  4. Run a safe migration plan check
+
+Notes:
+  - This script never applies migrations.
+  - It never reads, sources, or prints .env files.
+USAGE
+}
+
+case "${1:-}" in
+  help|--help|-h)
+    print_usage
+    exit 0
+    ;;
+esac
+
+if [ ! -f "$REPO_ROOT/backend/manage.py" ] || [ ! -d "$REPO_ROOT/tests/backend" ]; then
+  echo "ERROR: backend project files are missing."
+  echo "Expected backend/manage.py and tests/backend under $REPO_ROOT"
+  exit 1
+fi
+
+echo "============================================================"
+echo "erp-backend-migration-guard scope guard"
+echo "============================================================"
+bash "$SCRIPT_DIR/erp-agent-scope-guard" backend
+
+echo ""
+echo "============================================================"
+echo "erp-backend-migration-guard Django system check"
+echo "============================================================"
+scripts/dev/erp-backend-compose-ci run --rm backend python backend/manage.py check
+
+echo ""
+echo "============================================================"
+echo "erp-backend-migration-guard migration drift check"
+echo "============================================================"
+scripts/dev/erp-backend-compose-ci run --rm backend \
+  python backend/manage.py makemigrations --check --dry-run --noinput
+
+echo ""
+echo "============================================================"
+echo "erp-backend-migration-guard migration plan check"
+echo "============================================================"
+scripts/dev/erp-backend-compose-ci run --rm backend \
+  python backend/manage.py migrate --plan --noinput
+
+echo ""
+echo "============================================================"
+echo "erp-backend-migration-guard - ALL CHECKS PASSED"
+echo "============================================================"
