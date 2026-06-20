@@ -174,6 +174,28 @@ def test_assignment_list_filters_by_role_and_date_range(staff_authenticated_clie
     assert str(early.id) not in {row["id"] for row in data}
 
 
+def test_assignment_list_filters_by_user_and_active_flag(staff_authenticated_client):
+    active_user = User.objects.create_user(username="active-filter", password="p")
+    inactive_user = User.objects.create_user(username="inactive-filter", password="p")
+    role = ApplicationRole.objects.create(name="Filter Role", slug="filter-role")
+    active_assignment = UserRoleAssignment.objects.create(user=active_user, role=role)
+    inactive_assignment = UserRoleAssignment.objects.create(user=inactive_user, role=role)
+    UserRoleAssignment.objects.filter(id=inactive_assignment.id).update(is_active=False)
+
+    response = staff_authenticated_client.get(
+        IDENTITY_ASSIGNMENT_LIST_URL,
+        {
+            "user_id": str(inactive_user.id),
+            "is_active": "false",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [row["id"] for row in data] == [str(inactive_assignment.id)]
+    assert str(active_assignment.id) not in {row["id"] for row in data}
+
+
 # ---- sync system roles ----
 
 
