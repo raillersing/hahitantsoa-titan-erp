@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.customers.models import Customer
@@ -22,12 +23,15 @@ from apps.hahitantsoa.services import (
     HahitantsoaEventDraftAvailabilityPreview,
     HahitantsoaEventDraftConfirmationPreflight,
     HahitantsoaEventDraftConfirmationResult,
+    HahitantsoaEventDraftPrerequisiteStatus,
+    HahitantsoaEventDraftPrerequisiteStatusItem,
     HahitantsoaSharedAvailabilityItemPreview,
     create_hahitantsoa_event_draft_amendment_request,
     get_hahitantsoa_event_draft_amendment_preflight,
     get_hahitantsoa_event_draft_amendment_request_availability_preview,
     get_hahitantsoa_event_draft_availability_preview,
     get_hahitantsoa_event_draft_confirmation_preflight,
+    get_hahitantsoa_event_draft_prerequisite_status,
     get_hahitantsoa_shared_availability_item_previews,
 )
 from apps.inventory.models import InventoryItem
@@ -157,6 +161,29 @@ class HahitantsoaEventDraftAvailabilityPreviewSerializer(serializers.Serializer)
         )
 
 
+class HahitantsoaEventDraftPrerequisiteStatusItemSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    label = serializers.CharField()
+    truth_present = serializers.BooleanField()
+    marker_present = serializers.BooleanField()
+    source_id = serializers.UUIDField(allow_null=True)
+    recorded_at = serializers.DateTimeField(allow_null=True)
+
+    @classmethod
+    def from_status(cls, status_item: HahitantsoaEventDraftPrerequisiteStatusItem):
+        return cls(status_item)
+
+
+class HahitantsoaEventDraftPrerequisiteStatusSerializer(serializers.Serializer):
+    contract = HahitantsoaEventDraftPrerequisiteStatusItemSerializer()
+    deposit = HahitantsoaEventDraftPrerequisiteStatusItemSerializer()
+    ready_for_confirmation = serializers.BooleanField()
+
+    @classmethod
+    def from_status(cls, status_value: HahitantsoaEventDraftPrerequisiteStatus):
+        return cls(status_value)
+
+
 class HahitantsoaEventDraftConfirmationPreflightSerializer(serializers.Serializer):
     event_draft_id = serializers.UUIDField()
     public_reference = serializers.CharField()
@@ -165,9 +192,21 @@ class HahitantsoaEventDraftConfirmationPreflightSerializer(serializers.Serialize
     blockers = serializers.ListField(child=serializers.CharField())
     active_line_count = serializers.IntegerField()
     unavailable_line_count = serializers.IntegerField()
+    prerequisite_status = serializers.SerializerMethodField()
+
+    @extend_schema_field(HahitantsoaEventDraftPrerequisiteStatusSerializer)
+    def get_prerequisite_status(self, obj):
+        return HahitantsoaEventDraftPrerequisiteStatusSerializer.from_status(
+            obj["prerequisite_status"]
+        ).data
 
     @classmethod
-    def from_preflight(cls, preflight: HahitantsoaEventDraftConfirmationPreflight):
+    def from_preflight(
+        cls,
+        preflight: HahitantsoaEventDraftConfirmationPreflight,
+        *,
+        event_draft: HahitantsoaEventDraft,
+    ):
         return cls(
             {
                 "event_draft_id": preflight.event_draft_id,
@@ -177,13 +216,17 @@ class HahitantsoaEventDraftConfirmationPreflightSerializer(serializers.Serialize
                 "blockers": list(preflight.blockers),
                 "active_line_count": preflight.active_line_count,
                 "unavailable_line_count": preflight.unavailable_line_count,
+                "prerequisite_status": get_hahitantsoa_event_draft_prerequisite_status(
+                    event_draft=event_draft
+                ),
             }
         )
 
     @classmethod
     def from_event_draft(cls, *, event_draft: HahitantsoaEventDraft):
         return cls.from_preflight(
-            get_hahitantsoa_event_draft_confirmation_preflight(event_draft=event_draft)
+            get_hahitantsoa_event_draft_confirmation_preflight(event_draft=event_draft),
+            event_draft=event_draft,
         )
 
 
@@ -517,6 +560,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     )
     customer_display_name = serializers.CharField(source="customer.display_name", read_only=True)
     lines = HahitantsoaEventDraftLineSerializer(many=True)
+    prerequisite_status = serializers.SerializerMethodField()
 
     class Meta:
         model = HahitantsoaEventDraft
@@ -534,6 +578,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "end_at",
             "notes",
             "lines",
+            "prerequisite_status",
             "created_at",
             "updated_at",
         )
@@ -592,7 +637,14 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             instance.lines.filter(is_deleted=False).select_related("inventory_item"),
             many=True,
         ).data
+        representation["prerequisite_status"] = self.get_prerequisite_status(instance)
         return representation
+
+    @extend_schema_field(HahitantsoaEventDraftPrerequisiteStatusSerializer)
+    def get_prerequisite_status(self, instance):
+        return HahitantsoaEventDraftPrerequisiteStatusSerializer.from_status(
+            get_hahitantsoa_event_draft_prerequisite_status(event_draft=instance)
+        ).data
 
     @transaction.atomic
     def update(self, instance, validated_data):
