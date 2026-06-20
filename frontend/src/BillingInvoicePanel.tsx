@@ -1,6 +1,6 @@
 import './operational-styles.css';
 import './billing-styles.css';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getBillingInvoices } from './api';
 import type { BillingInvoice } from './types';
 
@@ -52,27 +52,29 @@ export function BillingInvoicePanel() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      abortRef.current = new AbortController();
-      try {
-        const data = await getBillingInvoices(abortRef.current.signal);
-        setInvoices(Array.isArray(data) ? data : []);
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setError(err.message || 'Failed to load billing invoices.');
-        }
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    abortRef.current?.abort();
+    setLoading(true);
+    setError(null);
+    abortRef.current = new AbortController();
+    try {
+      const data = await getBillingInvoices(abortRef.current.signal);
+      setInvoices(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        setError(err.message || 'Failed to load billing invoices.');
       }
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
     void load();
     return () => {
       abortRef.current?.abort();
     };
-  }, []);
+  }, [load]);
 
   return (
     <div className="ops-panel" data-testid="billing-invoice-panel">
@@ -89,6 +91,9 @@ export function BillingInvoicePanel() {
       {!loading && error && (
         <div className="billing-error" role="alert">
           {error}
+          <button onClick={load} aria-label="Retry loading invoices">
+            Retry
+          </button>
         </div>
       )}
 

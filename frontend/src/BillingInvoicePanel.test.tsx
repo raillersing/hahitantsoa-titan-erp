@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import BillingInvoicePanel from './BillingInvoicePanel';
@@ -111,6 +111,26 @@ describe('BillingInvoicePanel', () => {
     render(<BillingInvoicePanel />);
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+    });
+  });
+
+  it('shows retry button on error and recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getBillingInvoices');
+    spy.mockRejectedValue(new Error('Network error'));
+    render(<BillingInvoicePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+    });
+
+    const retryBtn = screen.getByRole('button', { name: 'Retry loading invoices' });
+    expect(retryBtn).toBeInTheDocument();
+
+    spy.mockResolvedValue([MOCK_INVOICE]);
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Open')).toBeInTheDocument();
     });
   });
 });
