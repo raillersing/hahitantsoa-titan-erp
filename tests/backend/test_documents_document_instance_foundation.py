@@ -13,10 +13,15 @@ from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.selectors import (
     get_document_instance_by_id,
     list_active_document_instances_for_reservation_draft,
+    list_document_instances_for_hahitantsoa_event_draft,
     list_document_instances_for_reservation_draft,
     list_generated_document_instances_for_reservation_draft,
 )
-from apps.documents.services import create_document_instance_from_reservation_draft
+from apps.documents.services import (
+    create_document_instance_from_hahitantsoa_event_draft,
+    create_document_instance_from_reservation_draft,
+)
+from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.inventory.models import InventoryAvailability, InventoryItem
 from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
@@ -58,6 +63,25 @@ def _draft_with_line() -> ReservationDraft:
         inventory_item=_item(),
         quantity=2,
         notes="Line note",
+    )
+    return draft
+
+
+def _hahitantsoa_event_draft_with_line() -> HahitantsoaEventDraft:
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=2)
+    end_at = start_at + timedelta(hours=4)
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Documents event draft",
+        start_at=start_at,
+        end_at=end_at,
+        notes="Event draft notes",
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        notes="Event line note",
     )
     return draft
 
@@ -214,6 +238,55 @@ def test_create_document_instance_from_reservation_draft_propagates_unknown_temp
         )
 
     assert error_info.value.code == UNKNOWN_COMMERCIAL_DOCUMENT_TEMPLATE_KEY
+
+
+def test_create_document_instance_from_hahitantsoa_event_draft_snapshots_template_and_links(
+    django_user_model,
+) -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-docs-service",
+        password="test-pass",
+    )
+
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+        actor=actor,
+        notes="Prepared for event contract review",
+    )
+
+    assert instance.hahitantsoa_event_draft_id == draft.id
+    assert instance.reservation_draft_id is None
+    assert instance.customer_id == draft.customer_id
+    assert instance.template_key == "hahitantsoa.contract.v1"
+    assert instance.document_type == "contract"
+    assert instance.business_scope == "hahitantsoa"
+    assert instance.reservation_public_reference == draft.public_reference
+    assert instance.reservation_status == draft.status
+    assert instance.prepared_by_id == actor.pk
+
+
+def test_document_instance_selector_lists_hahitantsoa_event_draft_instances(
+    django_user_model,
+) -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-docs-selector",
+        password="test-pass",
+    )
+
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+        actor=actor,
+    )
+
+    listed = tuple(
+        list_document_instances_for_hahitantsoa_event_draft(hahitantsoa_event_draft=draft)
+    )
+
+    assert listed == (instance,)
 
 
 def test_document_instance_selectors_list_and_filter_voided_instances(

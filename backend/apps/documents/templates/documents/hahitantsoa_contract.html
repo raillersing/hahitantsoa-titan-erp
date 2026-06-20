@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ context.template.label }}</title>
+</head>
+<body>
+    <h1>{{ context.template.label }}</h1>
+    <p>Reference: {{ context.event_draft.public_reference }}</p>
+    <p>Event: {{ context.event_draft.event_name }}</p>
+    <p>Customer: {{ context.event_draft.customer_display_name }}</p>
+    <p>Window: {{ context.event_draft.start_at }} to {{ context.event_draft.end_at }}</p>
+    <p>Venue: {{ context.event_draft.venue_name }}</p>
+    <p>Location: {{ context.event_draft.location_details }}</p>
+
+    <h2>Items</h2>
+    <ul>
+    {% for line in context.event_draft.lines %}
+        <li>
+            {{ line.quantity }} x {{ line.inventory_item_name }}
+            ({{ line.inventory_item_kind }}){% if line.notes %} - {{ line.notes }}{% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+
+    <p>Service notes: {{ context.event_draft.service_notes }}</p>
+    <p>Notes: {{ context.event_draft.notes }}</p>
+</body>
+</html>

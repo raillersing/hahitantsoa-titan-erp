@@ -11,6 +11,9 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftAvailabilityPreviewAPIView,
     HahitantsoaEventDraftConfirmAPIView,
     HahitantsoaEventDraftConfirmationPreflightAPIView,
+    HahitantsoaEventDraftDocumentInstanceGenerateAPIView,
+    HahitantsoaEventDraftDocumentInstanceListCreateAPIView,
+    HahitantsoaEventDraftDocumentInstanceRetrieveAPIView,
     HahitantsoaEventDraftListCreateAPIView,
     HahitantsoaEventDraftRetrieveUpdateAPIView,
     HahitantsoaSharedAvailabilityAPIView,
@@ -87,5 +90,20 @@ urlpatterns = [
         "event-drafts/<uuid:pk>/confirm/",
         HahitantsoaEventDraftConfirmAPIView.as_view(),
         name="hahitantsoa-event-draft-confirm",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/documents/",
+        HahitantsoaEventDraftDocumentInstanceListCreateAPIView.as_view(),
+        name="hahitantsoa-event-draft-document-list",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/documents/<uuid:id>/",
+        HahitantsoaEventDraftDocumentInstanceRetrieveAPIView.as_view(),
+        name="hahitantsoa-event-draft-document-detail",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/documents/<uuid:id>/generate/",
+        HahitantsoaEventDraftDocumentInstanceGenerateAPIView.as_view(),
+        name="hahitantsoa-event-draft-document-generate",
     ),
 ]

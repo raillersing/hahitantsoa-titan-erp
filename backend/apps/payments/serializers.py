@@ -3,6 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.documents.serializers import DocumentInstanceSerializer
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import InventoryCautionRefundObligation
 from apps.reservations.models import ReservationDraft
 
@@ -17,6 +18,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "reservation_draft",
+            "hahitantsoa_event_draft",
             "receipt_document",
             "refund_obligation",
             "payment_kind",
@@ -48,11 +50,17 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    hahitantsoa_event_draft = serializers.PrimaryKeyRelatedField(
+        queryset=HahitantsoaEventDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Payment
         fields = (
             "reservation_draft",
+            "hahitantsoa_event_draft",
             "payment_kind",
             "payment_method",
             "payment_status",
@@ -83,13 +91,23 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         reservation_draft = attrs.get("reservation_draft")
+        hahitantsoa_event_draft = attrs.get("hahitantsoa_event_draft")
         source_label = (attrs.get("source_label") or "").strip()
-        if reservation_draft is None and not source_label:
+        if reservation_draft is not None and hahitantsoa_event_draft is not None:
+            raise serializers.ValidationError(
+                {
+                    "hahitantsoa_event_draft": (
+                        "Payments must not link both a reservation draft and a "
+                        "Hahitantsoa event draft."
+                    )
+                }
+            )
+        if reservation_draft is None and hahitantsoa_event_draft is None and not source_label:
             raise serializers.ValidationError(
                 {
                     "source_label": (
                         "Standalone payments must define a source label when no "
-                        "reservation draft is linked."
+                        "reservation draft or Hahitantsoa event draft is linked."
                     )
                 }
             )

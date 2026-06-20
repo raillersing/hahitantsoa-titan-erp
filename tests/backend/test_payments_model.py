@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
 from apps.reservations.models import ReservationDraft
 
@@ -30,6 +31,17 @@ def _reservation_draft() -> ReservationDraft:
         start_at=start_at,
         end_at=end_at,
         notes="Payment reservation draft",
+    )
+
+
+def _hahitantsoa_event_draft() -> HahitantsoaEventDraft:
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=2)
+    end_at = start_at + timedelta(hours=5)
+    return HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Payment-linked event draft",
+        start_at=start_at,
+        end_at=end_at,
     )
 
 
@@ -144,3 +156,35 @@ def test_payment_model_accepts_confirmed_payment_with_generated_receipt() -> Non
     )
 
     payment.full_clean()
+
+
+def test_payment_model_accepts_pending_hahitantsoa_event_draft_payment() -> None:
+    payment = Payment(
+        hahitantsoa_event_draft=_hahitantsoa_event_draft(),
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("150000.00"),
+    )
+
+    payment.full_clean()
+    payment.save()
+
+    assert payment.id is not None
+    assert payment.hahitantsoa_event_draft_id is not None
+
+
+def test_payment_model_rejects_linking_both_draft_types() -> None:
+    payment = Payment(
+        reservation_draft=_reservation_draft(),
+        hahitantsoa_event_draft=_hahitantsoa_event_draft(),
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("150000.00"),
+    )
+
+    with pytest.raises(ValidationError) as error_info:
+        payment.full_clean()
+
+    assert "hahitantsoa_event_draft" in error_info.value.message_dict

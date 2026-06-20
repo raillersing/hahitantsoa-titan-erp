@@ -7,6 +7,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.documents.models import DocumentInstance
+from apps.documents.runtime import DocumentRuntimeGenerationError
+from apps.documents.selectors import list_document_instances_for_hahitantsoa_event_draft
+from apps.documents.services import (
+    create_document_instance_from_hahitantsoa_event_draft,
+    generate_hahitantsoa_event_draft_document_instance_html,
+    get_hahitantsoa_event_draft_document_instance_or_404,
+)
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
@@ -29,6 +37,9 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaEventDraftAvailabilityPreviewSerializer,
     HahitantsoaEventDraftConfirmationPreflightSerializer,
     HahitantsoaEventDraftConfirmationResultSerializer,
+    HahitantsoaEventDraftDocumentInstanceCreateSerializer,
+    HahitantsoaEventDraftDocumentInstanceGenerateSerializer,
+    HahitantsoaEventDraftDocumentInstanceSerializer,
     HahitantsoaEventDraftSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
@@ -467,6 +478,118 @@ class HahitantsoaEventDraftConfirmAPIView(APIView):
 
         payload = HahitantsoaEventDraftConfirmationResultSerializer.from_result(result)
         return Response(payload.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaEventDraftDocumentInstanceListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "post":
+            return HahitantsoaEventDraftDocumentInstanceCreateSerializer
+        return HahitantsoaEventDraftDocumentInstanceSerializer
+
+    def get_event_draft(self) -> HahitantsoaEventDraft:
+        from django.shortcuts import get_object_or_404
+
+        return get_object_or_404(
+            visible_hahitantsoa_event_drafts(user=self.request.user),
+            pk=self.kwargs["pk"],
+        )
+
+    def get_queryset(self):
+        return list_document_instances_for_hahitantsoa_event_draft(
+            hahitantsoa_event_draft=self.get_event_draft()
+        )
+
+    @extend_schema(
+        responses=HahitantsoaEventDraftDocumentInstanceSerializer(many=True),
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @extend_schema(
+        request=HahitantsoaEventDraftDocumentInstanceCreateSerializer,
+        responses={201: HahitantsoaEventDraftDocumentInstanceSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = create_document_instance_from_hahitantsoa_event_draft(
+            event_draft=self.get_event_draft(),
+            template_key=serializer.validated_data["template_key"],
+            actor=request.user,
+            notes=serializer.validated_data.get("notes", ""),
+        )
+        return Response(
+            HahitantsoaEventDraftDocumentInstanceSerializer(instance).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class HahitantsoaEventDraftDocumentInstanceRetrieveAPIView(generics.RetrieveAPIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+    serializer_class = HahitantsoaEventDraftDocumentInstanceSerializer
+    lookup_field = "id"
+
+    def get_object(self):
+        from django.http import Http404
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(
+            visible_hahitantsoa_event_drafts(user=self.request.user),
+            pk=self.kwargs["pk"],
+        )
+        try:
+            return get_hahitantsoa_event_draft_document_instance_or_404(
+                event_draft=event_draft,
+                document_instance_id=self.kwargs["id"],
+            )
+        except DocumentInstance.DoesNotExist:
+            raise Http404("Document instance not found.")
+
+
+class HahitantsoaEventDraftDocumentInstanceGenerateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: HahitantsoaEventDraftDocumentInstanceGenerateSerializer,
+            400: serializers.Serializer,
+        },
+    )
+    def post(self, request, pk, id):
+        from django.http import Http404
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
+        try:
+            instance = generate_hahitantsoa_event_draft_document_instance_html(
+                event_draft=event_draft,
+                document_instance_id=id,
+                actor=request.user,
+            )
+        except DocumentInstance.DoesNotExist:
+            raise Http404("Document instance not found.")
+        except DocumentRuntimeGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = HahitantsoaEventDraftDocumentInstanceGenerateSerializer(
+            {
+                "id": instance.id,
+                "status": instance.status,
+                "content_checksum": instance.content_checksum,
+                "storage_path": instance.storage_path,
+                "generated_content_size_bytes": instance.generated_content_size_bytes,
+            }
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyAPIView):

@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from apps.common.models import TimestampedModel, UUIDModel
 from apps.customers.models import Customer
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
 
@@ -20,6 +21,13 @@ DOCUMENT_INSTANCE_STATUS_VALUES = [status.value for status in DocumentInstanceSt
 class DocumentInstance(UUIDModel, TimestampedModel):
     reservation_draft = models.ForeignKey(
         ReservationDraft,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="document_instances",
+    )
+    hahitantsoa_event_draft = models.ForeignKey(
+        HahitantsoaEventDraft,
         null=True,
         blank=True,
         on_delete=models.PROTECT,
@@ -85,6 +93,15 @@ class DocumentInstance(UUIDModel, TimestampedModel):
             models.CheckConstraint(
                 condition=models.Q(status__in=DOCUMENT_INSTANCE_STATUS_VALUES),
                 name="document_instance_status_allowed",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~(
+                        models.Q(reservation_draft__isnull=False)
+                        & models.Q(hahitantsoa_event_draft__isnull=False)
+                    )
+                ),
+                name="document_instance_single_draft_link",
             ),
             models.CheckConstraint(
                 condition=(

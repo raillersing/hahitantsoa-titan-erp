@@ -3,6 +3,11 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.customers.models import Customer
+from apps.documents.serializers import (
+    DocumentInstanceCreateSerializer,
+    DocumentInstanceGenerateSerializer,
+    DocumentInstanceSerializer,
+)
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
@@ -180,6 +185,20 @@ class HahitantsoaEventDraftConfirmationPreflightSerializer(serializers.Serialize
         return cls.from_preflight(
             get_hahitantsoa_event_draft_confirmation_preflight(event_draft=event_draft)
         )
+
+
+class HahitantsoaEventDraftDocumentInstanceCreateSerializer(DocumentInstanceCreateSerializer):
+    template_key = serializers.ChoiceField(
+        choices=(("hahitantsoa.contract.v1", "hahitantsoa.contract.v1"),)
+    )
+
+
+class HahitantsoaEventDraftDocumentInstanceSerializer(DocumentInstanceSerializer):
+    pass
+
+
+class HahitantsoaEventDraftDocumentInstanceGenerateSerializer(DocumentInstanceGenerateSerializer):
+    pass
 
 
 class HahitantsoaEventDraftAmendmentPreflightSerializer(serializers.Serializer):
