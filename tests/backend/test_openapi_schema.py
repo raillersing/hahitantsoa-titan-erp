@@ -117,6 +117,12 @@ def _assert_get_only(path_operations: dict) -> None:
 
 
 def _resolve_schema(schema: dict, schema_reference: dict) -> dict:
+    if "allOf" in schema_reference and len(schema_reference["allOf"]) == 1:
+        return _resolve_schema(schema, schema_reference["allOf"][0])
+
+    if "oneOf" in schema_reference and len(schema_reference["oneOf"]) == 1:
+        return _resolve_schema(schema, schema_reference["oneOf"][0])
+
     if "$ref" not in schema_reference:
         return schema_reference
 
@@ -341,10 +347,16 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "end_at",
         "notes",
         "lines",
+        "prerequisite_status",
         "created_at",
         "updated_at",
     }
     assert expected_fields.issubset(draft_schema["properties"])
+
+    prerequisite_schema = _resolve_schema(schema, draft_schema["properties"]["prerequisite_status"])
+    assert {"contract", "deposit", "ready_for_confirmation"}.issubset(
+        prerequisite_schema["properties"]
+    )
 
     line_reference = draft_schema["properties"]["lines"]["items"]
     line_schema = _resolve_schema(schema, line_reference)
@@ -384,6 +396,18 @@ def test_openapi_schema_exposes_hahitantsoa_event_draft_paths_and_contract(clien
         "status",
         "conflict_count",
     }.issubset(preview_line_schema["properties"])
+
+    confirmation_preflight_path = _get_path(
+        paths, HAHITANTSOA_EVENT_DRAFT_CONFIRMATION_PREFLIGHT_PATHS
+    )
+    confirmation_preflight_operation = paths[confirmation_preflight_path]["get"]
+    confirmation_preflight_schema = _resolve_schema(
+        schema,
+        confirmation_preflight_operation["responses"]["200"]["content"]["application/json"][
+            "schema"
+        ],
+    )
+    assert {"prerequisite_status"}.issubset(confirmation_preflight_schema["properties"])
 
     confirmation_preflight_operation = paths[confirmation_preflight_path]["get"]
     confirmation_preflight_schema_reference = confirmation_preflight_operation["responses"]["200"][

@@ -171,6 +171,28 @@ def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> 
     confirm_payment(payment=payment, actor=actor)
 
 
+def _missing_prerequisite_status():
+    return {
+        "contract": {
+            "status": "missing",
+            "label": "Generated contract truth is missing.",
+            "truth_present": False,
+            "marker_present": False,
+            "source_id": None,
+            "recorded_at": None,
+        },
+        "deposit": {
+            "status": "missing",
+            "label": "Confirmed deposit payment truth is missing.",
+            "truth_present": False,
+            "marker_present": False,
+            "source_id": None,
+            "recorded_at": None,
+        },
+        "ready_for_confirmation": False,
+    }
+
+
 def test_hahitantsoa_event_draft_list_rejects_unauthenticated_user(client) -> None:
     response = client.get(EVENT_DRAFT_LIST_URL)
 
@@ -196,6 +218,7 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert payload["event_name"] == "Corporate gala"
     assert payload["lines"][0]["inventory_item_id"] == str(item.id)
     assert payload["lines"][0]["inventory_item_kind"] == "article"
+    assert payload["prerequisite_status"] == _missing_prerequisite_status()
     assert HahitantsoaEventDraft.objects.count() == 1
     assert HahitantsoaEventDraftLine.objects.count() == 1
     draft = HahitantsoaEventDraft.objects.get()
@@ -228,6 +251,8 @@ def test_authenticated_user_can_read_event_draft_list_and_detail(authenticated_c
     assert detail_response.status_code == 200
     assert list_response.json()[0]["id"] == str(draft.id)
     assert detail_response.json()["id"] == str(draft.id)
+    assert list_response.json()[0]["prerequisite_status"] == _missing_prerequisite_status()
+    assert detail_response.json()["prerequisite_status"] == _missing_prerequisite_status()
 
 
 def test_event_draft_rejects_material_pack_lines(authenticated_client) -> None:
@@ -613,6 +638,8 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
 
     assert response.status_code == 200
     payload = response.json()
+    contract_document = draft.document_instances.get(template_key="hahitantsoa.contract.v1")
+    deposit_payment = draft.payments.get(payment_kind="deposit")
     assert payload == {
         "event_draft_id": str(draft.id),
         "public_reference": draft.public_reference,
@@ -621,6 +648,25 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
         "blockers": [],
         "active_line_count": 1,
         "unavailable_line_count": 0,
+        "prerequisite_status": {
+            "contract": {
+                "status": "satisfied",
+                "label": "Generated contract is linked to this event draft.",
+                "truth_present": True,
+                "marker_present": False,
+                "source_id": str(contract_document.id),
+                "recorded_at": contract_document.created_at.isoformat().replace("+00:00", "Z"),
+            },
+            "deposit": {
+                "status": "satisfied",
+                "label": "Confirmed deposit payment is linked to this event draft.",
+                "truth_present": True,
+                "marker_present": False,
+                "source_id": str(deposit_payment.id),
+                "recorded_at": deposit_payment.paid_at.isoformat().replace("+00:00", "Z"),
+            },
+            "ready_for_confirmation": True,
+        },
     }
     assert InventoryAvailability.objects.count() == availability_count
     assert ReservationDraft.objects.count() == reservation_count
@@ -670,8 +716,55 @@ def test_event_draft_confirmation_preflight_reports_blockers_without_inventory_w
         RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
         RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
     ]
+    assert payload["prerequisite_status"] == _missing_prerequisite_status()
     assert InventoryAvailability.objects.count() == availability_count
     assert ReservationDraft.objects.count() == reservation_count
+
+
+def test_event_draft_confirmation_preflight_exposes_stale_marker_status(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    actor = django_user_model.objects.create_user(
+        username="hahitantsoa-stale-marker-user",
+        password="test-password",
+    )
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Stale marker preflight",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+        required_deposit_received_at=timezone.now(),
+        required_deposit_received_by=actor,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=user,
+    )
+
+    response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["prerequisite_status"]["contract"]["status"] == "missing"
+    assert payload["prerequisite_status"]["contract"]["marker_present"] is True
+    assert (
+        payload["prerequisite_status"]["contract"]["label"]
+        == "Contract marker is present, but durable contract truth is missing."
+    )
+    assert payload["prerequisite_status"]["deposit"]["status"] == "missing"
+    assert payload["prerequisite_status"]["deposit"]["marker_present"] is True
+    assert (
+        payload["prerequisite_status"]["deposit"]["label"]
+        == "Deposit marker is present, but durable payment truth is missing."
+    )
 
 
 def test_event_draft_confirmation_preflight_blocks_empty_active_lines(
@@ -749,6 +842,9 @@ def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_i
     payload = response.json()
     assert payload["can_confirm"] is False
     assert payload["blockers"] == [RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT]
+    assert payload["prerequisite_status"]["contract"]["status"] == "missing"
+    assert payload["prerequisite_status"]["contract"]["marker_present"] is False
+    assert payload["prerequisite_status"]["deposit"]["status"] == "satisfied"
 
 
 def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_is_missing(
@@ -789,6 +885,9 @@ def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_
     payload = response.json()
     assert payload["can_confirm"] is False
     assert payload["blockers"] == [RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT]
+    assert payload["prerequisite_status"]["contract"]["status"] == "satisfied"
+    assert payload["prerequisite_status"]["deposit"]["status"] == "missing"
+    assert payload["prerequisite_status"]["deposit"]["marker_present"] is False
 
 
 def test_second_user_cannot_access_another_users_confirmation_preflight(

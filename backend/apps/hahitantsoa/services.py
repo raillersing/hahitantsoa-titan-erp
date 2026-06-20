@@ -71,6 +71,23 @@ class HahitantsoaEventDraftConfirmationPreflight:
 
 
 @dataclass(frozen=True)
+class HahitantsoaEventDraftPrerequisiteStatusItem:
+    status: str
+    label: str
+    truth_present: bool
+    marker_present: bool
+    source_id: str | None
+    recorded_at: datetime | None
+
+
+@dataclass(frozen=True)
+class HahitantsoaEventDraftPrerequisiteStatus:
+    contract: HahitantsoaEventDraftPrerequisiteStatusItem
+    deposit: HahitantsoaEventDraftPrerequisiteStatusItem
+    ready_for_confirmation: bool
+
+
+@dataclass(frozen=True)
 class HahitantsoaEventDraftAmendmentPreflight:
     event_draft_id: str
     public_reference: str
@@ -316,6 +333,93 @@ def _lock_confirmed_required_deposit_payments(
     event_draft: HahitantsoaEventDraft,
 ) -> tuple[Payment, ...]:
     return tuple(_confirmed_required_deposit_payments(event_draft=event_draft).select_for_update())
+
+
+def _build_prerequisite_status_item(
+    *,
+    truth_present: bool,
+    marker_present: bool,
+    source_id,
+    recorded_at: datetime | None,
+    satisfied_label: str,
+    stale_marker_label: str,
+    missing_label: str,
+) -> HahitantsoaEventDraftPrerequisiteStatusItem:
+    if truth_present:
+        return HahitantsoaEventDraftPrerequisiteStatusItem(
+            status="satisfied",
+            label=satisfied_label,
+            truth_present=True,
+            marker_present=marker_present,
+            source_id=str(source_id) if source_id is not None else None,
+            recorded_at=recorded_at,
+        )
+
+    if marker_present:
+        return HahitantsoaEventDraftPrerequisiteStatusItem(
+            status="missing",
+            label=stale_marker_label,
+            truth_present=False,
+            marker_present=True,
+            source_id=None,
+            recorded_at=recorded_at,
+        )
+
+    return HahitantsoaEventDraftPrerequisiteStatusItem(
+        status="missing",
+        label=missing_label,
+        truth_present=False,
+        marker_present=False,
+        source_id=None,
+        recorded_at=None,
+    )
+
+
+def get_hahitantsoa_event_draft_prerequisite_status(
+    *,
+    event_draft: HahitantsoaEventDraft,
+) -> HahitantsoaEventDraftPrerequisiteStatus:
+    contract_document = (
+        _contract_truth_documents(event_draft=event_draft).order_by("-created_at", "-id").first()
+    )
+    deposit_payment = (
+        _confirmed_required_deposit_payments(event_draft=event_draft)
+        .order_by("-paid_at", "-created_at", "-id")
+        .first()
+    )
+
+    contract_status = _build_prerequisite_status_item(
+        truth_present=contract_document is not None,
+        marker_present=_is_contract_signed(event_draft=event_draft),
+        source_id=getattr(contract_document, "id", None),
+        recorded_at=(
+            contract_document.created_at
+            if contract_document is not None
+            else event_draft.contract_signed_at
+        ),
+        satisfied_label="Generated contract is linked to this event draft.",
+        stale_marker_label="Contract marker is present, but durable contract truth is missing.",
+        missing_label="Generated contract truth is missing.",
+    )
+    deposit_status = _build_prerequisite_status_item(
+        truth_present=deposit_payment is not None,
+        marker_present=_is_required_deposit_received(event_draft=event_draft),
+        source_id=getattr(deposit_payment, "id", None),
+        recorded_at=(
+            (deposit_payment.paid_at or deposit_payment.confirmed_at)
+            if deposit_payment is not None
+            else event_draft.required_deposit_received_at
+        ),
+        satisfied_label="Confirmed deposit payment is linked to this event draft.",
+        stale_marker_label="Deposit marker is present, but durable payment truth is missing.",
+        missing_label="Confirmed deposit payment truth is missing.",
+    )
+
+    return HahitantsoaEventDraftPrerequisiteStatus(
+        contract=contract_status,
+        deposit=deposit_status,
+        ready_for_confirmation=contract_status.truth_present and deposit_status.truth_present,
+    )
 
 
 def _active_hahitantsoa_event_draft_lines(
