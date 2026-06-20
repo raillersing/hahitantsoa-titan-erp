@@ -206,6 +206,27 @@ Backend validation now uses three wrappers:
 - `scripts/dev/erp-backend-ci` for pre-push / pre-PR backend quality
 - `scripts/dev/erp-backend-migration-guard` for migration-sensitive tasks
 
+## Backend Skill Plan
+
+Before any backend implementation, include a short Backend Skill Plan:
+
+- Task slice: one sentence about the backend slice
+- Selected skills: only the relevant backend specialist skills
+- Validation plan: `erp-backend-fast`, `erp-backend-migration-guard`, `erp-backend-ci`
+- Hard stops: auth/security, payment/idempotency, transaction/data-integrity, migration drift, API contract ambiguity, CI failure, scope drift, `.env`/secret need
+- Completion plan: PR checks, head-SHA merge protection, exact-SHA main CI, cleanup after main CI success
+
+Skill selection shortcuts:
+
+- auth/session/permissions -> `erp-backend-auth-permission-auditor`
+- migrations -> `erp-backend-migration-guardian`
+- payments/refunds -> `erp-backend-payment-idempotency`
+- reservations/locking -> `erp-backend-transaction-concurrency`
+- contracts -> `erp-backend-api-contracts`
+- invariants/data consistency -> `erp-backend-data-integrity`
+- test repair or slice selection -> `erp-backend-test-triage`
+- backend PR finish line -> `erp-backend-pr-finalizer`
+
 Fast backend loop example:
 
 ```sh
