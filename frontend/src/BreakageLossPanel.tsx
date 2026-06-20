@@ -1,5 +1,5 @@
 import './operational-styles.css';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getDamageLossSettlements } from './api';
 import type { InventoryDamageLossSettlement } from './types';
 
@@ -49,27 +49,29 @@ export function BreakageLossPanel() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      abortRef.current = new AbortController();
-      try {
-        const data = await getDamageLossSettlements(abortRef.current.signal);
-        setSettlements(Array.isArray(data) ? data : []);
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setError(err.message || 'Failed to load damage & loss settlements.');
-        }
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    abortRef.current?.abort();
+    setLoading(true);
+    setError(null);
+    abortRef.current = new AbortController();
+    try {
+      const data = await getDamageLossSettlements(abortRef.current.signal);
+      setSettlements(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        setError(err.message || 'Failed to load damage & loss settlements.');
       }
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
     void load();
     return () => {
       abortRef.current?.abort();
     };
-  }, []);
+  }, [load]);
 
   return (
     <div className="ops-panel" data-testid="breakage-loss-panel">
@@ -86,6 +88,9 @@ export function BreakageLossPanel() {
       {!loading && error && (
         <div className="notice error-notice" role="alert">
           {error}
+          <button onClick={load} aria-label="Retry loading settlements">
+            Retry
+          </button>
         </div>
       )}
 

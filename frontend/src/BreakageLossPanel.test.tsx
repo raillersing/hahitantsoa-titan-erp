@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import BreakageLossPanel from './BreakageLossPanel';
@@ -87,5 +87,25 @@ describe('BreakageLossPanel', () => {
     });
     expect(screen.getByText('150 000,00 MGA')).toBeInTheDocument();
     expect(screen.getAllByText('1 line').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows retry button on error and recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getDamageLossSettlements');
+    spy.mockRejectedValue(new Error('Network error'));
+    render(<BreakageLossPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+    });
+
+    const retryBtn = screen.getByRole('button', { name: 'Retry loading settlements' });
+    expect(retryBtn).toBeInTheDocument();
+
+    spy.mockResolvedValue(MOCK_SETTLEMENTS);
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Draft')).toBeInTheDocument();
+    });
   });
 });
