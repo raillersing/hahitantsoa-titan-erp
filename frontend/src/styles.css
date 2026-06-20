@@ -1513,6 +1513,75 @@ fieldset:disabled {
 
 /* ---- Customer Panel ---- */
 
+.customer-search-form {
+  padding: 16px 24px;
+  border-bottom: 1px solid #dde4de;
+  background: #f8faf9;
+}
+
+.customer-search-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.customer-search-fields label {
+  flex: 1;
+  min-width: 140px;
+}
+
+.customer-search-fields input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #b7c9c0;
+  border-radius: 6px;
+  color: #172026;
+  background: #ffffff;
+  font-size: 0.85rem;
+}
+
+.customer-search-btn {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #22483a;
+  border-radius: 6px;
+  background: #22483a;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.customer-search-btn.secondary {
+  background: #ffffff;
+  color: #22483a;
+  border-color: #b7c9c0;
+}
+
+.customer-search-btn.secondary:hover {
+  border-color: #22483a;
+  background: #f4f8f6;
+}
+
+.customer-search-btn:hover {
+  background: #18352a;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 .customer-panel {
   overflow: hidden;
 }

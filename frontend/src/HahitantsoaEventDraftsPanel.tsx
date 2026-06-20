@@ -242,7 +242,7 @@ export function HahitantsoaEventDraftsPanel({
     const controller = new AbortController();
     fetchDrafts(controller.signal);
 
-    getCustomers(controller.signal)
+    getCustomers(undefined, controller.signal)
       .then((data) => {
         setCustomers(data);
         setCustomersLoaded(true);

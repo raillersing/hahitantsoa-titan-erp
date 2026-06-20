@@ -8,6 +8,7 @@ import {
   updateCustomer,
   deleteCustomer,
   checkCustomerWritePermission,
+  type CustomerSearchParams,
 } from "./api";
 import type {
   Customer,
@@ -56,12 +57,20 @@ function getFieldError(
 function CustomerListView({
   customersState,
   canWrite,
+  searchParams,
+  onSearchChange,
+  onSearchSubmit,
+  onClearSearch,
   onSelectCustomer,
   onCreateNew,
   onRetry,
 }: {
   customersState: CustomersState;
   canWrite: boolean;
+  searchParams: CustomerSearchParams;
+  onSearchChange: (field: keyof CustomerSearchParams, value: string) => void;
+  onSearchSubmit: (e: React.FormEvent) => void;
+  onClearSearch: () => void;
   onSelectCustomer: (id: string) => void;
   onCreateNew: () => void;
   onRetry: () => void;
@@ -87,6 +96,51 @@ function CustomerListView({
           </button>
         ) : null}
       </div>
+
+      <form className="customer-search-form" onSubmit={onSearchSubmit}>
+        <div className="customer-search-fields">
+          <label>
+            <span className="visually-hidden">Search by name</span>
+            <input
+              type="text"
+              placeholder="Name..."
+              value={searchParams.name ?? ""}
+              onChange={(e) => onSearchChange("name", e.target.value)}
+              aria-label="Search by name"
+            />
+          </label>
+          <label>
+            <span className="visually-hidden">Search by email</span>
+            <input
+              type="text"
+              placeholder="Email..."
+              value={searchParams.email ?? ""}
+              onChange={(e) => onSearchChange("email", e.target.value)}
+              aria-label="Search by email"
+            />
+          </label>
+          <label>
+            <span className="visually-hidden">Search by phone</span>
+            <input
+              type="text"
+              placeholder="Phone..."
+              value={searchParams.phone ?? ""}
+              onChange={(e) => onSearchChange("phone", e.target.value)}
+              aria-label="Search by phone"
+            />
+          </label>
+          <button type="submit" className="customer-search-btn">
+            Search
+          </button>
+          <button
+            type="button"
+            className="customer-search-btn secondary"
+            onClick={onClearSearch}
+          >
+            Clear
+          </button>
+        </div>
+      </form>
 
       {customersState.status === "loading" ? (
         <p className="status loading-spinner">Loading customers...</p>
@@ -554,6 +608,7 @@ export function CustomerPanel() {
   });
   const [canWrite, setCanWrite] = useState(false);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [searchParams, setSearchParams] = useState<CustomerSearchParams>({});
 
   useEffect(() => {
     const controller = new AbortController();
@@ -561,35 +616,33 @@ export function CustomerPanel() {
     return () => controller.abort();
   }, []);
 
-  const loadCustomers = useCallback(() => {
-    setCustomersState({ status: "loading" });
-    const controller = new AbortController();
+  const loadCustomers = useCallback(
+    (filters?: CustomerSearchParams) => {
+      setCustomersState({ status: "loading" });
 
-    getCustomers(controller.signal)
-      .then((customers) => {
-        setCustomersState(
-          customers.length === 0
-            ? { status: "empty" }
-            : { status: "loaded", customers },
-        );
-      })
-      .catch((err) => {
-        if (err instanceof Error && err.name === "AbortError") return;
-        setCustomersState({
-          status: "error",
-          message:
-            err instanceof Error
-              ? err.message
-              : "Failed to load customers.",
+      getCustomers(filters)
+        .then((customers) => {
+          setCustomersState(
+            customers.length === 0
+              ? { status: "empty" }
+              : { status: "loaded", customers },
+          );
+        })
+        .catch((err) => {
+          setCustomersState({
+            status: "error",
+            message:
+              err instanceof Error
+                ? err.message
+                : "Failed to load customers.",
+          });
         });
-      });
-
-    return () => controller.abort();
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
-    const cleanup = loadCustomers();
-    return cleanup;
+    loadCustomers();
   }, [loadCustomers]);
 
   const loadDetail = useCallback((id: string) => {
@@ -672,14 +725,14 @@ export function CustomerPanel() {
         throw new Error("Unexpected state: no customer selected for edit.");
       }
       setMutationState({ status: "success", customer });
-      setCustomersState({ status: "loading" });
-      await getCustomers().then((customers) => {
-        setCustomersState(
-          customers.length === 0
-            ? { status: "empty" }
-            : { status: "loaded", customers },
-        );
-      });
+      const updated = await getCustomers(
+        Object.values(searchParams).some(Boolean) ? searchParams : undefined,
+      );
+      setCustomersState(
+        updated.length === 0
+          ? { status: "empty" }
+          : { status: "loaded", customers: updated },
+      );
       setSelectedId(customer.id);
       setView("detail");
       setDetailState({ status: "loaded", customer });
@@ -702,6 +755,23 @@ export function CustomerPanel() {
         fieldErrors: apiErr.errors,
       });
     }
+  };
+
+  const handleSearchChange = (
+    field: keyof CustomerSearchParams,
+    value: string,
+  ) => {
+    setSearchParams((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadCustomers(searchParams);
+  };
+
+  const handleClearSearch = () => {
+    setSearchParams({});
+    loadCustomers({});
   };
 
   const handleDelete = (_id: string) => {
@@ -757,9 +827,13 @@ export function CustomerPanel() {
         <CustomerListView
           customersState={customersState}
           canWrite={canWrite}
+          searchParams={searchParams}
+          onSearchChange={handleSearchChange}
+          onSearchSubmit={handleSearchSubmit}
+          onClearSearch={handleClearSearch}
           onSelectCustomer={handleSelectCustomer}
           onCreateNew={handleCreateNew}
-          onRetry={loadCustomers}
+          onRetry={() => loadCustomers(searchParams)}
         />
       ) : null}
 
