@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import ReturnsHandlingPanel from './ReturnsHandlingPanel';
@@ -82,5 +82,25 @@ describe('ReturnsHandlingPanel', () => {
     });
     expect(screen.getByText('8 returned / 1 missing')).toBeInTheDocument();
     expect(screen.getByText('1 line')).toBeInTheDocument();
+  });
+
+  it('shows retry button on error and recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getReturnOperations');
+    spy.mockRejectedValue(new Error('Network error'));
+    render(<ReturnsHandlingPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+    });
+
+    const retryBtn = screen.getByRole('button', { name: 'Retry loading return operations' });
+    expect(retryBtn).toBeInTheDocument();
+
+    spy.mockResolvedValue(MOCK_OPERATIONS);
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Draft')).toBeInTheDocument();
+    });
   });
 });
