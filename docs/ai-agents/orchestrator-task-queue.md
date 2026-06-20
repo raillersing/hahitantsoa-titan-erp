@@ -5,6 +5,7 @@
 - `origin/main` HEAD is `d6296f0` (merge of F147F PR #322 and F151E PR #316).
 - `main` CI is green as verified on 2026-06-19.
 - F145A through F145H are merged on `main`.
+- F153A is the current agent-tools/docs bundle for backend local CI wrappers and fast validation workflow.
 - Identity / role management foundation merged as PR #282.
 - Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
 - PR #318 (identity role and assignment list filtering) is merged and serves as the
@@ -47,6 +48,42 @@ Hard stops:
 - any frontend or backend application mutation
 - any CI, Docker, scripts/dev, governance, or secret-surface drift
 - any design guidance that breaks DEC-001 or broader business boundaries
+### F153A
+
+Status:
+- active agent-tools/docs bundle
+- branch: `chore/f153a-backend-ci-wrappers`
+- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f153a-backend-ci-wrappers`
+
+Scope:
+- create `scripts/dev/erp-backend-fast`
+- create `scripts/dev/erp-backend-migration-guard`
+- create `scripts/dev/erp-backend-ci`
+- update the backend command runbook and recurring-errors matrix
+- refresh the queue to point the next backend workflow step at F153B
+
+Hard stops:
+- backend code changes
+- backend test changes
+- dependency manifest changes
+- `.github/` changes
+- `.env`, secrets, or non-ERP Docker resources
+- any ambiguity that would require touching the active backend feature worktrees
+
+Validation:
+- `bash -n scripts/dev/erp-backend-fast`
+- `bash -n scripts/dev/erp-backend-migration-guard`
+- `bash -n scripts/dev/erp-backend-ci`
+- `bash scripts/dev/erp-agent-scope-guard agent-tools`
+- `bash scripts/dev/erp-agent-scope-guard agent-docs`
+- `git diff --check`
+- safe smoke validation with `scripts/dev/erp-backend-fast tests/backend/test_identity_api.py -q` if available
+- safe smoke validation with `scripts/dev/erp-backend-migration-guard`
+
+Next planned backend bundle:
+- F153B backend specialist skills
+- expected focus: backend workflow commands, validation guidance, and specialist routing for future backend feature bundles
+
 ## Backend Commercial Operations Status
 
 ### F145A
