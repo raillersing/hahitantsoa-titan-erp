@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import Group
@@ -9,7 +10,10 @@ from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.identity.roles import IdentityRole
 from apps.inventory.models import InventoryAvailability, InventoryItem
+from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
+from apps.payments.services import confirm_payment, create_payment
 from apps.reservations.confirmation import (
+    REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
     mark_reservation_draft_contract_signed,
@@ -62,11 +66,25 @@ def _actor(*, django_user_model, username: str = "confirmation-staff", is_staff:
     )
 
 
+def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) -> None:
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("500000.00"),
+        source_label="Reservation deposit",
+    )
+    confirm_payment(payment=payment, actor=actor)
+
+
 def _prepare_confirmable_draft(*, django_user_model, staff_user):
     draft = _draft()
     item = _item()
     _line(reservation_draft=draft, inventory_item=item)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=staff_user)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=staff_user)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
         actor=staff_user,
@@ -250,6 +268,7 @@ def test_mark_required_deposit_received_success_by_staff(client, django_user_mod
     staff = _actor(django_user_model=django_user_model, is_staff=True)
     draft = _draft()
     _line(reservation_draft=draft, inventory_item=_item())
+    _confirmed_deposit_payment(reservation_draft=draft, actor=staff)
 
     client.force_login(staff)
     response = client.post(_required_deposit_url(draft=draft))
@@ -262,6 +281,26 @@ def test_mark_required_deposit_received_success_by_staff(client, django_user_mod
     draft.refresh_from_db()
     assert draft.required_deposit_received_at is not None
     assert draft.required_deposit_received_by_id == staff.id
+
+
+def test_mark_required_deposit_received_rejects_missing_confirmed_payment_truth(
+    client,
+    django_user_model,
+) -> None:
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    draft = _draft()
+    _line(reservation_draft=draft, inventory_item=_item())
+
+    client.force_login(staff)
+    response = client.post(_required_deposit_url(draft=draft))
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING
+
+    draft.refresh_from_db()
+    assert draft.required_deposit_received_at is None
+    assert draft.required_deposit_received_by_id is None
 
 
 def test_cancel_confirmed_draft_success_by_staff(client, django_user_model) -> None:

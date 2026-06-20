@@ -1,5 +1,6 @@
 from dataclasses import FrozenInstanceError, fields, is_dataclass
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -12,6 +13,8 @@ from apps.inventory.models import (
     InventoryAvailabilityStatus,
     InventoryItem,
 )
+from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
+from apps.payments.services import confirm_payment, create_payment
 from apps.reservations import confirmation as reservation_confirmation
 from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
@@ -69,6 +72,19 @@ def _actor(*, django_user_model, username: str = "reservation-staff", is_staff: 
         password="test-password",
         is_staff=is_staff,
     )
+
+
+def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) -> None:
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("500000.00"),
+        source_label="Reservation deposit",
+    )
+    confirm_payment(payment=payment, actor=actor)
 
 
 def _snapshot_reservation_draft(draft: ReservationDraft) -> dict[str, object | None]:
@@ -159,6 +175,7 @@ def test_confirmation_preflight_prerequisite_blockers_clear_when_markers_exist(
             "required_deposit_received_by",
         ]
     )
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
 
     preflight = get_reservation_draft_confirmation_preflight(
         reservation_draft=draft,

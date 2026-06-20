@@ -17,6 +17,7 @@ from apps.inventory.models import (
     InventoryAvailabilityStatus,
     InventoryItem,
 )
+from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 from apps.reservations.attribution import (
     ReservationSensitiveActorAttribution,
     capture_reservation_sensitive_actor_attribution,
@@ -35,6 +36,7 @@ RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT = "active_availabi
 RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT = "missing_signed_contract"
 RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT = "missing_required_deposit"
 RESERVATION_CONFIRMATION_BLOCKER_PERMISSION_DENIED = "permission_denied"
+REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING = "required_deposit_payment_truth_missing"
 CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Confirmed reservation draft {public_reference}."
 CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE = "Cancelled reservation draft {public_reference}."
 
@@ -95,6 +97,35 @@ def _is_required_deposit_received(*, reservation_draft: ReservationDraft) -> boo
     return (
         reservation_draft.required_deposit_received_at is not None
         and reservation_draft.required_deposit_received_by_id is not None
+    )
+
+
+def _confirmed_required_deposit_payments(
+    *,
+    reservation_draft: ReservationDraft,
+):
+    return Payment.objects.filter(
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+    ).order_by("created_at", "id")
+
+
+def _has_confirmed_required_deposit_payment(
+    *,
+    reservation_draft: ReservationDraft,
+) -> bool:
+    return _confirmed_required_deposit_payments(reservation_draft=reservation_draft).exists()
+
+
+def _lock_confirmed_required_deposit_payments(
+    *,
+    reservation_draft: ReservationDraft,
+) -> tuple[Payment, ...]:
+    return tuple(
+        _confirmed_required_deposit_payments(
+            reservation_draft=reservation_draft
+        ).select_for_update()
     )
 
 
@@ -417,6 +448,16 @@ def mark_reservation_draft_required_deposit_received(
             reservation_draft=reservation_draft
         )
         _assert_active_draft_state(reservation_draft=locked_reservation_draft)
+        if not _lock_confirmed_required_deposit_payments(
+            reservation_draft=locked_reservation_draft
+        ):
+            raise ReservationLifecyclePrerequisiteError(
+                (
+                    "Reservation draft must have a confirmed deposit payment "
+                    "before the deposit marker can be recorded."
+                ),
+                code=REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING,
+            )
         return _persist_required_deposit_received_marker(
             reservation_draft=locked_reservation_draft,
             attribution=attribution,
@@ -446,6 +487,7 @@ def confirm_reservation_draft(
             )
 
         _lock_inventory_items_for_active_lines(active_lines=active_lines)
+        _lock_confirmed_required_deposit_payments(reservation_draft=locked_reservation_draft)
 
         preflight = get_reservation_draft_confirmation_preflight(
             reservation_draft=locked_reservation_draft,
@@ -591,6 +633,11 @@ def get_reservation_draft_confirmation_preflight(
                 blockers=blockers,
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
             )
+    elif not _has_confirmed_required_deposit_payment(reservation_draft=reservation_draft):
+        _append_blocker(
+            blockers=blockers,
+            blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
+        )
 
     return ReservationDraftConfirmationPreflight(
         can_confirm=not blockers,
