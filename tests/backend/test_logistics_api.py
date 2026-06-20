@@ -298,3 +298,71 @@ def test_list_filter_status_with_no_match_returns_empty(
     response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?status=completed")
     assert response.status_code == 200
     assert response.json() == []
+
+
+# lifecycle invariant negative tests
+
+
+NON_EXISTENT_ID = "00000000-0000-0000-0000-000000000000"
+
+
+def test_create_invalid_event_type_returns_400(staff_authenticated_client, reservation_draft):
+    payload = {
+        "reservation_draft_id": str(reservation_draft.id),
+        "event_type": "invalid_event_type",
+    }
+    response = staff_authenticated_client.post(
+        LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 400
+
+
+def test_update_nonexistent_returns_404(staff_authenticated_client):
+    url = f"/api/v1/logistics/events/{NON_EXISTENT_ID}/update/"
+    response = staff_authenticated_client.post(
+        url, {"address": "Nowhere"}, content_type="application/json"
+    )
+    assert response.status_code == 404
+
+
+def test_transition_nonexistent_returns_404(staff_authenticated_client):
+    url = f"/api/v1/logistics/events/{NON_EXISTENT_ID}/transition/"
+    response = staff_authenticated_client.post(
+        url, {"new_status": "completed"}, content_type="application/json"
+    )
+    assert response.status_code == 404
+
+
+def test_update_completed_event_returns_400(staff_authenticated_client, reservation_draft):
+    now = timezone.now()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.COMPLETED,
+        scheduled_at=now,
+        executed_at=now,
+    )
+    url = f"/api/v1/logistics/events/{event.id}/update/"
+    response = staff_authenticated_client.post(
+        url, {"address": "Too late"}, content_type="application/json"
+    )
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_status_transition"
+
+
+def test_transition_to_cancelled_with_executed_at_returns_400(
+    staff_authenticated_client, reservation_draft
+):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    url = f"/api/v1/logistics/events/{event.id}/transition/"
+    response = staff_authenticated_client.post(
+        url,
+        {"new_status": "cancelled", "executed_at": timezone.now().isoformat()},
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_status_transition"
