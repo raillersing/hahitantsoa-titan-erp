@@ -390,3 +390,43 @@ def test_billing_invoice_cancel_fails_when_already_cancelled(
     assert cancel_response.status_code == 400
     payload = cancel_response.json()
     assert payload["code"] == "invalid_billing_invoice_cancel_state"
+
+
+def test_billing_invoice_settle_rejects_payment_already_used(
+    sensitive_client,
+    django_user_model,
+) -> None:
+    actor, reservation_draft_a, invoice_a = _issued_invoice(django_user_model)
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft_a,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.MOBILE_MONEY,
+        payment_status=PaymentStatus.PENDING,
+        amount=invoice_a.amount,
+        source_label="Settle invoice A via API",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor).payment
+
+    settle_a = sensitive_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice_a.id}/settle/",
+        data={"payment": str(confirmed_payment.id)},
+        content_type="application/json",
+    )
+    assert settle_a.status_code == 200
+
+    _, _, invoice_b = _issued_invoice(
+        django_user_model,
+        caution_amount=Decimal("20000.00"),
+        unit_amount=Decimal("35000.00"),
+    )
+
+    settle_b = sensitive_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice_b.id}/settle/",
+        data={"payment": str(confirmed_payment.id)},
+        content_type="application/json",
+    )
+    assert settle_b.status_code == 400
+    payload = settle_b.json()
+    assert payload["code"] == "billing_settlement_payment_already_used"
+    assert BillingInvoice.objects.get(pk=invoice_b.pk).invoice_status == "open"

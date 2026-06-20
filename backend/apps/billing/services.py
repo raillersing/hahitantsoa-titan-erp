@@ -25,6 +25,7 @@ INVALID_BILLING_INVOICE_STATUS = "invalid_billing_invoice_status"
 INVALID_BILLING_SETTLEMENT_PAYMENT = "invalid_billing_settlement_payment"
 INVALID_BILLING_INVOICE_CANCEL_STATE = "invalid_billing_invoice_cancel_state"
 BILLING_INVOICE_ALREADY_EXISTS = "billing_invoice_already_exists"
+BILLING_SETTLEMENT_PAYMENT_ALREADY_USED = "billing_settlement_payment_already_used"
 
 
 class BillingLifecycleError(ValueError):
@@ -148,6 +149,12 @@ def settle_billing_invoice(
         raise BillingLifecycleError(
             "Billing invoice is already settled.",
             code=INVALID_BILLING_INVOICE_STATUS,
+        )
+
+    if hasattr(locked_payment, "billing_invoice_settlement"):
+        raise BillingLifecycleError(
+            "Billing settlements cannot reuse a payment already linked to a settlement.",
+            code=BILLING_SETTLEMENT_PAYMENT_ALREADY_USED,
         )
 
     if locked_payment.payment_status not in CONFIRMED_PAYMENT_STATUS_VALUES:
