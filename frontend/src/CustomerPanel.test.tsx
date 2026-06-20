@@ -305,4 +305,106 @@ describe("CustomerPanel", () => {
     const badges = screen.getAllByText(/Active|Inactive/);
     expect(badges.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("renders search input fields", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(false);
+    vi.spyOn(api, "getCustomers").mockResolvedValue(MOCK_CUSTOMERS);
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+    });
+
+    expect(screen.getByPlaceholderText("Name...")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Email...")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Phone...")).toBeTruthy();
+    expect(screen.getByText("Search")).toBeTruthy();
+    expect(screen.getByText("Clear")).toBeTruthy();
+  });
+
+  it("searches customers by name on form submit", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(false);
+    const getCustomersSpy = vi
+      .spyOn(api, "getCustomers")
+      .mockResolvedValueOnce(MOCK_CUSTOMERS)
+      .mockResolvedValueOnce([MOCK_CUSTOMERS[0]]);
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+      expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
+    });
+
+    const nameInput = screen.getByPlaceholderText("Name...");
+    fireEvent.change(nameInput, { target: { value: "Alice" } });
+
+    fireEvent.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+    });
+
+    expect(screen.queryByText("Bob Rajaonarison")).toBeNull();
+    expect(getCustomersSpy).toHaveBeenLastCalledWith(
+      { name: "Alice" },
+    );
+  });
+
+  it("clears search filters and reloads all customers", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(false);
+    const getCustomersSpy = vi
+      .spyOn(api, "getCustomers")
+      .mockResolvedValueOnce(MOCK_CUSTOMERS)
+      .mockResolvedValueOnce([MOCK_CUSTOMERS[0]])
+      .mockResolvedValueOnce(MOCK_CUSTOMERS);
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Name..."), {
+      target: { value: "Alice" },
+    });
+    fireEvent.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText("Clear"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
+    });
+
+    expect(getCustomersSpy).toHaveBeenLastCalledWith({});
+  });
+
+  it("shows empty state when search returns no results", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(false);
+    vi.spyOn(api, "getCustomers")
+      .mockResolvedValueOnce(MOCK_CUSTOMERS)
+      .mockResolvedValueOnce([]);
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText("Name..."), {
+      target: { value: "NonExistent" },
+    });
+    fireEvent.click(screen.getByText("Search"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No customer records found/),
+      ).toBeTruthy();
+    });
+  });
 });

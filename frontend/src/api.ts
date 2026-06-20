@@ -153,8 +153,26 @@ export function getInventoryItems(
   return getAuthenticatedJson("/api/v1/inventory/items/", signal);
 }
 
-export function getCustomers(signal?: AbortSignal): Promise<Customer[]> {
-  return getAuthenticatedJson("/api/v1/customers/", signal);
+export type CustomerSearchParams = {
+  name?: string;
+  email?: string;
+  phone?: string;
+};
+
+export function getCustomers(
+  params?: CustomerSearchParams,
+  signal?: AbortSignal,
+): Promise<Customer[]> {
+  let url = "/api/v1/customers/";
+  if (params) {
+    const qs = new URLSearchParams();
+    if (params.name) qs.set("name", params.name);
+    if (params.email) qs.set("email", params.email);
+    if (params.phone) qs.set("phone", params.phone);
+    const qsStr = qs.toString();
+    if (qsStr) url += `?${qsStr}`;
+  }
+  return getAuthenticatedJson(url, signal);
 }
 
 export function getCustomer(

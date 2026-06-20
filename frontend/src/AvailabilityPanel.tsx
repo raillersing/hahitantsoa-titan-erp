@@ -160,7 +160,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
 
     async function loadCustomers() {
       try {
-        const customers = await getCustomers(controller.signal);
+        const customers = await getCustomers(undefined, controller.signal);
         setCustomerState({ status: "loaded", customers });
         if (customers.length > 0) {
           setSelectedCustomerId(customers[0].id);
