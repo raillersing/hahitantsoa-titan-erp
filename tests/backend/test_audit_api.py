@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.identity.roles import IdentityRole
@@ -122,3 +125,60 @@ def test_filter_by_actor_id(staff_authenticated_client):
     data = response.json()
     assert len(data) == 1
     assert data[0]["actor_id"] == actor.id
+
+
+def test_filter_by_target_id(staff_authenticated_client):
+    AuditEvent.objects.create(action="a", target_type="T", target_id="inv-1")
+    AuditEvent.objects.create(action="b", target_type="T", target_id="inv-2")
+    response = staff_authenticated_client.get(f"{AUDIT_EVENT_LIST_URL}?target_id=inv-1")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["target_id"] == "inv-1"
+
+
+def test_filter_by_created_date_range(staff_authenticated_client):
+    now = timezone.now()
+
+    past = AuditEvent.objects.create(action="past", target_type="T", target_id="1")
+    target = AuditEvent.objects.create(action="target", target_type="T", target_id="2")
+    future = AuditEvent.objects.create(action="future", target_type="T", target_id="3")
+
+    AuditEvent.objects.filter(pk=past.pk).update(created_at=now - timedelta(days=2))
+    AuditEvent.objects.filter(pk=target.pk).update(created_at=now - timedelta(minutes=30))
+    AuditEvent.objects.filter(pk=future.pk).update(created_at=now + timedelta(days=2))
+
+    after = (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    before = (now + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    response = staff_authenticated_client.get(
+        f"{AUDIT_EVENT_LIST_URL}?created_after={after}&created_before={before}"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["action"] == "target"
+
+
+def test_filter_combined_action_and_target_id(staff_authenticated_client):
+    AuditEvent.objects.create(action="create", target_type="Invoice", target_id="inv-1")
+    AuditEvent.objects.create(action="create", target_type="Invoice", target_id="inv-2")
+    AuditEvent.objects.create(action="delete", target_type="Invoice", target_id="inv-1")
+    response = staff_authenticated_client.get(
+        f"{AUDIT_EVENT_LIST_URL}?action=create&target_id=inv-1"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["action"] == "create"
+    assert data[0]["target_id"] == "inv-1"
+
+
+def test_filter_created_after_with_no_match_returns_empty(staff_authenticated_client):
+    now = timezone.now()
+    event = AuditEvent.objects.create(action="old", target_type="T", target_id="1")
+    AuditEvent.objects.filter(pk=event.pk).update(created_at=now - timedelta(days=5))
+
+    after = (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
+    response = staff_authenticated_client.get(f"{AUDIT_EVENT_LIST_URL}?created_after={after}")
+    assert response.status_code == 200
+    assert response.json() == []

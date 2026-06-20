@@ -16,7 +16,10 @@ class AuditEventListAPIView(generics.ListAPIView):
         return filter_audit_events(
             action=self.request.query_params.get("action"),
             target_type=self.request.query_params.get("target_type"),
+            target_id=self.request.query_params.get("target_id"),
             actor_id=self.request.query_params.get("actor_id"),
+            created_after=self.request.query_params.get("created_after"),
+            created_before=self.request.query_params.get("created_before"),
         )
 
 
