@@ -48,41 +48,34 @@ Hard stops:
 - any frontend or backend application mutation
 - any CI, Docker, scripts/dev, governance, or secret-surface drift
 - any design guidance that breaks DEC-001 or broader business boundaries
-### F153A
+### F153B
 
 Status:
-- active agent-tools/docs bundle
-- branch: `chore/f153a-backend-ci-wrappers`
-- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f153a-backend-ci-wrappers`
+- active agent-docs bundle
+- branch: `docs/f153b-backend-specialist-skills`
+- worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f153b-backend-specialist-skills`
 
 Scope:
-- create `scripts/dev/erp-backend-fast`
-- create `scripts/dev/erp-backend-migration-guard`
-- create `scripts/dev/erp-backend-ci`
-- update the backend command runbook and recurring-errors matrix
-- refresh the queue to point the next backend workflow step at F153B
+- create the backend specialist skills pack
+- update the backend command runbook with a short skills selection guide
+- update the recurring-errors matrix to map backend failures to the new skills
+- refresh the queue to point the next backend workflow step at F153C
 
 Hard stops:
 - backend code changes
-- backend test changes
-- dependency manifest changes
+- backend script changes
 - `.github/` changes
 - `.env`, secrets, or non-ERP Docker resources
 - any ambiguity that would require touching the active backend feature worktrees
 
 Validation:
-- `bash -n scripts/dev/erp-backend-fast`
-- `bash -n scripts/dev/erp-backend-migration-guard`
-- `bash -n scripts/dev/erp-backend-ci`
-- `bash scripts/dev/erp-agent-scope-guard agent-tools`
 - `bash scripts/dev/erp-agent-scope-guard agent-docs`
 - `git diff --check`
-- safe smoke validation with `scripts/dev/erp-backend-fast tests/backend/test_identity_api.py -q` if available
-- safe smoke validation with `scripts/dev/erp-backend-migration-guard`
+- confirm no backend/frontend/scripts/.github/dependency manifest changes
 
 Next planned backend bundle:
-- F153B backend specialist skills
-- expected focus: backend workflow commands, validation guidance, and specialist routing for future backend feature bundles
+- F153C backend review-specialist guidance
+- expected focus: review role selection, backend bundle handoff, and PR finalization support
 
 ## Backend Commercial Operations Status
 
