@@ -25,6 +25,12 @@ const CUSTOMERS: Customer[] = [
     address: "Add 1",
     notes: "",
     is_active: true,
+    created_at: "2026-01-01T10:00:00Z",
+    updated_at: "2026-01-01T10:00:00Z",
+    is_deleted: false,
+    deleted_at: null,
+    created_by: null,
+    updated_by: null,
   },
 ];
 

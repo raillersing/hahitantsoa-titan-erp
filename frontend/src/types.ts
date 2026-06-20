@@ -15,6 +15,30 @@ export type Customer = {
   address: string;
   notes: string;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type CustomerCreatePayload = {
+  display_name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  is_active?: boolean;
+};
+
+export type CustomerUpdatePayload = {
+  display_name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  is_active?: boolean;
 };
 
 export type HahitantsoaDiscoveryConcept =
