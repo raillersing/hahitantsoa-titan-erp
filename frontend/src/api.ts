@@ -1,4 +1,5 @@
 import type {
+  ApplicationRole,
   BillingInvoice,
   Customer,
   CustomerCreatePayload,
@@ -12,6 +13,9 @@ import type {
   ReservationDraftCreatePayload,
   ReservationDraftUpdatePayload,
   ReservationItemAvailabilityPreview,
+  RoleAssignmentQueryParams,
+  RoleQueryParams,
+  UserRoleAssignment,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftCreatePayload,
   HahitantsoaEventDraftUpdatePayload,
@@ -217,6 +221,23 @@ export async function deleteCustomer(
   if (!response.ok) {
     const parsed = await parseErrorResponse(response);
     throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+}
+
+export async function checkEndpointPermission(
+  endpoint: string,
+  method: string = "OPTIONS",
+  signal?: AbortSignal,
+): Promise<boolean> {
+  try {
+    const response = await fetch(endpoint, {
+      method,
+      credentials: "include",
+      signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -656,6 +677,59 @@ export function getDamageLossSettlements(
   signal?: AbortSignal,
 ): Promise<InventoryDamageLossSettlement[]> {
   return getAuthenticatedJson('/api/v1/inventory/damage-loss-settlements/', signal);
+}
+
+// ---- Identity / Role Management ----
+
+function buildRoleQuery(params?: RoleQueryParams): string {
+  if (!params) return "";
+  const qs = new URLSearchParams();
+  if (params.name) qs.set("name", params.name);
+  if (params.is_system_managed !== undefined)
+    qs.set("is_system_managed", String(params.is_system_managed));
+  if (params.is_active !== undefined)
+    qs.set("is_active", String(params.is_active));
+  const qsStr = qs.toString();
+  return qsStr ? `?${qsStr}` : "";
+}
+
+function buildRoleAssignmentQuery(params?: RoleAssignmentQueryParams): string {
+  if (!params) return "";
+  const qs = new URLSearchParams();
+  if (params.user_id) qs.set("user_id", params.user_id);
+  if (params.role_id) qs.set("role_id", params.role_id);
+  if (params.assigned_after) qs.set("assigned_after", params.assigned_after);
+  if (params.assigned_before) qs.set("assigned_before", params.assigned_before);
+  if (params.is_active !== undefined)
+    qs.set("is_active", String(params.is_active));
+  const qsStr = qs.toString();
+  return qsStr ? `?${qsStr}` : "";
+}
+
+export function getRoles(
+  params?: RoleQueryParams,
+  signal?: AbortSignal,
+): Promise<ApplicationRole[]> {
+  return getAuthenticatedJson(
+    `/api/v1/identity/roles/${buildRoleQuery(params)}`,
+    signal,
+  );
+}
+
+export function getRoleAssignments(
+  params?: RoleAssignmentQueryParams,
+  signal?: AbortSignal,
+): Promise<UserRoleAssignment[]> {
+  return getAuthenticatedJson(
+    `/api/v1/identity/assignments/${buildRoleAssignmentQuery(params)}`,
+    signal,
+  );
+}
+
+export async function checkIdentityWritePermission(
+  signal?: AbortSignal,
+): Promise<boolean> {
+  return checkEndpointPermission("/api/v1/identity/roles/", "OPTIONS", signal);
 }
 
 // ---- Auth ----
