@@ -1,25 +1,12 @@
-import React, { useEffect, useState } from "react";
-import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
+import React, { useState } from "react";
 import PaymentWorkflowPanel from "./PaymentWorkflowPanel";
 import LogisticsDeliveryPanel from "./LogisticsDeliveryPanel";
 import ReturnsHandlingPanel from "./ReturnsHandlingPanel";
 import BreakageLossPanel from "./BreakageLossPanel";
 import StockMovementLedgerPanel from "./StockMovementLedgerPanel";
 import BillingInvoicePanel from "./BillingInvoicePanel";
-
-
-import {
-  getReservationDrafts,
-  getDocumentTemplates,
-  getReservationDraftDocumentInstances,
-  createReservationDraftDocumentInstance,
-  generateReservationDraftDocumentInstance,
-} from "./api";
-import type {
-  ReservationDraft,
-  DocumentTemplateDefinition,
-  DocumentInstance,
-} from "./types";
+import TitanDocumentsPanel from "./TitanDocumentsPanel";
+import HahitantsoaDocumentsPanel from "./HahitantsoaDocumentsPanel";
 
 type IntegrationStatus = "connected" | "partially_connected" | "pending_backend";
 
@@ -100,95 +87,10 @@ const SECTIONS: CommercialSection[] = [
   },
 ];
 
+type DocumentTab = "titan" | "hahitantsoa";
+
 export function HahitantsoaCommercialOpsPanel() {
-  const [drafts, setDrafts] = useState<ReservationDraft[]>([]);
-  const [templates, setTemplates] = useState<DocumentTemplateDefinition[]>([]);
-  const [selectedDraftId, setSelectedDraftId] = useState<string>("");
-  const [instances, setInstances] = useState<DocumentInstance[]>([]);
-  
-  // Creation state
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
-  
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [draftsData, templatesData] = await Promise.all([
-          getReservationDrafts(),
-          getDocumentTemplates(),
-        ]);
-        setDrafts(draftsData);
-        setTemplates(templatesData);
-        if (draftsData.length > 0) {
-          setSelectedDraftId(draftsData[0].id);
-        }
-      } catch (err) {
-        setError("Failed to load initial data for documents management.");
-      }
-    }
-    void loadData();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedDraftId) {
-      setInstances([]);
-      return;
-    }
-    async function loadInstances() {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await getReservationDraftDocumentInstances(selectedDraftId);
-        setInstances(data);
-      } catch (err) {
-        setError("Failed to load document instances for selected draft.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    void loadInstances();
-  }, [selectedDraftId]);
-
-  const handlePrepareInstance = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDraftId || !selectedTemplateKey) return;
-    setLoading(true);
-    setError("");
-    try {
-      await createReservationDraftDocumentInstance(selectedDraftId, {
-        template_key: selectedTemplateKey,
-        notes,
-      });
-      setNotes("");
-      setSelectedTemplateKey("");
-      // reload
-      const data = await getReservationDraftDocumentInstances(selectedDraftId);
-      setInstances(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to prepare document instance.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateInstance = async (id: string) => {
-    if (!selectedDraftId) return;
-    setLoading(true);
-    setError("");
-    try {
-      await generateReservationDraftDocumentInstance(selectedDraftId, id);
-      // reload
-      const data = await getReservationDraftDocumentInstances(selectedDraftId);
-      setInstances(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate document HTML.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [docTab, setDocTab] = useState<DocumentTab>("titan");
 
   return (
     <section className="commercial-ops-panel" aria-labelledby="commercial-ops-heading">
@@ -201,12 +103,6 @@ export function HahitantsoaCommercialOpsPanel() {
           </p>
         </div>
       </div>
-
-      {error && (
-        <div className="notice error-notice" role="alert">
-          <p>{error}</p>
-        </div>
-      )}
 
       <div className="commercial-grid">
         {SECTIONS.map((sec) => (
@@ -228,100 +124,41 @@ export function HahitantsoaCommercialOpsPanel() {
             ) : null}
             {sec.id === "documents" ? (
               <div className="embedded-documents-panel">
-                <div className="draft-selector-block">
-                  <label htmlFor="draft-select">Select Reservation Draft:</label>
-                  <select
-                    id="draft-select"
-                    value={selectedDraftId}
-                    onChange={(e) => setSelectedDraftId(e.target.value)}
-                    disabled={loading}
+                <div className="documents-tab-bar" role="tablist" aria-label="Document scope">
+                  <button
+                    role="tab"
+                    aria-selected={docTab === "titan"}
+                    aria-controls="titan-documents-panel"
+                    className={`documents-tab ${docTab === "titan" ? "documents-tab-active" : ""}`}
+                    onClick={() => setDocTab("titan")}
+                    type="button"
                   >
-                    <option value="">-- Choose Reservation Draft --</option>
-                    {drafts.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.public_reference} ({d.customer_display_name})
-                      </option>
-                    ))}
-                  </select>
+                    Titan Documents
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={docTab === "hahitantsoa"}
+                    aria-controls="hahitantsoa-documents-panel"
+                    className={`documents-tab ${docTab === "hahitantsoa" ? "documents-tab-active" : ""}`}
+                    onClick={() => setDocTab("hahitantsoa")}
+                    type="button"
+                  >
+                    Hahitantsoa Documents
+                  </button>
                 </div>
-
-                {selectedDraftId && (
-                  <form className="prepare-instance-form" onSubmit={handlePrepareInstance}>
-                    <h4>Prepare Document Instance</h4>
-                    <div className="prepare-fields">
-                      <div className="form-group">
-                        <label htmlFor="template-select">Choose Template</label>
-                        <select
-                          id="template-select"
-                          value={selectedTemplateKey}
-                          onChange={(e) => setSelectedTemplateKey(e.target.value)}
-                          required
-                          disabled={loading}
-                        >
-                          <option value="">-- Choose Template --</option>
-                          {templates.map((t) => (
-                            <option key={t.key} value={t.key}>
-                              {t.label} ({t.document_type})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <input
-                        id="instance-notes"
-                        type="text"
-                        placeholder="Instance Notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        disabled={loading}
-                      />
-                      <button type="submit" disabled={loading || !selectedTemplateKey}>
-                        Prepare Instance
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {selectedDraftId && (
-                  <div className="instances-list-block">
-                    <h4>Document Instances</h4>
-                    {instances.length === 0 ? (
-                      <p className="empty-hint">No document instances prepared for this draft.</p>
-                    ) : (
-                      <ul className="instances-list">
-                        {instances.map((inst) => (
-                          <li key={inst.id} className="instance-item" data-testid={`instance-${inst.id}`}>
-                            <div className="instance-meta">
-                              <strong>{inst.template_label}</strong> (v{inst.template_version})
-                              <br />
-                              <span className="meta-sub">
-                                Status: <span className={`status-tag status-${inst.status}`}>{inst.status}</span>
-                                {inst.notes ? ` | Notes: ${inst.notes}` : ""}
-                              </span>
-                            </div>
-                            <div className="instance-actions">
-                              {inst.status === "prepared" && (
-                                <button
-                                  type="button"
-                                  className="btn-generate"
-                                  onClick={() => handleGenerateInstance(inst.id)}
-                                  disabled={loading}
-                                >
-                                  Generate HTML
-                                </button>
-                              )}
-                              {inst.status === "generated" && (
-                                <span className="generated-tag">Ready (Instance ID: {inst.id})</span>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-
-                <div className="artifact-preview-wrapper" style={{ marginTop: "24px" }}>
-                  <DocumentArtifactPreviewPanel />
+                <div
+                  id="titan-documents-panel"
+                  role="tabpanel"
+                  hidden={docTab !== "titan"}
+                >
+                  {docTab === "titan" && <TitanDocumentsPanel />}
+                </div>
+                <div
+                  id="hahitantsoa-documents-panel"
+                  role="tabpanel"
+                  hidden={docTab !== "hahitantsoa"}
+                >
+                  {docTab === "hahitantsoa" && <HahitantsoaDocumentsPanel />}
                 </div>
               </div>
             ) : null}
