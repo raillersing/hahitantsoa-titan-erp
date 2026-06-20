@@ -46,6 +46,7 @@ describe('TitanStockMovementPanel', () => {
 
   beforeEach(() => {
     vi.spyOn(api, 'getStockMovements').mockResolvedValue([]);
+    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(true);
   });
 
   it('renders the panel heading and action buttons', async () => {
@@ -53,7 +54,9 @@ describe('TitanStockMovementPanel', () => {
     expect(screen.getByTestId('titan-stock-movement-panel')).toBeInTheDocument();
     expect(screen.getByText('Stock Movements')).toBeInTheDocument();
     expect(screen.getByLabelText('Refresh stock movements')).toBeInTheDocument();
-    expect(screen.getByLabelText('Open record movement form')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Open record movement form')).toBeInTheDocument();
+    });
   });
 
   it('shows empty state when no movements exist', async () => {

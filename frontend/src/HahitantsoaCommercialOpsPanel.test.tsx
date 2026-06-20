@@ -89,6 +89,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
     vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
 
     render(<HahitantsoaCommercialOpsPanel />);
 
@@ -115,6 +116,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
     vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
 
     render(<HahitantsoaCommercialOpsPanel />);
 
@@ -141,6 +143,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
     vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
     const instancesSpy = vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
     const createSpy = vi.spyOn(api, "createReservationDraftDocumentInstance").mockResolvedValue(MOCK_INSTANCES[0]);
     const generateSpy = vi.spyOn(api, "generateReservationDraftDocumentInstance").mockResolvedValue({

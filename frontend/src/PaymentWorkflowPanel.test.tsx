@@ -70,6 +70,7 @@ vi.mock('./api', () => ({
   getPayments: vi.fn(),
   createPayment: vi.fn(),
   confirmPayment: vi.fn(),
+  checkEndpointPermission: vi.fn().mockResolvedValue(true),
 }));
 
 import * as api from './api';

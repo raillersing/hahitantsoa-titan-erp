@@ -1,6 +1,6 @@
 import './titan-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createStockMovement, getStockMovements } from './api';
+import { checkEndpointPermission, createStockMovement, getStockMovements } from './api';
 import type {
   InventoryItem,
   InventoryStockMovement,
@@ -58,6 +58,13 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [canWrite, setCanWrite] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission("/api/v1/inventory/stock-movements/", "OPTIONS", controller.signal).then(setCanWrite);
+    return () => controller.abort();
+  }, []);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -142,6 +149,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
           >
             {loading ? 'Loading…' : 'Refresh'}
           </button>
+          {canWrite ? (
           <button
             className="titan-stock-panel__toggle"
             onClick={() => setShowForm((v) => !v)}
@@ -149,6 +157,9 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
           >
             {showForm ? 'Cancel' : 'Record Movement'}
           </button>
+          ) : (
+            <p className="status">Sign in with write access to record movements.</p>
+          )}
         </div>
       </div>
 
