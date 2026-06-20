@@ -1,5 +1,6 @@
 from dataclasses import FrozenInstanceError, fields, is_dataclass
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 from django.db import transaction
@@ -9,9 +10,12 @@ from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.inventory.availability import is_inventory_item_available
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus
+from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
+from apps.payments.services import confirm_payment, create_payment
 from apps.reservations.confirmation import (
     CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
     CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
+    REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING,
     ReservationConfirmationPreflightError,
     ReservationDraftCancellationResult,
     ReservationDraftConfirmationResult,
@@ -19,6 +23,7 @@ from apps.reservations.confirmation import (
     ReservationLifecycleStateError,
     cancel_confirmed_reservation_draft,
     confirm_reservation_draft,
+    get_reservation_draft_confirmation_preflight,
     mark_reservation_draft_contract_signed,
     mark_reservation_draft_required_deposit_received,
 )
@@ -45,8 +50,12 @@ def _draft() -> ReservationDraft:
     )
 
 
-def _line(*, reservation_draft: ReservationDraft) -> ReservationDraftLine:
-    item = InventoryItemFactory.create()
+def _line(
+    *,
+    reservation_draft: ReservationDraft,
+    inventory_item=None,
+) -> ReservationDraftLine:
+    item = inventory_item or InventoryItemFactory.create()
     return ReservationDraftLine.objects.create(
         reservation_draft=reservation_draft,
         inventory_item=item,
@@ -81,11 +90,25 @@ class InventoryItemFactory:
         )
 
 
+def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) -> None:
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("500000.00"),
+        source_label="Reservation deposit",
+    )
+    confirm_payment(payment=payment, actor=actor)
+
+
 def _prepare_confirmable_draft(*, django_user_model):
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _line(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
         actor=actor,
@@ -114,6 +137,7 @@ def test_mark_required_deposit_received_persists_timestamp_and_actor(
 ) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
 
     updated_draft = mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
@@ -180,6 +204,7 @@ def test_prerequisite_marker_write_denies_actor_without_persistent_identifier() 
 def test_prerequisite_marker_write_refuses_soft_deleted_draft(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     draft.is_deleted = True
     draft.deleted_at = timezone.now()
     draft.save(update_fields=["is_deleted", "deleted_at"])
@@ -204,6 +229,7 @@ def test_prerequisite_marker_write_refuses_draft_with_cancellation_metadata(
 ) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     draft.cancelled_at = timezone.now()
     draft.cancelled_by = actor
     draft.save(update_fields=["cancelled_at", "cancelled_by"])
@@ -228,6 +254,7 @@ def test_prerequisite_marker_write_refuses_draft_with_confirmation_metadata(
 ) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     draft.confirmed_at = timezone.now()
     draft.confirmed_by = actor
     draft.save(update_fields=["confirmed_at", "confirmed_by"])
@@ -247,6 +274,7 @@ def test_prerequisite_marker_write_rolls_back_with_outer_transaction(
 ) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
 
     with pytest.raises(RuntimeError):
         with transaction.atomic():
@@ -259,6 +287,24 @@ def test_prerequisite_marker_write_rolls_back_with_outer_transaction(
     draft.refresh_from_db()
     assert draft.contract_signed_at is None
     assert draft.contract_signed_by_id is None
+
+
+def test_mark_required_deposit_received_requires_confirmed_deposit_payment_truth(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+
+    with pytest.raises(ReservationLifecycleError) as error_info:
+        mark_reservation_draft_required_deposit_received(
+            reservation_draft=draft,
+            actor=actor,
+        )
+
+    assert error_info.value.code == REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING
+    draft.refresh_from_db()
+    assert draft.required_deposit_received_at is None
+    assert draft.required_deposit_received_by_id is None
 
 
 def test_confirmation_succeeds_and_persists_state_blocks_and_audit(
@@ -360,6 +406,7 @@ def test_confirmation_refuses_draft_with_confirmation_metadata(django_user_model
 def test_confirmation_refuses_no_active_lines(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
@@ -376,6 +423,7 @@ def test_confirmation_refuses_missing_contract_marker(django_user_model) -> None
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _line(reservation_draft=draft)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
         actor=actor,
@@ -401,11 +449,30 @@ def test_confirmation_refuses_missing_deposit_marker(django_user_model) -> None:
     assert error_info.value.blockers == ("missing_required_deposit",)
 
 
+def test_confirmation_refuses_manual_deposit_marker_without_confirmed_payment_truth(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+    _line(reservation_draft=draft)
+    mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
+    draft.required_deposit_received_at = timezone.now()
+    draft.required_deposit_received_by = actor
+    draft.save(update_fields=["required_deposit_received_at", "required_deposit_received_by"])
+
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
+        confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "confirmation_preflight_failed"
+    assert error_info.value.blockers == ("missing_required_deposit",)
+
+
 def test_confirmation_refuses_availability_conflict(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     line = _line(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
         actor=actor,
@@ -429,6 +496,7 @@ def test_confirmation_refuses_inactive_or_soft_deleted_inventory_item(django_use
     actor = _actor(django_user_model=django_user_model)
     line = _line(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
         actor=actor,
@@ -442,6 +510,48 @@ def test_confirmation_refuses_inactive_or_soft_deleted_inventory_item(django_use
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
 
     assert error_info.value.code == "confirmation_preflight_failed"
+    assert error_info.value.blockers == ("active_availability_conflict",)
+
+
+def test_confirmation_revalidates_inside_transaction_and_blocks_stale_double_booking(
+    django_user_model,
+) -> None:
+    item = InventoryItemFactory.create()
+    actor = _actor(django_user_model=django_user_model)
+
+    first_draft = _draft()
+    _line(reservation_draft=first_draft, inventory_item=item)
+    mark_reservation_draft_contract_signed(reservation_draft=first_draft, actor=actor)
+    _confirmed_deposit_payment(reservation_draft=first_draft, actor=actor)
+    mark_reservation_draft_required_deposit_received(
+        reservation_draft=first_draft,
+        actor=actor,
+    )
+
+    second_draft = _draft()
+    second_draft.start_at = first_draft.start_at
+    second_draft.end_at = first_draft.end_at
+    second_draft.save(update_fields=["start_at", "end_at"])
+    _line(reservation_draft=second_draft, inventory_item=item)
+    mark_reservation_draft_contract_signed(reservation_draft=second_draft, actor=actor)
+    _confirmed_deposit_payment(reservation_draft=second_draft, actor=actor)
+    mark_reservation_draft_required_deposit_received(
+        reservation_draft=second_draft,
+        actor=actor,
+    )
+    second_draft.refresh_from_db()
+
+    preflight = get_reservation_draft_confirmation_preflight(
+        reservation_draft=second_draft,
+        actor=actor,
+    )
+    assert preflight.can_confirm is True
+
+    confirm_reservation_draft(reservation_draft=first_draft, actor=actor)
+
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
+        confirm_reservation_draft(reservation_draft=second_draft, actor=actor)
+
     assert error_info.value.blockers == ("active_availability_conflict",)
 
 
@@ -461,6 +571,7 @@ def test_confirmation_rolls_back_blocks_when_state_persist_fails(
         "_persist_reservation_draft_confirmation",
         raise_after_blocking,
     )
+    initial_audit_count = AuditEvent.objects.count()
 
     with pytest.raises(RuntimeError):
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
@@ -470,7 +581,7 @@ def test_confirmation_rolls_back_blocks_when_state_persist_fails(
     assert draft.confirmed_at is None
     assert draft.confirmed_by_id is None
     assert InventoryAvailability.objects.filter(reservation_draft=draft).count() == 0
-    assert AuditEvent.objects.count() == 0
+    assert AuditEvent.objects.count() == initial_audit_count
 
 
 @pytest.mark.django_db(transaction=True)
@@ -489,6 +600,7 @@ def test_confirmation_rolls_back_state_when_audit_schedule_fails(
         "_schedule_confirmation_success_audit",
         raise_before_commit,
     )
+    initial_audit_count = AuditEvent.objects.count()
 
     with pytest.raises(RuntimeError):
         confirm_reservation_draft(reservation_draft=draft, actor=actor)
@@ -498,7 +610,7 @@ def test_confirmation_rolls_back_state_when_audit_schedule_fails(
     assert draft.confirmed_at is None
     assert draft.confirmed_by_id is None
     assert InventoryAvailability.objects.filter(reservation_draft=draft).count() == 0
-    assert AuditEvent.objects.count() == 0
+    assert AuditEvent.objects.count() == initial_audit_count
 
 
 def test_cancellation_succeeds_releases_blocks_and_persists_state_and_audit(
