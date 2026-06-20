@@ -1,5 +1,5 @@
 import './operational-styles.css';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getStockMovements } from './api';
 import type { InventoryStockMovement } from './types';
 
@@ -24,27 +24,29 @@ export function StockMovementLedgerPanel() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-      abortRef.current = new AbortController();
-      try {
-        const data = await getStockMovements(abortRef.current.signal);
-        setMovements(Array.isArray(data) ? data : []);
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name !== 'AbortError') {
-          setError(err.message || 'Failed to load stock movements.');
-        }
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    abortRef.current?.abort();
+    setLoading(true);
+    setError(null);
+    abortRef.current = new AbortController();
+    try {
+      const data = await getStockMovements(abortRef.current.signal);
+      setMovements(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        setError(err.message || 'Failed to load stock movements.');
       }
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
     void load();
     return () => {
       abortRef.current?.abort();
     };
-  }, []);
+  }, [load]);
 
   return (
     <div className="ops-panel" data-testid="stock-movement-ledger-panel">
@@ -61,6 +63,9 @@ export function StockMovementLedgerPanel() {
       {!loading && error && (
         <div className="notice error-notice" role="alert">
           {error}
+          <button onClick={load} aria-label="Retry loading stock movements">
+            Retry
+          </button>
         </div>
       )}
 

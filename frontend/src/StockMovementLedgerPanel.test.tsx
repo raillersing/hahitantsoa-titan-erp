@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import StockMovementLedgerPanel from './StockMovementLedgerPanel';
@@ -62,5 +62,22 @@ describe('StockMovementLedgerPanel', () => {
     render(<StockMovementLedgerPanel />);
     expect(screen.getByTestId('stock-movement-ledger-panel')).toBeInTheDocument();
     expect(screen.getByText('Movement Ledger')).toBeInTheDocument();
+  });
+
+  it('shows retry button on error and recovers on retry', async () => {
+    const spy = vi.spyOn(api, 'getStockMovements');
+    spy.mockRejectedValue(new Error('Network error'));
+    render(<StockMovementLedgerPanel />);
+
+    await screen.findByRole('alert');
+    expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+
+    const retryBtn = screen.getByRole('button', { name: 'Retry loading stock movements' });
+    expect(retryBtn).toBeInTheDocument();
+
+    spy.mockResolvedValue([MOCK_MOVEMENT]);
+    fireEvent.click(retryBtn);
+
+    await screen.findByText('Outbound Delivery');
   });
 });
