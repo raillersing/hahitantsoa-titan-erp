@@ -4,6 +4,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.payments.models import Payment
 
 from .permissions import IsAuthenticatedBillingBoundary
@@ -62,7 +63,7 @@ class BillingInvoiceRetrieveAPIView(generics.RetrieveAPIView):
 
 class BillingInvoiceSettleAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedBillingBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         request=BillingInvoiceSettleSerializer,
@@ -104,7 +105,7 @@ class BillingInvoiceSettleAPIView(APIView):
 
 class BillingInvoiceCancelAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticatedBillingBoundary]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         responses={
