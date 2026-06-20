@@ -29,6 +29,24 @@ def authenticated_client(client, django_user_model):
     return client
 
 
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="billing-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
+    return client
+
+
 def _issued_invoice(
     django_user_model,
     *,
@@ -101,6 +119,30 @@ def test_authenticated_user_can_list_retrieve_and_settle_billing_invoice(
 
 
 def test_inventory_excess_receivable_generate_invoice_creates_billing_invoice(
+    sensitive_client,
+    django_user_model,
+) -> None:
+    actor, _, settlement = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("10000.00"),
+        unit_amount=Decimal("25000.00"),
+    )
+    execution = create_inventory_damage_loss_settlement_execution(
+        actor=actor,
+        settlement=settlement,
+    )
+    result = execute_inventory_damage_loss_settlement_execution(execution=execution, actor=actor)
+
+    response = sensitive_client.post(
+        f"/api/v1/inventory/excess-receivables/{result.excess_receivable.id}/generate-invoice/",
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert BillingInvoice.objects.filter(excess_receivable=result.excess_receivable).exists()
+
+
+def test_inventory_excess_receivable_generate_invoice_requires_sensitive_access(
     authenticated_client,
     django_user_model,
 ) -> None:
@@ -120,8 +162,7 @@ def test_inventory_excess_receivable_generate_invoice_creates_billing_invoice(
         content_type="application/json",
     )
 
-    assert response.status_code == 200
-    assert BillingInvoice.objects.filter(excess_receivable=result.excess_receivable).exists()
+    assert response.status_code == 403
 
 
 def test_billing_invoice_list_filter_by_status(authenticated_client, django_user_model):

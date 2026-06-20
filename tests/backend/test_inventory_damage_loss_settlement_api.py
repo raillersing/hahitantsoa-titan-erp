@@ -33,6 +33,24 @@ def authenticated_client(client, django_user_model):
     return client
 
 
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="settlement-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
+    return client
+
+
 def _inventory_item(name: str) -> InventoryItem:
     return InventoryItem.objects.create(
         name=name,
@@ -131,7 +149,8 @@ def test_damage_loss_settlement_list_requires_authentication(client) -> None:
     assert response.status_code in {401, 403}
 
 
-def test_authenticated_user_can_create_read_and_validate_damage_loss_settlement(
+def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_damage_loss_settlement(
+    sensitive_client,
     authenticated_client,
     django_user_model,
 ) -> None:
@@ -146,7 +165,7 @@ def test_authenticated_user_can_create_read_and_validate_damage_loss_settlement(
     before_stock_movement_count = InventoryStockMovement.objects.count()
     return_operation_line = return_operation.lines.get()
 
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_LIST_URL,
         data={
             "return_operation": str(return_operation.id),
@@ -187,7 +206,7 @@ def test_authenticated_user_can_create_read_and_validate_damage_loss_settlement(
     assert detail_response.status_code == 200
     assert detail_response.json()["id"] == payload["id"]
 
-    validate_response = authenticated_client.post(
+    validate_response = sensitive_client.post(
         f"{DAMAGE_LOSS_SETTLEMENT_LIST_URL}{payload['id']}/validate/",
         content_type="application/json",
     )
@@ -202,8 +221,63 @@ def test_authenticated_user_can_create_read_and_validate_damage_loss_settlement(
     assert InventoryStockMovement.objects.count() == before_stock_movement_count
 
 
-def test_damage_loss_settlement_create_rejects_draft_return_operation(
+def test_damage_loss_settlement_create_requires_authentication(client) -> None:
+    response = client.post(
+        DAMAGE_LOSS_SETTLEMENT_LIST_URL,
+        data={"notes": "Anon attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_damage_loss_settlement_create_requires_sensitive_access(
     authenticated_client,
+    django_user_model,
+) -> None:
+    response = authenticated_client.post(
+        DAMAGE_LOSS_SETTLEMENT_LIST_URL,
+        data={"notes": "Non-sensitive attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_damage_loss_settlement_validate_requires_sensitive_access(
+    sensitive_client,
+    authenticated_client,
+    django_user_model,
+) -> None:
+    _, return_operation = _validated_return_operation(django_user_model)
+    create_response = sensitive_client.post(
+        DAMAGE_LOSS_SETTLEMENT_LIST_URL,
+        data={
+            "return_operation": str(return_operation.id),
+            "lines": [
+                {
+                    "return_operation_line": str(return_operation.lines.get().id),
+                    "settlement_line_kind": "loss",
+                    "quantity": 1,
+                    "unit_amount": "20000.00",
+                    "notes": "",
+                }
+            ],
+        },
+        content_type="application/json",
+    )
+    settlement_id = create_response.json()["id"]
+
+    response = authenticated_client.post(
+        f"{DAMAGE_LOSS_SETTLEMENT_LIST_URL}{settlement_id}/validate/",
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_damage_loss_settlement_create_rejects_draft_return_operation(
+    sensitive_client,
     django_user_model,
 ) -> None:
     actor = django_user_model.objects.create_user(username="draft-return-api", password="test-pass")
@@ -222,7 +296,7 @@ def test_damage_loss_settlement_create_rejects_draft_return_operation(
         ],
     )
 
-    response = authenticated_client.post(
+    response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_LIST_URL,
         data={
             "return_operation": str(return_operation.id),
@@ -244,11 +318,11 @@ def test_damage_loss_settlement_create_rejects_draft_return_operation(
 
 
 def test_damage_loss_settlement_validate_rejects_second_validation(
-    authenticated_client,
+    sensitive_client,
     django_user_model,
 ) -> None:
     _, return_operation = _validated_return_operation(django_user_model)
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_LIST_URL,
         data={
             "return_operation": str(return_operation.id),
@@ -266,11 +340,11 @@ def test_damage_loss_settlement_validate_rejects_second_validation(
     )
     settlement_id = create_response.json()["id"]
 
-    first_response = authenticated_client.post(
+    first_response = sensitive_client.post(
         f"{DAMAGE_LOSS_SETTLEMENT_LIST_URL}{settlement_id}/validate/",
         content_type="application/json",
     )
-    second_response = authenticated_client.post(
+    second_response = sensitive_client.post(
         f"{DAMAGE_LOSS_SETTLEMENT_LIST_URL}{settlement_id}/validate/",
         content_type="application/json",
     )
@@ -282,12 +356,12 @@ def test_damage_loss_settlement_validate_rejects_second_validation(
 
 @pytest.mark.parametrize("method", ["put", "patch", "delete"])
 def test_damage_loss_settlement_detail_rejects_write_methods(
-    authenticated_client,
+    sensitive_client,
     django_user_model,
     method: str,
 ) -> None:
     _, return_operation = _validated_return_operation(django_user_model)
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_LIST_URL,
         data={
             "return_operation": str(return_operation.id),
@@ -304,7 +378,7 @@ def test_damage_loss_settlement_detail_rejects_write_methods(
         content_type="application/json",
     )
     settlement_id = create_response.json()["id"]
-    request_method = getattr(authenticated_client, method)
+    request_method = getattr(sensitive_client, method)
 
     response = request_method(
         f"{DAMAGE_LOSS_SETTLEMENT_LIST_URL}{settlement_id}/",

@@ -34,6 +34,24 @@ def authenticated_client(client, django_user_model):
     return client
 
 
+@pytest.fixture
+def sensitive_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="execution-sensitive-user",
+        password="test-pass",
+        is_staff=True,
+    )
+
+
+@pytest.fixture
+def sensitive_client(sensitive_user):
+    from django.test import Client
+
+    client = Client()
+    client.force_login(sensitive_user)
+    return client
+
+
 def _confirmed_caution_payment(actor, reservation_draft, paid_at, amount: Decimal) -> Payment:
     receipt = DocumentInstance.objects.create(
         reservation_draft=reservation_draft,
@@ -130,7 +148,8 @@ def test_execution_list_requires_authentication(client) -> None:
     assert response.status_code in {401, 403}
 
 
-def test_authenticated_user_can_create_read_and_execute_execution(
+def test_sensitive_user_can_create_execute_and_authenticated_user_can_read_execution(
+    sensitive_client,
     authenticated_client,
     django_user_model,
 ) -> None:
@@ -143,7 +162,7 @@ def test_authenticated_user_can_create_read_and_execute_execution(
     before_document_count = DocumentInstance.objects.count()
     before_stock_movement_count = InventoryStockMovement.objects.count()
 
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL,
         data={"settlement": str(settlement.id), "notes": "Prepare execution"},
         content_type="application/json",
@@ -165,7 +184,7 @@ def test_authenticated_user_can_create_read_and_execute_execution(
     assert detail_response.status_code == 200
     assert detail_response.json()["id"] == payload["id"]
 
-    execute_response = authenticated_client.post(
+    execute_response = sensitive_client.post(
         f"{DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL}{payload['id']}/execute/",
         content_type="application/json",
     )
@@ -180,8 +199,56 @@ def test_authenticated_user_can_create_read_and_execute_execution(
     assert InventoryStockMovement.objects.count() == before_stock_movement_count
 
 
-def test_execution_create_rejects_non_validated_settlement(
+def test_execution_create_requires_authentication(client) -> None:
+    response = client.post(
+        DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL,
+        data={"notes": "Anon attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_execution_create_requires_sensitive_access(
     authenticated_client,
+    django_user_model,
+) -> None:
+    response = authenticated_client.post(
+        DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL,
+        data={"notes": "Non-sensitive attempt"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_execution_execute_requires_sensitive_access(
+    sensitive_client,
+    authenticated_client,
+    django_user_model,
+) -> None:
+    _, settlement = _validated_settlement(
+        django_user_model,
+        caution_amount=Decimal("0.00"),
+        line_amount=Decimal("10000.00"),
+    )
+    create_response = sensitive_client.post(
+        DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL,
+        data={"settlement": str(settlement.id)},
+        content_type="application/json",
+    )
+    execution_id = create_response.json()["id"]
+
+    response = authenticated_client.post(
+        f"{DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL}{execution_id}/execute/",
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_execution_create_rejects_non_validated_settlement(
+    sensitive_client,
     django_user_model,
 ) -> None:
     actor = django_user_model.objects.create_user(
@@ -221,7 +288,7 @@ def test_execution_create_rejects_non_validated_settlement(
         ],
     )
 
-    response = authenticated_client.post(
+    response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL,
         data={"settlement": str(draft_settlement.id)},
         content_type="application/json",
@@ -232,7 +299,7 @@ def test_execution_create_rejects_non_validated_settlement(
 
 
 def test_execution_execute_rejects_duplicate_execution(
-    authenticated_client,
+    sensitive_client,
     django_user_model,
 ) -> None:
     _, settlement = _validated_settlement(
@@ -240,18 +307,18 @@ def test_execution_execute_rejects_duplicate_execution(
         caution_amount=Decimal("0.00"),
         line_amount=Decimal("10000.00"),
     )
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL,
         data={"settlement": str(settlement.id)},
         content_type="application/json",
     )
     execution_id = create_response.json()["id"]
 
-    first_response = authenticated_client.post(
+    first_response = sensitive_client.post(
         f"{DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL}{execution_id}/execute/",
         content_type="application/json",
     )
-    second_response = authenticated_client.post(
+    second_response = sensitive_client.post(
         f"{DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL}{execution_id}/execute/",
         content_type="application/json",
     )
@@ -263,7 +330,7 @@ def test_execution_execute_rejects_duplicate_execution(
 
 @pytest.mark.parametrize("method", ["put", "patch", "delete"])
 def test_execution_detail_rejects_write_methods(
-    authenticated_client,
+    sensitive_client,
     django_user_model,
     method: str,
 ) -> None:
@@ -272,13 +339,13 @@ def test_execution_detail_rejects_write_methods(
         caution_amount=Decimal("0.00"),
         line_amount=Decimal("10000.00"),
     )
-    create_response = authenticated_client.post(
+    create_response = sensitive_client.post(
         DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL,
         data={"settlement": str(settlement.id)},
         content_type="application/json",
     )
     execution_id = create_response.json()["id"]
-    request_method = getattr(authenticated_client, method)
+    request_method = getattr(sensitive_client, method)
 
     response = request_method(
         f"{DAMAGE_LOSS_SETTLEMENT_EXECUTION_LIST_URL}{execution_id}/",
