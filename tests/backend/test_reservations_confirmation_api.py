@@ -8,11 +8,13 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.identity.roles import IdentityRole
 from apps.inventory.models import InventoryAvailability, InventoryItem
 from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
 from apps.payments.services import confirm_payment, create_payment
 from apps.reservations.confirmation import (
+    REQUIRED_CONTRACT_DOCUMENT_TRUTH_MISSING,
     REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
@@ -79,10 +81,40 @@ def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) ->
     confirm_payment(payment=payment, actor=actor)
 
 
+def _generated_contract_document(*, reservation_draft: ReservationDraft) -> DocumentInstance:
+    return DocumentInstance.objects.create(
+        reservation_draft=reservation_draft,
+        customer=reservation_draft.customer,
+        template_key="titan.material_contract.v1",
+        template_version="v1",
+        template_label="Contrat materiel Titan",
+        business_scope="titan",
+        document_type="material_contract",
+        template_status="generated_draft_template",
+        template_source_kind="generated_from_brand_style",
+        template_source_reference="docs/references/source/Document_A.pdf",
+        template_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/template.html",
+        template_preview_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/preview.pdf",
+        template_validated_by_client=False,
+        template_notes="Generated contract runtime template.",
+        reservation_public_reference=reservation_draft.public_reference,
+        reservation_status=reservation_draft.status,
+        customer_display_name=reservation_draft.customer.display_name,
+        customer_email=reservation_draft.customer.email,
+        customer_phone=reservation_draft.customer.phone,
+        customer_address=reservation_draft.customer.address,
+        status=DocumentInstanceStatus.GENERATED,
+        content_checksum="b" * 64,
+        storage_path="documents/contract-truth.html",
+        generated_content_size_bytes=128,
+    )
+
+
 def _prepare_confirmable_draft(*, django_user_model, staff_user):
     draft = _draft()
     item = _item()
     _line(reservation_draft=draft, inventory_item=item)
+    _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=staff_user)
     _confirmed_deposit_payment(reservation_draft=draft, actor=staff_user)
     mark_reservation_draft_required_deposit_received(
@@ -249,6 +281,7 @@ def test_mark_contract_signed_success_by_staff(client, django_user_model) -> Non
     staff = _actor(django_user_model=django_user_model, is_staff=True)
     draft = _draft()
     _line(reservation_draft=draft, inventory_item=_item())
+    _generated_contract_document(reservation_draft=draft)
 
     client.force_login(staff)
     response = client.post(_contract_signed_url(draft=draft))
@@ -262,6 +295,26 @@ def test_mark_contract_signed_success_by_staff(client, django_user_model) -> Non
     draft.refresh_from_db()
     assert draft.contract_signed_at is not None
     assert draft.contract_signed_by_id == staff.id
+
+
+def test_mark_contract_signed_rejects_missing_contract_document_truth(
+    client,
+    django_user_model,
+) -> None:
+    staff = _actor(django_user_model=django_user_model, is_staff=True)
+    draft = _draft()
+    _line(reservation_draft=draft, inventory_item=_item())
+
+    client.force_login(staff)
+    response = client.post(_contract_signed_url(draft=draft))
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["code"] == REQUIRED_CONTRACT_DOCUMENT_TRUTH_MISSING
+
+    draft.refresh_from_db()
+    assert draft.contract_signed_at is None
+    assert draft.contract_signed_by_id is None
 
 
 def test_mark_required_deposit_received_success_by_staff(client, django_user_model) -> None:

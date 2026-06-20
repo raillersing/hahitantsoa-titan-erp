@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.availability import is_inventory_item_available
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus
 from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
@@ -15,6 +16,7 @@ from apps.payments.services import confirm_payment, create_payment
 from apps.reservations.confirmation import (
     CANCELLED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
     CONFIRMED_RESERVATION_AVAILABILITY_NOTE_TEMPLATE,
+    REQUIRED_CONTRACT_DOCUMENT_TRUTH_MISSING,
     REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING,
     ReservationConfirmationPreflightError,
     ReservationDraftCancellationResult,
@@ -103,10 +105,40 @@ def _confirmed_deposit_payment(*, reservation_draft: ReservationDraft, actor) ->
     confirm_payment(payment=payment, actor=actor)
 
 
+def _generated_contract_document(*, reservation_draft: ReservationDraft) -> DocumentInstance:
+    return DocumentInstance.objects.create(
+        reservation_draft=reservation_draft,
+        customer=reservation_draft.customer,
+        template_key="titan.material_contract.v1",
+        template_version="v1",
+        template_label="Contrat materiel Titan",
+        business_scope="titan",
+        document_type="material_contract",
+        template_status="generated_draft_template",
+        template_source_kind="generated_from_brand_style",
+        template_source_reference="docs/references/source/Document_A.pdf",
+        template_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/template.html",
+        template_preview_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/preview.pdf",
+        template_validated_by_client=False,
+        template_notes="Generated contract runtime template.",
+        reservation_public_reference=reservation_draft.public_reference,
+        reservation_status=reservation_draft.status,
+        customer_display_name=reservation_draft.customer.display_name,
+        customer_email=reservation_draft.customer.email,
+        customer_phone=reservation_draft.customer.phone,
+        customer_address=reservation_draft.customer.address,
+        status=DocumentInstanceStatus.GENERATED,
+        content_checksum="a" * 64,
+        storage_path="documents/contract-truth.html",
+        generated_content_size_bytes=128,
+    )
+
+
 def _prepare_confirmable_draft(*, django_user_model):
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _line(reservation_draft=draft)
+    _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
@@ -120,6 +152,7 @@ def _prepare_confirmable_draft(*, django_user_model):
 def test_mark_contract_signed_persists_timestamp_and_actor(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
+    _generated_contract_document(reservation_draft=draft)
 
     updated_draft = mark_reservation_draft_contract_signed(
         reservation_draft=draft,
@@ -130,6 +163,24 @@ def test_mark_contract_signed_persists_timestamp_and_actor(django_user_model) ->
     assert updated_draft.id == draft.id
     assert draft.contract_signed_at is not None
     assert draft.contract_signed_by_id == actor.pk
+
+
+def test_mark_contract_signed_rejects_missing_contract_document_truth(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+
+    with pytest.raises(ReservationLifecycleError) as error_info:
+        mark_reservation_draft_contract_signed(
+            reservation_draft=draft,
+            actor=actor,
+        )
+
+    assert error_info.value.code == REQUIRED_CONTRACT_DOCUMENT_TRUTH_MISSING
+    draft.refresh_from_db()
+    assert draft.contract_signed_at is None
+    assert draft.contract_signed_by_id is None
 
 
 def test_mark_required_deposit_received_persists_timestamp_and_actor(
@@ -205,6 +256,7 @@ def test_prerequisite_marker_write_refuses_soft_deleted_draft(django_user_model)
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+    _generated_contract_document(reservation_draft=draft)
     draft.is_deleted = True
     draft.deleted_at = timezone.now()
     draft.save(update_fields=["is_deleted", "deleted_at"])
@@ -230,6 +282,7 @@ def test_prerequisite_marker_write_refuses_draft_with_cancellation_metadata(
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+    _generated_contract_document(reservation_draft=draft)
     draft.cancelled_at = timezone.now()
     draft.cancelled_by = actor
     draft.save(update_fields=["cancelled_at", "cancelled_by"])
@@ -255,6 +308,7 @@ def test_prerequisite_marker_write_refuses_draft_with_confirmation_metadata(
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+    _generated_contract_document(reservation_draft=draft)
     draft.confirmed_at = timezone.now()
     draft.confirmed_by = actor
     draft.save(update_fields=["confirmed_at", "confirmed_by"])
@@ -275,6 +329,7 @@ def test_prerequisite_marker_write_rolls_back_with_outer_transaction(
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+    _generated_contract_document(reservation_draft=draft)
 
     with pytest.raises(RuntimeError):
         with transaction.atomic():
@@ -407,6 +462,7 @@ def test_confirmation_refuses_no_active_lines(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+    _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
         reservation_draft=draft,
@@ -440,6 +496,7 @@ def test_confirmation_refuses_missing_deposit_marker(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _line(reservation_draft=draft)
+    _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
 
     with pytest.raises(ReservationConfirmationPreflightError) as error_info:
@@ -455,6 +512,7 @@ def test_confirmation_refuses_manual_deposit_marker_without_confirmed_payment_tr
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     _line(reservation_draft=draft)
+    _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
     draft.required_deposit_received_at = timezone.now()
     draft.required_deposit_received_by = actor
@@ -471,6 +529,7 @@ def test_confirmation_refuses_availability_conflict(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     line = _line(reservation_draft=draft)
+    _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
@@ -495,6 +554,7 @@ def test_confirmation_refuses_inactive_or_soft_deleted_inventory_item(django_use
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)
     line = _line(reservation_draft=draft)
+    _generated_contract_document(reservation_draft=draft)
     mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
     _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
@@ -521,6 +581,7 @@ def test_confirmation_revalidates_inside_transaction_and_blocks_stale_double_boo
 
     first_draft = _draft()
     _line(reservation_draft=first_draft, inventory_item=item)
+    _generated_contract_document(reservation_draft=first_draft)
     mark_reservation_draft_contract_signed(reservation_draft=first_draft, actor=actor)
     _confirmed_deposit_payment(reservation_draft=first_draft, actor=actor)
     mark_reservation_draft_required_deposit_received(
@@ -533,6 +594,7 @@ def test_confirmation_revalidates_inside_transaction_and_blocks_stale_double_boo
     second_draft.end_at = first_draft.end_at
     second_draft.save(update_fields=["start_at", "end_at"])
     _line(reservation_draft=second_draft, inventory_item=item)
+    _generated_contract_document(reservation_draft=second_draft)
     mark_reservation_draft_contract_signed(reservation_draft=second_draft, actor=actor)
     _confirmed_deposit_payment(reservation_draft=second_draft, actor=actor)
     mark_reservation_draft_required_deposit_received(

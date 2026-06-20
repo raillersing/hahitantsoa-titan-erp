@@ -84,6 +84,25 @@ def test_generate_document_instance_html_determinism() -> None:
     assert instance1.generated_content_size_bytes == instance2.generated_content_size_bytes
 
 
+def test_generate_material_contract_document_instance_html_success(
+    isolated_document_storage,
+) -> None:
+    draft = _draft_with_line()
+    instance = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.material_contract.v1",
+    )
+
+    result = generate_document_instance_html(document_instance=instance)
+
+    assert instance.status == DocumentInstanceStatus.GENERATED
+    assert "Contrat materiel Titan" in result.html_content
+    assert "Contract generated from reservation-linked backend truth." in result.html_content
+    assert draft.public_reference in result.html_content
+    with isolated_document_storage.open(instance.storage_path, "rb") as f:
+        assert f.read() == result.html_content.encode("utf-8")
+
+
 def test_generate_document_instance_html_invalid_status() -> None:
     draft = _draft_with_line()
     instance = create_document_instance_from_reservation_draft(
