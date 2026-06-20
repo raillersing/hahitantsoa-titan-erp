@@ -1,10 +1,15 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 from tests.backend.test_payments_refund import _pending_refund_obligation
 
+from apps.customers.models import Customer
 from apps.documents.models import DocumentInstanceStatus
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.payments.models import PaymentStatus
+from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
 
@@ -42,6 +47,20 @@ def sensitive_client(sensitive_user):
     client = Client()
     client.force_login(sensitive_user)
     return client
+
+
+def _hahitantsoa_event_draft(*, user) -> HahitantsoaEventDraft:
+    start_at = timezone.now().replace(microsecond=0)
+    end_at = start_at + timedelta(hours=4)
+    customer = Customer.objects.create(display_name="Payments Hahitantsoa Customer")
+    return HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Payments linked event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+        updated_by=user,
+    )
 
 
 def test_payment_list_requires_authentication(client) -> None:
@@ -173,6 +192,67 @@ def test_payment_confirm_returns_404_for_unknown_payment(sensitive_client) -> No
     )
 
     assert response.status_code == 404
+
+
+def test_sensitive_user_can_create_and_filter_hahitantsoa_event_draft_payment(
+    sensitive_client,
+    sensitive_user,
+    authenticated_client,
+) -> None:
+    event_draft = _hahitantsoa_event_draft(user=sensitive_user)
+
+    create_response = sensitive_client.post(
+        PAYMENT_LIST_URL,
+        data={
+            "hahitantsoa_event_draft": str(event_draft.id),
+            "payment_kind": "deposit",
+            "payment_method": "cash",
+            "payment_status": "pending",
+            "amount": "300000.00",
+            "notes": "Event deposit",
+        },
+        content_type="application/json",
+    )
+
+    assert create_response.status_code == 201
+    payload = create_response.json()
+    assert payload["reservation_draft"] is None
+    assert payload["hahitantsoa_event_draft"] == str(event_draft.id)
+
+    list_response = authenticated_client.get(
+        f"{PAYMENT_LIST_URL}?hahitantsoa_event_draft_id={event_draft.id}"
+    )
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
+    assert list_response.json()[0]["id"] == payload["id"]
+
+
+def test_payment_create_rejects_both_reservation_and_hahitantsoa_draft_links(
+    sensitive_client,
+    sensitive_user,
+) -> None:
+    event_draft = _hahitantsoa_event_draft(user=sensitive_user)
+    reservation_draft = ReservationDraft.objects.create(
+        customer=event_draft.customer,
+        start_at=event_draft.start_at,
+        end_at=event_draft.end_at,
+    )
+
+    response = sensitive_client.post(
+        PAYMENT_LIST_URL,
+        data={
+            "reservation_draft": str(reservation_draft.id),
+            "hahitantsoa_event_draft": str(event_draft.id),
+            "payment_kind": "deposit",
+            "payment_method": "cash",
+            "payment_status": "pending",
+            "amount": "300000.00",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "hahitantsoa_event_draft" in response.json()
 
 
 def test_sensitive_user_can_create_and_confirm_refund_payment(

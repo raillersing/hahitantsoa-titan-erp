@@ -74,6 +74,7 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "reservation_draft",
+            "hahitantsoa_event_draft",
             "customer",
             "template_key",
             "template_version",

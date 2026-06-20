@@ -31,6 +31,43 @@ class DocumentGenerationResult:
     content_checksum: str
 
 
+def _build_hahitantsoa_contract_runtime_context(
+    *, document_instance: DocumentInstance
+) -> dict[str, object]:
+    event_draft = (
+        document_instance.hahitantsoa_event_draft.lines.filter(is_deleted=False)
+        .select_related("inventory_item", "event_draft__customer")
+        .order_by("created_at", "id")
+    )
+    linked_event_draft = document_instance.hahitantsoa_event_draft
+    return {
+        "template": {
+            "label": document_instance.template_label,
+            "key": document_instance.template_key,
+        },
+        "event_draft": {
+            "public_reference": linked_event_draft.public_reference,
+            "event_name": linked_event_draft.event_name,
+            "venue_name": linked_event_draft.venue_name,
+            "location_details": linked_event_draft.location_details,
+            "service_notes": linked_event_draft.service_notes,
+            "start_at": linked_event_draft.start_at,
+            "end_at": linked_event_draft.end_at,
+            "notes": linked_event_draft.notes,
+            "customer_display_name": linked_event_draft.customer.display_name,
+            "lines": tuple(
+                {
+                    "inventory_item_name": line.inventory_item.name,
+                    "inventory_item_kind": line.inventory_item.kind,
+                    "quantity": line.quantity,
+                    "notes": line.notes,
+                }
+                for line in event_draft
+            ),
+        },
+    }
+
+
 def calculate_document_html_checksum(html_content: str) -> str:
     return hashlib.sha256(html_content.encode("utf-8")).hexdigest()
 
@@ -117,6 +154,14 @@ def generate_document_instance_html(
         # Build context for excess receivable invoice
         context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
         template_path = "documents/shared_damage_loss_excess_invoice.html"
+    elif document_instance.template_key == "hahitantsoa.contract.v1":
+        if document_instance.hahitantsoa_event_draft is None:
+            raise DocumentRuntimeGenerationError(
+                "Hahitantsoa contract document is not linked to an event draft source.",
+                code="hahitantsoa_contract_event_draft_not_found",
+            )
+        context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
+        template_path = "documents/hahitantsoa_contract.html"
     else:
         context = build_reservation_draft_commercial_document_context(
             reservation_draft=document_instance.reservation_draft,

@@ -12,9 +12,11 @@ from apps.documents.commercial import (
 from apps.documents.models import DocumentInstance
 from apps.documents.runtime import generate_document_instance_html
 from apps.documents.selectors import get_document_instance_by_id
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
+HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
 SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "titan.proforma.v1",
     "titan.delivery_note.v1",
@@ -23,6 +25,7 @@ SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "titan.invoice.v1",
     "shared.return_note.v1",
 )
+SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (HAHITANTSOA_CONTRACT_TEMPLATE_KEY,)
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"
 )
@@ -39,6 +42,16 @@ def validate_supported_reservation_draft_document_template_key(template_key: str
     raise CommercialDocumentContextError(
         f"Unsupported reservation draft document template key: {template_key}",
         code=UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY,
+    )
+
+
+def validate_supported_hahitantsoa_event_draft_document_template_key(template_key: str) -> None:
+    if template_key in SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS:
+        return
+
+    raise CommercialDocumentContextError(
+        f"Unsupported Hahitantsoa event draft document template key: {template_key}",
+        code="unsupported_hahitantsoa_event_draft_document_template_key",
     )
 
 
@@ -172,6 +185,50 @@ def commercial_document_context_to_document_instance_kwargs(
     }
 
 
+def hahitantsoa_event_draft_document_instance_kwargs(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    template_key: str,
+    actor_id: object | None,
+    notes: str,
+) -> dict[str, object]:
+    from apps.documents.registry import get_document_template_definition
+
+    template_definition = get_document_template_definition(template_key)
+    if template_definition is None:
+        raise CommercialDocumentContextError(
+            f"Unknown commercial document template key: {template_key}",
+            code="unknown_commercial_document_template_key",
+        )
+
+    return {
+        "hahitantsoa_event_draft": event_draft,
+        "customer": event_draft.customer,
+        "template_key": template_definition.key,
+        "template_version": template_definition.version,
+        "template_label": template_definition.label,
+        "business_scope": template_definition.business_scope,
+        "document_type": template_definition.document_type,
+        "template_status": template_definition.status,
+        "template_source_kind": template_definition.source_kind,
+        "template_source_reference": template_definition.source_reference,
+        "template_path": template_definition.template_path,
+        "template_preview_path": template_definition.preview_path,
+        "template_validated_by_client": template_definition.validated_by_client,
+        "template_notes": template_definition.notes,
+        "reservation_public_reference": event_draft.public_reference,
+        "reservation_status": event_draft.status,
+        "customer_display_name": event_draft.customer.display_name,
+        "customer_email": event_draft.customer.email,
+        "customer_phone": event_draft.customer.phone,
+        "customer_address": event_draft.customer.address,
+        "status": "prepared",
+        "prepared_at": timezone.now(),
+        "prepared_by_id": actor_id,
+        "notes": notes,
+    }
+
+
 @transaction.atomic
 def create_document_instance_from_reservation_draft(
     *,
@@ -221,6 +278,49 @@ def get_reservation_draft_document_instance_or_404(
 
 
 @transaction.atomic
+def create_document_instance_from_hahitantsoa_event_draft(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    template_key: str,
+    actor: object | None = None,
+    notes: str = "",
+) -> DocumentInstance:
+    validate_supported_hahitantsoa_event_draft_document_template_key(template_key)
+    actor_id = getattr(actor, "pk", None)
+    instance = DocumentInstance.objects.create(
+        **hahitantsoa_event_draft_document_instance_kwargs(
+            event_draft=event_draft,
+            template_key=template_key,
+            actor_id=actor_id,
+            notes=notes,
+        )
+    )
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.instance_prepared",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={
+            "hahitantsoa_event_draft_id": str(event_draft.id),
+            "template_key": template_key,
+            "status": instance.status,
+        },
+    )
+    return instance
+
+
+def get_hahitantsoa_event_draft_document_instance_or_404(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    document_instance_id,
+) -> DocumentInstance:
+    instance = get_document_instance_by_id(document_instance_id=document_instance_id)
+    if instance is None or instance.hahitantsoa_event_draft_id != event_draft.id:
+        raise DocumentInstance.DoesNotExist
+    return instance
+
+
+@transaction.atomic
 def generate_reservation_draft_document_instance_html(
     *,
     reservation_draft: ReservationDraft,
@@ -239,6 +339,33 @@ def generate_reservation_draft_document_instance_html(
         target_id=str(instance.id),
         metadata={
             "reservation_draft_id": str(reservation_draft.id),
+            "template_key": instance.template_key,
+            "status": instance.status,
+            "content_checksum": result.content_checksum,
+        },
+    )
+    return result.document_instance
+
+
+@transaction.atomic
+def generate_hahitantsoa_event_draft_document_instance_html(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    document_instance_id,
+    actor: object | None = None,
+) -> DocumentInstance:
+    instance = get_hahitantsoa_event_draft_document_instance_or_404(
+        event_draft=event_draft,
+        document_instance_id=document_instance_id,
+    )
+    result = generate_document_instance_html(document_instance=instance, actor=actor)
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.instance_generated",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={
+            "hahitantsoa_event_draft_id": str(event_draft.id),
             "template_key": instance.template_key,
             "status": instance.status,
             "content_checksum": result.content_checksum,

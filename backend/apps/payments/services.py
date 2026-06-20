@@ -51,6 +51,8 @@ def active_payments():
     return Payment.objects.select_related(
         "reservation_draft",
         "reservation_draft__customer",
+        "hahitantsoa_event_draft",
+        "hahitantsoa_event_draft__customer",
         "receipt_document",
         "confirmed_by",
         "refund_obligation",
@@ -71,7 +73,12 @@ def build_payment_receipt_document_instance_kwargs(
         )
 
     reservation_draft = payment.reservation_draft
-    customer = reservation_draft.customer if reservation_draft is not None else None
+    hahitantsoa_event_draft = payment.hahitantsoa_event_draft
+    customer = (
+        reservation_draft.customer
+        if reservation_draft is not None
+        else (hahitantsoa_event_draft.customer if hahitantsoa_event_draft is not None else None)
+    )
     customer_display_name = (
         customer.display_name
         if customer is not None
@@ -80,6 +87,7 @@ def build_payment_receipt_document_instance_kwargs(
 
     return {
         "reservation_draft": reservation_draft,
+        "hahitantsoa_event_draft": hahitantsoa_event_draft,
         "customer": customer,
         "template_key": template.key,
         "template_version": template.version,
@@ -94,9 +102,19 @@ def build_payment_receipt_document_instance_kwargs(
         "template_validated_by_client": template.validated_by_client,
         "template_notes": template.notes,
         "reservation_public_reference": (
-            reservation_draft.public_reference if reservation_draft is not None else ""
+            reservation_draft.public_reference
+            if reservation_draft is not None
+            else (
+                hahitantsoa_event_draft.public_reference
+                if hahitantsoa_event_draft is not None
+                else ""
+            )
         ),
-        "reservation_status": reservation_draft.status if reservation_draft is not None else "",
+        "reservation_status": (
+            reservation_draft.status
+            if reservation_draft is not None
+            else (hahitantsoa_event_draft.status if hahitantsoa_event_draft is not None else "")
+        ),
         "customer_display_name": customer_display_name,
         "customer_email": customer.email if customer is not None else "",
         "customer_phone": customer.phone if customer is not None else "",
@@ -198,6 +216,11 @@ def create_payment(
             "amount": str(payment.amount),
             "reservation_draft_id": (
                 str(payment.reservation_draft_id) if payment.reservation_draft_id else None
+            ),
+            "hahitantsoa_event_draft_id": (
+                str(payment.hahitantsoa_event_draft_id)
+                if payment.hahitantsoa_event_draft_id
+                else None
             ),
         },
     )

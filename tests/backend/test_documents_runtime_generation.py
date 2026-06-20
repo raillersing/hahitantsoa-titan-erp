@@ -3,7 +3,10 @@ import sys
 
 import pytest
 from django.core.files.storage import FileSystemStorage
-from test_documents_document_instance_foundation import _draft_with_line
+from test_documents_document_instance_foundation import (
+    _draft_with_line,
+    _hahitantsoa_event_draft_with_line,
+)
 
 import apps.documents.runtime as runtime_module
 from apps.documents.models import DocumentInstanceStatus
@@ -12,7 +15,10 @@ from apps.documents.runtime import (
     calculate_document_html_checksum,
     generate_document_instance_html,
 )
-from apps.documents.services import create_document_instance_from_reservation_draft
+from apps.documents.services import (
+    create_document_instance_from_hahitantsoa_event_draft,
+    create_document_instance_from_reservation_draft,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -99,6 +105,25 @@ def test_generate_material_contract_document_instance_html_success(
     assert "Contrat materiel Titan" in result.html_content
     assert "Contract generated from reservation-linked backend truth." in result.html_content
     assert draft.public_reference in result.html_content
+    with isolated_document_storage.open(instance.storage_path, "rb") as f:
+        assert f.read() == result.html_content.encode("utf-8")
+
+
+def test_generate_hahitantsoa_contract_document_instance_html_success(
+    isolated_document_storage,
+) -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+
+    result = generate_document_instance_html(document_instance=instance)
+
+    assert instance.status == DocumentInstanceStatus.GENERATED
+    assert "Contrat Hahitantsoa" in result.html_content
+    assert draft.public_reference in result.html_content
+    assert draft.event_name in result.html_content
     with isolated_document_storage.open(instance.storage_path, "rb") as f:
         assert f.read() == result.html_content.encode("utf-8")
 

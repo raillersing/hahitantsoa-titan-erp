@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.common.models import AuditableModel, TimestampedModel, UUIDModel
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import InventoryCautionRefundObligationStatus
 from apps.reservations.models import ReservationDraft
 
@@ -49,6 +50,13 @@ CONFIRMED_PAYMENT_STATUS_VALUES = (
 class Payment(UUIDModel, TimestampedModel, AuditableModel):
     reservation_draft = models.ForeignKey(
         ReservationDraft,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="payments",
+    )
+    hahitantsoa_event_draft = models.ForeignKey(
+        HahitantsoaEventDraft,
         null=True,
         blank=True,
         on_delete=models.PROTECT,
@@ -99,8 +107,21 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
                 name="payment_amount_positive",
             ),
             models.CheckConstraint(
-                condition=(models.Q(reservation_draft__isnull=False) | ~models.Q(source_label="")),
+                condition=(
+                    models.Q(reservation_draft__isnull=False)
+                    | models.Q(hahitantsoa_event_draft__isnull=False)
+                    | ~models.Q(source_label="")
+                ),
                 name="payment_requires_reservation_or_source_label",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~(
+                        models.Q(reservation_draft__isnull=False)
+                        & models.Q(hahitantsoa_event_draft__isnull=False)
+                    )
+                ),
+                name="payment_single_draft_link",
             ),
             models.CheckConstraint(
                 condition=(
@@ -146,12 +167,26 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
         if self.amount is None or self.amount <= 0:
             raise ValidationError({"amount": "Amount must be greater than zero."})
 
-        if self.reservation_draft_id is None and not (self.source_label or "").strip():
+        if self.reservation_draft_id and self.hahitantsoa_event_draft_id:
+            raise ValidationError(
+                {
+                    "hahitantsoa_event_draft": (
+                        "Payments must not link both a reservation draft and a "
+                        "Hahitantsoa event draft."
+                    )
+                }
+            )
+
+        if (
+            self.reservation_draft_id is None
+            and self.hahitantsoa_event_draft_id is None
+            and not (self.source_label or "").strip()
+        ):
             raise ValidationError(
                 {
                     "source_label": (
                         "Standalone payments must define a source label when no "
-                        "reservation draft is linked."
+                        "reservation draft or Hahitantsoa event draft is linked."
                     )
                 }
             )
