@@ -11,10 +11,11 @@ import DashboardPanel from "./DashboardPanel";
 import HahitantsoaCommercialOpsPanel from "./HahitantsoaCommercialOpsPanel";
 import TitanStockMovementPanel from "./TitanStockMovementPanel";
 import CustomerPanel from "./CustomerPanel";
+import IdentityPanel from "./IdentityPanel";
 import type { InventoryItem } from "./types";
 
 
-type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers";
+type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers" | "identity";
 
 type InventoryState =
   | { status: "loading" }
@@ -81,6 +82,16 @@ const MODULES: ModuleDefinition[] = [
     boundaryNote:
       "This panel acts as a foundation. Actions not yet supported by backend services are marked as pending integration.",
   },
+  {
+    scope: "identity",
+    navLabel: "Identity",
+    heading: "Roles & Permissions",
+    eyebrow: "Identity module",
+    description:
+      "View application roles and user role assignments. Write operations for role and assignment management require backend identity endpoints.",
+    boundaryNote:
+      "Read operations display current roles and assignments. Write operations are gated behind backend identity management availability.",
+  },
 ];
 
 function isAppScope(value: string | null): value is AppScope {
@@ -89,7 +100,8 @@ function isAppScope(value: string | null): value is AppScope {
     value === "titan" ||
     value === "hahitantsoa" ||
     value === "customers" ||
-    value === "commercial-ops"
+    value === "commercial-ops" ||
+    value === "identity"
   );
 }
 
@@ -330,6 +342,10 @@ function App() {
 
           {activeScope === "commercial-ops" && (
             <HahitantsoaCommercialOpsPanel />
+          )}
+
+          {activeScope === "identity" && (
+            <IdentityPanel />
           )}
         </section>
       </div>
