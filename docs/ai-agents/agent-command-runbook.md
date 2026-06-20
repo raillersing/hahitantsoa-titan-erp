@@ -236,6 +236,25 @@ scripts/dev/erp-backend-migration-guard
 EOF
 ```
 
+## Backend Skills Selection Guide
+
+Use the smallest specialist skill that matches the backend risk:
+
+- `erp-backend-test-triage` for focused test selection, failure reproduction, and escalation to full backend CI
+- `erp-backend-migration-guardian` for migrations, schema drift, and non-destructive validation
+- `erp-backend-auth-permission-auditor` for DRF permissions, object-level access, and sensitive actions
+- `erp-backend-transaction-concurrency` for atomicity, locking, race conditions, and rollback behavior
+- `erp-backend-payment-idempotency` for payment, refund, receipt, and replay-safety slices
+- `erp-backend-api-contracts` for endpoint shape, error shape, pagination, and frontend compatibility
+- `erp-backend-data-integrity` for lifecycle invariants, stock movement, audit fields, and domain consistency
+- `erp-backend-pr-finalizer` for focused tests, migration guard, full backend CI, PR checks, merge, exact-SHA main CI, and cleanup
+
+General rule:
+
+- start with `erp-backend-test-triage` when the failure or slice is unclear
+- add exactly one specialist skill for the dominant risk area unless the backend slice genuinely spans multiple risks
+- stop and re-scope if finishing would require backend code, script, manifest, or `.github/` changes
+
 ## Standard Frontend Commands
 
 Frontend tasks start with a frontend-only scope check after F138B/F138C merge:
