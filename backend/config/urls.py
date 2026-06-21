@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/v1/hahitantsoa/", include("apps.hahitantsoa.urls")),
     path("api/v1/payments/", include("apps.payments.urls")),
     path("api/v1/billing/", include("apps.billing.urls")),
+    path("api/v1/cashbox/", include("apps.cashbox.urls")),
     path("api/v1/identity/", include("apps.identity.urls")),
     path("api/v1/audit/", include("apps.audit.urls")),
     path("api/v1/logistics/", include("apps.logistics.urls")),
