@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.payments.models import Payment
 
+from .models import BillingRefundObligation
 from .permissions import IsAuthenticatedBillingBoundary
 from .serializers import (
     BillingInstallmentAllocateSerializer,
@@ -15,6 +16,7 @@ from .serializers import (
     BillingInvoiceInstallmentSerializer,
     BillingInvoiceSerializer,
     BillingInvoiceSettleSerializer,
+    BillingRefundObligationExecuteSerializer,
     BillingRefundObligationSerializer,
 )
 from .services import (
@@ -26,6 +28,7 @@ from .services import (
     cancel_billing_invoice,
     create_billing_invoice_installments,
     create_billing_invoice_refund_obligation,
+    execute_billing_refund_obligation,
     settle_billing_invoice,
 )
 
@@ -274,4 +277,52 @@ class BillingInvoiceCorrectAPIView(APIView):
         return Response(
             BillingRefundObligationSerializer(obligation).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+class BillingRefundObligationExecuteAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=BillingRefundObligationExecuteSerializer,
+        responses={
+            200: BillingRefundObligationSerializer,
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Billing refund obligation not found."),
+        },
+    )
+    def post(self, request, id):
+        serializer = BillingRefundObligationExecuteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        obligation = (
+            BillingRefundObligation.objects.select_related(
+                "invoice",
+                "invoice__reservation_draft",
+                "invoice__reservation_draft__customer",
+                "document_instance",
+                "executed_by",
+            )
+            .prefetch_related("refund_payments", "refund_payments__receipt_document")
+            .filter(id=id)
+            .first()
+        )
+        if obligation is None:
+            raise Http404("Billing refund obligation not found.")
+
+        try:
+            result = execute_billing_refund_obligation(
+                obligation=obligation,
+                actor=request.user,
+                notes=serializer.validated_data.get("notes"),
+            )
+        except BillingLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            BillingRefundObligationSerializer(result.obligation).data,
+            status=status.HTTP_200_OK,
         )

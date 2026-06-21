@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
+from apps.billing.models import BillingRefundObligationStatus
 from apps.documents.models import DocumentInstance
 from apps.documents.registry import get_document_template_definition
 from apps.documents.runtime import generate_document_instance_html
@@ -56,7 +57,11 @@ def active_payments():
         "receipt_document",
         "confirmed_by",
         "refund_obligation",
+        "billing_refund_obligation",
         "refund_obligation__settlement_execution",
+        "billing_refund_obligation__invoice",
+        "billing_refund_obligation__invoice__reservation_draft",
+        "billing_refund_obligation__invoice__reservation_draft__customer",
     ).order_by("-created_at", "id")
 
 
@@ -139,25 +144,21 @@ def build_refund_receipt_document_instance_kwargs(
         )
 
     obligation = payment.refund_obligation
+    billing_obligation = payment.billing_refund_obligation
     settlement_execution = obligation.settlement_execution if obligation is not None else None
-    customer_display_name = (
-        settlement_execution.settlement.return_operation.reservation_draft.customer.display_name
-        if settlement_execution is not None
-        and settlement_execution.settlement.return_operation.reservation_draft is not None
-        else "Refund recipient"
-    )
+    reservation_draft = None
+    customer = None
+    if settlement_execution is not None:
+        reservation_draft = settlement_execution.settlement.return_operation.reservation_draft
+        customer = reservation_draft.customer if reservation_draft is not None else None
+    elif billing_obligation is not None:
+        reservation_draft = billing_obligation.invoice.reservation_draft
+        customer = reservation_draft.customer if reservation_draft is not None else None
+    customer_display_name = customer.display_name if customer is not None else "Refund recipient"
 
     return {
-        "reservation_draft": (
-            settlement_execution.settlement.return_operation.reservation_draft
-            if settlement_execution is not None
-            else None
-        ),
-        "customer": (
-            settlement_execution.settlement.return_operation.reservation_draft.customer
-            if settlement_execution is not None
-            else None
-        ),
+        "reservation_draft": reservation_draft,
+        "customer": customer,
         "template_key": template.key,
         "template_version": template.version,
         "template_label": template.label,
@@ -171,21 +172,13 @@ def build_refund_receipt_document_instance_kwargs(
         "template_validated_by_client": template.validated_by_client,
         "template_notes": template.notes,
         "reservation_public_reference": (
-            settlement_execution.settlement.return_operation.reservation_draft.public_reference
-            if settlement_execution is not None
-            and settlement_execution.settlement.return_operation.reservation_draft is not None
-            else ""
+            reservation_draft.public_reference if reservation_draft is not None else ""
         ),
-        "reservation_status": (
-            settlement_execution.settlement.return_operation.reservation_draft.status
-            if settlement_execution is not None
-            and settlement_execution.settlement.return_operation.reservation_draft is not None
-            else ""
-        ),
+        "reservation_status": (reservation_draft.status if reservation_draft is not None else ""),
         "customer_display_name": customer_display_name,
-        "customer_email": "",
-        "customer_phone": "",
-        "customer_address": "",
+        "customer_email": customer.email if customer is not None else "",
+        "customer_phone": customer.phone if customer is not None else "",
+        "customer_address": customer.address if customer is not None else "",
         "status": "prepared",
         "prepared_at": timezone.now(),
         "prepared_by_id": actor_id,
@@ -429,14 +422,26 @@ def confirm_refund_payment(
             code=INVALID_PAYMENT_REFUND_STATE,
         )
 
-    if payment.refund_obligation_id is None:
+    if payment.refund_obligation_id is None and payment.billing_refund_obligation_id is None:
         raise PaymentLifecycleError(
             "Refund payment is not linked to an obligation.",
             code=REFUND_OBLIGATION_NOT_FOUND,
         )
 
     obligation = payment.refund_obligation
-    if obligation.status != InventoryCautionRefundObligationStatus.PENDING:
+    billing_obligation = payment.billing_refund_obligation
+    if (
+        obligation is not None
+        and obligation.status != InventoryCautionRefundObligationStatus.PENDING
+    ):
+        raise PaymentLifecycleError(
+            "Refund obligation must be pending to confirm a refund payment.",
+            code=REFUND_OBLIGATION_NOT_PENDING,
+        )
+    if (
+        billing_obligation is not None
+        and billing_obligation.status != BillingRefundObligationStatus.PENDING
+    ):
         raise PaymentLifecycleError(
             "Refund obligation must be pending to confirm a refund payment.",
             code=REFUND_OBLIGATION_NOT_PENDING,
@@ -464,9 +469,10 @@ def confirm_refund_payment(
     payment.full_clean()
     payment.save()
 
-    obligation.status = InventoryCautionRefundObligationStatus.SETTLED
-    obligation.updated_by_id = actor_id
-    obligation.save(update_fields=["status", "updated_by", "updated_at"])
+    if obligation is not None:
+        obligation.status = InventoryCautionRefundObligationStatus.SETTLED
+        obligation.updated_by_id = actor_id
+        obligation.save(update_fields=["status", "updated_by", "updated_at"])
 
     record_audit_event_on_commit(
         actor=actor,
@@ -478,7 +484,13 @@ def confirm_refund_payment(
             "payment_kind": payment.payment_kind,
             "amount": str(payment.amount),
             "paid_at": payment.paid_at.isoformat(),
-            "refund_obligation_id": str(obligation.id),
+            "refund_obligation_id": (
+                str(obligation.id)
+                if obligation is not None
+                else str(billing_obligation.id)
+                if billing_obligation is not None
+                else None
+            ),
         },
     )
     record_audit_event_on_commit(

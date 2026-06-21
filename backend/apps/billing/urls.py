@@ -8,6 +8,7 @@ from .views import (
     BillingInvoiceListAPIView,
     BillingInvoiceRetrieveAPIView,
     BillingInvoiceSettleAPIView,
+    BillingRefundObligationExecuteAPIView,
 )
 
 urlpatterns = [
@@ -41,5 +42,10 @@ urlpatterns = [
         "invoices/<uuid:id>/correct/",
         BillingInvoiceCorrectAPIView.as_view(),
         name="billing-invoice-correct",
+    ),
+    path(
+        "refund-obligations/<uuid:id>/execute/",
+        BillingRefundObligationExecuteAPIView.as_view(),
+        name="billing-refund-obligation-execute",
     ),
 ]

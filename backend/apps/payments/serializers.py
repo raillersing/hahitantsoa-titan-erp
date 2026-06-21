@@ -21,6 +21,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             "hahitantsoa_event_draft",
             "receipt_document",
             "refund_obligation",
+            "billing_refund_obligation",
             "payment_kind",
             "payment_method",
             "payment_status",
