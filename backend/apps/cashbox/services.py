@@ -38,16 +38,14 @@ def active_cashbox_sessions():
 
 
 def active_cashbox_movements():
-    return (
-        CashboxMovement.objects.select_related(
-            "session",
-            "session__operator",
-            "payment",
-            "billing_invoice",
-            "billing_refund_obligation",
-            "moved_by",
-        ).order_by("-moved_at", "-created_at", "id")
-    )
+    return CashboxMovement.objects.select_related(
+        "session",
+        "session__operator",
+        "payment",
+        "billing_invoice",
+        "billing_refund_obligation",
+        "moved_by",
+    ).order_by("-moved_at", "-created_at", "id")
 
 
 def compute_cashbox_session_net_amount(session: CashboxSession) -> Decimal:
