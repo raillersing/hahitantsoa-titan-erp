@@ -10,6 +10,7 @@ from .models import (
     BillingInvoice,
     BillingInvoiceInstallment,
     BillingInvoiceSettlement,
+    BillingRefundObligation,
 )
 from .services import (
     billing_installment_due_date_presets,
@@ -36,9 +37,25 @@ class BillingInvoiceSettlementSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class BillingRefundObligationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BillingRefundObligation
+        fields = (
+            "id",
+            "invoice",
+            "refund_amount",
+            "status",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
 class BillingInvoiceSerializer(serializers.ModelSerializer):
     document_instance = DocumentInstanceSerializer(read_only=True)
     settlement = BillingInvoiceSettlementSerializer(read_only=True)
+    refund_obligation = BillingRefundObligationSerializer(read_only=True)
     installments = serializers.SerializerMethodField()
     installment_lifecycle = serializers.SerializerMethodField()
     suggested_due_dates = serializers.SerializerMethodField()
@@ -72,6 +89,7 @@ class BillingInvoiceSerializer(serializers.ModelSerializer):
             "settled_by",
             "notes",
             "settlement",
+            "refund_obligation",
             "installments",
             "installment_lifecycle",
             "suggested_due_dates",
@@ -141,4 +159,8 @@ class BillingInstallmentScheduleCreateSerializer(serializers.Serializer):
 
 class BillingInstallmentAllocateSerializer(serializers.Serializer):
     payment = serializers.UUIDField()
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class BillingInvoiceCorrectSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")

@@ -5,6 +5,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
@@ -23,6 +24,8 @@ from .models import (
     BillingInvoiceSettlement,
     BillingInvoiceSourceKind,
     BillingInvoiceStatus,
+    BillingRefundObligation,
+    BillingRefundObligationStatus,
 )
 
 INVALID_BILLING_INVOICE_SOURCE_STATE = "invalid_billing_invoice_source_state"
@@ -40,6 +43,8 @@ BILLING_INSTALLMENT_PAYMENT_ALREADY_USED = "billing_installment_payment_already_
 INVALID_BILLING_INSTALLMENT_ALLOCATION = "invalid_billing_installment_allocation"
 INVALID_BILLING_INSTALLMENT_ITEM = "invalid_billing_installment_item"
 BILLING_INVOICE_HAS_INSTALLMENT_PAYMENTS = "billing_invoice_has_installment_payments"
+BILLING_INVOICE_ALREADY_CORRECTED = "billing_invoice_already_corrected"
+BILLING_INVOICE_CORRECTION_NOT_APPLICABLE = "billing_invoice_correction_not_applicable"
 
 
 class BillingLifecycleError(ValueError):
@@ -583,3 +588,83 @@ def allocate_payment_to_installment(
             },
         )
     return BillingInstallmentAllocationResult(installment=locked_installment, allocation=allocation)
+
+
+@transaction.atomic
+def create_billing_invoice_refund_obligation(
+    *,
+    invoice: BillingInvoice,
+    actor: object | None = None,
+    notes: str = "",
+) -> BillingRefundObligation:
+    locked_invoice = BillingInvoice.objects.select_for_update().get(pk=invoice.pk)
+    locked_invoice = BillingInvoice.objects.select_related("refund_obligation").get(
+        pk=locked_invoice.pk
+    )
+
+    if locked_invoice.invoice_status != BillingInvoiceStatus.OPEN:
+        raise BillingLifecycleError(
+            "Billing invoice must be open before creating a refund obligation.",
+            code=INVALID_BILLING_INVOICE_STATUS,
+        )
+
+    if hasattr(locked_invoice, "refund_obligation"):
+        raise BillingLifecycleError(
+            "Billing invoice already has a refund obligation.",
+            code=BILLING_INVOICE_ALREADY_CORRECTED,
+        )
+
+    has_allocations = locked_invoice.installments.filter(paid_amount__gt=Decimal("0.00")).exists()
+    if not has_allocations:
+        raise BillingLifecycleError(
+            (
+                "Billing invoice correction requires applied installment payments;"
+                " use cancel for unpaid schedules."
+            ),
+            code=BILLING_INVOICE_CORRECTION_NOT_APPLICABLE,
+        )
+
+    refund_amount = locked_invoice.installments.aggregate(total=Sum("paid_amount"))[
+        "total"
+    ] or Decimal("0.00")
+
+    actor_id = getattr(actor, "pk", None)
+    locked_invoice.invoice_status = BillingInvoiceStatus.CANCELLED
+    if notes:
+        locked_invoice.notes = notes
+    locked_invoice.updated_by_id = actor_id
+    locked_invoice.full_clean()
+    locked_invoice.save()
+
+    obligation = BillingRefundObligation.objects.create(
+        invoice=locked_invoice,
+        refund_amount=refund_amount,
+        status=BillingRefundObligationStatus.PENDING,
+        notes=notes,
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.invoice_cancelled",
+        target_type="billing_invoice",
+        target_id=str(locked_invoice.id),
+        metadata={
+            "amount": str(locked_invoice.amount),
+            "source_kind": locked_invoice.source_kind,
+            "reason": "correction",
+        },
+    )
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.invoice_refund_obligation_created",
+        target_type="billing_refund_obligation",
+        target_id=str(obligation.id),
+        metadata={
+            "invoice_id": str(locked_invoice.id),
+            "refund_amount": str(refund_amount),
+            "status": obligation.status,
+        },
+    )
+    return obligation

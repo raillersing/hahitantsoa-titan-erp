@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     BillingInstallmentAllocateAPIView,
     BillingInvoiceCancelAPIView,
+    BillingInvoiceCorrectAPIView,
     BillingInvoiceInstallmentCreateAPIView,
     BillingInvoiceListAPIView,
     BillingInvoiceRetrieveAPIView,
@@ -35,5 +36,10 @@ urlpatterns = [
         "installments/<uuid:id>/allocate/",
         BillingInstallmentAllocateAPIView.as_view(),
         name="billing-installment-allocate",
+    ),
+    path(
+        "invoices/<uuid:id>/correct/",
+        BillingInvoiceCorrectAPIView.as_view(),
+        name="billing-invoice-correct",
     ),
 ]

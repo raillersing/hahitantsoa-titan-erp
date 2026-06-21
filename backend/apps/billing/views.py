@@ -11,9 +11,11 @@ from .permissions import IsAuthenticatedBillingBoundary
 from .serializers import (
     BillingInstallmentAllocateSerializer,
     BillingInstallmentScheduleCreateSerializer,
+    BillingInvoiceCorrectSerializer,
     BillingInvoiceInstallmentSerializer,
     BillingInvoiceSerializer,
     BillingInvoiceSettleSerializer,
+    BillingRefundObligationSerializer,
 )
 from .services import (
     BillingInstallmentItem,
@@ -23,6 +25,7 @@ from .services import (
     allocate_payment_to_installment,
     cancel_billing_invoice,
     create_billing_invoice_installments,
+    create_billing_invoice_refund_obligation,
     settle_billing_invoice,
 )
 
@@ -232,4 +235,43 @@ class BillingInstallmentAllocateAPIView(APIView):
         return Response(
             BillingInvoiceInstallmentSerializer(result.installment).data,
             status=status.HTTP_200_OK,
+        )
+
+
+class BillingInvoiceCorrectAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=BillingInvoiceCorrectSerializer,
+        responses={
+            201: BillingRefundObligationSerializer,
+            400: OpenApiResponse(description="Billing invoice correction failed."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Billing invoice not found."),
+        },
+    )
+    def post(self, request, id):
+        serializer = BillingInvoiceCorrectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        invoice = active_billing_invoices().filter(id=id).first()
+        if invoice is None:
+            raise Http404("Billing invoice not found.")
+
+        try:
+            obligation = create_billing_invoice_refund_obligation(
+                invoice=invoice,
+                actor=request.user,
+                notes=serializer.validated_data.get("notes", ""),
+            )
+        except BillingLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            BillingRefundObligationSerializer(obligation).data,
+            status=status.HTTP_201_CREATED,
         )
