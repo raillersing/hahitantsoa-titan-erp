@@ -127,4 +127,35 @@ describe("LoginPanel", () => {
     expect(passwordInput).not.toBeDisabled();
     expect(submitButton).not.toBeDisabled();
   });
+
+  it("disables inputs and button while submitting", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/v1/inventory/items/") {
+        return new Promise(() => {});
+      }
+      return new Promise(() => {});
+    });
+
+    render(
+      <AuthProvider>
+        <LoginPanel />
+      </AuthProvider>,
+    );
+
+    const usernameInput = await screen.findByRole("textbox", {
+      name: "Username",
+    });
+    const passwordInput = screen.getByLabelText("Password");
+    const submitButton = screen.getByRole("button", { name: "Sign in" });
+
+    fireEvent.change(usernameInput, { target: { value: "admin" } });
+    fireEvent.change(passwordInput, { target: { value: "secret" } });
+    fireEvent.click(submitButton);
+
+    expect(usernameInput).toBeDisabled();
+    expect(passwordInput).toBeDisabled();
+    expect(submitButton).toBeDisabled();
+    expect(submitButton).toHaveTextContent("Signing in...");
+  });
 });

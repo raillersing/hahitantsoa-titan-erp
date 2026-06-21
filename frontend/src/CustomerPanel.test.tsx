@@ -228,6 +228,32 @@ describe("CustomerPanel", () => {
     });
   });
 
+  it("disables form fields while creating a customer", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(true);
+    vi.spyOn(api, "getCustomers").mockResolvedValue(MOCK_CUSTOMERS);
+    vi.spyOn(api, "createCustomer").mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("+ New Customer")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText("+ New Customer"));
+
+    await waitFor(() => {
+      expect(screen.getByText("New Customer")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText(/Display Name/), {
+      target: { value: "New Client" },
+    });
+
+    fireEvent.click(screen.getByText("Create Customer"));
+
+    expect(screen.getByText("Create Customer")).toBeDisabled();
+  });
+
   it("shows validation error when display name is empty", async () => {
     vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(true);
     vi.spyOn(api, "getCustomers").mockResolvedValue(MOCK_CUSTOMERS);

@@ -231,4 +231,53 @@ describe('PaymentWorkflowPanel', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Confirmation failed.');
     });
   });
+
+  it('has accessible confirm dialog with autoFocus on paid_at', async () => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+
+    render(<PaymentWorkflowPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Confirm payment aaaa-1111')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Confirm payment aaaa-1111'));
+
+    const dialog = screen.getByRole('dialog', { name: 'Confirm payment dialog' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByLabelText('Paid At')).toHaveAttribute('autoFocus');
+  });
+
+  it('disables confirm dialog buttons while submitting', async () => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+    vi.mocked(api.confirmPayment).mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<PaymentWorkflowPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Confirm payment aaaa-1111')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Confirm payment aaaa-1111'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Confirm and generate receipt')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Confirm and generate receipt'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Confirm and generate receipt')).toBeDisabled();
+      expect(screen.getByLabelText('Cancel payment confirmation')).toBeDisabled();
+    });
+  });
+
+  it('disables Refresh button while loading', () => {
+    vi.mocked(api.getPayments).mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<PaymentWorkflowPanel />);
+
+    expect(screen.getByLabelText('Refresh payments')).toBeDisabled();
+    expect(screen.getByLabelText('Refresh payments')).toHaveTextContent('Loading...');
+  });
 });
