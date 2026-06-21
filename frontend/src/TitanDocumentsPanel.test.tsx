@@ -202,7 +202,9 @@ describe("TitanDocumentsPanel", () => {
       expect(select.value).toBe("draft-1");
     });
 
-    expect(instancesSpy).toHaveBeenCalledWith("draft-1");
+    await waitFor(() => {
+      expect(instancesSpy).toHaveBeenCalledWith("draft-1");
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Titan Proforma")).toBeInTheDocument();
