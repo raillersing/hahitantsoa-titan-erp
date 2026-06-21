@@ -29,6 +29,8 @@ from .services import (
     create_billing_invoice_installments,
     create_billing_invoice_refund_obligation,
     execute_billing_refund_obligation,
+    filter_billing_invoices_by_closeout_status,
+    filter_billing_invoices_by_remaining_balance,
     settle_billing_invoice,
 )
 
@@ -64,6 +66,16 @@ class BillingInvoiceListAPIView(generics.ListAPIView):
         search = self.request.query_params.get("search")
         if search:
             qs = qs.filter(reservation_draft__customer__display_name__icontains=search)
+        closeout_status = self.request.query_params.get("closeout_status")
+        if closeout_status:
+            qs = filter_billing_invoices_by_closeout_status(qs, closeout_status)
+        has_remaining_balance = self.request.query_params.get("has_remaining_balance")
+        if has_remaining_balance is not None:
+            normalized = has_remaining_balance.strip().lower()
+            if normalized in {"true", "1", "yes"}:
+                qs = filter_billing_invoices_by_remaining_balance(qs, has_remaining_balance=True)
+            elif normalized in {"false", "0", "no"}:
+                qs = filter_billing_invoices_by_remaining_balance(qs, has_remaining_balance=False)
         return qs
 
 

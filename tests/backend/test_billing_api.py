@@ -7,6 +7,7 @@ from tests.backend.test_inventory_damage_loss_settlement_execution_services impo
 )
 
 from apps.billing.models import BillingInvoice
+from apps.billing.services import settle_billing_invoice
 from apps.inventory.services import (
     create_inventory_damage_loss_settlement_execution,
     execute_inventory_damage_loss_settlement_execution,
@@ -347,6 +348,86 @@ def test_billing_invoice_detail_exposes_settled_closeout_summary(
     assert Decimal(str(payload["amount_settled"])) == invoice.amount
     assert Decimal(str(payload["amount_refunded"])) == Decimal("0.00")
     assert Decimal(str(payload["remaining_balance"])) == Decimal("0.00")
+
+
+def test_billing_invoice_list_filter_by_closeout_status_outstanding(
+    authenticated_client, django_user_model
+) -> None:
+    actor_open, _, open_invoice = _issued_invoice(django_user_model, quantity=1)
+    actor_paid, rd_paid, paid_invoice = _issued_invoice(django_user_model, quantity=2)
+    payment = create_payment(
+        actor=actor_paid,
+        reservation_draft=rd_paid,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.MOBILE_MONEY,
+        payment_status=PaymentStatus.PENDING,
+        amount=paid_invoice.amount,
+        source_label="Filter settled invoice",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor_paid).payment
+    settle_billing_invoice(invoice=paid_invoice, payment=confirmed_payment, actor=actor_paid)
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?closeout_status=outstanding")
+
+    assert response.status_code == 200
+    results = response.json()
+    assert [item["id"] for item in results] == [str(open_invoice.id)]
+    assert results[0]["closeout_status"] == "outstanding"
+
+
+def test_billing_invoice_list_filter_by_closeout_status_settled(
+    authenticated_client, django_user_model
+) -> None:
+    actor_open, _, open_invoice = _issued_invoice(django_user_model, quantity=1)
+    actor_paid, rd_paid, paid_invoice = _issued_invoice(django_user_model, quantity=2)
+    payment = create_payment(
+        actor=actor_paid,
+        reservation_draft=rd_paid,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+        payment_status=PaymentStatus.PENDING,
+        amount=paid_invoice.amount,
+        source_label="Filter settled invoice",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor_paid).payment
+    settle_billing_invoice(invoice=paid_invoice, payment=confirmed_payment, actor=actor_paid)
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}?closeout_status=settled")
+
+    assert response.status_code == 200
+    results = response.json()
+    assert [item["id"] for item in results] == [str(paid_invoice.id)]
+    assert results[0]["closeout_status"] == "settled"
+
+
+def test_billing_invoice_list_filter_by_has_remaining_balance(
+    authenticated_client, django_user_model
+) -> None:
+    actor_open, _, open_invoice = _issued_invoice(django_user_model, quantity=1)
+    actor_paid, rd_paid, paid_invoice = _issued_invoice(django_user_model, quantity=2)
+    payment = create_payment(
+        actor=actor_paid,
+        reservation_draft=rd_paid,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=paid_invoice.amount,
+        source_label="Remaining balance filter",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor_paid).payment
+    settle_billing_invoice(invoice=paid_invoice, payment=confirmed_payment, actor=actor_paid)
+
+    true_response = authenticated_client.get(
+        f"{BILLING_INVOICE_LIST_URL}?has_remaining_balance=true"
+    )
+    false_response = authenticated_client.get(
+        f"{BILLING_INVOICE_LIST_URL}?has_remaining_balance=false"
+    )
+
+    assert true_response.status_code == 200
+    assert [item["id"] for item in true_response.json()] == [str(open_invoice.id)]
+    assert false_response.status_code == 200
+    assert [item["id"] for item in false_response.json()] == [str(paid_invoice.id)]
 
 
 def test_billing_invoice_cancel_requires_authentication(client) -> None:

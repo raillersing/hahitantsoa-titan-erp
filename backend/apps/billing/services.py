@@ -5,7 +5,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
@@ -219,6 +219,44 @@ def compute_billing_invoice_remaining_balance(invoice) -> Decimal:
 
 def compute_billing_invoice_closeout_status(invoice) -> str:
     return compute_billing_invoice_closeout_summary(invoice).closeout_status
+
+
+def filter_billing_invoices_by_closeout_status(queryset, closeout_status: str):
+    if closeout_status == BILLING_CLOSEOUT_STATUS_OUTSTANDING:
+        return queryset.filter(
+            invoice_status=BillingInvoiceStatus.OPEN,
+            refund_obligation__isnull=True,
+        ).exclude(installments__paid_amount__gt=Decimal("0.00"))
+    if closeout_status == BILLING_CLOSEOUT_STATUS_PARTIALLY_COLLECTED:
+        return queryset.filter(
+            invoice_status=BillingInvoiceStatus.OPEN,
+            refund_obligation__isnull=True,
+            installments__paid_amount__gt=Decimal("0.00"),
+        ).distinct()
+    if closeout_status == BILLING_CLOSEOUT_STATUS_SETTLED:
+        return queryset.filter(
+            invoice_status=BillingInvoiceStatus.SETTLED,
+            refund_obligation__isnull=True,
+        )
+    if closeout_status == BILLING_CLOSEOUT_STATUS_REFUND_PENDING:
+        return queryset.filter(refund_obligation__status=BillingRefundObligationStatus.PENDING)
+    if closeout_status == BILLING_CLOSEOUT_STATUS_REFUNDED:
+        return queryset.filter(refund_obligation__status=BillingRefundObligationStatus.EXECUTED)
+    if closeout_status == BILLING_CLOSEOUT_STATUS_CANCELLED:
+        return queryset.filter(
+            invoice_status=BillingInvoiceStatus.CANCELLED,
+            refund_obligation__isnull=True,
+        )
+    return queryset.none()
+
+
+def filter_billing_invoices_by_remaining_balance(queryset, *, has_remaining_balance: bool):
+    open_without_refund = Q(
+        invoice_status=BillingInvoiceStatus.OPEN, refund_obligation__isnull=True
+    )
+    if has_remaining_balance:
+        return queryset.filter(open_without_refund)
+    return queryset.exclude(open_without_refund)
 
 
 def active_billing_invoices():
