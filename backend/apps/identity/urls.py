@@ -6,6 +6,7 @@ from .views import (
     AssignRoleAPIView,
     RevokeRoleAPIView,
     SyncSystemRolesAPIView,
+    UserRoleAssignmentDetailAPIView,
     UserRoleAssignmentListAPIView,
 )
 
@@ -26,6 +27,11 @@ urlpatterns = [
         "assignments/assign/",
         AssignRoleAPIView.as_view(),
         name="identity-assignment-assign",
+    ),
+    path(
+        "assignments/<uuid:id>/",
+        UserRoleAssignmentDetailAPIView.as_view(),
+        name="identity-assignment-detail",
     ),
     path(
         "assignments/<uuid:id>/revoke/",
