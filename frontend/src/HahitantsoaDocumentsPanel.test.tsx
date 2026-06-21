@@ -89,6 +89,7 @@ const MOCK_TEMPLATES_ALL: DocumentTemplateDefinition[] = [
 const MOCK_INSTANCES: DocumentInstance[] = [
   {
     id: "inst-1",
+    reservation_draft: null,
     hahitantsoa_event_draft: "edraft-1",
     customer: "cust-1",
     template_key: "hahitantsoa.contract.v1",
@@ -103,6 +104,8 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     template_preview_path: "/preview/contract.html",
     template_validated_by_client: true,
     template_notes: "",
+    reservation_public_reference: "",
+    reservation_status: "",
     customer_display_name: "Customer One",
     customer_email: "cust@one.com",
     customer_phone: "123",
@@ -122,6 +125,7 @@ const MOCK_INSTANCES: DocumentInstance[] = [
   },
   {
     id: "inst-2",
+    reservation_draft: null,
     hahitantsoa_event_draft: "edraft-1",
     customer: "cust-1",
     template_key: "shared.delivery-note.v1",
@@ -136,6 +140,8 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     template_preview_path: "/preview/delivery.html",
     template_validated_by_client: true,
     template_notes: "",
+    reservation_public_reference: "",
+    reservation_status: "",
     customer_display_name: "Customer One",
     customer_email: "cust@one.com",
     customer_phone: "123",
