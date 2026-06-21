@@ -20,13 +20,16 @@ from apps.billing.services import (
     cancel_billing_invoice,
     create_billing_invoice_installments,
     create_billing_invoice_refund_obligation,
+    execute_billing_refund_obligation,
     settle_billing_invoice,
 )
-from apps.payments.models import Payment
+from apps.documents.models import DocumentInstanceStatus
+from apps.payments.models import Payment, PaymentKind, PaymentStatus
 
 pytestmark = pytest.mark.django_db
 
 BILLING_INVOICE_LIST_URL = "/api/v1/billing/invoices/"
+BILLING_REFUND_OBLIGATION_EXECUTE_URL = "/api/v1/billing/refund-obligations/"
 
 
 def _item(amount, *, due_at):
@@ -171,6 +174,56 @@ def test_refund_amount_equals_single_partial_payment(django_user_model) -> None:
     assert invoice.invoice_status == BillingInvoiceStatus.CANCELLED
 
 
+def test_execute_refund_obligation_creates_confirmed_refund_payment_and_document(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    actor, _, invoice, _ = _partially_paid_invoice(
+        django_user_model, first=Decimal("4000.00"), second=Decimal("3000.00")
+    )
+    obligation = create_billing_invoice_refund_obligation(invoice=invoice, actor=actor)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        result = execute_billing_refund_obligation(
+            obligation=obligation, actor=actor, notes="Refund issued"
+        )
+
+    obligation.refresh_from_db()
+    payment = result.payment
+    payment.refresh_from_db()
+    assert payment.payment_kind == PaymentKind.REFUND
+    assert payment.payment_status == PaymentStatus.CONFIRMED
+    assert payment.amount == obligation.refund_amount
+    assert payment.billing_refund_obligation_id == obligation.id
+    assert obligation.status == BillingRefundObligationStatus.EXECUTED
+    assert obligation.executed_at is not None
+    assert obligation.executed_by_id == actor.id
+    assert obligation.document_instance_id == payment.receipt_document_id
+    assert obligation.document_instance.status == DocumentInstanceStatus.GENERATED
+    assert AuditEvent.objects.filter(
+        action="billing.refund_obligation_executed",
+        target_id=str(obligation.id),
+    ).exists()
+
+
+def test_execute_refund_obligation_is_idempotent_for_already_executed_obligation(
+    django_user_model,
+) -> None:
+    actor, _, invoice, _ = _partially_paid_invoice(
+        django_user_model, first=Decimal("4000.00"), second=Decimal("3000.00")
+    )
+    obligation = create_billing_invoice_refund_obligation(invoice=invoice, actor=actor)
+
+    first = execute_billing_refund_obligation(obligation=obligation, actor=actor)
+    payments_before = Payment.objects.filter(billing_refund_obligation=obligation).count()
+    second = execute_billing_refund_obligation(obligation=obligation, actor=actor)
+
+    assert payments_before == 1
+    assert Payment.objects.filter(billing_refund_obligation=obligation).count() == 1
+    assert first.payment.id == second.payment.id
+    obligation.refresh_from_db()
+    assert obligation.status == BillingRefundObligationStatus.EXECUTED
+
+
 # API
 
 
@@ -246,3 +299,40 @@ def test_correct_api_rejects_unpaid_schedule(sensitive_client, django_user_model
     )
     assert response.status_code == 400
     assert response.json()["code"] == "billing_invoice_correction_not_applicable"
+
+
+def test_sensitive_user_can_execute_billing_refund_obligation(
+    sensitive_client, django_user_model
+):
+    actor, _, invoice, _ = _partially_paid_invoice(
+        django_user_model, first=Decimal("4000.00"), second=Decimal("3000.00")
+    )
+    obligation = create_billing_invoice_refund_obligation(invoice=invoice, actor=actor)
+
+    response = sensitive_client.post(
+        f"{BILLING_REFUND_OBLIGATION_EXECUTE_URL}{obligation.id}/execute/",
+        data={"notes": "Refund issued"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == BillingRefundObligationStatus.EXECUTED
+    assert payload["refund_payment"]["payment_kind"] == PaymentKind.REFUND
+    assert payload["refund_payment"]["payment_status"] == PaymentStatus.CONFIRMED
+    assert payload["document_instance"]["template_key"] == "shared.payment_refund_receipt.v1"
+
+
+def test_execute_api_requires_sensitive_access(authenticated_client, django_user_model):
+    actor, _, invoice, _ = _partially_paid_invoice(
+        django_user_model, first=Decimal("4000.00"), second=Decimal("3000.00")
+    )
+    obligation = create_billing_invoice_refund_obligation(invoice=invoice, actor=actor)
+
+    response = authenticated_client.post(
+        f"{BILLING_REFUND_OBLIGATION_EXECUTE_URL}{obligation.id}/execute/",
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403

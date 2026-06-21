@@ -38,13 +38,24 @@ class BillingInvoiceSettlementSerializer(serializers.ModelSerializer):
 
 
 class BillingRefundObligationSerializer(serializers.ModelSerializer):
+    document_instance = DocumentInstanceSerializer(read_only=True)
+    refund_payment = serializers.SerializerMethodField()
+
+    def get_refund_payment(self, obj):
+        payment = obj.refund_payments.select_related("receipt_document").first()
+        return PaymentSerializer(payment).data if payment is not None else None
+
     class Meta:
         model = BillingRefundObligation
         fields = (
             "id",
             "invoice",
             "refund_amount",
+            "document_instance",
+            "refund_payment",
             "status",
+            "executed_at",
+            "executed_by",
             "notes",
             "created_at",
             "updated_at",
@@ -164,3 +175,7 @@ class BillingInstallmentAllocateSerializer(serializers.Serializer):
 
 class BillingInvoiceCorrectSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class BillingRefundObligationExecuteSerializer(serializers.Serializer):
+    notes = serializers.CharField(required=False, allow_blank=True)

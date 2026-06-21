@@ -325,6 +325,7 @@ class BillingInstallmentAllocation(UUIDModel, TimestampedModel, AuditableModel):
 
 class BillingRefundObligationStatus(models.TextChoices):
     PENDING = "pending", "pending"
+    EXECUTED = "executed", "executed"
 
 
 class BillingRefundObligation(UUIDModel, TimestampedModel, AuditableModel):
@@ -334,10 +335,25 @@ class BillingRefundObligation(UUIDModel, TimestampedModel, AuditableModel):
         related_name="refund_obligation",
     )
     refund_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    document_instance = models.OneToOneField(
+        DocumentInstance,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="billing_refund_obligation",
+    )
     status = models.CharField(
         max_length=32,
         choices=BillingRefundObligationStatus.choices,
         default=BillingRefundObligationStatus.PENDING,
+    )
+    executed_at = models.DateTimeField(null=True, blank=True)
+    executed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
     )
     notes = models.TextField(blank=True)
 
@@ -350,11 +366,39 @@ class BillingRefundObligation(UUIDModel, TimestampedModel, AuditableModel):
                 condition=models.Q(refund_amount__gt=Decimal("0.00")),
                 name="billing_refund_obligation_amount_positive",
             ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(status=BillingRefundObligationStatus.PENDING)
+                        & models.Q(executed_at__isnull=True)
+                        & models.Q(executed_by__isnull=True)
+                        & models.Q(document_instance__isnull=True)
+                    )
+                    | (
+                        models.Q(status=BillingRefundObligationStatus.EXECUTED)
+                        & models.Q(executed_at__isnull=False)
+                        & models.Q(executed_by__isnull=False)
+                        & models.Q(document_instance__isnull=False)
+                    )
+                ),
+                name="billing_refund_obligation_status_markers_consistent",
+            ),
         ]
 
     def clean(self) -> None:
         if self.refund_amount is None or self.refund_amount <= 0:
             raise ValidationError({"refund_amount": "Refund amount must be greater than zero."})
+        if (
+            self.document_instance_id
+            and self.document_instance.status != DocumentInstanceStatus.GENERATED
+        ):
+            raise ValidationError(
+                {
+                    "document_instance": (
+                        "Billing refund obligations require a generated refund document."
+                    )
+                }
+            )
 
     def __str__(self) -> str:
         return f"Billing refund obligation {self.refund_amount} ({self.status})"

@@ -15,6 +15,7 @@ from apps.inventory.models import (
 )
 from apps.inventory.services import generate_excess_receivable_invoice_document
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment
+from apps.payments.services import confirm_refund_payment
 
 from .models import (
     BillingInstallmentAllocation,
@@ -77,6 +78,12 @@ class BillingInstallmentDueDatePresets:
     j10: object
 
 
+@dataclass(frozen=True)
+class BillingRefundExecutionResult:
+    obligation: BillingRefundObligation
+    payment: Payment
+
+
 BILLING_INSTALLMENT_LIFECYCLE_OPEN = "open"
 BILLING_INSTALLMENT_LIFECYCLE_PARTIALLY_PAID = "partially_paid"
 BILLING_INSTALLMENT_LIFECYCLE_PAID = "paid"
@@ -131,10 +138,15 @@ def active_billing_invoices():
             "settlement__payment",
             "settlement__payment__receipt_document",
             "settlement__settled_by",
+            "refund_obligation",
+            "refund_obligation__document_instance",
+            "refund_obligation__executed_by",
         )
         .prefetch_related(
             "installments",
             "installments__allocations",
+            "refund_obligation__refund_payments",
+            "refund_obligation__refund_payments__receipt_document",
         )
         .order_by("-issued_at", "-created_at", "id")
     )
@@ -668,3 +680,89 @@ def create_billing_invoice_refund_obligation(
         },
     )
     return obligation
+
+
+@transaction.atomic
+def execute_billing_refund_obligation(
+    *,
+    obligation: BillingRefundObligation,
+    actor: object | None = None,
+    notes: str | None = None,
+) -> BillingRefundExecutionResult:
+    locked_obligation = BillingRefundObligation.objects.select_for_update().get(pk=obligation.pk)
+    locked_obligation = BillingRefundObligation.objects.select_related(
+        "invoice",
+        "invoice__reservation_draft",
+        "invoice__reservation_draft__customer",
+        "document_instance",
+        "executed_by",
+    ).get(pk=locked_obligation.pk)
+
+    existing_payment = (
+        Payment.objects.select_for_update()
+        .filter(billing_refund_obligation=locked_obligation)
+        .first()
+    )
+    if existing_payment is not None:
+        existing_payment = Payment.objects.select_related(
+            "receipt_document", "billing_refund_obligation"
+        ).get(pk=existing_payment.pk)
+    if locked_obligation.status == BillingRefundObligationStatus.EXECUTED:
+        if existing_payment is None:
+            raise BillingLifecycleError(
+                "Executed billing refund obligation is missing its refund payment link.",
+                code=BILLING_INVOICE_ALREADY_CORRECTED,
+            )
+        return BillingRefundExecutionResult(obligation=locked_obligation, payment=existing_payment)
+
+    actor_id = getattr(actor, "pk", None)
+    payment_notes = notes if notes is not None else locked_obligation.notes
+    payment = existing_payment or Payment.objects.create(
+        reservation_draft=locked_obligation.invoice.reservation_draft,
+        payment_kind="refund",
+        payment_method="bank_transfer",
+        payment_status="pending",
+        amount=locked_obligation.refund_amount,
+        billing_refund_obligation=locked_obligation,
+        source_label="Billing invoice refund",
+        notes=payment_notes or "",
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
+    )
+
+    if payment.payment_status == "pending":
+        refund_result = confirm_refund_payment(
+            payment=payment,
+            actor=actor,
+            notes=payment_notes,
+        )
+        payment = refund_result.payment
+        document_instance = refund_result.receipt_document
+    else:
+        document_instance = payment.receipt_document
+
+    executed_at = payment.paid_at or timezone.now()
+    locked_obligation.status = BillingRefundObligationStatus.EXECUTED
+    locked_obligation.document_instance = document_instance
+    locked_obligation.executed_at = executed_at
+    locked_obligation.executed_by_id = actor_id
+    if notes is not None:
+        locked_obligation.notes = notes
+    locked_obligation.updated_by_id = actor_id
+    locked_obligation.full_clean()
+    locked_obligation.save()
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.refund_obligation_executed",
+        target_type="billing_refund_obligation",
+        target_id=str(locked_obligation.id),
+        metadata={
+            "invoice_id": str(locked_obligation.invoice_id),
+            "payment_id": str(payment.id),
+            "document_instance_id": str(document_instance.id) if document_instance else None,
+            "refund_amount": str(locked_obligation.refund_amount),
+            "status": locked_obligation.status,
+        },
+    )
+    return BillingRefundExecutionResult(obligation=locked_obligation, payment=payment)

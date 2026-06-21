@@ -76,6 +76,13 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
         on_delete=models.PROTECT,
         related_name="refund_payments",
     )
+    billing_refund_obligation = models.ForeignKey(
+        "billing.BillingRefundObligation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="refund_payments",
+    )
     payment_kind = models.CharField(max_length=32, choices=PaymentKind.choices)
     payment_method = models.CharField(max_length=32, choices=PaymentMethod.choices)
     payment_status = models.CharField(
@@ -155,11 +162,23 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
                 condition=(
                     (
                         models.Q(payment_kind=PaymentKind.REFUND)
-                        & models.Q(refund_obligation__isnull=False)
+                        & (
+                            models.Q(refund_obligation__isnull=False)
+                            | models.Q(billing_refund_obligation__isnull=False)
+                        )
                     )
                     | ~models.Q(payment_kind=PaymentKind.REFUND)
                 ),
                 name="payment_refund_requires_obligation",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~(
+                        models.Q(refund_obligation__isnull=False)
+                        & models.Q(billing_refund_obligation__isnull=False)
+                    )
+                ),
+                name="payment_single_refund_obligation_link",
             ),
         ]
 
@@ -233,15 +252,36 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
                 self.confirmed_at = timezone.now()
 
         if self.payment_kind == PaymentKind.REFUND:
-            if self.refund_obligation_id is None:
+            if self.refund_obligation_id and self.billing_refund_obligation_id:
                 raise ValidationError(
-                    {"refund_obligation": "Refund payments require a linked refund obligation."}
+                    {
+                        "billing_refund_obligation": (
+                            "Refund payments must link exactly one refund obligation."
+                        )
+                    }
+                )
+            if self.refund_obligation_id is None and self.billing_refund_obligation_id is None:
+                raise ValidationError(
+                    {
+                        "refund_obligation": "Refund payments require a linked refund obligation."
+                    }
                 )
             if (
                 self.refund_obligation_id
                 and self.refund_obligation.status != InventoryCautionRefundObligationStatus.PENDING
             ):
                 raise ValidationError({"refund_obligation": "Refund obligation must be pending."})
+            if (
+                self.billing_refund_obligation_id
+                and self.billing_refund_obligation.status != "pending"
+            ):
+                raise ValidationError(
+                    {
+                        "billing_refund_obligation": (
+                            "Billing refund obligation must be pending."
+                        )
+                    }
+                )
 
     def __str__(self) -> str:
         return f"{self.payment_kind} {self.amount} ({self.payment_status})"
