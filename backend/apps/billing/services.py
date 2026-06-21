@@ -39,6 +39,7 @@ BILLING_INSTALLMENT_ALREADY_PAID = "billing_installment_already_paid"
 BILLING_INSTALLMENT_PAYMENT_ALREADY_USED = "billing_installment_payment_already_used"
 INVALID_BILLING_INSTALLMENT_ALLOCATION = "invalid_billing_installment_allocation"
 INVALID_BILLING_INSTALLMENT_ITEM = "invalid_billing_installment_item"
+BILLING_INVOICE_HAS_INSTALLMENT_PAYMENTS = "billing_invoice_has_installment_payments"
 
 
 class BillingLifecycleError(ValueError):
@@ -319,6 +320,16 @@ def cancel_billing_invoice(
         raise BillingLifecycleError(
             "Billing invoice is already settled.",
             code=INVALID_BILLING_INVOICE_STATUS,
+        )
+
+    if locked_invoice.installments.filter(paid_amount__gt=Decimal("0.00")).exists():
+        raise BillingLifecycleError(
+            (
+                "Billing invoices with installment payments cannot be cancelled"
+                " directly; cancellation requires the future credit-note/refund"
+                " workflow."
+            ),
+            code=BILLING_INVOICE_HAS_INSTALLMENT_PAYMENTS,
         )
 
     actor_id = getattr(actor, "pk", None)
