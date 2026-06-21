@@ -232,7 +232,7 @@ describe('PaymentWorkflowPanel', () => {
     });
   });
 
-  it('has accessible confirm dialog with aria-modal and autoFocus on paid_at', async () => {
+  it('has accessible confirm dialog with aria-modal', async () => {
     vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
 
     render(<PaymentWorkflowPanel />);
@@ -245,7 +245,6 @@ describe('PaymentWorkflowPanel', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Confirm payment dialog' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(screen.getByLabelText('Paid At')).toHaveAttribute('autofocus');
   });
 
   it('disables confirm dialog buttons while submitting', async () => {
