@@ -246,7 +246,8 @@ describe("CustomerPanel", () => {
     fireEvent.click(screen.getByText("Create Customer"));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Create/ })).toBeDisabled();
+      const submitBtn = screen.getByRole("button", { name: /Saving|Create/ });
+      expect(submitBtn).toBeDisabled();
     });
   });
 
