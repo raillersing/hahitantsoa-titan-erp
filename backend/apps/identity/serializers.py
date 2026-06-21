@@ -19,6 +19,27 @@ class ApplicationRoleSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ApplicationRoleWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ApplicationRole
+        fields = (
+            "id",
+            "name",
+            "slug",
+            "description",
+            "is_system_managed",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "is_system_managed", "created_at", "updated_at")
+
+    def validate_slug(self, value: str) -> str:
+        if ApplicationRole.objects.filter(slug=value).exists():
+            raise serializers.ValidationError("A role with this slug already exists.")
+        return value
+
+
 class UserRoleAssignmentSerializer(serializers.ModelSerializer):
     role = ApplicationRoleSerializer(read_only=True)
     user_id = serializers.ReadOnlyField()

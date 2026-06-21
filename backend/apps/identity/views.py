@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 from apps.identity.serializers import (
     ApplicationRoleSerializer,
+    ApplicationRoleWriteSerializer,
     AssignRoleRequestSerializer,
     RevokeRoleRequestSerializer,
     UserRoleAssignmentSerializer,
@@ -24,10 +25,14 @@ from .permissions import HasReservationSensitiveAccess
 User = get_user_model()
 
 
-class ApplicationRoleListAPIView(generics.ListAPIView):
-    http_method_names = ["get", "head", "options"]
+class ApplicationRoleListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
     permission_classes = [HasReservationSensitiveAccess]
-    serializer_class = ApplicationRoleSerializer
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return ApplicationRoleWriteSerializer
+        return ApplicationRoleSerializer
 
     def get_queryset(self):
         queryset = ApplicationRole.objects.order_by("name")
@@ -43,6 +48,27 @@ class ApplicationRoleListAPIView(generics.ListAPIView):
         else:
             queryset = queryset.filter(is_active=True)
         return queryset
+
+
+class ApplicationRoleDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    http_method_names = ["get", "put", "patch", "delete", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+    queryset = ApplicationRole.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method in ("PUT", "PATCH"):
+            return ApplicationRoleWriteSerializer
+        return ApplicationRoleSerializer
+
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.is_system_managed:
+            return Response(
+                {"detail": "System-managed roles cannot be deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserRoleAssignmentListAPIView(generics.ListAPIView):
