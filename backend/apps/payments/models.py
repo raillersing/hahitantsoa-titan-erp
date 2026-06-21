@@ -262,9 +262,7 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
                 )
             if self.refund_obligation_id is None and self.billing_refund_obligation_id is None:
                 raise ValidationError(
-                    {
-                        "refund_obligation": "Refund payments require a linked refund obligation."
-                    }
+                    {"refund_obligation": "Refund payments require a linked refund obligation."}
                 )
             if (
                 self.refund_obligation_id
@@ -276,11 +274,7 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
                 and self.billing_refund_obligation.status != "pending"
             ):
                 raise ValidationError(
-                    {
-                        "billing_refund_obligation": (
-                            "Billing refund obligation must be pending."
-                        )
-                    }
+                    {"billing_refund_obligation": ("Billing refund obligation must be pending.")}
                 )
 
     def __str__(self) -> str:

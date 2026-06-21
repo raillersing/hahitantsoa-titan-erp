@@ -301,9 +301,7 @@ def test_correct_api_rejects_unpaid_schedule(sensitive_client, django_user_model
     assert response.json()["code"] == "billing_invoice_correction_not_applicable"
 
 
-def test_sensitive_user_can_execute_billing_refund_obligation(
-    sensitive_client, django_user_model
-):
+def test_sensitive_user_can_execute_billing_refund_obligation(sensitive_client, django_user_model):
     actor, _, invoice, _ = _partially_paid_invoice(
         django_user_model, first=Decimal("4000.00"), second=Decimal("3000.00")
     )

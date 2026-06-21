@@ -174,9 +174,7 @@ def build_refund_receipt_document_instance_kwargs(
         "reservation_public_reference": (
             reservation_draft.public_reference if reservation_draft is not None else ""
         ),
-        "reservation_status": (
-            reservation_draft.status if reservation_draft is not None else ""
-        ),
+        "reservation_status": (reservation_draft.status if reservation_draft is not None else ""),
         "customer_display_name": customer_display_name,
         "customer_email": customer.email if customer is not None else "",
         "customer_phone": customer.phone if customer is not None else "",
@@ -489,7 +487,9 @@ def confirm_refund_payment(
             "refund_obligation_id": (
                 str(obligation.id)
                 if obligation is not None
-                else str(billing_obligation.id) if billing_obligation is not None else None
+                else str(billing_obligation.id)
+                if billing_obligation is not None
+                else None
             ),
         },
     )
