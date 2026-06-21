@@ -33,6 +33,7 @@ from apps.inventory.models import (
     InventoryStockMovementDirection,
     InventoryStockMovementType,
 )
+from apps.logistics.models import LogisticsEvent
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 
 
@@ -917,3 +918,54 @@ def generate_excess_receivable_invoice_document(
     )
 
     return instance
+
+
+@dataclass(frozen=True)
+class OperationsCompletenessReport:
+    event_id: str
+    has_return_operation: bool
+    return_operation_id: str | None
+    return_operation_validated: bool
+    has_classification_proposals: bool
+    proposal_count: int
+    intact_line_count: int
+    all_lines_accounted: bool
+    is_complete: bool
+
+
+def check_event_operations_completeness(
+    *,
+    event: LogisticsEvent,
+) -> OperationsCompletenessReport:
+    return_op = InventoryReturnOperation.objects.filter(logistics_event=event).first()
+    has_return_operation = return_op is not None
+    return_operation_id = str(return_op.id) if return_op else None
+    return_operation_validated = (
+        return_op.status == InventoryReturnOperationStatus.VALIDATED if return_op else False
+    )
+
+    proposal_count = 0
+    intact_line_count = 0
+    has_classification_proposals = False
+
+    if return_op and return_operation_validated:
+        result = propose_damage_loss_classification_lines(return_operation=return_op)
+        proposal_count = len(result.proposals)
+        intact_line_count = len(result.intact_summary)
+        has_classification_proposals = proposal_count > 0
+
+    all_lines_accounted = (proposal_count + intact_line_count) > 0 if return_op else False
+
+    is_complete = has_return_operation and return_operation_validated and all_lines_accounted
+
+    return OperationsCompletenessReport(
+        event_id=str(event.id),
+        has_return_operation=has_return_operation,
+        return_operation_id=return_operation_id,
+        return_operation_validated=return_operation_validated,
+        has_classification_proposals=has_classification_proposals,
+        proposal_count=proposal_count,
+        intact_line_count=intact_line_count,
+        all_lines_accounted=all_lines_accounted,
+        is_complete=is_complete,
+    )
