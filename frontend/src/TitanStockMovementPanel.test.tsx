@@ -59,6 +59,14 @@ describe('TitanStockMovementPanel', () => {
     });
   });
 
+  it('shows loading state while fetching movements', async () => {
+    vi.spyOn(api, 'getStockMovements').mockImplementation(
+      () => new Promise(() => {}),
+    );
+    render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
+    expect(screen.getByText('Loading\u2026')).toBeInTheDocument();
+  });
+
   it('shows empty state when no movements exist', async () => {
     vi.spyOn(api, 'getStockMovements').mockResolvedValue([]);
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
