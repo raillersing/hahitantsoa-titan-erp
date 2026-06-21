@@ -11,6 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('inventory', '0001_initial'),
+        ('inventory', '0008_inventorydamagelosssettlementexecution_and_more'),
         ('payments', '0001_initial'),
     ]
 

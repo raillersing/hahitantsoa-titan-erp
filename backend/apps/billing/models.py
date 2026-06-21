@@ -180,3 +180,144 @@ class BillingInvoiceSettlement(UUIDModel, TimestampedModel, AuditableModel):
 
     def __str__(self) -> str:
         return f"Billing settlement {self.amount} ({self.invoice_id})"
+
+
+class BillingInstallmentStatus(models.TextChoices):
+    UNPAID = "unpaid", "unpaid"
+    PARTIALLY_PAID = "partially_paid", "partially_paid"
+    PAID = "paid", "paid"
+
+
+class BillingInvoiceInstallment(UUIDModel, TimestampedModel, AuditableModel):
+    invoice = models.ForeignKey(
+        BillingInvoice,
+        on_delete=models.PROTECT,
+        related_name="installments",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    paid_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    due_at = models.DateTimeField()
+    status = models.CharField(
+        max_length=32,
+        choices=BillingInstallmentStatus.choices,
+        default=BillingInstallmentStatus.UNPAID,
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["due_at", "created_at", "id"]
+        verbose_name = "Billing invoice installment"
+        verbose_name_plural = "Billing invoice installments"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=Decimal("0.00")),
+                name="billing_installment_amount_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(paid_amount__gte=Decimal("0.00")),
+                name="billing_installment_paid_amount_non_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(paid_amount__lte=models.F("amount")),
+                name="billing_installment_paid_not_exceeds_amount",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status=BillingInstallmentStatus.UNPAID,
+                        paid_amount=Decimal("0.00"),
+                    )
+                    | models.Q(
+                        status=BillingInstallmentStatus.PARTIALLY_PAID,
+                        paid_amount__gt=Decimal("0.00"),
+                        paid_amount__lt=models.F("amount"),
+                    )
+                    | models.Q(
+                        status=BillingInstallmentStatus.PAID,
+                        paid_amount=models.F("amount"),
+                    )
+                ),
+                name="billing_installment_status_paid_consistent",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({"amount": "Installment amount must be greater than zero."})
+        if self.paid_amount is None or self.paid_amount < 0:
+            raise ValidationError({"paid_amount": "Paid amount cannot be negative."})
+        if self.paid_amount > self.amount:
+            raise ValidationError(
+                {"paid_amount": "Paid amount cannot exceed the installment amount."}
+            )
+        if self.status == BillingInstallmentStatus.UNPAID and self.paid_amount != 0:
+            raise ValidationError({"status": "An unpaid installment cannot have a paid amount."})
+        if self.status == BillingInstallmentStatus.PARTIALLY_PAID and not (
+            Decimal("0.00") < self.paid_amount < self.amount
+        ):
+            raise ValidationError(
+                {"status": "A partially paid installment must have a partial paid amount."}
+            )
+        if self.status == BillingInstallmentStatus.PAID and self.paid_amount != self.amount:
+            raise ValidationError({"status": "A paid installment must be fully paid."})
+
+    def __str__(self) -> None:
+        return f"Billing installment {self.amount} ({self.status})"
+
+
+class BillingInstallmentAllocation(UUIDModel, TimestampedModel, AuditableModel):
+    installment = models.ForeignKey(
+        BillingInvoiceInstallment,
+        on_delete=models.PROTECT,
+        related_name="allocations",
+    )
+    payment = models.OneToOneField(
+        Payment,
+        on_delete=models.PROTECT,
+        related_name="billing_installment_allocation",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    allocated_at = models.DateTimeField()
+    allocated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-allocated_at", "-created_at", "id"]
+        verbose_name = "Billing installment allocation"
+        verbose_name_plural = "Billing installment allocations"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=Decimal("0.00")),
+                name="billing_installment_allocation_amount_positive",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({"amount": "Allocation amount must be greater than zero."})
+        if self.payment_id:
+            if self.payment.payment_status not in CONFIRMED_PAYMENT_STATUS_VALUES:
+                raise ValidationError(
+                    {
+                        "payment": (
+                            "Installment allocations require a confirmed or reconciled payment."
+                        )
+                    }
+                )
+            if self.amount > self.payment.amount:
+                raise ValidationError(
+                    {"amount": "Allocation amount cannot exceed the payment amount."}
+                )
+
+    def __str__(self) -> None:
+        return f"Billing allocation {self.amount} ({self.installment_id})"
