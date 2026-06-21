@@ -67,6 +67,14 @@ describe('BillingInvoicePanel', () => {
     expect(screen.getByText('Invoices')).toBeInTheDocument();
   });
 
+  it('shows loading state while fetching invoices', async () => {
+    vi.spyOn(api, 'getBillingInvoices').mockImplementation(
+      () => new Promise(() => {}),
+    );
+    render(<BillingInvoicePanel />);
+    expect(screen.getByText('Loading invoices...')).toBeInTheDocument();
+  });
+
   it('shows empty state when no invoices exist', async () => {
     vi.spyOn(api, 'getBillingInvoices').mockResolvedValue([]);
     render(<BillingInvoicePanel />);

@@ -243,7 +243,9 @@ describe("HahitantsoaDocumentsPanel", () => {
       expect(select.value).toBe("edraft-1");
     });
 
-    expect(instancesSpy).toHaveBeenCalledWith("edraft-1");
+    await waitFor(() => {
+      expect(instancesSpy).toHaveBeenCalledWith("edraft-1");
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Hahitantsoa Contract")).toBeInTheDocument();
