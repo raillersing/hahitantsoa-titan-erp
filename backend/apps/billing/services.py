@@ -84,10 +84,25 @@ class BillingRefundExecutionResult:
     payment: Payment
 
 
+@dataclass(frozen=True)
+class BillingInvoiceCloseoutSummary:
+    closeout_status: str
+    amount_settled: Decimal
+    amount_refunded: Decimal
+    remaining_balance: Decimal
+
+
 BILLING_INSTALLMENT_LIFECYCLE_OPEN = "open"
 BILLING_INSTALLMENT_LIFECYCLE_PARTIALLY_PAID = "partially_paid"
 BILLING_INSTALLMENT_LIFECYCLE_PAID = "paid"
 BILLING_INSTALLMENT_LIFECYCLE_OVERDUE = "overdue"
+
+BILLING_CLOSEOUT_STATUS_OUTSTANDING = "outstanding"
+BILLING_CLOSEOUT_STATUS_PARTIALLY_COLLECTED = "partially_collected"
+BILLING_CLOSEOUT_STATUS_SETTLED = "settled"
+BILLING_CLOSEOUT_STATUS_REFUND_PENDING = "refund_pending"
+BILLING_CLOSEOUT_STATUS_REFUNDED = "refunded"
+BILLING_CLOSEOUT_STATUS_CANCELLED = "cancelled"
 
 
 def billing_installment_due_date_presets(*, start_at):
@@ -120,6 +135,90 @@ def compute_billing_invoice_installment_lifecycle(invoice, *, now=None):
     if any(i.paid_amount > 0 for i in installments):
         return BILLING_INSTALLMENT_LIFECYCLE_PARTIALLY_PAID
     return BILLING_INSTALLMENT_LIFECYCLE_OPEN
+
+
+def _billing_invoice_settlement_or_none(invoice):
+    try:
+        return invoice.settlement
+    except BillingInvoiceSettlement.DoesNotExist:
+        return None
+
+
+def _billing_invoice_refund_obligation_or_none(invoice):
+    try:
+        return invoice.refund_obligation
+    except BillingRefundObligation.DoesNotExist:
+        return None
+
+
+def _billing_invoice_refund_payment_or_none(obligation):
+    payments = list(obligation.refund_payments.all()[:1])
+    return payments[0] if payments else None
+
+
+def compute_billing_invoice_closeout_summary(invoice) -> BillingInvoiceCloseoutSummary:
+    cached = getattr(invoice, "_billing_closeout_summary_cache", None)
+    if cached is not None:
+        return cached
+
+    settlement = _billing_invoice_settlement_or_none(invoice)
+    if settlement is not None:
+        amount_settled = settlement.amount
+    else:
+        amount_settled = sum(
+            (installment.paid_amount for installment in invoice.installments.all()),
+            Decimal("0.00"),
+        )
+
+    obligation = _billing_invoice_refund_obligation_or_none(invoice)
+    amount_refunded = Decimal("0.00")
+    closeout_status = BILLING_CLOSEOUT_STATUS_OUTSTANDING
+    if obligation is not None:
+        if obligation.status == BillingRefundObligationStatus.EXECUTED:
+            payment = _billing_invoice_refund_payment_or_none(obligation)
+            if payment is not None:
+                amount_refunded = payment.amount
+            closeout_status = BILLING_CLOSEOUT_STATUS_REFUNDED
+        else:
+            closeout_status = BILLING_CLOSEOUT_STATUS_REFUND_PENDING
+    elif invoice.invoice_status == BillingInvoiceStatus.SETTLED:
+        closeout_status = BILLING_CLOSEOUT_STATUS_SETTLED
+    elif invoice.invoice_status == BillingInvoiceStatus.CANCELLED:
+        closeout_status = BILLING_CLOSEOUT_STATUS_CANCELLED
+    elif amount_settled > Decimal("0.00"):
+        closeout_status = BILLING_CLOSEOUT_STATUS_PARTIALLY_COLLECTED
+
+    if invoice.invoice_status == BillingInvoiceStatus.OPEN:
+        remaining_balance = invoice.amount - amount_settled
+        if remaining_balance < Decimal("0.00"):
+            remaining_balance = Decimal("0.00")
+    else:
+        remaining_balance = Decimal("0.00")
+
+    summary = BillingInvoiceCloseoutSummary(
+        closeout_status=closeout_status,
+        amount_settled=amount_settled,
+        amount_refunded=amount_refunded,
+        remaining_balance=remaining_balance,
+    )
+    setattr(invoice, "_billing_closeout_summary_cache", summary)
+    return summary
+
+
+def compute_billing_invoice_amount_settled(invoice) -> Decimal:
+    return compute_billing_invoice_closeout_summary(invoice).amount_settled
+
+
+def compute_billing_invoice_amount_refunded(invoice) -> Decimal:
+    return compute_billing_invoice_closeout_summary(invoice).amount_refunded
+
+
+def compute_billing_invoice_remaining_balance(invoice) -> Decimal:
+    return compute_billing_invoice_closeout_summary(invoice).remaining_balance
+
+
+def compute_billing_invoice_closeout_status(invoice) -> str:
+    return compute_billing_invoice_closeout_summary(invoice).closeout_status
 
 
 def active_billing_invoices():
