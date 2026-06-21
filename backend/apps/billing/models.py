@@ -321,3 +321,40 @@ class BillingInstallmentAllocation(UUIDModel, TimestampedModel, AuditableModel):
 
     def __str__(self) -> None:
         return f"Billing allocation {self.amount} ({self.installment_id})"
+
+
+class BillingRefundObligationStatus(models.TextChoices):
+    PENDING = "pending", "pending"
+
+
+class BillingRefundObligation(UUIDModel, TimestampedModel, AuditableModel):
+    invoice = models.OneToOneField(
+        BillingInvoice,
+        on_delete=models.PROTECT,
+        related_name="refund_obligation",
+    )
+    refund_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(
+        max_length=32,
+        choices=BillingRefundObligationStatus.choices,
+        default=BillingRefundObligationStatus.PENDING,
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        verbose_name = "Billing refund obligation"
+        verbose_name_plural = "Billing refund obligations"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(refund_amount__gt=Decimal("0.00")),
+                name="billing_refund_obligation_amount_positive",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.refund_amount is None or self.refund_amount <= 0:
+            raise ValidationError({"refund_amount": "Refund amount must be greater than zero."})
+
+    def __str__(self) -> str:
+        return f"Billing refund obligation {self.refund_amount} ({self.status})"
