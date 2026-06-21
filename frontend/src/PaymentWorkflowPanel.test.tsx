@@ -82,6 +82,11 @@ describe('PaymentWorkflowPanel', () => {
     vi.clearAllMocks();
   });
 
+  it('shows loading state initially', () => {
+    render(<PaymentWorkflowPanel />);
+    expect(screen.getByText('Loading payments...')).toBeInTheDocument();
+  });
+
   it('renders payment list after loading', async () => {
     vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
 
