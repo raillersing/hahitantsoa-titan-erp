@@ -420,3 +420,131 @@ def test_revoke_already_revoked_returns_400(staff_authenticated_client, sample_r
     response = staff_authenticated_client.post(url, {}, content_type="application/json")
     assert response.status_code == 400
     assert "already revoked" in response.json()["detail"]
+
+
+# ---- assignment detail / update / delete ----
+
+
+IDENTITY_ASSIGNMENT_DETAIL = "/api/v1/identity/assignments/{id}/"
+
+
+def test_assignment_detail_get_returns_assignment(staff_authenticated_client, sample_role):
+    target = User.objects.create_user(username="detail-target", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = staff_authenticated_client.get(url)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role"]["slug"] == "sample"
+    assert data["is_active"] is True
+    assert data["user_id"] == target.id
+
+
+def test_assignment_detail_get_regular_forbidden(regular_authenticated_client, sample_role):
+    target = User.objects.create_user(username="detail-target-2", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = regular_authenticated_client.get(url)
+    assert response.status_code == 403
+
+
+def test_assignment_detail_get_not_found(staff_authenticated_client):
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=__import__("uuid").uuid4())
+    response = staff_authenticated_client.get(url)
+    assert response.status_code == 404
+
+
+def test_assignment_detail_get_unauthenticated(client, sample_role):
+    target = User.objects.create_user(username="detail-target-3", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = client.get(url)
+    assert response.status_code in {401, 403}
+
+
+def test_assignment_patch_notes_staff_success(staff_authenticated_client, sample_role):
+    target = User.objects.create_user(username="patch-target", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = staff_authenticated_client.patch(
+        url, {"notes": "Updated notes"}, content_type="application/json"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["notes"] == "Updated notes"
+    assert data["is_active"] is True
+
+
+def test_assignment_patch_notes_regular_forbidden(regular_authenticated_client, sample_role):
+    target = User.objects.create_user(username="patch-target-2", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = regular_authenticated_client.patch(
+        url, {"notes": "Hacked"}, content_type="application/json"
+    )
+    assert response.status_code == 403
+
+
+def test_assignment_patch_notes_unauthenticated(client, sample_role):
+    target = User.objects.create_user(username="patch-target-3", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = client.patch(url, {"notes": "Hacked"}, content_type="application/json")
+    assert response.status_code in {401, 403}
+
+
+def test_assignment_delete_revokes_assignment(staff_authenticated_client, sample_role):
+    target = User.objects.create_user(username="delete-target", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = staff_authenticated_client.delete(url)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_active"] is False
+    assert data["revoked_at"] is not None
+
+
+def test_assignment_delete_regular_forbidden(regular_authenticated_client, sample_role):
+    target = User.objects.create_user(username="delete-target-2", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = regular_authenticated_client.delete(url)
+    assert response.status_code == 403
+
+
+def test_assignment_delete_unauthenticated(client, sample_role):
+    target = User.objects.create_user(username="delete-target-3", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sample_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = client.delete(url)
+    assert response.status_code in {401, 403}
+
+
+def test_assignment_delete_system_managed_returns_400(staff_authenticated_client):
+    sys_role = ApplicationRole.objects.create(name="SysDel", slug="sys-del", is_system_managed=True)
+    target = User.objects.create_user(username="delete-target-4", password="p")
+    assignment = UserRoleAssignment.objects.create(user=target, role=sys_role)
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = staff_authenticated_client.delete(url)
+    assert response.status_code == 400
+    assert "System-managed" in response.json()["detail"]
+
+
+def test_assignment_delete_not_found_returns_404(staff_authenticated_client):
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=__import__("uuid").uuid4())
+    response = staff_authenticated_client.delete(url)
+    assert response.status_code == 404
+
+
+def test_assignment_delete_already_revoked_returns_400(staff_authenticated_client, sample_role):
+    target = User.objects.create_user(username="delete-target-5", password="p")
+    assignment = UserRoleAssignment.objects.create(
+        user=target,
+        role=sample_role,
+        is_active=False,
+        revoked_at=__import__("django.utils.timezone", fromlist=["timezone"]).now(),
+    )
+    url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
+    response = staff_authenticated_client.delete(url)
+    assert response.status_code == 400
+    assert "already revoked" in response.json()["detail"]

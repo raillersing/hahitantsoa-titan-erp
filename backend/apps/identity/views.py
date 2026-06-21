@@ -12,6 +12,7 @@ from apps.identity.serializers import (
     AssignRoleRequestSerializer,
     RevokeRoleRequestSerializer,
     UserRoleAssignmentSerializer,
+    UserRoleAssignmentWriteSerializer,
 )
 from apps.identity.services import (
     IdentityServiceError,
@@ -94,6 +95,34 @@ class UserRoleAssignmentListAPIView(generics.ListAPIView):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() in ("true", "1"))
         return queryset
+
+
+class UserRoleAssignmentDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    http_method_names = ["get", "patch", "delete", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+    lookup_field = "id"
+    queryset = UserRoleAssignment.objects.select_related("role").all()
+
+    def get_serializer_class(self):
+        if self.request.method == "PATCH":
+            return UserRoleAssignmentWriteSerializer
+        return UserRoleAssignmentSerializer
+
+    def delete(self, request, *args, **kwargs):
+        assignment = self.get_object()
+        try:
+            updated = revoke_role(
+                actor=request.user,
+                assignment_id=str(assignment.id),
+                notes="",
+            )
+        except IdentityServiceError as exc:
+            if exc.code == "role_assignment_not_found":
+                return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": str(exc), "code": exc.code}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(UserRoleAssignmentSerializer(updated).data, status=status.HTTP_200_OK)
 
 
 class AssignRoleAPIView(APIView):

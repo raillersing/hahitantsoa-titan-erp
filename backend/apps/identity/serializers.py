@@ -77,5 +77,33 @@ class AssignRoleRequestSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
 
+class UserRoleAssignmentWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserRoleAssignment
+        fields = (
+            "id",
+            "user_id",
+            "role",
+            "assigned_by_id",
+            "assigned_at",
+            "revoked_at",
+            "is_active",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "user_id",
+            "role",
+            "assigned_by_id",
+            "assigned_at",
+            "revoked_at",
+            "is_active",
+            "created_at",
+            "updated_at",
+        )
+
+
 class RevokeRoleRequestSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, max_length=1000)
