@@ -1,7 +1,8 @@
 from django.urls import path
 
 from .views import (
-    ApplicationRoleListAPIView,
+    ApplicationRoleDetailAPIView,
+    ApplicationRoleListCreateAPIView,
     AssignRoleAPIView,
     RevokeRoleAPIView,
     SyncSystemRolesAPIView,
@@ -9,7 +10,8 @@ from .views import (
 )
 
 urlpatterns = [
-    path("roles/", ApplicationRoleListAPIView.as_view(), name="identity-role-list"),
+    path("roles/", ApplicationRoleListCreateAPIView.as_view(), name="identity-role-list"),
+    path("roles/<uuid:pk>/", ApplicationRoleDetailAPIView.as_view(), name="identity-role-detail"),
     path(
         "roles/sync-system/",
         SyncSystemRolesAPIView.as_view(),

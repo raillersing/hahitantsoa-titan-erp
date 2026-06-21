@@ -116,6 +116,105 @@ def test_role_list_can_include_inactive_roles_when_requested(staff_authenticated
     assert {row["slug"] for row in data} == {"inactive-role"}
 
 
+# ---- role CRUD ----
+
+
+def test_role_create_unauthenticated(client):
+    payload = {"name": "New Role", "slug": "new-role"}
+    response = client.post(IDENTITY_ROLE_LIST_URL, payload, content_type="application/json")
+    assert response.status_code in {401, 403}
+
+
+def test_role_create_regular_forbidden(regular_authenticated_client):
+    payload = {"name": "New Role", "slug": "new-role"}
+    response = regular_authenticated_client.post(
+        IDENTITY_ROLE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 403
+
+
+def test_role_create_staff_success(staff_authenticated_client):
+    payload = {
+        "name": "Custom Inspector",
+        "slug": "custom-inspector",
+        "description": "Inspects items",
+    }
+    response = staff_authenticated_client.post(
+        IDENTITY_ROLE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Custom Inspector"
+    assert data["slug"] == "custom-inspector"
+    assert data["description"] == "Inspects items"
+    assert data["is_system_managed"] is False
+    assert data["is_active"] is True
+
+
+def test_role_create_duplicate_slug_returns_400(staff_authenticated_client):
+    ApplicationRole.objects.create(name="Existing", slug="existing")
+    payload = {"name": "Duplicate", "slug": "existing"}
+    response = staff_authenticated_client.post(
+        IDENTITY_ROLE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 400
+
+
+def test_role_detail_get_returns_role(staff_authenticated_client):
+    role = ApplicationRole.objects.create(name="Detail Role", slug="detail-role")
+    url = f"/api/v1/identity/roles/{role.id}/"
+    response = staff_authenticated_client.get(url)
+    assert response.status_code == 200
+    assert response.json()["slug"] == "detail-role"
+
+
+def test_role_detail_get_not_found(staff_authenticated_client):
+    url = f"/api/v1/identity/roles/{__import__('uuid').uuid4()}/"
+    response = staff_authenticated_client.get(url)
+    assert response.status_code == 404
+
+
+def test_role_update_staff_success(staff_authenticated_client):
+    role = ApplicationRole.objects.create(name="Old Name", slug="old-name")
+    url = f"/api/v1/identity/roles/{role.id}/"
+    payload = {"name": "Updated Name", "slug": "updated-name", "description": "Updated desc"}
+    response = staff_authenticated_client.put(url, payload, content_type="application/json")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Updated Name"
+    assert data["slug"] == "updated-name"
+    assert data["description"] == "Updated desc"
+
+
+def test_role_partial_update_staff_success(staff_authenticated_client):
+    role = ApplicationRole.objects.create(
+        name="Partial Role", slug="partial-role", description="Original"
+    )
+    url = f"/api/v1/identity/roles/{role.id}/"
+    response = staff_authenticated_client.patch(
+        url, {"description": "Patched"}, content_type="application/json"
+    )
+    assert response.status_code == 200
+    assert response.json()["description"] == "Patched"
+
+
+def test_role_delete_custom_role_success(staff_authenticated_client):
+    role = ApplicationRole.objects.create(name="Custom", slug="custom-role")
+    url = f"/api/v1/identity/roles/{role.id}/"
+    response = staff_authenticated_client.delete(url)
+    assert response.status_code == 204
+    assert not ApplicationRole.objects.filter(id=role.id).exists()
+
+
+def test_role_delete_system_managed_returns_400(staff_authenticated_client):
+    role = ApplicationRole.objects.create(name="System", slug="system-role", is_system_managed=True)
+    url = f"/api/v1/identity/roles/{role.id}/"
+    response = staff_authenticated_client.delete(url)
+    assert response.status_code == 400
+    assert "System-managed" in response.json()["detail"]
+    assert ApplicationRole.objects.filter(id=role.id).exists()
+
+
 # ---- assignment list ----
 
 
