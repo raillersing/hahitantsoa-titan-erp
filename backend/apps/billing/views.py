@@ -8,11 +8,21 @@ from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.payments.models import Payment
 
 from .permissions import IsAuthenticatedBillingBoundary
-from .serializers import BillingInvoiceSerializer, BillingInvoiceSettleSerializer
+from .serializers import (
+    BillingInstallmentAllocateSerializer,
+    BillingInstallmentScheduleCreateSerializer,
+    BillingInvoiceInstallmentSerializer,
+    BillingInvoiceSerializer,
+    BillingInvoiceSettleSerializer,
+)
 from .services import (
+    BillingInstallmentItem,
     BillingLifecycleError,
+    active_billing_invoice_installments,
     active_billing_invoices,
+    allocate_payment_to_installment,
     cancel_billing_invoice,
+    create_billing_invoice_installments,
     settle_billing_invoice,
 )
 
@@ -132,5 +142,94 @@ class BillingInvoiceCancelAPIView(APIView):
 
         return Response(
             BillingInvoiceSerializer(cancelled_invoice).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class BillingInvoiceInstallmentCreateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=BillingInstallmentScheduleCreateSerializer,
+        responses={
+            200: BillingInvoiceInstallmentSerializer(many=True),
+            400: OpenApiResponse(description="Installment schedule creation failed."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Billing invoice not found."),
+        },
+    )
+    def post(self, request, id):
+        serializer = BillingInstallmentScheduleCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        invoice = active_billing_invoices().filter(id=id).first()
+        if invoice is None:
+            raise Http404("Billing invoice not found.")
+
+        items = [
+            BillingInstallmentItem(amount=item["amount"], due_at=item["due_at"])
+            for item in serializer.validated_data["installments"]
+        ]
+
+        try:
+            installments = create_billing_invoice_installments(
+                invoice=invoice,
+                installments=items,
+                actor=request.user,
+                notes=serializer.validated_data.get("notes", ""),
+            )
+        except BillingLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            BillingInvoiceInstallmentSerializer(installments, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BillingInstallmentAllocateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=BillingInstallmentAllocateSerializer,
+        responses={
+            200: BillingInvoiceInstallmentSerializer,
+            400: OpenApiResponse(description="Installment allocation failed."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Installment or payment not found."),
+        },
+    )
+    def post(self, request, id):
+        serializer = BillingInstallmentAllocateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        installment = active_billing_invoice_installments().filter(id=id).first()
+        if installment is None:
+            raise Http404("Billing installment not found.")
+
+        payment = Payment.objects.filter(id=serializer.validated_data["payment"]).first()
+        if payment is None:
+            raise Http404("Payment not found.")
+
+        try:
+            result = allocate_payment_to_installment(
+                installment=installment,
+                payment=payment,
+                actor=request.user,
+                notes=serializer.validated_data.get("notes", ""),
+            )
+        except BillingLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            BillingInvoiceInstallmentSerializer(result.installment).data,
             status=status.HTTP_200_OK,
         )
