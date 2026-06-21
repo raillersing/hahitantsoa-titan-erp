@@ -131,4 +131,24 @@ describe('TitanStockMovementPanel', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('Service unavailable');
     });
   });
+
+  it('disables form inputs and submit button while submitting', async () => {
+    vi.spyOn(api, 'getStockMovements').mockResolvedValue([]);
+    vi.spyOn(api, 'createStockMovement').mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
+    await waitFor(() => screen.getByLabelText('Open record movement form'));
+    fireEvent.click(screen.getByLabelText('Open record movement form'));
+
+    fireEvent.change(screen.getByLabelText('Select inventory item'), {
+      target: { value: 'item-0001' },
+    });
+    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '10' } });
+
+    fireEvent.click(screen.getByLabelText('Submit stock movement'));
+
+    expect(screen.getByLabelText('Submit stock movement')).toBeDisabled();
+    expect(screen.getByLabelText('Select inventory item')).toBeDisabled();
+    expect(screen.getByLabelText('Quantity')).toBeDisabled();
+  });
 });

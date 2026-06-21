@@ -353,6 +353,7 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
             name="paid_at"
             value={payload.paid_at ?? ''}
             onChange={handleChange}
+            autoFocus
           />
         </div>
 
