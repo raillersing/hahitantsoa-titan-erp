@@ -313,6 +313,13 @@ class InventoryReturnOperation(UUIDModel, TimestampedModel, AuditableModel):
         on_delete=models.PROTECT,
         related_name="return_operations",
     )
+    logistics_event = models.ForeignKey(
+        "logistics.LogisticsEvent",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="return_operations",
+    )
     document_instance = models.ForeignKey(
         "documents.DocumentInstance",
         null=True,

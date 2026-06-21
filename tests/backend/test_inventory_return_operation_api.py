@@ -12,6 +12,7 @@ from apps.inventory.models import (
     InventoryReturnOperationStatus,
     InventoryStockMovement,
 )
+from apps.logistics.models import LogisticsEvent, LogisticsEventType
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
@@ -165,6 +166,45 @@ def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_retu
     validated_payload = validate_response.json()
     assert validated_payload["status"] == InventoryReturnOperationStatus.VALIDATED
     assert InventoryStockMovement.objects.filter(return_operation_id=payload["id"]).count() == 4
+
+
+def test_sensitive_user_can_create_return_with_logistics_event_link(sensitive_client) -> None:
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+    )
+    item = _inventory_item("Return event item")
+
+    response = sensitive_client.post(
+        RETURN_OPERATION_LIST_URL,
+        data={
+            "reservation_draft": str(draft.id),
+            "logistics_event": str(event.id),
+            "notes": "Return from logistics event",
+            "lines": [
+                {
+                    "inventory_item": str(item.id),
+                    "expected_quantity": 1,
+                    "returned_quantity": 1,
+                    "damaged_quantity": 0,
+                    "missing_quantity": 0,
+                    "condition_status": "intact",
+                    "notes": "",
+                },
+            ],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["logistics_event"] == str(event.id)
+    assert payload["reservation_draft"] == str(draft.id)
+
+    # Verify through the reverse relation
+    return_op = InventoryReturnOperation.objects.get(id=payload["id"])
+    assert list(event.return_operations.all()) == [return_op]
 
 
 def test_return_operation_create_requires_authentication(client) -> None:

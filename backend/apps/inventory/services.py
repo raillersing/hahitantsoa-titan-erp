@@ -366,6 +366,7 @@ def create_inventory_return_operation(
     *,
     actor: object | None = None,
     reservation_draft=None,
+    logistics_event=None,
     document_instance=None,
     notes: str = "",
     lines: list[dict] | tuple[dict, ...],
@@ -373,6 +374,7 @@ def create_inventory_return_operation(
     actor_id = getattr(actor, "pk", None)
     return_operation = InventoryReturnOperation(
         reservation_draft=reservation_draft,
+        logistics_event=logistics_event,
         document_instance=document_instance,
         notes=notes,
         created_by_id=actor_id,
@@ -412,6 +414,11 @@ def create_inventory_return_operation(
             "reservation_draft_id": (
                 str(return_operation.reservation_draft_id)
                 if return_operation.reservation_draft_id
+                else None
+            ),
+            "logistics_event_id": (
+                str(return_operation.logistics_event_id)
+                if return_operation.logistics_event_id
                 else None
             ),
             "document_instance_id": (

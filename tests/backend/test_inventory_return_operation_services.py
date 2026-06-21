@@ -50,6 +50,48 @@ def _reservation_draft() -> ReservationDraft:
     )
 
 
+def _logistics_event(draft):
+    from apps.logistics.models import LogisticsEvent, LogisticsEventType
+
+    return LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+    )
+
+
+def test_create_return_operation_with_logistics_event_link(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="return-logistics-creator", password="test-pass"
+    )
+    item = _inventory_item("Return with logistics item")
+    draft = _reservation_draft()
+    event = _logistics_event(draft)
+
+    return_operation = create_inventory_return_operation(
+        actor=actor,
+        reservation_draft=draft,
+        logistics_event=event,
+        lines=[
+            {
+                "inventory_item": item,
+                "expected_quantity": 2,
+                "returned_quantity": 2,
+                "damaged_quantity": 0,
+                "missing_quantity": 0,
+                "condition_status": "intact",
+                "notes": "Return linked to logistics event",
+            }
+        ],
+    )
+
+    assert return_operation.logistics_event_id == event.id
+    assert return_operation.reservation_draft_id == draft.id
+    assert return_operation.status == InventoryReturnOperationStatus.DRAFT
+
+    # Verify read-back through the reverse relation
+    assert list(event.return_operations.all()) == [return_operation]
+
+
 def test_create_return_operation_persists_lines_without_stock_movements(
     django_user_model,
     django_capture_on_commit_callbacks,

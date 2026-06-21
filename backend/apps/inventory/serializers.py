@@ -15,6 +15,7 @@ from apps.inventory.models import (
     InventoryStockMovement,
 )
 from apps.inventory.scope import assert_titan_allowed_item_kind
+from apps.logistics.models import LogisticsEvent
 from apps.reservations.models import ReservationDraft
 
 
@@ -140,6 +141,7 @@ class InventoryReturnOperationSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "reservation_draft",
+            "logistics_event",
             "document_instance",
             "status",
             "notes",
@@ -171,6 +173,11 @@ class InventoryReturnOperationLineCreateSerializer(serializers.Serializer):
 class InventoryReturnOperationCreateSerializer(serializers.Serializer):
     reservation_draft = serializers.PrimaryKeyRelatedField(
         queryset=ReservationDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    logistics_event = serializers.PrimaryKeyRelatedField(
+        queryset=LogisticsEvent.objects.all(),
         required=False,
         allow_null=True,
     )
