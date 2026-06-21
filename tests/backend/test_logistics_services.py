@@ -108,6 +108,124 @@ def test_invalid_status_transition(sample_event):
         )
 
 
+@pytest.fixture
+def preparation_event():
+    draft = _reservation_draft()
+    return LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.PREPARATION,
+        status=LogisticsEventStatus.PLANNED,
+    )
+
+
+@pytest.fixture
+def handover_event():
+    draft = _reservation_draft()
+    return LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+        status=LogisticsEventStatus.PLANNED,
+    )
+
+
+def test_create_preparation_event_success():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_prep", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.PREPARATION,
+    )
+    assert event.event_type == LogisticsEventType.PREPARATION
+    assert event.status == LogisticsEventStatus.PLANNED
+
+
+def test_create_handover_event_success():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_hand", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+    )
+    assert event.event_type == LogisticsEventType.HANDOVER
+    assert event.status == LogisticsEventStatus.PLANNED
+
+
+def test_preparation_full_lifecycle():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_prep_lc", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = create_logistics_event(
+        actor=actor, reservation_draft=draft, event_type=LogisticsEventType.PREPARATION
+    )
+    assert event.status == LogisticsEventStatus.PLANNED
+
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
+    )
+    assert event.status == LogisticsEventStatus.DISPATCHED
+
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.COMPLETED
+    )
+    assert event.status == LogisticsEventStatus.COMPLETED
+    assert event.executed_at is not None
+
+
+def test_handover_full_lifecycle():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_hand_lc", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = create_logistics_event(
+        actor=actor, reservation_draft=draft, event_type=LogisticsEventType.HANDOVER
+    )
+    assert event.status == LogisticsEventStatus.PLANNED
+
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
+    )
+    assert event.status == LogisticsEventStatus.DISPATCHED
+
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.COMPLETED
+    )
+    assert event.status == LogisticsEventStatus.COMPLETED
+    assert event.executed_at is not None
+
+
+def test_preparation_cancel_lifecycle(preparation_event):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_prep_cx", password="p", is_staff=True)
+    event = transition_logistics_event_status(
+        actor=actor, event=preparation_event, new_status=LogisticsEventStatus.CANCELLED
+    )
+    assert event.status == LogisticsEventStatus.CANCELLED
+
+
+def test_handover_cancel_lifecycle(handover_event):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_hand_cx", password="p", is_staff=True)
+    event = transition_logistics_event_status(
+        actor=actor, event=handover_event, new_status=LogisticsEventStatus.CANCELLED
+    )
+    assert event.status == LogisticsEventStatus.CANCELLED
+
+
 def test_transition_to_completed_sets_executed_at(sample_event):
     from django.contrib.auth import get_user_model
 

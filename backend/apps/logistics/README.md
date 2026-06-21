@@ -5,7 +5,9 @@ This app hosts backend logistics and delivery/pickup event management.
 ## Implemented scope
 
 - LogisticsEvent model with UUID, audit, and status tracking.
-  - Event types: delivery, pickup.
+  - Event types: delivery, pickup, preparation, handover.
+  - Preparation (preparation) represents internal sortie/preparation (INV-010).
+  - Handover (handover) represents client passation/delivery (INV-011).
   - Status lifecycle: planned ? dispatched ? completed or cancelled.
   - FK to ReservationDraft with PROTECT.
   - Scheduled/executed timestamps, address, contact info, notes.
