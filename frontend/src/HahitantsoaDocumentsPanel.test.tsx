@@ -199,9 +199,11 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("HE-2001")).toBeInTheDocument();
-      expect(screen.getByText("HE-2002")).toBeInTheDocument();
+      const opt = screen.getByRole("option", { name: /HE-2001/ });
+      expect(opt).toBeInTheDocument();
     });
+
+    expect(screen.getByRole("option", { name: /HE-2002/ })).toBeInTheDocument();
   });
 
   it("filters templates to hahitantsoa and shared only", async () => {
@@ -214,10 +216,10 @@ describe("HahitantsoaDocumentsPanel", () => {
     await waitFor(() => {
       const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
       expect(templateSelect).toBeInTheDocument();
-      const options = Array.from(templateSelect.options).map((o) => o.text);
-      expect(options.some((t) => t.includes("Hahitantsoa Contract"))).toBe(true);
-      expect(options.some((t) => t.includes("Shared Delivery Note"))).toBe(true);
-      expect(options.some((t) => t.includes("Titan Proforma"))).toBe(false);
+      const optionTexts = Array.from(templateSelect.options).map((o) => o.text);
+      expect(optionTexts.some((t) => t.includes("Hahitantsoa Contract"))).toBe(true);
+      expect(optionTexts.some((t) => t.includes("Shared Delivery Note"))).toBe(true);
+      expect(optionTexts.some((t) => t.includes("Titan Proforma"))).toBe(false);
     });
   });
 
@@ -298,7 +300,12 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Event Draft/i)).toBeInTheDocument();
+      const select = screen.getByLabelText(/Select Event Draft/i) as HTMLSelectElement;
+      expect(select.value).toBe("edraft-1");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Choose Template/i)).toBeInTheDocument();
     });
 
     const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
@@ -351,9 +358,10 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
-      fireEvent.click(generateBtn);
+      expect(screen.getByRole("button", { name: "Generate HTML" })).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate HTML" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Generation failed");

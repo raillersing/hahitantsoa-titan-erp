@@ -181,9 +181,11 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("TR-1001")).toBeInTheDocument();
-      expect(screen.getByText("TR-1002")).toBeInTheDocument();
+      const opt = screen.getByRole("option", { name: /TR-1001/ });
+      expect(opt).toBeInTheDocument();
     });
+
+    expect(screen.getByRole("option", { name: /TR-1002/ })).toBeInTheDocument();
   });
 
   it("auto-selects the first draft and loads instances", async () => {
@@ -261,7 +263,12 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Reservation Draft/i)).toBeInTheDocument();
+      const select = screen.getByLabelText(/Select Reservation Draft/i) as HTMLSelectElement;
+      expect(select.value).toBe("draft-1");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Choose Template/i)).toBeInTheDocument();
     });
 
     const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
@@ -314,9 +321,10 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
-      fireEvent.click(generateBtn);
+      expect(screen.getByRole("button", { name: "Generate HTML" })).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate HTML" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Generation failed");
