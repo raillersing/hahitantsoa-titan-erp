@@ -251,7 +251,7 @@ describe("CustomerPanel", () => {
 
     fireEvent.click(screen.getByText("Create Customer"));
 
-    expect(screen.getByText("Create Customer")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Create/ })).toBeDisabled();
   });
 
   it("shows validation error when display name is empty", async () => {

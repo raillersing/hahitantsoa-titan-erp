@@ -132,7 +132,7 @@ describe("LoginPanel", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
       if (url === "/api/v1/inventory/items/") {
-        return new Promise(() => {});
+        return Promise.resolve(jsonResponse([], 403));
       }
       return new Promise(() => {});
     });
