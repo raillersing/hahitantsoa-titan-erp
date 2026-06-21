@@ -27,6 +27,7 @@ from apps.inventory.models import (
     InventoryItem,
     InventoryReturnOperation,
     InventoryReturnOperationLine,
+    InventoryReturnOperationLineConditionStatus,
     InventoryReturnOperationStatus,
     InventoryStockMovement,
     InventoryStockMovementDirection,
@@ -73,6 +74,108 @@ class DamageLossSettlementExecutionResult:
     execution: InventoryDamageLossSettlementExecution
     refund_obligation: InventoryCautionRefundObligation | None
     excess_receivable: InventoryDamageLossExcessReceivable | None
+
+
+@dataclass(frozen=True)
+class DamageLossClassificationLineProposal:
+    return_operation_line_id: str
+    inventory_item_id: str
+    inventory_item_name: str
+    settlement_line_kind: str
+    quantity: int
+    notes: str
+
+
+@dataclass(frozen=True)
+class DamageLossClassificationResult:
+    return_operation_id: str
+    proposals: tuple[DamageLossClassificationLineProposal, ...]
+    intact_summary: tuple[dict, ...]
+
+
+def propose_damage_loss_classification_lines(
+    *,
+    return_operation: InventoryReturnOperation,
+) -> DamageLossClassificationResult:
+    lines = list(
+        return_operation.lines.select_related("inventory_item").order_by("created_at", "id")
+    )
+    proposals: list[DamageLossClassificationLineProposal] = []
+    intact_summary: list[dict] = []
+
+    for line in lines:
+        item = line.inventory_item
+        condition = InventoryReturnOperationLineConditionStatus(line.condition_status)
+
+        if condition == InventoryReturnOperationLineConditionStatus.INTACT:
+            intact_summary.append(
+                {
+                    "return_operation_line_id": str(line.id),
+                    "inventory_item_id": str(item.id),
+                    "inventory_item_name": item.name,
+                    "intact_quantity": line.intact_quantity,
+                }
+            )
+        elif condition == InventoryReturnOperationLineConditionStatus.DAMAGED:
+            proposals.append(
+                DamageLossClassificationLineProposal(
+                    return_operation_line_id=str(line.id),
+                    inventory_item_id=str(item.id),
+                    inventory_item_name=item.name,
+                    settlement_line_kind="damage",
+                    quantity=line.damaged_quantity,
+                    notes=line.notes or "",
+                )
+            )
+        elif condition == InventoryReturnOperationLineConditionStatus.MISSING:
+            proposals.append(
+                DamageLossClassificationLineProposal(
+                    return_operation_line_id=str(line.id),
+                    inventory_item_id=str(item.id),
+                    inventory_item_name=item.name,
+                    settlement_line_kind="loss",
+                    quantity=line.missing_quantity,
+                    notes=line.notes or "",
+                )
+            )
+        elif condition == InventoryReturnOperationLineConditionStatus.MIXED:
+            if line.damaged_quantity > 0:
+                proposals.append(
+                    DamageLossClassificationLineProposal(
+                        return_operation_line_id=str(line.id),
+                        inventory_item_id=str(item.id),
+                        inventory_item_name=item.name,
+                        settlement_line_kind="damage",
+                        quantity=line.damaged_quantity,
+                        notes=line.notes or "",
+                    )
+                )
+            if line.missing_quantity > 0:
+                proposals.append(
+                    DamageLossClassificationLineProposal(
+                        return_operation_line_id=str(line.id),
+                        inventory_item_id=str(item.id),
+                        inventory_item_name=item.name,
+                        settlement_line_kind="loss",
+                        quantity=line.missing_quantity,
+                        notes=line.notes or "",
+                    )
+                )
+            if line.intact_quantity > 0:
+                intact_summary.append(
+                    {
+                        "return_operation_line_id": str(line.id),
+                        "inventory_item_id": str(item.id),
+                        "inventory_item_name": item.name,
+                        "intact_quantity": line.intact_quantity,
+                    }
+                )
+
+    return DamageLossClassificationResult(
+        return_operation_id=str(return_operation.id),
+        proposals=tuple(proposals),
+        intact_summary=tuple(intact_summary),
+    )
 
 
 def active_inventory_stock_movements():
