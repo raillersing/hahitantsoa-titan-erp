@@ -154,6 +154,68 @@ def test_transition_staff_success(staff_authenticated_client, reservation_draft)
     assert data["executed_at"] is not None
 
 
+def test_create_preparation_success(staff_authenticated_client, reservation_draft):
+    payload = {
+        "reservation_draft_id": str(reservation_draft.id),
+        "event_type": "preparation",
+    }
+    response = staff_authenticated_client.post(
+        LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 201
+    assert response.json()["event_type"] == "preparation"
+
+
+def test_create_handover_success(staff_authenticated_client, reservation_draft):
+    payload = {
+        "reservation_draft_id": str(reservation_draft.id),
+        "event_type": "handover",
+    }
+    response = staff_authenticated_client.post(
+        LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 201
+    assert response.json()["event_type"] == "handover"
+
+
+def test_transition_preparation_full_lifecycle(staff_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.PREPARATION,
+    )
+    dispatch_url = f"/api/v1/logistics/events/{event.id}/transition/"
+    resp1 = staff_authenticated_client.post(
+        dispatch_url, {"new_status": "dispatched"}, content_type="application/json"
+    )
+    assert resp1.status_code == 200
+    assert resp1.json()["status"] == "dispatched"
+
+    resp2 = staff_authenticated_client.post(
+        dispatch_url, {"new_status": "completed"}, content_type="application/json"
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["status"] == "completed"
+
+
+def test_transition_handover_full_lifecycle(staff_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.HANDOVER,
+    )
+    dispatch_url = f"/api/v1/logistics/events/{event.id}/transition/"
+    resp1 = staff_authenticated_client.post(
+        dispatch_url, {"new_status": "dispatched"}, content_type="application/json"
+    )
+    assert resp1.status_code == 200
+    assert resp1.json()["status"] == "dispatched"
+
+    resp2 = staff_authenticated_client.post(
+        dispatch_url, {"new_status": "completed"}, content_type="application/json"
+    )
+    assert resp2.status_code == 200
+    assert resp2.json()["status"] == "completed"
+
+
 def test_transition_invalid_returns_400(staff_authenticated_client, reservation_draft):
     event = LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
@@ -255,6 +317,30 @@ def test_list_filter_by_reservation_draft_id(operator_authenticated_client, rese
     results = response.json()
     assert len(results) == 1
     assert results[0]["reservation_draft"] == str(reservation_draft.id)
+
+
+def test_list_filter_preparation_event_type(operator_authenticated_client, reservation_draft):
+    _create_event(reservation_draft, event_type=LogisticsEventType.PREPARATION)
+    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY)
+
+    response = operator_authenticated_client.get(
+        f"{LOGISTICS_EVENT_LIST_URL}?event_type=preparation"
+    )
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["event_type"] == "preparation"
+
+
+def test_list_filter_handover_event_type(operator_authenticated_client, reservation_draft):
+    _create_event(reservation_draft, event_type=LogisticsEventType.HANDOVER)
+    _create_event(reservation_draft, event_type=LogisticsEventType.PICKUP)
+
+    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?event_type=handover")
+    assert response.status_code == 200
+    results = response.json()
+    assert len(results) == 1
+    assert results[0]["event_type"] == "handover"
 
 
 def test_list_filter_combined_status_and_event_type(

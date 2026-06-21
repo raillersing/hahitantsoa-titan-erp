@@ -9,6 +9,8 @@ from apps.common.models import AuditableModel, TimestampedModel, UUIDModel
 class LogisticsEventType(models.TextChoices):
     DELIVERY = "delivery", "delivery"
     PICKUP = "pickup", "pickup"
+    PREPARATION = "preparation", "preparation"
+    HANDOVER = "handover", "handover"
 
 
 class LogisticsEventStatus(models.TextChoices):

@@ -40,6 +40,28 @@ def test_logistics_event_creation():
     assert event.event_type == LogisticsEventType.DELIVERY
 
 
+def test_preparation_event_creation():
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.PREPARATION,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    assert event.status == LogisticsEventStatus.PLANNED
+    assert event.event_type == LogisticsEventType.PREPARATION
+
+
+def test_handover_event_creation():
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    assert event.status == LogisticsEventStatus.PLANNED
+    assert event.event_type == LogisticsEventType.HANDOVER
+
+
 def test_completed_event_requires_executed_at():
     draft = _reservation_draft()
     event = LogisticsEvent(
