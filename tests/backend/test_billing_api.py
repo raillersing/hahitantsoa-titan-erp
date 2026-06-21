@@ -303,6 +303,52 @@ def test_billing_invoice_list_search_by_customer_name(authenticated_client, djan
     assert len(response.json()) == 0
 
 
+def test_billing_invoice_detail_exposes_outstanding_closeout_summary(
+    authenticated_client, django_user_model
+) -> None:
+    actor, _, invoice = _issued_invoice(django_user_model)
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}{invoice.id}/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["closeout_status"] == "outstanding"
+    assert Decimal(str(payload["amount_settled"])) == Decimal("0.00")
+    assert Decimal(str(payload["amount_refunded"])) == Decimal("0.00")
+    assert Decimal(str(payload["remaining_balance"])) == invoice.amount
+
+
+def test_billing_invoice_detail_exposes_settled_closeout_summary(
+    sensitive_client, authenticated_client, django_user_model
+) -> None:
+    actor, reservation_draft, invoice = _issued_invoice(django_user_model)
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.BANK_TRANSFER,
+        payment_status=PaymentStatus.PENDING,
+        amount=invoice.amount,
+        source_label="Settled closeout summary",
+    )
+    confirmed_payment = confirm_payment(payment=payment, actor=actor).payment
+    settle_response = sensitive_client.post(
+        f"{BILLING_INVOICE_LIST_URL}{invoice.id}/settle/",
+        data={"payment": str(confirmed_payment.id)},
+        content_type="application/json",
+    )
+    assert settle_response.status_code == 200
+
+    response = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}{invoice.id}/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["closeout_status"] == "settled"
+    assert Decimal(str(payload["amount_settled"])) == invoice.amount
+    assert Decimal(str(payload["amount_refunded"])) == Decimal("0.00")
+    assert Decimal(str(payload["remaining_balance"])) == Decimal("0.00")
+
+
 def test_billing_invoice_cancel_requires_authentication(client) -> None:
     response = client.post(
         f"{BILLING_INVOICE_LIST_URL}00000000-0000-0000-0000-000000000000/cancel/",

@@ -14,7 +14,11 @@ from .models import (
 )
 from .services import (
     billing_installment_due_date_presets,
+    compute_billing_invoice_amount_refunded,
+    compute_billing_invoice_amount_settled,
+    compute_billing_invoice_closeout_status,
     compute_billing_invoice_installment_lifecycle,
+    compute_billing_invoice_remaining_balance,
     installment_is_overdue,
 )
 
@@ -70,6 +74,10 @@ class BillingInvoiceSerializer(serializers.ModelSerializer):
     installments = serializers.SerializerMethodField()
     installment_lifecycle = serializers.SerializerMethodField()
     suggested_due_dates = serializers.SerializerMethodField()
+    closeout_status = serializers.SerializerMethodField()
+    amount_settled = serializers.SerializerMethodField()
+    amount_refunded = serializers.SerializerMethodField()
+    remaining_balance = serializers.SerializerMethodField()
 
     def get_installments(self, obj):
         items = list(obj.installments.all().order_by("due_at", "created_at", "id"))
@@ -84,6 +92,18 @@ class BillingInvoiceSerializer(serializers.ModelSerializer):
         if presets is None:
             return None
         return {"j30": presets.j30.isoformat(), "j10": presets.j10.isoformat()}
+
+    def get_closeout_status(self, obj):
+        return compute_billing_invoice_closeout_status(obj)
+
+    def get_amount_settled(self, obj):
+        return compute_billing_invoice_amount_settled(obj)
+
+    def get_amount_refunded(self, obj):
+        return compute_billing_invoice_amount_refunded(obj)
+
+    def get_remaining_balance(self, obj):
+        return compute_billing_invoice_remaining_balance(obj)
 
     class Meta:
         model = BillingInvoice
@@ -104,6 +124,10 @@ class BillingInvoiceSerializer(serializers.ModelSerializer):
             "installments",
             "installment_lifecycle",
             "suggested_due_dates",
+            "closeout_status",
+            "amount_settled",
+            "amount_refunded",
+            "remaining_balance",
             "created_at",
             "updated_at",
         )

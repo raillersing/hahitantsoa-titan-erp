@@ -282,6 +282,10 @@ def test_sensitive_user_can_correct_partially_paid_invoice(
     assert detail.status_code == 200
     invoice_payload = detail.json()
     assert invoice_payload["invoice_status"] == "cancelled"
+    assert invoice_payload["closeout_status"] == "refund_pending"
+    assert Decimal(str(invoice_payload["amount_settled"])) == Decimal("7000.00")
+    assert Decimal(str(invoice_payload["amount_refunded"])) == Decimal("0.00")
+    assert Decimal(str(invoice_payload["remaining_balance"])) == Decimal("0.00")
     assert invoice_payload["refund_obligation"]["refund_amount"] == "7000.00"
 
 
@@ -319,6 +323,31 @@ def test_sensitive_user_can_execute_billing_refund_obligation(sensitive_client, 
     assert payload["refund_payment"]["payment_kind"] == PaymentKind.REFUND
     assert payload["refund_payment"]["payment_status"] == PaymentStatus.CONFIRMED
     assert payload["document_instance"]["template_key"] == "shared.payment_refund_receipt.v1"
+
+
+def test_invoice_detail_shows_refunded_closeout_summary(
+    sensitive_client, authenticated_client, django_user_model
+) -> None:
+    actor, _, invoice, _ = _partially_paid_invoice(
+        django_user_model, first=Decimal("4000.00"), second=Decimal("3000.00")
+    )
+    obligation = create_billing_invoice_refund_obligation(invoice=invoice, actor=actor)
+    execute_response = sensitive_client.post(
+        f"{BILLING_REFUND_OBLIGATION_EXECUTE_URL}{obligation.id}/execute/",
+        data={"notes": "Refund issued"},
+        content_type="application/json",
+    )
+    assert execute_response.status_code == 200
+
+    detail = authenticated_client.get(f"{BILLING_INVOICE_LIST_URL}{invoice.id}/")
+
+    assert detail.status_code == 200
+    payload = detail.json()
+    assert payload["invoice_status"] == "cancelled"
+    assert payload["closeout_status"] == "refunded"
+    assert Decimal(str(payload["amount_settled"])) == Decimal("7000.00")
+    assert Decimal(str(payload["amount_refunded"])) == Decimal("7000.00")
+    assert Decimal(str(payload["remaining_balance"])) == Decimal("0.00")
 
 
 def test_execute_api_requires_sensitive_access(authenticated_client, django_user_model):
