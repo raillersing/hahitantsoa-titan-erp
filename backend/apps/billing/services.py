@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -64,22 +65,73 @@ class BillingInstallmentAllocationResult:
     allocation: BillingInstallmentAllocation
 
 
+@dataclass(frozen=True)
+class BillingInstallmentDueDatePresets:
+    j30: object
+    j10: object
+
+
+BILLING_INSTALLMENT_LIFECYCLE_OPEN = "open"
+BILLING_INSTALLMENT_LIFECYCLE_PARTIALLY_PAID = "partially_paid"
+BILLING_INSTALLMENT_LIFECYCLE_PAID = "paid"
+BILLING_INSTALLMENT_LIFECYCLE_OVERDUE = "overdue"
+
+
+def billing_installment_due_date_presets(*, start_at):
+    if start_at is None:
+        return None
+    return BillingInstallmentDueDatePresets(
+        j30=start_at - timedelta(days=30),
+        j10=start_at - timedelta(days=10),
+    )
+
+
+def installment_is_overdue(installment, *, now=None):
+    if installment.status == BillingInstallmentStatus.PAID:
+        return False
+    now = now or timezone.now()
+    return installment.due_at is not None and installment.due_at < now
+
+
+def compute_billing_invoice_installment_lifecycle(invoice, *, now=None):
+    if invoice.invoice_status == BillingInvoiceStatus.CANCELLED:
+        return None
+    installments = list(invoice.installments.all())
+    if not installments:
+        return None
+    now = now or timezone.now()
+    if all(i.status == BillingInstallmentStatus.PAID for i in installments):
+        return BILLING_INSTALLMENT_LIFECYCLE_PAID
+    if any(installment_is_overdue(i, now=now) for i in installments):
+        return BILLING_INSTALLMENT_LIFECYCLE_OVERDUE
+    if any(i.paid_amount > 0 for i in installments):
+        return BILLING_INSTALLMENT_LIFECYCLE_PARTIALLY_PAID
+    return BILLING_INSTALLMENT_LIFECYCLE_OPEN
+
+
 def active_billing_invoices():
-    return BillingInvoice.objects.select_related(
-        "excess_receivable",
-        "excess_receivable__settlement_execution",
-        "excess_receivable__settlement_execution__settlement",
-        "excess_receivable__settlement_execution__settlement__return_operation",
-        "excess_receivable__settlement_execution__settlement__return_operation__reservation_draft",
-        "document_instance",
-        "reservation_draft",
-        "reservation_draft__customer",
-        "settled_by",
-        "settlement",
-        "settlement__payment",
-        "settlement__payment__receipt_document",
-        "settlement__settled_by",
-    ).order_by("-issued_at", "-created_at", "id")
+    return (
+        BillingInvoice.objects.select_related(
+            "excess_receivable",
+            "excess_receivable__settlement_execution",
+            "excess_receivable__settlement_execution__settlement",
+            "excess_receivable__settlement_execution__settlement__return_operation",
+            "excess_receivable__settlement_execution__settlement__return_operation__reservation_draft",
+            "document_instance",
+            "reservation_draft",
+            "reservation_draft__customer",
+            "settled_by",
+            "settlement",
+            "settlement__payment",
+            "settlement__payment__receipt_document",
+            "settlement__settled_by",
+        )
+        .prefetch_related(
+            "installments",
+            "installments__allocations",
+        )
+        .order_by("-issued_at", "-created_at", "id")
+    )
 
 
 @transaction.atomic
@@ -498,4 +550,25 @@ def allocate_payment_to_installment(
             "installment_status": locked_installment.status,
         },
     )
+
+    all_installments = list(locked_invoice.installments.all())
+    if all_installments and all(
+        i.status == BillingInstallmentStatus.PAID for i in all_installments
+    ):
+        locked_invoice.invoice_status = BillingInvoiceStatus.SETTLED
+        locked_invoice.settled_at = allocated_at
+        locked_invoice.settled_by_id = actor_id
+        locked_invoice.updated_by_id = actor_id
+        locked_invoice.full_clean()
+        locked_invoice.save()
+        record_audit_event_on_commit(
+            actor=actor,
+            action="billing.invoice_auto_settled",
+            target_type="billing_invoice",
+            target_id=str(locked_invoice.id),
+            metadata={
+                "amount": str(locked_invoice.amount),
+                "final_installment_id": str(locked_installment.id),
+            },
+        )
     return BillingInstallmentAllocationResult(installment=locked_installment, allocation=allocation)
