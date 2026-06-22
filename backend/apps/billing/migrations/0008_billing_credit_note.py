@@ -1,6 +1,7 @@
 # Generated manually for billing credit note model
 
 import uuid
+from decimal import Decimal
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
@@ -38,7 +39,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='billingcreditnote',
-            constraint=models.CheckConstraint(condition=models.Q(('amount__gt', 0.0)), name='billing_credit_note_amount_positive'),
+            constraint=models.CheckConstraint(condition=models.Q(amount__gt=Decimal('0.00')), name='billing_credit_note_amount_positive'),
         ),
         migrations.AddConstraint(
             model_name='billingcreditnote',

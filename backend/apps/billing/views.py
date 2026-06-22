@@ -344,7 +344,7 @@ class BillingRefundObligationExecuteAPIView(APIView):
 
 
 class BillingCreditNoteListCreateAPIView(APIView):
-    http_method_names = ["get", "post", "head", "options"]
+    http_method_names = ["post", "head", "options"]
     permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
