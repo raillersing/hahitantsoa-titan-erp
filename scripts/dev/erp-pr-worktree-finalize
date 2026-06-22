@@ -155,6 +155,18 @@ if [ -n "$STATUS_OUTPUT" ]; then
 fi
 echo "OK: worktree is clean."
 
+# ----- Hard stop: root main must be clean -----
+if [ -n "$MAIN_PATH" ] && [ -d "$MAIN_PATH" ]; then
+  ROOT_STATUS="$(cd "$MAIN_PATH" && git status --short 2>/dev/null || true)"
+  if [ -n "$ROOT_STATUS" ]; then
+    echo "ERROR: root main is dirty. All implementation work must go through dedicated task worktrees."
+    printf '%s\n' "$ROOT_STATUS"
+    echo "Recovery: inspect and classify each dirty path before finalizing this PR."
+    exit 1
+  fi
+  echo "OK: root main is clean."
+fi
+
 # ----- Determine worktree and branch (default to current) -----
 if [ -z "$WORKTREE_PATH" ]; then
   WORKTREE_PATH="$CURRENT_PATH"
@@ -403,3 +415,21 @@ git status --short
 echo
 echo "==== FINAL WORKTREE LIST ===="
 git worktree list
+
+echo
+echo "==== FINAL DOCKER COMPOSE PROJECTS ===="
+docker compose ls -a
+
+echo
+echo "==== FINAL CONTAINERS BY COMPOSE PROJECT ===="
+docker ps -a --filter "label=com.docker.compose.project" --format 'table {{.ID}}\t{{.Names}}\t{{.Status}}' 2>/dev/null || echo "(none by compose project label)"
+
+# ----- Hard stop: root main must be clean -----
+FINAL_ROOT_STATUS="$(git status --short)"
+if [ -n "$FINAL_ROOT_STATUS" ]; then
+  echo "ERROR: root main is dirty after finalization. Hard stop."
+  printf '%s\n' "$FINAL_ROOT_STATUS"
+  echo "Recovery: inspect and classify each dirty path. Restore from origin/main if unrelated."
+  exit 1
+fi
+echo "OK: root main is clean."
