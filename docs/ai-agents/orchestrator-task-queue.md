@@ -2,15 +2,15 @@
 
 ## Current State
 
-- `origin/main` HEAD is `ceacfba` (merge of F153C PR #342).
-- `main` CI is green as verified on 2026-06-20.
+- `origin/main` HEAD is `8a3dd0f` (merge of F160 legal invoice numbering PR #390).
+- `main` CI is green as verified on 2026-06-22.
 - F145A through F145H are merged on `main`.
 - F153A is merged and provides the backend local CI wrappers and fast validation workflow.
 - F153B is merged and provides the backend specialist skills pack and selection guidance.
 - F153C is merged and provides backend skill-plan activation in the orchestrator workflow.
 - F153D is the current agent-docs bundle for backend productivity metrics and skill-adoption audit.
 - Identity / role management foundation merged as PR #282.
-- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow).
+- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow), #387 (F157D financial closeout consolidation), #388 (F158 commercial closeout source kind), #389 (F159 INV-009 installment enforcement), #390 (F160 legal invoice numbering).
 - PR #318 (identity role and assignment list filtering) is merged and serves as the
   trigger case for workflow hardening in F152A.
 - Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills), #314 (F151C queue update), #316 (F151E interval alignment), #322 (F147F frontend UX hardening).
@@ -154,35 +154,34 @@ Scope delivered:
 ### Recommended next backend bundle
 
 Status:
-- next backend commercial bundle after full PR queue integration and main green
+- F157D–F160 merged: financial closeout consolidation, commercial closeout source kind,
+  INV-009 installment enforcement, legal invoice numbering — all complete on `main`.
 
 Recommended scope:
-- identity role list filtering and negative permission tests
+- billing / invoicing operator-ready gap closure (remaining billing lifecycle gaps)
 
 Reason:
-- identity/role management foundation (PR #282) is merged and functional
-- the next natural increment is list filtering (ApplicationRole by name/scope, UserRoleAssignment by role/assigned date range) and negative permission tests for identity endpoints
-- this follows the established pattern of recent PRs #288-#292 and #290
-- it requires no migrations, no frontend changes, and no new business decisions
+- The billing lifecycle now has: excess receivable invoices, commercial closeout invoices,
+  installment schedules with INV-009 enforcement, legal invoice numbering, settlement,
+  cancellation, refund obligations, financial closeout summaries, and cashbox integration.
+- Remaining gaps: invoice corrections/credit notes, bulk operations, accounting export,
+  PDF generation for billing artifacts.
 
 Allowed scope:
-- backend ApplicationRole list filtering (name, scope)
-- backend UserRoleAssignment list filtering enhancements (role, assigned date range)
-- backend identity negative permission and failure-mode tests
-- backend commercial audit/status docs needed for that bundle
+- backend billing app models, services, selectors
+- billing tests under tests/backend/
+- billing migrations
 
 Forbidden scope:
 - frontend files
+- inventory app mutation beyond read-only references
+- logistics app mutation
 - Antigravity/tooling files
-- F140D
 - `.env`, secrets, quarantine, or unrelated worktrees
-- broad identity refactor beyond list filtering and focused tests
 
 Hard stops:
 - any required frontend change
-- any required touch to Antigravity/tooling work
-- any ambiguity about unrelated dirty state
-- any need to broaden into RBAC enforcement on commercial endpoints without explicit authorization
+- any accounting/fiscal policy decision not documented in source rules
 
 Expected validation:
 - backend-focused quality checks
