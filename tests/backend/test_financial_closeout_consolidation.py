@@ -10,7 +10,7 @@ from tests.backend.test_billing_installments import (
 from tests.backend.test_cashbox_services import _actor
 
 from apps.audit.models import AuditEvent
-from apps.billing.models import BillingInvoiceStatus
+from apps.billing.models import BillingInvoice, BillingInvoiceSourceKind, BillingInvoiceStatus
 from apps.billing.services import (
     RESERVATION_FINANCIAL_CLOSEOUT_COHERENT,
     allocate_payment_to_installment,
@@ -18,6 +18,8 @@ from apps.billing.services import (
     create_billing_invoice_installments,
     create_billing_invoice_refund_obligation,
     execute_billing_refund_obligation,
+    execute_commercial_closeout,
+    issue_billing_invoice_for_commercial_closeout,
     issue_billing_invoice_for_excess_receivable,
 )
 from apps.cashbox.models import CashboxMovementDirection
@@ -309,6 +311,98 @@ def test_closeout_summary_invoice_only_no_payments(django_user_model) -> None:
     assert summary.total_refunded == Decimal("0.00")
     assert summary.coherence_status == RESERVATION_FINANCIAL_CLOSEOUT_COHERENT
     assert summary.total_paid >= summary.total_settled
+
+
+def test_commercial_closeout_invoice_creation(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    from apps.customers.models import Customer
+    from apps.reservations.models import ReservationDraft
+
+    start_at = datetime(2026, 6, 1, tzinfo=UTC)
+    end_at = start_at + timedelta(days=3)
+    reservation_draft = ReservationDraft.objects.create(
+        customer=Customer.objects.create(display_name="Closeout Invoice"),
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        invoice = issue_billing_invoice_for_commercial_closeout(
+            reservation_draft=reservation_draft,
+            amount=Decimal("5000.00"),
+            notes="Commercial closeout invoice",
+        )
+
+    assert invoice.amount == Decimal("5000.00")
+    assert invoice.source_kind == BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT
+    assert invoice.invoice_status == BillingInvoiceStatus.OPEN
+    assert invoice.excess_receivable is None
+    assert invoice.document_instance is None
+    assert invoice.reservation_draft == reservation_draft
+
+    assert AuditEvent.objects.filter(
+        action="billing.invoice_issued",
+        target_id=str(invoice.id),
+    ).exists()
+
+
+def test_commercial_closeout_invoice_rejects_excess_receivable(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    actor, reservation_draft, settlement = _validated_settlement(django_user_model)
+    from apps.inventory.models import InventoryDamageLossExcessReceivableStatus
+
+    execution = create_inventory_damage_loss_settlement_execution(
+        actor=actor, settlement=settlement
+    )
+    result = execute_inventory_damage_loss_settlement_execution(execution=execution, actor=actor)
+    excess = result.excess_receivable
+    excess.status = InventoryDamageLossExcessReceivableStatus.PENDING_INVOICE
+    excess.save()
+
+    invoice = BillingInvoice(
+        excess_receivable=excess,
+        reservation_draft=reservation_draft,
+        source_kind=BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT,
+        invoice_status=BillingInvoiceStatus.OPEN,
+        amount=Decimal("5000.00"),
+        issued_at=datetime(2026, 6, 1, tzinfo=UTC),
+    )
+    from django.core.exceptions import ValidationError
+
+    with pytest.raises(ValidationError):
+        invoice.full_clean()
+
+
+def test_execute_commercial_closeout_creates_invoice(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    from apps.customers.models import Customer
+    from apps.reservations.models import ReservationDraft
+
+    start_at = datetime(2026, 6, 1, tzinfo=UTC)
+    end_at = start_at + timedelta(days=3)
+    reservation_draft = ReservationDraft.objects.create(
+        customer=Customer.objects.create(display_name="Execute Closeout"),
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        invoice = execute_commercial_closeout(
+            reservation_draft=reservation_draft,
+            amount=Decimal("7500.00"),
+            notes="Orchestrated closeout",
+        )
+
+    assert invoice.amount == Decimal("7500.00")
+    assert invoice.source_kind == BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT
+    assert invoice.invoice_status == BillingInvoiceStatus.OPEN
+
+    summary = compute_reservation_financial_closeout_summary(reservation_draft)
+    assert summary.total_invoiced == Decimal("7500.00")
+    assert summary.coherence_status == RESERVATION_FINANCIAL_CLOSEOUT_COHERENT
 
 
 def _validated_settlement(

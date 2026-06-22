@@ -18,6 +18,10 @@ class BillingInvoiceSourceKind(models.TextChoices):
         "inventory_damage_loss_excess_receivable",
         "inventory_damage_loss_excess_receivable",
     )
+    COMMERCIAL_CLOSEOUT = (
+        "commercial_closeout",
+        "commercial_closeout",
+    )
 
 
 class BillingInvoiceStatus(models.TextChoices):
@@ -30,11 +34,15 @@ class BillingInvoice(UUIDModel, TimestampedModel, AuditableModel):
     excess_receivable = models.OneToOneField(
         InventoryDamageLossExcessReceivable,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="billing_invoice",
     )
     document_instance = models.OneToOneField(
         DocumentInstance,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name="billing_invoice",
     )
     reservation_draft = models.ForeignKey(
@@ -97,13 +105,30 @@ class BillingInvoice(UUIDModel, TimestampedModel, AuditableModel):
         if self.amount is None or self.amount <= 0:
             raise ValidationError({"amount": "Invoice amount must be greater than zero."})
 
-        if self.source_kind != BillingInvoiceSourceKind.INVENTORY_DAMAGE_LOSS_EXCESS_RECEIVABLE:
+        if self.source_kind not in (
+            BillingInvoiceSourceKind.INVENTORY_DAMAGE_LOSS_EXCESS_RECEIVABLE,
+            BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT,
+        ):
             raise ValidationError({"source_kind": "Unsupported billing invoice source kind."})
 
-        if self.excess_receivable_id and self.amount != self.excess_receivable.amount:
-            raise ValidationError(
-                {"amount": "Invoice amount must match the linked excess receivable amount."}
-            )
+        if self.source_kind == BillingInvoiceSourceKind.INVENTORY_DAMAGE_LOSS_EXCESS_RECEIVABLE:
+            if not self.excess_receivable_id:
+                raise ValidationError(
+                    {"excess_receivable": "Excess receivable is required for this source kind."}
+                )
+            if self.amount != self.excess_receivable.amount:
+                raise ValidationError(
+                    {"amount": "Invoice amount must match the linked excess receivable amount."}
+                )
+        elif self.source_kind == BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT:
+            if self.excess_receivable_id:
+                raise ValidationError(
+                    {
+                        "excess_receivable": (
+                            "Commercial closeout invoices must not reference an excess receivable."
+                        )
+                    }
+                )
 
         if (
             self.document_instance_id
