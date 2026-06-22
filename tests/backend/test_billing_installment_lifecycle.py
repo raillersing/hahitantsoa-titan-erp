@@ -9,8 +9,13 @@ from tests.backend.test_billing_installments import (
 )
 
 from apps.audit.models import AuditEvent
-from apps.billing.models import BillingInstallmentStatus, BillingInvoiceStatus
+from apps.billing.models import (
+    BillingInstallmentStatus,
+    BillingInvoiceSourceKind,
+    BillingInvoiceStatus,
+)
 from apps.billing.services import (
+    BILLING_INSTALLMENT_INV009_VIOLATION,
     BILLING_INSTALLMENT_LIFECYCLE_OPEN,
     BILLING_INSTALLMENT_LIFECYCLE_OVERDUE,
     BILLING_INSTALLMENT_LIFECYCLE_PAID,
@@ -21,6 +26,7 @@ from apps.billing.services import (
     compute_billing_invoice_installment_lifecycle,
     create_billing_invoice_installments,
     installment_is_overdue,
+    issue_billing_invoice_for_commercial_closeout,
 )
 
 pytestmark = pytest.mark.django_db
@@ -231,7 +237,132 @@ def test_due_date_presets_none_without_start_at():
     assert billing_installment_due_date_presets(start_at=None) is None
 
 
-# API exposure
+# INV-009 installment schedule enforcement
+
+
+def test_inv009_accepts_valid_commercial_closeout_schedule(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    from apps.customers.models import Customer
+    from apps.reservations.models import ReservationDraft
+
+    start_at = timezone.now() + timedelta(days=60)
+    reservation_draft = ReservationDraft.objects.create(
+        customer=Customer.objects.create(display_name="INV-009 Valid"),
+        start_at=start_at,
+        end_at=start_at + timedelta(days=3),
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        invoice = issue_billing_invoice_for_commercial_closeout(
+            reservation_draft=reservation_draft,
+            amount=Decimal("10000.00"),
+        )
+
+    presets = billing_installment_due_date_presets(start_at=start_at)
+    with django_capture_on_commit_callbacks(execute=True):
+        installments = create_billing_invoice_installments(
+            invoice=invoice,
+            installments=[
+                _item("5000.00", due_at=presets.j30),
+                _item("5000.00", due_at=presets.j10),
+            ],
+            actor=django_user_model.objects.create_user(
+                username="inv009-actor-1", password="test-pass"
+            ),
+        )
+
+    assert len(installments) == 2
+    assert installments[0].amount == Decimal("5000.00")
+    assert installments[1].amount == Decimal("5000.00")
+
+
+def test_inv009_rejects_wrong_due_dates(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    from apps.customers.models import Customer
+    from apps.reservations.models import ReservationDraft
+
+    start_at = timezone.now() + timedelta(days=60)
+    reservation_draft = ReservationDraft.objects.create(
+        customer=Customer.objects.create(display_name="INV-009 Wrong Dates"),
+        start_at=start_at,
+        end_at=start_at + timedelta(days=3),
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        invoice = issue_billing_invoice_for_commercial_closeout(
+            reservation_draft=reservation_draft,
+            amount=Decimal("10000.00"),
+        )
+
+    with pytest.raises(Exception) as error_info:
+        create_billing_invoice_installments(
+            invoice=invoice,
+            installments=[
+                _item("5000.00", due_at=timezone.now() + timedelta(days=1)),
+                _item("5000.00", due_at=timezone.now() + timedelta(days=15)),
+            ],
+            actor=django_user_model.objects.create_user(
+                username="inv009-actor-2", password="test-pass"
+            ),
+        )
+    assert error_info.value.code == BILLING_INSTALLMENT_INV009_VIOLATION
+
+
+def test_inv009_rejects_wrong_amount_split(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    from apps.customers.models import Customer
+    from apps.reservations.models import ReservationDraft
+
+    start_at = timezone.now() + timedelta(days=60)
+    reservation_draft = ReservationDraft.objects.create(
+        customer=Customer.objects.create(display_name="INV-009 Wrong Split"),
+        start_at=start_at,
+        end_at=start_at + timedelta(days=3),
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        invoice = issue_billing_invoice_for_commercial_closeout(
+            reservation_draft=reservation_draft,
+            amount=Decimal("10000.00"),
+        )
+
+    presets = billing_installment_due_date_presets(start_at=start_at)
+    with pytest.raises(Exception) as error_info:
+        create_billing_invoice_installments(
+            invoice=invoice,
+            installments=[
+                _item("7000.00", due_at=presets.j30),
+                _item("3000.00", due_at=presets.j10),
+            ],
+            actor=django_user_model.objects.create_user(
+                username="inv009-actor-3", password="test-pass"
+            ),
+        )
+    assert error_info.value.code == BILLING_INSTALLMENT_INV009_VIOLATION
+
+
+def test_inv009_skipped_for_non_commercial_source_kind(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    actor, _, invoice = _issued_invoice(django_user_model)
+    assert invoice.source_kind != BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT
+
+    with django_capture_on_commit_callbacks(execute=True):
+        installments = create_billing_invoice_installments(
+            invoice=invoice,
+            installments=[
+                _item("10000.00", due_at=_future(30)),
+                _item("5000.00", due_at=_future(10)),
+            ],
+            actor=actor,
+        )
+
+    assert len(installments) == 2
+    assert installments[0].amount == Decimal("10000.00")
+    assert installments[1].amount == Decimal("5000.00")
 
 
 @pytest.fixture
