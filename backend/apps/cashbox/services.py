@@ -15,6 +15,9 @@ from .models import CashboxMovement, CashboxMovementDirection, CashboxSession
 CASHBOX_SESSION_ALREADY_OPEN = "cashbox_session_already_open"
 CASHBOX_SESSION_ALREADY_CLOSED = "cashbox_session_already_closed"
 CASHBOX_SESSION_IS_CLOSED = "cashbox_session_is_closed"
+CASHBOX_MOVEMENT_PAYMENT_AMOUNT_MISMATCH = "cashbox_movement_payment_amount_mismatch"
+CASHBOX_MOVEMENT_INVOICE_AMOUNT_MISMATCH = "cashbox_movement_invoice_amount_mismatch"
+CASHBOX_MOVEMENT_REFUND_AMOUNT_MISMATCH = "cashbox_movement_refund_amount_mismatch"
 
 
 class CashboxLifecycleError(ValueError):
@@ -156,6 +159,22 @@ def record_cashbox_movement(
         raise CashboxLifecycleError(
             "Closed cashbox sessions are immutable.",
             code=CASHBOX_SESSION_IS_CLOSED,
+        )
+
+    if payment is not None and amount != payment.amount:
+        raise CashboxLifecycleError(
+            "Cashbox movement amount must match the referenced payment amount.",
+            code=CASHBOX_MOVEMENT_PAYMENT_AMOUNT_MISMATCH,
+        )
+    if billing_invoice is not None and amount != billing_invoice.amount:
+        raise CashboxLifecycleError(
+            "Cashbox movement amount must match the referenced invoice amount.",
+            code=CASHBOX_MOVEMENT_INVOICE_AMOUNT_MISMATCH,
+        )
+    if billing_refund_obligation is not None and amount != billing_refund_obligation.refund_amount:
+        raise CashboxLifecycleError(
+            "Cashbox movement amount must match the referenced refund obligation amount.",
+            code=CASHBOX_MOVEMENT_REFUND_AMOUNT_MISMATCH,
         )
 
     actor_id = getattr(actor, "pk", None)

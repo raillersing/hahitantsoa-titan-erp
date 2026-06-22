@@ -17,6 +17,8 @@ from apps.inventory.services import generate_excess_receivable_invoice_document
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment
 from apps.payments.services import confirm_refund_payment
 
+from apps.cashbox.models import CashboxMovement, CashboxMovementDirection
+
 from .models import (
     BillingInstallmentAllocation,
     BillingInstallmentStatus,
@@ -46,6 +48,9 @@ INVALID_BILLING_INSTALLMENT_ITEM = "invalid_billing_installment_item"
 BILLING_INVOICE_HAS_INSTALLMENT_PAYMENTS = "billing_invoice_has_installment_payments"
 BILLING_INVOICE_ALREADY_CORRECTED = "billing_invoice_already_corrected"
 BILLING_INVOICE_CORRECTION_NOT_APPLICABLE = "billing_invoice_correction_not_applicable"
+
+RESERVATION_FINANCIAL_CLOSEOUT_COHERENT = "coherent"
+RESERVATION_FINANCIAL_CLOSEOUT_INCOHERENT = "incoherent"
 
 
 class BillingLifecycleError(ValueError):
@@ -90,6 +95,19 @@ class BillingInvoiceCloseoutSummary:
     amount_settled: Decimal
     amount_refunded: Decimal
     remaining_balance: Decimal
+
+
+@dataclass(frozen=True)
+class ReservationFinancialCloseoutSummary:
+    total_invoiced: Decimal
+    total_paid: Decimal
+    total_settled: Decimal
+    total_refunded: Decimal
+    total_cashbox_in: Decimal
+    total_cashbox_out: Decimal
+    net_balance: Decimal
+    coherence_status: str
+    coherence_detail: str
 
 
 BILLING_INSTALLMENT_LIFECYCLE_OPEN = "open"
@@ -257,6 +275,99 @@ def filter_billing_invoices_by_remaining_balance(queryset, *, has_remaining_bala
     if has_remaining_balance:
         return queryset.filter(open_without_refund)
     return queryset.exclude(open_without_refund)
+
+
+def compute_reservation_financial_closeout_summary(
+    reservation_draft,
+) -> ReservationFinancialCloseoutSummary:
+    invoices = list(
+        BillingInvoice.objects.filter(reservation_draft=reservation_draft)
+        .select_related(
+            "settlement",
+            "settlement__payment",
+            "refund_obligation",
+        )
+        .prefetch_related(
+            "installments",
+            "refund_obligation__refund_payments",
+        )
+    )
+    total_invoiced = sum((inv.amount for inv in invoices), Decimal("0.00"))
+    total_settled = Decimal("0.00")
+    total_refunded = Decimal("0.00")
+    for inv in invoices:
+        settlement = getattr(inv, "settlement", None)
+        if settlement is not None:
+            total_settled += settlement.amount
+        else:
+            total_settled += sum(
+                (i.paid_amount for i in inv.installments.all()),
+                Decimal("0.00"),
+            )
+        obligation = getattr(inv, "refund_obligation", None)
+        if obligation is not None:
+            payments = list(obligation.refund_payments.all())
+            if payments:
+                total_refunded += payments[0].amount
+
+    total_paid = Payment.objects.filter(
+        reservation_draft=reservation_draft,
+        payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+    cashbox_movements = CashboxMovement.objects.filter(
+        Q(payment__reservation_draft=reservation_draft)
+        | Q(billing_invoice__reservation_draft=reservation_draft)
+        | Q(billing_refund_obligation__invoice__reservation_draft=reservation_draft)
+    )
+    total_cashbox_in = cashbox_movements.filter(
+        direction=CashboxMovementDirection.CASH_IN
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    total_cashbox_out = cashbox_movements.filter(
+        direction=CashboxMovementDirection.CASH_OUT
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+    net_balance = total_cashbox_in - total_cashbox_out
+
+    coherence_detail_parts = []
+    is_coherent = True
+
+    if total_settled > total_paid:
+        is_coherent = False
+        coherence_detail_parts.append(
+            f"total_settled ({total_settled}) exceeds total_paid ({total_paid})"
+        )
+    if total_refunded > total_paid:
+        is_coherent = False
+        coherence_detail_parts.append(
+            f"total_refunded ({total_refunded}) exceeds total_paid ({total_paid})"
+        )
+    if total_refunded > total_invoiced:
+        is_coherent = False
+        coherence_detail_parts.append(
+            f"total_refunded ({total_refunded}) exceeds total_invoiced ({total_invoiced})"
+        )
+
+    coherence_status = (
+        RESERVATION_FINANCIAL_CLOSEOUT_COHERENT
+        if is_coherent
+        else RESERVATION_FINANCIAL_CLOSEOUT_INCOHERENT
+    )
+    coherence_detail = (
+        "; ".join(coherence_detail_parts) if coherence_detail_parts else "all checks pass"
+    )
+
+    return ReservationFinancialCloseoutSummary(
+        total_invoiced=total_invoiced,
+        total_paid=total_paid,
+        total_settled=total_settled,
+        total_refunded=total_refunded,
+        total_cashbox_in=total_cashbox_in,
+        total_cashbox_out=total_cashbox_out,
+        net_balance=net_balance,
+        coherence_status=coherence_status,
+        coherence_detail=coherence_detail,
+    )
 
 
 def active_billing_invoices():
