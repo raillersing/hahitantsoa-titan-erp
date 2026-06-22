@@ -69,6 +69,7 @@ class BillingInvoice(UUIDModel, TimestampedModel, AuditableModel):
         related_name="+",
     )
     notes = models.TextField(blank=True)
+    number = models.CharField(max_length=64, unique=True, null=True, blank=True)
 
     class Meta:
         ordering = ["-issued_at", "-created_at", "id"]
@@ -140,6 +141,24 @@ class BillingInvoice(UUIDModel, TimestampedModel, AuditableModel):
 
     def __str__(self) -> str:
         return f"Billing invoice {self.amount} ({self.invoice_status})"
+
+
+class BillingInvoiceNumberingPolicy(UUIDModel, TimestampedModel):
+    source_kind = models.CharField(
+        max_length=64,
+        choices=BillingInvoiceSourceKind.choices,
+        unique=True,
+    )
+    prefix = models.CharField(max_length=32, default="FACT-")
+    next_number = models.PositiveIntegerField(default=1)
+    fiscal_year = models.PositiveIntegerField()
+
+    class Meta:
+        verbose_name = "Billing invoice numbering policy"
+        verbose_name_plural = "Billing invoice numbering policies"
+
+    def __str__(self) -> str:
+        return f"{self.prefix}{self.fiscal_year} (next: {self.next_number})"
 
 
 class BillingInvoiceSettlement(UUIDModel, TimestampedModel, AuditableModel):
