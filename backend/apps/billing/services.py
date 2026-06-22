@@ -19,6 +19,7 @@ from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment
 from apps.payments.services import confirm_refund_payment
 
 from .models import (
+    BillingCreditNote,
     BillingInstallmentAllocation,
     BillingInstallmentStatus,
     BillingInvoice,
@@ -1191,3 +1192,69 @@ def execute_billing_refund_obligation(
         },
     )
     return BillingRefundExecutionResult(obligation=locked_obligation, payment=payment)
+
+
+def active_credit_notes():
+    """Return a queryset of all active credit notes."""
+    return BillingCreditNote.objects.select_related(
+        "invoice",
+        "invoice__reservation_draft",
+        "invoice__reservation_draft__customer",
+    )
+
+
+@transaction.atomic
+def issue_credit_note(
+    *,
+    invoice: BillingInvoice,
+    amount: Decimal,
+    reason: str,
+    actor: object | None = None,
+    notes: str | None = None,
+) -> BillingCreditNote:
+    """Issue a credit note for a billing invoice."""
+    locked_invoice = BillingInvoice.objects.select_for_update().get(pk=invoice.pk)
+
+    if locked_invoice.invoice_status in (BillingInvoiceStatus.SETTLED,):
+        raise BillingLifecycleError(
+            "Cannot issue a credit note for a settled invoice.",
+            code=BILLING_INVOICE_ALREADY_CORRECTED,
+        )
+
+    if amount <= Decimal("0.00"):
+        raise BillingLifecycleError(
+            "Credit note amount must be positive.",
+            code=INVALID_BILLING_INVOICE_SOURCE_STATE,
+        )
+
+    if amount > locked_invoice.amount:
+        raise BillingLifecycleError(
+            "Credit note amount cannot exceed the invoice amount.",
+            code=INVALID_BILLING_INVOICE_SOURCE_STATE,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+
+    credit_note = BillingCreditNote.objects.create(
+        invoice=locked_invoice,
+        amount=amount,
+        reason=reason,
+        issued_at=timezone.now(),
+        notes=notes or "",
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.credit_note_issued",
+        target_type="billing_credit_note",
+        target_id=str(credit_note.id),
+        metadata={
+            "invoice_id": str(locked_invoice.id),
+            "amount": str(amount),
+            "reason": reason,
+        },
+    )
+
+    return credit_note

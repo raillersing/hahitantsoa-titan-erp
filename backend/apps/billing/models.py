@@ -446,3 +446,74 @@ class BillingRefundObligation(UUIDModel, TimestampedModel, AuditableModel):
 
     def __str__(self) -> str:
         return f"Billing refund obligation {self.refund_amount} ({self.status})"
+
+
+class BillingCreditNoteStatus(models.TextChoices):
+    ISSUED = "issued", "issued"
+    APPLIED = "applied", "applied"
+    CANCELLED = "cancelled", "cancelled"
+
+
+class BillingCreditNote(UUIDModel, TimestampedModel, AuditableModel):
+    invoice = models.ForeignKey(
+        BillingInvoice,
+        on_delete=models.PROTECT,
+        related_name="credit_notes",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField()
+    status = models.CharField(
+        max_length=32,
+        choices=BillingCreditNoteStatus.choices,
+        default=BillingCreditNoteStatus.ISSUED,
+    )
+    issued_at = models.DateTimeField()
+    applied_at = models.DateTimeField(null=True, blank=True)
+    applied_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-issued_at", "-created_at", "id"]
+        verbose_name = "Billing credit note"
+        verbose_name_plural = "Billing credit notes"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=Decimal("0.00")),
+                name="billing_credit_note_amount_positive",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        status=BillingCreditNoteStatus.ISSUED,
+                        applied_at__isnull=True,
+                        applied_by__isnull=True,
+                    )
+                    | models.Q(
+                        status=BillingCreditNoteStatus.APPLIED,
+                        applied_at__isnull=False,
+                        applied_by__isnull=False,
+                    )
+                    | models.Q(
+                        status=BillingCreditNoteStatus.CANCELLED,
+                        applied_at__isnull=True,
+                        applied_by__isnull=True,
+                    )
+                ),
+                name="billing_credit_note_status_markers_consistent",
+            ),
+        ]
+
+    def clean(self) -> None:
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({"amount": "Credit note amount must be greater than zero."})
+        if not self.reason:
+            raise ValidationError({"reason": "Credit note reason is required."})
+
+    def __str__(self) -> str:
+        return f"Billing credit note {self.amount} ({self.status})"

@@ -10,6 +10,8 @@ from apps.payments.models import Payment
 from .models import BillingRefundObligation
 from .permissions import IsAuthenticatedBillingBoundary
 from .serializers import (
+    BillingCreditNoteIssueSerializer,
+    BillingCreditNoteSerializer,
     BillingInstallmentAllocateSerializer,
     BillingInstallmentScheduleCreateSerializer,
     BillingInvoiceCorrectSerializer,
@@ -31,6 +33,7 @@ from .services import (
     execute_billing_refund_obligation,
     filter_billing_invoices_by_closeout_status,
     filter_billing_invoices_by_remaining_balance,
+    issue_credit_note,
     settle_billing_invoice,
 )
 
@@ -337,4 +340,45 @@ class BillingRefundObligationExecuteAPIView(APIView):
         return Response(
             BillingRefundObligationSerializer(result.obligation).data,
             status=status.HTTP_200_OK,
+        )
+
+
+class BillingCreditNoteListCreateAPIView(APIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=BillingCreditNoteIssueSerializer,
+        responses={
+            400: OpenApiResponse(description="Credit note issue failed."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Invoice not found."),
+        },
+    )
+    def post(self, request, id):
+        """Issue a credit note for a billing invoice."""
+        serializer = BillingCreditNoteIssueSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        invoice = active_billing_invoices().filter(id=id).first()
+        if invoice is None:
+            raise Http404("Billing invoice not found.")
+
+        try:
+            credit_note = issue_credit_note(
+                invoice=invoice,
+                amount=serializer.validated_data["amount"],
+                reason=serializer.validated_data["reason"],
+                actor=request.user,
+                notes=serializer.validated_data.get("notes", ""),
+            )
+        except BillingLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            BillingCreditNoteSerializer(credit_note).data,
+            status=status.HTTP_201_CREATED,
         )

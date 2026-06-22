@@ -6,6 +6,7 @@ from apps.documents.serializers import DocumentInstanceSerializer
 from apps.payments.serializers import PaymentSerializer
 
 from .models import (
+    BillingCreditNote,
     BillingInstallmentAllocation,
     BillingInvoice,
     BillingInvoiceInstallment,
@@ -203,3 +204,31 @@ class BillingInvoiceCorrectSerializer(serializers.Serializer):
 
 class BillingRefundObligationExecuteSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class BillingCreditNoteSerializer(serializers.ModelSerializer):
+    invoice_detail = BillingInvoiceSerializer(source="invoice", read_only=True)
+
+    class Meta:
+        model = BillingCreditNote
+        fields = (
+            "id",
+            "invoice",
+            "invoice_detail",
+            "amount",
+            "reason",
+            "status",
+            "issued_at",
+            "applied_at",
+            "applied_by",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class BillingCreditNoteIssueSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    reason = serializers.CharField()
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
