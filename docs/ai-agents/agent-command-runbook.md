@@ -59,6 +59,32 @@ Root dirty-state preflight rule:
 - Do not treat root dirtiness as harmless background noise; it is a workflow hard stop
   until the operator confirms the intended baseline.
 
+Root `main` hygiene rules:
+
+- **No implementation work in root `main`.** All product-code changes must go through
+  dedicated task worktrees. Root `main` is for merging PRs, syncing, and cleanup only.
+- **Root `main` must be clean before and after every task.** Before starting a new task,
+  verify `git status --short` produces no output in the root worktree. After finishing
+  a task (merge + cleanup), verify again that root main is restored to a clean state.
+- **If root `main` is dirty after finalization, it is a hard stop.** The agent must
+  inspect and classify each dirty path, preserve any useful content, and restore from
+  `origin/main` before proceeding to the next task.
+
+Docker/worktree/branch hygiene rules:
+
+- **Targeted Docker cleanup:** Always run `docker compose -p <PROJECT> down --remove-orphans`
+  before deleting a worktree. Never pass `-v`. Never run global Docker prune.
+- **Git worktree remove:** Always use `git worktree remove <path>` instead of manual
+  `rm -rf`. Always run `git worktree prune` after worktree deletion.
+- **Delete merged branches:** After a PR is merged and main CI is green, delete the
+  remote branch with `git push origin --delete <branch>` and prune stale tracking refs
+  with `git remote prune origin`.
+- **Final verification must include:**
+  1. `git status --short` — root main must be clean
+  2. `git worktree list` — no orphaned worktrees
+  3. `docker compose ls -a` — no stale Compose projects
+  4. `docker ps -a --filter "label=com.docker.compose.project"` — no stale containers
+
 ## Recurring Error Matrix
 
 When a repeated workflow error appears, use
