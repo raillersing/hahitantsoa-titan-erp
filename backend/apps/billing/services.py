@@ -9,6 +9,7 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
+from apps.cashbox.models import CashboxMovement, CashboxMovementDirection
 from apps.inventory.models import (
     InventoryDamageLossExcessReceivable,
     InventoryDamageLossExcessReceivableStatus,
@@ -16,8 +17,6 @@ from apps.inventory.models import (
 from apps.inventory.services import generate_excess_receivable_invoice_document
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment
 from apps.payments.services import confirm_refund_payment
-
-from apps.cashbox.models import CashboxMovement, CashboxMovementDirection
 
 from .models import (
     BillingInstallmentAllocation,
