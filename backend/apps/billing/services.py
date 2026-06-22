@@ -369,6 +369,23 @@ def compute_reservation_financial_closeout_summary(
     )
 
 
+@transaction.atomic
+def execute_commercial_closeout(
+    *,
+    reservation_draft,
+    amount: Decimal,
+    actor: object | None = None,
+    notes: str = "",
+) -> BillingInvoice:
+    invoice = issue_billing_invoice_for_commercial_closeout(
+        reservation_draft=reservation_draft,
+        amount=amount,
+        actor=actor,
+        notes=notes,
+    )
+    return invoice
+
+
 def active_billing_invoices():
     return (
         BillingInvoice.objects.select_related(
@@ -458,6 +475,48 @@ def issue_billing_invoice_for_excess_receivable(
         metadata={
             "excess_receivable_id": str(locked_receivable.id),
             "document_instance_id": str(document_instance.id),
+            "amount": str(invoice.amount),
+            "source_kind": invoice.source_kind,
+        },
+    )
+    return invoice
+
+
+@transaction.atomic
+def issue_billing_invoice_for_commercial_closeout(
+    *,
+    reservation_draft,
+    amount: Decimal,
+    actor: object | None = None,
+    notes: str = "",
+) -> BillingInvoice:
+    if amount <= Decimal("0.00"):
+        raise BillingLifecycleError(
+            "Commercial closeout invoice amount must be positive.",
+            code=INVALID_BILLING_INVOICE_SOURCE_STATE,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+    invoice = BillingInvoice.objects.create(
+        excess_receivable=None,
+        document_instance=None,
+        reservation_draft=reservation_draft,
+        source_kind=BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT,
+        invoice_status=BillingInvoiceStatus.OPEN,
+        amount=amount,
+        issued_at=timezone.now(),
+        notes=notes,
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.invoice_issued",
+        target_type="billing_invoice",
+        target_id=str(invoice.id),
+        metadata={
+            "reservation_draft_id": str(reservation_draft.pk),
             "amount": str(invoice.amount),
             "source_kind": invoice.source_kind,
         },
