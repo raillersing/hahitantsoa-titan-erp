@@ -48,9 +48,7 @@ def test_full_closeout_lifecycle_invoice_settle_refund_cashbox(
     execution = create_inventory_damage_loss_settlement_execution(
         actor=actor, settlement=settlement
     )
-    result = execute_inventory_damage_loss_settlement_execution(
-        execution=execution, actor=actor
-    )
+    result = execute_inventory_damage_loss_settlement_execution(execution=execution, actor=actor)
     excess_receivable = result.excess_receivable
     assert excess_receivable is not None
 
@@ -163,9 +161,7 @@ def test_full_closeout_lifecycle_invoice_settle_refund_cashbox(
     assert AuditEvent.objects.filter(action="billing.installment_schedule_created").exists()
     assert AuditEvent.objects.filter(action="billing.installment_payment_allocated").exists()
     assert AuditEvent.objects.filter(action="billing.invoice_cancelled").exists()
-    assert (
-        AuditEvent.objects.filter(action="billing.invoice_refund_obligation_created").exists()
-    )
+    assert AuditEvent.objects.filter(action="billing.invoice_refund_obligation_created").exists()
     assert AuditEvent.objects.filter(action="billing.refund_obligation_executed").exists()
     assert AuditEvent.objects.filter(action="cashbox.session_opened").exists()
     assert AuditEvent.objects.filter(action="cashbox.movement_recorded").exists()
