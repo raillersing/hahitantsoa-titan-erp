@@ -38,6 +38,7 @@ BILLING_INVOICE_ALREADY_EXISTS = "billing_invoice_already_exists"
 BILLING_SETTLEMENT_PAYMENT_ALREADY_USED = "billing_settlement_payment_already_used"
 BILLING_INSTALLMENT_TOTAL_MISMATCH = "billing_installment_total_mismatch"
 BILLING_INSTALLMENT_SCHEDULE_EXISTS = "billing_installment_schedule_exists"
+BILLING_INSTALLMENT_INV009_VIOLATION = "billing_installment_inv009_violation"
 BILLING_INVOICE_HAS_INSTALLMENTS = "billing_invoice_has_installments"
 BILLING_INVOICE_SETTLEMENT_EXISTS = "billing_invoice_settlement_exists"
 BILLING_INSTALLMENT_ALREADY_PAID = "billing_installment_already_paid"
@@ -685,6 +686,63 @@ def active_billing_invoice_installments():
     ).order_by("due_at", "created_at", "id")
 
 
+def validate_inv009_installment_schedule(
+    *,
+    invoice: BillingInvoice,
+    installments: list[BillingInstallmentItem],
+) -> None:
+    if invoice.source_kind != BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT:
+        return
+
+    if invoice.reservation_draft_id is None:
+        return
+
+    start_at = invoice.reservation_draft.start_at
+    if start_at is None:
+        return
+
+    presets = billing_installment_due_date_presets(start_at=start_at)
+    if presets is None:
+        return
+
+    if len(installments) != 2:
+        raise BillingLifecycleError(
+            "INV-009 requires exactly 2 installments (50% at J-30, balance at J-10).",
+            code=BILLING_INSTALLMENT_INV009_VIOLATION,
+        )
+
+    j30_target = presets.j30
+    j10_target = presets.j10
+    first, second = installments[0], installments[1]
+
+    if first.due_at != j30_target:
+        raise BillingLifecycleError(
+            f"INV-009 requires first installment due at J-30 ({j30_target.date()}), "
+            f"got {first.due_at.date()}.",
+            code=BILLING_INSTALLMENT_INV009_VIOLATION,
+        )
+    if second.due_at != j10_target:
+        raise BillingLifecycleError(
+            f"INV-009 requires second installment due at J-10 ({j10_target.date()}), "
+            f"got {second.due_at.date()}.",
+            code=BILLING_INSTALLMENT_INV009_VIOLATION,
+        )
+
+    half = invoice.amount / Decimal("2")
+    if first.amount != half:
+        raise BillingLifecycleError(
+            f"INV-009 requires first installment to be 50% of invoice "
+            f"({half}), got {first.amount}.",
+            code=BILLING_INSTALLMENT_INV009_VIOLATION,
+        )
+    if second.amount != half:
+        raise BillingLifecycleError(
+            f"INV-009 requires second installment to be 50% of invoice "
+            f"({half}), got {second.amount}.",
+            code=BILLING_INSTALLMENT_INV009_VIOLATION,
+        )
+
+
 @transaction.atomic
 def create_billing_invoice_installments(
     *,
@@ -741,6 +799,11 @@ def create_billing_invoice_installments(
             "Installment totals must match the invoice amount.",
             code=BILLING_INSTALLMENT_TOTAL_MISMATCH,
         )
+
+    validate_inv009_installment_schedule(
+        invoice=locked_invoice,
+        installments=installments,
+    )
 
     actor_id = getattr(actor, "pk", None)
     created = []
