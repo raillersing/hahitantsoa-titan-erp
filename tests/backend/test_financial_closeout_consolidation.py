@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -172,7 +172,7 @@ def test_closeout_summary_empty_reservation(django_user_model) -> None:
     from apps.customers.models import Customer
     from apps.reservations.models import ReservationDraft
 
-    start_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    start_at = datetime(2026, 1, 1, tzinfo=UTC)
     end_at = start_at + timedelta(days=3)
 
     reservation_draft = ReservationDraft.objects.create(
