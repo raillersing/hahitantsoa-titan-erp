@@ -23,6 +23,7 @@ from .models import (
     BillingInstallmentStatus,
     BillingInvoice,
     BillingInvoiceInstallment,
+    BillingInvoiceNumberingPolicy,
     BillingInvoiceSettlement,
     BillingInvoiceSourceKind,
     BillingInvoiceStatus,
@@ -48,6 +49,7 @@ INVALID_BILLING_INSTALLMENT_ITEM = "invalid_billing_installment_item"
 BILLING_INVOICE_HAS_INSTALLMENT_PAYMENTS = "billing_invoice_has_installment_payments"
 BILLING_INVOICE_ALREADY_CORRECTED = "billing_invoice_already_corrected"
 BILLING_INVOICE_CORRECTION_NOT_APPLICABLE = "billing_invoice_correction_not_applicable"
+BILLING_INVOICE_NUMBERING_FAILED = "billing_invoice_numbering_failed"
 
 RESERVATION_FINANCIAL_CLOSEOUT_COHERENT = "coherent"
 RESERVATION_FINANCIAL_CLOSEOUT_INCOHERENT = "incoherent"
@@ -418,6 +420,54 @@ def active_billing_invoices():
 
 
 @transaction.atomic
+def assign_invoice_number(*, invoice: BillingInvoice) -> str:
+    if invoice.number:
+        return invoice.number
+
+    current_year = timezone.now().year
+    try:
+        policy = BillingInvoiceNumberingPolicy.objects.select_for_update().get(
+            source_kind=invoice.source_kind,
+        )
+    except BillingInvoiceNumberingPolicy.DoesNotExist:
+        prefix = _numbering_prefix_for_source_kind(invoice.source_kind)
+        policy = BillingInvoiceNumberingPolicy.objects.create(
+            source_kind=invoice.source_kind,
+            prefix=prefix,
+            next_number=1,
+            fiscal_year=current_year,
+        )
+
+    if policy.fiscal_year != current_year:
+        policy.fiscal_year = current_year
+        policy.next_number = 1
+
+    candidate = f"{policy.prefix}{policy.fiscal_year}-{policy.next_number:04d}"
+
+    if BillingInvoice.objects.filter(number=candidate).exists():
+        raise BillingLifecycleError(
+            f"Invoice number {candidate} already exists.",
+            code=BILLING_INVOICE_NUMBERING_FAILED,
+        )
+
+    invoice.number = candidate
+    invoice.save(update_fields=["number"])
+
+    policy.next_number += 1
+    policy.save(update_fields=["next_number", "fiscal_year"])
+
+    return candidate
+
+
+def _numbering_prefix_for_source_kind(source_kind: str) -> str:
+    mapping = {
+        BillingInvoiceSourceKind.INVENTORY_DAMAGE_LOSS_EXCESS_RECEIVABLE: "FACT-ER-",
+        BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT: "FACT-CC-",
+    }
+    return mapping.get(source_kind, "FACT-")
+
+
+@transaction.atomic
 def issue_billing_invoice_for_excess_receivable(
     *,
     excess_receivable: InventoryDamageLossExcessReceivable,
@@ -480,6 +530,9 @@ def issue_billing_invoice_for_excess_receivable(
             "source_kind": invoice.source_kind,
         },
     )
+
+    assign_invoice_number(invoice=invoice)
+
     return invoice
 
 
@@ -522,6 +575,9 @@ def issue_billing_invoice_for_commercial_closeout(
             "source_kind": invoice.source_kind,
         },
     )
+
+    assign_invoice_number(invoice=invoice)
+
     return invoice
 
 
