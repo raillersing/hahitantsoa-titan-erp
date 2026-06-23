@@ -9,21 +9,27 @@ from rest_framework.views import APIView
 
 from apps.documents.commercial import CommercialDocumentContextError
 from apps.documents.models import DocumentInstance
+from apps.documents.pdf import DocumentPDFGenerationError
 from apps.documents.registry import (
     get_document_template_definition,
     list_document_template_definitions,
 )
 from apps.documents.runtime import DocumentRuntimeGenerationError
-from apps.documents.selectors import list_document_instances_for_reservation_draft
+from apps.documents.selectors import (
+    get_document_instance_by_id,
+    list_document_instances_for_reservation_draft,
+)
 from apps.documents.serializers import (
     DocumentInstanceCreateSerializer,
     DocumentInstanceGenerateSerializer,
+    DocumentInstancePDFSerializer,
     DocumentInstanceSerializer,
     DocumentTemplateDefinitionSerializer,
     TitanProformaDraftPreviewSerializer,
 )
 from apps.documents.services import (
     create_document_instance_from_reservation_draft,
+    generate_document_instance_pdf,
     generate_reservation_draft_document_instance_html,
     get_reservation_draft_document_instance_or_404,
     get_titan_proforma_draft_preview_payload_service,
@@ -282,3 +288,76 @@ class ReservationDraftDocumentInstanceGenerateAPIView(APIView):
             }
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ReservationDraftDocumentInstancePDFGenerateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: DocumentInstancePDFSerializer,
+            400: OpenApiResponse(description="Document instance is not ready for PDF generation."),
+        },
+    )
+    def post(self, request, reservation_draft_id, id):
+        reservation_draft = get_object_or_404(
+            active_reservation_drafts_for_document_runtime(),
+            pk=reservation_draft_id,
+        )
+        try:
+            instance = get_reservation_draft_document_instance_or_404(
+                reservation_draft=reservation_draft,
+                document_instance_id=id,
+            )
+            instance = generate_document_instance_pdf(
+                document_instance=instance,
+                actor=request.user,
+            )
+        except DocumentInstance.DoesNotExist:
+            raise Http404("Document instance not found.")
+        except DocumentPDFGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = DocumentInstancePDFSerializer(
+            {
+                "id": instance.id,
+                "status": instance.status,
+                "pdf_storage_path": instance.pdf_storage_path,
+                "pdf_generated_at": instance.pdf_generated_at,
+                "pdf_content_checksum": instance.pdf_content_checksum,
+            }
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DocumentInstancePDFRetrieveAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={
+            200: OpenApiTypes.BINARY,
+            404: OpenApiResponse(description="PDF artifact not found."),
+        },
+    )
+    def get(self, request, id):
+        from django.core.files.storage import default_storage
+        from django.http import FileResponse
+        from django.http import Http404 as DjangoHttp404
+
+        instance = get_document_instance_by_id(document_instance_id=id)
+        if instance is None or not instance.pdf_storage_path:
+            raise DjangoHttp404("PDF artifact not found.")
+
+        if not default_storage.exists(instance.pdf_storage_path):
+            raise DjangoHttp404("PDF artifact file missing.")
+
+        pdf_file = default_storage.open(instance.pdf_storage_path)
+        response = FileResponse(pdf_file, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{instance.template_key}-{id}.pdf"'
+        return response
