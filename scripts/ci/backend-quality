@@ -12,7 +12,24 @@ if [ ! -f "pyproject.toml" ] || [ ! -d "backend" ] || [ ! -d "tests" ]; then
   exit 1
 fi
 
-python -m ruff format --check backend tests
-python -m ruff check backend tests
-python backend/manage.py makemigrations --check --dry-run
-python -m pytest "$@"
+# Project Python runner resolution: .venv/bin/python > python3 > python
+resolve_python_runner() {
+  if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+    echo "$REPO_ROOT/.venv/bin/python"
+  elif command -v python3 >/dev/null 2>&1; then
+    echo "python3"
+  elif command -v python >/dev/null 2>&1; then
+    echo "python"
+  else
+    echo "ERROR: No Python runner found (.venv/bin/python, python3, or python)." >&2
+    exit 1
+  fi
+}
+
+PYTHON_RUNNER="$(resolve_python_runner)"
+echo "Using Python runner: $PYTHON_RUNNER"
+
+$PYTHON_RUNNER -m ruff format --check backend tests
+$PYTHON_RUNNER -m ruff check backend tests
+$PYTHON_RUNNER backend/manage.py makemigrations --check --dry-run
+$PYTHON_RUNNER -m pytest "$@"
