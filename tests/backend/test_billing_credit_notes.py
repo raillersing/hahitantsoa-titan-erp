@@ -131,6 +131,7 @@ def test_issue_credit_note_success(django_user_model, django_capture_on_commit_c
 
 
 def test_issue_credit_note_rejects_settled_invoice(django_user_model) -> None:
+    from apps.billing.services import settle_billing_invoice
     from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
     from apps.payments.services import confirm_payment, create_payment
 
@@ -145,6 +146,7 @@ def test_issue_credit_note_rejects_settled_invoice(django_user_model) -> None:
         source_label="Settle invoice",
     )
     confirm_payment(payment=payment, actor=actor)
+    settle_billing_invoice(invoice=invoice, payment=payment, actor=actor)
     invoice.refresh_from_db()
     assert invoice.invoice_status == BillingInvoiceStatus.SETTLED
 
