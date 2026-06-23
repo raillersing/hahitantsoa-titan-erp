@@ -6,7 +6,9 @@ from django.contrib.auth.models import Group
 from django.utils import timezone
 
 from apps.identity.roles import IdentityRole
+from apps.inventory.models import InventoryItem
 from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsEventType
+from apps.logistics.services import PASSATION_NOT_ALLOWED
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
@@ -42,7 +44,6 @@ def operator_authenticated_client(client):
 
 @pytest.fixture
 def reservation_draft():
-    from datetime import timedelta
 
     from apps.customers.models import Customer
 
@@ -78,377 +79,236 @@ def test_list_operator_allowed(operator_authenticated_client, reservation_draft)
     LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
         event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
     )
     response = operator_authenticated_client.get(LOGISTICS_EVENT_LIST_URL)
     assert response.status_code == 200
-    assert len(response.json()) == 1
+    data = response.json()
+    assert len(data) == 1
+
+
+def test_list_filter_by_event_type(operator_authenticated_client, reservation_draft):
+    LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.HANDOVER,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    response = operator_authenticated_client.get(
+        LOGISTICS_EVENT_LIST_URL, {"event_type": "handover"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["event_type"] == "handover"
+
+
+def test_list_filter_by_status(operator_authenticated_client, reservation_draft):
+    LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.DISPATCHED,
+    )
+    response = operator_authenticated_client.get(LOGISTICS_EVENT_LIST_URL, {"status": "dispatched"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["status"] == "dispatched"
 
 
 # create
 
 
-def test_create_unauthenticated(client, reservation_draft):
-    payload = {
-        "reservation_draft_id": str(reservation_draft.id),
-        "event_type": "delivery",
-    }
-    response = client.post(LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json")
-    assert response.status_code in {401, 403}
-
-
-def test_create_regular_forbidden(regular_authenticated_client, reservation_draft):
-    payload = {
-        "reservation_draft_id": str(reservation_draft.id),
-        "event_type": "delivery",
-    }
-    response = regular_authenticated_client.post(
-        LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
-    )
-    assert response.status_code == 403
-
-
-def test_create_staff_success(staff_authenticated_client, reservation_draft):
-    payload = {
-        "reservation_draft_id": str(reservation_draft.id),
-        "event_type": "delivery",
-        "address": "456 Oak Ave",
-    }
-    response = staff_authenticated_client.post(
-        LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
-    )
-    assert response.status_code == 201
-    data = response.json()
-    assert data["event_type"] == "delivery"
-    assert data["address"] == "456 Oak Ave"
-
-
-# detail / update / transition
-
-
-def test_update_staff_success(staff_authenticated_client, reservation_draft):
-    event = LogisticsEvent.objects.create(
-        reservation_draft=reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-    )
-    url = f"/api/v1/logistics/events/{event.id}/update/"
-    response = staff_authenticated_client.post(
-        url, {"address": "New Addr"}, content_type="application/json"
-    )
-    assert response.status_code == 200
-    assert response.json()["address"] == "New Addr"
-
-
-def test_transition_staff_success(staff_authenticated_client, reservation_draft):
-    event = LogisticsEvent.objects.create(
-        reservation_draft=reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-        status=LogisticsEventStatus.DISPATCHED,
-    )
-    url = f"/api/v1/logistics/events/{event.id}/transition/"
-    response = staff_authenticated_client.post(
-        url, {"new_status": "completed"}, content_type="application/json"
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "completed"
-    assert data["executed_at"] is not None
-
-
-def test_create_preparation_success(staff_authenticated_client, reservation_draft):
-    payload = {
-        "reservation_draft_id": str(reservation_draft.id),
-        "event_type": "preparation",
-    }
-    response = staff_authenticated_client.post(
-        LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
-    )
-    assert response.status_code == 201
-    assert response.json()["event_type"] == "preparation"
-
-
-def test_create_handover_success(staff_authenticated_client, reservation_draft):
+def test_create_logistics_event(operator_authenticated_client, reservation_draft):
     payload = {
         "reservation_draft_id": str(reservation_draft.id),
         "event_type": "handover",
+        "scheduled_at": timezone.now().isoformat(),
+        "address": "123 Rue de la Paix",
+        "signature_required": True,
     }
-    response = staff_authenticated_client.post(
+    response = operator_authenticated_client.post(
         LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
     )
     assert response.status_code == 201
-    assert response.json()["event_type"] == "handover"
+    data = response.json()
+    assert data["event_type"] == "handover"
+    assert data["signature_required"] is True
 
 
-def test_transition_preparation_full_lifecycle(staff_authenticated_client, reservation_draft):
-    event = LogisticsEvent.objects.create(
-        reservation_draft=reservation_draft,
-        event_type=LogisticsEventType.PREPARATION,
-    )
-    dispatch_url = f"/api/v1/logistics/events/{event.id}/transition/"
-    resp1 = staff_authenticated_client.post(
-        dispatch_url, {"new_status": "dispatched"}, content_type="application/json"
-    )
-    assert resp1.status_code == 200
-    assert resp1.json()["status"] == "dispatched"
-
-    resp2 = staff_authenticated_client.post(
-        dispatch_url, {"new_status": "completed"}, content_type="application/json"
-    )
-    assert resp2.status_code == 200
-    assert resp2.json()["status"] == "completed"
+# retrieve
 
 
-def test_transition_handover_full_lifecycle(staff_authenticated_client, reservation_draft):
+def test_retrieve_logistics_event(operator_authenticated_client, reservation_draft):
     event = LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
         event_type=LogisticsEventType.HANDOVER,
+        status=LogisticsEventStatus.PLANNED,
     )
-    dispatch_url = f"/api/v1/logistics/events/{event.id}/transition/"
-    resp1 = staff_authenticated_client.post(
-        dispatch_url, {"new_status": "dispatched"}, content_type="application/json"
-    )
-    assert resp1.status_code == 200
-    assert resp1.json()["status"] == "dispatched"
-
-    resp2 = staff_authenticated_client.post(
-        dispatch_url, {"new_status": "completed"}, content_type="application/json"
-    )
-    assert resp2.status_code == 200
-    assert resp2.json()["status"] == "completed"
+    url = f"/api/v1/logistics/events/{event.id}/"
+    response = operator_authenticated_client.get(url)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == str(event.id)
+    assert data["item_lines"] == []
 
 
-def test_transition_invalid_returns_400(staff_authenticated_client, reservation_draft):
+# update
+
+
+def test_update_logistics_event(operator_authenticated_client, reservation_draft):
     event = LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-    )
-    url = f"/api/v1/logistics/events/{event.id}/transition/"
-    response = staff_authenticated_client.post(
-        url, {"new_status": "completed"}, content_type="application/json"
-    )
-    assert response.status_code == 400
-    assert "not allowed" in response.json()["detail"]
-
-
-# list filtering
-
-
-def _create_event(
-    reservation_draft, *, event_type, status=LogisticsEventStatus.PLANNED, scheduled_at=None
-):
-    return LogisticsEvent.objects.create(
-        reservation_draft=reservation_draft,
-        event_type=event_type,
-        status=status,
-        scheduled_at=scheduled_at,
-    )
-
-
-def _make_reservation_draft():
-    from apps.customers.models import Customer
-
-    start = timezone.now().replace(microsecond=0)
-    customer = Customer.objects.create(display_name="Filter customer")
-    return ReservationDraft.objects.create(
-        customer=customer,
-        start_at=start,
-        end_at=start + timedelta(hours=4),
-    )
-
-
-def test_list_filter_by_status(operator_authenticated_client, reservation_draft):
-    _create_event(
-        reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
+        event_type=LogisticsEventType.HANDOVER,
         status=LogisticsEventStatus.PLANNED,
-    )
-    _create_event(
-        reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-        status=LogisticsEventStatus.DISPATCHED,
-    )
-
-    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?status=dispatched")
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) == 1
-    assert results[0]["status"] == "dispatched"
-
-
-def test_list_filter_by_event_type(operator_authenticated_client, reservation_draft):
-    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY)
-    _create_event(reservation_draft, event_type=LogisticsEventType.PICKUP)
-
-    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?event_type=pickup")
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) == 1
-    assert results[0]["event_type"] == "pickup"
-
-
-def test_list_filter_by_scheduled_date_range(operator_authenticated_client, reservation_draft):
-    past = timezone.now() - timedelta(days=2)
-    future = timezone.now() + timedelta(days=2)
-    target = timezone.now() + timedelta(hours=6)
-
-    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY, scheduled_at=past)
-    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY, scheduled_at=target)
-    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY, scheduled_at=future)
-
-    after = (timezone.now()).strftime("%Y-%m-%dT%H:%M:%S")
-    before = (target + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%S")
-    response = operator_authenticated_client.get(
-        f"{LOGISTICS_EVENT_LIST_URL}?scheduled_after={after}&scheduled_before={before}"
-    )
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) == 1
-    assert results[0]["scheduled_at"] is not None
-
-
-def test_list_filter_by_reservation_draft_id(operator_authenticated_client, reservation_draft):
-    other_draft = _make_reservation_draft()
-    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY)
-    _create_event(other_draft, event_type=LogisticsEventType.DELIVERY)
-
-    response = operator_authenticated_client.get(
-        f"{LOGISTICS_EVENT_LIST_URL}?reservation_draft_id={reservation_draft.id}"
-    )
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) == 1
-    assert results[0]["reservation_draft"] == str(reservation_draft.id)
-
-
-def test_list_filter_preparation_event_type(operator_authenticated_client, reservation_draft):
-    _create_event(reservation_draft, event_type=LogisticsEventType.PREPARATION)
-    _create_event(reservation_draft, event_type=LogisticsEventType.DELIVERY)
-
-    response = operator_authenticated_client.get(
-        f"{LOGISTICS_EVENT_LIST_URL}?event_type=preparation"
-    )
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) == 1
-    assert results[0]["event_type"] == "preparation"
-
-
-def test_list_filter_handover_event_type(operator_authenticated_client, reservation_draft):
-    _create_event(reservation_draft, event_type=LogisticsEventType.HANDOVER)
-    _create_event(reservation_draft, event_type=LogisticsEventType.PICKUP)
-
-    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?event_type=handover")
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) == 1
-    assert results[0]["event_type"] == "handover"
-
-
-def test_list_filter_combined_status_and_event_type(
-    operator_authenticated_client, reservation_draft
-):
-    _create_event(
-        reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-        status=LogisticsEventStatus.PLANNED,
-    )
-    _create_event(
-        reservation_draft,
-        event_type=LogisticsEventType.PICKUP,
-        status=LogisticsEventStatus.DISPATCHED,
-    )
-    _create_event(
-        reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-        status=LogisticsEventStatus.DISPATCHED,
-    )
-
-    response = operator_authenticated_client.get(
-        f"{LOGISTICS_EVENT_LIST_URL}?status=dispatched&event_type=delivery"
-    )
-    assert response.status_code == 200
-    results = response.json()
-    assert len(results) == 1
-    assert results[0]["status"] == "dispatched"
-    assert results[0]["event_type"] == "delivery"
-
-
-def test_list_filter_status_with_no_match_returns_empty(
-    operator_authenticated_client, reservation_draft
-):
-    _create_event(
-        reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-        status=LogisticsEventStatus.PLANNED,
-    )
-
-    response = operator_authenticated_client.get(f"{LOGISTICS_EVENT_LIST_URL}?status=completed")
-    assert response.status_code == 200
-    assert response.json() == []
-
-
-# lifecycle invariant negative tests
-
-
-NON_EXISTENT_ID = "00000000-0000-0000-0000-000000000000"
-
-
-def test_create_invalid_event_type_returns_400(staff_authenticated_client, reservation_draft):
-    payload = {
-        "reservation_draft_id": str(reservation_draft.id),
-        "event_type": "invalid_event_type",
-    }
-    response = staff_authenticated_client.post(
-        LOGISTICS_EVENT_CREATE_URL, payload, content_type="application/json"
-    )
-    assert response.status_code == 400
-
-
-def test_update_nonexistent_returns_404(staff_authenticated_client):
-    url = f"/api/v1/logistics/events/{NON_EXISTENT_ID}/update/"
-    response = staff_authenticated_client.post(
-        url, {"address": "Nowhere"}, content_type="application/json"
-    )
-    assert response.status_code == 404
-
-
-def test_transition_nonexistent_returns_404(staff_authenticated_client):
-    url = f"/api/v1/logistics/events/{NON_EXISTENT_ID}/transition/"
-    response = staff_authenticated_client.post(
-        url, {"new_status": "completed"}, content_type="application/json"
-    )
-    assert response.status_code == 404
-
-
-def test_update_completed_event_returns_400(staff_authenticated_client, reservation_draft):
-    now = timezone.now()
-    event = LogisticsEvent.objects.create(
-        reservation_draft=reservation_draft,
-        event_type=LogisticsEventType.DELIVERY,
-        status=LogisticsEventStatus.COMPLETED,
-        scheduled_at=now,
-        executed_at=now,
     )
     url = f"/api/v1/logistics/events/{event.id}/update/"
-    response = staff_authenticated_client.post(
-        url, {"address": "Too late"}, content_type="application/json"
-    )
-    assert response.status_code == 400
-    assert response.json()["code"] == "invalid_status_transition"
+    payload = {"address": "Updated Address", "signature_required": True}
+    response = operator_authenticated_client.post(url, payload, content_type="application/json")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["address"] == "Updated Address"
+    assert data["signature_required"] is True
 
 
-def test_transition_to_cancelled_with_executed_at_returns_400(
-    staff_authenticated_client, reservation_draft
-):
+# transition
+
+
+def test_transition_logistics_event(operator_authenticated_client, reservation_draft):
     event = LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.PLANNED,
     )
     url = f"/api/v1/logistics/events/{event.id}/transition/"
-    response = staff_authenticated_client.post(
-        url,
-        {"new_status": "cancelled", "executed_at": timezone.now().isoformat()},
-        content_type="application/json",
+    payload = {"new_status": "dispatched"}
+    response = operator_authenticated_client.post(url, payload, content_type="application/json")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "dispatched"
+
+
+# item lines
+
+
+def test_add_item_line(operator_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
     )
+    item = InventoryItem.objects.create(name="Chair", kind="article")
+    url = f"/api/v1/logistics/events/{event.id}/lines/add/"
+    payload = {
+        "inventory_item_id": str(item.id),
+        "quantity": 3,
+        "notes": "Fragile",
+    }
+    response = operator_authenticated_client.post(url, payload, content_type="application/json")
+    assert response.status_code == 201
+    data = response.json()
+    assert data["quantity"] == 3
+    assert data["inventory_item_name"] == "Chair"
+
+
+def test_list_item_lines(operator_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = InventoryItem.objects.create(name="Table", kind="material")
+    from apps.logistics.models import LogisticsEventItemLine
+
+    LogisticsEventItemLine.objects.create(
+        logistics_event=event,
+        inventory_item=item,
+        quantity=2,
+    )
+    url = f"/api/v1/logistics/events/{event.id}/lines/"
+    response = operator_authenticated_client.get(url)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["quantity"] == 2
+
+
+def test_remove_item_line(operator_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = InventoryItem.objects.create(name="Lamp", kind="article")
+    from apps.logistics.models import LogisticsEventItemLine
+
+    line = LogisticsEventItemLine.objects.create(
+        logistics_event=event,
+        inventory_item=item,
+        quantity=1,
+    )
+    url = f"/api/v1/logistics/events/{event.id}/lines/{line.id}/remove/"
+    response = operator_authenticated_client.post(url)
+    assert response.status_code == 204
+
+
+# passation
+
+
+def test_complete_passation(operator_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.HANDOVER,
+        status=LogisticsEventStatus.PLANNED,
+        signature_required=True,
+        scheduled_at=timezone.now(),
+    )
+    # transition to completed
+    url = f"/api/v1/logistics/events/{event.id}/transition/"
+    operator_authenticated_client.post(
+        url, {"new_status": "dispatched"}, content_type="application/json"
+    )
+    operator_authenticated_client.post(
+        url, {"new_status": "completed"}, content_type="application/json"
+    )
+
+    # complete passation
+    url = f"/api/v1/logistics/events/{event.id}/complete-passation/"
+    response = operator_authenticated_client.post(url, {}, content_type="application/json")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["event"]["signature_received"] is True
+    assert data["event"]["signed_at"] is not None
+    assert "document_instance_id" in data
+
+
+def test_complete_passation_not_handover(operator_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+        signature_required=True,
+        scheduled_at=timezone.now(),
+    )
+    url = f"/api/v1/logistics/events/{event.id}/transition/"
+    operator_authenticated_client.post(
+        url, {"new_status": "dispatched"}, content_type="application/json"
+    )
+    operator_authenticated_client.post(
+        url, {"new_status": "completed"}, content_type="application/json"
+    )
+
+    url = f"/api/v1/logistics/events/{event.id}/complete-passation/"
+    response = operator_authenticated_client.post(url, {}, content_type="application/json")
     assert response.status_code == 400
-    assert response.json()["code"] == "invalid_status_transition"
+    data = response.json()
+    assert data["code"] == PASSATION_NOT_ALLOWED

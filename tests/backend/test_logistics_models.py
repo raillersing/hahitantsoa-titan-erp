@@ -6,7 +6,12 @@ from django.utils import timezone
 
 from apps.customers.models import Customer
 from apps.inventory.models import InventoryItem
-from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsEventType
+from apps.logistics.models import (
+    LogisticsEvent,
+    LogisticsEventItemLine,
+    LogisticsEventStatus,
+    LogisticsEventType,
+)
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
@@ -94,3 +99,119 @@ def test_executed_at_requires_scheduled_at():
     )
     with pytest.raises(ValidationError, match="scheduled at"):
         event.full_clean()
+
+
+# Passation signature validation
+
+
+def test_signature_received_requires_signed_at():
+    draft = _reservation_draft()
+    event = LogisticsEvent(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+        status=LogisticsEventStatus.COMPLETED,
+        executed_at=timezone.now(),
+        scheduled_at=timezone.now(),
+        signature_required=True,
+        signature_received=True,
+        signed_at=None,
+    )
+    with pytest.raises(ValidationError, match="signed_at"):
+        event.full_clean()
+
+
+def test_signed_at_requires_signed_by():
+    draft = _reservation_draft()
+    event = LogisticsEvent(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+        status=LogisticsEventStatus.COMPLETED,
+        executed_at=timezone.now(),
+        scheduled_at=timezone.now(),
+        signature_required=True,
+        signature_received=True,
+        signed_at=timezone.now(),
+        signed_by=None,
+    )
+    with pytest.raises(ValidationError, match="signed_by"):
+        event.full_clean()
+
+
+def test_signature_only_for_handover(django_user_model):
+    actor = django_user_model.objects.create_user(username="handover_sig", password="p")
+    draft = _reservation_draft()
+    event = LogisticsEvent(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.COMPLETED,
+        executed_at=timezone.now(),
+        scheduled_at=timezone.now(),
+        signature_required=True,
+        signature_received=True,
+        signed_by=actor,
+        signed_at=timezone.now(),
+    )
+    with pytest.raises(ValidationError, match="handover"):
+        event.full_clean()
+
+
+# LogisticsEventItemLine
+
+
+def test_item_line_creation():
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = _item()
+    line = LogisticsEventItemLine.objects.create(
+        logistics_event=event,
+        inventory_item=item,
+        quantity=5,
+        notes="Fragile",
+    )
+    assert line.quantity == 5
+    assert line.inventory_item == item
+
+
+def test_item_line_unique_per_event_and_item():
+    from django.db import IntegrityError
+
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = _item()
+    LogisticsEventItemLine.objects.create(
+        logistics_event=event,
+        inventory_item=item,
+        quantity=2,
+    )
+    with pytest.raises(IntegrityError):
+        LogisticsEventItemLine.objects.create(
+            logistics_event=event,
+            inventory_item=item,
+            quantity=3,
+        )
+
+
+def test_item_line_cascade_delete_on_event():
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = _item()
+    line = LogisticsEventItemLine.objects.create(
+        logistics_event=event,
+        inventory_item=item,
+        quantity=2,
+    )
+    line_id = line.id
+    event.delete()
+    assert not LogisticsEventItemLine.objects.filter(id=line_id).exists()
