@@ -26,6 +26,7 @@ from .services import (
     BillingLifecycleError,
     active_billing_invoice_installments,
     active_billing_invoices,
+    active_credit_notes,
     allocate_payment_to_installment,
     cancel_billing_invoice,
     create_billing_invoice_installments,
@@ -382,3 +383,14 @@ class BillingCreditNoteListCreateAPIView(APIView):
             BillingCreditNoteSerializer(credit_note).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class BillingCreditNoteRetrieveAPIView(generics.RetrieveAPIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+    serializer_class = BillingCreditNoteSerializer
+    lookup_field = "id"
+    lookup_url_kwarg = "credit_note_id"
+
+    def get_queryset(self):
+        return active_credit_notes()
