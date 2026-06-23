@@ -8,7 +8,7 @@ from django.utils import timezone
 from apps.identity.roles import IdentityRole
 from apps.inventory.models import InventoryItem
 from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsEventType
-from apps.logistics.services import PASSATION_NOT_ALLOWED
+from apps.logistics.services import ITEM_LINE_NOT_FOUND, PASSATION_NOT_ALLOWED
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
@@ -262,6 +262,19 @@ def test_remove_item_line(operator_authenticated_client, reservation_draft):
 
 
 # passation
+
+
+def test_remove_item_line_not_found(operator_authenticated_client, reservation_draft):
+    event = LogisticsEvent.objects.create(
+        reservation_draft=reservation_draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    url = f"/api/v1/logistics/events/{event.id}/lines/11111111-1111-1111-1111-111111111111/remove/"
+    response = operator_authenticated_client.post(url)
+    assert response.status_code == 400
+    data = response.json()
+    assert data["code"] == ITEM_LINE_NOT_FOUND
 
 
 def test_complete_passation(operator_authenticated_client, reservation_draft):

@@ -25,6 +25,7 @@ INVALID_STATUS_TRANSITION = "invalid_status_transition"
 LOGISTICS_EVENT_NOT_FOUND = "logistics_event_not_found"
 PASSATION_NOT_ALLOWED = "passation_not_allowed"
 DELIVERY_NOTE_TEMPLATE_KEY = "titan.delivery_note.v1"
+ITEM_LINE_NOT_FOUND = "item_line_not_found"
 
 
 class LogisticsServiceError(ValueError):
@@ -223,8 +224,12 @@ def remove_item_line_from_logistics_event(
         logistics_event=event,
         id=line_id,
     ).first()
-    if line is not None:
-        line.delete()
+    if line is None:
+        raise LogisticsServiceError(
+            "Item line does not exist or does not belong to this event.",
+            code=ITEM_LINE_NOT_FOUND,
+        )
+    line.delete()
 
 
 @transaction.atomic
