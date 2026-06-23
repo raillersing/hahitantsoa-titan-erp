@@ -117,9 +117,61 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+APP_VERSION = "0.1.0"
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "Hahitantsoa Titan ERP API",
     "DESCRIPTION": "Foundation API schema for the Hahitantsoa/Titan ERP project.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+}
+
+# Logging
+# ------------------------------------------------------------------------------
+# Structured logging: console with simple formatting in DEBUG mode,
+# JSON-like key=value formatting in production (DEBUG=False).
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+        "jsonlike": {
+            "format": (
+                'level="{levelname}" time="{asctime}" logger="{name}" '
+                'module="{module}" message="{message}"'
+            ),
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple" if DEBUG else "jsonlike",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
 }
