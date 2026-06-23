@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 from tests.backend.test_inventory_damage_loss_settlement_execution_services import (
     _validated_settlement,
 )
@@ -251,3 +252,46 @@ def test_credit_note_post_rejects_amount_exceeding_invoice(
         "amount" in response.json()["detail"].lower()
         or "exceed" in response.json()["detail"].lower()
     )
+
+
+def test_credit_note_retrieve_requires_authentication(client, django_user_model) -> None:
+    from apps.billing.models import BillingCreditNote, BillingInvoice
+
+    django_user_model.objects.create_user(username="cn_ret", password="p", is_staff=True)
+    invoice = BillingInvoice.objects.create(
+        amount=1000, invoice_status="open", issued_at=timezone.now(), source_kind="manual"
+    )
+    cn = BillingCreditNote.objects.create(
+        invoice=invoice, amount=100, reason="Test", issued_at=timezone.now(), status="issued"
+    )
+    response = client.get(f"/api/v1/billing/invoices/{invoice.id}/credit-notes/{cn.id}/")
+    assert response.status_code in {401, 403}
+
+
+def test_credit_note_retrieve_success(sensitive_client, django_user_model) -> None:
+    from apps.billing.models import BillingCreditNote, BillingInvoice
+
+    invoice = BillingInvoice.objects.create(
+        amount=1000, invoice_status="open", issued_at=timezone.now(), source_kind="manual"
+    )
+    cn = BillingCreditNote.objects.create(
+        invoice=invoice, amount=100, reason="Test", issued_at=timezone.now(), status="issued"
+    )
+    response = sensitive_client.get(f"/api/v1/billing/invoices/{invoice.id}/credit-notes/{cn.id}/")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == str(cn.id)
+    assert data["amount"] == "100.00"
+    assert data["reason"] == "Test"
+
+
+def test_credit_note_retrieve_404_for_missing_note(sensitive_client, django_user_model) -> None:
+    from apps.billing.models import BillingInvoice
+
+    invoice = BillingInvoice.objects.create(
+        amount=1000, invoice_status="open", issued_at=timezone.now(), source_kind="manual"
+    )
+    response = sensitive_client.get(
+        f"/api/v1/billing/invoices/{invoice.id}/credit-notes/11111111-1111-1111-1111-111111111111/"
+    )
+    assert response.status_code == 404
