@@ -3,14 +3,14 @@
 ## Current State
 
 - `origin/main` HEAD is `8a3dd0f` (merge of F160 legal invoice numbering PR #390).
-- `main` CI is green as verified on 2026-06-22.
+- `main` CI is green as verified on 2026-06-23 (PR #392 merge).
 - F145A through F145H are merged on `main`.
 - F153A is merged and provides the backend local CI wrappers and fast validation workflow.
 - F153B is merged and provides the backend specialist skills pack and selection guidance.
 - F153C is merged and provides backend skill-plan activation in the orchestrator workflow.
 - F153D is the current agent-docs bundle for backend productivity metrics and skill-adoption audit.
 - Identity / role management foundation merged as PR #282.
-- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow), #387 (F157D financial closeout consolidation), #388 (F158 commercial closeout source kind), #389 (F159 INV-009 installment enforcement), #390 (F160 legal invoice numbering).
+- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow), #387 (F157D financial closeout consolidation), #388 (F158 commercial closeout source kind), #389 (F159 INV-009 installment enforcement), #390 (F160 legal invoice numbering), #392 (F161 billing credit notes).
 - PR #318 (identity role and assignment list filtering) is merged and serves as the
   trigger case for workflow hardening in F152A.
 - Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills), #314 (F151C queue update), #316 (F151E interval alignment), #322 (F147F frontend UX hardening).
@@ -151,41 +151,36 @@ Scope delivered:
 
 ## Next Backend Commercial Bundle
 
-### Recommended next backend bundle
+### Recommended next backend bundles (post-F161)
 
 Status:
-- F157D–F160 merged: financial closeout consolidation, commercial closeout source kind,
-  INV-009 installment enforcement, legal invoice numbering — all complete on `main`.
+- F157D–F161 merged: financial closeout consolidation, commercial closeout source kind,
+  INV-009 installment enforcement, legal invoice numbering, billing credit notes — all complete on `main`.
+- F162A application-wide completion audit completed (81% overall, 87% backend, 70% frontend).
 
-Recommended scope:
-- billing / invoicing operator-ready gap closure (remaining billing lifecycle gaps)
+Recommended next bundles:
+1. **F163 — Logistics operator-ready expansion**
+   - Scope: delivery note generation, complete passation workflow (handover signature / delivery note document), return intake orchestration, logistics event operational depth.
+   - Allowed: `backend/apps/logistics/`, `backend/apps/documents/` for delivery note templates, `tests/backend/`
+   - Forbidden: frontend files, inventory mutation beyond read-only references, Antigravity/tooling files, `.env`, secrets
 
-Reason:
-- The billing lifecycle now has: excess receivable invoices, commercial closeout invoices,
-  installment schedules with INV-009 enforcement, legal invoice numbering, settlement,
-  cancellation, refund obligations, financial closeout summaries, and cashbox integration.
-- Remaining gaps: invoice corrections/credit notes, bulk operations, accounting export,
-  PDF generation for billing artifacts.
+2. **F164 — Commercial closeout coherence**
+   - Scope: unify cross-app closeout narrative (reservation confirmation → billing invoice → installment → payment → cashbox → logistics → return → damage/loss settlement → excess invoice → credit note/refund). Introduce closeout orchestration service coordinating state across apps without collapsing boundaries.
+   - Allowed: backend models, services, selectors across billing, payments, cashbox, inventory, documents; tests
+   - Forbidden: frontend files, broad logistics mutation, Antigravity/tooling files
 
-Allowed scope:
-- backend billing app models, services, selectors
-- billing tests under tests/backend/
-- billing migrations
-
-Forbidden scope:
-- frontend files
-- inventory app mutation beyond read-only references
-- logistics app mutation
-- Antigravity/tooling files
-- `.env`, secrets, quarantine, or unrelated worktrees
+3. **F165 — Production readiness / observability**
+   - Scope: health check endpoints (`/health/`, `/ready/`), structured logging, metrics endpoint, production Docker Compose or K8s manifests, environment-specific settings.
+   - Allowed: `backend/config/`, `compose.*`, `scripts/`, monitoring setup
+   - Forbidden: business logic mutation, frontend files, `.env`, secrets
 
 Hard stops:
-- any required frontend change
+- any required frontend change for backend bundles
 - any accounting/fiscal policy decision not documented in source rules
+- broadening beyond the allowed app scope
 
 Expected validation:
 - backend-focused quality checks
-- focused identity tests
 - `git diff --check`
 - PR CI green before merge
 - `main` CI green after merge
@@ -195,18 +190,27 @@ Expected validation:
 ### Current state
 
 Status:
-- frontend is behind merged backend commercial foundations
+- frontend has caught up materially since F152 (58% → 70%).
+- LoginPanel, AuthContext, session-aware app gating merged (#346).
+- Customer CRUD UI with search/filter merged.
+- Identity/role CRUD UI merged.
+- Billing invoice panel, logistics delivery panel, returns handling panel, breakage/loss panel wired.
+- Accessibility and loading-state test coverage expanded.
 
 Largest gaps:
-- returns handling activation
-- breakage/loss activation
-- stock movement ledger activation
-- auth / role-aware UX
-- customer and billing surfaces
+- permission-aware UX gating (role checks integrated into all write panels)
+- logistics operational flow UI (prep/handover/delivery note)
+- billing/cashbox/credit note operator UI (installments, cashbox sessions)
+- end-to-end acceptance
 
 Constraint:
 - frontend catch-up remains a separate workstream and must not be folded into backend
   bundles without explicit authorization
+
+### Recommended next frontend bundles
+1. **FE-A — Permission-aware UX gating** — integrate `checkEndpointPermission` into all write panels; disable/hide controls when user lacks permission.
+2. **FE-B — Logistics / delivery operational UI** — activate prep/handover/delivery note flow in `LogisticsDeliveryPanel`; wire to backend logistics endpoints.
+3. **FE-C — Billing / cashbox / credit note operator UI** — add installment schedule display, cashbox session management, credit note issuance, refund obligation execution trigger.
 
 ## Workflow Improvement Gates
 
