@@ -4,6 +4,7 @@ from apps.reservations.views import (
     ReservationAvailabilitySummaryAPIView,
     ReservationAvailableItemPreviewsAPIView,
     ReservationDraftCancelAPIView,
+    ReservationDraftCloseoutSummaryAPIView,
     ReservationDraftConfirmAPIView,
     ReservationDraftListCreateAPIView,
     ReservationDraftMarkContractSignedAPIView,
@@ -57,5 +58,10 @@ urlpatterns = [
         "api/v1/reservations/items/<uuid:inventory_item_id>/availability-preview/",
         ReservationItemAvailabilityPreviewAPIView.as_view(),
         name="reservation-item-availability-preview",
+    ),
+    path(
+        "api/v1/reservations/drafts/<uuid:pk>/closeout/",
+        ReservationDraftCloseoutSummaryAPIView.as_view(),
+        name="reservation-draft-closeout-summary",
     ),
 ]

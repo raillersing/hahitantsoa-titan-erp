@@ -296,3 +296,26 @@ class ReservationDraftMarkRequiredDepositReceivedAPIView(APIView):
             "reservation_draft": ReservationDraftSerializer(marked_draft).data,
         }
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class ReservationDraftCloseoutSummaryAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def get(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        from apps.reservations.closeout import get_closeout_summary
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+        summary = get_closeout_summary(reservation_draft_id=str(draft.id))
+
+        if summary is None:
+            return Response(
+                {"detail": "Reservation draft not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        import dataclasses
+
+        payload = dataclasses.asdict(summary)
+        return Response(payload, status=status.HTTP_200_OK)
