@@ -5,10 +5,19 @@ import pytest
 from django.utils import timezone
 
 from apps.customers.models import Customer
-from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsEventType
+from apps.inventory.models import InventoryItem
+from apps.logistics.models import (
+    LogisticsEvent,
+    LogisticsEventItemLine,
+    LogisticsEventStatus,
+    LogisticsEventType,
+)
 from apps.logistics.services import (
     LogisticsServiceError,
+    add_item_line_to_logistics_event,
+    complete_handover_passation,
     create_logistics_event,
+    remove_item_line_from_logistics_event,
     transition_logistics_event_status,
     update_logistics_event,
 )
@@ -252,3 +261,248 @@ def test_transition_to_cancelled_clears_executed_at(sample_event):
         actor=actor, event=sample_event, new_status=LogisticsEventStatus.CANCELLED
     )
     assert event.status == LogisticsEventStatus.CANCELLED
+
+
+# Item line services
+
+
+def test_add_item_line_requires_admin():
+    actor = ActorStub(is_staff=False)
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = InventoryItem.objects.create(name="Table", kind="material")
+    with pytest.raises(LogisticsServiceError, match="not authorized"):
+        add_item_line_to_logistics_event(
+            actor=actor,
+            event=event,
+            inventory_item=item,
+            quantity=2,
+        )
+
+
+def test_add_item_line_success():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_line", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = InventoryItem.objects.create(name="Table", kind="material")
+    line = add_item_line_to_logistics_event(
+        actor=actor,
+        event=event,
+        inventory_item=item,
+        quantity=3,
+        notes="Handle with care",
+    )
+    assert line.quantity == 3
+    assert line.inventory_item == item
+    assert line.logistics_event == event
+
+
+def test_add_item_line_updates_existing():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_line_up", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = InventoryItem.objects.create(name="Chair", kind="article")
+    line1 = add_item_line_to_logistics_event(
+        actor=actor, event=event, inventory_item=item, quantity=1
+    )
+    line2 = add_item_line_to_logistics_event(
+        actor=actor, event=event, inventory_item=item, quantity=5
+    )
+    assert line1.id == line2.id
+    assert line2.quantity == 5
+
+
+def test_add_item_line_to_completed_event_fails():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_line_c", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.COMPLETED,
+        executed_at=timezone.now(),
+        scheduled_at=timezone.now(),
+    )
+    item = InventoryItem.objects.create(name="Lamp", kind="article")
+    with pytest.raises(LogisticsServiceError, match="completed or cancelled"):
+        add_item_line_to_logistics_event(actor=actor, event=event, inventory_item=item, quantity=1)
+
+
+def test_remove_item_line_success():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_line_rm", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+    )
+    item = InventoryItem.objects.create(name="Sofa", kind="material")
+    line = add_item_line_to_logistics_event(
+        actor=actor, event=event, inventory_item=item, quantity=1
+    )
+    remove_item_line_from_logistics_event(actor=actor, event=event, line_id=str(line.id))
+    assert not LogisticsEventItemLine.objects.filter(id=line.id).exists()
+
+
+def test_remove_item_line_from_completed_event_fails():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_line_rm_c", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+        scheduled_at=timezone.now(),
+    )
+    item = InventoryItem.objects.create(name="Desk", kind="material")
+    line = add_item_line_to_logistics_event(
+        actor=actor, event=event, inventory_item=item, quantity=1
+    )
+
+    event.status = LogisticsEventStatus.COMPLETED
+    event.executed_at = timezone.now()
+    event.save(update_fields=["status", "executed_at"])
+
+    with pytest.raises(LogisticsServiceError, match="completed"):
+        remove_item_line_from_logistics_event(actor=actor, event=event, line_id=str(line.id))
+
+
+@pytest.fixture
+def completed_handover_event():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_ho", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+        signature_required=True,
+        scheduled_at=timezone.now(),
+    )
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
+    )
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.COMPLETED
+    )
+    return event
+
+
+def test_complete_passation_requires_admin(completed_handover_event):
+    actor = ActorStub(is_staff=False)
+    with pytest.raises(LogisticsServiceError, match="not authorized"):
+        complete_handover_passation(actor=actor, event=completed_handover_event)
+
+
+def test_complete_passation_non_handover_fails():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_p_non_ho", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        signature_required=True,
+        scheduled_at=timezone.now(),
+    )
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
+    )
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.COMPLETED
+    )
+    with pytest.raises(LogisticsServiceError, match="only allowed for handover"):
+        complete_handover_passation(actor=actor, event=event)
+
+
+def test_complete_passation_not_completed_fails(handover_event):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_p_not_c", password="p", is_staff=True)
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=handover_event.reservation_draft,
+        event_type=LogisticsEventType.HANDOVER,
+        signature_required=True,
+        scheduled_at=timezone.now(),
+    )
+    with pytest.raises(LogisticsServiceError, match="already completed"):
+        complete_handover_passation(actor=actor, event=event)
+
+
+def test_complete_passation_without_signature_required_fails():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_p_no_req", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+        signature_required=False,
+        scheduled_at=timezone.now(),
+    )
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
+    )
+    event = transition_logistics_event_status(
+        actor=actor, event=event, new_status=LogisticsEventStatus.COMPLETED
+    )
+    with pytest.raises(LogisticsServiceError, match="signature_required"):
+        complete_handover_passation(actor=actor, event=event)
+
+
+def test_complete_passation_already_completed_fails(completed_handover_event):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_p_dup", password="p", is_staff=True)
+    complete_handover_passation(actor=actor, event=completed_handover_event)
+    with pytest.raises(LogisticsServiceError, match="already been completed"):
+        complete_handover_passation(actor=actor, event=completed_handover_event)
+
+
+def test_complete_passation_success(completed_handover_event):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_p_ok", password="p", is_staff=True)
+    event, document_instance = complete_handover_passation(
+        actor=actor, event=completed_handover_event
+    )
+    assert event.signature_received is True
+    assert event.signed_by == actor
+    assert event.signed_at is not None
+    assert document_instance is not None
+    assert document_instance.template_key == "titan.delivery_note.v1"
