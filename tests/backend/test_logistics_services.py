@@ -392,6 +392,51 @@ def test_remove_item_line_from_completed_event_fails():
         remove_item_line_from_logistics_event(actor=actor, event=event, line_id=str(line.id))
 
 
+def test_remove_item_line_not_found_fails():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_line_nf", password="p", is_staff=True)
+    draft = _reservation_draft()
+    event = LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+        scheduled_at=timezone.now(),
+    )
+    with pytest.raises(LogisticsServiceError, match="does not exist"):
+        remove_item_line_from_logistics_event(
+            actor=actor, event=event, line_id="11111111-1111-1111-1111-111111111111"
+        )
+
+
+def test_remove_item_line_wrong_event_fails():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_line_we", password="p", is_staff=True)
+    draft1 = _reservation_draft()
+    draft2 = _reservation_draft()
+    event1 = LogisticsEvent.objects.create(
+        reservation_draft=draft1,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+        scheduled_at=timezone.now(),
+    )
+    event2 = LogisticsEvent.objects.create(
+        reservation_draft=draft2,
+        event_type=LogisticsEventType.DELIVERY,
+        status=LogisticsEventStatus.PLANNED,
+        scheduled_at=timezone.now(),
+    )
+    item = InventoryItem.objects.create(name="Desk2", kind="material")
+    line = add_item_line_to_logistics_event(
+        actor=actor, event=event1, inventory_item=item, quantity=1
+    )
+    with pytest.raises(LogisticsServiceError, match="does not exist"):
+        remove_item_line_from_logistics_event(actor=actor, event=event2, line_id=str(line.id))
+
+
 @pytest.fixture
 def completed_handover_event():
     from django.contrib.auth import get_user_model
