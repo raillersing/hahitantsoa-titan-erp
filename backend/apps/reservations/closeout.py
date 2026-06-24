@@ -6,6 +6,12 @@ from decimal import Decimal
 from apps.reservations.models import ReservationDraft
 
 
+class CloseoutValidationError(ValueError):
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
 @dataclass
 class BillingCloseoutSummary:
     invoice_count: int = 0
@@ -145,6 +151,84 @@ def get_closeout_summary(*, reservation_draft_id: str) -> CloseoutSummary | None
             (s.refund_due for s in settlements),
             Decimal("0.00"),
         ),
+    )
+
+    return summary
+
+
+def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> list[str]:
+    """Return a list of blocker messages if the reservation is not ready for closeout.
+
+    A reservation is considered closeable when:
+    - It is confirmed (not draft or cancelled)
+    - All logistics events are completed or cancelled
+    - All billing invoices are settled or cancelled
+    - All return operations have validated settlements
+    """
+    blockers: list[str] = []
+
+    if not reservation_draft.confirmed_at:
+        blockers.append("reservation_not_confirmed")
+
+    # Logistics events
+    events = list(reservation_draft.logistics_events.all())
+    incomplete_events = [e for e in events if e.status not in {"completed", "cancelled"}]
+    if incomplete_events:
+        blockers.append(f"logistics_events_incomplete:{len(incomplete_events)}")
+
+    # Billing invoices
+    invoices = list(reservation_draft.billing_invoices.all())
+    open_invoices = [inv for inv in invoices if inv.invoice_status == "open"]
+    if open_invoices:
+        blockers.append(f"billing_invoices_open:{len(open_invoices)}")
+
+    # Returns
+    return_ops = list(reservation_draft.return_operations.all())
+    for op in return_ops:
+        settlement = getattr(op, "damage_loss_settlement", None)
+        if settlement is not None and settlement.settlement_status != "validated":
+            blockers.append(f"return_settlement_not_validated:{op.id}")
+
+    return blockers
+
+
+def closeout_reservation_draft(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None = None,
+) -> CloseoutSummary:
+    """Validate and record closeout for a reservation draft.
+
+    Raises CloseoutValidationError if prerequisites are not met.
+    """
+    from apps.audit.services import record_audit_event_on_commit
+
+    blockers = validate_reservation_closeable(reservation_draft=reservation_draft)
+    if blockers:
+        raise CloseoutValidationError(
+            "Reservation draft is not ready for closeout: " + ", ".join(blockers),
+            code="reservation_not_closeable",
+        )
+
+    summary = get_closeout_summary(reservation_draft_id=str(reservation_draft.id))
+    if summary is None:
+        raise CloseoutValidationError(
+            "Unable to compute closeout summary.",
+            code="closeout_summary_unavailable",
+        )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="reservation.closeout_executed",
+        target_type="reservation_draft",
+        target_id=str(reservation_draft.id),
+        metadata={
+            "public_reference": reservation_draft.public_reference,
+            "billing_total": str(summary.billing.total_amount),
+            "payments_total": str(summary.payments.total_received),
+            "logistics_completed": summary.logistics.completed_count,
+            "returns_settled": summary.returns.settlement_validated_count,
+        },
     )
 
     return summary
