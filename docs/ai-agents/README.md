@@ -77,6 +77,7 @@ Frontend roles:
 - [Macro-goal backend completion plan](macro-goals/backend-completion-plan.md)
 - [Macro-goal frontend completion plan](macro-goals/frontend-completion-plan.md)
 - [Skill improvement loop](skill-improvement-loop.md)
+- [Application cartography](../architecture/application-map/README.md) — point d'entrée obligatoire avant toute tâche d'implémentation
 
 ## Worktree and prompt policy
 

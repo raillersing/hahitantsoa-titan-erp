@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `ac25f6af36ac178d3e36f5de9826e238d2148929` (merge of F174 billing credit note GET list PR #406).
-- `main` CI is green as verified on 2026-06-24 (PR #406 merge, run 28087183244).
+- `origin/main` HEAD is `5d749792a9a369136829a945b6ea3b64a202b2e4` (merge of F175A final backend completion audit PR #407).
+- `main` CI is green as verified on 2026-06-24 (PR #407 merge, run 28089063984).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -13,7 +13,7 @@
 - F153C is merged and provides backend skill-plan activation in the orchestrator workflow.
 - F153D is merged as PR #393 (F162B queue refresh).
 - Identity / role management foundation merged as PR #282.
-- F164–F174 backend bundles are all merged: #395 (F163 logistics), #396 (F164 follow-up), #397 (F165 closeout summary), #398 (F166 production readiness), #399 (F167 closeout API), #400 (F168 credit note retrieve), #401 (F169 PDF foundation), #402 (F170 payment gateway), #403 (F171 closeout write-side), #404 (F172 credit note cancel), #405 (F173 E2E acceptance), #406 (F174 credit note list).
+- F164–F174 backend bundles are all merged: #395 (F163 logistics), #396 (F164 follow-up), #397 (F165 closeout summary), #398 (F166 production readiness), #399 (F167 closeout API), #400 (F168 credit note retrieve), #401 (F169 PDF foundation), #402 (F170 payment gateway), #403 (F171 closeout write-side), #404 (F172 credit note cancel), #405 (F173 E2E acceptance), #406 (F174 credit note list), #407 (F175A final backend completion audit + freeze decision).
 - F147F is merged as PR #322 — worktree and branch cleaned up.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
@@ -26,6 +26,36 @@ See `docs/audits/F175A_FINAL_BACKEND_COMPLETION_AUDIT.md`. Summary:
 - E2E operational acceptance test (F173) validates the full Titan happy path.
 - Remaining gaps are classified as: frontend dependency, infrastructure dependency, external provider/credential dependency, or missing business/fiscal policy.
 - No backend-only Document A requirement remains unimplemented.
+
+### Active docs-only bundle
+
+Status:
+- F176A in progress — application cartography and navigation map
+
+Scope:
+- create `docs/architecture/application-map/` with 8 cartography files
+- integrate cartography references into `docs/ai-agents/README.md`, `orchestrator-task-queue.md`, and `agent-command-runbook.md`
+- add rule: orchestrator must check application maps before new implementation tasks
+- add rule: agent must update cartography after PRs changing product/API/navigation
+
+Branch: `docs/f176a-application-cartography`
+Worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f176a-application-cartography`
+
+Allowed files:
+- `docs/architecture/application-map/*`
+- `docs/ai-agents/README.md` (add cartography link)
+- `docs/ai-agents/orchestrator-task-queue.md` (add cartography rules + F176A entry)
+- `docs/ai-agents/agent-command-runbook.md` (add cartography update rule)
+
+Forbidden:
+- `backend/`, `frontend/`, `tests/`, `scripts/dev/`, `.github/`, `.env`, secrets, dependency manifests
+
+Validation:
+- `bash scripts/dev/erp-agent-scope-guard agent-docs`
+- `git diff --check`
+- PR CI green before merge
+- `main` CI green after merge
+- cleanup worktree/branch after merge
 
 ### Active workflow improvement bundle
 
@@ -842,6 +872,23 @@ After merge of F138B/F138C, the default orchestrator preflight becomes:
 - `scripts/dev/erp-agent-scope-guard`
 - `scripts/dev/erp-backend-compose-ci` for backend DB-backed local validation
 
+## Application Cartography Rule (F176A)
+
+Before any new implementation task, the orchestrator must verify that agents have consulted:
+
+- `docs/architecture/application-map/README.md`
+- `docs/architecture/application-map/APPLICATION_FUNCTION_CATALOG.md`
+- `docs/architecture/application-map/BACKEND_MAP.md`
+- `docs/architecture/application-map/FRONTEND_MAP.md`
+- `docs/architecture/application-map/API_AND_DATA_FLOW_MAP.md`
+- `docs/architecture/application-map/NAVIGATION_TREE_TARGET.md`
+- `docs/architecture/application-map/AGENT_USAGE_GUIDE.md`
+
+After any PR that changes product behavior, API, navigation, or business workflow, the responsible agent must either:
+
+- update the application cartography, or
+- explicitly state in the final report why no cartography update is required.
+
 ## Queue Update Rule
 
 Update this document when one of these changes occurs:
@@ -851,3 +898,4 @@ Update this document when one of these changes occurs:
 - a task is merged and the queue advances
 - a repair track becomes necessary
 - the required standard wrappers or gates change
+- the application cartography requires a version bump
