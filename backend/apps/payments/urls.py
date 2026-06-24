@@ -1,6 +1,8 @@
 from django.urls import path
 
 from apps.payments.views import (
+    GatewayPaymentCallbackAPIView,
+    GatewayPaymentInitiateAPIView,
     PaymentCancelAPIView,
     PaymentConfirmAPIView,
     PaymentListCreateAPIView,
@@ -21,5 +23,15 @@ urlpatterns = [
         "<uuid:id>/refund-confirm/",
         RefundPaymentConfirmAPIView.as_view(),
         name="payment-refund-confirm",
+    ),
+    path(
+        "gateway/initiate/<uuid:reservation_draft_id>/",
+        GatewayPaymentInitiateAPIView.as_view(),
+        name="gateway-payment-initiate",
+    ),
+    path(
+        "gateway/callback/",
+        GatewayPaymentCallbackAPIView.as_view(),
+        name="gateway-payment-callback",
     ),
 ]
