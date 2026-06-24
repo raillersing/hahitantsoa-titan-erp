@@ -419,9 +419,23 @@ export type PaymentConfirmPayload = {
 
 // ---- Logistics & Delivery ----
 
-export type LogisticsEventType = 'delivery' | 'pickup';
+export type LogisticsEventType = 'delivery' | 'pickup' | 'preparation' | 'handover';
 
 export type LogisticsEventStatus = 'planned' | 'dispatched' | 'completed' | 'cancelled';
+
+export type LogisticsEventItemLine = {
+  id: string;
+  logistics_event: string;
+  inventory_item: string;
+  inventory_item_name: string;
+  inventory_item_kind: InventoryItemKind;
+  quantity: number;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
 
 export type LogisticsEvent = {
   id: string;
@@ -434,10 +448,37 @@ export type LogisticsEvent = {
   contact_name: string;
   contact_phone: string;
   notes: string;
+  signature_required: boolean;
+  signature_received: boolean;
+  signed_by: string | null;
+  signed_at: string | null;
+  item_lines: LogisticsEventItemLine[];
   created_at: string;
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+};
+
+export type LogisticsEventTransitionPayload = {
+  new_status: LogisticsEventStatus;
+  executed_at?: string | null;
+  notes?: string;
+};
+
+export type LogisticsEventItemLineCreatePayload = {
+  inventory_item_id: string;
+  quantity: number;
+  notes?: string;
+};
+
+export type LogisticsEventCompletePassationPayload = {
+  signed_at?: string | null;
+  notes?: string;
+};
+
+export type LogisticsEventCompletePassationResponse = {
+  event: LogisticsEvent;
+  document_instance_id: string;
 };
 
 // ---- Returns Handling ----

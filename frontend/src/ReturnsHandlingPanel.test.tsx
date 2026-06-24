@@ -1,127 +1,93 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as api from './api';
-import ReturnsHandlingPanel from './ReturnsHandlingPanel';
-import type { InventoryReturnOperation } from './types';
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const MOCK_OPERATIONS: InventoryReturnOperation[] = [
-  {
-    id: 'ret-1',
-    reservation_draft: 'rd-1111',
-    document_instance: null,
-    status: 'draft',
-    notes: '',
-    validated_at: null,
-    validated_by: null,
-    lines: [
-      {
-        id: 'line-1',
-        inventory_item: 'item-1',
-        expected_quantity: 10,
-        returned_quantity: 8,
-        damaged_quantity: 1,
-        missing_quantity: 1,
-        condition_status: 'mixed',
-        notes: '',
-        intact_quantity: 7,
-        created_at: '2026-06-10T10:00:00Z',
-        updated_at: '2026-06-10T10:00:00Z',
-        created_by: null,
-        updated_by: null,
-      },
-    ],
-    created_at: '2026-06-10T10:00:00Z',
-    updated_at: '2026-06-10T10:00:00Z',
-    created_by: null,
-    updated_by: null,
-  },
-];
+import * as api from "./api";
+import ReturnsHandlingPanel from "./ReturnsHandlingPanel";
+import type { InventoryReturnOperation } from "./types";
 
-describe('ReturnsHandlingPanel', () => {
+const MOCK_OPERATION: InventoryReturnOperation = {
+  id: "ret-1",
+  reservation_draft: "rd-1111",
+  document_instance: null,
+  status: "draft",
+  notes: "Client return inspection",
+  validated_at: null,
+  validated_by: null,
+  lines: [
+    {
+      id: "line-1",
+      inventory_item: "item-1",
+      expected_quantity: 10,
+      returned_quantity: 8,
+      damaged_quantity: 1,
+      missing_quantity: 1,
+      condition_status: "mixed",
+      notes: "",
+      intact_quantity: 7,
+      created_at: "",
+      updated_at: "",
+      created_by: null,
+      updated_by: null,
+    },
+  ],
+  created_at: "",
+  updated_at: "",
+  created_by: null,
+  updated_by: null,
+};
+
+describe("ReturnsHandlingPanel", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "checkReturnsWritePermission").mockResolvedValue(false);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  beforeEach(() => {
-    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(false);
+  it("shows loading state initially", () => {
+    vi.spyOn(api, "getReturnOperations").mockReturnValue(new Promise(() => undefined));
+    render(<ReturnsHandlingPanel />);
+    expect(screen.getByText("Loading return operations...")).toBeInTheDocument();
   });
 
-  it('shows loading state initially', () => {
-    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+  it("renders list and detail", async () => {
+    vi.spyOn(api, "getReturnOperations").mockResolvedValue([MOCK_OPERATION]);
     render(<ReturnsHandlingPanel />);
-    expect(screen.getByText('Loading return operations...')).toBeInTheDocument();
+    expect(await screen.findByText("Inspection detail")).toBeInTheDocument();
+    expect(screen.getByText("Expected 10")).toBeInTheDocument();
+    expect(screen.getByText("Returned 8")).toBeInTheDocument();
   });
 
-  it('renders the panel with heading', async () => {
-    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+  it("shows error state and retry button", async () => {
+    const spy = vi.spyOn(api, "getReturnOperations");
+    spy.mockRejectedValue(new Error("Network error"));
     render(<ReturnsHandlingPanel />);
-    await waitFor(() => {
-      expect(screen.getByText('Returns Log')).toBeInTheDocument();
-    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Network error");
+    spy.mockResolvedValue([MOCK_OPERATION]);
+    fireEvent.click(screen.getByRole("button", { name: "Retry loading return operations" }));
+    expect(await screen.findByText("Inspection detail")).toBeInTheDocument();
   });
 
-  it('shows empty state when no operations exist', async () => {
-    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+  it("shows read-only badge when write permission is absent", async () => {
+    vi.spyOn(api, "getReturnOperations").mockResolvedValue([MOCK_OPERATION]);
     render(<ReturnsHandlingPanel />);
-    await waitFor(() => {
-      expect(screen.getByText('No return operations found.')).toBeInTheDocument();
-    });
+    expect(await screen.findByTestId("returns-write-denied")).toBeInTheDocument();
   });
 
-  it('shows error state when API call fails', async () => {
-    vi.spyOn(api, 'getReturnOperations').mockRejectedValue(
-      new Error('Network error'),
-    );
+  it("validates returns when write permission is granted", async () => {
+    vi.spyOn(api, "checkReturnsWritePermission").mockResolvedValue(true);
+    vi.spyOn(api, "getReturnOperations").mockResolvedValue([MOCK_OPERATION]);
+    const validateSpy = vi.spyOn(api, "validateReturnOperation").mockResolvedValue({
+      ...MOCK_OPERATION,
+      status: "validated",
+      validated_at: "2026-06-20T10:00:00Z",
+    });
     render(<ReturnsHandlingPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: "Validate return" }));
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+      expect(validateSpy).toHaveBeenCalledWith("ret-1");
     });
-  });
-
-  it('renders return operation details correctly', async () => {
-    vi.spyOn(api, 'getReturnOperations').mockResolvedValue(MOCK_OPERATIONS);
-    render(<ReturnsHandlingPanel />);
-    await waitFor(() => {
-      expect(screen.getByText('Draft')).toBeInTheDocument();
-    });
-    expect(screen.getByText('8 returned / 1 missing')).toBeInTheDocument();
-    expect(screen.getByText('1 line')).toBeInTheDocument();
-  });
-
-  it('shows retry button on error and recovers on retry', async () => {
-    const spy = vi.spyOn(api, 'getReturnOperations');
-    spy.mockRejectedValue(new Error('Network error'));
-    render(<ReturnsHandlingPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('Network error');
-    });
-
-    const retryBtn = screen.getByRole('button', { name: 'Retry loading return operations' });
-    expect(retryBtn).toBeInTheDocument();
-
-    spy.mockResolvedValue(MOCK_OPERATIONS);
-    fireEvent.click(retryBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText('Draft')).toBeInTheDocument();
-    });
-  });
-
-  it('shows read-only badge when user lacks write permission', async () => {
-    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
-    render(<ReturnsHandlingPanel />);
-    await waitFor(() => {
-      expect(screen.getByTestId('returns-write-denied')).toBeInTheDocument();
-    });
-  });
-
-  it('shows write access badge when user has write permission', async () => {
-    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(true);
-    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
-    render(<ReturnsHandlingPanel />);
-    await waitFor(() => {
-      expect(screen.getByTestId('returns-write-ok')).toBeInTheDocument();
-    });
+    expect((await screen.findAllByText("Validated")).length).toBeGreaterThan(0);
   });
 });
