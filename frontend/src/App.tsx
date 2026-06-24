@@ -33,6 +33,8 @@ type ModuleDefinition = {
   boundaryNote: string;
   badge: string;
   accent: "hah" | "titan" | "neutral";
+  glyph: string;
+  section: string;
 };
 
 const MODULES: ModuleDefinition[] = [
@@ -47,6 +49,8 @@ const MODULES: ModuleDefinition[] = [
       "This panel operates in read-only mode to visualize general system status.",
     badge: "Overview",
     accent: "neutral",
+    glyph: "\u2302",
+    section: "Accueil",
   },
   {
     scope: "titan",
@@ -59,6 +63,8 @@ const MODULES: ModuleDefinition[] = [
       "Titan stays limited to rental inventory. Venue, room, hall and service concepts are excluded from this module.",
     badge: "Titan Rental",
     accent: "titan",
+    glyph: "\u25a3",
+    section: "Réservations",
   },
   {
     scope: "hahitantsoa",
@@ -71,6 +77,8 @@ const MODULES: ModuleDefinition[] = [
       "This module remains exploratory. It does not expose reservation creation, payment, contract or inventory blocking controls.",
     badge: "Hahitantsoa",
     accent: "hah",
+    glyph: "\u25b2",
+    section: "Réservations",
   },
   {
     scope: "customers",
@@ -83,6 +91,8 @@ const MODULES: ModuleDefinition[] = [
       "Read operations are available to all authenticated users. Write operations require reservation-sensitive access.",
     badge: "CRM",
     accent: "neutral",
+    glyph: "\u263a",
+    section: "Commercial",
   },
   {
     scope: "commercial-ops",
@@ -95,6 +105,8 @@ const MODULES: ModuleDefinition[] = [
       "This panel acts as a foundation. Actions not yet supported by backend services are marked as pending integration.",
     badge: "Operations",
     accent: "hah",
+    glyph: "\u2692",
+    section: "Opérations",
   },
   {
     scope: "identity",
@@ -107,6 +119,8 @@ const MODULES: ModuleDefinition[] = [
       "Read operations display current roles and assignments. Write operations are gated behind backend identity management availability.",
     badge: "Security",
     accent: "neutral",
+    glyph: "\u26e8",
+    section: "Administration",
   },
   {
     scope: "caution-refund",
@@ -119,6 +133,8 @@ const MODULES: ModuleDefinition[] = [
       "Caution deposits are processed through the payment workflow. Refund operations require settlement execution.",
     badge: "Finance",
     accent: "titan",
+    glyph: "\u25c7",
+    section: "Opérations",
   },
 ];
 
@@ -156,6 +172,8 @@ function kindLabel(kind: InventoryItem["kind"]): string {
 
   return kind;
 }
+
+const SECTIONS = ["Accueil", "Commercial", "Réservations", "Opérations", "Administration"];
 
 function App() {
   const { state: authState, logout } = useAuth();
@@ -218,7 +236,13 @@ function App() {
     return (
       <main className="app-shell app-shell--loading">
         <div className="brand-card brand-card--loading">
-          <div aria-hidden="true" className="brand-mark brand-mark--ergon">E</div>
+          <img
+            alt="Ergon"
+            className="brand-logo"
+            src="/assets/ergon-logo.png"
+            width="32"
+            height="32"
+          />
           <div className="brand-card__copy">
             <p className="eyebrow">Ergon ERP</p>
             <h1>Loading...</h1>
@@ -236,53 +260,60 @@ function App() {
     MODULES.find((moduleDefinition) => moduleDefinition.scope === activeScope) ??
     MODULES[0];
 
-  const currentScopeMark =
-    activeModule.accent === "hah"
-      ? "H"
-      : activeModule.accent === "titan"
-        ? "T"
-        : "E";
+  const modulesBySection = SECTIONS.map((section) => ({
+    section,
+    modules: MODULES.filter((m) => m.section === section),
+  }));
 
   return (
     <main className="erp-shell">
       <aside className="erp-sidebar" aria-label="Business modules">
         <div className="erp-sidebar__brand">
           <div className="brand-card brand-card--sidebar">
-            <div aria-hidden="true" className="brand-mark brand-mark--ergon">E</div>
+            <img
+              alt="Ergon"
+              className="brand-logo brand-logo--sidebar"
+              src="/assets/ergon-logo.png"
+              width="36"
+              height="36"
+            />
             <div className="brand-card__copy">
-              <p className="eyebrow">Ergon</p>
-              <h1>ERP Shell</h1>
-              <p className="module-nav-copy">
-                Hahitantsoa et Titan restent visuellement unifiés et métier-distincts.
-              </p>
+              <h1>HAHITANTSOA</h1>
+              <p className="brand-subtitle">Titan ERP</p>
             </div>
           </div>
         </div>
 
-        <div className="erp-sidebar__section">
-          <p className="erp-sidebar__title">Modules actifs</p>
-          <ul className="module-nav-list">
-            {MODULES.map((moduleDefinition) => {
-              const isActive = moduleDefinition.scope === activeScope;
+        {modulesBySection.map(({ section, modules }) => (
+          <div className="erp-sidebar__section" key={section}>
+            <p className="erp-sidebar__title">{section}</p>
+            <ul className="module-nav-list">
+              {modules.map((moduleDefinition) => {
+                const isActive = moduleDefinition.scope === activeScope;
 
-              return (
-                <li key={moduleDefinition.scope}>
-                  <button
-                    aria-current={isActive ? "page" : undefined}
-                    aria-label={moduleDefinition.navLabel}
-                    aria-pressed={isActive}
-                    className={`module-nav-button module-nav-button--${moduleDefinition.accent}`}
-                    type="button"
-                    onClick={() => setActiveScope(moduleDefinition.scope)}
-                  >
-                    <span>{moduleDefinition.navLabel}</span>
-                    <small>{moduleDefinition.heading}</small>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                return (
+                  <li key={moduleDefinition.scope}>
+                    <button
+                      aria-current={isActive ? "page" : undefined}
+                      aria-label={moduleDefinition.navLabel}
+                      aria-pressed={isActive}
+                      className={`module-nav-button module-nav-button--${moduleDefinition.accent}`}
+                      type="button"
+                      onClick={() => setActiveScope(moduleDefinition.scope)}
+                    >
+                      <span aria-hidden="true" className="module-nav-button__icon">{moduleDefinition.glyph}</span>
+                      <span className="module-nav-button__label">
+                        <span>{moduleDefinition.navLabel}</span>
+                        <small>{moduleDefinition.heading}</small>
+                      </span>
+                      <span className={`module-nav-button__badge`}>{moduleDefinition.badge}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
 
         <div className="erp-sidebar__footer">
           <div className="scope-chip-group">
@@ -299,7 +330,19 @@ function App() {
         <header className="erp-topbar">
           <div className="erp-topbar__title-block">
             <div className={`scope-brand-card scope-brand-card--${activeModule.accent}`}>
-              <span aria-hidden="true" className="scope-brand-card__glyph">{currentScopeMark}</span>
+              <img
+                alt={activeModule.accent === "hah" ? "Hahitantsoa" : activeModule.accent === "titan" ? "Titan" : "Ergon"}
+                className="brand-logo brand-logo--topbar"
+                src={
+                  activeModule.accent === "hah"
+                    ? "/assets/hahitantsoa-logo.png"
+                    : activeModule.accent === "titan"
+                      ? "/assets/titan-rental-logo.png"
+                      : "/assets/ergon-logo.png"
+                }
+                width="28"
+                height="28"
+              />
             </div>
             <div>
               <p className="eyebrow">{activeModule.eyebrow}</p>
@@ -311,6 +354,21 @@ function App() {
             </div>
           </div>
           <div className="erp-topbar__actions">
+            <div className="erp-topbar__content-right">
+              <button className="erp-topbar__icon-btn erp-topbar__icon-btn--dot" type="button" title="Notifications" aria-label="Notifications">
+                &#x1F514;
+              </button>
+              <button className="erp-topbar__icon-btn" type="button" title="Messages" aria-label="Messages">
+                &#x2709;
+              </button>
+              <div className="erp-topbar__divider" aria-hidden="true"></div>
+              <button className="erp-topbar__quick-chip" type="button">
+                + Nouvelle réservation
+              </button>
+              <button className="erp-topbar__quick-chip" type="button">
+                Planning
+              </button>
+            </div>
             <button
               aria-label={`Theme mode: ${themeMode}`}
               className="theme-toggle"
@@ -325,112 +383,116 @@ function App() {
           </div>
         </header>
 
-        <div className="erp-main__intro">
-          <p className="module-boundary">{activeModule.boundaryNote}</p>
-        </div>
-
-        <div className="module-panel">
-          <div className="module-hero">
-            <div className="module-hero__copy">
-              <p className="eyebrow">Prototype-aligned shell</p>
-              <h3>Frontend module shell</h3>
-              <p className="module-description">
-                Prototype 4 shell, brand hierarchy, and theme tokens are now the
-                active foundation around the existing operator panels.
-              </p>
-            </div>
+        <div className="erp-main__content">
+          <div className="erp-main__intro">
+            <p className="module-boundary">{activeModule.boundaryNote}</p>
           </div>
 
-          {activeScope === "dashboard" && (
-            <DashboardPanel onNavigate={(scope) => setActiveScope(scope)} />
-          )}
+          <div className="module-panel">
+            <div className="module-hero">
+              <div className="module-hero__copy">
+                <p className="eyebrow">Prototype-aligned shell</p>
+                <h3>Frontend module shell</h3>
+                <p className="module-description">
+                  Prototype 4 shell, brand hierarchy, and theme tokens are now the
+                  active foundation around the existing operator panels.
+                </p>
+              </div>
+            </div>
 
-          {activeScope === "titan" && (
-            <>
-              {inventoryState.status === "loading" ? (
-                <p className="status">Loading inventory...</p>
-              ) : null}
+            {activeScope === "dashboard" && (
+              <DashboardPanel onNavigate={(scope) => setActiveScope(scope)} />
+            )}
 
-              {inventoryState.status === "error" ? (
-                <section className="notice" role="alert">
-                  <h2>Inventory unavailable</h2>
-                  <p>{inventoryState.message}</p>
-                  <p>Your session may have expired. Sign in again to continue.</p>
-                </section>
-              ) : null}
+            {activeScope === "titan" && (
+              <>
+                {inventoryState.status === "loading" ? (
+                  <p className="status notice loading-notice">
+                    <span className="loading-spinner">Loading inventory...</span>
+                  </p>
+                ) : null}
 
-              {inventoryState.status === "loaded" ? (
-                <section className="inventory-section" aria-label="Inventory items">
-                  <div className="section-heading">
-                    <h2>Items</h2>
-                    <span>{inventoryState.items.length}</span>
-                  </div>
+                {inventoryState.status === "error" ? (
+                  <section className="notice error-notice" role="alert">
+                    <h3>Inventory unavailable</h3>
+                    <p>{inventoryState.message}</p>
+                    <p>Your session may have expired. Sign in again to continue.</p>
+                  </section>
+                ) : null}
 
-                  {inventoryState.items.length === 0 ? (
-                    <p className="status">No inventory items are currently visible.</p>
-                  ) : (
-                    <ul className="inventory-list">
-                      {inventoryState.items.map((item) => (
-                        <li className="inventory-row" key={item.id}>
-                          <div>
-                            <h3>{item.name}</h3>
-                            {item.description ? <p>{item.description}</p> : null}
-                          </div>
-                          <span className="kind-pill">{kindLabel(item.kind)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              ) : null}
+                {inventoryState.status === "loaded" ? (
+                  <section className="inventory-section" aria-label="Inventory items">
+                    <div className="section-heading">
+                      <h2>Items</h2>
+                      <span>{inventoryState.items.length}</span>
+                    </div>
 
-              <AvailabilityPanel
-                inventoryItems={
-                  inventoryState.status === "loaded" ? inventoryState.items : []
-                }
-              />
-              <TitanStockMovementPanel
-                inventoryItems={
-                  inventoryState.status === "loaded" ? inventoryState.items : []
-                }
-              />
-              <DocumentArtifactPreviewPanel />
-            </>
-          )}
+                    {inventoryState.items.length === 0 ? (
+                      <p className="status">No inventory items are currently visible.</p>
+                    ) : (
+                      <ul className="inventory-list">
+                        {inventoryState.items.map((item) => (
+                          <li className="inventory-row" key={item.id}>
+                            <div>
+                              <h3>{item.name}</h3>
+                              {item.description ? <p>{item.description}</p> : null}
+                            </div>
+                            <span className="kind-pill">{kindLabel(item.kind)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                ) : null}
 
-          {activeScope === "hahitantsoa" && (
-            <>
-              <HahitantsoaDiscoveryPanel
-                onSelectConcept={(eventName, venueName) => {
-                  setPrefillEventName(eventName);
-                  setPrefillVenueName(venueName);
-                }}
-              />
-              <HahitantsoaEventDraftsPanel
-                inventoryItems={
-                  inventoryState.status === "loaded" ? inventoryState.items : []
-                }
-                prefillEventName={prefillEventName}
-                prefillVenueName={prefillVenueName}
-              />
-            </>
-          )}
+                <AvailabilityPanel
+                  inventoryItems={
+                    inventoryState.status === "loaded" ? inventoryState.items : []
+                  }
+                />
+                <TitanStockMovementPanel
+                  inventoryItems={
+                    inventoryState.status === "loaded" ? inventoryState.items : []
+                  }
+                />
+                <DocumentArtifactPreviewPanel />
+              </>
+            )}
 
-          {activeScope === "customers" && (
-            <CustomerPanel />
-          )}
+            {activeScope === "hahitantsoa" && (
+              <>
+                <HahitantsoaDiscoveryPanel
+                  onSelectConcept={(eventName, venueName) => {
+                    setPrefillEventName(eventName);
+                    setPrefillVenueName(venueName);
+                  }}
+                />
+                <HahitantsoaEventDraftsPanel
+                  inventoryItems={
+                    inventoryState.status === "loaded" ? inventoryState.items : []
+                  }
+                  prefillEventName={prefillEventName}
+                  prefillVenueName={prefillVenueName}
+                />
+              </>
+            )}
 
-          {activeScope === "commercial-ops" && (
-            <HahitantsoaCommercialOpsPanel />
-          )}
+            {activeScope === "customers" && (
+              <CustomerPanel />
+            )}
 
-          {activeScope === "identity" && (
-            <IdentityPanel />
-          )}
+            {activeScope === "commercial-ops" && (
+              <HahitantsoaCommercialOpsPanel />
+            )}
 
-          {activeScope === "caution-refund" && (
-            <CautionRefundPanel />
-          )}
+            {activeScope === "identity" && (
+              <IdentityPanel />
+            )}
+
+            {activeScope === "caution-refund" && (
+              <CautionRefundPanel />
+            )}
+          </div>
         </div>
       </section>
     </main>
