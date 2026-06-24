@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import BreakageLossPanel from './BreakageLossPanel';
 import type { InventoryDamageLossSettlement } from './types';
@@ -45,6 +45,10 @@ const MOCK_SETTLEMENTS: InventoryDamageLossSettlement[] = [
 describe('BreakageLossPanel', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(false);
   });
 
   it('shows loading state initially', () => {
@@ -106,6 +110,23 @@ describe('BreakageLossPanel', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Draft')).toBeInTheDocument();
+    });
+  });
+
+  it('shows read-only badge when user lacks write permission', async () => {
+    vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([]);
+    render(<BreakageLossPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('breakage-write-denied')).toBeInTheDocument();
+    });
+  });
+
+  it('shows write access badge when user has write permission', async () => {
+    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(true);
+    vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([]);
+    render(<BreakageLossPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('breakage-write-ok')).toBeInTheDocument();
     });
   });
 });

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import HahitantsoaDocumentsPanel from "./HahitantsoaDocumentsPanel";
 import * as api from "./api";
 import type { HahitantsoaEventDraft, DocumentTemplateDefinition, DocumentInstance } from "./types";
@@ -163,6 +163,10 @@ const MOCK_INSTANCES: DocumentInstance[] = [
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
 });
 
 describe("HahitantsoaDocumentsPanel", () => {
@@ -389,5 +393,37 @@ describe("HahitantsoaDocumentsPanel", () => {
       const draftSelect = screen.getByLabelText(/Select Event Draft/i) as HTMLSelectElement;
       expect(draftSelect.disabled).toBe(true);
     });
+  });
+
+  it("hides prepare form and shows permission message when user lacks write permission", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue(MOCK_DRAFTS);
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES_ALL);
+    vi.spyOn(api, "getHahitantsoaEventDraftDocumentInstances").mockResolvedValue([]);
+
+    render(<HahitantsoaDocumentsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Select Event Draft/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: "Prepare Instance" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Write access is required/i)).toBeInTheDocument();
+  });
+
+  it("hides generate button and shows permission note when user lacks write permission", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue(MOCK_DRAFTS);
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES_ALL);
+    vi.spyOn(api, "getHahitantsoaEventDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
+
+    render(<HahitantsoaDocumentsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hahitantsoa Contract")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: "Generate HTML" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Write access required/i)).toBeInTheDocument();
   });
 });

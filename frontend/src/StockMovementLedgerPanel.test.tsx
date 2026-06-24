@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import StockMovementLedgerPanel from './StockMovementLedgerPanel';
 import type { InventoryStockMovement } from './types';
@@ -24,6 +24,10 @@ describe('StockMovementLedgerPanel', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(false);
   });
 
   it('shows loading state initially', () => {
@@ -79,5 +83,22 @@ describe('StockMovementLedgerPanel', () => {
     fireEvent.click(retryBtn);
 
     await screen.findByText('Outbound Delivery');
+  });
+
+  it('shows read-only badge when user lacks write permission', async () => {
+    vi.spyOn(api, 'getStockMovements').mockResolvedValue([]);
+    render(<StockMovementLedgerPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('stock-write-denied')).toBeInTheDocument();
+    });
+  });
+
+  it('shows write access badge when user has write permission', async () => {
+    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(true);
+    vi.spyOn(api, 'getStockMovements').mockResolvedValue([]);
+    render(<StockMovementLedgerPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('stock-write-ok')).toBeInTheDocument();
+    });
   });
 });

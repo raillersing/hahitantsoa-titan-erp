@@ -1,6 +1,6 @@
 import './operational-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getReturnOperations } from './api';
+import { checkEndpointPermission, getReturnOperations } from './api';
 import type { InventoryReturnOperation } from './types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -38,7 +38,15 @@ export function ReturnsHandlingPanel() {
   const [operations, setOperations] = useState<InventoryReturnOperation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canWrite, setCanWrite] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission('/api/v1/inventory/return-operations/', 'OPTIONS', controller.signal)
+      .then(setCanWrite);
+    return () => controller.abort();
+  }, []);
 
   const load = useCallback(async () => {
     abortRef.current?.abort();
@@ -68,6 +76,11 @@ export function ReturnsHandlingPanel() {
     <div className="ops-panel" data-testid="returns-handling-panel">
       <div className="ops-panel__header">
         <h3 className="ops-panel__title">Returns Log</h3>
+        {canWrite ? (
+          <span className="permission-tag permission-ok" data-testid="returns-write-ok">Write access</span>
+        ) : (
+          <span className="permission-tag permission-denied" data-testid="returns-write-denied">Read-only</span>
+        )}
       </div>
 
       {loading && (
@@ -97,6 +110,14 @@ export function ReturnsHandlingPanel() {
             </li>
           ))}
         </ul>
+      )}
+
+      {canWrite && (
+        <div className="ops-panel__actions" data-testid="returns-actions">
+          <p className="permission-note">
+            Write access enabled. Create and validate return actions will be available in a future update.
+          </p>
+        </div>
       )}
     </div>
   );

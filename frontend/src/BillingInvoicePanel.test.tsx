@@ -141,4 +141,12 @@ describe('BillingInvoicePanel', () => {
       expect(screen.getByText('Open')).toBeInTheDocument();
     });
   });
+
+  it('shows read-only badge in header', async () => {
+    vi.spyOn(api, 'getBillingInvoices').mockResolvedValue([]);
+    render(<BillingInvoicePanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('billing-read-only')).toBeInTheDocument();
+    });
+  });
 });

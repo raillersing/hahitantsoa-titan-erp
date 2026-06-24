@@ -80,6 +80,7 @@ export function BillingInvoicePanel() {
     <div className="ops-panel" data-testid="billing-invoice-panel">
       <div className="ops-panel__header">
         <h3 className="ops-panel__title">Invoices</h3>
+        <span className="permission-tag permission-denied" data-testid="billing-read-only">Read-only</span>
       </div>
 
       {loading && (
