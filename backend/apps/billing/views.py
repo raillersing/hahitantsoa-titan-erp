@@ -29,6 +29,7 @@ from .services import (
     active_credit_notes,
     allocate_payment_to_installment,
     cancel_billing_invoice,
+    cancel_credit_note,
     create_billing_invoice_installments,
     create_billing_invoice_refund_obligation,
     execute_billing_refund_obligation,
@@ -394,3 +395,44 @@ class BillingCreditNoteRetrieveAPIView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return active_credit_notes()
+
+
+class BillingCreditNoteCancelAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Credit note cancelled."),
+            400: OpenApiResponse(description="Credit note cancel failed."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Credit note not found."),
+        },
+    )
+    def post(self, request, id, credit_note_id):
+        """Cancel an issued credit note."""
+        invoice = active_billing_invoices().filter(id=id).first()
+        if invoice is None:
+            raise Http404("Billing invoice not found.")
+
+        credit_note = active_credit_notes().filter(id=credit_note_id, invoice=invoice).first()
+        if credit_note is None:
+            raise Http404("Credit note not found.")
+
+        try:
+            cancelled_note = cancel_credit_note(
+                credit_note=credit_note,
+                actor=request.user,
+                notes=request.data.get("notes", ""),
+            )
+        except BillingLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            BillingCreditNoteSerializer(cancelled_note).data,
+            status=status.HTTP_200_OK,
+        )

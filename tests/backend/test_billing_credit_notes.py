@@ -10,8 +10,11 @@ from apps.audit.models import AuditEvent
 from apps.billing.models import BillingCreditNote, BillingCreditNoteStatus, BillingInvoiceStatus
 from apps.billing.services import (
     BILLING_INVOICE_ALREADY_CORRECTED,
+    CREDIT_NOTE_ALREADY_CANCELLED,
     INVALID_BILLING_INVOICE_SOURCE_STATE,
+    INVALID_CREDIT_NOTE_CANCEL_STATE,
     BillingLifecycleError,
+    cancel_credit_note,
     issue_billing_invoice_for_excess_receivable,
     issue_credit_note,
 )
@@ -295,3 +298,130 @@ def test_credit_note_retrieve_404_for_missing_note(sensitive_client, django_user
         f"/api/v1/billing/invoices/{invoice.id}/credit-notes/11111111-1111-1111-1111-111111111111/"
     )
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Cancel
+# ---------------------------------------------------------------------------
+
+CANCEL_URL_TEMPLATE = "/api/v1/billing/invoices/{id}/credit-notes/{credit_note_id}/cancel/"
+
+
+def test_cancel_credit_note_success(django_user_model, django_capture_on_commit_callbacks) -> None:
+    actor, invoice = _open_invoice(django_user_model)
+    cn = issue_credit_note(
+        invoice=invoice,
+        amount=Decimal("500.00"),
+        reason="Test cancel",
+        actor=actor,
+    )
+    assert cn.status == BillingCreditNoteStatus.ISSUED
+
+    with django_capture_on_commit_callbacks(execute=True):
+        cancelled = cancel_credit_note(credit_note=cn, actor=actor)
+
+    cancelled.refresh_from_db()
+    assert cancelled.status == BillingCreditNoteStatus.CANCELLED
+    assert AuditEvent.objects.filter(action="billing.credit_note_cancelled").exists()
+
+
+def test_cancel_credit_note_rejects_already_cancelled(django_user_model) -> None:
+    actor, invoice = _open_invoice(django_user_model)
+    cn = issue_credit_note(
+        invoice=invoice,
+        amount=Decimal("500.00"),
+        reason="Test cancel",
+        actor=actor,
+    )
+    cancel_credit_note(credit_note=cn, actor=actor)
+
+    with pytest.raises(BillingLifecycleError) as exc_info:
+        cancel_credit_note(credit_note=cn, actor=actor)
+
+    assert exc_info.value.code == CREDIT_NOTE_ALREADY_CANCELLED
+
+
+def test_cancel_credit_note_rejects_applied(django_user_model) -> None:
+    actor, invoice = _open_invoice(django_user_model)
+    cn = issue_credit_note(
+        invoice=invoice,
+        amount=Decimal("500.00"),
+        reason="Test cancel",
+        actor=actor,
+    )
+    cn.status = BillingCreditNoteStatus.APPLIED
+    cn.applied_at = timezone.now()
+    cn.applied_by = actor
+    cn.save()
+
+    with pytest.raises(BillingLifecycleError) as exc_info:
+        cancel_credit_note(credit_note=cn, actor=actor)
+
+    assert exc_info.value.code == INVALID_CREDIT_NOTE_CANCEL_STATE
+
+
+def test_credit_note_cancel_post_api_success(sensitive_client, django_user_model) -> None:
+    actor, invoice = _open_invoice(django_user_model)
+    cn = issue_credit_note(
+        invoice=invoice,
+        amount=Decimal("500.00"),
+        reason="Test cancel",
+        actor=actor,
+    )
+    response = sensitive_client.post(
+        CANCEL_URL_TEMPLATE.format(id=invoice.id, credit_note_id=cn.id),
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == str(cn.id)
+    assert data["status"] == BillingCreditNoteStatus.CANCELLED
+
+
+def test_credit_note_cancel_post_api_rejects_already_cancelled(
+    sensitive_client, django_user_model
+) -> None:
+    actor, invoice = _open_invoice(django_user_model)
+    cn = issue_credit_note(
+        invoice=invoice,
+        amount=Decimal("500.00"),
+        reason="Test cancel",
+        actor=actor,
+    )
+    cancel_credit_note(credit_note=cn, actor=actor)
+    response = sensitive_client.post(
+        CANCEL_URL_TEMPLATE.format(id=invoice.id, credit_note_id=cn.id),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert response.json()["code"] == CREDIT_NOTE_ALREADY_CANCELLED
+
+
+def test_credit_note_cancel_post_api_404_for_missing_note(
+    sensitive_client, django_user_model
+) -> None:
+    actor, invoice = _open_invoice(django_user_model)
+    response = sensitive_client.post(
+        CANCEL_URL_TEMPLATE.format(
+            id=invoice.id, credit_note_id="11111111-1111-1111-1111-111111111111"
+        ),
+        content_type="application/json",
+    )
+    assert response.status_code == 404
+
+
+def test_credit_note_cancel_post_requires_sensitive_permission(client, django_user_model) -> None:
+    from apps.billing.models import BillingCreditNote, BillingInvoice
+
+    django_user_model.objects.create_user(username="cn_cancel_user", password="p")
+    invoice = BillingInvoice.objects.create(
+        amount=1000, invoice_status="open", issued_at=timezone.now(), source_kind="manual"
+    )
+    cn = BillingCreditNote.objects.create(
+        invoice=invoice, amount=100, reason="Test", issued_at=timezone.now(), status="issued"
+    )
+    response = client.post(
+        CANCEL_URL_TEMPLATE.format(id=invoice.id, credit_note_id=cn.id),
+        content_type="application/json",
+    )
+    assert response.status_code in {401, 403}
