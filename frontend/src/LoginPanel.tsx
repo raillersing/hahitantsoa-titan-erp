@@ -1,9 +1,11 @@
 import { type FormEvent, useState } from "react";
 
 import { useAuth } from "./AuthContext";
+import { useTheme } from "./ThemeContext";
 
 function LoginPanel() {
   const { state, login } = useAuth();
+  const { themeMode, cycleThemeMode } = useTheme();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -17,24 +19,42 @@ function LoginPanel() {
   };
 
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div className="app-intro">
-          <p className="eyebrow">Hahitantsoa / Titan ERP</p>
-          <h1>Sign in</h1>
-          <p className="shell-summary">
-            Authenticate with your Django session credentials to access the ERP
-            frontend.
-          </p>
+    <main className="login-shell">
+      <section className="login-panel">
+        <div className="login-panel__header">
+          <div className="brand-card" aria-label="Ergon corporate identity">
+            <div aria-hidden="true" className="brand-mark brand-mark--ergon">E</div>
+            <div className="brand-card__copy">
+              <p className="eyebrow">Ergon ERP</p>
+              <h1>Connexion opérateur</h1>
+              <p className="shell-summary">
+                Connectez-vous à la plateforme Ergon pour accéder aux workflows
+                Hahitantsoa et Titan selon vos permissions backend.
+              </p>
+            </div>
+          </div>
+          <button
+            aria-label={`Theme mode: ${themeMode}`}
+            className="theme-toggle"
+            type="button"
+            onClick={cycleThemeMode}
+          >
+            Theme: {themeMode}
+          </button>
         </div>
-      </header>
 
-      <div className="shell-layout">
-        <form
-          onSubmit={handleSubmit}
-          className="login-form"
-          aria-label="Sign in"
-        >
+        <div className="login-identity-strip" aria-label="Operational brand contexts">
+          <div className="login-identity-chip">
+            <span aria-hidden="true" className="brand-mark brand-mark--hah">H</span>
+            <span>Evenement / full-service</span>
+          </div>
+          <div className="login-identity-chip">
+            <span aria-hidden="true" className="brand-mark brand-mark--titan">T</span>
+            <span>Location materiel</span>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="login-form" aria-label="Sign in">
           {state.status === "unauthenticated" && state.error ? (
             <div className="notice" role="alert">
               <p>{state.error}</p>
@@ -78,7 +98,7 @@ function LoginPanel() {
             {state.status === "loading" ? "Signing in..." : "Sign in"}
           </button>
         </form>
-      </div>
+      </section>
     </main>
   );
 }

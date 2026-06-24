@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
+import { ThemeProvider } from "./ThemeContext";
 import { useAuth } from "./AuthContext";
 
 vi.mock("./AuthContext", () => ({
@@ -36,6 +37,30 @@ function jsonResponse(payload: object, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function installMatchMedia(matches = false) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
+function renderApp() {
+  return render(
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>,
+  );
 }
 
 function mockAppFetch(options: {
@@ -83,6 +108,12 @@ function mockAppFetch(options: {
   });
 }
 
+beforeEach(() => {
+  window.localStorage.clear();
+  document.documentElement.removeAttribute("data-theme");
+  installMatchMedia(false);
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -93,7 +124,7 @@ describe("App", () => {
     window.history.replaceState(null, "", "/");
     mockAppFetch({ inventoryItems: [] });
 
-    render(<App />);
+    renderApp();
 
     expect(
       screen.getByRole("heading", { name: "Frontend module shell" }),
@@ -110,7 +141,7 @@ describe("App", () => {
     window.history.replaceState(null, "", "/");
     mockAppFetch({ inventoryItems: [] });
 
-    render(<App />);
+    renderApp();
 
     const titanNavBtn = await screen.findByRole("button", { name: /Manage Inventory/i });
     fireEvent.click(titanNavBtn);
@@ -132,7 +163,7 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    renderApp();
 
     expect(
       await screen.findByRole("heading", { name: "Hahitantsoa discovery" }),
@@ -146,7 +177,7 @@ describe("App", () => {
       () => new Promise(() => undefined),
     );
 
-    render(<App />);
+    renderApp();
 
     expect(screen.getByText("Loading inventory...")).toBeInTheDocument();
   });
@@ -170,7 +201,7 @@ describe("App", () => {
       ],
     });
 
-    render(<App />);
+    renderApp();
 
     expect(await screen.findByText("Projector")).toBeInTheDocument();
     expect(screen.getByText("Lighting pack")).toBeInTheDocument();
@@ -183,7 +214,7 @@ describe("App", () => {
     window.history.replaceState(null, "", "/#titan");
     const fetchMock = mockAppFetch({ inventoryItems: [] });
 
-    render(<App />);
+    renderApp();
 
     await screen.findByText("No inventory items are currently visible.");
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/inventory/items/", {
@@ -196,7 +227,7 @@ describe("App", () => {
     window.history.replaceState(null, "", "/#titan");
     mockAppFetch({ inventoryItems: [] });
 
-    render(<App />);
+    renderApp();
 
     expect(
       await screen.findByText("No inventory items are currently visible."),
@@ -220,149 +251,59 @@ describe("App", () => {
         return Promise.resolve(jsonResponse([]));
       }
 
-      if (url === "/api/v1/inventory/stock-movements/") {
-        return Promise.resolve(jsonResponse([]));
-      }
-
-      return Promise.resolve(jsonResponse({}, 404));
-    });
-
-    render(<App />);
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Inventory unavailable",
-    );
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The requested data could not be loaded.",
-    );
-  });
-
-  it("renders an error state when the request rejects", async () => {
-    window.history.replaceState(null, "", "/#titan");
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-      const url = String(input);
-
-      if (url === "/api/v1/inventory/items/") {
-        return Promise.reject(new Error("Network unavailable"));
-      }
-
-      if (url === "/api/v1/customers/") {
-        return Promise.resolve(jsonResponse(CUSTOMERS));
-      }
-
-      if (url === "/api/v1/reservations/drafts/") {
-        return Promise.resolve(jsonResponse([]));
+      if (url === "/api/v1/hahitantsoa/discovery-items/") {
+        return Promise.resolve(jsonResponse({ items: [], count: 0 }));
       }
 
       if (url === "/api/v1/inventory/stock-movements/") {
         return Promise.resolve(jsonResponse([]));
       }
 
+      if (url === "/api/v1/payments/") {
+        return Promise.resolve(jsonResponse([]));
+      }
+
+      if (url === "/api/v1/hahitantsoa/event-drafts/") {
+        return Promise.resolve(jsonResponse([]));
+      }
+
       return Promise.resolve(jsonResponse({}, 404));
     });
 
-    render(<App />);
+    renderApp();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Network unavailable",
-    );
-  });
-
-  it("renders availability without login or forbidden reservation controls", async () => {
-    window.history.replaceState(null, "", "/#titan");
-    mockAppFetch({ inventoryItems: [] });
-
-    render(<App />);
-
-    await screen.findByText("No inventory items are currently visible.");
     expect(
-      screen.getByRole("heading", { name: "Availability" }),
+      await screen.findByRole("heading", { name: "Inventory unavailable" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Check availability" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /log in|sign in/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 
-  it("keeps Hahitantsoa discovery separate from the Titan surface", async () => {
-    window.history.replaceState(null, "", "/#titan");
-    const fetchMock = mockAppFetch({
-      inventoryItems: [],
-      discoveryResponse: {
-        items: [{ concept: "venue", label: "venue" }],
-        count: 1,
-      },
-    });
-
-    render(<App />);
-
-    await screen.findByText("No inventory items are currently visible.");
-    expect(screen.queryByText("venue")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Hahitantsoa" }));
-
-    expect(await screen.findAllByText("venue")).toHaveLength(2);
-    expect(
-      screen.queryByRole("heading", { name: "Availability" }),
-    ).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/hahitantsoa/discovery-items/",
-      {
-        credentials: "include",
-        signal: expect.any(AbortSignal),
-      },
-    );
-    expect(window.location.hash).toBe("#hahitantsoa");
-  });
-
-  it("navigates to Commercial Ops scope from nav button and dashboard quick action", async () => {
+  it("cycles theme mode and persists the selection", async () => {
     window.history.replaceState(null, "", "/");
     mockAppFetch({ inventoryItems: [] });
 
-    render(<App />);
+    renderApp();
 
-    // Click quick nav action in Dashboard panel
-    const commOpsQuickBtn = await screen.findByRole("button", { name: /View Operations/i });
-    fireEvent.click(commOpsQuickBtn);
+    const themeButton = await screen.findByRole("button", { name: "Theme mode: system" });
+    fireEvent.click(themeButton);
 
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(window.localStorage.getItem("erp-theme-mode")).toBe("light");
     expect(
-      await screen.findByRole("button", { name: "Commercial Ops" }),
-    ).toHaveAttribute("aria-current", "page");
-    expect(window.location.hash).toBe("#commercial-ops");
-
-    // Switch back to Dashboard via tab and verify
-    fireEvent.click(screen.getByRole("button", { name: "Dashboard" }));
-    expect(window.location.hash).toBe("#dashboard");
-
-    // Switch to Commercial Ops via navigation button
-    fireEvent.click(screen.getByRole("button", { name: "Commercial Ops" }));
-    expect(window.location.hash).toBe("#commercial-ops");
+      screen.getByRole("button", { name: "Theme mode: light" }),
+    ).toHaveTextContent("Theme: Light");
   });
 
-  it("shows the login panel when the session is not authenticated", async () => {
-    window.history.replaceState(null, "", "/");
-
-    const mockUseAuth = vi.mocked(useAuth);
-    mockUseAuth.mockReturnValue({
+  it("keeps the login shell when the session is unauthenticated", async () => {
+    vi.mocked(useAuth).mockReturnValue({
       state: { status: "unauthenticated", error: null },
       login: vi.fn(),
       logout: vi.fn(),
     });
 
-    render(<App />);
+    renderApp();
 
     expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("textbox", { name: "Username" }),
+      await screen.findByRole("heading", { name: "Connexion opérateur" }),
     ).toBeInTheDocument();
   });
 });

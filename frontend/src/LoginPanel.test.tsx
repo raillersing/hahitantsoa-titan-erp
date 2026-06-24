@@ -1,12 +1,30 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider } from "./AuthContext";
 import LoginPanel from "./LoginPanel";
+import { ThemeProvider } from "./ThemeContext";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  window.localStorage.clear();
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches: false,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
 });
 
 function jsonResponse(payload: object, status = 200): Response {
@@ -28,9 +46,11 @@ function renderLoginPanel() {
   });
 
   render(
-    <AuthProvider>
-      <LoginPanel />
-    </AuthProvider>,
+    <ThemeProvider>
+      <AuthProvider>
+        <LoginPanel />
+      </AuthProvider>
+    </ThemeProvider>,
   );
 }
 
@@ -39,7 +59,7 @@ describe("LoginPanel", () => {
     renderLoginPanel();
 
     expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
+      await screen.findByRole("heading", { name: "Connexion opérateur" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", { name: "Username" }),
@@ -94,9 +114,11 @@ describe("LoginPanel", () => {
     });
 
     render(
-      <AuthProvider>
-        <LoginPanel />
-      </AuthProvider>,
+      <ThemeProvider>
+        <AuthProvider>
+          <LoginPanel />
+        </AuthProvider>
+      </ThemeProvider>,
     );
 
     const usernameInput = await screen.findByRole("textbox", {
@@ -112,6 +134,19 @@ describe("LoginPanel", () => {
     expect(
       await screen.findByText("Login failed. Please check your credentials."),
     ).toBeInTheDocument();
+  });
+
+  it("cycles theme mode from the login shell", async () => {
+    renderLoginPanel();
+
+    const themeButton = await screen.findByRole("button", { name: "Theme mode: system" });
+    fireEvent.click(themeButton);
+
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(window.localStorage.getItem("erp-theme-mode")).toBe("light");
+    expect(
+      screen.getByRole("button", { name: "Theme mode: light" }),
+    ).toHaveTextContent("Theme: light");
   });
 
   it("disables the form during loading", async () => {
@@ -134,13 +169,15 @@ describe("LoginPanel", () => {
       if (url === "/api/v1/inventory/items/") {
         return Promise.resolve(jsonResponse([], 403));
       }
-      return new Promise(() => {});
+      return new Promise(() => undefined);
     });
 
     render(
-      <AuthProvider>
-        <LoginPanel />
-      </AuthProvider>,
+      <ThemeProvider>
+        <AuthProvider>
+          <LoginPanel />
+        </AuthProvider>
+      </ThemeProvider>,
     );
 
     const usernameInput = await screen.findByRole("textbox", {
