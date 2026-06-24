@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import TitanDocumentsPanel from "./TitanDocumentsPanel";
 import * as api from "./api";
@@ -138,6 +138,7 @@ const MOCK_INSTANCES: DocumentInstance[] = [
 ];
 
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
 });
 
@@ -184,12 +185,12 @@ describe("TitanDocumentsPanel", () => {
 
     render(<TitanDocumentsPanel />);
 
-    await waitFor(() => {
-      const opt = screen.getByRole("option", { name: /TR-1001/ });
-      expect(opt).toBeInTheDocument();
-    });
-
-    expect(screen.getByRole("option", { name: /TR-1002/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /TR-1001/ }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /TR-1002/ }),
+    ).toBeInTheDocument();
   });
 
   it("auto-selects the first draft and loads instances", async () => {
