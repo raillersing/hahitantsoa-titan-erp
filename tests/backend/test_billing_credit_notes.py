@@ -425,3 +425,36 @@ def test_credit_note_cancel_post_requires_sensitive_permission(client, django_us
         content_type="application/json",
     )
     assert response.status_code in {401, 403}
+
+
+def test_credit_note_list_requires_authentication(client, django_user_model) -> None:
+    from apps.billing.models import BillingInvoice
+
+    invoice = BillingInvoice.objects.create(
+        amount=1000, invoice_status="open", issued_at=timezone.now(), source_kind="manual"
+    )
+    response = client.get(CREDIT_NOTE_URL_TEMPLATE.format(id=invoice.id))
+    assert response.status_code in {401, 403}
+
+
+def test_credit_note_list_success(sensitive_client, django_user_model) -> None:
+    actor, invoice = _open_invoice(django_user_model)
+    cn1 = issue_credit_note(
+        invoice=invoice,
+        amount=Decimal("100.00"),
+        reason="Note 1",
+        actor=actor,
+    )
+    cn2 = issue_credit_note(
+        invoice=invoice,
+        amount=Decimal("200.00"),
+        reason="Note 2",
+        actor=actor,
+    )
+    response = sensitive_client.get(CREDIT_NOTE_URL_TEMPLATE.format(id=invoice.id))
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    ids = {item["id"] for item in data}
+    assert str(cn1.id) in ids
+    assert str(cn2.id) in ids
