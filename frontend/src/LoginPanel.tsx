@@ -23,7 +23,13 @@ function LoginPanel() {
       <section className="login-panel">
         <div className="login-panel__header">
           <div className="brand-card" aria-label="Ergon corporate identity">
-            <div aria-hidden="true" className="brand-mark brand-mark--ergon">E</div>
+            <img
+              alt="Ergon"
+              className="brand-logo"
+              src="/assets/ergon-logo.png"
+              width="32"
+              height="32"
+            />
             <div className="brand-card__copy">
               <p className="eyebrow">Ergon ERP</p>
               <h1>Connexion opérateur</h1>
@@ -45,12 +51,12 @@ function LoginPanel() {
 
         <div className="login-identity-strip" aria-label="Operational brand contexts">
           <div className="login-identity-chip">
-            <span aria-hidden="true" className="brand-mark brand-mark--hah">H</span>
-            <span>Evenement / full-service</span>
+            <span aria-hidden="true" className="brand-mark brand-mark--hah" style={{ width: 30, height: 30, fontSize: "0.85rem" }}>H</span>
+            <span>Événement / full-service</span>
           </div>
           <div className="login-identity-chip">
-            <span aria-hidden="true" className="brand-mark brand-mark--titan">T</span>
-            <span>Location materiel</span>
+            <span aria-hidden="true" className="brand-mark brand-mark--titan" style={{ width: 30, height: 30, fontSize: "0.85rem" }}>T</span>
+            <span>Location matériel</span>
           </div>
         </div>
 
