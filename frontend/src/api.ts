@@ -1,6 +1,15 @@
 import type {
   ApplicationRole,
   BillingInvoice,
+  BillingInvoiceCorrectPayload,
+  BillingInvoiceInstallment,
+  BillingInvoiceInstallmentScheduleCreatePayload,
+  BillingInvoiceSettlePayload,
+  BillingCreditNote,
+  BillingCreditNoteIssuePayload,
+  BillingInstallmentAllocatePayload,
+  BillingRefundObligation,
+  BillingRefundObligationExecutePayload,
   Customer,
   CustomerCreatePayload,
   CustomerUpdatePayload,
@@ -691,6 +700,94 @@ export function getBillingInvoices(
   signal?: AbortSignal,
 ): Promise<BillingInvoice[]> {
   return getAuthenticatedJson('/api/v1/billing/invoices/', signal);
+}
+
+export function getBillingInvoice(id: string, signal?: AbortSignal): Promise<BillingInvoice> {
+  return getAuthenticatedJson(`/api/v1/billing/invoices/${id}/`, signal);
+}
+
+export function settleBillingInvoice(
+  id: string,
+  payload: BillingInvoiceSettlePayload,
+  signal?: AbortSignal,
+): Promise<BillingInvoice> {
+  return postAuthenticatedJson(`/api/v1/billing/invoices/${id}/settle/`, payload, signal);
+}
+
+export function cancelBillingInvoice(
+  id: string,
+  notes: string = "",
+  signal?: AbortSignal,
+): Promise<BillingInvoice> {
+  return postAuthenticatedJson(`/api/v1/billing/invoices/${id}/cancel/`, { notes }, signal);
+}
+
+export function createBillingInvoiceInstallments(
+  id: string,
+  payload: BillingInvoiceInstallmentScheduleCreatePayload,
+  signal?: AbortSignal,
+): Promise<BillingInvoiceInstallment[]> {
+  return postAuthenticatedJson(`/api/v1/billing/invoices/${id}/installments/`, payload, signal);
+}
+
+export function allocateBillingInstallment(
+  id: string,
+  payload: BillingInstallmentAllocatePayload,
+  signal?: AbortSignal,
+): Promise<BillingInvoiceInstallment> {
+  return postAuthenticatedJson(`/api/v1/billing/installments/${id}/allocate/`, payload, signal);
+}
+
+export function correctBillingInvoice(
+  id: string,
+  payload: BillingInvoiceCorrectPayload,
+  signal?: AbortSignal,
+): Promise<BillingRefundObligation> {
+  return postAuthenticatedJson(`/api/v1/billing/invoices/${id}/correct/`, payload, signal);
+}
+
+export function executeBillingRefundObligation(
+  id: string,
+  payload: BillingRefundObligationExecutePayload,
+  signal?: AbortSignal,
+): Promise<BillingRefundObligation> {
+  return postAuthenticatedJson(`/api/v1/billing/refund-obligations/${id}/execute/`, payload, signal);
+}
+
+export function getBillingCreditNotes(
+  invoiceId: string,
+  signal?: AbortSignal,
+): Promise<BillingCreditNote[]> {
+  return getAuthenticatedJson(`/api/v1/billing/invoices/${invoiceId}/credit-notes/`, signal);
+}
+
+export function issueBillingCreditNote(
+  invoiceId: string,
+  payload: BillingCreditNoteIssuePayload,
+  signal?: AbortSignal,
+): Promise<BillingCreditNote> {
+  return postAuthenticatedJson(`/api/v1/billing/invoices/${invoiceId}/credit-notes/`, payload, signal);
+}
+
+export function getBillingCreditNote(
+  invoiceId: string,
+  creditNoteId: string,
+  signal?: AbortSignal,
+): Promise<BillingCreditNote> {
+  return getAuthenticatedJson(`/api/v1/billing/invoices/${invoiceId}/credit-notes/${creditNoteId}/`, signal);
+}
+
+export function cancelBillingCreditNote(
+  invoiceId: string,
+  creditNoteId: string,
+  notes: string = "",
+  signal?: AbortSignal,
+): Promise<BillingCreditNote> {
+  return postAuthenticatedJson(
+    `/api/v1/billing/invoices/${invoiceId}/credit-notes/${creditNoteId}/cancel/`,
+    { notes },
+    signal,
+  );
 }
 // ---- Inventory Stock Movements ----
 
