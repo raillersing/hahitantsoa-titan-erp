@@ -1,11 +1,13 @@
 from django.urls import path
 
 from apps.documents.views import (
+    DocumentInstancePDFRetrieveAPIView,
     DocumentInstancePrivateArtifactAPIView,
     DocumentTemplateDefinitionAPIView,
     DocumentTemplateRegistryAPIView,
     ReservationDraftDocumentInstanceGenerateAPIView,
     ReservationDraftDocumentInstanceListCreateAPIView,
+    ReservationDraftDocumentInstancePDFGenerateAPIView,
     ReservationDraftDocumentInstanceRetrieveAPIView,
     TitanProformaDraftPreviewAPIView,
 )
@@ -45,5 +47,15 @@ urlpatterns = [
         "reservation-drafts/<uuid:reservation_draft_id>/instances/<uuid:id>/generate/",
         ReservationDraftDocumentInstanceGenerateAPIView.as_view(),
         name="reservation-draft-document-instance-generate",
+    ),
+    path(
+        "reservation-drafts/<uuid:reservation_draft_id>/instances/<uuid:id>/generate-pdf/",
+        ReservationDraftDocumentInstancePDFGenerateAPIView.as_view(),
+        name="reservation-draft-document-instance-generate-pdf",
+    ),
+    path(
+        "instances/<uuid:id>/pdf/",
+        DocumentInstancePDFRetrieveAPIView.as_view(),
+        name="document-instance-pdf-retrieve",
     ),
 ]

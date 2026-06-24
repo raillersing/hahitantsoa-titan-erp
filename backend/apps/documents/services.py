@@ -9,7 +9,13 @@ from apps.documents.commercial import (
     CommercialDocumentContextError,
     build_reservation_draft_commercial_document_context,
 )
-from apps.documents.models import DocumentInstance
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.documents.pdf import (
+    DocumentPDFGenerationError,
+    build_pdf_artifact_storage_path,
+    calculate_pdf_checksum,
+    get_pdf_generator,
+)
 from apps.documents.runtime import generate_document_instance_html
 from apps.documents.selectors import get_document_instance_by_id
 from apps.hahitantsoa.models import HahitantsoaEventDraft
@@ -372,3 +378,91 @@ def generate_hahitantsoa_event_draft_document_instance_html(
         },
     )
     return result.document_instance
+
+
+@transaction.atomic
+def generate_document_instance_pdf(
+    *,
+    document_instance: DocumentInstance,
+    actor: object | None = None,
+) -> DocumentInstance:
+    """Generate a PDF artifact from an already-generated HTML document instance.
+
+    Requires the document instance to be in ``GENERATED`` status and to have
+    a stored HTML artifact. The resulting PDF is written to default storage
+    and the instance is updated with PDF metadata.
+    """
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    if document_instance.status != DocumentInstanceStatus.GENERATED:
+        raise DocumentPDFGenerationError(
+            f"Cannot generate PDF from document status: {document_instance.status}",
+            code="invalid_document_status_for_pdf_generation",
+        )
+
+    if not document_instance.storage_path:
+        raise DocumentPDFGenerationError(
+            "Document instance has no stored HTML artifact.",
+            code="document_html_artifact_missing",
+        )
+
+    # Read existing HTML content from storage
+    if not default_storage.exists(document_instance.storage_path):
+        raise DocumentPDFGenerationError(
+            "Stored HTML artifact does not exist.",
+            code="document_html_artifact_not_found",
+        )
+
+    html_content = default_storage.open(document_instance.storage_path).read().decode("utf-8")
+    if not html_content or not html_content.strip():
+        raise DocumentPDFGenerationError(
+            "Stored HTML content is empty.",
+            code="document_html_content_empty",
+        )
+
+    # Generate PDF via configured generator
+    generator = get_pdf_generator()
+    pdf_bytes = generator.generate_pdf(html_content)
+    if not pdf_bytes:
+        raise DocumentPDFGenerationError(
+            "PDF generator returned empty content.",
+            code="pdf_generator_empty_output",
+        )
+
+    checksum = calculate_pdf_checksum(pdf_bytes)
+    pdf_path = build_pdf_artifact_storage_path(document_instance, checksum)
+
+    # Validate path safety before saving
+    if ".." in pdf_path or pdf_path.startswith("/"):
+        raise DocumentPDFGenerationError(
+            f"Unsafe PDF storage path resolved: {pdf_path}",
+            code="unsafe_pdf_storage_path",
+        )
+
+    default_storage.save(pdf_path, ContentFile(pdf_bytes))
+
+    document_instance.pdf_storage_path = pdf_path
+    document_instance.pdf_generated_at = timezone.now()
+    document_instance.pdf_content_checksum = checksum
+    document_instance.save(
+        update_fields=[
+            "pdf_storage_path",
+            "pdf_generated_at",
+            "pdf_content_checksum",
+            "updated_at",
+        ]
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.instance_pdf_generated",
+        target_type="document_instance",
+        target_id=str(document_instance.id),
+        metadata={
+            "template_key": document_instance.template_key,
+            "pdf_storage_path": pdf_path,
+            "pdf_content_checksum": checksum,
+        },
+    )
+    return document_instance

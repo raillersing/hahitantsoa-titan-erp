@@ -103,6 +103,9 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "content_checksum",
             "storage_path",
             "generated_content_size_bytes",
+            "pdf_storage_path",
+            "pdf_generated_at",
+            "pdf_content_checksum",
             "notes",
             "created_at",
             "updated_at",
@@ -123,3 +126,11 @@ class DocumentInstanceGenerateSerializer(serializers.Serializer):
     content_checksum = serializers.CharField()
     storage_path = serializers.CharField()
     generated_content_size_bytes = serializers.IntegerField()
+
+
+class DocumentInstancePDFSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    status = serializers.CharField()
+    pdf_storage_path = serializers.CharField()
+    pdf_generated_at = serializers.DateTimeField()
+    pdf_content_checksum = serializers.CharField()
