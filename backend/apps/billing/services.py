@@ -20,6 +20,7 @@ from apps.payments.services import confirm_refund_payment
 
 from .models import (
     BillingCreditNote,
+    BillingCreditNoteStatus,
     BillingInstallmentAllocation,
     BillingInstallmentStatus,
     BillingInvoice,
@@ -51,6 +52,8 @@ BILLING_INVOICE_HAS_INSTALLMENT_PAYMENTS = "billing_invoice_has_installment_paym
 BILLING_INVOICE_ALREADY_CORRECTED = "billing_invoice_already_corrected"
 BILLING_INVOICE_CORRECTION_NOT_APPLICABLE = "billing_invoice_correction_not_applicable"
 BILLING_INVOICE_NUMBERING_FAILED = "billing_invoice_numbering_failed"
+INVALID_CREDIT_NOTE_CANCEL_STATE = "invalid_credit_note_cancel_state"
+CREDIT_NOTE_ALREADY_CANCELLED = "credit_note_already_cancelled"
 
 RESERVATION_FINANCIAL_CLOSEOUT_COHERENT = "coherent"
 RESERVATION_FINANCIAL_CLOSEOUT_INCOHERENT = "incoherent"
@@ -1258,3 +1261,46 @@ def issue_credit_note(
     )
 
     return credit_note
+
+
+@transaction.atomic
+def cancel_credit_note(
+    *,
+    credit_note: BillingCreditNote,
+    actor: object | None = None,
+    notes: str = "",
+) -> BillingCreditNote:
+    """Cancel an issued credit note."""
+    locked_note = BillingCreditNote.objects.select_for_update().get(pk=credit_note.pk)
+
+    if locked_note.status == BillingCreditNoteStatus.CANCELLED:
+        raise BillingLifecycleError(
+            "Credit note is already cancelled.",
+            code=CREDIT_NOTE_ALREADY_CANCELLED,
+        )
+
+    if locked_note.status == BillingCreditNoteStatus.APPLIED:
+        raise BillingLifecycleError(
+            "Cannot cancel a credit note that has already been applied.",
+            code=INVALID_CREDIT_NOTE_CANCEL_STATE,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+    locked_note.status = BillingCreditNoteStatus.CANCELLED
+    if notes:
+        locked_note.notes = notes
+    locked_note.updated_by_id = actor_id
+    locked_note.full_clean()
+    locked_note.save()
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.credit_note_cancelled",
+        target_type="billing_credit_note",
+        target_id=str(locked_note.id),
+        metadata={
+            "invoice_id": str(locked_note.invoice_id),
+            "amount": str(locked_note.amount),
+        },
+    )
+    return locked_note

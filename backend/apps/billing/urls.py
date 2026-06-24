@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    BillingCreditNoteCancelAPIView,
     BillingCreditNoteListCreateAPIView,
     BillingCreditNoteRetrieveAPIView,
     BillingInstallmentAllocateAPIView,
@@ -59,5 +60,10 @@ urlpatterns = [
         "invoices/<uuid:id>/credit-notes/<uuid:credit_note_id>/",
         BillingCreditNoteRetrieveAPIView.as_view(),
         name="billing-invoice-credit-note-detail",
+    ),
+    path(
+        "invoices/<uuid:id>/credit-notes/<uuid:credit_note_id>/cancel/",
+        BillingCreditNoteCancelAPIView.as_view(),
+        name="billing-invoice-credit-note-cancel",
     ),
 ]
