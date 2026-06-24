@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -14,7 +15,13 @@ from apps.inventory.models import (
     InventoryCautionRefundObligation,
     InventoryCautionRefundObligationStatus,
 )
-from apps.payments.models import Payment, PaymentStatus
+from apps.payments.gateway import (
+    CallbackValidationResult,
+    GatewayInitiateResult,
+    PaymentGatewayError,
+    get_payment_gateway_adapter,
+)
+from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
 
 PAYMENT_RECEIPT_TEMPLATE_KEY = "shared.payment_receipt.v1"
 PAYMENT_REFUND_RECEIPT_TEMPLATE_KEY = "shared.payment_refund_receipt.v1"
@@ -509,3 +516,120 @@ def confirm_refund_payment(
         payment=payment,
         receipt_document=receipt_document,
     )
+
+
+@dataclass(frozen=True)
+class GatewayPaymentInitiateResult:
+    payment: Payment
+    gateway_result: GatewayInitiateResult
+
+
+@dataclass(frozen=True)
+class GatewayCallbackResult:
+    payment: Payment
+    callback_result: CallbackValidationResult
+
+
+def initiate_mobile_money_payment(
+    *,
+    reservation_draft,
+    amount: Decimal,
+    actor: object | None = None,
+    notes: str = "",
+    currency: str = "MGA",
+) -> GatewayPaymentInitiateResult:
+    """Create a pending payment and initiate it via the configured mobile-money gateway."""
+    adapter = get_payment_gateway_adapter(gateway_name="mvola")
+    gateway_result = adapter.initiate_payment(
+        amount=amount,
+        currency=currency,
+        description=notes or "Mobile money payment",
+    )
+
+    payment = Payment.objects.create(
+        reservation_draft=reservation_draft,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.MOBILE_MONEY,
+        payment_status=PaymentStatus.PENDING,
+        amount=amount,
+        external_reference=gateway_result.transaction_reference,
+        source_label=adapter.gateway_name,
+        notes=notes,
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="payment.gateway_initiated",
+        target_type="payment",
+        target_id=str(payment.id),
+        metadata={
+            "gateway": adapter.gateway_name,
+            "transaction_reference": gateway_result.transaction_reference,
+            "amount": str(amount),
+            "currency": currency,
+        },
+    )
+
+    return GatewayPaymentInitiateResult(payment=payment, gateway_result=gateway_result)
+
+
+def process_gateway_callback(
+    *,
+    payload: dict,
+    actor: object | None = None,
+) -> GatewayCallbackResult:
+    """Process an asynchronous gateway callback payload.
+
+    Validates the payload, locates the matching payment by external_reference,
+    and transitions the payment to the reported status.
+    """
+    adapter = get_payment_gateway_adapter()
+    callback_result = adapter.validate_callback(payload)
+
+    if not callback_result.valid:
+        raise PaymentGatewayError(
+            "Invalid gateway callback payload.",
+            code="gateway_callback_invalid",
+        )
+
+    payment = (
+        Payment.objects.select_related("reservation_draft")
+        .filter(external_reference=callback_result.transaction_reference)
+        .first()
+    )
+    if payment is None:
+        raise PaymentGatewayError(
+            "Payment not found for transaction reference.",
+            code="gateway_callback_payment_not_found",
+        )
+
+    if callback_result.status == "confirmed" and payment.payment_status == PaymentStatus.PENDING:
+        confirm_payment(
+            payment=payment,
+            actor=actor,
+            paid_at=timezone.now(),
+            external_reference=callback_result.transaction_reference,
+            notes="Confirmed via gateway callback.",
+        )
+    elif callback_result.status == "failed" and payment.payment_status == PaymentStatus.PENDING:
+        payment.payment_status = PaymentStatus.FAILED
+        payment.save(update_fields=["payment_status", "updated_at"])
+        record_audit_event_on_commit(
+            actor=actor,
+            action="payment.gateway_failed",
+            target_type="payment",
+            target_id=str(payment.id),
+            metadata={"gateway": adapter.gateway_name, "reason": "callback"},
+        )
+    elif callback_result.status == "cancelled" and payment.payment_status == PaymentStatus.PENDING:
+        payment.payment_status = PaymentStatus.CANCELLED
+        payment.save(update_fields=["payment_status", "updated_at"])
+        record_audit_event_on_commit(
+            actor=actor,
+            action="payment.gateway_cancelled",
+            target_type="payment",
+            target_id=str(payment.id),
+            metadata={"gateway": adapter.gateway_name, "reason": "callback"},
+        )
+
+    return GatewayCallbackResult(payment=payment, callback_result=callback_result)

@@ -1,12 +1,16 @@
+from decimal import Decimal
+
 from django.http import Http404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import status
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers, status
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess
 
+from .gateway import PaymentGatewayError
 from .permissions import IsAuthenticatedPaymentBoundary
 from .serializers import (
     PaymentConfirmSerializer,
@@ -23,6 +27,8 @@ from .services import (
     confirm_refund_payment,
     create_payment,
     create_refund_payment,
+    initiate_mobile_money_payment,
+    process_gateway_callback,
     reconcile_payment,
 )
 
@@ -242,3 +248,105 @@ class RefundPaymentConfirmAPIView(APIView):
             )
 
         return Response(PaymentSerializer(result.payment).data, status=status.HTTP_200_OK)
+
+
+class GatewayPaymentInitiateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=inline_serializer(
+            name="GatewayPaymentInitiateRequest",
+            fields={
+                "amount": serializers.DecimalField(max_digits=12, decimal_places=2),
+                "currency": serializers.CharField(required=False, default="MGA"),
+                "notes": serializers.CharField(required=False, allow_blank=True),
+            },
+        ),
+        responses={
+            201: OpenApiResponse(description="Payment initiated via gateway."),
+            400: OpenApiResponse(description="Initiation failed."),
+            404: OpenApiResponse(description="Reservation draft not found."),
+        },
+    )
+    def post(self, request, reservation_draft_id):
+        from apps.reservations.models import ReservationDraft
+
+        draft = ReservationDraft.objects.filter(id=reservation_draft_id).first()
+        if draft is None:
+            raise Http404("Reservation draft not found.")
+
+        amount = request.data.get("amount")
+        currency = request.data.get("currency", "MGA")
+        notes = request.data.get("notes", "")
+
+        try:
+            result = initiate_mobile_money_payment(
+                reservation_draft=draft,
+                amount=Decimal(str(amount)),
+                currency=currency,
+                actor=request.user,
+                notes=notes,
+            )
+        except PaymentGatewayError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "payment_id": str(result.payment.id),
+                "transaction_reference": result.gateway_result.transaction_reference,
+                "status": result.payment.payment_status,
+                "gateway": result.gateway_result.raw_response.get("gateway", "unknown"),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class GatewayPaymentCallbackAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=inline_serializer(
+            name="GatewayPaymentCallbackRequest",
+            fields={
+                "transaction_reference": serializers.CharField(),
+                "status": serializers.CharField(),
+                "amount": serializers.DecimalField(max_digits=12, decimal_places=2, required=False),
+            },
+        ),
+        responses={
+            200: OpenApiResponse(description="Callback processed."),
+            400: OpenApiResponse(description="Callback validation failed."),
+            404: OpenApiResponse(description="Payment not found."),
+        },
+    )
+    def post(self, request):
+        payload = {
+            "transaction_reference": request.data.get("transaction_reference"),
+            "status": request.data.get("status"),
+            "amount": request.data.get("amount"),
+        }
+
+        try:
+            result = process_gateway_callback(
+                payload=payload,
+                actor=request.user,
+            )
+        except PaymentGatewayError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "payment_id": str(result.payment.id),
+                "transaction_reference": result.callback_result.transaction_reference,
+                "status": result.payment.payment_status,
+            },
+            status=status.HTTP_200_OK,
+        )
