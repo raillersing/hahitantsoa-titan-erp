@@ -1,4 +1,5 @@
 from django.db.models import Q
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -313,6 +314,45 @@ class ReservationDraftCloseoutSummaryAPIView(APIView):
             return Response(
                 {"detail": "Reservation draft not found."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        import dataclasses
+
+        payload = dataclasses.asdict(summary)
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class ReservationDraftCloseoutExecuteAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Closeout executed successfully."),
+            400: OpenApiResponse(description="Reservation draft is not ready for closeout."),
+            404: OpenApiResponse(description="Reservation draft not found."),
+        },
+    )
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        from apps.reservations.closeout import (
+            CloseoutValidationError,
+            closeout_reservation_draft,
+        )
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+
+        try:
+            summary = closeout_reservation_draft(
+                reservation_draft=draft,
+                actor=request.user,
+            )
+        except CloseoutValidationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         import dataclasses
