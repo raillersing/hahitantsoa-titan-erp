@@ -74,6 +74,7 @@ export function LogisticsDeliveryPanel() {
     <div className="ops-panel" data-testid="logistics-delivery-panel">
       <div className="ops-panel__header">
         <h3 className="ops-panel__title">Delivery Events</h3>
+        <span className="permission-tag permission-denied" data-testid="logistics-read-only">Read-only</span>
       </div>
 
       {loading && (

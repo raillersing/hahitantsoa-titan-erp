@@ -1,6 +1,6 @@
 import './operational-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getDamageLossSettlements } from './api';
+import { checkEndpointPermission, getDamageLossSettlements } from './api';
 import type { InventoryDamageLossSettlement } from './types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -47,7 +47,15 @@ export function BreakageLossPanel() {
   const [settlements, setSettlements] = useState<InventoryDamageLossSettlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canWrite, setCanWrite] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission('/api/v1/inventory/damage-loss-settlements/', 'OPTIONS', controller.signal)
+      .then(setCanWrite);
+    return () => controller.abort();
+  }, []);
 
   const load = useCallback(async () => {
     abortRef.current?.abort();
@@ -77,6 +85,11 @@ export function BreakageLossPanel() {
     <div className="ops-panel" data-testid="breakage-loss-panel">
       <div className="ops-panel__header">
         <h3 className="ops-panel__title">Damage Assessment</h3>
+        {canWrite ? (
+          <span className="permission-tag permission-ok" data-testid="breakage-write-ok">Write access</span>
+        ) : (
+          <span className="permission-tag permission-denied" data-testid="breakage-write-denied">Read-only</span>
+        )}
       </div>
 
       {loading && (
@@ -106,6 +119,14 @@ export function BreakageLossPanel() {
             </li>
           ))}
         </ul>
+      )}
+
+      {canWrite && (
+        <div className="ops-panel__actions" data-testid="breakage-actions">
+          <p className="permission-note">
+            Write access enabled. Validate and execute settlement actions will be available in a future update.
+          </p>
+        </div>
       )}
     </div>
   );

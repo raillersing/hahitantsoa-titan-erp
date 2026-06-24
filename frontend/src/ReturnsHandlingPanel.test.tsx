@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import ReturnsHandlingPanel from './ReturnsHandlingPanel';
 import type { InventoryReturnOperation } from './types';
@@ -40,6 +40,10 @@ const MOCK_OPERATIONS: InventoryReturnOperation[] = [
 describe('ReturnsHandlingPanel', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  beforeEach(() => {
+    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(false);
   });
 
   it('shows loading state initially', () => {
@@ -101,6 +105,23 @@ describe('ReturnsHandlingPanel', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Draft')).toBeInTheDocument();
+    });
+  });
+
+  it('shows read-only badge when user lacks write permission', async () => {
+    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+    render(<ReturnsHandlingPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('returns-write-denied')).toBeInTheDocument();
+    });
+  });
+
+  it('shows write access badge when user has write permission', async () => {
+    vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(true);
+    vi.spyOn(api, 'getReturnOperations').mockResolvedValue([]);
+    render(<ReturnsHandlingPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('returns-write-ok')).toBeInTheDocument();
     });
   });
 });

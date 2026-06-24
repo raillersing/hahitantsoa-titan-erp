@@ -120,7 +120,7 @@ function mockAllApis() {
   vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
   vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([]);
   vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
-  vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
+  vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
   vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
   vi.spyOn(api, "getHahitantsoaEventDraftDocumentInstances").mockResolvedValue([]);
 }

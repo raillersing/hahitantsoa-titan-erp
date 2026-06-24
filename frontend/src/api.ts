@@ -776,6 +776,20 @@ export async function checkIdentityWritePermission(
   return checkEndpointPermission("/api/v1/identity/roles/", "OPTIONS", signal);
 }
 
+// ---- Permission helpers for FE-A gating ----
+
+export async function checkReturnsWritePermission(
+  signal?: AbortSignal,
+): Promise<boolean> {
+  return checkEndpointPermission("/api/v1/inventory/return-operations/", "OPTIONS", signal);
+}
+
+export async function checkDamageLossWritePermission(
+  signal?: AbortSignal,
+): Promise<boolean> {
+  return checkEndpointPermission("/api/v1/inventory/damage-loss-settlements/", "OPTIONS", signal);
+}
+
 // ---- Auth ----
 
 function getCsrfToken(): string {

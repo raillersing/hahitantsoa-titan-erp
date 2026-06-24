@@ -119,4 +119,12 @@ describe('LogisticsDeliveryPanel', () => {
       expect(screen.getByText('Planned')).toBeInTheDocument();
     });
   });
+
+  it('shows read-only badge in header', async () => {
+    vi.spyOn(api, 'getLogisticsEvents').mockResolvedValue([]);
+    render(<LogisticsDeliveryPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId('logistics-read-only')).toBeInTheDocument();
+    });
+  });
 });

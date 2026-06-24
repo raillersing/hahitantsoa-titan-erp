@@ -1,6 +1,6 @@
 import './operational-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { getStockMovements } from './api';
+import { checkEndpointPermission, getStockMovements } from './api';
 import type { InventoryStockMovement } from './types';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -22,7 +22,15 @@ export function StockMovementLedgerPanel() {
   const [movements, setMovements] = useState<InventoryStockMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canWrite, setCanWrite] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission('/api/v1/inventory/stock-movements/', 'OPTIONS', controller.signal)
+      .then(setCanWrite);
+    return () => controller.abort();
+  }, []);
 
   const load = useCallback(async () => {
     abortRef.current?.abort();
@@ -52,6 +60,11 @@ export function StockMovementLedgerPanel() {
     <div className="ops-panel" data-testid="stock-movement-ledger-panel">
       <div className="ops-panel__header">
         <h3 className="ops-panel__title">Movement Ledger</h3>
+        {canWrite ? (
+          <span className="permission-tag permission-ok" data-testid="stock-write-ok">Write access</span>
+        ) : (
+          <span className="permission-tag permission-denied" data-testid="stock-write-denied">Read-only</span>
+        )}
       </div>
 
       {loading && (
@@ -92,6 +105,14 @@ export function StockMovementLedgerPanel() {
             </li>
           ))}
         </ul>
+      )}
+
+      {canWrite && (
+        <div className="ops-panel__actions" data-testid="stock-actions">
+          <p className="permission-note">
+            Write access enabled. Record movement actions are available in the Titan scope.
+          </p>
+        </div>
       )}
     </div>
   );

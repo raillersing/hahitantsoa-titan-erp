@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 
 import {
+  checkEndpointPermission,
   getReservationDrafts,
   getDocumentTemplates,
   getReservationDraftDocumentInstances,
@@ -23,6 +24,7 @@ type TitanDocumentsState = {
   notes: string;
   loading: boolean;
   error: string;
+  canWrite: boolean;
 };
 
 function TitanDocumentsPanel() {
@@ -35,7 +37,15 @@ function TitanDocumentsPanel() {
     notes: "",
     loading: false,
     error: "",
+    canWrite: false,
   });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkEndpointPermission("/api/v1/documents/templates/", "OPTIONS", controller.signal)
+      .then((allowed) => setState((prev) => ({ ...prev, canWrite: allowed })));
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -82,7 +92,7 @@ function TitanDocumentsPanel() {
 
   const handlePrepareInstance = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!state.selectedDraftId || !state.selectedTemplateKey) return;
+    if (!state.selectedDraftId || !state.selectedTemplateKey || !state.canWrite) return;
     setState((prev) => ({ ...prev, loading: true, error: "" }));
     try {
       await createReservationDraftDocumentInstance(state.selectedDraftId, {
@@ -107,7 +117,7 @@ function TitanDocumentsPanel() {
   };
 
   const handleGenerateInstance = async (id: string) => {
-    if (!state.selectedDraftId) return;
+    if (!state.selectedDraftId || !state.canWrite) return;
     setState((prev) => ({ ...prev, loading: true, error: "" }));
     try {
       await generateReservationDraftDocumentInstance(state.selectedDraftId, id);
@@ -152,7 +162,7 @@ function TitanDocumentsPanel() {
         </select>
       </div>
 
-      {state.selectedDraftId && (
+      {state.selectedDraftId && state.canWrite && (
         <form className="prepare-instance-form" onSubmit={handlePrepareInstance}>
           <h4>Prepare Document Instance</h4>
           <div className="prepare-fields">
@@ -188,6 +198,12 @@ function TitanDocumentsPanel() {
         </form>
       )}
 
+      {state.selectedDraftId && !state.canWrite && (
+        <div className="permission-block" role="status">
+          <p className="permission-note">Write access is required to prepare or generate document instances.</p>
+        </div>
+      )}
+
       {state.selectedDraftId && (
         <div className="instances-list-block">
           <h4>Document Instances</h4>
@@ -206,7 +222,7 @@ function TitanDocumentsPanel() {
                     </span>
                   </div>
                   <div className="instance-actions">
-                    {inst.status === "prepared" && (
+                    {inst.status === "prepared" && state.canWrite && (
                       <button
                         type="button"
                         className="btn-generate"
@@ -215,6 +231,9 @@ function TitanDocumentsPanel() {
                       >
                         Generate HTML
                       </button>
+                    )}
+                    {inst.status === "prepared" && !state.canWrite && (
+                      <span className="permission-note">Write access required</span>
                     )}
                     {inst.status === "generated" && (
                       <span className="generated-tag">Ready (ID: {inst.id})</span>
