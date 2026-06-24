@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `5d749792a9a369136829a945b6ea3b64a202b2e4` (merge of F175A final backend completion audit PR #407).
-- `main` CI is green as verified on 2026-06-24 (PR #407 merge, run 28089063984).
+- `origin/main` HEAD is `c45eaea0441052bc44a30282b0d97684bf823ce5` (FE-A permission-aware UX gating).
+- `main` CI is green as verified on 2026-06-24 (run 28109048583).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -27,35 +27,41 @@ See `docs/audits/F175A_FINAL_BACKEND_COMPLETION_AUDIT.md`. Summary:
 - Remaining gaps are classified as: frontend dependency, infrastructure dependency, external provider/credential dependency, or missing business/fiscal policy.
 - No backend-only Document A requirement remains unimplemented.
 
-### Active docs-only bundle
+### Active docs/design bundle
 
 Status:
-- F176A in progress — application cartography and navigation map
+- F177A ready/in progress — client-approved prototype, brand architecture, and
+  light/dark migration contract
 
 Scope:
-- create `docs/architecture/application-map/` with 8 cartography files
-- integrate cartography references into `docs/ai-agents/README.md`, `orchestrator-task-queue.md`, and `agent-command-runbook.md`
-- add rule: orchestrator must check application maps before new implementation tasks
-- add rule: agent must update cartography after PRs changing product/API/navigation
+- make Prototype 4 the canonical visual/navigation reference for future frontend work
+- document Ergon / Hahitantsoa / Titan brand hierarchy and asset paths
+- define light/dark theme contract and migration tokens
+- map prototype pages to the real application cartography and current frontend state
+- create a frontend migration roadmap starting with FE-B0 shell/theme foundation
+- update frontend workflow docs to require the new design references before implementation
 
-Branch: `docs/f176a-application-cartography`
-Worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f176a-application-cartography`
+Branch: `docs/f177a-client-approved-prototype-brand-theme-contract`
+Suggested worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f177a-client-approved-prototype-brand-theme-contract`
 
 Allowed files:
-- `docs/architecture/application-map/*`
-- `docs/ai-agents/README.md` (add cartography link)
-- `docs/ai-agents/orchestrator-task-queue.md` (add cartography rules + F176A entry)
-- `docs/ai-agents/agent-command-runbook.md` (add cartography update rule)
+- `docs/design/**`
+- `docs/architecture/application-map/AGENT_USAGE_GUIDE.md`
+- `docs/architecture/application-map/FRONTEND_MAP.md`
+- `docs/ai-agents/orchestrator-task-queue.md`
+- `docs/ai-agents/prompt-contracts/frontend-orchestrator.md`
+- `docs/ai-agents/tooling/frontend-specialist-skills.md`
 
 Forbidden:
-- `backend/`, `frontend/`, `tests/`, `scripts/dev/`, `.github/`, `.env`, secrets, dependency manifests
+- `backend/`, `frontend/`, `tests/`, `scripts/dev/`, `.github/`, manifests, `.env`, secrets
 
 Validation:
 - `bash scripts/dev/erp-agent-scope-guard agent-docs`
 - `git diff --check`
+- docs/link validation if available
 - PR CI green before merge
-- `main` CI green after merge
-- cleanup worktree/branch after merge
+- exact-SHA `main` CI green after merge
+- targeted branch/worktree cleanup only
 
 ### Active workflow improvement bundle
 
@@ -244,9 +250,30 @@ Constraint:
   bundles without explicit authorization
 
 ### Recommended next frontend bundles
-1. **FE-A — Permission-aware UX gating** — integrate `checkEndpointPermission` into all write panels; disable/hide controls when user lacks permission.
+1. **FE-B0 — App shell, brand architecture, and light/dark theme foundation** — implement the shell/token/theming contracts before broad page redesign.
 2. **FE-B — Logistics / delivery operational UI** — activate prep/handover/delivery note flow in `LogisticsDeliveryPanel`; wire to backend logistics endpoints.
 3. **FE-C — Billing / cashbox / credit note operator UI** — add installment schedule display, cashbox session management, credit note issuance, refund obligation execution trigger.
+
+### Frontend design reference rule
+
+Before any frontend implementation, agents must consult:
+
+- `docs/architecture/application-map/README.md`
+- `docs/architecture/application-map/FRONTEND_MAP.md`
+- `docs/architecture/application-map/API_AND_DATA_FLOW_MAP.md`
+- `docs/architecture/application-map/NAVIGATION_TREE_TARGET.md`
+- `docs/design/brand/BRAND_ARCHITECTURE.md`
+- `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`
+- `docs/design/UI_MIGRATION_CONTRACT.md`
+- `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`
+- `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`
+- `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
+- `docs/design/DESIGN.md`
+
+After any frontend PR that changes navigation, layout, design-system components,
+major UX flows, brand usage, theme behavior, or prototype-derived behavior, the
+agent must either update the relevant design/cartography docs or justify explicitly
+why no update is required.
 
 ## Workflow Improvement Gates
 

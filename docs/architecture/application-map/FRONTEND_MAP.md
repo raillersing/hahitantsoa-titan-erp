@@ -10,6 +10,13 @@
 
 ## 1. Architecture globale
 
+> Références design frontend obligatoires avant implémentation:
+> `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`,
+> `docs/design/UI_MIGRATION_CONTRACT.md`,
+> `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`,
+> `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`,
+> `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
+
 ```
 main.tsx
 └── <StrictMode>

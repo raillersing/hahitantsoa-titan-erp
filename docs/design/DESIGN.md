@@ -13,6 +13,27 @@ This is not a marketing brand document. It does not introduce new branding
 claims, colors, fonts, imagery systems, or asset requirements. It defines
 interaction and layout guidance for ERP workflows that are already in scope.
 
+## Mandatory Companion References Before Frontend Implementation
+
+Before any frontend implementation, agents must consult:
+
+- `docs/architecture/application-map/README.md`
+- `docs/architecture/application-map/FRONTEND_MAP.md`
+- `docs/architecture/application-map/API_AND_DATA_FLOW_MAP.md`
+- `docs/architecture/application-map/NAVIGATION_TREE_TARGET.md`
+- `docs/design/brand/BRAND_ARCHITECTURE.md`
+- `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`
+- `docs/design/UI_MIGRATION_CONTRACT.md`
+- `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`
+- `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`
+- `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
+- `docs/design/DESIGN.md`
+
+After any frontend PR that changes navigation, layout, design-system components,
+major UX flows, brand usage, theme behavior, or prototype-derived behavior, the
+agent must either update the relevant design/cartography docs or justify explicitly
+why no update is required.
+
 ## How Agents Must Use This Document
 
 ### Codex

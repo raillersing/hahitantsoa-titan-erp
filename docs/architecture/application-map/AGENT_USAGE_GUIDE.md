@@ -37,6 +37,12 @@ L'orchestrateur doit s'assurer que le prompt d'agent contient ces étapes :
 - Lire `API_AND_DATA_FLOW_MAP.md` — quels endpoints sont déjà exposés
 - Lire `NAVIGATION_TREE_TARGET.md` — quelle navigation cible Document A
 - Lire `docs/design/DESIGN.md` — principes UI/UX canoniques
+- Lire `docs/design/brand/BRAND_ARCHITECTURE.md`
+- Lire `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`
+- Lire `docs/design/UI_MIGRATION_CONTRACT.md`
+- Lire `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`
+- Lire `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`
+- Lire `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
 
 **Règles:**
 - Ne jamais inventer un endpoint backend qui n'existe pas dans
@@ -46,6 +52,10 @@ L'orchestrateur doit s'assurer que le prompt d'agent contient ces étapes :
 - Tout nouvel écran doit correspondre à un nœud de
   `NAVIGATION_TREE_TARGET.md`.
 - Mettre à jour `FRONTEND_MAP.md` après chaque PR frontend.
+- Après toute PR frontend qui modifie navigation, layout, composants de design
+  system, brand usage, thème, ou comportement dérivé du prototype, mettre à
+  jour les docs de design/cartographie concernées ou justifier explicitement
+  l'absence de mise à jour.
 
 ### 3.2 Agent backend-maintenance (Agent A, B, C...)
 
@@ -70,6 +80,9 @@ L'orchestrateur doit s'assurer que le prompt d'agent contient ces étapes :
 - Lire `NAVIGATION_TREE_TARGET.md` — structure de navigation cible
 - Lire `FRONTEND_MAP.md` — écrans existants et leur état
 - Lire `docs/design/DESIGN.md` — principes canoniques
+- Lire `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`
+- Lire `docs/design/UI_MIGRATION_CONTRACT.md`
+- Lire `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`
 - Lire `APPLICATION_FUNCTION_CATALOG.md` — fonctions planifiées pour
   identifier les écrans futurs
 
