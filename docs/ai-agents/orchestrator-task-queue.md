@@ -2,24 +2,30 @@
 
 ## Current State
 
-- `origin/main` HEAD is `8a3dd0f` (merge of F160 legal invoice numbering PR #390).
-- `main` CI is green as verified on 2026-06-23 (PR #392 merge).
+- `origin/main` HEAD is `ac25f6af36ac178d3e36f5de9826e238d2148929` (merge of F174 billing credit note GET list PR #406).
+- `main` CI is green as verified on 2026-06-24 (PR #406 merge, run 28087183244).
+- **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
+- All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
+- No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
 - F145A through F145H are merged on `main`.
 - F153A is merged and provides the backend local CI wrappers and fast validation workflow.
 - F153B is merged and provides the backend specialist skills pack and selection guidance.
 - F153C is merged and provides backend skill-plan activation in the orchestrator workflow.
-- F153D is the current agent-docs bundle for backend productivity metrics and skill-adoption audit.
+- F153D is merged as PR #393 (F162B queue refresh).
 - Identity / role management foundation merged as PR #282.
-- Merged backend PRs: #284 (logistics), #285 (audit read API), #286 (customer write API), #287 (payments operational completion), #288 (billing invoice list filtering), #289 (customer list filtering), #290 (payment negative-permission tests), #291 (billing invoice cancellation), #292 (reservation draft list filtering), #294 (inventory item list filtering), #295 (stock movement list filtering), #296 (return operation list filtering), #297 (damage/loss settlement list filtering), #298 (settlement execution list filtering), #299 (hahitantsoa event draft list filtering), #306 (caution refund execution workflow), #387 (F157D financial closeout consolidation), #388 (F158 commercial closeout source kind), #389 (F159 INV-009 installment enforcement), #390 (F160 legal invoice numbering), #392 (F161 billing credit notes).
-- PR #318 (identity role and assignment list filtering) is merged and serves as the
-  trigger case for workflow hardening in F152A.
-- Merged docs/tooling PRs: #283 (Graphify pilot), #293 (queue refresh), #300 (docker cleanup), #301 (frontend skills), #302 (F151A-0 audit), #303 (F151A-1 scope guard), #304 (F151B backend skills), #305 (F151B cross-agent skills), #307 (queue refresh), #308 (F151C-0 audit), #310 (F151C-1 naming cleanup), #311 (F151C-1 naming cleanup repush), #312 (F151C-2 frontend promotion), #313 (F151C-3 missing skills), #314 (F151C queue update), #316 (F151E interval alignment), #322 (F147F frontend UX hardening).
-- Open PRs:
-  - None in backend commercial queue; all closed and merged.
+- F164–F174 backend bundles are all merged: #395 (F163 logistics), #396 (F164 follow-up), #397 (F165 closeout summary), #398 (F166 production readiness), #399 (F167 closeout API), #400 (F168 credit note retrieve), #401 (F169 PDF foundation), #402 (F170 payment gateway), #403 (F171 closeout write-side), #404 (F172 credit note cancel), #405 (F173 E2E acceptance), #406 (F174 credit note list).
 - F147F is merged as PR #322 — worktree and branch cleaned up.
 - Human merge control remains mandatory.
 - Agent prompts should use the official runbook and this queue instead of repeating long
   procedural instructions.
+
+### Backend freeze rationale
+
+See `docs/audits/F175A_FINAL_BACKEND_COMPLETION_AUDIT.md`. Summary:
+- All 16 Document A backend domains are implemented and tested.
+- E2E operational acceptance test (F173) validates the full Titan happy path.
+- Remaining gaps are classified as: frontend dependency, infrastructure dependency, external provider/credential dependency, or missing business/fiscal policy.
+- No backend-only Document A requirement remains unimplemented.
 
 ### Active workflow improvement bundle
 
