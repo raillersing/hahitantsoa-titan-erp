@@ -117,7 +117,7 @@ main.tsx
 | `TitanDocumentsPanel.tsx` | Documents Titan : templates, instances, génération | `getReservationDrafts`, `getDocumentTemplates`, `getReservationDraftDocumentInstances`, `createReservationDraftDocumentInstance`, `generateReservationDraftDocumentInstance` | N/A (read + write stubs) | `TitanDocumentsPanel.test.tsx` |
 | `HahitantsoaDocumentsPanel.tsx` | Documents Hahitantsoa | `getHahitantsoaEventDrafts`, `getDocumentTemplates`, `getHahitantsoaEventDraftDocumentInstances`, `createHahitantsoaEventDraftDocumentInstance`, `generateHahitantsoaEventDraftDocumentInstance` | N/A | `HahitantsoaDocumentsPanel.test.tsx` |
 | `PaymentWorkflowPanel.tsx` | Paiements : liste + création + confirmation | `getPayments`, `createPayment`, `confirmPayment`, `checkEndpointPermission` | ✅ Gated create/confirm | `PaymentWorkflowPanel.test.tsx` |
-| `BillingInvoicePanel.tsx` | Factures : liste read-only | `getBillingInvoices` | N/A (read) | `BillingInvoicePanel.test.tsx` |
+| `BillingInvoicePanel.tsx` | Factures : liste + détail + settle/cancel/installments/credit notes | `getBillingInvoices`, `getBillingCreditNotes`, `settleBillingInvoice`, `cancelBillingInvoice`, `createBillingInvoiceInstallments`, `issueBillingCreditNote`, `cancelBillingCreditNote`, `executeBillingRefundObligation` | ✅ Gated write | `BillingInvoicePanel.test.tsx` |
 | `LogisticsDeliveryPanel.tsx` | Événements logistiques : liste read-only | `getLogisticsEvents` | N/A (read) | `LogisticsDeliveryPanel.test.tsx` |
 | `ReturnsHandlingPanel.tsx` | Retours : liste read-only | `getReturnOperations` | N/A (read) | `ReturnsHandlingPanel.test.tsx` |
 | `BreakageLossPanel.tsx` | Règlements casse/perte : liste read-only | `getDamageLossSettlements` | N/A (read) | `BreakageLossPanel.test.tsx` |
@@ -175,7 +175,7 @@ main.tsx
 | `CautionRefundPanel.tsx` | ✅ | "New Caution Deposit" | `checkEndpointPermission` sur paiements |
 | `PaymentWorkflowPanel.tsx` | ✅ | "New Payment", confirm | `checkEndpointPermission` sur `/api/v1/payments/` |
 | `HahitantsoaEventDraftsPanel.tsx` | ✅ | Create, update, delete, confirm, amendment | Multiple probes |
-| **BillingInvoicePanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
+| **BillingInvoicePanel.tsx** | ✅ | write workflow sur facture, échéanciers, avoirs, remboursement | billing settlement endpoints |
 | **LogisticsDeliveryPanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
 | **ReturnsHandlingPanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
 | **BreakageLossPanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
@@ -284,7 +284,7 @@ state = empty   → afficher message explicite + action suggérée
 |---|---|---|---|
 | **FE-A** | Permission-aware UX gating | Tous les panels write (Billing, Logistics, Returns, Breakage, Stock, Titan confirm) | P0 — sécurité |
 | **FE-B** | Logistics operational UI | `LogisticsDeliveryPanel.tsx` étendu + nouveau `LogisticsPrepPanel.tsx` | P0 |
-| **FE-C** | Billing/cashbox/credit note UI | `BillingInvoicePanel.tsx` étendu + nouveau `CashboxPanel.tsx` | P1 |
+| **FE-C** | Billing/cashbox/credit note UI | `BillingInvoicePanel.tsx` étendu; cashbox complet réservé à FE-F | P1 |
 | **FE-D** | PDF generation trigger | `DocumentArtifactPreviewPanel.tsx` + nouveau bouton "Generate PDF" | P1 |
 | **FE-E** | Audit log viewer | Nouveau `AuditLogPanel.tsx` | P2 |
 | **FE-F** | Cashbox session management | Nouveau `CashboxPanel.tsx` | P2 |

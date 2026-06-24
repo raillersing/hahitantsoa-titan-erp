@@ -617,8 +617,106 @@ export type BillingInvoice = {
   settled_by: string | null;
   notes: string;
   settlement: BillingInvoiceSettlement | null;
+  refund_obligation: BillingRefundObligation | null;
+  installments: BillingInvoiceInstallment[];
+  credit_notes?: BillingCreditNote[];
+  installment_lifecycle: string;
+  suggested_due_dates: { j30: string; j10: string } | null;
+  closeout_status: string;
+  amount_settled: string;
+  amount_refunded: string;
+  remaining_balance: string;
   created_at: string;
   updated_at: string;
+};
+
+export type BillingInstallmentStatus = 'unpaid' | 'partially_paid' | 'paid';
+
+export type BillingInstallmentAllocation = {
+  id: string;
+  payment: Payment;
+  amount: string;
+  allocated_at: string;
+  allocated_by: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingInvoiceInstallment = {
+  id: string;
+  invoice: string;
+  amount: string;
+  paid_amount: string;
+  due_at: string;
+  status: BillingInstallmentStatus;
+  notes: string;
+  allocations: BillingInstallmentAllocation[];
+  is_overdue: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingRefundObligationStatus = 'pending' | 'executed';
+
+export type BillingRefundObligation = {
+  id: string;
+  invoice: string;
+  refund_amount: string;
+  document_instance: DocumentInstance | null;
+  refund_payment: Payment | null;
+  status: BillingRefundObligationStatus;
+  executed_at: string | null;
+  executed_by: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingCreditNoteStatus = 'issued' | 'applied' | 'cancelled';
+
+export type BillingCreditNote = {
+  id: string;
+  invoice: string;
+  invoice_detail: BillingInvoice | null;
+  amount: string;
+  reason: string;
+  status: BillingCreditNoteStatus;
+  issued_at: string;
+  applied_at: string | null;
+  applied_by: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingInvoiceSettlePayload = {
+  payment: string;
+  notes?: string;
+};
+
+export type BillingInvoiceInstallmentScheduleCreatePayload = {
+  installments: Array<{ amount: string; due_at: string }>;
+  notes?: string;
+};
+
+export type BillingInstallmentAllocatePayload = {
+  payment: string;
+  notes?: string;
+};
+
+export type BillingInvoiceCorrectPayload = {
+  notes?: string;
+};
+
+export type BillingRefundObligationExecutePayload = {
+  notes?: string;
+};
+
+export type BillingCreditNoteIssuePayload = {
+  amount: string;
+  reason: string;
+  notes?: string;
 };
 
 // ---- Identity / Role Management (live backend — /api/v1/identity/) ----

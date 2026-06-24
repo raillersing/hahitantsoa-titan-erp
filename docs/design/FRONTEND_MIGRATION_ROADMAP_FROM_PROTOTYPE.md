@@ -39,12 +39,12 @@ des grands ecrans operationnels.
 
 - Prototype source: `billing`, `cashbox`
 - Application-map source: billing, payments, cashbox nodes
-- Cibles React: `BillingInvoicePanel.tsx`, `PaymentWorkflowPanel.tsx`, nouvelle route `#cashbox`
-- APIs: billing, payments, cashbox
-- Patterns: documents commerciaux, payment dialog, session cards, summaries
+- Cibles React: `BillingInvoicePanel.tsx`, `PaymentWorkflowPanel.tsx`, nouvelle route `#cashbox` pour FE-F
+- APIs: billing, payments, cashbox touchpoints only; session lifecycle reserved for FE-F
+- Patterns: documents commerciaux, payment dialog, billing detail split, credit note cards, summaries
 - Impact theme: badges finance, denied states, modal surfaces
-- Tests: create/confirm/denied, read-only, snapshot both themes
-- Hard stops: decisions business manquantes sur certains flux fiscaux
+- Tests: create/confirm/denied, read-only, settle/cancel/installments/credit note flows, snapshot both themes
+- Hard stops: decisions business manquantes sur certains flux de caisse complets
 - Docs update: oui
 
 ### 4. FE-D - PDF generation trigger et workflow documentaire
