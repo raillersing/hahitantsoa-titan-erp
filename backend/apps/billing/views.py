@@ -346,8 +346,24 @@ class BillingRefundObligationExecuteAPIView(APIView):
 
 
 class BillingCreditNoteListCreateAPIView(APIView):
-    http_method_names = ["post", "head", "options"]
+    http_method_names = ["get", "post", "head", "options"]
     permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(description="Credit notes listed."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Invoice not found."),
+        },
+    )
+    def get(self, request, id):
+        """List credit notes for a billing invoice."""
+        invoice = active_billing_invoices().filter(id=id).first()
+        if invoice is None:
+            raise Http404("Billing invoice not found.")
+        notes = active_credit_notes().filter(invoice=invoice)
+        serializer = BillingCreditNoteSerializer(notes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         request=BillingCreditNoteIssueSerializer,
