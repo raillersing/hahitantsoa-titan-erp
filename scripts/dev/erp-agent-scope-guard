@@ -119,7 +119,7 @@ case "$PROFILE" in
     check_blocked '^(package\.json|package-lock\.json|pyproject\.toml|requirements[^/]*\.txt|poetry\.lock|pnpm-lock\.yaml|yarn\.lock)$' "dependency manifests are out of scope"
     check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
     check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
-    check_allowed_only '^(docs/ai-agents/|docs/audits/|docs/design/|opencode\.json$|\.opencode/|\.agents/skills/|CLAUDE\.md$|\.claude/|compose\.agent-ci\.yaml$|scripts/dev/erp-[A-Za-z0-9._-]+$)'
+    check_allowed_only '^(docs/ai-agents/|docs/audits/|docs/design/|docs/architecture/application-map/|opencode\.json$|\.opencode/|\.agents/skills/|CLAUDE\.md$|\.claude/|compose\.agent-ci\.yaml$|scripts/dev/erp-[A-Za-z0-9._-]+$)'
     ;;
   help|--help|-h)
     print_usage

@@ -975,6 +975,25 @@ Never use:
 - unlogged important commands outside `scripts/dev/erp-logged-run`
 - automatic merge commands unless explicitly authorized by a human task
 
+## Application Cartography Update Rule (F176A)
+
+After any PR that changes product behavior, API, navigation, or business workflow,
+the responsible agent must either:
+
+- update the application cartography (`docs/architecture/application-map/`), or
+- explicitly state in the final report why no cartography update is required.
+
+Before starting a new implementation task, the orchestrator must confirm that
+agents have consulted the current application cartography:
+
+- `docs/architecture/application-map/README.md`
+- `docs/architecture/application-map/APPLICATION_FUNCTION_CATALOG.md`
+- `docs/architecture/application-map/BACKEND_MAP.md`
+- `docs/architecture/application-map/FRONTEND_MAP.md`
+- `docs/architecture/application-map/API_AND_DATA_FLOW_MAP.md`
+- `docs/architecture/application-map/NAVIGATION_TREE_TARGET.md`
+- `docs/architecture/application-map/AGENT_USAGE_GUIDE.md`
+
 ## Secret And Scope Reminder
 
 - Never read, source, print, inspect, create, copy, or modify `.env`.
