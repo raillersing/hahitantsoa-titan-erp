@@ -7,6 +7,11 @@ import type {
   HahitantsoaDiscoveryResponse,
   InventoryItem,
   LogisticsEvent,
+  LogisticsEventCompletePassationPayload,
+  LogisticsEventCompletePassationResponse,
+  LogisticsEventItemLine,
+  LogisticsEventItemLineCreatePayload,
+  LogisticsEventTransitionPayload,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
   ReservationDraft,
@@ -708,6 +713,53 @@ export function getLogisticsEvents(
 ): Promise<LogisticsEvent[]> {
   return getAuthenticatedJson('/api/v1/logistics/events/', signal);
 }
+
+export function transitionLogisticsEvent(
+  id: string,
+  payload: LogisticsEventTransitionPayload,
+  signal?: AbortSignal,
+): Promise<LogisticsEvent> {
+  return postAuthenticatedJson(`/api/v1/logistics/events/${id}/transition/`, payload, signal);
+}
+
+export function getLogisticsEventItemLines(
+  id: string,
+  signal?: AbortSignal,
+): Promise<LogisticsEventItemLine[]> {
+  return getAuthenticatedJson(`/api/v1/logistics/events/${id}/lines/`, signal);
+}
+
+export function addLogisticsEventItemLine(
+  id: string,
+  payload: LogisticsEventItemLineCreatePayload,
+  signal?: AbortSignal,
+): Promise<LogisticsEventItemLine> {
+  return postAuthenticatedJson(`/api/v1/logistics/events/${id}/lines/add/`, payload, signal);
+}
+
+export async function removeLogisticsEventItemLine(
+  id: string,
+  lineId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(`/api/v1/logistics/events/${id}/lines/${lineId}/remove/`, {
+    method: "POST",
+    credentials: "include",
+    signal,
+  });
+  if (!response.ok) {
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+}
+
+export function completeLogisticsPassation(
+  id: string,
+  payload: LogisticsEventCompletePassationPayload,
+  signal?: AbortSignal,
+): Promise<LogisticsEventCompletePassationResponse> {
+  return postAuthenticatedJson(`/api/v1/logistics/events/${id}/complete-passation/`, payload, signal);
+}
 // ---- Return Operations ----
 
 export function getReturnOperations(
@@ -715,12 +767,26 @@ export function getReturnOperations(
 ): Promise<InventoryReturnOperation[]> {
   return getAuthenticatedJson('/api/v1/inventory/return-operations/', signal);
 }
+
+export function validateReturnOperation(
+  id: string,
+  signal?: AbortSignal,
+): Promise<InventoryReturnOperation> {
+  return postAuthenticatedJson(`/api/v1/inventory/return-operations/${id}/validate/`, {}, signal);
+}
 // ---- Damage & Loss Settlements ----
 
 export function getDamageLossSettlements(
   signal?: AbortSignal,
 ): Promise<InventoryDamageLossSettlement[]> {
   return getAuthenticatedJson('/api/v1/inventory/damage-loss-settlements/', signal);
+}
+
+export function validateDamageLossSettlement(
+  id: string,
+  signal?: AbortSignal,
+): Promise<InventoryDamageLossSettlement> {
+  return postAuthenticatedJson(`/api/v1/inventory/damage-loss-settlements/${id}/validate/`, {}, signal);
 }
 
 // ---- Identity / Role Management ----
