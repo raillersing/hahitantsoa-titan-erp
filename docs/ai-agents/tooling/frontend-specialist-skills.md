@@ -26,6 +26,13 @@ canonical workflow docs in `docs/ai-agents/`. They were promoted from
 
 - `docs/design/DESIGN.md` is the canonical cross-agent UI/UX source for
   Hahitantsoa/Titan ERP.
+- The approved frontend redesign reference set also includes:
+  - `docs/design/brand/BRAND_ARCHITECTURE.md`
+  - `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`
+  - `docs/design/UI_MIGRATION_CONTRACT.md`
+  - `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`
+  - `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`
+  - `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
 - Agents should read it even if their runtime does not auto-load local skills.
 - `erp-ui-ux-design-review` exists to route agents back to that document and to
   the relevant F150A frontend skills.

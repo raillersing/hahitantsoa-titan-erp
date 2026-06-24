@@ -36,6 +36,12 @@ Every frontend orchestration prompt must explicitly reference:
 - `docs/ai-agents/orchestrator-task-queue.md`
 - Agent FE-A through Agent FE-F in `docs/ai-agents/frontend-agent-template.md`
 - `docs/design/DESIGN.md` when UI/UX, layout, workflow clarity, or review is relevant
+- `docs/design/brand/BRAND_ARCHITECTURE.md` when brand usage, shell identity, or scope indicators are relevant
+- `docs/design/CLIENT_APPROVED_UI_REFERENCE.md` when prototype-derived UI is relevant
+- `docs/design/UI_MIGRATION_CONTRACT.md` when component/token/layout migration is relevant
+- `docs/design/THEME_AND_DARK_MODE_CONTRACT.md` when theme or dark mode is relevant
+- `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md` when scope sequencing or gap classification is relevant
+- `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md` when bundle planning is relevant
 - `docs/ai-agents/tooling/frontend-specialist-skills.md` when skill-loading guidance is relevant
 - official wrappers when applicable:
   - `scripts/dev/erp-agent-scope-guard`
@@ -137,6 +143,8 @@ Frontend orchestration should keep `frontend-agent-template.md` and
 `frontend-quality-workflow.md` authoritative while adding explicit design references:
 
 - Agents must read `docs/design/DESIGN.md` for ERP UI/UX guidance when relevant.
+- Agents must also read the prototype/brand/theme contracts when the task touches
+  navigation, shell layout, design system, responsive behavior, or light/dark support.
 - If skills are supported, agents should load or reference
   `erp-ui-ux-design-review` and any relevant ERP frontend skills.
 - If skills are not supported, agents still use `docs/design/DESIGN.md` directly.
