@@ -13,11 +13,16 @@ distributed on PyPI as `graphifyy`.
 
 ## Current Status
 
-- **Phase:** F149A evaluation — docs-only pilot plan.
-- **Installation status:** Not installed. The `graphify install --platform opencode`
-  command has **not** been run.
-- **Graph output:** No `graphify-out/` directory exists yet.
-- **Workflow integration:** None. This document is the first governance artifact.
+- **Phase:** F178D operational integration — pilot executed.
+- **Installation method:** `pipx install graphifyy` (no `graphify install` variant used).
+- **Installation status:** Installed (v0.8.49) via pipx at `~/.local/bin/graphify`.
+- **Graph output:** Generated 2026-06-25 from `main` @ `dc39a64b`.
+  - 6425 nodes, 11749 edges, 448 communities (code-only, no API key).
+  - Files: `graphify-out/graph.json` (6.7 MB), `graphify-out/GRAPH_REPORT.md` (116 KB),
+    `graphify-out/manifest.json` (112 KB), `graphify-out/cache/` (8.1 MB AST cache).
+  - All outputs are gitignored under `graphify-out/`.
+- **Workflow rule:** Added to `AGENTS.md` — cartography first, Graphify report second,
+  raw search third.
 
 ## How Graphify Works
 
@@ -79,18 +84,40 @@ each capability:
 
 ## Pilot Workflow
 
-To generate a graph manually (as an operator, not inside a mutating agent task):
+### Installation
 
 ```sh
-scripts/dev/erp-logged-run graphify-generate <<'EOF'
+pipx install graphifyy
+```
+
+Do **not** use `graphify install` or any `graphify install --platform *` variant —
+those mutate workflow files (AGENTS.md, opencode.json, CLAUDE.md, etc.) and are
+forbidden without explicit PR approval.
+
+### Graph generation (code-only, no API key)
+
+From a clean `main` worktree (never on an active task branch):
+
+```sh
+scripts/dev/erp-logged-run graphify-update <<'EOF'
 set -euo pipefail
 
-pip install graphifyy
-graphify .
+graphify update .
 EOF
 ```
 
-To query an existing graph read-only:
+`graphify update .` performs code-only AST extraction and requires no LLM API key.
+It produces `graphify-out/graph.json`, `graphify-out/GRAPH_REPORT.md`, and
+`graphify-out/manifest.json`.
+
+To rebuild after code changes, run the same command again.
+
+### Full graph generation (with semantic extraction)
+
+If an LLM API key is available, `graphify .` or `graphify extract .` enrich the
+graph with semantic relationships from docs, papers, and images.
+
+### Querying an existing graph read-only
 
 ```sh
 scripts/dev/erp-logged-run graphify-query <<'EOF'
@@ -100,9 +127,12 @@ graphify query "How does reservation confirmation work?"
 EOF
 ```
 
+### Agent read of existing output
+
 Agents may consult `graphify-out/GRAPH_REPORT.md` or `graphify-out/graph.json`
 directly without using the `graphify` CLI, provided the graph was generated
-under the approved workflow above.
+under the approved workflow above. See `AGENTS.md` for the required consultation
+order (cartography → Graphify → raw search).
 
 ## Future Promotion Path
 

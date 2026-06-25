@@ -210,6 +210,30 @@ Apply the relevant gates in
 PR CI must be green before merge. `main` CI must be green after merge. Human merge
 control remains mandatory unless a task explicitly authorizes otherwise.
 
+## Knowledge graph consultation order
+
+Before any implementation task, consult sources in this order:
+
+1. **Application cartography** in `docs/architecture/application-map/` — canonical
+   architecture, domain boundaries, and navigation rules.
+2. **Graphify report** at `graphify-out/GRAPH_REPORT.md` (when present) — code-level
+   entity graph, community clusters, and dependency paths. Generated from the current
+   `main` commit. Stale if `git rev-parse HEAD` has moved since the report's build
+   commit.
+3. **Raw search** (`grep`, `glob`, file read) — fallback when the first two sources
+   are insufficient.
+
+If `graphify-out/GRAPH_REPORT.md` is absent or stale, regenerate it from a clean
+`main` worktree with:
+
+```sh
+graphify update .
+```
+
+No API key is required for code-only extraction. The generated output lives under
+`graphify-out/` which is gitignored. See `docs/ai-agents/tooling/graphify.md` for
+the full pilot governance rules and installation steps.
+
 ## Continuous improvement
 
 After each PR, record durable lessons when useful: mistakes, false positives, missed
