@@ -273,7 +273,7 @@ state = empty   → afficher message explicite + action suggérée
 
 ### Planifiés / Futurs
 
-- [ ] Cashbox session management (backend prêt)
+- [x] Cashbox session management (frontend implémenté)
 - [ ] Audit log viewer (backend prêt)
 - [ ] Reservation confirmation UI côté Titan
 - [ ] Venue/room/hall/service CRUD (Hahitantsoa, hors scope MVP actuel)

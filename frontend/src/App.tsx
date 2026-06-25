@@ -14,11 +14,20 @@ import CustomerPanel from "./CustomerPanel";
 import IdentityPanel from "./IdentityPanel";
 import CautionRefundPanel from "./CautionRefundPanel";
 import AuditPanel from "./AuditPanel";
+import CashboxPanel from "./CashboxPanel";
 import { useTheme, type ThemeMode } from "./ThemeContext";
 import type { InventoryItem } from "./types";
 
-
-type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers" | "identity" | "caution-refund" | "audit";
+type AppScope =
+  | "dashboard"
+  | "titan"
+  | "hahitantsoa"
+  | "commercial-ops"
+  | "customers"
+  | "identity"
+  | "caution-refund"
+  | "audit"
+  | "cashbox";
 
 type InventoryState =
   | { status: "loading" }
@@ -138,6 +147,20 @@ const MODULES: ModuleDefinition[] = [
     section: "Administration",
   },
   {
+    scope: "cashbox",
+    navLabel: "Caisse",
+    heading: "Cashbox sessions",
+    eyebrow: "Cashbox module",
+    description:
+      "Manage cashbox sessions, open/close lifecycle, and cash movements tied to payments, invoices, and refund obligations.",
+    boundaryNote:
+      "Cashbox is limited to session lifecycle and movement tracking. Export format decisions remain future business work.",
+    badge: "Caisse",
+    accent: "titan",
+    glyph: "\u24c8",
+    section: "Opérations",
+  },
+  {
     scope: "caution-refund",
     navLabel: "Caution",
     heading: "Caution Deposits & Refunds",
@@ -168,6 +191,7 @@ function isAppScope(value: string | null): value is AppScope {
     value === "commercial-ops" ||
     value === "identity" ||
     value === "audit" ||
+    value === "cashbox" ||
     value === "caution-refund"
   );
 }
@@ -508,6 +532,8 @@ function App() {
             {activeScope === "audit" && (
               <AuditPanel />
             )}
+
+            {activeScope === "cashbox" && <CashboxPanel />}
 
             {activeScope === "caution-refund" && (
               <CautionRefundPanel />

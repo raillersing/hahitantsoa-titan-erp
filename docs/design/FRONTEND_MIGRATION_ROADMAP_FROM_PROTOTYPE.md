@@ -83,6 +83,8 @@ des grands ecrans operationnels.
 - Hard stops: backend contract mismatch
 - Docs update: oui
 
+> Statut: implémenté dans le bundle FE-F via `CashboxPanel.tsx` et la route `#cashbox`.
+
 ### 7. FE-G - Redesign fiche client et detail reservation
 
 - Prototype source: `clients`, `client-file`, `reservations-hah`,
