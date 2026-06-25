@@ -355,6 +355,9 @@ export type DocumentInstance = {
   content_checksum: string;
   storage_path: string;
   generated_content_size_bytes: number;
+  pdf_storage_path?: string | null;
+  pdf_generated_at?: string | null;
+  pdf_content_checksum?: string | null;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -363,6 +366,14 @@ export type DocumentInstance = {
 export type DocumentInstanceCreatePayload = {
   template_key: string;
   notes?: string;
+};
+
+export type DocumentInstancePdfGenerationResult = {
+  id: string;
+  status: string;
+  pdf_storage_path: string;
+  pdf_generated_at: string;
+  pdf_content_checksum: string;
 };
 
 

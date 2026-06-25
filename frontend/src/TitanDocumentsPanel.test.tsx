@@ -96,6 +96,9 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     content_checksum: "",
     storage_path: "",
     generated_content_size_bytes: 0,
+    pdf_storage_path: null,
+    pdf_generated_at: null,
+    pdf_content_checksum: null,
     notes: "Pre-notes",
     created_at: "2026-06-01T12:00:00Z",
     updated_at: "2026-06-01T12:00:00Z",
@@ -131,6 +134,9 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     content_checksum: "",
     storage_path: "",
     generated_content_size_bytes: 0,
+    pdf_storage_path: null,
+    pdf_generated_at: null,
+    pdf_content_checksum: null,
     notes: "",
     created_at: "2026-06-02T12:00:00Z",
     updated_at: "2026-06-02T12:00:00Z",
@@ -306,7 +312,7 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("Ready (ID: inst-2)")).toBeInTheDocument();
+      expect(screen.getByText("HTML ready (ID: inst-2)")).toBeInTheDocument();
     });
 
     const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
@@ -314,6 +320,46 @@ describe("TitanDocumentsPanel", () => {
 
     await waitFor(() => {
       expect(generateSpy).toHaveBeenCalledWith("draft-1", "inst-1");
+    });
+  });
+
+  it("generates a PDF artifact from a generated document instance", async () => {
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValue(MOCK_DRAFTS);
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES);
+    const instancesSpy = vi
+      .spyOn(api, "getReservationDraftDocumentInstances")
+      .mockResolvedValueOnce(MOCK_INSTANCES)
+      .mockResolvedValueOnce([
+        MOCK_INSTANCES[0],
+        {
+          ...MOCK_INSTANCES[1],
+          pdf_storage_path: "/pdf/doc.pdf",
+          pdf_generated_at: "2026-06-10T10:00:00Z",
+          pdf_content_checksum: "abc",
+        },
+      ]);
+    const pdfSpy = vi
+      .spyOn(api, "generateReservationDraftDocumentInstancePdf")
+      .mockResolvedValue({
+        id: "inst-2",
+        status: "generated",
+        pdf_storage_path: "/pdf/doc.pdf",
+        pdf_generated_at: "2026-06-10T10:00:00Z",
+        pdf_content_checksum: "abc",
+      });
+
+    render(<TitanDocumentsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Generate PDF" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate PDF" }));
+
+    await waitFor(() => {
+      expect(pdfSpy).toHaveBeenCalledWith("draft-1", "inst-2");
+      expect(instancesSpy).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("PDF ready")).toBeInTheDocument();
     });
   });
 

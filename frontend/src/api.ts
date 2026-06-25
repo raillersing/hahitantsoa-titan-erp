@@ -48,6 +48,7 @@ import type {
   DocumentTemplateDefinition,
   DocumentInstance,
   DocumentInstanceCreatePayload,
+  DocumentInstancePdfGenerationResult,
   Payment,
   PaymentCreatePayload,
   PaymentConfirmPayload,
@@ -370,6 +371,35 @@ export async function getDocumentArtifactHtml(
   return response.text();
 }
 
+export async function getDocumentInstancePdfBlob(
+  documentInstanceId: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await fetch(
+    `/api/v1/documents/instances/${documentInstanceId}/pdf/`,
+    {
+      credentials: "include",
+      signal,
+    },
+  );
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error(
+      "The PDF preview requires an authenticated session with document access.",
+    );
+  }
+
+  if (response.status === 404) {
+    throw new Error("No generated PDF artifact was found for this document instance.");
+  }
+
+  if (!response.ok) {
+    throw new Error("The requested PDF artifact could not be loaded.");
+  }
+
+  return response.blob();
+}
+
 export function getHahitantsoaEventDrafts(
   signal?: AbortSignal,
 ): Promise<HahitantsoaEventDraft[]> {
@@ -619,6 +649,18 @@ export function generateReservationDraftDocumentInstance(
   );
 }
 
+export function generateReservationDraftDocumentInstancePdf(
+  reservationDraftId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstancePdfGenerationResult> {
+  return postAuthenticatedJson(
+    `/api/v1/documents/reservation-drafts/${reservationDraftId}/instances/${id}/generate-pdf/`,
+    {},
+    signal,
+  );
+}
+
 // ---- Hahitantsoa Event Draft Documents ----
 
 export function getHahitantsoaEventDraftDocumentInstances(
@@ -661,6 +703,18 @@ export function generateHahitantsoaEventDraftDocumentInstance(
 ): Promise<DocumentInstance> {
   return postAuthenticatedJson(
     `/api/v1/hahitantsoa/event-drafts/${eventDraftId}/documents/${id}/generate/`,
+    {},
+    signal,
+  );
+}
+
+export function generateHahitantsoaEventDraftDocumentInstancePdf(
+  eventDraftId: string,
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstancePdfGenerationResult> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${eventDraftId}/documents/${id}/generate-pdf/`,
     {},
     signal,
   );

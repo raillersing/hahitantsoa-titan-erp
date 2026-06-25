@@ -119,6 +119,9 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     content_checksum: "",
     storage_path: "",
     generated_content_size_bytes: 0,
+    pdf_storage_path: null,
+    pdf_generated_at: null,
+    pdf_content_checksum: null,
     notes: "Pre-notes",
     created_at: "2026-06-01T12:00:00Z",
     updated_at: "2026-06-01T12:00:00Z",
@@ -155,6 +158,9 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     content_checksum: "",
     storage_path: "",
     generated_content_size_bytes: 0,
+    pdf_storage_path: null,
+    pdf_generated_at: null,
+    pdf_content_checksum: null,
     notes: "",
     created_at: "2026-06-02T13:00:00Z",
     updated_at: "2026-06-02T13:00:00Z",
@@ -349,7 +355,7 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("Ready (ID: inst-2)")).toBeInTheDocument();
+      expect(screen.getByText("HTML ready (ID: inst-2)")).toBeInTheDocument();
     });
 
     const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
@@ -378,6 +384,46 @@ describe("HahitantsoaDocumentsPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Generation failed");
+    });
+  });
+
+  it("generates a PDF artifact from a generated event document instance", async () => {
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue(MOCK_DRAFTS);
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES_ALL);
+    const instancesSpy = vi
+      .spyOn(api, "getHahitantsoaEventDraftDocumentInstances")
+      .mockResolvedValueOnce(MOCK_INSTANCES)
+      .mockResolvedValueOnce([
+        MOCK_INSTANCES[0],
+        {
+          ...MOCK_INSTANCES[1],
+          pdf_storage_path: "/pdf/doc.pdf",
+          pdf_generated_at: "2026-06-10T10:00:00Z",
+          pdf_content_checksum: "abc",
+        },
+      ]);
+    const pdfSpy = vi
+      .spyOn(api, "generateHahitantsoaEventDraftDocumentInstancePdf")
+      .mockResolvedValue({
+        id: "inst-2",
+        status: "generated",
+        pdf_storage_path: "/pdf/doc.pdf",
+        pdf_generated_at: "2026-06-10T10:00:00Z",
+        pdf_content_checksum: "abc",
+      });
+
+    render(<HahitantsoaDocumentsPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Generate PDF" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate PDF" }));
+
+    await waitFor(() => {
+      expect(pdfSpy).toHaveBeenCalledWith("edraft-1", "inst-2");
+      expect(instancesSpy).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("PDF ready")).toBeInTheDocument();
     });
   });
 
