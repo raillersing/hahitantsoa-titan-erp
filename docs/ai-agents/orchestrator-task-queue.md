@@ -54,7 +54,8 @@ Current frontend posture:
 
 Status:
 - F178A merged as PR `#423`
-- F178B in progress — frontend cartography refresh after FE-C to FE-J merges
+- F178B merged — frontend cartography refresh after FE-C to FE-J merges
+- F178D merged — Graphify operational integration (knowledge graph)
 
 Immediate rule for future frontend tasks:
 - read `docs/audits/F178A_FRONTEND_CONNECTIVITY_AND_HYGIENE_AUDIT.md`
