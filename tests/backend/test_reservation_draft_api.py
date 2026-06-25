@@ -268,12 +268,23 @@ def test_authenticated_user_can_update_reservation_draft_notes_only(client, djan
     assert draft.lines.count() == 1
 
 
-def test_draft_api_does_not_expose_lifecycle_write_fields(authenticated_client) -> None:
+def test_draft_api_exposes_lifecycle_state_fields_read_only(
+    authenticated_client,
+    django_user_model,
+) -> None:
     start_at, end_at = _period()
+    actor = django_user_model.objects.create_user(
+        username="reservation-lifecycle-reader",
+        password="test-password",
+    )
     draft = ReservationDraft.objects.create(
         customer=_customer(),
         start_at=start_at,
         end_at=end_at,
+        contract_signed_at=start_at,
+        contract_signed_by=actor,
+        required_deposit_received_at=start_at,
+        required_deposit_received_by=actor,
     )
     ReservationDraftLine.objects.create(
         reservation_draft=draft,
@@ -285,17 +296,14 @@ def test_draft_api_does_not_expose_lifecycle_write_fields(authenticated_client) 
 
     assert response.status_code == 200
     payload = response.json()
-    hidden_fields = {
-        "contract_signed_at",
-        "contract_signed_by",
-        "required_deposit_received_at",
-        "required_deposit_received_by",
-        "confirmed_at",
-        "confirmed_by",
-        "cancelled_at",
-        "cancelled_by",
-    }
-    assert hidden_fields.isdisjoint(payload)
+    assert payload["contract_signed_at"] == start_at.isoformat().replace("+00:00", "Z")
+    assert payload["contract_signed_by_id"] == str(actor.id)
+    assert payload["required_deposit_received_at"] == start_at.isoformat().replace("+00:00", "Z")
+    assert payload["required_deposit_received_by_id"] == str(actor.id)
+    assert payload["confirmed_at"] is None
+    assert payload["confirmed_by_id"] is None
+    assert payload["cancelled_at"] is None
+    assert payload["cancelled_by_id"] is None
 
 
 def test_authenticated_user_can_replace_reservation_draft_lines(client, django_user_model):
