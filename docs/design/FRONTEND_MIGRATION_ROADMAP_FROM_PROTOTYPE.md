@@ -99,6 +99,8 @@ des grands ecrans operationnels.
 - Hard stops: prototype demands conflicting with confirmation rules
 - Docs update: oui
 
+> Statut: implémentation FE-G commencée sur `CustomerPanel.tsx` et `HahitantsoaEventDraftsPanel.tsx` avec une mise en page enrichie, sans changement de contrat API.
+
 ### 8. FE-H - Dashboard et navigation shell redesign avec branding Ergon/Hahitantsoa/Titan
 
 - Prototype source: `dashboard`, `notifications`, `help`

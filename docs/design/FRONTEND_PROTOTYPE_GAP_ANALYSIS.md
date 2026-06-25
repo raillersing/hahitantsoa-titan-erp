@@ -62,3 +62,5 @@
 - Le frontend live fournit surtout les contrats API et les patterns de gating FE-A.
 - La priorite technique doit etre un FE-B0 de shell + theming avant de pousser les
   ecrans operationnels riches.
+- FE-G a commencé l'alignement visuel des fiches client et reservation detail, mais
+  les workflows métier profonds restent gouvernés par le backend et les bundles futurs.

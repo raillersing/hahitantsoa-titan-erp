@@ -824,6 +824,23 @@ export function CustomerPanel() {
       }
     >
       {view === "list" ? (
+        <div className="customer-metrics">
+          <article className="customer-metric-card">
+            <span>Clients visibles</span>
+            <strong>{customersState.status === "loaded" ? customersState.customers.length : "—"}</strong>
+          </article>
+          <article className="customer-metric-card">
+            <span>Mode</span>
+            <strong>{canWrite ? "Lecture + écriture" : "Lecture seule"}</strong>
+          </article>
+          <article className="customer-metric-card">
+            <span>Recherche</span>
+            <strong>{searchParams.name || searchParams.email || searchParams.phone ? "Filtrée" : "Complète"}</strong>
+          </article>
+        </div>
+      ) : null}
+
+      {view === "list" ? (
         <CustomerListView
           customersState={customersState}
           canWrite={canWrite}
@@ -838,32 +855,36 @@ export function CustomerPanel() {
       ) : null}
 
       {view === "detail" ? (
-        <CustomerDetailView
-          detailState={detailState}
-          canWrite={canWrite}
-          onBack={handleBackToList}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onDeleteConfirm={handleDeleteConfirm}
-          onDeleteCancel={handleDeleteCancel}
-          onRetry={() => selectedId && loadDetail(selectedId)}
-          deleteConfirming={deleteConfirming}
-          deletePending={mutationState.status === "submitting"}
-        />
+        <div className="customer-detail-shell">
+          <CustomerDetailView
+            detailState={detailState}
+            canWrite={canWrite}
+            onBack={handleBackToList}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onDeleteConfirm={handleDeleteConfirm}
+            onDeleteCancel={handleDeleteCancel}
+            onRetry={() => selectedId && loadDetail(selectedId)}
+            deleteConfirming={deleteConfirming}
+            deletePending={mutationState.status === "submitting"}
+          />
+        </div>
       ) : null}
 
       {view === "create" || view === "edit" ? (
-        <CustomerFormView
-          view={view}
-          mutationState={mutationState}
-          customer={
-            view === "edit" && detailState.status === "loaded"
-              ? detailState.customer
-              : null
-          }
-          onSave={handleSave}
-          onCancel={handleCancelForm}
-        />
+        <div className="customer-form-shell">
+          <CustomerFormView
+            view={view}
+            mutationState={mutationState}
+            customer={
+              view === "edit" && detailState.status === "loaded"
+                ? detailState.customer
+                : null
+            }
+            onSave={handleSave}
+            onCancel={handleCancelForm}
+          />
+        </div>
       ) : null}
     </section>
   );

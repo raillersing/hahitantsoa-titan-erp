@@ -834,6 +834,29 @@ export function HahitantsoaEventDraftsPanel({
       {draftDetailState.status === "loaded" && (
         <div className="availability-results">
           <h3>Manage Draft: {draftDetailState.draft.public_reference}</h3>
+          <div className="reservation-summary-grid">
+            <article className="reservation-summary-card">
+              <span>Client</span>
+              <strong>{draftDetailState.draft.customer_display_name}</strong>
+            </article>
+            <article className="reservation-summary-card">
+              <span>Timing</span>
+              <strong>{formatDateTime(draftDetailState.draft.start_at)}</strong>
+              <small>{formatDateTime(draftDetailState.draft.end_at)}</small>
+            </article>
+            <article className="reservation-summary-card">
+              <span>Status</span>
+              <strong>{draftDetailState.draft.status}</strong>
+              <small>{draftDetailState.draft.lines.length} lines</small>
+            </article>
+          </div>
+
+          <div className="reservation-workflow-rail" aria-label="Reservation workflow">
+            <span className={draftDetailState.draft.status === "draft" ? "workflow-step workflow-step--active" : "workflow-step workflow-step--done"}>Draft</span>
+            <span className={availabilityPreviewState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Availability</span>
+            <span className={preflightState.status === "loaded" ? (preflightState.preflight.can_confirm ? "workflow-step workflow-step--done" : "workflow-step workflow-step--warning") : "workflow-step"}>Preflight</span>
+            <span className={amendmentPreflightState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Amendment</span>
+          </div>
 
           {isReadOnly && (
             <div className="notice warning-notice" role="alert">
