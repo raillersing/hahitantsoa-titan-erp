@@ -18,6 +18,20 @@ DEMO_CUSTOMERS = (
         "address": "Antananarivo",
         "notes": "F99 demo customer for Titan material rental workflows.",
     },
+    {
+        "display_name": "SARL Event Plus",
+        "email": "contact@eventplus.test",
+        "phone": "+261 34 00 000 11",
+        "address": "Ambatonakanga, Antananarivo",
+        "notes": "Client professionnel organisant des evenements d'entreprise.",
+    },
+    {
+        "display_name": "Mairie d'Analakely",
+        "email": "mairie.analakely@example.test",
+        "phone": "+261 34 00 000 22",
+        "address": "Analakely, Antananarivo",
+        "notes": "Collectivite locale pour evenements publics et ceremonies.",
+    },
 )
 
 
