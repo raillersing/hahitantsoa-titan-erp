@@ -75,11 +75,17 @@ main.tsx
 | Scope | Hash | Composant rendu | Inventaire items passés ? |
 |---|---|---|---|
 | Dashboard | `#dashboard` | `DashboardPanel` | Non |
+| Planning | `#planning` | `FutureWorkspacePanel` | Non |
 | Titan | `#titan` | Inventaire inline + `AvailabilityPanel` + `TitanStockMovementPanel` + `DocumentArtifactPreviewPanel` | Oui |
 | Hahitantsoa | `#hahitantsoa` | `HahitantsoaDiscoveryPanel` + `HahitantsoaEventDraftsPanel` | Oui (event drafts) |
+| Catalog | `#catalog` | `FutureWorkspacePanel` | Non |
 | Customers | `#customers` | `CustomerPanel` | Non |
 | Commercial Ops | `#commercial-ops` | `HahitantsoaCommercialOpsPanel` (agrégateur onglets) | Non |
 | Identity | `#identity` | `IdentityPanel` | Non |
+| Reports | `#reports` | `FutureWorkspacePanel` | Non |
+| Procurement | `#procurement` | `FutureWorkspacePanel` | Non |
+| HR | `#hr` | `FutureWorkspacePanel` | Non |
+| Help | `#help` | `FutureWorkspacePanel` | Non |
 | Caution-refund | `#caution-refund` | `CautionRefundPanel` | Non |
 
 ### 2.3 Dashboard

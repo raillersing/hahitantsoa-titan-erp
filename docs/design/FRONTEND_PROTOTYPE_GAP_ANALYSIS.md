@@ -30,19 +30,19 @@
 | Logistics | `#commercial-ops` logistics | partial | `LogisticsDeliveryPanel.tsx` read-only | oui | workflow board, event cards, stepper | high | required | FE-B | operator flows missing | logistics write gates |
 | Returns | `#commercial-ops` returns | partial | `ReturnsHandlingPanel.tsx` | oui | inspection table/cards | high | yes | FE-B | current read/list only | permission + theme |
 | Damage/loss | `#commercial-ops` breakage | partial | `BreakageLossPanel.tsx` | oui | settlement cards, status badges | high | yes | FE-B or FE-C | payment/billing links | status + denied |
-| Catalog | futur catalog | future | none | partial | catalog cards, pack visuals | medium | role-filtered | FE-I | pack management future | placeholder only |
+| Catalog | `#catalog` | partial | `FutureWorkspacePanel.tsx` | partial | catalog cards, pack visuals | medium | role-filtered | FE-I | placeholder only, no workflow yet | placeholder route tests |
 | Venues/components | Hahitantsoa only | non confirme | none | HAH scope only | cards/table if approved | medium | role-filtered | FE-I | forbidden in Titan | scope boundary tests |
 | Documents/templates | `#commercial-ops` docs | partial | docs panels + preview + PDF trigger | oui | split scope cards, preview shell, PDF state | high | yes | FE-D | PDF viewer now available but still limited to private artifact/PDF surfaces | doc create/generate/theme |
 | Billing/payments | `#commercial-ops` | partial | `BillingInvoicePanel.tsx`, `PaymentWorkflowPanel.tsx` | oui | documents commerciaux page, action bars, detail split | high | yes | FE-C | billing operator UI now covers settle/cancel/installments/credit notes; payment panel remains separate | write/read-only/theme |
 | Cashbox | `#cashbox` | current | `CashboxPanel.tsx` | oui | session cards, movement forms, totals, closing actions | high | yes | FE-F | possible extension to export/print later | session lifecycle |
-| HR | future | missing | none | non confirme | placeholder only | low | role-filtered | FE-I | outside current ERP priority | decision gate |
-| Procurement | future | missing | none | partial/future | PO table/cards | low | role-filtered | FE-I | backend path not mapped in current FE | decision gate |
+| HR | `#hr` | partial | `FutureWorkspacePanel.tsx` | non confirme | placeholder only | low | role-filtered | FE-I | outside current ERP priority | decision gate |
+| Procurement | `#procurement` | partial | `FutureWorkspacePanel.tsx` | partial/future | PO table/cards | low | role-filtered | FE-I | backend path not mapped in current FE | decision gate |
 | Notifications | global shell pattern | future | none | partial | notification center, badges | medium | role-based | FE-H/FE-I | kept as shell cue only; no backend feature in FE-H | shell + read-only |
-| Reports | futur reports | missing | none | partial/non confirme | exports cards, gates | medium | role-filtered | FE-I | business confirmation needed | placeholder tests |
+| Reports | `#reports` | partial | `FutureWorkspacePanel.tsx` | partial/non confirme | exports cards, gates | medium | role-filtered | FE-I | business confirmation needed before actions | placeholder tests |
 | Admin | `#identity` + params | partial | `IdentityPanel.tsx` | oui | admin shell, settings cards, users table | high | yes | FE-H | role mgmt write backend exists but FE partial | tabs + denied |
 | Audit/security | `#audit` | partial | `AuditPanel.tsx` | oui | audit table, filters, result badges | high | role-filtered | FE-E | viewer is read-only; deeper security drill-down still future | read-only + filters |
 | Mobile/tablet | transverse | future | CSS basique | n/a | responsive shell, compact cards, drawers | high | n/a | FE-J | current shell not ready | viewport regression |
-| Help/onboarding | future help center | missing | none | non critique | role journeys, docs links | low | role-aware | FE-I | source content not final | content and nav tests |
+| Help/onboarding | `#help` | partial | `FutureWorkspacePanel.tsx` | non critique | role journeys, docs links | low | role-aware | FE-I | source content not final | content and nav tests |
 | Light/dark theme | global | missing | no true theme system | n/a | tokens, data-theme, logo rules | critical | n/a | FE-B0 | logo dark variants missing | theme matrix |
 
 ## Conflits prototype vs cartographie

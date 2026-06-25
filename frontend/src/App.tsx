@@ -15,6 +15,7 @@ import IdentityPanel from "./IdentityPanel";
 import CautionRefundPanel from "./CautionRefundPanel";
 import AuditPanel from "./AuditPanel";
 import CashboxPanel from "./CashboxPanel";
+import FutureWorkspacePanel from "./FutureWorkspacePanel";
 import { useTheme, type ThemeMode } from "./ThemeContext";
 import type { InventoryItem } from "./types";
 
@@ -27,7 +28,13 @@ type AppScope =
   | "identity"
   | "caution-refund"
   | "audit"
-  | "cashbox";
+  | "cashbox"
+  | "planning"
+  | "reports"
+  | "catalog"
+  | "procurement"
+  | "hr"
+  | "help";
 
 type InventoryState =
   | { status: "loading" }
@@ -63,6 +70,20 @@ const MODULES: ModuleDefinition[] = [
     section: "Accueil",
   },
   {
+    scope: "planning",
+    navLabel: "Planning",
+    heading: "Planning workspace",
+    eyebrow: "Prototype placeholder",
+    description:
+      "Calendar and scheduling placeholder derived from the client-approved prototype without introducing a new backend route.",
+    boundaryNote:
+      "Planning remains a future frontend route until reservation and logistics scheduling contracts are explicitly mapped.",
+    badge: "Future",
+    accent: "neutral",
+    glyph: "\u2637",
+    section: "Accueil",
+  },
+  {
     scope: "titan",
     navLabel: "Titan",
     heading: "Titan inventory",
@@ -89,6 +110,20 @@ const MODULES: ModuleDefinition[] = [
     accent: "hah",
     glyph: "\u25b2",
     section: "Réservations",
+  },
+  {
+    scope: "catalog",
+    navLabel: "Catalogue",
+    heading: "Catalog workspace",
+    eyebrow: "Prototype placeholder",
+    description:
+      "Catalog placeholder for future inventory and pack curation, respecting the Titan and Hahitantsoa business boundary.",
+    boundaryNote:
+      "Catalog consolidation is not approved yet. Titan inventory and Hahitantsoa concepts stay separated until a later decision.",
+    badge: "Future",
+    accent: "neutral",
+    glyph: "\u25a5",
+    section: "Commercial",
   },
   {
     scope: "customers",
@@ -147,6 +182,20 @@ const MODULES: ModuleDefinition[] = [
     section: "Administration",
   },
   {
+    scope: "reports",
+    navLabel: "Reports",
+    heading: "Reports and exports",
+    eyebrow: "Business gate",
+    description:
+      "Read-only placeholder for reporting and export surfaces suggested by the prototype.",
+    boundaryNote:
+      "No export format or legal reporting contract is confirmed in this frontend slice. Placeholder only.",
+    badge: "Gate",
+    accent: "neutral",
+    glyph: "\u2399",
+    section: "Administration",
+  },
+  {
     scope: "cashbox",
     navLabel: "Caisse",
     heading: "Cashbox sessions",
@@ -174,6 +223,48 @@ const MODULES: ModuleDefinition[] = [
     glyph: "\u25c7",
     section: "Opérations",
   },
+  {
+    scope: "procurement",
+    navLabel: "Procurement",
+    heading: "Procurement placeholder",
+    eyebrow: "Unmapped area",
+    description:
+      "Prototype procurement surface preserved as a placeholder pending confirmed ERP cartography and backend contracts.",
+    boundaryNote:
+      "No procurement API contract is exposed in the current frontend map.",
+    badge: "Future",
+    accent: "neutral",
+    glyph: "\u2699",
+    section: "Administration",
+  },
+  {
+    scope: "hr",
+    navLabel: "HR",
+    heading: "HR placeholder",
+    eyebrow: "Out of current scope",
+    description:
+      "Informational HR placeholder aligned to the prototype but not approved for live ERP implementation.",
+    boundaryNote:
+      "No HR backend path is mapped on the frozen backend. This view must remain non-operational.",
+    badge: "Future",
+    accent: "neutral",
+    glyph: "\u2630",
+    section: "Administration",
+  },
+  {
+    scope: "help",
+    navLabel: "Help",
+    heading: "Help and onboarding",
+    eyebrow: "Operator support",
+    description:
+      "Prototype-inspired help entry point for guidance only, without new content contracts or backend calls.",
+    boundaryNote:
+      "Support content remains documentation-driven until a curated onboarding workflow is approved.",
+    badge: "Guide",
+    accent: "neutral",
+    glyph: "\u2753",
+    section: "Administration",
+  },
 ];
 
 const THEME_MODE_LABELS: Record<ThemeMode, string> = {
@@ -192,7 +283,13 @@ function isAppScope(value: string | null): value is AppScope {
     value === "identity" ||
     value === "audit" ||
     value === "cashbox" ||
-    value === "caution-refund"
+    value === "caution-refund" ||
+    value === "planning" ||
+    value === "reports" ||
+    value === "catalog" ||
+    value === "procurement" ||
+    value === "hr" ||
+    value === "help"
   );
 }
 
@@ -405,7 +502,12 @@ function App() {
               <button className="erp-topbar__quick-chip" type="button" aria-label="Create new reservation">
                 + Nouvelle réservation
               </button>
-              <button className="erp-topbar__quick-chip" type="button" aria-label="Open planning">
+              <button
+                className="erp-topbar__quick-chip"
+                type="button"
+                aria-label="Open planning"
+                onClick={() => setActiveScope("planning")}
+              >
                 Planning
               </button>
             </div>
@@ -537,6 +639,15 @@ function App() {
 
             {activeScope === "caution-refund" && (
               <CautionRefundPanel />
+            )}
+
+            {(activeScope === "planning" ||
+              activeScope === "reports" ||
+              activeScope === "catalog" ||
+              activeScope === "procurement" ||
+              activeScope === "hr" ||
+              activeScope === "help") && (
+              <FutureWorkspacePanel scope={activeScope} />
             )}
           </div>
         </div>

@@ -1025,6 +1025,55 @@ h3 {
   line-height: 1.5;
 }
 
+.future-workspace-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.future-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.future-workspace-card {
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: linear-gradient(180deg, var(--color-surface), var(--color-bg-app));
+  box-shadow: var(--shadow-card);
+}
+
+.future-workspace-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.future-workspace-card__header h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.future-workspace-card p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.future-workspace-card__decision {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border);
+  color: var(--color-text-primary);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 /* ─── Button Styles ─────────────────────────────────────────────────── */
 
 .btn {
