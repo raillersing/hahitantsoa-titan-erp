@@ -203,6 +203,17 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
         source="customer.display_name",
         read_only=True,
     )
+    contract_signed_at = serializers.DateTimeField(read_only=True)
+    contract_signed_by_id = serializers.UUIDField(source="contract_signed_by_id", read_only=True)
+    required_deposit_received_at = serializers.DateTimeField(read_only=True)
+    required_deposit_received_by_id = serializers.UUIDField(
+        source="required_deposit_received_by_id",
+        read_only=True,
+    )
+    confirmed_at = serializers.DateTimeField(read_only=True)
+    confirmed_by_id = serializers.UUIDField(source="confirmed_by_id", read_only=True)
+    cancelled_at = serializers.DateTimeField(read_only=True)
+    cancelled_by_id = serializers.UUIDField(source="cancelled_by_id", read_only=True)
     lines = ReservationDraftLineSerializer(many=True)
 
     class Meta:
@@ -216,6 +227,14 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "start_at",
             "end_at",
             "notes",
+            "contract_signed_at",
+            "contract_signed_by_id",
+            "required_deposit_received_at",
+            "required_deposit_received_by_id",
+            "confirmed_at",
+            "confirmed_by_id",
+            "cancelled_at",
+            "cancelled_by_id",
             "lines",
             "created_at",
             "updated_at",
@@ -225,6 +244,14 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "public_reference",
             "status",
             "customer_display_name",
+            "contract_signed_at",
+            "contract_signed_by_id",
+            "required_deposit_received_at",
+            "required_deposit_received_by_id",
+            "confirmed_at",
+            "confirmed_by_id",
+            "cancelled_at",
+            "cancelled_by_id",
             "created_at",
             "updated_at",
         )
