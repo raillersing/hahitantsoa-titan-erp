@@ -51,11 +51,11 @@ des grands ecrans operationnels.
 
 - Prototype source: `documents`, `reservation-detail`
 - Application-map source: documents flows
-- Cibles React: docs panels, artifact preview, actions generation
-- APIs: document templates, instances, generate PDF/HTML
+- Cibles React: docs panels, artifact preview, PDF preview, actions generation
+- APIs: document templates, instances, generate PDF/HTML, PDF retrieval
 - Patterns: template cards, preview panel, action bar, status pills
 - Impact theme: preview shell, CTA contrastes
-- Tests: permissions, generation states, preview fallback
+- Tests: permissions, generation states, preview fallback, PDF viewer fallback
 - Hard stops: PDF runtime limitations non doc-only
 - Docs update: oui
 

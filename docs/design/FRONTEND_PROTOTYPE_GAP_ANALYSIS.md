@@ -32,7 +32,7 @@
 | Damage/loss | `#commercial-ops` breakage | partial | `BreakageLossPanel.tsx` | oui | settlement cards, status badges | high | yes | FE-B or FE-C | payment/billing links | status + denied |
 | Catalog | futur catalog | future | none | partial | catalog cards, pack visuals | medium | role-filtered | FE-I | pack management future | placeholder only |
 | Venues/components | Hahitantsoa only | non confirme | none | HAH scope only | cards/table if approved | medium | role-filtered | FE-I | forbidden in Titan | scope boundary tests |
-| Documents/templates | `#commercial-ops` docs | partial | docs panels + preview | oui | split scope cards, preview shell, PDF state | high | yes | FE-D | PDF trigger absent | doc create/generate/theme |
+| Documents/templates | `#commercial-ops` docs | partial | docs panels + preview + PDF trigger | oui | split scope cards, preview shell, PDF state | high | yes | FE-D | PDF viewer now available but still limited to private artifact/PDF surfaces | doc create/generate/theme |
 | Billing/payments | `#commercial-ops` | partial | `BillingInvoicePanel.tsx`, `PaymentWorkflowPanel.tsx` | oui | documents commerciaux page, action bars, detail split | high | yes | FE-C | billing operator UI now covers settle/cancel/installments/credit notes; payment panel remains separate | write/read-only/theme |
 | Cashbox | futur `#cashbox` | missing | none | oui | session cards, movement forms | high | yes | FE-F | route absente | session lifecycle |
 | HR | future | missing | none | non confirme | placeholder only | low | role-filtered | FE-I | outside current ERP priority | decision gate |

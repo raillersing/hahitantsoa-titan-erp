@@ -2668,12 +2668,28 @@ fieldset:disabled {
   cursor: pointer;
 }
 
+.btn-generate--secondary {
+  background: var(--color-brand-titan);
+}
+
+.generated-tag-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
 .generated-tag {
   font-size: 0.75rem;
   color: var(--color-text-muted);
   background: var(--color-bg-app);
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+.generated-tag--pdf {
+  color: var(--color-brand-titan);
+  border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
 /* ─── Error Boundary Fallback ───────────────────────────────────── */

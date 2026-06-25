@@ -95,6 +95,7 @@ main.tsx
 | `AvailabilityPanel.tsx` | Brouillons réservation : CRUD lignes, client, période, notes + disponibilité | `getCustomers`, `getReservationDrafts`, `getReservationDraft`, `createReservationDraft`, `updateReservationDraft`, `getReservationAvailabilitySummary`, `getReservationAvailableItemPreviews`, `getReservationItemAvailabilityPreview`, `checkEndpointPermission` | ✅ Gated create/update | `AvailabilityPanel.test.tsx` (~808 lignes) |
 | `TitanStockMovementPanel.tsx` | Mouvements de stock : liste + création | `getStockMovements`, `createStockMovement`, `checkEndpointPermission` | ✅ Gated create | `TitanStockMovementPanel.test.tsx` |
 | `DocumentArtifactPreviewPanel.tsx` | Prévisualisation HTML sandboxée (iframe) | `getDocumentArtifactHtml` | N/A (read) | `DocumentArtifactPreviewPanel.test.tsx` |
+| `DocumentPdfPreviewPanel.tsx` | Prévisualisation PDF sandboxée (iframe blob) | `getDocumentInstancePdfBlob` | N/A (read) | `DocumentPdfPreviewPanel.test.tsx` |
 
 ### 2.5 Hahitantsoa
 
@@ -114,8 +115,8 @@ main.tsx
 | Fichier | Rôle | API utilisées | Permission gating | Tests |
 |---|---|---|---|---|
 | `HahitantsoaCommercialOpsPanel.tsx` | Shell onglets Commercial Ops | Aucune (passe aux enfants) | N/A | `HahitantsoaCommercialOpsPanel.test.tsx` |
-| `TitanDocumentsPanel.tsx` | Documents Titan : templates, instances, génération | `getReservationDrafts`, `getDocumentTemplates`, `getReservationDraftDocumentInstances`, `createReservationDraftDocumentInstance`, `generateReservationDraftDocumentInstance` | N/A (read + write stubs) | `TitanDocumentsPanel.test.tsx` |
-| `HahitantsoaDocumentsPanel.tsx` | Documents Hahitantsoa | `getHahitantsoaEventDrafts`, `getDocumentTemplates`, `getHahitantsoaEventDraftDocumentInstances`, `createHahitantsoaEventDraftDocumentInstance`, `generateHahitantsoaEventDraftDocumentInstance` | N/A | `HahitantsoaDocumentsPanel.test.tsx` |
+| `TitanDocumentsPanel.tsx` | Documents Titan : templates, instances, génération HTML/PDF | `getReservationDrafts`, `getDocumentTemplates`, `getReservationDraftDocumentInstances`, `createReservationDraftDocumentInstance`, `generateReservationDraftDocumentInstance`, `generateReservationDraftDocumentInstancePdf` | N/A (read + write stubs) | `TitanDocumentsPanel.test.tsx` |
+| `HahitantsoaDocumentsPanel.tsx` | Documents Hahitantsoa | `getHahitantsoaEventDrafts`, `getDocumentTemplates`, `getHahitantsoaEventDraftDocumentInstances`, `createHahitantsoaEventDraftDocumentInstance`, `generateHahitantsoaEventDraftDocumentInstance`, `generateHahitantsoaEventDraftDocumentInstancePdf` | N/A | `HahitantsoaDocumentsPanel.test.tsx` |
 | `PaymentWorkflowPanel.tsx` | Paiements : liste + création + confirmation | `getPayments`, `createPayment`, `confirmPayment`, `checkEndpointPermission` | ✅ Gated create/confirm | `PaymentWorkflowPanel.test.tsx` |
 | `BillingInvoicePanel.tsx` | Factures : liste + détail + settle/cancel/installments/credit notes | `getBillingInvoices`, `getBillingCreditNotes`, `settleBillingInvoice`, `cancelBillingInvoice`, `createBillingInvoiceInstallments`, `issueBillingCreditNote`, `cancelBillingCreditNote`, `executeBillingRefundObligation` | ✅ Gated write | `BillingInvoicePanel.test.tsx` |
 | `LogisticsDeliveryPanel.tsx` | Événements logistiques : liste read-only | `getLogisticsEvents` | N/A (read) | `LogisticsDeliveryPanel.test.tsx` |
@@ -226,6 +227,7 @@ state = empty   → afficher message explicite + action suggérée
 | AvailabilityPanel | `AvailabilityPanel.test.tsx` | CRUD brouillon, disponibilité |
 | TitanStockMovementPanel | `TitanStockMovementPanel.test.tsx` | Liste + création |
 | DocumentArtifactPreviewPanel | `DocumentArtifactPreviewPanel.test.tsx` | Iframe, erreurs |
+| DocumentPdfPreviewPanel | `DocumentPdfPreviewPanel.test.tsx` | Blob iframe, erreurs |
 | HahitantsoaDiscoveryPanel | `HahitantsoaDiscoveryPanel.test.tsx` | Liste discovery |
 | HahitantsoaEventDraftsPanel | `HahitantsoaEventDraftsPanel.test.tsx` | CRUD + confirm |
 | HahitantsoaCommercialOpsPanel | `HahitantsoaCommercialOpsPanel.test.tsx` | Onglets |
@@ -266,7 +268,7 @@ state = empty   → afficher message explicite + action suggérée
 - [~] Permission-aware gating (7 panels OK, 6 panels read-only sans gating, identity write stubs)
 - [~] Logistics (read-only, pas de prep/handover/delivery note UI)
 - [~] Billing (read-only, pas de settle/cancel/installments/credit notes UI)
-- [~] PDF (backend prêt, frontend absent)
+- [x] PDF HTML runtime preview + generation trigger
 
 ### Planifiés / Futurs
 
@@ -285,7 +287,7 @@ state = empty   → afficher message explicite + action suggérée
 | **FE-A** | Permission-aware UX gating | Tous les panels write (Billing, Logistics, Returns, Breakage, Stock, Titan confirm) | P0 — sécurité |
 | **FE-B** | Logistics operational UI | `LogisticsDeliveryPanel.tsx` étendu + nouveau `LogisticsPrepPanel.tsx` | P0 |
 | **FE-C** | Billing/cashbox/credit note UI | `BillingInvoicePanel.tsx` étendu; cashbox complet réservé à FE-F | P1 |
-| **FE-D** | PDF generation trigger | `DocumentArtifactPreviewPanel.tsx` + nouveau bouton "Generate PDF" | P1 |
+| **FE-D** | PDF generation trigger + viewer | `DocumentArtifactPreviewPanel.tsx`, `DocumentPdfPreviewPanel.tsx`, boutons PDF dans panels docs | P1 |
 | **FE-E** | Audit log viewer | Nouveau `AuditLogPanel.tsx` | P2 |
 | **FE-F** | Cashbox session management | Nouveau `CashboxPanel.tsx` | P2 |
 

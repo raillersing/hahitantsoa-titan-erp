@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
+import DocumentPdfPreviewPanel from "./DocumentPdfPreviewPanel";
 
 import {
   checkEndpointPermission,
@@ -8,6 +9,7 @@ import {
   getReservationDraftDocumentInstances,
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstancePdf,
 } from "./api";
 import type {
   ReservationDraft,
@@ -132,6 +134,22 @@ function TitanDocumentsPanel() {
     }
   };
 
+  const handleGeneratePdf = async (id: string) => {
+    if (!state.selectedDraftId || !state.canWrite) return;
+    setState((prev) => ({ ...prev, loading: true, error: "" }));
+    try {
+      await generateReservationDraftDocumentInstancePdf(state.selectedDraftId, id);
+      const data = await getReservationDraftDocumentInstances(state.selectedDraftId);
+      setState((prev) => ({ ...prev, instances: data, loading: false }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : "Failed to generate PDF artifact.",
+        loading: false,
+      }));
+    }
+  };
+
   return (
     <div className="titan-documents-panel" data-testid="titan-documents-panel">
       <h4>Titan Reservation Draft Documents</h4>
@@ -236,7 +254,23 @@ function TitanDocumentsPanel() {
                       <span className="permission-note">Write access required</span>
                     )}
                     {inst.status === "generated" && (
-                      <span className="generated-tag">Ready (ID: {inst.id})</span>
+                      <div className="generated-tag-stack">
+                        <span className="generated-tag">HTML ready (ID: {inst.id})</span>
+                        {inst.pdf_storage_path ? (
+                          <span className="generated-tag generated-tag--pdf">PDF ready</span>
+                        ) : state.canWrite ? (
+                          <button
+                            type="button"
+                            className="btn-generate btn-generate--secondary"
+                            onClick={() => handleGeneratePdf(inst.id)}
+                            disabled={state.loading}
+                          >
+                            Generate PDF
+                          </button>
+                        ) : (
+                          <span className="permission-note">PDF generation requires write access</span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </li>
@@ -248,6 +282,9 @@ function TitanDocumentsPanel() {
 
       <div className="artifact-preview-wrapper" style={{ marginTop: "24px" }}>
         <DocumentArtifactPreviewPanel />
+      </div>
+      <div className="artifact-preview-wrapper" style={{ marginTop: "24px" }}>
+        <DocumentPdfPreviewPanel />
       </div>
     </div>
   );
