@@ -296,9 +296,9 @@ def test_draft_api_exposes_lifecycle_state_fields_read_only(
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["contract_signed_at"] == start_at.isoformat()
+    assert payload["contract_signed_at"] == start_at.isoformat().replace("+00:00", "Z")
     assert payload["contract_signed_by_id"] == str(actor.id)
-    assert payload["required_deposit_received_at"] == start_at.isoformat()
+    assert payload["required_deposit_received_at"] == start_at.isoformat().replace("+00:00", "Z")
     assert payload["required_deposit_received_by_id"] == str(actor.id)
     assert payload["confirmed_at"] is None
     assert payload["confirmed_by_id"] is None
