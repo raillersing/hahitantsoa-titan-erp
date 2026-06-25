@@ -402,10 +402,10 @@ function App() {
                 &#x2709;
               </button>
               <div className="erp-topbar__divider" aria-hidden="true"></div>
-              <button className="erp-topbar__quick-chip" type="button">
+              <button className="erp-topbar__quick-chip" type="button" aria-label="Create new reservation">
                 + Nouvelle réservation
               </button>
-              <button className="erp-topbar__quick-chip" type="button">
+              <button className="erp-topbar__quick-chip" type="button" aria-label="Open planning">
                 Planning
               </button>
             </div>
@@ -434,8 +434,8 @@ function App() {
                 <p className="eyebrow">Prototype-aligned shell</p>
                 <h3>Frontend module shell</h3>
                 <p className="module-description">
-                  Prototype 4 shell, brand hierarchy, and theme tokens are now the
-                  active foundation around the existing operator panels.
+                  Prototype 4 shell, brand hierarchy, and theme tokens now frame the
+                  existing operator panels without changing backend behavior.
                 </p>
               </div>
             </div>
