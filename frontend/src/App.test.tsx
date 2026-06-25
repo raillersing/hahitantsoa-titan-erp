@@ -171,6 +171,41 @@ describe("App", () => {
     expect(screen.getAllByText("venue")).toHaveLength(2);
   });
 
+  it("opens the planning placeholder from the topbar shortcut", async () => {
+    window.history.replaceState(null, "", "/");
+    mockAppFetch({ inventoryItems: [] });
+
+    renderApp();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open planning" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Planning and calendar workspace" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Frontend placeholder only")).toBeInTheDocument();
+    expect(window.location.hash).toBe("#planning");
+  });
+
+  it("opens the reports placeholder from the URL hash", async () => {
+    window.history.replaceState(null, "", "/#reports");
+    mockAppFetch({ inventoryItems: [] });
+
+    renderApp();
+
+    expect(await screen.findByText("Frontend placeholder only")).toBeInTheDocument();
+    expect(screen.getByText("Decision required")).toBeInTheDocument();
+  });
+
+  it("opens the help placeholder from the URL hash", async () => {
+    window.history.replaceState(null, "", "/#help");
+    mockAppFetch({ inventoryItems: [] });
+
+    renderApp();
+
+    expect(await screen.findByText("Frontend placeholder only")).toBeInTheDocument();
+    expect(screen.getByText("Future content")).toBeInTheDocument();
+  });
+
   it("shows the loading state while inventory is pending", async () => {
     window.history.replaceState(null, "", "/#titan");
     vi.spyOn(globalThis, "fetch").mockImplementation(
