@@ -10,6 +10,11 @@ import type {
   BillingInstallmentAllocatePayload,
   BillingRefundObligation,
   BillingRefundObligationExecutePayload,
+  CashboxMovement,
+  CashboxMovementCreatePayload,
+  CashboxSession,
+  CashboxSessionClosePayload,
+  CashboxSessionOpenPayload,
   Customer,
   CustomerCreatePayload,
   CustomerUpdatePayload,
@@ -172,6 +177,76 @@ export function getInventoryItems(
   signal?: AbortSignal,
 ): Promise<InventoryItem[]> {
   return getAuthenticatedJson("/api/v1/inventory/items/", signal);
+}
+
+export type CashboxSessionQueryParams = {
+  operator_id?: string;
+  status?: "open" | "closed";
+};
+
+export type CashboxMovementQueryParams = {
+  session_id?: string;
+  direction?: "cash_in" | "cash_out";
+};
+
+function buildQuery(params?: Record<string, string | undefined>): string {
+  if (!params) {
+    return "";
+  }
+
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      query.set(key, value);
+    }
+  }
+
+  const search = query.toString();
+  return search ? `?${search}` : "";
+}
+
+export function getCashboxSessions(
+  params?: CashboxSessionQueryParams,
+  signal?: AbortSignal,
+): Promise<CashboxSession[]> {
+  return getAuthenticatedJson(`/api/v1/cashbox/sessions/${buildQuery(params)}`, signal);
+}
+
+export function getCashboxSession(
+  id: string,
+  signal?: AbortSignal,
+): Promise<CashboxSession> {
+  return getAuthenticatedJson(`/api/v1/cashbox/sessions/${id}/`, signal);
+}
+
+export function openCashboxSession(
+  payload: CashboxSessionOpenPayload,
+  signal?: AbortSignal,
+): Promise<CashboxSession> {
+  return postAuthenticatedJson("/api/v1/cashbox/sessions/open/", payload, signal);
+}
+
+export function closeCashboxSession(
+  id: string,
+  payload: CashboxSessionClosePayload,
+  signal?: AbortSignal,
+): Promise<CashboxSession> {
+  return postAuthenticatedJson(`/api/v1/cashbox/sessions/${id}/close/`, payload, signal);
+}
+
+export function getCashboxMovements(
+  params?: CashboxMovementQueryParams,
+  signal?: AbortSignal,
+): Promise<CashboxMovement[]> {
+  return getAuthenticatedJson(`/api/v1/cashbox/movements/${buildQuery(params)}`, signal);
+}
+
+export function createCashboxMovement(
+  sessionId: string,
+  payload: CashboxMovementCreatePayload,
+  signal?: AbortSignal,
+): Promise<CashboxMovement> {
+  return postAuthenticatedJson(`/api/v1/cashbox/sessions/${sessionId}/movements/`, payload, signal);
 }
 
 export type CustomerSearchParams = {

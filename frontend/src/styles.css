@@ -630,6 +630,170 @@ h3 {
   box-shadow: var(--shadow-card);
 }
 
+.cashbox-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.cashbox-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cashbox-metric-card {
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.cashbox-metric-card span,
+.cashbox-card__meta,
+.cashbox-movement-row p,
+.cashbox-summary p {
+  color: var(--color-text-secondary);
+}
+
+.cashbox-metric-card strong,
+.cashbox-card__amount {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.cashbox-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 20px;
+}
+
+.cashbox-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.cashbox-list,
+.cashbox-movement-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cashbox-card {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  text-align: left;
+}
+
+.cashbox-card--selectable {
+  cursor: pointer;
+}
+
+.cashbox-card--selectable[aria-pressed="true"] {
+  border-color: var(--color-brand-titan);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.14);
+}
+
+.cashbox-card__header,
+.cashbox-movement-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cashbox-summary,
+.cashbox-form,
+.cashbox-movement-row {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.cashbox-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.cashbox-forms-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cashbox-form {
+  display: grid;
+  gap: 12px;
+}
+
+.cashbox-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+
+.cashbox-form input,
+.cashbox-form textarea,
+.cashbox-form select {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+}
+
+.cashbox-form--compact {
+  margin-top: 4px;
+}
+
+.erp-button {
+  padding: 0.8rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-btn);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.erp-button--primary {
+  color: #fff;
+  background: var(--color-brand-titan);
+}
+
+.erp-button--secondary {
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.status--success {
+  color: var(--color-success-text);
+}
+
+.status--error {
+  color: var(--color-danger-text);
+}
+
+.cashbox-movement-row {
+  align-items: center;
+}
+
+.cashbox-movement-row__refs {
+  display: grid;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
 .module-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

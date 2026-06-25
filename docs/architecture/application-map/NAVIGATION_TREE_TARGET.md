@@ -100,9 +100,9 @@ Hahitantsoa / Titan ERP
 │   └── Passerelle MVola                                [future]
 │
 ├── Caisse
-│   ├── Sessions caisse                                 [future]
-│   ├── Mouvements de caisse                            [future]
-│   ├── Clôture et comptage                             [future]
+│   ├── Sessions caisse                                 [current]
+│   ├── Mouvements de caisse                            [current]
+│   ├── Clôture et comptage                             [current]
 │   └── Export justificatif                             [future]
 │
 ├── Audit
@@ -164,7 +164,7 @@ Hahitantsoa / Titan ERP
 | **FE-C** | Billing/cashbox/credit note operator UI | Read-only seulement | `#commercial-ops` (factures), nouvelle `#cashbox` |
 | **FE-D** | PDF generation trigger + viewer | Backend ready, frontend absent | `#commercial-ops` (documents) |
 | **FE-E** | Audit log viewer | Backend ready, frontend absent | Nouvelle `#audit` |
-| **FE-F** | Cashbox session management | Backend ready, frontend absent | Nouvelle `#cashbox` |
+| **FE-F** | Cashbox session management | `CashboxPanel.tsx` | Nouvelle `#cashbox` |
 
 ---
 *Fin de l'arborescence de navigation cible*

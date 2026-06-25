@@ -730,6 +730,58 @@ export type BillingCreditNoteIssuePayload = {
   notes?: string;
 };
 
+// ---- Cashbox ----
+
+export type CashboxMovementDirection = "cash_in" | "cash_out";
+
+export type CashboxMovement = {
+  id: string;
+  session: string;
+  direction: CashboxMovementDirection;
+  amount: string;
+  payment: Payment | null;
+  billing_invoice: BillingInvoice | null;
+  billing_refund_obligation: BillingRefundObligation | null;
+  moved_at: string;
+  moved_by: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CashboxSession = {
+  id: string;
+  operator: string;
+  opened_at: string;
+  opened_by: string | null;
+  closed_at: string | null;
+  closed_by: string | null;
+  opening_note: string;
+  closing_note: string;
+  net_amount: string;
+  movements: CashboxMovement[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type CashboxSessionOpenPayload = {
+  operator: string;
+  opening_note?: string;
+};
+
+export type CashboxSessionClosePayload = {
+  closing_note?: string;
+};
+
+export type CashboxMovementCreatePayload = {
+  direction: CashboxMovementDirection;
+  amount: string;
+  payment?: string | null;
+  billing_invoice?: string | null;
+  billing_refund_obligation?: string | null;
+  note?: string;
+};
+
 // ---- Identity / Role Management (live backend — /api/v1/identity/) ----
 
 export type ApplicationRole = {

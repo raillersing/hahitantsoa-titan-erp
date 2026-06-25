@@ -34,7 +34,7 @@
 | Venues/components | Hahitantsoa only | non confirme | none | HAH scope only | cards/table if approved | medium | role-filtered | FE-I | forbidden in Titan | scope boundary tests |
 | Documents/templates | `#commercial-ops` docs | partial | docs panels + preview + PDF trigger | oui | split scope cards, preview shell, PDF state | high | yes | FE-D | PDF viewer now available but still limited to private artifact/PDF surfaces | doc create/generate/theme |
 | Billing/payments | `#commercial-ops` | partial | `BillingInvoicePanel.tsx`, `PaymentWorkflowPanel.tsx` | oui | documents commerciaux page, action bars, detail split | high | yes | FE-C | billing operator UI now covers settle/cancel/installments/credit notes; payment panel remains separate | write/read-only/theme |
-| Cashbox | futur `#cashbox` | missing | none | oui | session cards, movement forms | high | yes | FE-F | route absente | session lifecycle |
+| Cashbox | `#cashbox` | current | `CashboxPanel.tsx` | oui | session cards, movement forms, totals, closing actions | high | yes | FE-F | possible extension to export/print later | session lifecycle |
 | HR | future | missing | none | non confirme | placeholder only | low | role-filtered | FE-I | outside current ERP priority | decision gate |
 | Procurement | future | missing | none | partial/future | PO table/cards | low | role-filtered | FE-I | backend path not mapped in current FE | decision gate |
 | Notifications | global shell pattern | missing | none | partial | notification center, badges | medium | role-based | FE-H | could drift to new backend asks | shell + read-only |
@@ -51,7 +51,7 @@
 |---|---|---|
 | `venues` / locaux & composants visible dans le prototype | business decision needed | autoriser seulement cote Hahitantsoa; jamais Titan |
 | `hr`, `procurement`, `reports`, `mobile`, `help` riches dans le prototype | prototype target improvement | garder comme reference visuelle, pas comme promesse backend |
-| `cashbox` page complete dans le prototype alors que route absente | existing implementation gap | planifier FE-F |
+| `cashbox` page complete dans le prototype alors que route absente | resolved / existing implementation gap closed | FE-F implémenté |
 | `calendar` page riche vs route absente actuelle | existing implementation gap | traiter en redesign shell/planning futur |
 | dashboard prototype avec chartes visuelles riches vs dashboard live minimal | existing implementation gap | traiter en FE-H |
 | prototype suggere plus de navigation que la hash-nav actuelle | prototype target improvement | evoluer sans inventer de backend |
