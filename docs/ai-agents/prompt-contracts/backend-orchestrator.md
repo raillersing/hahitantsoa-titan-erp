@@ -31,9 +31,12 @@ Backend prompts should stay short and reference, not duplicate:
 
 Every backend orchestration prompt must explicitly reference:
 
-- `docs/ai-agents/agent-command-runbook.md`
+- `docs/ai-agents/agent-command-runbook.md` (includes knowledge graph consultation section)
 - `docs/ai-agents/orchestrator-task-queue.md`
 - Agent A through Agent F in `docs/ai-agents/backend-agent-template.md`
+- `docs/ai-agents/tooling/graphify.md` — Graphify knowledge graph pilot
+- `graphify-out/GRAPH_REPORT.md` — generated code graph (consult before implementation)
+- AGENTS.md — knowledge graph consultation order (cartography → Graphify → raw search)
 - official wrappers when applicable:
   - `scripts/dev/erp-backend-compose-ci`
   - `scripts/dev/erp-agent-scope-guard`

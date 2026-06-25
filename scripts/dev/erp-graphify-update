@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Lightweight wrapper: regenerate graphify knowledge graph from a clean main worktree.
+# Usage:  scripts/dev/erp-graphify-update [target-directory]
+# See:    docs/ai-agents/tooling/graphify.md
+#         AGENTS.md — "Knowledge graph consultation order"
+set -euo pipefail
+
+target="${1:-.}"
+
+if ! command -v graphify &>/dev/null; then
+  echo "ERROR: 'graphify' not found. Install with: pipx install graphify"
+  exit 1
+fi
+
+echo "==> Running: graphify update $target"
+graphify update "$target"
+echo "==> Done. Output in $target/graphify-out/"

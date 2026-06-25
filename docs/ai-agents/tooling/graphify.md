@@ -102,7 +102,7 @@ From a clean `main` worktree (never on an active task branch):
 scripts/dev/erp-logged-run graphify-update <<'EOF'
 set -euo pipefail
 
-graphify update .
+bash scripts/dev/erp-graphify-update .
 EOF
 ```
 

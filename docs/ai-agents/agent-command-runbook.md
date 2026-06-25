@@ -114,6 +114,20 @@ EOF
 Plan-only agents must propose the same baseline to the human supervisor and wait. They do
 not execute it themselves.
 
+## Knowledge Graph Consultation
+
+Before any implementation task, consult sources in this order:
+
+1. **Application cartography** (`docs/architecture/application-map/`) — canonical
+   architecture, domain boundaries, and navigation rules.
+2. **Graphify report** (`graphify-out/GRAPH_REPORT.md`) — code-level entity graph,
+   community clusters, and dependency paths. Regenerate with `graphify update .` if
+   absent or stale (see `docs/ai-agents/tooling/graphify.md`).
+3. **Raw search** (`grep`, `glob`, file read) — fallback when the first two sources
+   are insufficient.
+
+The consultation order is defined in AGENTS.md "Knowledge graph consultation order".
+
 ## Standard Task Start
 
 Run the integrated task-start baseline before any edit:

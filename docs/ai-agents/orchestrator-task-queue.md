@@ -2,7 +2,7 @@
 
 ## Current State
 
-- `origin/main` HEAD is `8cde58a775a44cd92112b9537347ec32c885c47b`.
+- `origin/main` HEAD is `ca03b52`.
 - `main` CI is green as verified on 2026-06-25 (run 28186281646).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
@@ -77,6 +77,35 @@ Scope:
 Hard stops:
 - any need to touch backend/, frontend/, tests/, `.github/`, manifests, `.env`, secrets,
   F147F, or non-ERP Docker resources
+
+### F178E — Graphify workflow propagation
+
+Status:
+- active agent-docs bundle
+- branch: `docs/f178e-graphify-workflow-propagation`
+- scope: propagate Graphify knowledge graph consultation order into all agent
+  entrypoint files (CLAUDE.md, AI_ORCHESTRATION_INDEX.md, agent-command-runbook.md,
+  prompt-contracts, .opencode/agents/, opencode-workflow.md, README.md,
+  orchestrator-task-queue.md, erp-graphify-update wrapper script)
+
+Allowed files:
+- `CLAUDE.md`
+- `docs/ai-agents/`
+- `.opencode/agents/`
+- `scripts/dev/erp-graphify-update`
+- `graphify-out/` (gitignored, no commit)
+
+Hard stops:
+- any backend, frontend, test, `.github/`, `.env`, or secret change
+- any Graphify hook/skill installation (`graphify install`, `.opencode/skills/`,
+  `.agents/skills/`)
+
+Validation:
+- `bash scripts/dev/erp-agent-scope-guard agent-docs`
+- `git diff --check`
+- confirm no forbidden mutations
+- PR CI green before merge
+- exact-SHA `main` CI green after merge
 
 ### Active frontend/docs bundle
 
