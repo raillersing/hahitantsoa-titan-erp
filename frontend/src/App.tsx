@@ -13,11 +13,12 @@ import TitanStockMovementPanel from "./TitanStockMovementPanel";
 import CustomerPanel from "./CustomerPanel";
 import IdentityPanel from "./IdentityPanel";
 import CautionRefundPanel from "./CautionRefundPanel";
+import AuditPanel from "./AuditPanel";
 import { useTheme, type ThemeMode } from "./ThemeContext";
 import type { InventoryItem } from "./types";
 
 
-type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers" | "identity" | "caution-refund";
+type AppScope = "dashboard" | "titan" | "hahitantsoa" | "commercial-ops" | "customers" | "identity" | "caution-refund" | "audit";
 
 type InventoryState =
   | { status: "loading" }
@@ -123,6 +124,20 @@ const MODULES: ModuleDefinition[] = [
     section: "Administration",
   },
   {
+    scope: "audit",
+    navLabel: "Audit",
+    heading: "Audit log viewer",
+    eyebrow: "Security activity",
+    description:
+      "Read-only audit timeline for security-sensitive events, filters, and operational traceability.",
+    boundaryNote:
+      "Audit access remains read-only and is gated behind backend reservation-sensitive permission.",
+    badge: "Audit",
+    accent: "neutral",
+    glyph: "\u26a1",
+    section: "Administration",
+  },
+  {
     scope: "caution-refund",
     navLabel: "Caution",
     heading: "Caution Deposits & Refunds",
@@ -152,6 +167,7 @@ function isAppScope(value: string | null): value is AppScope {
     value === "customers" ||
     value === "commercial-ops" ||
     value === "identity" ||
+    value === "audit" ||
     value === "caution-refund"
   );
 }
@@ -487,6 +503,10 @@ function App() {
 
             {activeScope === "identity" && (
               <IdentityPanel />
+            )}
+
+            {activeScope === "audit" && (
+              <AuditPanel />
             )}
 
             {activeScope === "caution-refund" && (

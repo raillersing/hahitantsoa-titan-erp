@@ -49,6 +49,8 @@ import type {
   DocumentInstance,
   DocumentInstanceCreatePayload,
   DocumentInstancePdfGenerationResult,
+  AuditEvent,
+  AuditEventQueryParams,
   Payment,
   PaymentCreatePayload,
   PaymentConfirmPayload,
@@ -991,6 +993,30 @@ export async function checkIdentityWritePermission(
   signal?: AbortSignal,
 ): Promise<boolean> {
   return checkEndpointPermission("/api/v1/identity/roles/", "OPTIONS", signal);
+}
+
+function buildAuditQuery(params?: AuditEventQueryParams): string {
+  if (!params) return "";
+  const qs = new URLSearchParams();
+  if (params.action) qs.set("action", params.action);
+  if (params.target_type) qs.set("target_type", params.target_type);
+  if (params.target_id) qs.set("target_id", params.target_id);
+  if (params.actor_id) qs.set("actor_id", params.actor_id);
+  if (params.created_after) qs.set("created_after", params.created_after);
+  if (params.created_before) qs.set("created_before", params.created_before);
+  const qsStr = qs.toString();
+  return qsStr ? `?${qsStr}` : "";
+}
+
+export function getAuditEvents(
+  params?: AuditEventQueryParams,
+  signal?: AbortSignal,
+): Promise<AuditEvent[]> {
+  return getAuthenticatedJson(`/api/v1/audit/events/${buildAuditQuery(params)}`, signal);
+}
+
+export function getAuditEvent(id: string, signal?: AbortSignal): Promise<AuditEvent> {
+  return getAuthenticatedJson(`/api/v1/audit/events/${id}/`, signal);
 }
 
 // ---- Permission helpers for FE-A gating ----
