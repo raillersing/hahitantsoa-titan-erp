@@ -36,8 +36,9 @@ Every frontend orchestration prompt must explicitly reference:
 - `docs/ai-agents/orchestrator-task-queue.md`
 - Agent FE-A through Agent FE-F in `docs/ai-agents/frontend-agent-template.md`
 - `docs/ai-agents/tooling/graphify.md` — Graphify knowledge graph pilot
+- `docs/ai-agents/tooling/ponytail.md` — ERP Ponytail anti-overengineering ladder
 - `graphify-out/GRAPH_REPORT.md` — generated code graph (consult before implementation)
-- AGENTS.md — knowledge graph consultation order (cartography → Graphify → raw search)
+- AGENTS.md — knowledge graph consultation order + ERP Ponytail ladder
 - `docs/design/DESIGN.md` when UI/UX, layout, workflow clarity, or review is relevant
 - `docs/design/brand/BRAND_ARCHITECTURE.md` when brand usage, shell identity, or scope indicators are relevant
 - `docs/design/CLIENT_APPROVED_UI_REFERENCE.md` when prototype-derived UI is relevant

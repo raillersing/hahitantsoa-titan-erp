@@ -12,8 +12,9 @@ corrections. You stay inside the agent-docs worktree.
 
 - `docs/ai-agents/agent-command-runbook.md` — standard commands
 - `docs/ai-agents/orchestrator-task-queue.md` — current queue state
-- `AGENTS.md` — worktree matrix, scope rules, and knowledge graph consultation order
+- `AGENTS.md` — worktree matrix, scope rules, knowledge graph consultation order, and ERP Ponytail ladder
 - `docs/ai-agents/tooling/graphify.md` — Graphify knowledge graph pilot
+- `docs/ai-agents/tooling/ponytail.md` — ERP Ponytail anti-overengineering ladder
 
 ## Rules
 

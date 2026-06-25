@@ -234,6 +234,31 @@ No API key is required for code-only extraction. The generated output lives unde
 `graphify-out/` which is gitignored. See `docs/ai-agents/tooling/graphify.md` for
 the full pilot governance rules and installation steps.
 
+## Anti-overengineering ladder (ERP Ponytail)
+
+After consultation, before writing new code, apply the ERP Ponytail ladder:
+
+1. **Already in cartography or Graphify?** Use the mapped component.
+2. **Already in this codebase?** Reuse — don't rewrite.
+3. **Native platform or stdlib?** Use it (Django built-in, HTML native element, etc.).
+4. **Already in an installed dependency?** Use it before adding a new one.
+5. **One line?** Write one line, not a helper.
+6. **Then** write the smallest robust implementation — no abstractions "for later".
+7. **Test and document only what changed** — no speculative coverage.
+
+Additional rules:
+
+- No unrequested abstractions (interface with one impl, factory for one product).
+- Deletion over addition; boring over clever.
+- Never cut: trust-boundary validation, data-loss handling, security, accessibility,
+  permission checks, auditability.
+- Mark post-ladder simplifications with `// ponytail:` or `# ponytail:` comments.
+- Bug fix = root cause, not symptom.
+
+The ERP default intensity is **`full`** (ladder enforced). See
+`docs/ai-agents/tooling/ponytail.md` for full governance, intensity modes, integration
+with Graphify, and how future agents must use both tools together.
+
 ## Continuous improvement
 
 After each PR, record durable lessons when useful: mistakes, false positives, missed

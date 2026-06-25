@@ -33,3 +33,10 @@ choosing the OpenCode profile and command mode.
 Before any implementation task within OpenCode, follow the consultation order defined
 in AGENTS.md: cartography → Graphify report → raw search. See
 `docs/ai-agents/tooling/graphify.md` for the full pilot governance rules.
+
+## Anti-overengineering ladder (ERP Ponytail)
+
+After consultation, before writing new code within OpenCode, apply the ERP Ponytail
+ladder defined in AGENTS.md. ERP default intensity is `full`. No Ponytail plugins or
+hooks are installed — the ladder is a native workflow rule. See
+`docs/ai-agents/tooling/ponytail.md` for full governance.

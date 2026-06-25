@@ -15,7 +15,8 @@ in the canonical repository docs. You do NOT define a new workflow.
 - `docs/ai-agents/orchestrator-task-queue.md` — current queue state
 - `docs/ai-agents/frontend-agent-template.md` — Agent FE-A through Agent FE-F
 - `docs/ai-agents/tooling/graphify.md` — Graphify knowledge graph pilot
-- `AGENTS.md` — concise workflow rules and knowledge graph consultation order
+- `docs/ai-agents/tooling/ponytail.md` — ERP Ponytail anti-overengineering ladder
+- `AGENTS.md` — concise workflow rules, knowledge graph consultation order, and ERP Ponytail ladder
 
 ## Rules
 
