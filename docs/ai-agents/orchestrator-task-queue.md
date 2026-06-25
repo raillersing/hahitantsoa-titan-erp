@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `c45eaea0441052bc44a30282b0d97684bf823ce5` (FE-A permission-aware UX gating).
-- `main` CI is green as verified on 2026-06-24 (run 28109048583).
+- `origin/main` HEAD is `b5b772e2f16887a859b1344c22b350ae7e41e591`.
+- `main` CI is green as verified on 2026-06-25 (run 28182258967).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -27,30 +27,48 @@ See `docs/audits/F175A_FINAL_BACKEND_COMPLETION_AUDIT.md`. Summary:
 - Remaining gaps are classified as: frontend dependency, infrastructure dependency, external provider/credential dependency, or missing business/fiscal policy.
 - No backend-only Document A requirement remains unimplemented.
 
-### Active docs/design bundle
+### Frontend milestone state
 
 Status:
-- F177A ready/in progress — client-approved prototype, brand architecture, and
-  light/dark migration contract
+- F177A merged as PR `#410`
+- F177B merged as PR `#411`
+- FE-B0 merged as PR `#412`
+- FE-B merged as PR `#413`
+- FE-B0R merged as PR `#414`
+- FE-C merged as PR `#415`
+- FE-D merged as PR `#416`
+- FE-E merged as PR `#417`
+- FE-F merged as PR `#418`
+- FE-G merged as PR `#419`
+- FE-H merged as PR `#420`
+- FE-I merged as PR `#421`
+- FE-J merged as PR `#422`
+
+Current frontend posture:
+- the planned FE-B0 through FE-J bundle sequence is complete on `main`
+- the next need is not another medium implementation bundle by default
+- the immediate need is a docs/audit refresh so cartography and design references
+  match the real post-frontend state
+
+### Active docs/audit bundle
+
+Status:
+- F178A in progress — post-frontend application cartography, backend/frontend
+  connectivity, and hygiene audit
 
 Scope:
-- make Prototype 4 the canonical visual/navigation reference for future frontend work
-- document Ergon / Hahitantsoa / Titan brand hierarchy and asset paths
-- define light/dark theme contract and migration tokens
-- map prototype pages to the real application cartography and current frontend state
-- create a frontend migration roadmap starting with FE-B0 shell/theme foundation
-- update frontend workflow docs to require the new design references before implementation
+- verify actual post-frontend connectivity between frozen backend APIs and live
+  React screens
+- identify stale cartography/design docs after frontend merges `#415` to `#422`
+- classify remaining frontend gaps against the client-approved prototype
+- inventory git/docker/local residue without deleting it by default
 
-Branch: `docs/f177a-client-approved-prototype-brand-theme-contract`
-Suggested worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f177a-client-approved-prototype-brand-theme-contract`
+Branch: `docs/f178a-frontend-connectivity-hygiene-audit`
+Suggested worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f178a-frontend-connectivity-hygiene-audit`
 
 Allowed files:
-- `docs/design/**`
-- `docs/architecture/application-map/AGENT_USAGE_GUIDE.md`
-- `docs/architecture/application-map/FRONTEND_MAP.md`
+- `docs/audits/**`
 - `docs/ai-agents/orchestrator-task-queue.md`
-- `docs/ai-agents/prompt-contracts/frontend-orchestrator.md`
-- `docs/ai-agents/tooling/frontend-specialist-skills.md`
 
 Forbidden:
 - `backend/`, `frontend/`, `tests/`, `scripts/dev/`, `.github/`, manifests, `.env`, secrets
