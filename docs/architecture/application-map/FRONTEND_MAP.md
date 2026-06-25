@@ -129,6 +129,7 @@ main.tsx
 | Fichier | Rôle | API utilisées | Permission gating | Tests |
 |---|---|---|---|---|
 | `IdentityPanel.tsx` | Rôles (read) + assignations (read) + stubs write | `getRoles`, `getRoleAssignments`, `checkIdentityWritePermission` | ✅ Gated write (overlay "Pending Backend Contract") | `IdentityPanel.test.tsx` |
+| `AuditPanel.tsx` | Journal d'audit read-only avec filtres de sécurité | `getAuditEvents`, `getAuditEvent`, `checkEndpointPermission("/api/v1/audit/events/", "OPTIONS")` | ✅ Read-only gated | `AuditPanel.test.tsx` |
 
 ### 2.9 Caution / Remboursements
 
@@ -288,7 +289,7 @@ state = empty   → afficher message explicite + action suggérée
 | **FE-B** | Logistics operational UI | `LogisticsDeliveryPanel.tsx` étendu + nouveau `LogisticsPrepPanel.tsx` | P0 |
 | **FE-C** | Billing/cashbox/credit note UI | `BillingInvoicePanel.tsx` étendu; cashbox complet réservé à FE-F | P1 |
 | **FE-D** | PDF generation trigger + viewer | `DocumentArtifactPreviewPanel.tsx`, `DocumentPdfPreviewPanel.tsx`, boutons PDF dans panels docs | P1 |
-| **FE-E** | Audit log viewer | Nouveau `AuditLogPanel.tsx` | P2 |
+| **FE-E** | Audit log viewer | `AuditPanel.tsx` | P2 |
 | **FE-F** | Cashbox session management | Nouveau `CashboxPanel.tsx` | P2 |
 
 ---

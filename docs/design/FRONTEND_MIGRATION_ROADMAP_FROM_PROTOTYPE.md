@@ -63,9 +63,9 @@ des grands ecrans operationnels.
 
 - Prototype source: `audit`, `admin`
 - Application-map source: audit + identity
-- Cibles React: nouvelle route `#audit`, `IdentityPanel.tsx`
+- Cibles React: nouvelle route `#audit`, `AuditPanel.tsx`, `IdentityPanel.tsx`
 - APIs: audit, roles, assignments
-- Patterns: tables filtrees, status pills, security views
+- Patterns: tables filtrees, status pills, security views, read-only drilldown
 - Impact theme: audit badges, denied/read-only clarity
 - Tests: read-only secure filters, keyboard nav, both themes
 - Hard stops: toute demande d'exposer donnees protegees

@@ -40,7 +40,7 @@
 | Notifications | global shell pattern | missing | none | partial | notification center, badges | medium | role-based | FE-H | could drift to new backend asks | shell + read-only |
 | Reports | futur reports | missing | none | partial/non confirme | exports cards, gates | medium | role-filtered | FE-I | business confirmation needed | placeholder tests |
 | Admin | `#identity` + params | partial | `IdentityPanel.tsx` | oui | admin shell, settings cards, users table | high | yes | FE-H | role mgmt write backend exists but FE partial | tabs + denied |
-| Audit/security | futur `#audit` | missing | none | oui | audit table, filters, result badges | high | role-filtered | FE-E | security sensitivity | read-only + filters |
+| Audit/security | `#audit` | partial | `AuditPanel.tsx` | oui | audit table, filters, result badges | high | role-filtered | FE-E | viewer is read-only; deeper security drill-down still future | read-only + filters |
 | Mobile/tablet | transverse | future | CSS basique | n/a | responsive shell, compact cards, drawers | high | n/a | FE-J | current shell not ready | viewport regression |
 | Help/onboarding | future help center | missing | none | non critique | role journeys, docs links | low | role-aware | FE-I | source content not final | content and nav tests |
 | Light/dark theme | global | missing | no true theme system | n/a | tokens, data-theme, logo rules | critical | n/a | FE-B0 | logo dark variants missing | theme matrix |

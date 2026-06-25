@@ -780,6 +780,27 @@ export type RevokeRolePayload = {
   notes?: string;
 };
 
+// ---- Audit Events (live backend — /api/v1/audit/) ----
+
+export type AuditEvent = {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string;
+  target_id: string;
+  metadata: Record<string, string | number | boolean | null | Record<string, unknown> | unknown[]>;
+  created_at: string;
+};
+
+export type AuditEventQueryParams = {
+  action?: string;
+  target_type?: string;
+  target_id?: string;
+  actor_id?: string;
+  created_after?: string;
+  created_before?: string;
+};
+
 export type StockMovementCreatePayload = {
   inventory_item: string;
   reservation_draft?: string | null;
