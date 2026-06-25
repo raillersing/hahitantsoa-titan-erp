@@ -1630,6 +1630,79 @@ h3 {
   border-top: 1px solid var(--color-border);
 }
 
+.reservation-summary-grid,
+.customer-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.reservation-summary-card,
+.customer-metric-card {
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.reservation-summary-card span,
+.customer-metric-card span {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reservation-summary-card strong,
+.customer-metric-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1rem;
+}
+
+.reservation-summary-card small {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+}
+
+.reservation-workflow-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workflow-step {
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.workflow-step--active {
+  border-color: var(--color-brand-hah);
+  background: color-mix(in srgb, var(--color-brand-hah) 12%, var(--color-surface));
+  color: var(--color-brand-hah);
+}
+
+.workflow-step--done {
+  border-color: color-mix(in srgb, var(--color-success-text) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success-bg) 90%, var(--color-surface));
+  color: var(--color-success-text);
+}
+
+.workflow-step--warning {
+  border-color: color-mix(in srgb, var(--color-warning-text) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning-bg) 90%, var(--color-surface));
+  color: var(--color-warning-text);
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1905,6 +1978,11 @@ fieldset:disabled {
 
 .customer-panel {
   overflow: hidden;
+}
+
+.customer-detail-shell,
+.customer-form-shell {
+  padding: 20px;
 }
 
 .customer-panel > div {
