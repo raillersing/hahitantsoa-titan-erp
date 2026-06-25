@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `b5b772e2f16887a859b1344c22b350ae7e41e591`.
-- `main` CI is green as verified on 2026-06-25 (run 28182258967).
+- `origin/main` HEAD is `8cde58a775a44cd92112b9537347ec32c885c47b`.
+- `main` CI is green as verified on 2026-06-25 (run 28186281646).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -50,36 +50,16 @@ Current frontend posture:
 - the immediate need is a docs/audit refresh so cartography and design references
   match the real post-frontend state
 
-### Active docs/audit bundle
+### Frontend audit state
 
 Status:
-- F178A in progress — post-frontend application cartography, backend/frontend
-  connectivity, and hygiene audit
+- F178A merged as PR `#423`
+- F178B in progress — frontend cartography refresh after FE-C to FE-J merges
 
-Scope:
-- verify actual post-frontend connectivity between frozen backend APIs and live
-  React screens
-- identify stale cartography/design docs after frontend merges `#415` to `#422`
-- classify remaining frontend gaps against the client-approved prototype
-- inventory git/docker/local residue without deleting it by default
-
-Branch: `docs/f178a-frontend-connectivity-hygiene-audit`
-Suggested worktree: `/home/raillersing/projects/hahitantsoa-titan-erp-f178a-frontend-connectivity-hygiene-audit`
-
-Allowed files:
-- `docs/audits/**`
-- `docs/ai-agents/orchestrator-task-queue.md`
-
-Forbidden:
-- `backend/`, `frontend/`, `tests/`, `scripts/dev/`, `.github/`, manifests, `.env`, secrets
-
-Validation:
-- `bash scripts/dev/erp-agent-scope-guard agent-docs`
-- `git diff --check`
-- docs/link validation if available
-- PR CI green before merge
-- exact-SHA `main` CI green after merge
-- targeted branch/worktree cleanup only
+Immediate rule for future frontend tasks:
+- read `docs/audits/F178A_FRONTEND_CONNECTIVITY_AND_HYGIENE_AUDIT.md`
+- read the refreshed F178B cartography/design docs
+- do not plan FE-C through FE-J again as future work
 
 ### Active workflow improvement bundle
 

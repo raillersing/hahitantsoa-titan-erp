@@ -1,302 +1,312 @@
 # FRONTEND_MAP.md — Cartographie du frontend
 
-> **Version:** F176A — 2026-06-24
-> **Stack:** React 19.2.1, TypeScript 5.9.3 (strict), Vite 7.2.7, Vitest 4.0.16 + jsdom + RTL
-> **Router:** Hash-based scope switching (`window.location.hash`) — pas de React Router
-> **CSS:** CSS pur (pas de Tailwind, pas de CSS-in-JS)
-> **Authentification:** Django session cookie + CSRF token
+> **Version:** F178B — 2026-06-25
+> **Etat frontend de reference:** `main` SHA `8cde58a775a44cd92112b9537347ec32c885c47b`
+> **Stack:** React 19.2.1, TypeScript 5.9.3 strict, Vite 7.2.7, Vitest 4.0.16
+> **Router:** hash-based scope switching (`window.location.hash`)
+> **Theme:** light / dark / system foundation livree via `ThemeContext.tsx` et `data-theme`
 
 ---
 
-## 1. Architecture globale
+## 1. References obligatoires avant toute tache frontend
 
-> Références design frontend obligatoires avant implémentation:
-> `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`,
-> `docs/design/UI_MIGRATION_CONTRACT.md`,
-> `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`,
-> `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`,
-> `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
+Avant tout nouveau bundle frontend, consulter au minimum:
 
-```
+- `docs/audits/F178A_FRONTEND_CONNECTIVITY_AND_HYGIENE_AUDIT.md`
+- ce fichier `FRONTEND_MAP.md`
+- `docs/architecture/application-map/API_AND_DATA_FLOW_MAP.md`
+- `docs/architecture/application-map/NAVIGATION_TREE_TARGET.md`
+- `docs/design/CLIENT_APPROVED_UI_REFERENCE.md`
+- `docs/design/UI_MIGRATION_CONTRACT.md`
+- `docs/design/THEME_AND_DARK_MODE_CONTRACT.md`
+- `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`
+- `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
+
+F178A et F178B sont les references prioritaires pour distinguer:
+
+- ce qui est deja merge sur `main`
+- ce qui reste reellement a faire
+- ce qui est volontairement placeholder ou bloque par decision business/API
+
+---
+
+## 2. Architecture globale
+
+```text
 main.tsx
 └── <StrictMode>
     └── ErrorBoundary.tsx
-        └── AuthContext.tsx (useAuth)
-            └── App.tsx
-                ├── LoginPanel.tsx        (unauthenticated)
-                └── module-panel
-                    ├── DashboardPanel.tsx        (#dashboard)
-                    ├── Titan scope                (#titan)
-                    │   ├── Inline inventory list (App.tsx)
-                    │   ├── AvailabilityPanel.tsx
-                    │   ├── TitanStockMovementPanel.tsx
-                    │   └── DocumentArtifactPreviewPanel.tsx
-                    ├── Hahitantsoa scope            (#hahitantsoa)
-                    │   ├── HahitantsoaDiscoveryPanel.tsx
-                    │   └── HahitantsoaEventDraftsPanel.tsx
-                    ├── Customers scope              (#customers)
-                    │   └── CustomerPanel.tsx
-                    ├── Commercial Ops scope         (#commercial-ops)
-                    │   └── HahitantsoaCommercialOpsPanel.tsx
-                    │       ├── TitanDocumentsPanel.tsx
-                    │       ├── HahitantsoaDocumentsPanel.tsx
-                    │       ├── PaymentWorkflowPanel.tsx
-                    │       ├── BillingInvoicePanel.tsx
-                    │       ├── LogisticsDeliveryPanel.tsx
-                    │       ├── ReturnsHandlingPanel.tsx
-                    │       ├── BreakageLossPanel.tsx
-                    │       └── StockMovementLedgerPanel.tsx
-                    ├── Identity scope               (#identity)
-                    │   └── IdentityPanel.tsx
-                    └── Caution scope                (#caution-refund)
-                        └── CautionRefundPanel.tsx
+        └── AuthContext.tsx
+            └── ThemeContext.tsx
+                └── App.tsx
+                    ├── LoginPanel.tsx
+                    └── Shell hash-based
+                        ├── #dashboard         → DashboardPanel.tsx
+                        ├── #planning          → FutureWorkspacePanel.tsx
+                        ├── #titan             → inventory inline + AvailabilityPanel.tsx + TitanStockMovementPanel.tsx + DocumentArtifactPreviewPanel.tsx
+                        ├── #hahitantsoa       → HahitantsoaDiscoveryPanel.tsx + HahitantsoaEventDraftsPanel.tsx
+                        ├── #customers         → CustomerPanel.tsx
+                        ├── #commercial-ops    → HahitantsoaCommercialOpsPanel.tsx
+                        │                        ├── TitanDocumentsPanel.tsx
+                        │                        ├── HahitantsoaDocumentsPanel.tsx
+                        │                        ├── PaymentWorkflowPanel.tsx
+                        │                        ├── BillingInvoicePanel.tsx
+                        │                        ├── LogisticsDeliveryPanel.tsx
+                        │                        ├── ReturnsHandlingPanel.tsx
+                        │                        ├── BreakageLossPanel.tsx
+                        │                        └── StockMovementLedgerPanel.tsx
+                        ├── #identity          → IdentityPanel.tsx
+                        ├── #audit             → AuditPanel.tsx
+                        ├── #cashbox           → CashboxPanel.tsx
+                        ├── #caution-refund    → CautionRefundPanel.tsx
+                        ├── #reports           → FutureWorkspacePanel.tsx
+                        ├── #catalog           → FutureWorkspacePanel.tsx
+                        ├── #procurement       → FutureWorkspacePanel.tsx
+                        ├── #hr                → FutureWorkspacePanel.tsx
+                        └── #help              → FutureWorkspacePanel.tsx
 ```
 
+Etat global:
+
+- le shell prototype-derived FE-B0 / FE-B0R / FE-H / FE-J est merge
+- les bundles FE-C a FE-J sont deja livres
+- les placeholders restants sont volontaires et ne doivent plus etre lus comme
+  “travail oublie” sans verifications F178A/F178B
+
 ---
 
-## 2. Composants détaillés
+## 3. Hash scopes actuels
 
-### 2.1 Entry point et contextes
-
-| Fichier | Rôle | Tests |
-|---|---|---|
-| `main.tsx` | Point d'entrée Vite/React, rend `App.tsx` | ❌ Non testé (bootstrap) |
-| `AuthContext.tsx` | `useAuth()` — états `loading / authenticated / unauthenticated`, login/logout via session Django | Mocké via `vi.mock` dans `App.test.tsx` |
-| `ErrorBoundary.tsx` | Capture d'erreurs React, affichage fallback | `ErrorBoundary.test.tsx` |
-
-### 2.2 Navigation / Shell
-
-| Fichier | Rôle | Tests |
-|---|---|---|
-| `App.tsx` | Shell principal : header, side-nav, hash routing, chargement inventaire global | `App.test.tsx` (~368 lignes) |
-
-**Scopes (hash-based) :**
-
-| Scope | Hash | Composant rendu | Inventaire items passés ? |
+| Scope | Route hash | Composant | Statut |
 |---|---|---|---|
-| Dashboard | `#dashboard` | `DashboardPanel` | Non |
-| Planning | `#planning` | `FutureWorkspacePanel` | Non |
-| Titan | `#titan` | Inventaire inline + `AvailabilityPanel` + `TitanStockMovementPanel` + `DocumentArtifactPreviewPanel` | Oui |
-| Hahitantsoa | `#hahitantsoa` | `HahitantsoaDiscoveryPanel` + `HahitantsoaEventDraftsPanel` | Oui (event drafts) |
-| Catalog | `#catalog` | `FutureWorkspacePanel` | Non |
-| Customers | `#customers` | `CustomerPanel` | Non |
-| Commercial Ops | `#commercial-ops` | `HahitantsoaCommercialOpsPanel` (agrégateur onglets) | Non |
-| Identity | `#identity` | `IdentityPanel` | Non |
-| Reports | `#reports` | `FutureWorkspacePanel` | Non |
-| Procurement | `#procurement` | `FutureWorkspacePanel` | Non |
-| HR | `#hr` | `FutureWorkspacePanel` | Non |
-| Help | `#help` | `FutureWorkspacePanel` | Non |
-| Caution-refund | `#caution-refund` | `CautionRefundPanel` | Non |
-
-### 2.3 Dashboard
-
-| Fichier | Rôle | API utilisées | Permission gating | Tests |
-|---|---|---|---|---|
-| `DashboardPanel.tsx` | 4 cartes résumé avec navigation vers scopes | `getInventoryItems`, `getHahitantsoaEventDrafts`, `getReservationDrafts`, `getPayments` | N/A (read-only) | `DashboardPanel.test.tsx` (~202 lignes) |
-
-### 2.4 Titan
-
-| Fichier | Rôle | API utilisées | Permission gating | Tests |
-|---|---|---|---|---|
-| `AvailabilityPanel.tsx` | Brouillons réservation : CRUD lignes, client, période, notes + disponibilité | `getCustomers`, `getReservationDrafts`, `getReservationDraft`, `createReservationDraft`, `updateReservationDraft`, `getReservationAvailabilitySummary`, `getReservationAvailableItemPreviews`, `getReservationItemAvailabilityPreview`, `checkEndpointPermission` | ✅ Gated create/update | `AvailabilityPanel.test.tsx` (~808 lignes) |
-| `TitanStockMovementPanel.tsx` | Mouvements de stock : liste + création | `getStockMovements`, `createStockMovement`, `checkEndpointPermission` | ✅ Gated create | `TitanStockMovementPanel.test.tsx` |
-| `DocumentArtifactPreviewPanel.tsx` | Prévisualisation HTML sandboxée (iframe) | `getDocumentArtifactHtml` | N/A (read) | `DocumentArtifactPreviewPanel.test.tsx` |
-| `DocumentPdfPreviewPanel.tsx` | Prévisualisation PDF sandboxée (iframe blob) | `getDocumentInstancePdfBlob` | N/A (read) | `DocumentPdfPreviewPanel.test.tsx` |
-
-### 2.5 Hahitantsoa
-
-| Fichier | Rôle | API utilisées | Permission gating | Tests |
-|---|---|---|---|---|
-| `HahitantsoaDiscoveryPanel.tsx` | Découverte read-only des concepts événement | `getHahitantsoaDiscoveryItems` | N/A (read) | `HahitantsoaDiscoveryPanel.test.tsx` |
-| `HahitantsoaEventDraftsPanel.tsx` | CRUD brouillons événement + confirm + avenant (6 APIs amendment) | `getCustomers`, `getHahitantsoaEventDrafts`, `getHahitantsoaEventDraft`, `createHahitantsoaEventDraft`, `updateHahitantsoaEventDraft`, `deleteHahitantsoaEventDraft`, `getHahitantsoaEventDraftAvailabilityPreview`, `getHahitantsoaEventDraftConfirmationPreflight`, `getHahitantsoaEventDraftAmendmentPreflight`, `confirmHahitantsoaEventDraft`, + 6 amendment APIs | ✅ Gated create/update/confirm | `HahitantsoaEventDraftsPanel.test.tsx` |
-
-### 2.6 Customers
-
-| Fichier | Rôle | API utilisées | Permission gating | Tests |
-|---|---|---|---|---|
-| `CustomerPanel.tsx` | Liste, détail, création, édition, suppression client | `getCustomers`, `getCustomer`, `createCustomer`, `updateCustomer`, `deleteCustomer`, `checkCustomerWritePermission` | ✅ Gated create/edit/delete | `CustomerPanel.test.tsx` |
-
-### 2.7 Commercial Ops (agrégateur)
-
-| Fichier | Rôle | API utilisées | Permission gating | Tests |
-|---|---|---|---|---|
-| `HahitantsoaCommercialOpsPanel.tsx` | Shell onglets Commercial Ops | Aucune (passe aux enfants) | N/A | `HahitantsoaCommercialOpsPanel.test.tsx` |
-| `TitanDocumentsPanel.tsx` | Documents Titan : templates, instances, génération HTML/PDF | `getReservationDrafts`, `getDocumentTemplates`, `getReservationDraftDocumentInstances`, `createReservationDraftDocumentInstance`, `generateReservationDraftDocumentInstance`, `generateReservationDraftDocumentInstancePdf` | N/A (read + write stubs) | `TitanDocumentsPanel.test.tsx` |
-| `HahitantsoaDocumentsPanel.tsx` | Documents Hahitantsoa | `getHahitantsoaEventDrafts`, `getDocumentTemplates`, `getHahitantsoaEventDraftDocumentInstances`, `createHahitantsoaEventDraftDocumentInstance`, `generateHahitantsoaEventDraftDocumentInstance`, `generateHahitantsoaEventDraftDocumentInstancePdf` | N/A | `HahitantsoaDocumentsPanel.test.tsx` |
-| `PaymentWorkflowPanel.tsx` | Paiements : liste + création + confirmation | `getPayments`, `createPayment`, `confirmPayment`, `checkEndpointPermission` | ✅ Gated create/confirm | `PaymentWorkflowPanel.test.tsx` |
-| `BillingInvoicePanel.tsx` | Factures : liste + détail + settle/cancel/installments/credit notes | `getBillingInvoices`, `getBillingCreditNotes`, `settleBillingInvoice`, `cancelBillingInvoice`, `createBillingInvoiceInstallments`, `issueBillingCreditNote`, `cancelBillingCreditNote`, `executeBillingRefundObligation` | ✅ Gated write | `BillingInvoicePanel.test.tsx` |
-| `LogisticsDeliveryPanel.tsx` | Événements logistiques : liste read-only | `getLogisticsEvents` | N/A (read) | `LogisticsDeliveryPanel.test.tsx` |
-| `ReturnsHandlingPanel.tsx` | Retours : liste read-only | `getReturnOperations` | N/A (read) | `ReturnsHandlingPanel.test.tsx` |
-| `BreakageLossPanel.tsx` | Règlements casse/perte : liste read-only | `getDamageLossSettlements` | N/A (read) | `BreakageLossPanel.test.tsx` |
-| `StockMovementLedgerPanel.tsx` | Journal mouvements stock : liste read-only | `getStockMovements` | N/A (read) | `StockMovementLedgerPanel.test.tsx` |
-
-### 2.8 Identity
-
-| Fichier | Rôle | API utilisées | Permission gating | Tests |
-|---|---|---|---|---|
-| `IdentityPanel.tsx` | Rôles (read) + assignations (read) + stubs write | `getRoles`, `getRoleAssignments`, `checkIdentityWritePermission` | ✅ Gated write (overlay "Pending Backend Contract") | `IdentityPanel.test.tsx` |
-| `AuditPanel.tsx` | Journal d'audit read-only avec filtres de sécurité | `getAuditEvents`, `getAuditEvent`, `checkEndpointPermission("/api/v1/audit/events/", "OPTIONS")` | ✅ Read-only gated | `AuditPanel.test.tsx` |
-
-### 2.9 Caution / Remboursements
-
-| Fichier | Rôle | API utilisées | Permission gating | Tests |
-|---|---|---|---|---|
-| `CautionRefundPanel.tsx` | Déposer caution + trigger remboursement | `getPayments`, `createPayment`, `getDamageLossSettlements`, `checkEndpointPermission` | ✅ Gated create | `CautionRefundPanel.test.tsx` |
+| Dashboard | `#dashboard` | `DashboardPanel.tsx` | current |
+| Planning | `#planning` | `FutureWorkspacePanel.tsx` | placeholder |
+| Titan | `#titan` | inventaire inline + `AvailabilityPanel.tsx` + `TitanStockMovementPanel.tsx` + `DocumentArtifactPreviewPanel.tsx` | current |
+| Hahitantsoa | `#hahitantsoa` | `HahitantsoaDiscoveryPanel.tsx` + `HahitantsoaEventDraftsPanel.tsx` | current |
+| Customers | `#customers` | `CustomerPanel.tsx` | current |
+| Commercial Ops | `#commercial-ops` | `HahitantsoaCommercialOpsPanel.tsx` | current |
+| Identity | `#identity` | `IdentityPanel.tsx` | partial |
+| Audit | `#audit` | `AuditPanel.tsx` | current |
+| Cashbox | `#cashbox` | `CashboxPanel.tsx` | current |
+| Caution / Refund | `#caution-refund` | `CautionRefundPanel.tsx` | current |
+| Reports | `#reports` | `FutureWorkspacePanel.tsx` | placeholder |
+| Catalog | `#catalog` | `FutureWorkspacePanel.tsx` | placeholder |
+| Procurement | `#procurement` | `FutureWorkspacePanel.tsx` | placeholder |
+| HR | `#hr` | `FutureWorkspacePanel.tsx` | placeholder |
+| Help | `#help` | `FutureWorkspacePanel.tsx` | placeholder |
 
 ---
 
-## 3. API Client — Dépendances (`api.ts`)
+## 4. Composants frontend par domaine
 
-**38 fonctions exportées** réparties par catégorie :
+### 4.1 Entry / auth / shell
 
-| Catégorie | Fonctions | Nombre |
+| Fichier | Rôle | Statut |
 |---|---|---|
-| Inventaire | `getInventoryItems` | 1 |
-| Clients | `getCustomers`, `getCustomer`, `createCustomer`, `updateCustomer`, `deleteCustomer`, `checkCustomerWritePermission` | 6 |
-| Disponibilité | `getReservationAvailabilitySummary`, `getReservationAvailableItemPreviews`, `getReservationItemAvailabilityPreview` | 3 |
-| Brouillons Titan | `getReservationDrafts`, `getReservationDraft`, `createReservationDraft`, `updateReservationDraft` | 4 |
-| Découverte Hahitantsoa | `getHahitantsoaDiscoveryItems` | 1 |
-| Brouillons Hahitantsoa | `getHahitantsoaEventDrafts`, `getHahitantsoaEventDraft`, `createHahitantsoaEventDraft`, `updateHahitantsoaEventDraft`, `deleteHahitantsoaEventDraft`, `getHahitantsoaEventDraftAvailabilityPreview`, `getHahitantsoaEventDraftConfirmationPreflight`, `getHahitantsoaEventDraftAmendmentPreflight`, `confirmHahitantsoaEventDraft` | 9 |
-| Avenant | `getHahitantsoaEventDraftAmendmentRequests`, `createHahitantsoaEventDraftAmendmentRequest`, `updateHahitantsoaEventDraftAmendmentRequest`, `getHahitantsoaEventDraftAmendmentRequest`, `getHahitantsoaEventDraftAmendmentRequestLines`, `createHahitantsoaEventDraftAmendmentRequestLine`, `updateHahitantsoaEventDraftAmendmentRequestLine`, `deleteHahitantsoaEventDraftAmendmentRequestLine`, `getHahitantsoaEventDraftAmendmentRequestAvailabilityPreflight` | 9 |
-| Documents | `getDocumentTemplates`, `getDocumentArtifactHtml`, `getReservationDraftDocumentInstances`, `createReservationDraftDocumentInstance`, `getReservationDraftDocumentInstance`, `generateReservationDraftDocumentInstance`, `getHahitantsoaEventDraftDocumentInstances`, `createHahitantsoaEventDraftDocumentInstance`, `getHahitantsoaEventDraftDocumentInstance`, `generateHahitantsoaEventDraftDocumentInstance` | 10 |
-| Paiements | `getPayments`, `createPayment`, `getPayment`, `confirmPayment` | 4 |
-| Facturation | `getBillingInvoices` | 1 |
-| Mouvements stock | `getStockMovements`, `createStockMovement` | 2 |
-| Logistique | `getLogisticsEvents` | 1 |
-| Retours | `getReturnOperations` | 1 |
-| Casse/Perte | `getDamageLossSettlements` | 1 |
-| Identity | `getRoles`, `getRoleAssignments`, `checkIdentityWritePermission` | 3 |
-| Auth | `login`, `logout`, `checkAuth` | 3 |
-| Permissions | `checkEndpointPermission` | 1 |
-| **Total** | | **62** |
+| `main.tsx` | bootstrap React | current |
+| `AuthContext.tsx` | session auth login/logout/checkAuth | current |
+| `ThemeContext.tsx` | light / dark / system + persistance locale | current |
+| `ErrorBoundary.tsx` | fallback d’erreur | current |
+| `App.tsx` | shell global, sidebar, topbar, navigation hash, branding scopes | current |
+| `LoginPanel.tsx` | écran de connexion | partial visuel |
 
----
+### 4.2 Dashboard / shell polish
 
-## 4. Permission gating — état actuel
-
-| Composant | Gating actif ? | Actions gatées | Notes |
+| Fichier | Rôle | APIs | Statut |
 |---|---|---|---|
-| `AvailabilityPanel.tsx` | ✅ | Création, édition brouillon | `checkEndpointPermission` sur `/api/v1/reservations/drafts/` |
-| `TitanStockMovementPanel.tsx` | ✅ | "Record Movement" | `checkEndpointPermission` sur `/api/v1/inventory/stock-movements/` |
-| `CustomerPanel.tsx` | ✅ | Create, Edit, Delete | `checkCustomerWritePermission` (OPTIONS sur `/api/v1/customers/create/`) |
-| `IdentityPanel.tsx` | ✅ | Write ops | Overlay "Pending Backend Contract" si pas de permission |
-| `CautionRefundPanel.tsx` | ✅ | "New Caution Deposit" | `checkEndpointPermission` sur paiements |
-| `PaymentWorkflowPanel.tsx` | ✅ | "New Payment", confirm | `checkEndpointPermission` sur `/api/v1/payments/` |
-| `HahitantsoaEventDraftsPanel.tsx` | ✅ | Create, update, delete, confirm, amendment | Multiple probes |
-| **BillingInvoicePanel.tsx** | ✅ | write workflow sur facture, échéanciers, avoirs, remboursement | billing settlement endpoints |
-| **LogisticsDeliveryPanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
-| **ReturnsHandlingPanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
-| **BreakageLossPanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
-| **StockMovementLedgerPanel.tsx** | ❌ | N/A (read-only) | Pas de write exposé |
+| `DashboardPanel.tsx` | cartes résumé, quick links | `getInventoryItems`, `getReservationDrafts`, `getPayments`, `getHahitantsoaEventDrafts` | current |
 
-**Gap FE-A :** les 6 panels read-only (Billing, Logistics, Returns, Breakage, Stock Ledger) et les actions write de Titan (confirm, cancel, contract-signed, deposit-received) nécessitent un gating.
+### 4.3 Titan
 
----
-
-## 5. États loading / error / empty
-
-**Pattern universel** appliqué à tous les composants data-fetching :
-
-```
-state = loading → afficher spinner/explicite
-state = error   → afficher notice role="alert" + message + retry éventuel
-state = empty   → afficher message explicite + action suggérée
-```
-
-| Composant | Loading | Error | Empty | AbortController |
+| Fichier | Rôle | APIs | Permission gating | Statut |
 |---|---|---|---|---|
-| DashboardPanel | ✅ | ✅ | ✅ | ✅ |
-| AvailabilityPanel | ✅ | ✅ | ✅ | ✅ |
-| TitanStockMovementPanel | ✅ | ✅ | ✅ | ✅ |
-| HahitantsoaDiscoveryPanel | ✅ | ✅ | ✅ | ✅ |
-| HahitantsoaEventDraftsPanel | ✅ | ✅ | ✅ | ✅ |
-| CustomerPanel | ✅ | ✅ | ✅ | ✅ |
-| IdentityPanel | ✅ | ✅ | ✅ | ✅ |
-| CautionRefundPanel | ✅ | ✅ | ✅ | ✅ |
-| PaymentWorkflowPanel | ✅ | ✅ | ✅ | ✅ |
-| LogisticsDeliveryPanel | ✅ | ✅ | ✅ | ✅ |
-| ReturnsHandlingPanel | ✅ | ✅ | ✅ | ✅ |
-| BreakageLossPanel | ✅ | ✅ | ✅ | ✅ |
-| StockMovementLedgerPanel | ✅ | ✅ | ✅ | ✅ |
-| BillingInvoicePanel | ✅ | ✅ | ✅ | ✅ |
-| TitanDocumentsPanel | ✅ | ✅ | ✅ | ✅ |
-| HahitantsoaDocumentsPanel | ✅ | ✅ | ✅ | ✅ |
+| `AvailabilityPanel.tsx` | CRUD brouillons Titan + disponibilité | reservations + customers + availability | oui | partial |
+| `TitanStockMovementPanel.tsx` | mouvements de stock Titan | stock movements | oui | current |
+| `DocumentArtifactPreviewPanel.tsx` | preview HTML privé | documents artifact | lecture | current |
+| `DocumentPdfPreviewPanel.tsx` | preview PDF privé | documents pdf | lecture | current |
 
----
+### 4.4 Hahitantsoa
 
-## 6. Tests
+| Fichier | Rôle | APIs | Permission gating | Statut |
+|---|---|---|---|---|
+| `HahitantsoaDiscoveryPanel.tsx` | découverte read-only | discovery items | n/a | current |
+| `HahitantsoaEventDraftsPanel.tsx` | CRUD, disponibilité, confirm, avenants | hahitantsoa drafts + amendment APIs | oui | current |
 
-| Composant | Fichier test | Couverture |
+### 4.5 Customers
+
+| Fichier | Rôle | APIs | Permission gating | Statut |
+|---|---|---|---|---|
+| `CustomerPanel.tsx` | liste, détail, create, update, delete, recherche | customers CRUD | oui | partial-to-strong |
+
+### 4.6 Commercial Ops
+
+| Fichier | Rôle | APIs | Permission gating | Statut |
+|---|---|---|---|---|
+| `HahitantsoaCommercialOpsPanel.tsx` | shell d’onglets ops | none direct | n/a | current |
+| `TitanDocumentsPanel.tsx` | templates, instances, HTML, PDF Titan | documents + reservation drafts | oui | current |
+| `HahitantsoaDocumentsPanel.tsx` | templates, instances, HTML, PDF HAH | documents + event drafts | oui | current |
+| `PaymentWorkflowPanel.tsx` | create + confirm payment | payments | oui | current |
+| `BillingInvoicePanel.tsx` | invoices, installments, credit notes, settle/cancel/refund obligation | billing | oui | current |
+| `LogisticsDeliveryPanel.tsx` | transitions, lines add/remove, complete passation | logistics | oui | current |
+| `ReturnsHandlingPanel.tsx` | inspect + validate return operations | return operations | oui | current |
+| `BreakageLossPanel.tsx` | inspect + validate settlements | damage/loss settlements | oui | current |
+| `StockMovementLedgerPanel.tsx` | ledger stock read-only | stock movements | lecture | current |
+
+### 4.7 Identity / audit / cashbox / caution
+
+| Fichier | Rôle | APIs | Permission gating | Statut |
+|---|---|---|---|---|
+| `IdentityPanel.tsx` | roles + assignments read, write stubs | identity | oui | partial |
+| `AuditPanel.tsx` | audit log read-only avec filtres | audit | oui | current |
+| `CashboxPanel.tsx` | open/close sessions, list sessions, movements | cashbox | oui | current |
+| `CautionRefundPanel.tsx` | caution deposits + refund touchpoints | payments + damage/loss | oui | current |
+
+### 4.8 Placeholder workspaces
+
+| Fichier | Rôle | Statut |
 |---|---|---|
-| App | `App.test.tsx` | Navigation, auth states, hash change |
-| LoginPanel | `LoginPanel.test.tsx` | Formulaire login |
-| DashboardPanel | `DashboardPanel.test.tsx` | Cartes, navigation |
-| AvailabilityPanel | `AvailabilityPanel.test.tsx` | CRUD brouillon, disponibilité |
-| TitanStockMovementPanel | `TitanStockMovementPanel.test.tsx` | Liste + création |
-| DocumentArtifactPreviewPanel | `DocumentArtifactPreviewPanel.test.tsx` | Iframe, erreurs |
-| DocumentPdfPreviewPanel | `DocumentPdfPreviewPanel.test.tsx` | Blob iframe, erreurs |
-| HahitantsoaDiscoveryPanel | `HahitantsoaDiscoveryPanel.test.tsx` | Liste discovery |
-| HahitantsoaEventDraftsPanel | `HahitantsoaEventDraftsPanel.test.tsx` | CRUD + confirm |
-| HahitantsoaCommercialOpsPanel | `HahitantsoaCommercialOpsPanel.test.tsx` | Onglets |
-| CustomerPanel | `CustomerPanel.test.tsx` | CRUD + search |
-| IdentityPanel | `IdentityPanel.test.tsx` | Liste rôles + assignations |
-| CautionRefundPanel | `CautionRefundPanel.test.tsx` | Caution + refund |
-| PaymentWorkflowPanel | `PaymentWorkflowPanel.test.tsx` | Paiements |
-| BillingInvoicePanel | `BillingInvoicePanel.test.tsx` | Liste factures |
-| LogisticsDeliveryPanel | `LogisticsDeliveryPanel.test.tsx` | Événements logistiques |
-| ReturnsHandlingPanel | `ReturnsHandlingPanel.test.tsx` | Retours |
-| BreakageLossPanel | `BreakageLossPanel.test.tsx` | Règlements |
-| StockMovementLedgerPanel | `StockMovementLedgerPanel.test.tsx` | Journal stock |
-| TitanDocumentsPanel | `TitanDocumentsPanel.test.tsx` | Documents Titan |
-| HahitantsoaDocumentsPanel | `HahitantsoaDocumentsPanel.test.tsx` | Documents Hahitantsoa |
-| ErrorBoundary | `ErrorBoundary.test.tsx` | Capture erreurs |
-
-**Couverture :** 21 fichiers `.test.tsx` sur 23 fichiers `.tsx` (91%). Seuls `main.tsx` et `AuthContext.tsx` n'ont pas de fichier test dédié (le contexte est mocké dans `App.test.tsx`).
+| `FutureWorkspacePanel.tsx` | placeholder contrôlé pour planning, reports, catalog, procurement, hr, help | intentional placeholder |
 
 ---
 
-## 7. Écrans implémentés vs manquants
+## 5. Client API frontend
 
-### Implémentés (current)
+`frontend/src/api.ts` exporte actuellement **77 fonctions**.
 
-- [x] Dashboard avec métriques
-- [x] Inventaire Titan (liste + disponibilité + stock movements)
-- [x] Hahitantsoa discovery + event drafts (CRUD + confirm + avenant)
-- [x] Clients (CRUD + recherche)
-- [x] Identity (read rôles/assignations)
-- [x] Commercial Ops aggregator (8 onglets)
-- [x] Paiements (create + confirm)
-- [x] Caution / remboursements
-- [x] Documents (Titan + Hahitantsoa)
-- [x] Prévisualisation HTML documents
+Catégories réellement connectées:
 
-### Partiels
+- auth / session
+- customers
+- reservation drafts Titan
+- hahitantsoa drafts + amendment flows
+- documents HTML/PDF
+- payments
+- billing / installments / credit notes / refund obligations
+- logistics transitions / item lines / passation
+- return operations
+- damage/loss settlements
+- identity
+- audit
+- cashbox
 
-- [~] Permission-aware gating (7 panels OK, 6 panels read-only sans gating, identity write stubs)
-- [~] Logistics (read-only, pas de prep/handover/delivery note UI)
-- [~] Billing (read-only, pas de settle/cancel/installments/credit notes UI)
-- [x] PDF HTML runtime preview + generation trigger
+Attention:
 
-### Planifiés / Futurs
-
-- [x] Cashbox session management (frontend implémenté)
-- [ ] Audit log viewer (backend prêt)
-- [ ] Reservation confirmation UI côté Titan
-- [ ] Venue/room/hall/service CRUD (Hahitantsoa, hors scope MVP actuel)
-- [ ] Écrans paramètres (numérotation, templates, seuils)
+- la présence d’une fonction API ne signifie pas que toute l’UX prototype est finie
+- l’absence d’une route React dédiée ne signifie pas absence backend
+- F178A/F178B restent la référence pour différencier:
+  - `connected but visually incomplete`
+  - `backend-only`
+  - `intentional placeholder`
 
 ---
 
-## 8. Frontend bundles recommandés post-gel backend
+## 6. Permission-aware gating
 
-| Bundle | Scope | Composants impactés | Priorité |
-|---|---|---|---|
-| **FE-A** | Permission-aware UX gating | Tous les panels write (Billing, Logistics, Returns, Breakage, Stock, Titan confirm) | P0 — sécurité |
-| **FE-B** | Logistics operational UI | `LogisticsDeliveryPanel.tsx` étendu + nouveau `LogisticsPrepPanel.tsx` | P0 |
-| **FE-C** | Billing/cashbox/credit note UI | `BillingInvoicePanel.tsx` étendu; cashbox complet réservé à FE-F | P1 |
-| **FE-D** | PDF generation trigger + viewer | `DocumentArtifactPreviewPanel.tsx`, `DocumentPdfPreviewPanel.tsx`, boutons PDF dans panels docs | P1 |
-| **FE-E** | Audit log viewer | `AuditPanel.tsx` | P2 |
-| **FE-F** | Cashbox session management | Nouveau `CashboxPanel.tsx` | P2 |
+Etat actuel:
+
+- FE-A gating reste actif et ne doit pas être régressé
+- les panneaux de mutation principaux sont déjà gated
+- les panneaux read-only ou placeholder ne doivent pas être interprétés comme des
+  “pertes de permission”; certains sont simplement hors scope ou non confirmés
+
+| Composant | Gating | Notes |
+|---|---|---|
+| `AvailabilityPanel.tsx` | oui | create/update drafts |
+| `TitanStockMovementPanel.tsx` | oui | create stock movement |
+| `CustomerPanel.tsx` | oui | create/edit/delete |
+| `HahitantsoaEventDraftsPanel.tsx` | oui | create/update/delete/confirm/amendment |
+| `PaymentWorkflowPanel.tsx` | oui | create/confirm payment |
+| `BillingInvoicePanel.tsx` | oui | settle/cancel/installments/credit notes/refund obligation |
+| `LogisticsDeliveryPanel.tsx` | oui | transitions, lines, passation |
+| `ReturnsHandlingPanel.tsx` | oui | validate return |
+| `BreakageLossPanel.tsx` | oui | validate settlement |
+| `CashboxPanel.tsx` | oui | open/close sessions, create movement |
+| `AuditPanel.tsx` | oui | lecture sensible |
+| `IdentityPanel.tsx` | oui | write still partial UI-side |
+
+Gaps réels restants côté permission-aware UX:
+
+- confirmation Titan
+- futures surfaces admin/settings
+- futures surfaces planning/reports si elles deviennent interactives
+
+---
+
+## 7. Etats UX et tests
+
+Etat général:
+
+- loading / error / empty sont présents sur les principaux panneaux data-fetching
+- les tests frontend couvrent les écrans majeurs et les flux FE-C à FE-J
+- le responsive/accessibility pass FE-J est mergé
+
+Points encore à surveiller:
+
+- qualité visuelle mobile/tablet sur l’ensemble des écrans opérateurs
+- lisibilité logos/surfaces sombres sur tous les modules
+- cohérence prototype sur `CustomerPanel`, `AvailabilityPanel`, `IdentityPanel`
+
+---
+
+## 8. Ce qui est déjà livré sur `main`
+
+Déjà merge et à ne plus traiter comme “future work”:
+
+- FE-B0 app shell + theme foundation
+- FE-B logistics / returns / damage-loss / ops inventory surfaces
+- FE-B0R shell/theme/brand visual polish
+- FE-C billing / credit notes / installments / refund obligation operator UI
+- FE-D document workflow + PDF trigger / preview surfaces
+- FE-E audit log viewer
+- FE-F cashbox session management
+- FE-G customer file and reservation-related redesign pass
+- FE-H dashboard and navigation shell redesign
+- FE-I approved placeholders for unmapped or unconfirmed areas
+- FE-J responsive / accessibility / dark-mode polish
+
+---
+
+## 9. Vrais gaps frontend restants
+
+Les gaps restants à traiter après FE-J sont:
+
+1. écran `reservation detail` dédié
+2. `new reservation wizard`
+3. UI complète de confirmation Titan
+4. `planning/calendar` réel
+5. enrichissement `client file`
+6. `reports/exports` après décision business/légale
+7. complétion `settings/admin`
+8. QA élargie de fidélité prototype, mobile/tablet, light/dark/logo
+
+Ces gaps doivent être lus avec:
+
+- `docs/audits/F178A_FRONTEND_CONNECTIVITY_AND_HYGIENE_AUDIT.md`
+- `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`
+- `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
+
+---
+
+## 10. Bundle frontend recommandé après F178B
+
+Prochain bundle recommandé:
+
+- **FE-K — Reservation detail, new reservation wizard, and Titan confirmation UX**
+
+Pourquoi:
+
+- c’est le plus gros manque fonctionnel encore visible par rapport au prototype
+- le backend est déjà suffisamment en place pour éviter d’inventer des contrats
+- il ferme l’écart le plus important entre brouillons Titan/Hahitantsoa et un
+  vrai parcours opérateur complet
+
+Bundles suivants plausibles:
+
+1. FE-K — reservation detail / new reservation wizard / Titan confirmation
+2. FE-L — planning/calendar si contrat confirmé
+3. FE-M — enriched client file + cross-linked commercial history
+4. FE-N — admin/settings completion
+5. FE-O — reports/exports only after business/legal decision
 
 ---
 *Fin de la cartographie frontend*

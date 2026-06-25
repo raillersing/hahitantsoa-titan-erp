@@ -1,138 +1,68 @@
 # Roadmap de migration frontend depuis le prototype
 
-> Version: F177A - 2026-06-24
+> Version: F178B — 2026-06-25
 
-## Principe
+## 1. Etat des bundles historiques
 
-Le prototype impose un shell global et une thematique claire/sombre absents du
-frontend actuel. Un bundle de fondation FE-B0 est donc requis avant la migration
-des grands ecrans operationnels.
+Bundles deja completes sur `main`:
 
-## Ordre recommande
+1. FE-B0 — app shell, architecture de marque, fondation light/dark
+2. FE-B — logistics / returns / damage-loss / stock operations surfaces
+3. FE-B0R — shell/theme/brand visual fidelity polish
+4. FE-C — billing / cashbox touchpoints / credit note operator UI
+5. FE-D — document workflow et PDF trigger
+6. FE-E — audit log viewer
+7. FE-F — cashbox sessions
+8. FE-G — customer file and reservation redesign pass
+9. FE-H — dashboard and navigation shell redesign
+10. FE-I — reports/exports placeholders and gates
+11. FE-J — responsive / accessibility / dark-mode polish
 
-### 1. FE-B0 - App shell, architecture de marque, et fondation light/dark
+Ces bundles ne doivent plus etre planifies comme travail futur.
 
-- Pages prototype source: `dashboard`, `login`, shell sidebar/topbar global
-- Sources cartographie: `FRONTEND_MAP.md`, `NAVIGATION_TREE_TARGET.md`
-- Cibles React: `frontend/src/App.tsx`, styles globaux, shell layout, auth shell
-- APIs: aucune nouvelle
-- Patterns: sidebar, topbar, scope badges, token system, theme attributes
-- Impact theme: fondation complete
-- Tests: navigation shell, auth shell, theme light/dark/system, focus visible
-- Hard stops: logos illisibles sur dark, drift backend, nouveau dependency need
-- Docs a mettre a jour apres implementation: oui
+## 2. Roadmap restante recommandee
 
-### 2. FE-B - UI operationnelle logistique depuis le prototype
+### FE-K — Reservation detail, reservation wizard, and Titan confirmation UX
 
-- Pages prototype source: `logistics`, `returns`, `damage`, `inventory`
-- Sources cartographie: `NAVIGATION_TREE_TARGET.md`, `API_AND_DATA_FLOW_MAP.md`
-- Cibles React: `LogisticsDeliveryPanel.tsx`, `ReturnsHandlingPanel.tsx`,
-  `BreakageLossPanel.tsx`, `StockMovementLedgerPanel.tsx`
-- APIs: logistics, return operations, damage/loss, stock movements
-- Patterns: workflow board, action bar, badges, tables, timeline
-- Impact theme: surfaces operationnelles completes
-- Tests: gating write/read-only, list/detail, empty/error, responsive
-- Hard stops: besoin de nouvel endpoint, conflit scope HAH/TIT
-- Docs update: oui si navigation/flows changent
+- priorite: haute
+- objectif: fermer le plus gros ecart fonctionnel/prototype restant
+- cibles: `AvailabilityPanel.tsx`, nouvelles surfaces detail/wizard, eventuel raffinage `HahitantsoaEventDraftsPanel.tsx`
+- prerequis: aucun changement backend non autorise
 
-### 3. FE-C - Billing / cashbox / credit note operator UI
+### FE-L — Planning / calendar if contracts are confirmed
 
-- Prototype source: `billing`, `cashbox`
-- Application-map source: billing, payments, cashbox nodes
-- Cibles React: `BillingInvoicePanel.tsx`, `PaymentWorkflowPanel.tsx`, nouvelle route `#cashbox` pour FE-F
-- APIs: billing, payments, cashbox touchpoints only; session lifecycle reserved for FE-F
-- Patterns: documents commerciaux, payment dialog, billing detail split, credit note cards, summaries
-- Impact theme: badges finance, denied states, modal surfaces
-- Tests: create/confirm/denied, read-only, settle/cancel/installments/credit note flows, snapshot both themes
-- Hard stops: decisions business manquantes sur certains flux de caisse complets
-- Docs update: oui
+- priorite: haute apres FE-K
+- objectif: transformer `#planning` placeholder en vrai ecran
+- hard stop: pas de decision business/API -> ne pas inventer
 
-### 4. FE-D - PDF generation trigger et workflow documentaire
+### FE-M — Enriched client file and cross-linked commercial history
 
-- Prototype source: `documents`, `reservation-detail`
-- Application-map source: documents flows
-- Cibles React: docs panels, artifact preview, PDF preview, actions generation
-- APIs: document templates, instances, generate PDF/HTML, PDF retrieval
-- Patterns: template cards, preview panel, action bar, status pills
-- Impact theme: preview shell, CTA contrastes
-- Tests: permissions, generation states, preview fallback, PDF viewer fallback
-- Hard stops: PDF runtime limitations non doc-only
-- Docs update: oui
+- priorite: moyenne
+- objectif: enrichir `CustomerPanel.tsx` detail avec liens billing/logistics/docs/payments
 
-### 5. FE-E - Audit log viewer et UX securite
+### FE-N — Settings / admin completion
 
-- Prototype source: `audit`, `admin`
-- Application-map source: audit + identity
-- Cibles React: nouvelle route `#audit`, `AuditPanel.tsx`, `IdentityPanel.tsx`
-- APIs: audit, roles, assignments
-- Patterns: tables filtrees, status pills, security views, read-only drilldown
-- Impact theme: audit badges, denied/read-only clarity
-- Tests: read-only secure filters, keyboard nav, both themes
-- Hard stops: toute demande d'exposer donnees protegees
-- Docs update: oui
+- priorite: moyenne
+- objectif: aller au-dela du `IdentityPanel.tsx` actuel si contrats admin confirms
 
-### 6. FE-F - Gestion des sessions de caisse
+### FE-O — Reports / exports after business and legal decisions
 
-- Prototype source: `cashbox`
-- Application-map source: cashbox functions
-- Cibles React: nouvelle route `#cashbox`
-- APIs: open/close session, movements
-- Patterns: session cards, totals, forms, warnings
-- Impact theme: finance surfaces and warning states
-- Tests: session lifecycle, denied, dark mode readability
-- Hard stops: backend contract mismatch
-- Docs update: oui
+- priorite: conditionnelle
+- objectif: remplacer le placeholder `#reports`
+- hard stop: aucun format legal/export ne doit etre invente
 
-> Statut: implémenté dans le bundle FE-F via `CashboxPanel.tsx` et la route `#cashbox`.
+### FE-P — Prototype fidelity QA and visual convergence pass
 
-### 7. FE-G - Redesign fiche client et detail reservation
+- priorite: transverse
+- objectif: verifier shell, cards, badges, tables, dark mode, mobile/tablet, logos
 
-- Prototype source: `clients`, `client-file`, `reservations-hah`,
-  `reservations-titan`, `reservation-new`, `reservation-detail`
-- Application-map source: customers + reservations
-- Cibles React: `CustomerPanel.tsx`, `AvailabilityPanel.tsx`,
-  `HahitantsoaEventDraftsPanel.tsx`, nouvelles sous-routes/detail flows
-- APIs: customers, reservations, hahitantsoa drafts, preflights
-- Patterns: split view, wizard, stepper, timeline, summary cards
-- Impact theme: broad surface coverage
-- Tests: mutation flows, read-only confirmed state, theme matrix
-- Hard stops: prototype demands conflicting with confirmation rules
-- Docs update: oui
+## 3. Regle de depart
 
-> Statut: implémentation FE-G commencée sur `CustomerPanel.tsx` et `HahitantsoaEventDraftsPanel.tsx` avec une mise en page enrichie, sans changement de contrat API.
+Avant toute nouvelle tache frontend:
 
-### 8. FE-H - Dashboard et navigation shell redesign avec branding Ergon/Hahitantsoa/Titan
+- lire F178A
+- lire F178B
+- verifier que le bundle vise un vrai gap restant et non un bundle deja merge
 
-- Prototype source: `dashboard`, `notifications`, `help`
-- Application-map source: nav tree complete
-- Cibles React: `App.tsx`, `DashboardPanel.tsx`, shell nav
-- APIs: dashboard current APIs only
-- Patterns: KPI cards, quick actions, role navigation, notification entry points
-- Impact theme: full shell polish
-- Tests: role-filtered nav, current route highlight, theme + responsive
-- Hard stops: nav nodes without approved map
-- Docs update: oui
-
-### 9. FE-I - Reports/exports placeholders et business-decision gates
-
-- Prototype source: `reports`, `appointments`, `catalog`, `venues`, `procurement`, `hr`, `help`
-- Application-map source: nodes future/non confirms
-- Cibles React: placeholder routes/cards only as approved
-- APIs: only confirmed APIs
-- Patterns: placeholder cards, decision gates, empty states
-- Impact theme: moderate
-- Tests: no false affordance, denied/read-only, routing
-- Hard stops: toute invention de backend ou de scope non confirme
-- Docs update: oui
-
-### 10. FE-J - Responsive mobile/tablette polish
-
-- Prototype source: `mobile`, compact shell behaviors
-- Application-map source: transverse
-- Cibles React: global shell/components
-- APIs: aucune nouvelle
-- Patterns: stacked sections, drawers, touch targets, compact tables
-- Impact theme: both themes on small screens
-- Tests: viewport regressions, touch target, focus order
-- Hard stops: perte d'information critique sur mobile
-- Docs update: oui si navigation change
+---
+*Fin de la roadmap de migration*

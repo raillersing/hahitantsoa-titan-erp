@@ -1,66 +1,78 @@
-# Analyse d'ecart frontend vs prototype client
+# Analyse d’ecart frontend vs prototype client
 
-> Version: F177A - 2026-06-24
-> Etat de reference frontend: `main` SHA `c45eaea0441052bc44a30282b0d97684bf823ce5`
+> Version: F178B — 2026-06-25
+> Etat frontend de reference: `main` SHA `8cde58a775a44cd92112b9537347ec32c885c47b`
 
 ## Legende
 
-- `aligned`: direction proche du prototype et du backend
-- `partial`: base existante mais shell/UX/workflow a refaire
-- `missing`: pas d'ecran React correspondant
-- `future`: backend et/ou decision pas encore transformes en UI
-- `non confirme`: point non valide par cartographie ou business boundary
+- `aligned`: base credible et connectee
+- `partial`: connecte mais incomplet visuellement ou fonctionnellement
+- `placeholder`: espace volontairement non operationnel
+- `missing`: ecran ou flow non materialise
+- `non confirme`: depend d’une decision business/API encore absente
 
 ## Matrice principale
 
-| Zone prototype | Route/scope cible | Statut React | Base actuelle | Backend/API | Design/components necessaires | Theme | Permission gating | Bundle recommande | Risque | Tests a prevoir |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Dashboard | `#dashboard` | aligned | `DashboardPanel.tsx` + shell | oui | shell, KPI cards, quick actions, context cards | high | lecture | FE-H | charts still not implemented; prototype only implied them | dashboard both themes |
-| Login | auth | partial | `LoginPanel.tsx` | oui | branding, layout, logo rules | medium | n/a | FE-B0 | dark logo non confirme | auth screen both themes |
-| Planning / calendar | `#planning` | partial | `FutureWorkspacePanel.tsx` | partial/read via reservations | calendar shell, filters, cards | high | role-filtered | FE-I + FE-J | placeholder only, no live scheduler yet | responsive + empty/error |
-| Clients liste | `#customers` | partial | `CustomerPanel.tsx` | oui | list shell, filters, detail split | high | oui | FE-G | current layout utilitaire | CRUD + denied + themes |
-| Fiche client | `#customers` detail | partial | `CustomerPanel.tsx` detail | oui | detail cards, linked records | high | oui | FE-G | detail IA encore plate | detail + a11y |
-| Appointments / prospects | futur Hahitantsoa | missing | none | non confirme | agenda visiteurs, prospect cards | medium | probable | FE-I | besoin decision workflow | gate by business |
-| Reservations Hahitantsoa | `#hahitantsoa` | partial | `HahitantsoaEventDraftsPanel.tsx` | oui | list/detail shell, timeline, action bar | high | oui FE-A | FE-G | flux dense | preflight/confirm/theme |
-| Reservations Titan | `#titan` | partial | `AvailabilityPanel.tsx` | oui | list/detail shell, action bar, badges | high | oui FE-A, gap confirm | FE-G | confirm Titan encore absent UI | write/denied/theme |
-| New reservation wizard | futur wizard | missing | none | oui | stepper, recap, scope branching | high | oui | FE-G | scope split HAH/TIT | wizard + denied |
-| Reservation detail | futur detail | missing | none | oui | summary cards, timeline, docs, payments | high | oui | FE-G | source split scopes | detail regression |
-| Inventory | `#titan` | partial | inline `App.tsx` + stock panels | oui | inventory table/cards, toolbar | high | mixed | FE-B | current inline weak | list + theme |
-| Excel import | futur import | missing | none | non confirme frontend path | import workflow cards | medium | yes | FE-I | may need business/contract | upload placeholder tests |
-| Logistics | `#commercial-ops` logistics | partial | `LogisticsDeliveryPanel.tsx` read-only | oui | workflow board, event cards, stepper | high | required | FE-B | operator flows missing | logistics write gates |
-| Returns | `#commercial-ops` returns | partial | `ReturnsHandlingPanel.tsx` | oui | inspection table/cards | high | yes | FE-B | current read/list only | permission + theme |
-| Damage/loss | `#commercial-ops` breakage | partial | `BreakageLossPanel.tsx` | oui | settlement cards, status badges | high | yes | FE-B or FE-C | payment/billing links | status + denied |
-| Catalog | `#catalog` | partial | `FutureWorkspacePanel.tsx` | partial | catalog cards, pack visuals | medium | role-filtered | FE-I | placeholder only, no workflow yet | placeholder route tests |
-| Venues/components | Hahitantsoa only | non confirme | none | HAH scope only | cards/table if approved | medium | role-filtered | FE-I | forbidden in Titan | scope boundary tests |
-| Documents/templates | `#commercial-ops` docs | partial | docs panels + preview + PDF trigger | oui | split scope cards, preview shell, PDF state | high | yes | FE-D | PDF viewer now available but still limited to private artifact/PDF surfaces | doc create/generate/theme |
-| Billing/payments | `#commercial-ops` | partial | `BillingInvoicePanel.tsx`, `PaymentWorkflowPanel.tsx` | oui | documents commerciaux page, action bars, detail split | high | yes | FE-C | billing operator UI now covers settle/cancel/installments/credit notes; payment panel remains separate | write/read-only/theme |
-| Cashbox | `#cashbox` | current | `CashboxPanel.tsx` | oui | session cards, movement forms, totals, closing actions | high | yes | FE-F | possible extension to export/print later | session lifecycle |
-| HR | `#hr` | partial | `FutureWorkspacePanel.tsx` | non confirme | placeholder only | low | role-filtered | FE-I | outside current ERP priority | decision gate |
-| Procurement | `#procurement` | partial | `FutureWorkspacePanel.tsx` | partial/future | PO table/cards | low | role-filtered | FE-I | backend path not mapped in current FE | decision gate |
-| Notifications | global shell pattern | future | none | partial | notification center, badges | medium | role-based | FE-H/FE-I | kept as shell cue only; no backend feature in FE-H | shell + read-only |
-| Reports | `#reports` | partial | `FutureWorkspacePanel.tsx` | partial/non confirme | exports cards, gates | medium | role-filtered | FE-I | business confirmation needed before actions | placeholder tests |
-| Admin | `#identity` + params | partial | `IdentityPanel.tsx` | oui | admin shell, settings cards, users table | high | yes | FE-H | role mgmt write backend exists but FE partial | tabs + denied |
-| Audit/security | `#audit` | partial | `AuditPanel.tsx` | oui | audit table, filters, result badges | high | role-filtered | FE-E | viewer is read-only; deeper security drill-down still future | read-only + filters |
-| Mobile/tablet | transverse | future | CSS basique | n/a | responsive shell, compact cards, drawers | high | n/a | FE-J | current shell not ready | viewport regression |
-| Help/onboarding | `#help` | partial | `FutureWorkspacePanel.tsx` | non critique | role journeys, docs links | low | role-aware | FE-I | source content not final | content and nav tests |
-| Light/dark theme | global | missing | no true theme system | n/a | tokens, data-theme, logo rules | critical | n/a | FE-B0 | logo dark variants missing | theme matrix |
+| Zone prototype | Route/scope cible | Statut React | Fidelite | Notes |
+|---|---|---|---|---|
+| Dashboard | `#dashboard` | aligned | partially prototype-aligned | shell et quick cards merge |
+| Login | auth | partial | partially prototype-aligned | fonctionnel, encore perfectible |
+| Planning / calendar | `#planning` | placeholder | not implemented | vrai scheduler absent |
+| Clients liste | `#customers` | partial | partially prototype-aligned | CRUD présent |
+| Fiche client | `#customers` detail | partial | basic/rudimentary | enrichissement encore attendu |
+| Appointments / prospects | futur HAH | missing | not implemented | décision workflow requise |
+| Reservations Hahitantsoa | `#hahitantsoa` | partial-to-strong | partially prototype-aligned | connectivite forte |
+| Reservations Titan | `#titan` | partial | basic/rudimentary | confirmation/detail encore absents |
+| New reservation wizard | futur | missing | not implemented | vrai gap restant |
+| Reservation detail | futur | missing | not implemented | vrai gap restant |
+| Inventory | `#titan` | partial | basic/rudimentary | table/catalog encore faible |
+| Excel import | futur | missing | not implemented | non confirme |
+| Logistics | `#commercial-ops` | aligned | partially prototype-aligned | FE-B livre, encore polishable |
+| Returns | `#commercial-ops` | aligned | partially prototype-aligned | validation connectee |
+| Damage/loss | `#commercial-ops` | aligned | partially prototype-aligned | validation connectee |
+| Catalog | `#catalog` | placeholder | not implemented | placeholder approuve |
+| Venues/components | HAH only | non confirme | not implemented | jamais Titan |
+| Documents/templates | `#commercial-ops` | aligned | partially prototype-aligned | HTML/PDF presents |
+| Billing/payments | `#commercial-ops` | aligned | partially prototype-aligned | FE-C livre |
+| Cashbox | `#cashbox` | aligned | partially prototype-aligned | FE-F livre |
+| HR | `#hr` | placeholder | not implemented | hors priorite |
+| Procurement | `#procurement` | placeholder | not implemented | hors contrat |
+| Notifications | shell cue | partial | partially prototype-aligned | indices shell seulement |
+| Reports | `#reports` | placeholder | not implemented | décision business/légale requise |
+| Admin | `#identity` + futurs params | partial | basic/rudimentary | admin write encore incomplet |
+| Audit/security | `#audit` | aligned | partially prototype-aligned | FE-E livre |
+| Mobile/tablet | transverse | partial | partially prototype-aligned | FE-J livre une base solide |
+| Help/onboarding | `#help` | placeholder | not implemented | placeholder approuve |
+| Light/dark theme | global | aligned | partially prototype-aligned | fondation livree |
 
-## Conflits prototype vs cartographie
+## Ce qui ne doit plus etre traite comme futur
 
-| Sujet | Classification | Decision F177A |
-|---|---|---|
-| `venues` / locaux & composants visible dans le prototype | business decision needed | autoriser seulement cote Hahitantsoa; jamais Titan |
-| `hr`, `procurement`, `reports`, `mobile`, `help` riches dans le prototype | prototype target improvement | garder comme reference visuelle, pas comme promesse backend |
-| `cashbox` page complete dans le prototype alors que route absente | resolved / existing implementation gap closed | FE-F implémenté |
-| `calendar` page riche vs route absente actuelle | existing implementation gap | traiter en redesign shell/planning futur |
-| dashboard prototype avec chartes visuelles riches vs dashboard live minimal | existing implementation gap | traiter en FE-H |
-| prototype suggere plus de navigation que la hash-nav actuelle | prototype target improvement | evoluer sans inventer de backend |
+- logistics
+- returns
+- damage/loss
+- documents/PDF
+- billing
+- credit notes
+- installments
+- cashbox
+- audit
+- dashboard shell redesign
+- light/dark foundation
+- responsive/accessibility pass initial
+
+## Vrais gaps restants
+
+1. reservation detail dedie
+2. new reservation wizard
+3. confirmation Titan complete
+4. planning/calendar reel
+5. enrichissement client file
+6. settings/admin completion
+7. reports/exports apres decision metier/legal
+8. QA de fidelite prototype plus large
 
 ## Conclusion operative
 
-- Le prototype est exploitable comme reference visuelle et navigationnelle.
-- Le frontend live fournit surtout les contrats API et les patterns de gating FE-A.
-- La priorite technique doit etre un FE-B0 de shell + theming avant de pousser les
-  ecrans operationnels riches.
-- FE-G a commencé l'alignement visuel des fiches client et reservation detail, mais
-  les workflows métier profonds restent gouvernés par le backend et les bundles futurs.
+Le frontend live n’est plus dans une phase “FE-C à FE-J à faire”.
+Le prochain travail frontend doit partir des gaps restants ci-dessus, pas de la
+roadmap historique pre-merges.

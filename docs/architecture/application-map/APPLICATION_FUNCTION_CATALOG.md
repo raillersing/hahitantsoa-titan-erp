@@ -1,8 +1,13 @@
 # APPLICATION_FUNCTION_CATALOG.md — Catalogue des fonctions ERP
 
-> **Version:** F176A — 2026-06-24
-> **Référence backend gel:** F175A (HEAD `5d74979`)
-> **Complétude globale estimée:** 81% (F162A), backend ~97% (F175A), frontend ~70%
+> **Version:** F178B — 2026-06-25
+> **Référence backend gel:** F175A
+> **Etat frontend de reference:** `main` SHA `8cde58a775a44cd92112b9537347ec32c885c47b`
+> **Complétude globale estimée:** backend ~95%+, frontend ~80%, application ~85%
+
+> Lire aussi:
+> `docs/audits/F178A_FRONTEND_CONNECTIVITY_AND_HYGIENE_AUDIT.md`
+> avant d’utiliser ce catalogue pour planifier un nouveau bundle frontend.
 
 ---
 
@@ -77,12 +82,12 @@
 
 | ID | Fonction | Domaine | Source | Statut | Backend | Frontend | Tests | Règles métier liées | Dépendances | Agent responsable |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `LOG-001` | Événements logistiques (livraison, retrait, préparation, passation) | Logistique | Document A | **Implemented** | `LogisticsEventCreateAPIView`, `LogisticsEventUpdateAPIView`, `LogisticsEventTransitionAPIView` | `LogisticsDeliveryPanel.tsx` (read-only) | `test_logistics_api.py`, `test_logistics_services.py` | INV-010, INV-011 | logistics, reservations, inventory | frontend |
-| `LOG-002` | Lignes d'articles dans événement logistique | Logistique | Document A | **Implemented** | `LogisticsEventItemLineAddAPIView`, `LogisticsEventItemLineRemoveAPIView` | Non confirmé | `test_logistics_api.py` | INV-010 | logistics, inventory | frontend |
-| `LOG-003` | Passation client (signature) | Logistique | Document B | **Implemented** | `LogisticsEventCompletePassationAPIView` (`complete_handover_passation`) | Non confirmé (UI opérationnel manquant) | `test_logistics_services.py` | INV-011 | logistics, documents | frontend |
-| `LOG-004` | Bon de livraison (génération document) | Logistique | Document A/B | **Implemented** | `create_delivery_note_from_handover_event` | Non confirmé | `test_logistics_services.py` | INV-011 | logistics, documents | frontend |
-| `LOG-005` | Retour — opérations de retour (intact/cassé/manquant) | Logistique | Document A | **Implemented** | `InventoryReturnOperationListCreateAPIView`, `InventoryReturnOperationValidateAPIView` | `ReturnsHandlingPanel.tsx` (read-only) | `test_inventory_return_operation_*.py` | INV-012 | inventory, logistics | frontend |
-| `LOG-006` | Casse/Perte — constat et règlement | Logistique | Document A | **Implemented** | `InventoryDamageLossSettlementListCreateAPIView`, `InventoryDamageLossSettlementValidateAPIView` | `BreakageLossPanel.tsx` (read-only) | `test_inventory_damage_loss_*.py` | INV-013 | inventory, payments | frontend |
+| `LOG-001` | Événements logistiques (livraison, retrait, préparation, passation) | Logistique | Document A | **Implemented** | `LogisticsEventCreateAPIView`, `LogisticsEventUpdateAPIView`, `LogisticsEventTransitionAPIView` | `LogisticsDeliveryPanel.tsx` | `test_logistics_api.py`, `test_logistics_services.py`, `LogisticsDeliveryPanel.test.tsx` | INV-010, INV-011 | logistics, reservations, inventory | frontend |
+| `LOG-002` | Lignes d'articles dans événement logistique | Logistique | Document A | **Implemented** | `LogisticsEventItemLineAddAPIView`, `LogisticsEventItemLineRemoveAPIView` | `LogisticsDeliveryPanel.tsx` | `test_logistics_api.py`, `LogisticsDeliveryPanel.test.tsx` | INV-010 | logistics, inventory | frontend |
+| `LOG-003` | Passation client (signature) | Logistique | Document B | **Implemented** | `LogisticsEventCompletePassationAPIView` (`complete_handover_passation`) | `LogisticsDeliveryPanel.tsx` | `test_logistics_services.py`, `LogisticsDeliveryPanel.test.tsx` | INV-011 | logistics, documents | frontend |
+| `LOG-004` | Bon de livraison (génération document) | Logistique | Document A/B | **Implemented** | `create_delivery_note_from_handover_event` | `LogisticsDeliveryPanel.tsx` touchpoint | `test_logistics_services.py`, `LogisticsDeliveryPanel.test.tsx` | INV-011 | logistics, documents | frontend |
+| `LOG-005` | Retour — opérations de retour (intact/cassé/manquant) | Logistique | Document A | **Implemented** | `InventoryReturnOperationListCreateAPIView`, `InventoryReturnOperationValidateAPIView` | `ReturnsHandlingPanel.tsx` | `test_inventory_return_operation_*.py`, `ReturnsHandlingPanel.test.tsx` | INV-012 | inventory, logistics | frontend |
+| `LOG-006` | Casse/Perte — constat et règlement | Logistique | Document A | **Implemented** | `InventoryDamageLossSettlementListCreateAPIView`, `InventoryDamageLossSettlementValidateAPIView` | `BreakageLossPanel.tsx` | `test_inventory_damage_loss_*.py`, `BreakageLossPanel.test.tsx` | INV-013 | inventory, payments | frontend |
 | `LOG-007` | Exécution du règlement casse/perte | Logistique | Document A | **Implemented** | `InventoryDamageLossSettlementExecutionExecuteAPIView` | Non confirmé | `test_inventory_damage_loss_*.py` | INV-013 | inventory, billing, payments | frontend |
 | `LOG-008` | Remboursement caution (obligation) | Logistique | Document A | **Implemented** | `InventoryCautionRefundObligation` | `CautionRefundPanel.tsx` | `test_inventory_damage_loss_*.py` | INV-013 | inventory, payments | frontend |
 | `LOG-009` | Excédent client (facturation supplémentaire) | Logistique | Document A | **Implemented** | `InventoryDamageLossExcessReceivable`, `InventoryExcessReceivableGenerateInvoiceAPIView` | Non confirmé | `test_inventory_damage_loss_*.py` | INV-013 | inventory, billing | frontend |
@@ -94,21 +99,21 @@
 | `DOC-001` | Registre de templates (proforma, contrat, BL, facture, reçu, avenant) | Documents | Document A | **Implemented** | `DocumentTemplateRegistryAPIView`, `registry.py` | `TitanDocumentsPanel.tsx`, `HahitantsoaDocumentsPanel.tsx` | `test_documents_template_*.py` | — | documents | frontend |
 | `DOC-002` | Instanciation de document depuis brouillon | Documents | Document A | **Implemented** | `ReservationDraftDocumentInstanceListCreateAPIView`, `HahitantsoaEventDraftDocumentInstanceListCreateAPIView` | `TitanDocumentsPanel.tsx`, `HahitantsoaDocumentsPanel.tsx` | `test_documents_reservation_draft_instance_api.py`, `test_hahitantsoa_event_draft_document_api.py` | — | documents, reservations, hahitantsoa | frontend |
 | `DOC-003` | Génération runtime HTML | Documents | Document A | **Implemented** | `generate_reservation_draft_document_instance_html`, `runtime.py` | `DocumentArtifactPreviewPanel.tsx` (iframe HTML) | `test_documents_runtime_generation.py` | — | documents | frontend |
-| `DOC-004` | Génération PDF | Documents | Document A | **Partial** | `DocumentPDFGenerator` ABC + `MockPDFGenerator`, `generate_document_instance_pdf` | Non implémenté (seulement preview HTML) | `test_documents_pdf_generation.py` | — | documents | frontend |
+| `DOC-004` | Génération PDF | Documents | Document A | **Implemented** | `DocumentPDFGenerator` ABC + `MockPDFGenerator`, `generate_document_instance_pdf` | `TitanDocumentsPanel.tsx`, `HahitantsoaDocumentsPanel.tsx`, `DocumentPdfPreviewPanel.tsx` | `test_documents_pdf_generation.py`, `DocumentPdfPreviewPanel.test.tsx` | — | documents | frontend |
 | `DOC-005` | Gestion des templates par opérateur (admin UI) | Documents | Document A | **Non confirmé** | Templates code-defined dans `registry.py` | Non implémenté | — | — | documents | business, frontend |
 
 ## 9. Facturation / Factures / Échéanciers / Avoirs / Remboursements / Numérotation légale
 
 | ID | Fonction | Domaine | Source | Statut | Backend | Frontend | Tests | Règles métier liées | Dépendances | Agent responsable |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `BIL-001` | Facturation — émission de facture | Facturation | Document A | **Implemented** | `BillingInvoiceListAPIView`, settle/cancel/correct | `BillingInvoicePanel.tsx` (read-only) | `test_billing_api.py`, `test_billing_services.py` | — | billing, documents | frontend |
-| `BIL-002` | Règlement de facture | Facturation | Document A | **Implemented** | `BillingInvoiceSettleAPIView` | Non confirmé | `test_billing_api.py` | — | billing, payments | frontend |
-| `BIL-003` | Annulation de facture | Facturation | Document A | **Implemented** | `BillingInvoiceCancelAPIView` | Non confirmé | `test_billing_api.py` | — | billing | frontend |
-| `BIL-004` | Échéanciers (50% J-30, solde J-10) | Facturation | INV-009 | **Implemented** | `BillingInvoiceInstallmentCreateAPIView`, `BillingInstallmentAllocateAPIView` | Non confirmé | `test_billing_installment_*.py` | INV-009 | billing, payments | frontend |
+| `BIL-001` | Facturation — émission de facture | Facturation | Document A | **Implemented** | `BillingInvoiceListAPIView`, settle/cancel/correct | `BillingInvoicePanel.tsx` | `test_billing_api.py`, `test_billing_services.py`, `BillingInvoicePanel.test.tsx` | — | billing, documents | frontend |
+| `BIL-002` | Règlement de facture | Facturation | Document A | **Implemented** | `BillingInvoiceSettleAPIView` | `BillingInvoicePanel.tsx` | `test_billing_api.py`, `BillingInvoicePanel.test.tsx` | — | billing, payments | frontend |
+| `BIL-003` | Annulation de facture | Facturation | Document A | **Implemented** | `BillingInvoiceCancelAPIView` | `BillingInvoicePanel.tsx` | `test_billing_api.py`, `BillingInvoicePanel.test.tsx` | — | billing | frontend |
+| `BIL-004` | Échéanciers (50% J-30, solde J-10) | Facturation | INV-009 | **Implemented** | `BillingInvoiceInstallmentCreateAPIView`, `BillingInstallmentAllocateAPIView` | `BillingInvoicePanel.tsx` | `test_billing_installment_*.py`, `BillingInvoicePanel.test.tsx` | INV-009 | billing, payments | frontend |
 | `BIL-005` | Numérotation légale des factures | Facturation | Document A | **Implemented** | `BillingInvoiceNumberingPolicy`, `assign_invoice_number` | Non confirmé | `test_billing_numbering.py` | — | billing | backend-maintenance |
-| `BIL-006` | Avoirs (credit notes) — émission | Facturation | Document A | **Implemented** | `BillingCreditNoteListCreateAPIView` | Non confirmé | `test_billing_credit_notes.py` | — | billing | frontend |
-| `BIL-007` | Avoirs — récupération et annulation | Facturation | Document A | **Implemented** | `BillingCreditNoteRetrieveAPIView`, `BillingCreditNoteCancelAPIView` | Non confirmé | `test_billing_credit_notes.py` | — | billing | frontend |
-| `BIL-008` | Obligations de remboursement | Facturation | Document A | **Implemented** | `BillingRefundObligation`, `BillingRefundObligationExecuteAPIView` | Non confirmé | `test_billing_refund_obligation.py` | — | billing, payments | frontend |
+| `BIL-006` | Avoirs (credit notes) — émission | Facturation | Document A | **Implemented** | `BillingCreditNoteListCreateAPIView` | `BillingInvoicePanel.tsx` | `test_billing_credit_notes.py`, `BillingInvoicePanel.test.tsx` | — | billing | frontend |
+| `BIL-007` | Avoirs — récupération et annulation | Facturation | Document A | **Implemented** | `BillingCreditNoteRetrieveAPIView`, `BillingCreditNoteCancelAPIView` | `BillingInvoicePanel.tsx` | `test_billing_credit_notes.py`, `BillingInvoicePanel.test.tsx` | — | billing | frontend |
+| `BIL-008` | Obligations de remboursement | Facturation | Document A | **Implemented** | `BillingRefundObligation`, `BillingRefundObligationExecuteAPIView` | `BillingInvoicePanel.tsx` | `test_billing_refund_obligation.py`, `BillingInvoicePanel.test.tsx` | — | billing, payments | frontend |
 
 ## 10. Paiements / Acomptes / Remboursements / Réconciliation
 
@@ -125,16 +130,16 @@
 
 | ID | Fonction | Domaine | Source | Statut | Backend | Frontend | Tests | Règles métier liées | Dépendances | Agent responsable |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `CASH-001` | Ouverture de session caisse | Caisse | INV-015, Document A | **Implemented** | `CashboxSessionOpenAPIView` | Non confirmé | `test_cashbox_api.py`, `test_cashbox_services.py` | INV-015 | cashbox, identity | frontend |
-| `CASH-002` | Clôture de session caisse | Caisse | INV-015, Document A | **Implemented** | `CashboxSessionCloseAPIView` | Non confirmé | `test_cashbox_api.py` | INV-015 | cashbox | frontend |
-| `CASH-003` | Mouvements de caisse (entrée/sortie) | Caisse | INV-015, Document A | **Implemented** | `CashboxMovementCreateAPIView` | Non confirmé | `test_cashbox_api.py` | INV-015 | cashbox, billing, payments | frontend |
+| `CASH-001` | Ouverture de session caisse | Caisse | INV-015, Document A | **Implemented** | `CashboxSessionOpenAPIView` | `CashboxPanel.tsx` | `test_cashbox_api.py`, `test_cashbox_services.py`, `CashboxPanel.test.tsx` | INV-015 | cashbox, identity | frontend |
+| `CASH-002` | Clôture de session caisse | Caisse | INV-015, Document A | **Implemented** | `CashboxSessionCloseAPIView` | `CashboxPanel.tsx` | `test_cashbox_api.py`, `CashboxPanel.test.tsx` | INV-015 | cashbox | frontend |
+| `CASH-003` | Mouvements de caisse (entrée/sortie) | Caisse | INV-015, Document A | **Implemented** | `CashboxMovementCreateAPIView` | `CashboxPanel.tsx` | `test_cashbox_api.py`, `CashboxPanel.test.tsx` | INV-015 | cashbox, billing, payments | frontend |
 | `CASH-004` | Export justificatif caisse (INV-015) | Caisse | Document A | **Partial** | Modèles existent, format d'export non spécifié | Non implémenté | — | INV-015 | cashbox | business, frontend |
 
 ## 12. Audit / Attribution / Actions sensibles
 
 | ID | Fonction | Domaine | Source | Statut | Backend | Frontend | Tests | Règles métier liées | Dépendances | Agent responsable |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `AUD-001` | Journal d'audit immuable | Audit | INV-018, Document A | **Implemented** | `AuditEventListAPIView`, `AuditEventRetrieveAPIView` | Non confirmé | `test_audit_api.py`, `test_audit_transaction_safety.py` | INV-018 | audit | frontend |
+| `AUD-001` | Journal d'audit immuable | Audit | INV-018, Document A | **Implemented** | `AuditEventListAPIView`, `AuditEventRetrieveAPIView` | `AuditPanel.tsx` | `test_audit_api.py`, `test_audit_transaction_safety.py`, `AuditPanel.test.tsx` | INV-018 | audit | frontend |
 | `AUD-002` | Enregistrement audit transaction-safe | Audit | Document A | **Implemented** | `record_audit_event_on_commit` (`transaction.on_commit`) | N/A | `test_audit_transaction_safety.py` | INV-018 | audit | backend-maintenance |
 | `AUD-003` | Attribution durable (created_by, updated_by, confirmed_by) | Audit | Document A | **Implemented** | `AuditableModel` dans `common/models.py` | N/A | `test_reservations_attribution.py` | INV-018 | common | backend-maintenance |
 
@@ -143,7 +148,7 @@
 | ID | Fonction | Domaine | Source | Statut | Backend | Frontend | Tests | Règles métier liées | Dépendances | Agent responsable |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `RPT-001` | Export comptable (SIE/FEC/plan comptable) | Reporting | Document A | **Non confirmé** | Non implémenté (format non spécifié dans A/B) | Non implémenté | — | — | billing | business, backend-maintenance (hors gel) |
-| `RPT-002` | Tableau de bord opérationnel | Reporting | Document A | **Partial** | `DashboardPanel.tsx` (cards basiques) | `DashboardPanel.tsx` | `DashboardPanel.test.tsx` | — | — | frontend |
+| `RPT-002` | Tableau de bord opérationnel | Reporting | Document A | **Implemented** | aggregations existantes exposees via frontend live | `DashboardPanel.tsx` | `DashboardPanel.test.tsx` | — | inventory, reservations, payments, hahitantsoa | frontend |
 | `RPT-003` | Rapports de clôture commercial | Reporting | Document A | **Implemented** | `ReservationDraftCloseoutSummaryAPIView` | Non confirmé | `test_reservations_closeout*.py` | — | reservations, billing, payments, logistics, inventory | frontend |
 
 ## 14. UX Opérateur Frontend
@@ -151,10 +156,10 @@
 | ID | Fonction | Domaine | Source | Statut | Backend | Frontend | Tests | Règles métier liées | Dépendances | Agent responsable |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `UX-001` | Authentification session + gating | UX | Document A | **Implemented** | Django session auth | `LoginPanel.tsx`, `AuthContext.tsx` | `App.test.tsx`, `LoginPanel.test.tsx` | — | identity | frontend |
-| `UX-002` | Permission-aware UI gating | UX | Document A | **Partial** | Backend auth complet | `checkEndpointPermission` utilisé dans 7+ panels | Tests par panel | INV-017 | identity | frontend (FE-A recommandé) |
+| `UX-002` | Permission-aware UI gating | UX | Document A | **Implemented** | Backend auth complet | `checkEndpointPermission` et probes dédiées dans les panneaux write majeurs | Tests par panel | INV-017 | identity | frontend |
 | `UX-003` | États loading / error / empty | UX | `DESIGN.md` | **Implemented** | N/A | Tous les panels | Tests par panel | — | — | frontend |
-| `UX-004` | Accessibilité (ARIA, keyboard, focus) | UX | `DESIGN.md` | **Partial** | N/A | `aria-label`, `aria-current`, `role="alert"` dans plusieurs panels | Tests RTL | WCAG | — | frontend (FE-C recommandé) |
-| `UX-005` | Responsive | UX | `DESIGN.md` | **Partial** | N/A | CSS basique responsive | Non testé | — | — | frontend |
+| `UX-004` | Accessibilité (ARIA, keyboard, focus) | UX | `DESIGN.md` | **Partial** | N/A | skip-link, focus states, ARIA patterns et alert roles en place | Tests RTL | WCAG | — | frontend |
+| `UX-005` | Responsive | UX | `DESIGN.md` | **Partial** | N/A | shell responsive et pass mobile/tablet initial FE-J | Tests partiels | — | — | frontend |
 
 ## 15. Permissions / Sécurité
 
@@ -181,25 +186,24 @@
 
 ## Synthèse par domaine
 
-| Domaine | Fonctions | Implemented | Partial | Planned | Non confirmé |
-|---|---|---:|---:|---:|---:|
-| Scope métier | 3 | 3 | 0 | 0 | 0 |
-| Réservations | 12 | 10 | 2 | 0 | 0 |
-| Confirmation | 3 | 3 | 0 | 0 | 0 |
-| Clients | 2 | 2 | 0 | 0 | 0 |
-| Identité | 4 | 3 | 1 | 0 | 0 |
-| Inventaire | 4 | 3 | 0 | 0 | 1 |
-| Logistique | 9 | 7 | 2 | 0 | 0 |
-| Documents | 5 | 3 | 1 | 0 | 1 |
-| Facturation | 8 | 7 | 0 | 0 | 1 |
-| Paiements | 6 | 4 | 2 | 0 | 0 |
-| Caisse | 4 | 3 | 1 | 0 | 0 |
-| Audit | 3 | 3 | 0 | 0 | 0 |
-| Reporting | 3 | 1 | 1 | 0 | 1 |
-| UX Frontend | 5 | 3 | 2 | 0 | 0 |
-| Sécurité | 4 | 3 | 0 | 0 | 1 |
-| DevOps | 7 | 5 | 0 | 1 | 1 |
-| **Total** | **82** | **63** | **12** | **1** | **6** |
+Après FE-C à FE-J, le frontend live a progressé surtout sur:
+
+- logistique opérateur
+- retours et casse/perte
+- documents HTML/PDF
+- billing / installments / credit notes
+- cashbox
+- audit
+- shell/dashboard/theme/responsive
+
+Les domaines encore surtout `Partial` ou `Non confirmé` sont:
+
+- confirmation Titan
+- reservation detail / reservation wizard
+- planning/calendar
+- admin/settings completion
+- reports/exports
+- workflows non confirmés `catalog`, `procurement`, `hr`, `appointments`
 
 ---
 *Fin du catalogue des fonctions*
