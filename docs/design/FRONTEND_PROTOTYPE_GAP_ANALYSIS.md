@@ -15,7 +15,7 @@
 
 | Zone prototype | Route/scope cible | Statut React | Base actuelle | Backend/API | Design/components necessaires | Theme | Permission gating | Bundle recommande | Risque | Tests a prevoir |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Dashboard | `#dashboard` | partial | `DashboardPanel.tsx` | oui | shell, KPI cards, quick actions, charts | high | lecture | FE-H | shell global absent | dashboard both themes |
+| Dashboard | `#dashboard` | aligned | `DashboardPanel.tsx` + shell | oui | shell, KPI cards, quick actions, context cards | high | lecture | FE-H | charts still not implemented; prototype only implied them | dashboard both themes |
 | Login | auth | partial | `LoginPanel.tsx` | oui | branding, layout, logo rules | medium | n/a | FE-B0 | dark logo non confirme | auth screen both themes |
 | Planning / calendar | futur `#planning` | missing | none | partial/read via reservations | calendar shell, filters, cards | high | role-filtered | FE-H ou FE-J | route non creee | responsive + empty/error |
 | Clients liste | `#customers` | partial | `CustomerPanel.tsx` | oui | list shell, filters, detail split | high | oui | FE-G | current layout utilitaire | CRUD + denied + themes |
@@ -37,7 +37,7 @@
 | Cashbox | `#cashbox` | current | `CashboxPanel.tsx` | oui | session cards, movement forms, totals, closing actions | high | yes | FE-F | possible extension to export/print later | session lifecycle |
 | HR | future | missing | none | non confirme | placeholder only | low | role-filtered | FE-I | outside current ERP priority | decision gate |
 | Procurement | future | missing | none | partial/future | PO table/cards | low | role-filtered | FE-I | backend path not mapped in current FE | decision gate |
-| Notifications | global shell pattern | missing | none | partial | notification center, badges | medium | role-based | FE-H | could drift to new backend asks | shell + read-only |
+| Notifications | global shell pattern | future | none | partial | notification center, badges | medium | role-based | FE-H/FE-I | kept as shell cue only; no backend feature in FE-H | shell + read-only |
 | Reports | futur reports | missing | none | partial/non confirme | exports cards, gates | medium | role-filtered | FE-I | business confirmation needed | placeholder tests |
 | Admin | `#identity` + params | partial | `IdentityPanel.tsx` | oui | admin shell, settings cards, users table | high | yes | FE-H | role mgmt write backend exists but FE partial | tabs + denied |
 | Audit/security | `#audit` | partial | `AuditPanel.tsx` | oui | audit table, filters, result badges | high | role-filtered | FE-E | viewer is read-only; deeper security drill-down still future | read-only + filters |

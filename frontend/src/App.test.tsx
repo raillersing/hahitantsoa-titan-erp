@@ -130,7 +130,7 @@ describe("App", () => {
       screen.getByRole("heading", { name: "Frontend module shell" }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { name: "ERP Overview" }),
+      await screen.findByRole("heading", { name: "ERP command center" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Dashboard" }),
@@ -232,6 +232,21 @@ describe("App", () => {
     expect(
       await screen.findByText("No inventory items are currently visible."),
     ).toBeInTheDocument();
+  });
+
+  it("renders the dashboard quick actions and brand context cards", async () => {
+    window.history.replaceState(null, "", "/");
+    mockAppFetch({ inventoryItems: [] });
+
+    renderApp();
+
+    expect(
+      await screen.findByRole("heading", { name: "ERP command center" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Titan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Hahitantsoa" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open operations" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Operational context" })).toBeInTheDocument();
   });
 
   it("renders an error state for a failed HTTP response", async () => {
