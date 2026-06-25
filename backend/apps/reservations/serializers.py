@@ -204,16 +204,16 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     contract_signed_at = serializers.DateTimeField(read_only=True)
-    contract_signed_by_id = serializers.UUIDField(source="contract_signed_by_id", read_only=True)
+    contract_signed_by_id = serializers.UUIDField(read_only=True, allow_null=True)
     required_deposit_received_at = serializers.DateTimeField(read_only=True)
     required_deposit_received_by_id = serializers.UUIDField(
-        source="required_deposit_received_by_id",
         read_only=True,
+        allow_null=True,
     )
     confirmed_at = serializers.DateTimeField(read_only=True)
-    confirmed_by_id = serializers.UUIDField(source="confirmed_by_id", read_only=True)
+    confirmed_by_id = serializers.UUIDField(read_only=True, allow_null=True)
     cancelled_at = serializers.DateTimeField(read_only=True)
-    cancelled_by_id = serializers.UUIDField(source="cancelled_by_id", read_only=True)
+    cancelled_by_id = serializers.UUIDField(read_only=True, allow_null=True)
     lines = ReservationDraftLineSerializer(many=True)
 
     class Meta:
