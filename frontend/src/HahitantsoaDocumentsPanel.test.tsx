@@ -1,4 +1,4 @@
-import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import HahitantsoaDocumentsPanel from "./HahitantsoaDocumentsPanel";
 import * as api from "./api";
@@ -415,10 +415,16 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Generate PDF" })).toBeInTheDocument();
+      const generatedInstance = screen.getByTestId("hahitantsoa-instance-inst-2");
+      expect(generatedInstance).toBeInTheDocument();
+      expect(within(generatedInstance).getByRole("button", { name: "Generate PDF" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Generate PDF" }));
+    fireEvent.click(
+      within(screen.getByTestId("hahitantsoa-instance-inst-2")).getByRole("button", {
+        name: "Generate PDF",
+      }),
+    );
 
     await waitFor(() => {
       expect(pdfSpy).toHaveBeenCalledWith("edraft-1", "inst-2");

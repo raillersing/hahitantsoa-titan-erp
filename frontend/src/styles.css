@@ -108,6 +108,17 @@ a {
     transform 140ms ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
@@ -145,6 +156,24 @@ h3 {
   place-items: center;
   min-height: 100vh;
   padding: 32px;
+}
+
+.skip-link {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 30;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-160%);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
 }
 
 .erp-shell {
@@ -590,6 +619,10 @@ h3 {
   display: grid;
   gap: 20px;
   align-content: start;
+}
+
+.erp-main__content:focus {
+  outline: none;
 }
 
 .erp-main__intro {
@@ -3255,6 +3288,19 @@ fieldset:disabled {
   .erp-sidebar {
     position: relative;
     min-height: auto;
+    overflow-x: auto;
+  }
+
+  .erp-sidebar__section {
+    padding: 8px 12px 0;
+  }
+
+  .module-nav-list {
+    gap: 8px;
+  }
+
+  .module-nav-button {
+    min-height: 56px;
   }
 
   .erp-main__content {
@@ -3264,6 +3310,15 @@ fieldset:disabled {
   .erp-topbar {
     padding: 12px 16px;
     flex-wrap: wrap;
+  }
+
+  .erp-topbar__title-block,
+  .erp-topbar__actions {
+    width: 100%;
+  }
+
+  .erp-topbar__actions {
+    justify-content: space-between;
   }
 
   .dashboard-grid {
@@ -3322,6 +3377,14 @@ fieldset:disabled {
     flex-wrap: wrap;
   }
 
+  .erp-topbar__title-block {
+    align-items: flex-start;
+  }
+
+  .erp-topbar__heading-row {
+    flex-wrap: wrap;
+  }
+
   .module-hero {
     padding: 16px;
   }
@@ -3341,5 +3404,18 @@ fieldset:disabled {
 
   .erp-topbar__content-right {
     display: none;
+  }
+
+  .erp-sidebar__brand,
+  .erp-sidebar__footer {
+    padding-inline: 16px;
+  }
+
+  .module-nav-button__badge {
+    display: none;
+  }
+
+  .future-workspace-grid {
+    grid-template-columns: 1fr;
   }
 }

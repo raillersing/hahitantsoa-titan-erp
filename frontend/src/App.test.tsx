@@ -126,6 +126,10 @@ describe("App", () => {
 
     renderApp();
 
+    expect(screen.getByRole("link", { name: "Skip to main content" })).toHaveAttribute(
+      "href",
+      "#erp-main-content",
+    );
     expect(
       screen.getByRole("heading", { name: "Frontend module shell" }),
     ).toBeInTheDocument();
@@ -184,6 +188,18 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Frontend placeholder only")).toBeInTheDocument();
     expect(window.location.hash).toBe("#planning");
+  });
+
+  it("keeps the planning shortcut keyboard-accessible in the topbar", async () => {
+    window.history.replaceState(null, "", "/");
+    mockAppFetch({ inventoryItems: [] });
+
+    renderApp();
+
+    const planningButton = await screen.findByRole("button", { name: "Open planning" });
+    planningButton.focus();
+
+    expect(planningButton).toHaveFocus();
   });
 
   it("opens the reports placeholder from the URL hash", async () => {

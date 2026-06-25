@@ -404,6 +404,10 @@ function App() {
 
   return (
     <main className="erp-shell">
+      <a className="skip-link" href="#erp-main-content">
+        Skip to main content
+      </a>
+
       <aside className="erp-sidebar" aria-label="Business modules">
         <div className="erp-sidebar__brand">
           <div className="brand-card brand-card--sidebar">
@@ -525,7 +529,7 @@ function App() {
           </div>
         </header>
 
-        <div className="erp-main__content">
+        <div className="erp-main__content" id="erp-main-content" tabIndex={-1}>
           <div className="erp-main__intro">
             <p className="module-boundary">{activeModule.boundaryNote}</p>
           </div>
