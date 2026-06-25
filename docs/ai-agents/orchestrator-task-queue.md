@@ -2,7 +2,7 @@
 
 ## Current State
 
-- `origin/main` HEAD is `de36a5f`.
+- `origin/main` HEAD is `d2a3246`.
 - `main` CI is green as verified on 2026-06-25 (run 28186281646).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
@@ -89,31 +89,10 @@ Status:
 ### F179A — Ponytail full operational integration
 
 Status:
-- active agent-docs bundle
-- branch: `docs/f179a-ponytail-integration`
-- scope: integrate ERP Ponytail anti-overengineering ladder into AGENTS.md and
-  all agent entrypoint files; create `docs/ai-agents/tooling/ponytail.md`
-  governance doc; no Ponytail hooks/plugins installed
-
-Allowed files:
-- `CLAUDE.md`
-- `docs/ai-agents/`
-- `.opencode/agents/`
-- `AGENTS.md`
-
-Hard stops:
-- any backend, frontend, test, `.github/`, `.env`, or secret change
-- any Ponytail hook/plugin/skill installation
-- any change that weakens security, tests, accessibility, permissions, backend
-  freeze, or business rules
-- any conflict with Graphify, CI, scope guard, or AGENTS.md
-
-Validation:
-- `bash scripts/dev/erp-agent-scope-guard agent-docs`
-- `git diff --check`
-- confirm no forbidden mutations
-- PR CI green before merge
-- exact-SHA `main` CI green after merge
+- **merged** as PR #427
+- HEAD at merge: `d2a3246`
+- scope: integrated ERP Ponytail anti-overengineering ladder into AGENTS.md and
+  all agent entrypoint files
 
 ### Active frontend/docs bundle
 

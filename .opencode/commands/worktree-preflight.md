@@ -8,7 +8,7 @@ Run the worktree preflight and scope guard for the active task profile.
 scripts/dev/erp-logged-run task-preflight <<'EOF'
 set -euo pipefail
 scripts/dev/erp-worktree-preflight
-scripts/dev/erp-agent-scope-guard backend
+scripts/dev/erp-agent-scope-guard backend|frontend|agent-tools
 EOF
 ```
 
