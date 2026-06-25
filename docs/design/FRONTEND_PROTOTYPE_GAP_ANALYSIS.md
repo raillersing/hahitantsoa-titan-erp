@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | Dashboard | `#dashboard` | aligned | `DashboardPanel.tsx` + shell | oui | shell, KPI cards, quick actions, context cards | high | lecture | FE-H | charts still not implemented; prototype only implied them | dashboard both themes |
 | Login | auth | partial | `LoginPanel.tsx` | oui | branding, layout, logo rules | medium | n/a | FE-B0 | dark logo non confirme | auth screen both themes |
-| Planning / calendar | futur `#planning` | missing | none | partial/read via reservations | calendar shell, filters, cards | high | role-filtered | FE-H ou FE-J | route non creee | responsive + empty/error |
+| Planning / calendar | `#planning` | partial | `FutureWorkspacePanel.tsx` | partial/read via reservations | calendar shell, filters, cards | high | role-filtered | FE-I + FE-J | placeholder only, no live scheduler yet | responsive + empty/error |
 | Clients liste | `#customers` | partial | `CustomerPanel.tsx` | oui | list shell, filters, detail split | high | oui | FE-G | current layout utilitaire | CRUD + denied + themes |
 | Fiche client | `#customers` detail | partial | `CustomerPanel.tsx` detail | oui | detail cards, linked records | high | oui | FE-G | detail IA encore plate | detail + a11y |
 | Appointments / prospects | futur Hahitantsoa | missing | none | non confirme | agenda visiteurs, prospect cards | medium | probable | FE-I | besoin decision workflow | gate by business |
