@@ -12,9 +12,10 @@ the correct contract/template pair instead of embedding long command blocks.
 
 Every executable workflow starts from:
 
-- `AGENTS.md`
+- `AGENTS.md` (includes knowledge graph consultation order)
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
+- `docs/ai-agents/tooling/graphify.md` (Graphify knowledge graph pilot)
 
 ## Task Routing
 
@@ -85,6 +86,7 @@ documented in the repository.
 
 - primary governance docs:
   - `docs/ai-agents/tooling/opencode-workflow.md`
+  - `docs/ai-agents/tooling/graphify.md` — knowledge graph consultation order
   - `docs/ai-agents/cross-agent-compatibility.md`
   - `docs/ai-agents/agent-profiles.md`
   - `docs/ai-agents/prompt-contracts/agent-prompt-procedure.md`

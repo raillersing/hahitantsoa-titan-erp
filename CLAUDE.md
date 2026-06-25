@@ -20,6 +20,11 @@ Before acting, read and follow:
 - the applicable backend/frontend agent template for the assigned task profile
 - task-specific audit or roadmap documents when relevant
 
+## Knowledge graph consultation
+
+Before implementation, consult sources in the order defined in AGENTS.md:
+cartography → Graphify report → raw search. See `docs/ai-agents/tooling/graphify.md`.
+
 ## Repository rules
 
 - The root repository at `/home/raillersing/projects/hahitantsoa-titan-erp` must remain on

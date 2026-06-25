@@ -78,6 +78,7 @@ Frontend roles:
 - [Macro-goal frontend completion plan](macro-goals/frontend-completion-plan.md)
 - [Skill improvement loop](skill-improvement-loop.md)
 - [Application cartography](../architecture/application-map/README.md) — point d'entrée obligatoire avant toute tâche d'implémentation
+- [Graphify knowledge graph](tooling/graphify.md) — consultation order: cartography → Graphify → raw search
 
 ## Worktree and prompt policy
 
@@ -117,6 +118,7 @@ backend or frontend prompt contracts for tooling-only work.
 ## Minimum flow
 
 1. Verify baseline, branch, status, scope, and forbidden files.
+1b. Consult knowledge graph: cartography → Graphify report → raw search (see AGENTS.md).
 2. Select required roles in the task prompt.
 3. Implement the approved scope.
 4. Run focused checks and inspect the diff.

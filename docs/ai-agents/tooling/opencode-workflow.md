@@ -27,3 +27,9 @@ choosing the OpenCode profile and command mode.
 - Executable OpenCode WSL sessions run `bash scripts/dev/erp-agent-task-start` inside `scripts/dev/erp-logged-run` first.
 - Plan-only OpenCode sessions propose the same baseline and wait.
 - Live baseline wins over stale docs.
+
+## Knowledge graph consultation
+
+Before any implementation task within OpenCode, follow the consultation order defined
+in AGENTS.md: cartography → Graphify report → raw search. See
+`docs/ai-agents/tooling/graphify.md` for the full pilot governance rules.

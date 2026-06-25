@@ -32,9 +32,12 @@ Frontend prompts should stay short and reference, not duplicate:
 
 Every frontend orchestration prompt must explicitly reference:
 
-- `docs/ai-agents/agent-command-runbook.md`
+- `docs/ai-agents/agent-command-runbook.md` (includes knowledge graph consultation section)
 - `docs/ai-agents/orchestrator-task-queue.md`
 - Agent FE-A through Agent FE-F in `docs/ai-agents/frontend-agent-template.md`
+- `docs/ai-agents/tooling/graphify.md` — Graphify knowledge graph pilot
+- `graphify-out/GRAPH_REPORT.md` — generated code graph (consult before implementation)
+- AGENTS.md — knowledge graph consultation order (cartography → Graphify → raw search)
 - `docs/design/DESIGN.md` when UI/UX, layout, workflow clarity, or review is relevant
 - `docs/design/brand/BRAND_ARCHITECTURE.md` when brand usage, shell identity, or scope indicators are relevant
 - `docs/design/CLIENT_APPROVED_UI_REFERENCE.md` when prototype-derived UI is relevant
