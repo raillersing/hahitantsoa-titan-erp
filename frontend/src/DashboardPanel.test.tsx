@@ -102,11 +102,11 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByText('Titan inventory')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Titan inventory' })).toBeInTheDocument();
     });
-    expect(screen.getByText('Hahitantsoa drafts')).toBeInTheDocument();
-    expect(screen.getByText('Reservation drafts')).toBeInTheDocument();
-    expect(screen.getByText('Operational payments')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Hahitantsoa drafts' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Reservation drafts' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Operational payments' })).toBeInTheDocument();
   });
 
   it('shows correct metric counts when data is loaded', async () => {
@@ -161,7 +161,7 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByText('Titan inventory')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Titan inventory' })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: 'Open Titan' }));
     expect(onNavigate).toHaveBeenCalledWith('titan');
@@ -172,7 +172,7 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByText('Hahitantsoa drafts')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Hahitantsoa drafts' })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: 'Open Hahitantsoa' }));
     expect(onNavigate).toHaveBeenCalledWith('hahitantsoa');
@@ -183,7 +183,7 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByText('Reservation drafts')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Reservation drafts' })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: 'Review reservations' }));
     expect(onNavigate).toHaveBeenCalledWith('titan');
@@ -194,7 +194,7 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByText('Operational payments')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Operational payments' })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole('button', { name: 'Open operations' }));
     expect(onNavigate).toHaveBeenCalledWith('commercial-ops');
