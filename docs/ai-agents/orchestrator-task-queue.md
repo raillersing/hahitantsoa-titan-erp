@@ -2,7 +2,7 @@
 
 ## Current State
 
-- `origin/main` HEAD is `ca03b52`.
+- `origin/main` HEAD is `de36a5f`.
 - `main` CI is green as verified on 2026-06-25 (run 28186281646).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
@@ -81,24 +81,32 @@ Hard stops:
 ### F178E — Graphify workflow propagation
 
 Status:
+- **merged** as PR #426
+- HEAD at merge: `de36a5f`
+- scope: propagated Graphify knowledge graph consultation order into all agent
+  entrypoint files
+
+### F179A — Ponytail full operational integration
+
+Status:
 - active agent-docs bundle
-- branch: `docs/f178e-graphify-workflow-propagation`
-- scope: propagate Graphify knowledge graph consultation order into all agent
-  entrypoint files (CLAUDE.md, AI_ORCHESTRATION_INDEX.md, agent-command-runbook.md,
-  prompt-contracts, .opencode/agents/, opencode-workflow.md, README.md,
-  orchestrator-task-queue.md, erp-graphify-update wrapper script)
+- branch: `docs/f179a-ponytail-integration`
+- scope: integrate ERP Ponytail anti-overengineering ladder into AGENTS.md and
+  all agent entrypoint files; create `docs/ai-agents/tooling/ponytail.md`
+  governance doc; no Ponytail hooks/plugins installed
 
 Allowed files:
 - `CLAUDE.md`
 - `docs/ai-agents/`
 - `.opencode/agents/`
-- `scripts/dev/erp-graphify-update`
-- `graphify-out/` (gitignored, no commit)
+- `AGENTS.md`
 
 Hard stops:
 - any backend, frontend, test, `.github/`, `.env`, or secret change
-- any Graphify hook/skill installation (`graphify install`, `.opencode/skills/`,
-  `.agents/skills/`)
+- any Ponytail hook/plugin/skill installation
+- any change that weakens security, tests, accessibility, permissions, backend
+  freeze, or business rules
+- any conflict with Graphify, CI, scope guard, or AGENTS.md
 
 Validation:
 - `bash scripts/dev/erp-agent-scope-guard agent-docs`

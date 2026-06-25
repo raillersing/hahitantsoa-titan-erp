@@ -25,6 +25,13 @@ Before acting, read and follow:
 Before implementation, consult sources in the order defined in AGENTS.md:
 cartography → Graphify report → raw search. See `docs/ai-agents/tooling/graphify.md`.
 
+## Anti-overengineering ladder (ERP Ponytail)
+
+After consultation, before writing new code, apply the ERP Ponytail ladder defined in
+AGENTS.md: reuse existing → native platform → installed dependency → smallest robust
+implementation. ERP default intensity is `full`. No Ponytail hooks or plugins are
+installed — the ladder is a native workflow rule. See `docs/ai-agents/tooling/ponytail.md`.
+
 ## Repository rules
 
 - The root repository at `/home/raillersing/projects/hahitantsoa-titan-erp` must remain on

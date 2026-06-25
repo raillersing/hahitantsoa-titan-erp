@@ -16,6 +16,7 @@ Every executable workflow starts from:
 - `docs/ai-agents/agent-command-runbook.md`
 - `docs/ai-agents/orchestrator-task-queue.md`
 - `docs/ai-agents/tooling/graphify.md` (Graphify knowledge graph pilot)
+- `docs/ai-agents/tooling/ponytail.md` (ERP Ponytail anti-overengineering ladder)
 
 ## Task Routing
 

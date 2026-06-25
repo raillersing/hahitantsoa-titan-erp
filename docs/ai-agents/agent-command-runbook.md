@@ -125,8 +125,16 @@ Before any implementation task, consult sources in this order:
    absent or stale (see `docs/ai-agents/tooling/graphify.md`).
 3. **Raw search** (`grep`, `glob`, file read) — fallback when the first two sources
    are insufficient.
+4. **Ponytail ladder** — before writing new code, apply the ERP Ponytail
+   anti-overengineering ladder (see AGENTS.md and `docs/ai-agents/tooling/ponytail.md`):
+   - reuse existing code instead of rewriting
+   - use native platform / stdlib before adding dependencies
+   - one line before one helper
+   - smallest robust implementation
+   - test and document only what changed
 
 The consultation order is defined in AGENTS.md "Knowledge graph consultation order".
+The ERP Ponytail ladder is defined in AGENTS.md "Anti-overengineering ladder (ERP Ponytail)".
 
 ## Standard Task Start
 

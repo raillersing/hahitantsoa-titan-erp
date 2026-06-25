@@ -35,8 +35,9 @@ Every backend orchestration prompt must explicitly reference:
 - `docs/ai-agents/orchestrator-task-queue.md`
 - Agent A through Agent F in `docs/ai-agents/backend-agent-template.md`
 - `docs/ai-agents/tooling/graphify.md` — Graphify knowledge graph pilot
+- `docs/ai-agents/tooling/ponytail.md` — ERP Ponytail anti-overengineering ladder
 - `graphify-out/GRAPH_REPORT.md` — generated code graph (consult before implementation)
-- AGENTS.md — knowledge graph consultation order (cartography → Graphify → raw search)
+- AGENTS.md — knowledge graph consultation order + ERP Ponytail ladder
 - official wrappers when applicable:
   - `scripts/dev/erp-backend-compose-ci`
   - `scripts/dev/erp-agent-scope-guard`
