@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -254,11 +254,12 @@ describe("App", () => {
 
     renderApp();
 
-    expect(await screen.findByText("Projector")).toBeInTheDocument();
-    expect(screen.getByText("Lighting pack")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("material")).toBeInTheDocument();
-    expect(screen.getByText("material pack")).toBeInTheDocument();
+    const inventorySection = await screen.findByLabelText("Inventory items");
+    expect(within(inventorySection).getByText("Projector")).toBeInTheDocument();
+    expect(within(inventorySection).getByText("Lighting pack")).toBeInTheDocument();
+    expect(within(inventorySection).getByText("2")).toBeInTheDocument();
+    expect(within(inventorySection).getByText("material")).toBeInTheDocument();
+    expect(within(inventorySection).getByText("material pack")).toBeInTheDocument();
   });
 
   it("requests the authenticated inventory endpoint", async () => {

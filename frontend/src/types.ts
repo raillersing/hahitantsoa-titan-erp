@@ -128,15 +128,33 @@ export type ReservationDraftLine = {
 export type ReservationDraft = {
   id: string;
   public_reference: string;
-  status: "draft";
+  status: "draft" | "confirmed" | "cancelled";
   customer_id: string;
   customer_display_name: string;
   start_at: string;
   end_at: string;
   notes: string;
+  contract_signed_at: string | null;
+  contract_signed_by_id: string | null;
+  required_deposit_received_at: string | null;
+  required_deposit_received_by_id: string | null;
+  confirmed_at: string | null;
+  confirmed_by_id: string | null;
+  cancelled_at: string | null;
+  cancelled_by_id: string | null;
   lines: ReservationDraftLine[];
   created_at: string;
   updated_at: string;
+};
+
+export type ReservationDraftMutationResult = {
+  status: ReservationDraft["status"];
+  public_reference: string;
+  reservation_draft: ReservationDraft;
+};
+
+export type ReservationDraftConfirmResult = ReservationDraftMutationResult & {
+  blocked_item_count: number;
 };
 
 export type HahitantsoaEventDraftLineInput = {

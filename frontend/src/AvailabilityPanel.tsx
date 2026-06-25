@@ -1,7 +1,9 @@
 import { type FormEvent, useEffect, useState } from "react";
 
 import {
+  ApiError,
   checkEndpointPermission,
+  confirmReservationDraft,
   createReservationDraft,
   getCustomers,
   getReservationAvailabilitySummary,
@@ -9,6 +11,8 @@ import {
   getReservationDraft,
   getReservationDrafts,
   getReservationItemAvailabilityPreview,
+  markReservationDraftContractSigned,
+  markReservationDraftRequiredDepositReceived,
   updateReservationDraft,
 } from "./api";
 import type {
@@ -59,6 +63,12 @@ type DraftUpdateState =
   | { status: "updated"; draft: ReservationDraft }
   | { status: "error"; message: string };
 
+type DraftLifecycleState =
+  | { status: "idle" }
+  | { status: "loading"; action: "contract" | "deposit" | "confirm" }
+  | { status: "success"; message: string }
+  | { status: "error"; message: string };
+
 type AvailabilityPanelProps = {
   inventoryItems?: InventoryItem[];
 };
@@ -102,6 +112,14 @@ function toDraftLineInputs(draft: ReservationDraft): DraftLineInput[] {
   }));
 }
 
+function isDraftEditable(draft: ReservationDraft): boolean {
+  return draft.status === "draft";
+}
+
+function formatLifecycleState(value: string | null): string {
+  return value ? formatDateTime(value) : "Pending";
+}
+
 function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   const initialPeriod = defaultPeriod();
   const [startAt, setStartAt] = useState(initialPeriod.startAt);
@@ -136,6 +154,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
   const [draftUpdateState, setDraftUpdateState] = useState<DraftUpdateState>({
     status: "idle",
   });
+  const [draftLifecycleState, setDraftLifecycleState] =
+    useState<DraftLifecycleState>({
+      status: "idle",
+    });
   const [canWrite, setCanWrite] = useState(false);
 
   useEffect(() => {
@@ -361,6 +383,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         endAt: toDateTimeLocalValue(new Date(draft.end_at)),
       });
       setDraftUpdateState({ status: "idle" });
+      setDraftLifecycleState({ status: "idle" });
     } catch (error) {
       setDraftDetailState({
         status: "error",
@@ -389,6 +412,80 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     );
     await refreshDrafts();
     setDraftUpdateState({ status: "updated", draft: updatedDraft });
+    setDraftLifecycleState({ status: "idle" });
+  }
+
+  async function handleMarkContractSigned() {
+    if (draftDetailState.status !== "loaded") return;
+
+    setDraftLifecycleState({ status: "loading", action: "contract" });
+
+    try {
+      const result = await markReservationDraftContractSigned(
+        draftDetailState.draft.id,
+      );
+      await applyUpdatedDraft(result.reservation_draft);
+      setDraftLifecycleState({
+        status: "success",
+        message: "Contract marker recorded for this Titan reservation.",
+      });
+    } catch (error) {
+      setDraftLifecycleState({
+        status: "error",
+        message:
+          error instanceof ApiError || error instanceof Error
+            ? error.message
+            : "Contract marker could not be recorded.",
+      });
+    }
+  }
+
+  async function handleMarkRequiredDepositReceived() {
+    if (draftDetailState.status !== "loaded") return;
+
+    setDraftLifecycleState({ status: "loading", action: "deposit" });
+
+    try {
+      const result = await markReservationDraftRequiredDepositReceived(
+        draftDetailState.draft.id,
+      );
+      await applyUpdatedDraft(result.reservation_draft);
+      setDraftLifecycleState({
+        status: "success",
+        message: "Deposit marker recorded for this Titan reservation.",
+      });
+    } catch (error) {
+      setDraftLifecycleState({
+        status: "error",
+        message:
+          error instanceof ApiError || error instanceof Error
+            ? error.message
+            : "Deposit marker could not be recorded.",
+      });
+    }
+  }
+
+  async function handleConfirmDraft() {
+    if (draftDetailState.status !== "loaded") return;
+
+    setDraftLifecycleState({ status: "loading", action: "confirm" });
+
+    try {
+      const result = await confirmReservationDraft(draftDetailState.draft.id);
+      await applyUpdatedDraft(result.reservation_draft);
+      setDraftLifecycleState({
+        status: "success",
+        message: `Titan reservation confirmed. ${result.blocked_item_count} inventory blocks were created.`,
+      });
+    } catch (error) {
+      setDraftLifecycleState({
+        status: "error",
+        message:
+          error instanceof ApiError || error instanceof Error
+            ? error.message
+            : "Titan reservation could not be confirmed.",
+      });
+    }
   }
 
   async function handleUpdateDraftLines(event: FormEvent<HTMLFormElement>) {
@@ -659,15 +756,24 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     >
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Read-only availability</p>
-          <h2 id="availability-heading">Availability</h2>
+          <p className="eyebrow">Prototype 4 · Titan</p>
+          <h2 id="availability-heading">Titan reservations</h2>
           <p className="section-helper">
-            Read-only check. Sign in through the backend /api-auth/login/ first.
-            For local demo data, run seed_demo_availability and choose a period
-            overlapping its next two-hour window. Checking availability does not
-            create a reservation.
+            Pure rental workflow for <code>material</code>, <code>article</code>, and{" "}
+            <code>material_pack</code> only. Sign in through the backend
+            <code> /api-auth/login/</code> first. For local demo data, run
+            <code> seed_demo_availability</code> and choose a period overlapping
+            its next two-hour window.
           </p>
         </div>
+      </div>
+
+      <div className="notice warning-notice" role="status">
+        <h3>Titan business boundary</h3>
+        <p>
+          This module must never expose venues, rooms, halls, services, or event
+          operations. Only Titan rental inventory is allowed here.
+        </p>
       </div>
 
       <form className="availability-form" onSubmit={handleSubmit}>
@@ -714,9 +820,9 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             <p className="eyebrow">Draft-only reservations</p>
             <h2 id="reservation-drafts-heading">Reservation drafts</h2>
             <p className="section-helper">
-              Existing draft reservations from the backend. Viewing a draft does
-              not confirm it, block inventory, process payment, create invoices,
-              create contracts or generate PDF files.
+              Prototype-aligned Titan list view for draft and confirmed rental
+              reservations. Open a record below to manage lifecycle, customer,
+              dates, and lines.
             </p>
           </div>
           {draftListState.status === "loaded" ? (
@@ -778,14 +884,161 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         ) : null}
 
         {draftDetailState.status === "loaded" ? (
-          <article className="notice availability-notice">
+          <article className="availability-results">
             <h3>Draft detail {draftDetailState.draft.public_reference}</h3>
-            <p>Customer: {draftDetailState.draft.customer_display_name}</p>
-            <p>Status: {draftDetailState.draft.status}</p>
-            <p>
-              Period: {formatDateTime(draftDetailState.draft.start_at)} —{" "}
-              {formatDateTime(draftDetailState.draft.end_at)}
-            </p>
+            <div className="reservation-summary-grid">
+              <article className="reservation-summary-card">
+                <span>Customer</span>
+                <strong>{draftDetailState.draft.customer_display_name}</strong>
+              </article>
+              <article className="reservation-summary-card">
+                <span>Period</span>
+                <strong>{formatDateTime(draftDetailState.draft.start_at)}</strong>
+                <small>{formatDateTime(draftDetailState.draft.end_at)}</small>
+              </article>
+              <article className="reservation-summary-card">
+                <span>Status</span>
+                <strong>{draftDetailState.draft.status}</strong>
+                <small>{draftDetailState.draft.lines.length} lines</small>
+              </article>
+              <article className="reservation-summary-card">
+                <span>Titan readiness</span>
+                <strong>
+                  {draftDetailState.draft.confirmed_at
+                    ? "Confirmed"
+                    : draftDetailState.draft.contract_signed_at &&
+                        draftDetailState.draft.required_deposit_received_at
+                      ? "Ready to confirm"
+                      : "Pending prerequisites"}
+                </strong>
+                <small>Contract, deposit, inventory block</small>
+              </article>
+            </div>
+
+            <div className="reservation-workflow-rail" aria-label="Titan reservation workflow">
+              <span className="workflow-step workflow-step--done">Draft</span>
+              <span
+                className={
+                  draftDetailState.draft.contract_signed_at
+                    ? "workflow-step workflow-step--done"
+                    : "workflow-step workflow-step--warning"
+                }
+              >
+                Contract
+              </span>
+              <span
+                className={
+                  draftDetailState.draft.required_deposit_received_at
+                    ? "workflow-step workflow-step--done"
+                    : "workflow-step workflow-step--warning"
+                }
+              >
+                Deposit
+              </span>
+              <span
+                className={
+                  draftDetailState.draft.confirmed_at
+                    ? "workflow-step workflow-step--done"
+                    : "workflow-step"
+                }
+              >
+                Confirmed
+              </span>
+            </div>
+
+            <dl className="summary-grid">
+              <div>
+                <dt>Contract marker</dt>
+                <dd>{formatLifecycleState(draftDetailState.draft.contract_signed_at)}</dd>
+              </div>
+              <div>
+                <dt>Deposit marker</dt>
+                <dd>
+                  {formatLifecycleState(
+                    draftDetailState.draft.required_deposit_received_at,
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt>Confirmed at</dt>
+                <dd>{formatLifecycleState(draftDetailState.draft.confirmed_at)}</dd>
+              </div>
+              <div>
+                <dt>Cancelled at</dt>
+                <dd>{formatLifecycleState(draftDetailState.draft.cancelled_at)}</dd>
+              </div>
+            </dl>
+
+            {canWrite && isDraftEditable(draftDetailState.draft) ? (
+              <div className="detail-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={
+                    draftLifecycleState.status === "loading" ||
+                    Boolean(draftDetailState.draft.contract_signed_at)
+                  }
+                  onClick={() => void handleMarkContractSigned()}
+                >
+                  Mark contract signed
+                </button>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={
+                    draftLifecycleState.status === "loading" ||
+                    Boolean(draftDetailState.draft.required_deposit_received_at)
+                  }
+                  onClick={() => void handleMarkRequiredDepositReceived()}
+                >
+                  Mark deposit received
+                </button>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  disabled={
+                    draftLifecycleState.status === "loading" ||
+                    !draftDetailState.draft.contract_signed_at ||
+                    !draftDetailState.draft.required_deposit_received_at
+                  }
+                  onClick={() => void handleConfirmDraft()}
+                >
+                  Confirm Titan reservation
+                </button>
+              </div>
+            ) : null}
+
+            {draftLifecycleState.status === "loading" ? (
+              <p className="status" aria-live="polite">
+                {draftLifecycleState.action === "contract"
+                  ? "Recording contract marker..."
+                  : draftLifecycleState.action === "deposit"
+                    ? "Recording deposit marker..."
+                    : "Confirming Titan reservation..."}
+              </p>
+            ) : null}
+
+            {draftLifecycleState.status === "success" ? (
+              <div className="notice success-notice" role="status">
+                <p>{draftLifecycleState.message}</p>
+              </div>
+            ) : null}
+
+            {draftLifecycleState.status === "error" ? (
+              <div className="notice availability-notice" role="alert">
+                <h4>Titan lifecycle action unavailable</h4>
+                <p>{draftLifecycleState.message}</p>
+              </div>
+            ) : null}
+
+            {!isDraftEditable(draftDetailState.draft) ? (
+              <div className="notice warning-notice" role="status">
+                <h4>Confirmed or cancelled reservation</h4>
+                <p>
+                  This Titan reservation is no longer editable from the draft workflow.
+                </p>
+              </div>
+            ) : null}
             {canWrite ? (<>
             <form
               className="availability-form"
@@ -813,6 +1066,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 type="submit"
                 disabled={
                   draftUpdateState.status === "loading" ||
+                  !isDraftEditable(draftDetailState.draft) ||
                   customerState.status !== "loaded"
                 }
               >
@@ -853,7 +1107,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               </label>
               <button
                 type="submit"
-                disabled={draftUpdateState.status === "loading"}
+                disabled={
+                  draftUpdateState.status === "loading" ||
+                  !isDraftEditable(draftDetailState.draft)
+                }
               >
                 Save draft period
               </button>
@@ -872,7 +1129,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               </label>
               <button
                 type="submit"
-                disabled={draftUpdateState.status === "loading"}
+                disabled={
+                  draftUpdateState.status === "loading" ||
+                  !isDraftEditable(draftDetailState.draft)
+                }
               >
                 Save draft notes
               </button>
@@ -948,6 +1208,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     type="button"
                     disabled={
                       draftUpdateState.status === "loading" ||
+                      !isDraftEditable(draftDetailState.draft) ||
                       draftLinesDraft.length <= 1
                     }
                     onClick={() => removeDraftLineDraft(index)}
@@ -960,6 +1221,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 type="button"
                 disabled={
                   draftUpdateState.status === "loading" ||
+                  !isDraftEditable(draftDetailState.draft) ||
                   inventoryItems.length === 0
                 }
                 onClick={addDraftLineDraft}
@@ -968,7 +1230,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               </button>
               <button
                 type="submit"
-                disabled={draftUpdateState.status === "loading"}
+                disabled={
+                  draftUpdateState.status === "loading" ||
+                  !isDraftEditable(draftDetailState.draft)
+                }
               >
                 Save draft lines
               </button>
@@ -986,8 +1251,9 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               ))}
             </ul>
             <p className="section-helper">
-              Draft-only view. No confirmation, payment, invoice, contract,
-              inventory blocking or PDF generation is performed.
+              Confirmation still depends on existing backend truth: signed contract
+              document, confirmed deposit payment, availability revalidation, and
+              reservation-sensitive authorization.
             </p>
           </article>
         ) : null}
@@ -1051,7 +1317,39 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           </div>
 
           <div className="preview-list-section">
-            <h3>Reservation draft</h3>
+            <h3>New reservation wizard</h3>
+            <div className="reservation-workflow-rail" aria-label="New Titan reservation wizard">
+              <span className="workflow-step workflow-step--done">Choose period</span>
+              <span
+                className={
+                  selectedCustomerId ? "workflow-step workflow-step--done" : "workflow-step"
+                }
+              >
+                Select customer
+              </span>
+              <span
+                className={
+                  selectedItemIds.length > 0
+                    ? "workflow-step workflow-step--done"
+                    : "workflow-step"
+                }
+              >
+                Pick items
+              </span>
+              <span
+                className={
+                  draftCreationState.status === "created"
+                    ? "workflow-step workflow-step--done"
+                    : "workflow-step"
+                }
+              >
+                Create draft
+              </span>
+            </div>
+            <p className="section-helper">
+              This guided flow creates an editable Titan draft first, then the
+              reservation can be finalized from the detail panel above.
+            </p>
 
             {!canWrite ? (
               <p className="status">Sign in with write access to create draft reservations.</p>
@@ -1097,7 +1395,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   }
                   onClick={handleCreateDraft}
                 >
-                  Create draft
+                  Create Titan draft
                 </button>
               </>
             ) : null}

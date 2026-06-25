@@ -28,8 +28,10 @@ import type {
   LogisticsEventTransitionPayload,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
+  ReservationDraftConfirmResult,
   ReservationDraft,
   ReservationDraftCreatePayload,
+  ReservationDraftMutationResult,
   ReservationDraftUpdatePayload,
   ReservationItemAvailabilityPreview,
   RoleAssignmentQueryParams,
@@ -414,6 +416,39 @@ export function updateReservationDraft(
   return patchAuthenticatedJson(
     `/api/v1/reservations/drafts/${draftId}/`,
     payload,
+  );
+}
+
+export function markReservationDraftContractSigned(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<ReservationDraftMutationResult> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${draftId}/contract-signed/`,
+    {},
+    signal,
+  );
+}
+
+export function markReservationDraftRequiredDepositReceived(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<ReservationDraftMutationResult> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${draftId}/required-deposit-received/`,
+    {},
+    signal,
+  );
+}
+
+export function confirmReservationDraft(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<ReservationDraftConfirmResult> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${draftId}/confirm/`,
+    {},
+    signal,
   );
 }
 

@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -124,6 +125,14 @@ const DRAFT_RESPONSE = {
   start_at: START_AT_ISO,
   end_at: END_AT_ISO,
   notes: "Created from the frontend MVP draft flow.",
+  contract_signed_at: null,
+  contract_signed_by_id: null,
+  required_deposit_received_at: null,
+  required_deposit_received_by_id: null,
+  confirmed_at: null,
+  confirmed_by_id: null,
+  cancelled_at: null,
+  cancelled_by_id: null,
   lines: [
     {
       id: "line-1",
@@ -214,6 +223,10 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
     }
 
     if (url === "/api/v1/reservations/drafts/") {
+      if (init?.method === "OPTIONS") {
+        return Promise.resolve(jsonResponse({}, 200));
+      }
+
       if (init?.method === "POST") {
         return Promise.resolve(
           options.fail === "draft"
@@ -278,6 +291,56 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
       }
 
       return Promise.resolve(jsonResponse(options.draft ?? DRAFT_RESPONSE));
+    }
+
+    if (url === `/api/v1/reservations/drafts/${DRAFT_RESPONSE.id}/contract-signed/`) {
+      return Promise.resolve(
+        jsonResponse({
+          status: "draft",
+          public_reference: DRAFT_RESPONSE.public_reference,
+          reservation_draft: {
+            ...(options.updatedDraft ?? DRAFT_RESPONSE),
+            contract_signed_at: START_AT_ISO,
+            contract_signed_by_id: "actor-1",
+          },
+        }),
+      );
+    }
+
+    if (url === `/api/v1/reservations/drafts/${DRAFT_RESPONSE.id}/required-deposit-received/`) {
+      return Promise.resolve(
+        jsonResponse({
+          status: "draft",
+          public_reference: DRAFT_RESPONSE.public_reference,
+          reservation_draft: {
+            ...(options.updatedDraft ?? DRAFT_RESPONSE),
+            contract_signed_at: START_AT_ISO,
+            contract_signed_by_id: "actor-1",
+            required_deposit_received_at: END_AT_ISO,
+            required_deposit_received_by_id: "actor-1",
+          },
+        }),
+      );
+    }
+
+    if (url === `/api/v1/reservations/drafts/${DRAFT_RESPONSE.id}/confirm/`) {
+      return Promise.resolve(
+        jsonResponse({
+          status: "confirmed",
+          public_reference: DRAFT_RESPONSE.public_reference,
+          blocked_item_count: 2,
+          reservation_draft: {
+            ...(options.updatedDraft ?? DRAFT_RESPONSE),
+            status: "confirmed",
+            contract_signed_at: START_AT_ISO,
+            contract_signed_by_id: "actor-1",
+            required_deposit_received_at: END_AT_ISO,
+            required_deposit_received_by_id: "actor-1",
+            confirmed_at: END_AT_ISO,
+            confirmed_by_id: "actor-1",
+          },
+        }),
+      );
     }
 
     return Promise.resolve(jsonResponse({}, 404));
@@ -481,7 +544,7 @@ describe("AvailabilityPanel", () => {
     });
   });
 
-  it("opens an existing reservation draft detail without commercial controls", async () => {
+  it("opens an existing reservation draft detail with Titan workflow actions", async () => {
     const fetchMock = mockAvailabilityFetch();
 
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
@@ -492,14 +555,24 @@ describe("AvailabilityPanel", () => {
     expect(
       await screen.findByText("Draft detail RD-DEMO-001"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Customer: Client Demo")).toBeInTheDocument();
-    expect(screen.getAllByText("Status: draft").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Client Demo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("draft").length).toBeGreaterThan(0);
+    expect(screen.getByText("Pending prerequisites")).toBeInTheDocument();
     expect(screen.getAllByText("Quantity: 1")).toHaveLength(2);
     expect(
       screen.getByText(
-        /No confirmation, payment, invoice, contract, inventory blocking or PDF generation/i,
+        /Confirmation still depends on existing backend truth/i,
       ),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mark contract signed" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mark deposit received" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Confirm Titan reservation" }),
+    ).toBeDisabled();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/reservations/drafts/draft-1/",
       {
@@ -507,11 +580,6 @@ describe("AvailabilityPanel", () => {
         signal: undefined,
       },
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it("updates an existing reservation draft lines only without commercial controls", async () => {
@@ -558,11 +626,6 @@ describe("AvailabilityPanel", () => {
         signal: undefined,
       },
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it("updates an existing reservation draft customer only without commercial controls", async () => {
@@ -581,7 +644,12 @@ describe("AvailabilityPanel", () => {
     );
 
     expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
-    expect(screen.getByText("Customer: Client Updated")).toBeInTheDocument();
+    const detailHeading = screen.getByText("Draft detail RD-DEMO-001");
+    const detailCard = detailHeading.closest("article");
+    expect(detailCard).not.toBeNull();
+    expect(
+      within(detailCard as HTMLElement).getAllByText("Client Updated").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByLabelText("Draft customer")).toHaveValue(
       CUSTOMERS[1].id,
     );
@@ -599,11 +667,6 @@ describe("AvailabilityPanel", () => {
         signal: undefined,
       },
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it("updates an existing reservation draft period only without commercial controls", async () => {
@@ -644,11 +707,6 @@ describe("AvailabilityPanel", () => {
         signal: undefined,
       },
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it("rejects an invalid draft period without calling the update API", async () => {
@@ -712,11 +770,6 @@ describe("AvailabilityPanel", () => {
         signal: undefined,
       },
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it("shows a draft notes update error without commercial controls", async () => {
@@ -736,11 +789,6 @@ describe("AvailabilityPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The requested data could not be loaded.",
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 
   it("creates a reservation draft for the selected customer and available items", async () => {
@@ -748,18 +796,19 @@ describe("AvailabilityPanel", () => {
 
     await loadAvailability();
 
+    expect(screen.getByText("New reservation wizard")).toBeInTheDocument();
     expect(await screen.findByLabelText("Customer")).toBeInTheDocument();
     expect(screen.getAllByText("Client Demo").length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: "Create draft" }),
+      screen.getByRole("button", { name: "Create Titan draft" }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create Titan draft" }));
 
     expect(
       await screen.findByText("Reference: RD-DEMO-001"),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Status: draft").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("draft").length).toBeGreaterThan(0);
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/reservations/drafts/", {
       method: "POST",
@@ -789,20 +838,56 @@ describe("AvailabilityPanel", () => {
     });
   });
 
-  it("shows a draft creation error without forbidden commercial controls", async () => {
+  it("marks Titan prerequisites and confirms the reservation from the detail panel", async () => {
+    const fetchMock = mockAvailabilityFetch();
+
+    render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
+
+    await screen.findByText("RD-DEMO-001");
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Mark contract signed" }));
+    expect(
+      await screen.findByText("Contract marker recorded for this Titan reservation."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark deposit received" }));
+    expect(
+      await screen.findByText("Deposit marker recorded for this Titan reservation."),
+    ).toBeInTheDocument();
+
+    const confirmButton = screen.getByRole("button", {
+      name: "Confirm Titan reservation",
+    });
+    expect(confirmButton).toBeEnabled();
+    fireEvent.click(confirmButton);
+
+    expect(
+      await screen.findByText("Titan reservation confirmed. 2 inventory blocks were created."),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/reservations/drafts/draft-1/confirm/",
+      {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+        signal: undefined,
+      },
+    );
+  });
+
+  it("shows a draft creation error", async () => {
     mockAvailabilityFetch({ fail: "draft" });
 
     await loadAvailability();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create Titan draft" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The requested data could not be loaded.",
     );
-    expect(
-      screen.queryByRole("button", {
-        name: /confirm|pay|invoice|contract|pdf/i,
-      }),
-    ).not.toBeInTheDocument();
   });
 });
