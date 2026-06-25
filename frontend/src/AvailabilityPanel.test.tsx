@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -554,7 +555,7 @@ describe("AvailabilityPanel", () => {
     expect(
       await screen.findByText("Draft detail RD-DEMO-001"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Client Demo")).toBeInTheDocument();
+    expect(screen.getAllByText("Client Demo").length).toBeGreaterThan(0);
     expect(screen.getAllByText("draft").length).toBeGreaterThan(0);
     expect(screen.getByText("Pending prerequisites")).toBeInTheDocument();
     expect(screen.getAllByText("Quantity: 1")).toHaveLength(2);
@@ -643,7 +644,12 @@ describe("AvailabilityPanel", () => {
     );
 
     expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
-    expect(screen.getByText("Client Updated")).toBeInTheDocument();
+    const detailHeading = screen.getByText("Draft detail RD-DEMO-001");
+    const detailCard = detailHeading.closest("article");
+    expect(detailCard).not.toBeNull();
+    expect(
+      within(detailCard as HTMLElement).getAllByText("Client Updated").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByLabelText("Draft customer")).toHaveValue(
       CUSTOMERS[1].id,
     );
