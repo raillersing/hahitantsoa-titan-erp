@@ -175,7 +175,7 @@ describe("App", () => {
     expect(screen.getAllByText("venue")).toHaveLength(2);
   });
 
-  it("opens the planning placeholder from the topbar shortcut", async () => {
+  it("opens the planning view from the topbar shortcut", async () => {
     window.history.replaceState(null, "", "/");
     mockAppFetch({ inventoryItems: [] });
 
@@ -184,9 +184,8 @@ describe("App", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Open planning" }));
 
     expect(
-      await screen.findByRole("heading", { name: "Planning and calendar workspace" }),
+      await screen.findByRole("heading", { name: "Planning hebdomadaire" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Frontend placeholder only")).toBeInTheDocument();
     expect(window.location.hash).toBe("#planning");
   });
 
