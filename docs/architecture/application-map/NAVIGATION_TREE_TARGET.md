@@ -20,7 +20,7 @@
 ```text
 Hahitantsoa / Titan ERP
 ├── Dashboard                         #dashboard         [current]
-├── Planning / Calendar              #planning          [placeholder]
+├── Planning / Calendar              #planning          [current (weekly table)]
 ├── Titan reservations               #titan             [partial]
 │   ├── disponibilité                [current]
 │   ├── brouillons                   [current]
@@ -59,7 +59,7 @@ Hahitantsoa / Titan ERP
 | Nœud | Route | Statut frontend | Notes |
 |---|---|---|---|
 | Dashboard | `#dashboard` | current | shell et quick actions FE-H en place |
-| Planning | `#planning` | placeholder | vrai calendrier non encore confirmé |
+| Planning | `#planning` | current (weekly table) | PlanningPanel déployé avec filtres Titan/HAH, navigation semaine |
 | Titan | `#titan` | partial | cœur opérateur présent; confirmation/detail/wizard encore incomplets |
 | Hahitantsoa | `#hahitantsoa` | current | CRUD + confirm + avenants |
 | Customers | `#customers` | partial | fichier client encore à enrichir |
@@ -83,7 +83,7 @@ Les vrais gaps post-FE-J sont:
 - `reservation detail` dédié
 - `new reservation wizard`
 - confirmation Titan complète
-- planning/calendar réel
+- planning/calendar → livré (weekly table via F180D1); calendrier enrichi repoussé
 - client file enrichi
 - reports/exports après décision métier/légale
 - complétion admin/settings

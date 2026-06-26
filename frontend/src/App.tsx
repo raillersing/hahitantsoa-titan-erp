@@ -74,12 +74,12 @@ const MODULES: ModuleDefinition[] = [
     scope: "planning",
     navLabel: "Planning",
     heading: "Planning workspace",
-    eyebrow: "Prototype placeholder",
+    eyebrow: "Weekly planning",
     description:
-      "Calendar and scheduling placeholder derived from the client-approved prototype without introducing a new backend route.",
+      "Weekly planning table showing Titan reservation drafts and Hahitantsoa event drafts with scope filters and week navigation.",
     boundaryNote:
-      "Planning remains a future frontend route until reservation and logistics scheduling contracts are explicitly mapped.",
-    badge: "Future",
+      "Planning panel operates in read-only mode to visualise reservation and event schedules. Editing flows are handled via Titan and Hahitantsoa modules.",
+    badge: "Weekly planner",
     accent: "neutral",
     glyph: "\u2637",
     section: "Accueil",
