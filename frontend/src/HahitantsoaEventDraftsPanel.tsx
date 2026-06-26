@@ -236,7 +236,7 @@ export function HahitantsoaEventDraftsPanel({
 
   const fetchDrafts = async (signal?: AbortSignal) => {
     try {
-      const drafts = await getHahitantsoaEventDrafts(signal);
+      const drafts = await getHahitantsoaEventDrafts(undefined, signal);
       setDraftListState({ status: "loaded", drafts });
     } catch (err) {
       if (signal?.aborted) return;

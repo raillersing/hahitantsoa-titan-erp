@@ -168,7 +168,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
 
   async function refreshDrafts(signal?: AbortSignal) {
     try {
-      const drafts = await getReservationDrafts(signal);
+      const drafts = await getReservationDrafts(undefined, signal);
       setDraftListState({ status: "loaded", drafts });
     } catch (error) {
       if (signal?.aborted) {

@@ -388,9 +388,14 @@ export function getReservationItemAvailabilityPreview(
 }
 
 export function getReservationDrafts(
+  customerId?: string,
   signal?: AbortSignal,
 ): Promise<ReservationDraft[]> {
-  return getAuthenticatedJson("/api/v1/reservations/drafts/", signal);
+  let url = "/api/v1/reservations/drafts/";
+  if (customerId) {
+    url += `?customer_id=${encodeURIComponent(customerId)}`;
+  }
+  return getAuthenticatedJson(url, signal);
 }
 
 export function getReservationDraft(
@@ -513,9 +518,14 @@ export async function getDocumentInstancePdfBlob(
 }
 
 export function getHahitantsoaEventDrafts(
+  customerId?: string,
   signal?: AbortSignal,
 ): Promise<HahitantsoaEventDraft[]> {
-  return getAuthenticatedJson("/api/v1/hahitantsoa/event-drafts/", signal);
+  let url = "/api/v1/hahitantsoa/event-drafts/";
+  if (customerId) {
+    url += `?customer=${encodeURIComponent(customerId)}`;
+  }
+  return getAuthenticatedJson(url, signal);
 }
 
 export function getHahitantsoaEventDraft(
