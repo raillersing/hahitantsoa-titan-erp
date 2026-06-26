@@ -179,7 +179,7 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
             key={card.title}
           >
             <div className="dashboard-card__header">
-              <div className="metric-icon metric-icon--{card.tone}">{card.glyph}</div>
+              <div className={`metric-icon metric-icon--${card.tone}`} aria-hidden="true">{card.glyph}</div>
               <div style={{ flex: 1 }}>
                 <p className="dashboard-card__eyebrow">Indicateur en direct</p>
                 <h3>{card.title}</h3>
