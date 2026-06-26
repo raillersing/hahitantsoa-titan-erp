@@ -23,9 +23,11 @@ import type {
   LogisticsEvent,
   LogisticsEventCompletePassationPayload,
   LogisticsEventCompletePassationResponse,
+  LogisticsEventCreatePayload,
   LogisticsEventItemLine,
   LogisticsEventItemLineCreatePayload,
   LogisticsEventTransitionPayload,
+  LogisticsEventUpdatePayload,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
   ReservationDraftConfirmResult,
@@ -1014,6 +1016,28 @@ export function transitionLogisticsEvent(
   signal?: AbortSignal,
 ): Promise<LogisticsEvent> {
   return postAuthenticatedJson(`/api/v1/logistics/events/${id}/transition/`, payload, signal);
+}
+
+export function createLogisticsEvent(
+  payload: LogisticsEventCreatePayload,
+  signal?: AbortSignal,
+): Promise<LogisticsEvent> {
+  return postAuthenticatedJson("/api/v1/logistics/events/create/", payload, signal);
+}
+
+export function updateLogisticsEvent(
+  id: string,
+  payload: LogisticsEventUpdatePayload,
+  signal?: AbortSignal,
+): Promise<LogisticsEvent> {
+  return postAuthenticatedJson(`/api/v1/logistics/events/${id}/update/`, payload, signal);
+}
+
+export function getLogisticsEvent(
+  id: string,
+  signal?: AbortSignal,
+): Promise<LogisticsEvent> {
+  return getAuthenticatedJson(`/api/v1/logistics/events/${id}/`, signal);
 }
 
 export function getLogisticsEventItemLines(

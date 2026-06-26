@@ -5,13 +5,16 @@ import {
   addLogisticsEventItemLine,
   checkEndpointPermission,
   completeLogisticsPassation,
+  createLogisticsEvent,
+  getDocumentInstancePdfBlob,
   getInventoryItems,
   getLogisticsEventItemLines,
   getLogisticsEvents,
+  getReservationDrafts,
   removeLogisticsEventItemLine,
   transitionLogisticsEvent,
 } from "./api";
-import type { InventoryItem, LogisticsEvent, LogisticsEventItemLine } from "./types";
+import type { InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft } from "./types";
 
 const STATUS_LABELS: Record<LogisticsEvent["status"], string> = {
   planned: "Planned",
@@ -60,6 +63,20 @@ export function LogisticsDeliveryPanel() {
     loading: false,
     error: null,
   });
+  const [eventFilter, setEventFilter] = useState<LogisticsEvent["event_type"] | "all">("all");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [reservationDrafts, setReservationDrafts] = useState<ReservationDraft[]>([]);
+  const [createForm, setCreateForm] = useState({
+    reservation_draft: "",
+    event_type: "delivery" as LogisticsEvent["event_type"],
+    scheduled_at: "",
+    address: "",
+    contact_name: "",
+    contact_phone: "",
+    notes: "",
+    signature_required: false,
+  });
+  const [confirmAction, setConfirmAction] = useState<{ type: string; lineId?: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lineAbortRef = useRef<AbortController | null>(null);
 
@@ -68,9 +85,9 @@ export function LogisticsDeliveryPanel() {
     [events, selectedEventId],
   );
 
-  const deliveryEvents = useMemo(
-    () => events.filter((event) => event.event_type === "delivery" || event.event_type === "handover"),
-    [events],
+  const filteredEvents = useMemo(
+    () => eventFilter === "all" ? events : events.filter((e) => e.event_type === eventFilter),
+    [events, eventFilter],
   );
 
   const replaceEvent = useCallback((nextEvent: LogisticsEvent) => {
@@ -90,17 +107,13 @@ export function LogisticsDeliveryPanel() {
         getLogisticsEvents(abortRef.current.signal),
         getInventoryItems(abortRef.current.signal),
       ]);
-      const filteredEvents = Array.isArray(eventsData)
-        ? eventsData.filter(
-            (event) => event.event_type === "delivery" || event.event_type === "handover",
-          )
-        : [];
-      setEvents(filteredEvents);
+      const allEvents = Array.isArray(eventsData) ? eventsData : [];
+      setEvents(allEvents);
       setInventoryItems(Array.isArray(itemsData) ? itemsData : []);
       setSelectedEventId((current) =>
-        current && filteredEvents.some((event) => event.id === current)
+        current && allEvents.some((event) => event.id === current)
           ? current
-          : filteredEvents[0]?.id ?? null,
+          : allEvents[0]?.id ?? null,
       );
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== "AbortError") {
@@ -125,6 +138,15 @@ export function LogisticsDeliveryPanel() {
       }
     } finally {
       setLineLoading(false);
+    }
+  }, []);
+
+  const loadReservationDrafts = useCallback(async () => {
+    try {
+      const drafts = await getReservationDrafts();
+      setReservationDrafts(Array.isArray(drafts) ? drafts : []);
+    } catch {
+      // silent — reservation list is optional for creation
     }
   }, []);
 
@@ -239,17 +261,62 @@ export function LogisticsDeliveryPanel() {
     }
   };
 
-  const activeEventCount = deliveryEvents.filter((event) => event.status !== "completed" && event.status !== "cancelled").length;
+  const handleCreateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canWrite) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      await createLogisticsEvent({
+        reservation_draft: createForm.reservation_draft,
+        event_type: createForm.event_type,
+        scheduled_at: createForm.scheduled_at || null,
+        address: createForm.address || undefined,
+        contact_name: createForm.contact_name || undefined,
+        contact_phone: createForm.contact_phone || undefined,
+        notes: createForm.notes || undefined,
+        signature_required: createForm.signature_required,
+      });
+      setShowCreateForm(false);
+      setCreateForm({
+        reservation_draft: "",
+        event_type: "delivery",
+        scheduled_at: "",
+        address: "",
+        contact_name: "",
+        contact_phone: "",
+        notes: "",
+        signature_required: false,
+      });
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create logistics event.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDownloadDeliveryNote = async () => {
+    if (!passationState.documentInstanceId) return;
+    try {
+      const blob = await getDocumentInstancePdfBlob(passationState.documentInstanceId);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch {
+      setPassationState((prev) => ({ ...prev, error: "Failed to open delivery note PDF." }));
+    }
+  };
+
+  const activeEventCount = filteredEvents.filter((event) => event.status !== "completed" && event.status !== "cancelled").length;
 
   return (
     <div className="ops-panel" data-testid="logistics-delivery-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <p className="eyebrow">Prototype logistics</p>
-          <h3 className="ops-panel__title">Logistics & handover operations</h3>
+          <p className="eyebrow">Logistique</p>
+          <h3 className="ops-panel__title">Opérations logistiques</h3>
           <p className="ops-panel__summary">
-            Delivery and handover events now expose operational status transitions,
-            line-item composition, and client passation completion when the backend contract allows it.
+            Gestion des événements logistiques : préparation, livraison, remise, enlèvement.
           </p>
         </div>
         <div className="ops-panel__actions">
@@ -263,43 +330,122 @@ export function LogisticsDeliveryPanel() {
 
       <div className="ops-toolbar">
         <div className="ops-toolbar__meta">
-          <span className="ops-chip ops-chip--planned">{deliveryEvents.length} events</span>
-          <span className="ops-chip ops-chip--dispatched">{activeEventCount} active</span>
-          <span className="ops-chip ops-chip--validated">{itemLines.length} selected lines</span>
+          <span className="ops-chip ops-chip--planned">{events.length} événements</span>
+          <span className="ops-chip ops-chip--dispatched">{activeEventCount} actifs</span>
+          <span className="ops-chip ops-chip--validated">{itemLines.length} lignes</span>
         </div>
         <div className="ops-toolbar__actions">
+          {canWrite ? (
+            <button className="ops-button" type="button" onClick={() => { setShowCreateForm(!showCreateForm); if (!showCreateForm) { void loadReservationDrafts(); } }}>
+              {showCreateForm ? "Annuler" : "+ Nouvel événement"}
+            </button>
+          ) : null}
           <button className="ops-button-secondary" type="button" onClick={() => void load()}>
-            Refresh
+            Actualiser
           </button>
         </div>
       </div>
 
-      {loading ? <div className="loading-notice">Loading delivery events...</div> : null}
+      {showCreateForm && canWrite ? (
+        <form className="ops-inline-form ops-create-form" onSubmit={(e) => void handleCreateEvent(e)}>
+          <div className="ops-section-heading">
+            <h4>Créer un événement logistique</h4>
+          </div>
+          <div className="ops-inline-form__row">
+            <label>
+              Réservation
+              <select value={createForm.reservation_draft} onChange={(e) => setCreateForm((f) => ({ ...f, reservation_draft: e.target.value }))} required>
+                <option value="">Sélectionner une réservation</option>
+                {reservationDrafts.map((d) => (
+                  <option key={d.id} value={d.id}>{d.public_reference} — {d.customer_display_name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Type
+              <select value={createForm.event_type} onChange={(e) => setCreateForm((f) => ({ ...f, event_type: e.target.value as LogisticsEvent["event_type"] }))}>
+                <option value="preparation">Préparation</option>
+                <option value="delivery">Livraison</option>
+                <option value="handover">Remise</option>
+                <option value="pickup">Enlèvement</option>
+              </select>
+            </label>
+            <label>
+              Planifié le
+              <input type="datetime-local" value={createForm.scheduled_at} onChange={(e) => setCreateForm((f) => ({ ...f, scheduled_at: e.target.value }))} />
+            </label>
+          </div>
+          <div className="ops-inline-form__row">
+            <label>
+              Adresse
+              <input type="text" value={createForm.address} onChange={(e) => setCreateForm((f) => ({ ...f, address: e.target.value }))} />
+            </label>
+            <label>
+              Contact
+              <input type="text" value={createForm.contact_name} onChange={(e) => setCreateForm((f) => ({ ...f, contact_name: e.target.value }))} />
+            </label>
+            <label>
+              Téléphone
+              <input type="text" value={createForm.contact_phone} onChange={(e) => setCreateForm((f) => ({ ...f, contact_phone: e.target.value }))} />
+            </label>
+          </div>
+          <div className="ops-inline-form__row">
+            <label>
+              Notes
+              <input type="text" value={createForm.notes} onChange={(e) => setCreateForm((f) => ({ ...f, notes: e.target.value }))} />
+            </label>
+            <label className="ops-checkbox-label">
+              <input type="checkbox" checked={createForm.signature_required} onChange={(e) => setCreateForm((f) => ({ ...f, signature_required: e.target.checked }))} />
+              Signature requise
+            </label>
+          </div>
+          <div className="ops-inline-form__actions">
+            <button className="ops-button" type="submit" disabled={actionLoading || !createForm.reservation_draft}>
+              {actionLoading ? "Création..." : "Créer l'événement"}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      <div className="ops-filter-bar">
+        {(["all", "delivery", "handover", "preparation", "pickup"] as const).map((type) => (
+          <button
+            key={type}
+            className={`ops-filter-btn${eventFilter === type ? " ops-filter-btn--active" : ""}`}
+            type="button"
+            onClick={() => setEventFilter(type)}
+          >
+            {type === "all" ? "Tous" : EVENT_TYPE_LABELS[type]}
+          </button>
+        ))}
+      </div>
+
+      {loading ? <div className="loading-notice">Chargement des événements...</div> : null}
 
       {!loading && error ? (
         <div className="notice error-notice" role="alert">
           {error}
-          <button onClick={() => void load()} aria-label="Retry loading delivery events">
-            Retry
+          <button onClick={() => void load()} aria-label="Réessayer">
+            Réessayer
           </button>
         </div>
       ) : null}
 
-      {!loading && !error && deliveryEvents.length === 0 ? (
-        <div className="ops-empty">No delivery events found.</div>
+      {!loading && !error && filteredEvents.length === 0 ? (
+        <div className="ops-empty">Aucun événement trouvé.</div>
       ) : null}
 
-      {!loading && !error && deliveryEvents.length > 0 ? (
+      {!loading && !error && filteredEvents.length > 0 ? (
         <div className="ops-layout">
           <section className="ops-list-panel">
             <div className="ops-section-heading">
               <div>
-                <h4>Event queue</h4>
-                <p className="ops-section-helper">Prototype-inspired operational list with handover visibility.</p>
+                <h4>File d'événements</h4>
+                <p className="ops-section-helper">{filteredEvents.length} événement(s) {eventFilter !== "all" ? EVENT_TYPE_LABELS[eventFilter] : ""}.</p>
               </div>
             </div>
-            <ul className="ops-list" role="list" aria-label="Delivery events list">
-              {deliveryEvents.map((event) => (
+            <ul className="ops-list" role="list" aria-label="Liste des événements logistiques">
+              {filteredEvents.map((event) => (
                 <li key={event.id}>
                   <button
                     className="ops-row"
@@ -310,7 +456,7 @@ export function LogisticsDeliveryPanel() {
                   >
                     <div className="ops-row__primary">
                       <span className="ops-row__title">{EVENT_TYPE_LABELS[event.event_type]}</span>
-                      <span className="ops-row__subtext">{event.contact_name || "No contact provided"}</span>
+                      <span className="ops-row__subtext">{event.contact_name || "Aucun contact"}</span>
                     </div>
                     <span className={`ops-status-badge ops-status-badge--${event.status}`}>
                       {STATUS_LABELS[event.status] ?? event.status}
@@ -328,9 +474,9 @@ export function LogisticsDeliveryPanel() {
               <div className="ops-detail-stack">
                 <div className="ops-section-heading">
                   <div>
-                    <h4>{EVENT_TYPE_LABELS[selectedEvent.event_type]} detail</h4>
+                    <h4>{EVENT_TYPE_LABELS[selectedEvent.event_type]}</h4>
                     <p className="ops-section-helper">
-                      Reservation {selectedEvent.reservation_draft.slice(0, 8)} with prototype-aligned operational actions.
+                      Réservation {selectedEvent.reservation_draft.slice(0, 8)}
                     </p>
                   </div>
                   <span className={`ops-status-badge ops-status-badge--${selectedEvent.status}`}>
@@ -340,11 +486,11 @@ export function LogisticsDeliveryPanel() {
 
                 <dl className="ops-metrics">
                   <div className="ops-metric-card">
-                    <dt>Scheduled</dt>
+                    <dt>Planifié</dt>
                     <dd>{formatDateTime(selectedEvent.scheduled_at)}</dd>
                   </div>
                   <div className="ops-metric-card">
-                    <dt>Executed</dt>
+                    <dt>Exécuté</dt>
                     <dd>{formatDateTime(selectedEvent.executed_at)}</dd>
                   </div>
                   <div className="ops-metric-card">
@@ -353,23 +499,23 @@ export function LogisticsDeliveryPanel() {
                   </div>
                   <div className="ops-metric-card">
                     <dt>Signature</dt>
-                    <dd>{selectedEvent.signature_required ? (selectedEvent.signature_received ? "Received" : "Required") : "Not required"}</dd>
+                    <dd>{selectedEvent.signature_required ? (selectedEvent.signature_received ? "Reçue" : "Requise") : "Non requise"}</dd>
                   </div>
                 </dl>
 
                 <section className="ops-detail-section">
-                  <h5>Operational detail</h5>
+                  <h5>Détails opérationnels</h5>
                   <dl className="ops-detail-meta">
                     <div>
-                      <dt>Address</dt>
+                      <dt>Adresse</dt>
                       <dd>{selectedEvent.address || "—"}</dd>
                     </div>
                     <div>
-                      <dt>Phone</dt>
+                      <dt>Téléphone</dt>
                       <dd>{selectedEvent.contact_phone || "—"}</dd>
                     </div>
                     <div>
-                      <dt>Signed at</dt>
+                      <dt>Signé le</dt>
                       <dd>{formatDateTime(selectedEvent.signed_at)}</dd>
                     </div>
                     <div>
@@ -382,12 +528,12 @@ export function LogisticsDeliveryPanel() {
                 <section className="ops-detail-section">
                   <div className="ops-section-heading">
                     <div>
-                      <h5>Item lines</h5>
-                      <p className="ops-section-helper">Backend item lines attached to the logistics event.</p>
+                      <h5>Lignes d'articles</h5>
+                      <p className="ops-section-helper">{itemLines.length} ligne(s) attachée(s).</p>
                     </div>
                   </div>
 
-                  {lineLoading ? <div className="loading-notice">Loading logistics item lines...</div> : null}
+                  {lineLoading ? <div className="loading-notice">Chargement des lignes...</div> : null}
                   {!lineLoading && lineError ? (
                     <div className="notice error-notice" role="alert">
                       {lineError}
@@ -395,7 +541,7 @@ export function LogisticsDeliveryPanel() {
                   ) : null}
 
                   {!lineLoading && !lineError && itemLines.length === 0 ? (
-                    <p className="ops-empty">No logistics item lines are attached yet.</p>
+                    <p className="ops-empty">Aucune ligne d'article attachée.</p>
                   ) : null}
 
                   {!lineLoading && !lineError && itemLines.length > 0 ? (
@@ -405,22 +551,29 @@ export function LogisticsDeliveryPanel() {
                           <div className="ops-line-item__head">
                             <strong>{line.inventory_item_name}</strong>
                             <div className="ops-line-actions">
-                              <span className="ops-chip ops-chip--planned">{line.quantity} unit(s)</span>
+                              <span className="ops-chip ops-chip--planned">{line.quantity} unité(s)</span>
                               {canWrite ? (
-                                <button
-                                  className="ops-button-danger"
-                                  type="button"
-                                  disabled={actionLoading}
-                                  onClick={() => void handleRemoveLine(line.id)}
-                                >
-                                  Remove
-                                </button>
+                                confirmAction?.type === "remove-line" && confirmAction.lineId === line.id ? (
+                                  <span className="confirm-delete-group">
+                                    <span className="confirm-delete-hint">Supprimer ?</span>
+                                    <button className="ops-button-danger" type="button" disabled={actionLoading} onClick={() => { setConfirmAction(null); void handleRemoveLine(line.id); }}>
+                                      {actionLoading ? "..." : "Confirmer"}
+                                    </button>
+                                    <button className="ops-button-secondary" type="button" disabled={actionLoading} onClick={() => setConfirmAction(null)}>
+                                      Annuler
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <button className="ops-button-danger" type="button" disabled={actionLoading} onClick={() => setConfirmAction({ type: "remove-line", lineId: line.id })}>
+                                    Supprimer
+                                  </button>
+                                )
                               ) : null}
                             </div>
                           </div>
                           <div className="ops-line-item__meta">
                             <span>{line.inventory_item_kind}</span>
-                            <span>{line.notes || "No line note"}</span>
+                            <span>{line.notes || "Aucune note"}</span>
                           </div>
                         </li>
                       ))}
@@ -431,43 +584,26 @@ export function LogisticsDeliveryPanel() {
                     <form className="ops-inline-form" onSubmit={(event) => void handleAddLine(event)}>
                       <div className="ops-inline-form__row">
                         <label>
-                          Inventory item
-                          <select
-                            value={selectedInventoryItemId}
-                            onChange={(event) => setSelectedInventoryItemId(event.target.value)}
-                            required
-                          >
-                            <option value="">Select item</option>
+                          Article
+                          <select value={selectedInventoryItemId} onChange={(event) => setSelectedInventoryItemId(event.target.value)} required>
+                            <option value="">Sélectionner</option>
                             {inventoryItems.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.name} ({item.kind})
-                              </option>
+                              <option key={item.id} value={item.id}>{item.name} ({item.kind})</option>
                             ))}
                           </select>
                         </label>
                         <label>
-                          Quantity
-                          <input
-                            min="1"
-                            step="1"
-                            type="number"
-                            value={lineQuantity}
-                            onChange={(event) => setLineQuantity(event.target.value)}
-                            required
-                          />
+                          Quantité
+                          <input min="1" step="1" type="number" value={lineQuantity} onChange={(event) => setLineQuantity(event.target.value)} required />
                         </label>
                         <label>
-                          Line note
-                          <input
-                            type="text"
-                            value={lineNotes}
-                            onChange={(event) => setLineNotes(event.target.value)}
-                          />
+                          Note
+                          <input type="text" value={lineNotes} onChange={(event) => setLineNotes(event.target.value)} />
                         </label>
                       </div>
                       <div className="ops-inline-form__actions">
                         <button className="ops-button" type="submit" disabled={actionLoading}>
-                          Add item line
+                          Ajouter une ligne
                         </button>
                       </div>
                     </form>
@@ -475,15 +611,14 @@ export function LogisticsDeliveryPanel() {
                 </section>
 
                 <section className="ops-callout">
-                  <strong>Workflow actions</strong>
-                  <p>
-                    FE-B wires backend-approved logistics transitions and handover passation
-                    without inventing any new state machine.
-                  </p>
+                  <strong>Actions</strong>
                   {passationState.documentInstanceId ? (
-                    <p className="ops-preview-note">
-                      Delivery note generated. Document instance ID: {passationState.documentInstanceId}
-                    </p>
+                    <div className="ops-preview-note">
+                      <p>Bon de livraison généré.</p>
+                      <button className="ops-button-secondary" type="button" onClick={() => void handleDownloadDeliveryNote()}>
+                        Voir le PDF
+                      </button>
+                    </div>
                   ) : null}
                   {passationState.error ? (
                     <p className="ops-preview-note">{passationState.error}</p>
@@ -491,49 +626,46 @@ export function LogisticsDeliveryPanel() {
                 </section>
 
                 <div className="ops-line-actions">
-                  <button
-                    className="ops-button-secondary"
-                    type="button"
-                    disabled={!canWrite || actionLoading || selectedEvent.status !== "planned"}
-                    onClick={() => void handleTransition("dispatched")}
-                  >
-                    Dispatch
-                  </button>
-                  <button
-                    className="ops-button-secondary"
-                    type="button"
-                    disabled={!canWrite || actionLoading || selectedEvent.status !== "dispatched"}
-                    onClick={() => void handleTransition("completed")}
-                  >
-                    Complete
-                  </button>
-                  <button
-                    className="ops-button-danger"
-                    type="button"
-                    disabled={!canWrite || actionLoading || selectedEvent.status === "completed" || selectedEvent.status === "cancelled"}
-                    onClick={() => void handleTransition("cancelled")}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="ops-button"
-                    type="button"
-                    disabled={
-                      !canWrite ||
-                      passationState.loading ||
-                      selectedEvent.event_type !== "handover" ||
-                      selectedEvent.status !== "completed" ||
-                      !selectedEvent.signature_required ||
-                      selectedEvent.signature_received
-                    }
-                    onClick={() => void handleCompletePassation()}
-                  >
-                    Complete passation
-                  </button>
+                  {confirmAction?.type === "transition" ? (
+                    <span className="confirm-delete-group">
+                      <span className="confirm-delete-hint">Confirmer cette action ?</span>
+                      {confirmAction.lineId === "dispatch" ? (
+                        <button className="ops-button-secondary" type="button" disabled={actionLoading} onClick={() => { setConfirmAction(null); void handleTransition("dispatched"); }}>
+                          {actionLoading ? "..." : "Confirmer l'envoi"}
+                        </button>
+                      ) : confirmAction.lineId === "complete" ? (
+                        <button className="ops-button-secondary" type="button" disabled={actionLoading} onClick={() => { setConfirmAction(null); void handleTransition("completed"); }}>
+                          {actionLoading ? "..." : "Confirmer la complétion"}
+                        </button>
+                      ) : (
+                        <button className="ops-button-danger" type="button" disabled={actionLoading} onClick={() => { setConfirmAction(null); void handleTransition("cancelled"); }}>
+                          {actionLoading ? "..." : "Confirmer l'annulation"}
+                        </button>
+                      )}
+                      <button className="ops-button-secondary" type="button" disabled={actionLoading} onClick={() => setConfirmAction(null)}>
+                        Annuler
+                      </button>
+                    </span>
+                  ) : (
+                    <>
+                      <button className="ops-button-secondary" type="button" disabled={!canWrite || actionLoading || selectedEvent.status !== "planned"} onClick={() => setConfirmAction({ type: "transition", lineId: "dispatch" })}>
+                        Envoyer
+                      </button>
+                      <button className="ops-button-secondary" type="button" disabled={!canWrite || actionLoading || selectedEvent.status !== "dispatched"} onClick={() => setConfirmAction({ type: "transition", lineId: "complete" })}>
+                        Compléter
+                      </button>
+                      <button className="ops-button-danger" type="button" disabled={!canWrite || actionLoading || selectedEvent.status === "completed" || selectedEvent.status === "cancelled"} onClick={() => setConfirmAction({ type: "transition", lineId: "cancel" })}>
+                        Annuler
+                      </button>
+                      <button className="ops-button" type="button" disabled={!canWrite || passationState.loading || selectedEvent.event_type !== "handover" || selectedEvent.status !== "completed" || !selectedEvent.signature_required || selectedEvent.signature_received} onClick={() => void handleCompletePassation()}>
+                        {passationState.loading ? "..." : "Finaliser la remise"}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ) : (
-              <p className="ops-empty">Select a logistics event to inspect its operational detail.</p>
+              <p className="ops-empty">Sélectionnez un événement pour voir les détails.</p>
             )}
           </section>
         </div>
