@@ -90,15 +90,15 @@ function toDateTimeLocalValue(date: Date): string {
 }
 
 const AMENDMENT_BLOCKER_LABELS: Record<string, string> = {
-  draft_not_confirmed_for_amendment: "This draft has not been confirmed yet. Amendment is only available on confirmed drafts.",
-  draft_not_found: "This draft could not be found. It may have been deleted.",
-  draft_has_no_active_lines: "This draft has no active lines. Add line items before attempting an amendment.",
-  draft_period_invalid: "The draft period is invalid. Correct the start and end dates before amending.",
-  user_not_owner: "You are not the owner of this draft. Only the owner may request an amendment.",
-  missing_required_data: "Required event draft data is missing.",
-  active_availability_conflict: "There is an active inventory availability conflict.",
-  missing_signed_contract: "The signed contract marker is missing.",
-  missing_required_deposit: "The required deposit marker is missing.",
+  draft_not_confirmed_for_amendment: "Ce brouillon n'a pas encore été confirmé. L'avenant n'est disponible que sur les brouillons confirmés.",
+  draft_not_found: "Ce brouillon est introuvable. Il a peut-être été supprimé.",
+  draft_has_no_active_lines: "Ce brouillon n'a pas de lignes actives. Ajoutez des articles avant de demander un avenant.",
+  draft_period_invalid: "La période du brouillon est invalide. Corrigez les dates de début et de fin avant de faire un avenant.",
+  user_not_owner: "Vous n'êtes pas le propriétaire de ce brouillon. Seul le propriétaire peut demander un avenant.",
+  missing_required_data: "Données requises manquantes.",
+  active_availability_conflict: "Conflit de disponibilité d'inventaire actif.",
+  missing_signed_contract: "Marqueur de contrat signé manquant.",
+  missing_required_deposit: "Marqueur de dépôt requis manquant.",
 };
 
 function formatBlockerLabel(blocker: string): string {
@@ -598,7 +598,7 @@ export function HahitantsoaEventDraftsPanel({
   };
 
   const handleDeleteDraft = async (draftId: string) => {
-    if (!window.confirm("Are you sure you want to delete this event draft?"))
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce brouillon d'événement ?"))
       return;
 
     setFieldErrors({});
@@ -747,11 +747,10 @@ export function HahitantsoaEventDraftsPanel({
     >
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Hahitantsoa Event Draft Lifecycle</p>
-          <h2 id="hahitantsoa-event-drafts-heading">Event Drafts</h2>
+          <p className="eyebrow">Cycle de vie des brouillons</p>
+          <h2 id="hahitantsoa-event-drafts-heading">Brouillons d'événements</h2>
           <p className="section-helper">
-            Manage Hahitantsoa Event Drafts, check cascading availability for
-            concept items, and trigger soft-delete lifecycle operations.
+            Gérez les brouillons d'événements Hahitantsoa, vérifiez la disponibilité en cascade et déclenchez les opérations du cycle de vie.
           </p>
           {!canWrite ? (
             <p className="status">Sign in with write access to create or modify event drafts.</p>
@@ -761,31 +760,31 @@ export function HahitantsoaEventDraftsPanel({
 
       {actionState.status === "loading" && (
         <div className="notice loading-notice" role="status">
-          <p className="loading-spinner">Processing operation, please wait...</p>
+          <p className="loading-spinner">Traitement en cours...</p>
         </div>
       )}
       {actionState.status === "success" && (
         <div className="notice success-notice" role="status">
           <p>{actionState.message}</p>
           <button type="button" onClick={() => setActionState({ status: "idle" })}>
-            Dismiss
+            Fermer
           </button>
         </div>
       )}
       {actionState.status === "error" && (
         <div className="notice error-notice" role="alert">
-          <h3>Operation Failed</h3>
+          <h3>Échec de l'opération</h3>
           <p>{actionState.message}</p>
           <button type="button" onClick={() => setActionState({ status: "idle" })}>
-            Dismiss
+            Fermer
           </button>
         </div>
       )}
 
       <div className="preview-list-section">
-        <h3>Existing Event Drafts</h3>
+        <h3>Brouillons existants</h3>
         {draftListState.status === "loading" && (
-          <p className="status" aria-live="polite">Loading drafts...</p>
+          <p className="status" aria-live="polite">Chargement des brouillons...</p>
         )}
         {draftListState.status === "error" && (
           <p className="status error" role="alert">{draftListState.message}</p>
@@ -793,7 +792,7 @@ export function HahitantsoaEventDraftsPanel({
         {draftListState.status === "loaded" && (
           <>
             {draftListState.drafts.length === 0 ? (
-              <p className="status">No event drafts found.</p>
+              <p className="status">Aucun brouillon d'événement trouvé.</p>
             ) : (
               <ul className="preview-list">
                 {draftListState.drafts.map((draft) => (
@@ -815,7 +814,7 @@ export function HahitantsoaEventDraftsPanel({
                       onClick={() => handleViewDetails(draft.id)}
                       disabled={isDisabled}
                     >
-                      View & Manage
+                      Voir et gérer
                     </button>
                   </li>
                 ))}
@@ -826,37 +825,37 @@ export function HahitantsoaEventDraftsPanel({
       </div>
 
       {draftDetailState.status === "loading" && (
-        <p className="status" aria-live="polite">Loading draft details...</p>
+        <p className="status" aria-live="polite">Chargement des détails...</p>
       )}
       {draftDetailState.status === "error" && (
         <p className="status error" role="alert">{draftDetailState.message}</p>
       )}
       {draftDetailState.status === "loaded" && (
         <div className="availability-results">
-          <h3>Manage Draft: {draftDetailState.draft.public_reference}</h3>
+          <h3>Gérer le brouillon : {draftDetailState.draft.public_reference}</h3>
           <div className="reservation-summary-grid">
             <article className="reservation-summary-card">
               <span>Client</span>
               <strong>{draftDetailState.draft.customer_display_name}</strong>
             </article>
             <article className="reservation-summary-card">
-              <span>Timing</span>
+              <span>Période</span>
               <strong>{formatDateTime(draftDetailState.draft.start_at)}</strong>
               <small>{formatDateTime(draftDetailState.draft.end_at)}</small>
             </article>
             <article className="reservation-summary-card">
-              <span>Status</span>
+              <span>Statut</span>
               <strong>{draftDetailState.draft.status}</strong>
-              <small>{draftDetailState.draft.lines.length} lines</small>
+              <small>{draftDetailState.draft.lines.length} lignes</small>
             </article>
           </div>
 
-          <div className="reservation-workflow-rail" aria-label="Reservation workflow">
-            <span className={draftDetailState.draft.status === "draft" ? "workflow-step workflow-step--active" : "workflow-step workflow-step--done"}>Draft</span>
-            <span className={availabilityPreviewState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Availability</span>
-            <span className={preflightState.status === "loaded" ? (preflightState.preflight.can_confirm ? "workflow-step workflow-step--done" : "workflow-step workflow-step--warning") : "workflow-step"}>Preflight</span>
+          <div className="reservation-workflow-rail" aria-label="Flux de réservation">
+            <span className={draftDetailState.draft.status === "draft" ? "workflow-step workflow-step--active" : "workflow-step workflow-step--done"}>Brouillon</span>
+            <span className={availabilityPreviewState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Disponibilité</span>
+            <span className={preflightState.status === "loaded" ? (preflightState.preflight.can_confirm ? "workflow-step workflow-step--done" : "workflow-step workflow-step--warning") : "workflow-step"}>Prérequis</span>
             <span className={isReadOnly ? "workflow-step workflow-step--done workflow-step--confirmed" : "workflow-step"}>Confirmé</span>
-            <span className={amendmentPreflightState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Amendment</span>
+            <span className={amendmentPreflightState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Avenant</span>
           </div>
 
           {isReadOnly && (
@@ -868,7 +867,7 @@ export function HahitantsoaEventDraftsPanel({
 
           <form className="availability-form" onSubmit={handleUpdateDraft}>
             <label>
-              Event Name
+              Nom de l'événement
               <input
                 type="text"
                 className={fieldErrors.event_name ? "invalid-input-highlight" : ""}
@@ -886,7 +885,7 @@ export function HahitantsoaEventDraftsPanel({
               )}
             </label>
             <label>
-              Venue Name
+              Lieu
               <input
                 type="text"
                 className={fieldErrors.venue_name ? "invalid-input-highlight" : ""}
@@ -904,7 +903,7 @@ export function HahitantsoaEventDraftsPanel({
               )}
             </label>
             <label>
-              Location Details
+              Détails du lieu
               <textarea
                 className={fieldErrors.location_details ? "invalid-input-highlight" : ""}
                 value={editLocationDetails}
@@ -921,7 +920,7 @@ export function HahitantsoaEventDraftsPanel({
               )}
             </label>
             <label>
-              Service Notes
+              Notes de service
               <textarea
                 className={fieldErrors.service_notes ? "invalid-input-highlight" : ""}
                 value={editServiceNotes}
@@ -938,7 +937,7 @@ export function HahitantsoaEventDraftsPanel({
               )}
             </label>
             <label>
-              Start Time
+              Début
               <input
                 type="datetime-local"
                 className={fieldErrors.start_at ? "invalid-input-highlight" : ""}
@@ -956,7 +955,7 @@ export function HahitantsoaEventDraftsPanel({
               )}
             </label>
             <label>
-              End Time
+              Fin
               <input
                 type="datetime-local"
                 className={fieldErrors.end_at ? "invalid-input-highlight" : ""}
@@ -991,12 +990,12 @@ export function HahitantsoaEventDraftsPanel({
               )}
             </label>
 
-            <h4>Lines</h4>
+            <h4>Lignes</h4>
             {editLines.map((line, idx) => (
               <fieldset key={idx} disabled={formDisabled}>
-                <legend>Line {idx + 1}</legend>
+                <legend>Ligne {idx + 1}</legend>
                 <label>
-                  Item
+                  Article
                   <select
                     value={line.inventory_item_id}
                     onChange={(e) =>
@@ -1017,7 +1016,7 @@ export function HahitantsoaEventDraftsPanel({
                   </select>
                 </label>
                 <label>
-                  Quantity
+                  Quantité
                   <input
                     type="number"
                     min="1"
@@ -1048,15 +1047,15 @@ export function HahitantsoaEventDraftsPanel({
                   onClick={() => removeLine(idx, true)}
                   disabled={formDisabled || editLines.length <= 1}
                 >
-                  Remove Line
+                  Supprimer la ligne
                 </button>
               </fieldset>
             ))}
             <button type="button" onClick={() => addLine(true)} disabled={formDisabled}>
-              Add Line
+              Ajouter une ligne
             </button>
             <button type="submit" disabled={formDisabled}>
-              {isActionLoading ? "Saving..." : "Save Changes"}
+              {isActionLoading ? "Enregistrement..." : "Enregistrer"}
             </button>
           </form>
 
@@ -1066,21 +1065,21 @@ export function HahitantsoaEventDraftsPanel({
               onClick={() => handleCheckAvailability(draftDetailState.draft.id)}
               disabled={isDisabled || isReadOnly}
             >
-              {isAvailabilityLoading ? "Checking Availability..." : "Check Cascading Availability"}
+              {isAvailabilityLoading ? "Vérification..." : "Vérifier la disponibilité"}
             </button>
             <button
               type="button"
               onClick={() => handleCheckPreflight(draftDetailState.draft.id)}
               disabled={isDisabled || isReadOnly}
             >
-              {isPreflightLoading ? "Running Preflight Check..." : "Check Confirmation Preflight"}
+              {isPreflightLoading ? "Vérification des prérequis..." : "Vérifier les prérequis de confirmation"}
             </button>
             <button
               type="button"
               onClick={() => handleCheckAmendmentPreflight(draftDetailState.draft.id)}
               disabled={isDisabled}
             >
-              {isAmendmentPreflightLoading ? "Running Amendment Preflight..." : "Check Amendment Preflight"}
+              {isAmendmentPreflightLoading ? "Vérification des prérequis d'avenant..." : "Vérifier les prérequis d'avenant"}
             </button>
             <button
               type="button"
@@ -1088,12 +1087,12 @@ export function HahitantsoaEventDraftsPanel({
               onClick={() => handleDeleteDraft(draftDetailState.draft.id)}
               disabled={isDisabled || isReadOnly}
             >
-              {isActionLoading ? "Deleting Draft..." : "Delete Draft"}
+              {isActionLoading ? "Suppression..." : "Supprimer le brouillon"}
             </button>
           </div>
 
           {availabilityPreviewState.status === "loading" && (
-            <p className="status" aria-live="polite">Analyzing line availability...</p>
+            <p className="status" aria-live="polite">Analyse de la disponibilité...</p>
           )}
           {availabilityPreviewState.status === "error" && (
             <p className="status error" role="alert">{availabilityPreviewState.message}</p>
@@ -1101,10 +1100,10 @@ export function HahitantsoaEventDraftsPanel({
           {availabilityPreviewState.status === "loaded" && (
             <div className="notice report-panel success-notice">
               <div>
-                <h4>Cascading Availability Report</h4>
+                <h4>Rapport de disponibilité</h4>
                 <p>
-                  Status: {availabilityPreviewState.preview.available_line_count}{" "}
-                  / {availabilityPreviewState.preview.line_count} lines available.
+                  Statut : {availabilityPreviewState.preview.available_line_count}{" "}
+                  / {availabilityPreviewState.preview.line_count} lignes disponibles.
                 </p>
                 <ul>
                   {availabilityPreviewState.preview.lines.map((line) => (
@@ -1122,7 +1121,7 @@ export function HahitantsoaEventDraftsPanel({
           )}
 
           {preflightState.status === "loading" && (
-            <p className="status" aria-live="polite">Running confirmation preflight checks...</p>
+            <p className="status" aria-live="polite">Vérification des prérequis de confirmation...</p>
           )}
           {preflightState.status === "error" && (
             <p className="status error" role="alert">{preflightState.message}</p>
@@ -1136,20 +1135,20 @@ export function HahitantsoaEventDraftsPanel({
               }`}
             >
               <div>
-                <h4>Confirmation Preflight Report</h4>
-                <p><strong>Public Reference:</strong> {preflightState.preflight.public_reference}</p>
-                <p><strong>Status:</strong> {preflightState.preflight.status}</p>
-                <p><strong>Active Line Count:</strong> {preflightState.preflight.active_line_count}</p>
-                <p><strong>Unavailable Line Count:</strong> {preflightState.preflight.unavailable_line_count}</p>
+                <h4>Rapport des prérequis de confirmation</h4>
+                <p><strong>Référence :</strong> {preflightState.preflight.public_reference}</p>
+                <p><strong>Statut :</strong> {preflightState.preflight.status}</p>
+                <p><strong>Lignes actives :</strong> {preflightState.preflight.active_line_count}</p>
+                <p><strong>Lignes indisponibles :</strong> {preflightState.preflight.unavailable_line_count}</p>
                 <p>
-                  <strong>Can Confirm:</strong>{" "}
+                  <strong>Peut confirmer :</strong>{" "}
                   <span style={{ fontWeight: "bold" }}>
-                    {preflightState.preflight.can_confirm ? "Yes (Ready)" : "No (Blocked)"}
+                    {preflightState.preflight.can_confirm ? "Oui (Prêt)" : "Non (Bloqué)"}
                   </span>
                 </p>
                 {preflightState.preflight.blockers.length > 0 && (
                   <div style={{ marginTop: "0.5rem" }}>
-                    <strong>Blockers:</strong>
+                    <strong>Blocages :</strong>
                     <ul style={{ marginTop: "0.25rem", paddingLeft: "1.2rem" }}>
                       {preflightState.preflight.blockers.map((blocker, idx) => (
                         <li key={idx}>{blocker}</li>
@@ -1165,7 +1164,7 @@ export function HahitantsoaEventDraftsPanel({
                       onClick={() => handleConfirmDraft(draftDetailState.draft.id)}
                       disabled={isDisabled}
                     >
-                      Confirm Event Draft
+                      Confirmer le brouillon
                     </button>
                   </div>
                 )}
@@ -1174,18 +1173,18 @@ export function HahitantsoaEventDraftsPanel({
           )}
 
           {amendmentPreflightState.status === "loading" && (
-            <p className="status" aria-live="polite">Running amendment preflight checks...</p>
+            <p className="status" aria-live="polite">Vérification des prérequis d'avenant...</p>
           )}
           {amendmentPreflightState.status === "error" && (
             <div className="notice error-notice" role="alert">
-              <h4>Amendment Preflight Failed</h4>
+              <h4>Échec des prérequis d'avenant</h4>
               <p>{amendmentPreflightState.message}</p>
               <button
                 type="button"
                 onClick={() => handleCheckAmendmentPreflight(draftDetailState.draft.id)}
                 disabled={isDisabled}
               >
-                Retry Preflight Check
+                Réessayer
               </button>
             </div>
           )}
@@ -1198,19 +1197,19 @@ export function HahitantsoaEventDraftsPanel({
               }`}
             >
               <div>
-                <h4>Amendment Preflight Report</h4>
-                <p><strong>Public Reference:</strong> {amendmentPreflightState.preflight.public_reference}</p>
-                <p><strong>Status:</strong> {amendmentPreflightState.preflight.status}</p>
-                <p><strong>Active Line Count:</strong> {amendmentPreflightState.preflight.active_line_count}</p>
+                <h4>Rapport des prérequis d'avenant</h4>
+                <p><strong>Référence :</strong> {amendmentPreflightState.preflight.public_reference}</p>
+                <p><strong>Statut :</strong> {amendmentPreflightState.preflight.status}</p>
+                <p><strong>Lignes actives :</strong> {amendmentPreflightState.preflight.active_line_count}</p>
                 <p>
-                  <strong>Can Amend:</strong>{" "}
+                  <strong>Peut faire un avenant :</strong>{" "}
                   <span style={{ fontWeight: "bold" }}>
-                    {amendmentPreflightState.preflight.can_amend ? "Yes (Ready)" : "No (Blocked)"}
+                    {amendmentPreflightState.preflight.can_amend ? "Oui (Prêt)" : "Non (Bloqué)"}
                   </span>
                 </p>
                 {amendmentPreflightState.preflight.blockers.length > 0 && (
                   <div style={{ marginTop: "0.5rem" }}>
-                    <strong>Blockers:</strong>
+                    <strong>Blocages :</strong>
                     <ul style={{ marginTop: "0.25rem", paddingLeft: "1.2rem" }}>
                       {amendmentPreflightState.preflight.blockers.map((blocker, idx) => (
                         <li key={idx}>{formatBlockerLabel(blocker)}</li>
@@ -1223,9 +1222,9 @@ export function HahitantsoaEventDraftsPanel({
           )}
 
           <div className="amendment-requests-section">
-            <h3>Amendment Requests</h3>
+            <h3>Demandes d'avenant</h3>
 
-            {amendmentRequestsLoading && <p className="status" aria-live="polite">Loading amendment requests...</p>}
+            {amendmentRequestsLoading && <p className="status" aria-live="polite">Chargement des demandes d'avenant...</p>}
             {amendmentRequestsError && (
               <div className="notice error-notice" role="alert">
                 <p>{amendmentRequestsError}</p>
@@ -1234,13 +1233,13 @@ export function HahitantsoaEventDraftsPanel({
                   onClick={() => fetchAmendmentRequests(draftDetailState.draft.id)}
                   disabled={isDisabled}
                 >
-                  Retry Loading Requests
+                  Réessayer
                 </button>
               </div>
             )}
 
             {!amendmentRequestsLoading && amendmentRequests.length === 0 && (
-              <p className="no-amendments-text">No amendment requests found for this draft.</p>
+              <p className="no-amendments-text">Aucune demande d'avenant pour ce brouillon.</p>
             )}
 
             {!amendmentRequestsLoading && amendmentRequests.length > 0 && (
@@ -1250,7 +1249,7 @@ export function HahitantsoaEventDraftsPanel({
                     {editingAmendmentId === req.id ? (
                       <form onSubmit={(e) => handleUpdateAmendmentRequest(e, draftDetailState.draft.id, req.id)} className="edit-amendment-form">
                         <label>
-                          Reason
+                          Motif
                           <input
                             type="text"
                             required
@@ -1284,8 +1283,8 @@ export function HahitantsoaEventDraftsPanel({
                           )}
                         </label>
                         <div className="form-actions">
-                          <button type="submit" disabled={isDisabled}>Save</button>
-                          <button type="button" onClick={() => setEditingAmendmentId(null)} disabled={isDisabled}>Cancel</button>
+                          <button type="submit" disabled={isDisabled}>Enregistrer</button>
+                          <button type="button" onClick={() => setEditingAmendmentId(null)} disabled={isDisabled}>Annuler</button>
                         </div>
                       </form>
                     ) : (
@@ -1298,11 +1297,11 @@ export function HahitantsoaEventDraftsPanel({
                             {formatDateTime(req.created_at)}
                           </span>
                         </div>
-                        <p><strong>Reason:</strong> {req.reason || <em>No reason provided</em>}</p>
+                        <p><strong>Motif :</strong> {req.reason || <em>Aucun motif fourni</em>}</p>
                         {req.notes && <p><strong>Notes:</strong> {req.notes}</p>}
 
                         <div className="amendment-request-lines-wrapper">
-                          <h5>Proposed Line Changes</h5>
+                          <h5>Lignes proposées</h5>
                           {req.lines && req.lines.length > 0 ? (
                             <ul className="amendment-lines-list">
                               {req.lines.map((line) => (
@@ -1318,7 +1317,7 @@ export function HahitantsoaEventDraftsPanel({
                                         required
                                         disabled={isDisabled}
                                       >
-                                        <option value="">-- Select Inventory Item --</option>
+                                        <option value="">-- Sélectionner un article --</option>
                                         {inventoryItems.map((item) => (
                                           <option key={item.id} value={item.id}>
                                             {item.name} ({item.kind})
@@ -1341,8 +1340,8 @@ export function HahitantsoaEventDraftsPanel({
                                         disabled={isDisabled}
                                       />
                                       <div className="inline-form-actions">
-                                        <button type="submit" disabled={isDisabled}>Save</button>
-                                        <button type="button" onClick={() => setEditingAmendmentLineId(null)} disabled={isDisabled}>Cancel</button>
+                                        <button type="submit" disabled={isDisabled}>Enregistrer</button>
+                                        <button type="button" onClick={() => setEditingAmendmentLineId(null)} disabled={isDisabled}>Annuler</button>
                                       </div>
                                     </form>
                                   ) : (
@@ -1363,7 +1362,7 @@ export function HahitantsoaEventDraftsPanel({
                                             setEditingAmendmentLineNotes(line.notes);
                                           }}
                                         >
-                                          Edit
+                                          Modifier
                                         </button>
                                         <button
                                           type="button"
@@ -1371,7 +1370,7 @@ export function HahitantsoaEventDraftsPanel({
                                           disabled={isDisabled}
                                           onClick={() => handleDeleteAmendmentLine(draftDetailState.draft.id, req.id, line.id)}
                                         >
-                                          Delete
+                                          Supprimer
                                         </button>
                                       </div>
                                     </div>
@@ -1380,14 +1379,14 @@ export function HahitantsoaEventDraftsPanel({
                               ))}
                             </ul>
                           ) : (
-                            <p className="empty-lines-hint">No proposed lines added yet.</p>
+                            <p className="empty-lines-hint">Aucune ligne proposée.</p>
                           )}
 
                           <form
                             onSubmit={(e) => handleCreateAmendmentLine(e, draftDetailState.draft.id, req.id)}
                             className="inline-add-line-form"
                           >
-                            <h6>Add Proposed Line Change</h6>
+                            <h6>Ajouter une ligne proposée</h6>
                             <div className="inline-add-line-fields">
                               <select
                                 value={newAmendmentLineItemId[req.id] || ""}
@@ -1395,7 +1394,7 @@ export function HahitantsoaEventDraftsPanel({
                                 required
                                 disabled={isDisabled}
                               >
-                                <option value="">-- Select Inventory Item --</option>
+                                <option value="">-- Sélectionner un article --</option>
                                 {inventoryItems.map((item) => (
                                   <option key={item.id} value={item.id}>
                                     {item.name} ({item.kind})
@@ -1405,7 +1404,7 @@ export function HahitantsoaEventDraftsPanel({
                               <input
                                 type="number"
                                 min="1"
-                                placeholder="Qty"
+                                placeholder="Qté"
                                 value={newAmendmentLineQuantity[req.id] || 1}
                                 onChange={(e) => setNewAmendmentLineQuantity(curr => ({ ...curr, [req.id]: parseInt(e.target.value) || 1 }))}
                                 required
@@ -1413,12 +1412,12 @@ export function HahitantsoaEventDraftsPanel({
                               />
                               <input
                                 type="text"
-                                placeholder="Line Notes"
+                                placeholder="Notes de ligne"
                                 value={newAmendmentLineNotes[req.id] || ""}
                                 onChange={(e) => setNewAmendmentLineNotes(curr => ({ ...curr, [req.id]: e.target.value }))}
                                 disabled={isDisabled}
                               />
-                              <button type="submit" disabled={isDisabled}>Add Line</button>
+                              <button type="submit" disabled={isDisabled}>Ajouter une ligne</button>
                             </div>
                           </form>
                         </div>
@@ -1430,11 +1429,11 @@ export function HahitantsoaEventDraftsPanel({
                             disabled={isDisabled}
                             onClick={() => handleCheckAmendmentRequestAvailabilityPreflight(draftDetailState.draft.id, req.id)}
                           >
-                            Check Amendment Availability Preflight
+                            Vérifier la disponibilité pour l'avenant
                           </button>
 
                           {amendmentRequestPreflights[req.id]?.status === "loading" && (
-                            <p className="status" aria-live="polite">Checking availability...</p>
+                            <p className="status" aria-live="polite">Vérification de la disponibilité...</p>
                           )}
 
                           {amendmentRequestPreflights[req.id]?.status === "error" && (
@@ -1443,19 +1442,19 @@ export function HahitantsoaEventDraftsPanel({
 
                           {amendmentRequestPreflights[req.id]?.status === "loaded" && amendmentRequestPreflights[req.id]?.data && (
                             <div className="availability-preflight-report">
-                              <h4>Availability Preflight Report</h4>
+                              <h4>Rapport de disponibilité</h4>
                               <p>
-                                <strong>Status:</strong> {amendmentRequestPreflights[req.id]?.data?.status}
+                                <strong>Statut :</strong> {amendmentRequestPreflights[req.id]?.data?.status}
                               </p>
                               <p>
-                                <strong>Lines Checked:</strong> {amendmentRequestPreflights[req.id]?.data?.line_count}
+                                <strong>Lignes vérifiées :</strong> {amendmentRequestPreflights[req.id]?.data?.line_count}
                               </p>
                               <p>
-                                <strong>Available Lines:</strong>{" "}
+                                <strong>Lignes disponibles :</strong>{" "}
                                 <span className="success-badge">{amendmentRequestPreflights[req.id]?.data?.available_line_count}</span>
                               </p>
                               <p>
-                                <strong>Unavailable Lines:</strong>{" "}
+                                <strong>Lignes indisponibles :</strong>{" "}
                                 <span className={amendmentRequestPreflights[req.id]?.data?.unavailable_line_count ? "error-badge" : "success-badge"}>
                                   {amendmentRequestPreflights[req.id]?.data?.unavailable_line_count}
                                 </span>
@@ -1465,13 +1464,13 @@ export function HahitantsoaEventDraftsPanel({
                                 const preflight = amendmentRequestPreflights[req.id];
                                 if (!preflight || preflight.status !== "loaded" || !preflight.data) return null;
                                 return preflight.data.lines && preflight.data.lines.length > 0 && (
-                                  <table className="availability-preflight-table" aria-label="Amendment availability preflight">
+                                  <table className="availability-preflight-table" aria-label="Disponibilité pour l'avenant">
                                     <thead>
                                       <tr>
-                                        <th scope="col">Item</th>
-                                        <th scope="col">Qty</th>
-                                        <th scope="col">Status</th>
-                                        <th scope="col">Conflicts</th>
+                                        <th scope="col">Article</th>
+                                        <th scope="col">Qté</th>
+                                        <th scope="col">Statut</th>
+                                        <th scope="col">Conflits</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1506,7 +1505,7 @@ export function HahitantsoaEventDraftsPanel({
                               setEditingAmendmentNotes(req.notes);
                             }}
                           >
-                            Edit Request Details
+                            Modifier les détails
                           </button>
                         </div>
                       </div>
@@ -1517,25 +1516,25 @@ export function HahitantsoaEventDraftsPanel({
             )}
 
             <div className="create-amendment-section">
-              <h4>Create Amendment Request</h4>
+              <h4>Créer une demande d'avenant</h4>
               {amendmentPreflightState.status === "idle" && (
                 <p className="amendment-preflight-hint">
-                  Run the amendment preflight check above to verify this draft is eligible before submitting a request.
+                  Exécutez la vérification des prérequis d'avenant ci-dessus pour confirmer que ce brouillon est éligible avant de soumettre une demande.
                 </p>
               )}
               {amendmentPreflightState.status === "loaded" && !amendmentPreflightState.preflight.can_amend && (
                 <p className="amendment-preflight-blocked">
-                  Amendment is currently blocked. See the preflight report above for details.
+                  L'avenant est actuellement bloqué. Consultez le rapport des prérequis ci-dessus pour plus de détails.
                 </p>
               )}
               {amendmentPreflightState.status === "loaded" && amendmentPreflightState.preflight.can_amend && (
                 <p className="amendment-preflight-ready">
-                  This draft is eligible for amendment. Fill in the form below to submit a request.
+                  Ce brouillon est éligible pour un avenant. Remplissez le formulaire ci-dessous pour soumettre une demande.
                 </p>
               )}
               <form onSubmit={(e) => handleCreateAmendmentRequest(e, draftDetailState.draft.id)} className="availability-form">
                 <label>
-                  Reason
+                  Motif
                   <input
                     type="text"
                     required
@@ -1571,7 +1570,7 @@ export function HahitantsoaEventDraftsPanel({
                   )}
                 </label>
                 <button type="submit" disabled={isDisabled}>
-                  Submit Amendment Request
+                  Soumettre la demande d'avenant
                 </button>
               </form>
             </div>
@@ -1580,10 +1579,10 @@ export function HahitantsoaEventDraftsPanel({
       )}
 
       <div className="preview-list-section hahitantsoa-creation-section">
-        <h3>Create Hahitantsoa Event Draft</h3>
+        <h3>Nouveau brouillon d'événement</h3>
          <form className="availability-form" onSubmit={handleCreateDraft}>
           <label>
-            Event Name
+            Nom de l'événement
             <input
               type="text"
               required
@@ -1602,7 +1601,7 @@ export function HahitantsoaEventDraftsPanel({
             )}
           </label>
           <label>
-            Customer
+            Client
             <select
               className={fieldErrors.customer_id ? "invalid-input-highlight" : ""}
               value={newCustomerId}
@@ -1625,7 +1624,7 @@ export function HahitantsoaEventDraftsPanel({
             )}
           </label>
           <label>
-            Venue Name
+            Lieu
             <input
               type="text"
               className={fieldErrors.venue_name ? "invalid-input-highlight" : ""}
@@ -1643,7 +1642,7 @@ export function HahitantsoaEventDraftsPanel({
             )}
           </label>
           <label>
-            Location Details
+            Détails du lieu
             <textarea
               className={fieldErrors.location_details ? "invalid-input-highlight" : ""}
               value={newLocationDetails}
@@ -1660,7 +1659,7 @@ export function HahitantsoaEventDraftsPanel({
             )}
           </label>
           <label>
-            Service Notes
+            Notes de service
             <textarea
               className={fieldErrors.service_notes ? "invalid-input-highlight" : ""}
               value={newServiceNotes}
@@ -1677,7 +1676,7 @@ export function HahitantsoaEventDraftsPanel({
             )}
           </label>
           <label>
-            Start Time
+            Début
             <input
               type="datetime-local"
               className={fieldErrors.start_at ? "invalid-input-highlight" : ""}
@@ -1695,7 +1694,7 @@ export function HahitantsoaEventDraftsPanel({
             )}
           </label>
           <label>
-            End Time
+            Fin
             <input
               type="datetime-local"
               className={fieldErrors.end_at ? "invalid-input-highlight" : ""}
@@ -1730,12 +1729,12 @@ export function HahitantsoaEventDraftsPanel({
             )}
           </label>
 
-          <h4>Lines</h4>
+          <h4>Lignes</h4>
           {newLineInputs.map((line, idx) => (
             <fieldset key={idx} disabled={isDisabled}>
-              <legend>Line {idx + 1}</legend>
+              <legend>Ligne {idx + 1}</legend>
               <label>
-                Item
+                Article
                 <select
                   value={line.inventory_item_id}
                   onChange={(e) =>
@@ -1756,7 +1755,7 @@ export function HahitantsoaEventDraftsPanel({
                 </select>
               </label>
               <label>
-                Quantity
+                Quantité
                 <input
                   type="number"
                   min="1"
@@ -1787,15 +1786,15 @@ export function HahitantsoaEventDraftsPanel({
                 onClick={() => removeLine(idx, false)}
                 disabled={isDisabled}
               >
-                Remove Line
+                Supprimer la ligne
               </button>
             </fieldset>
           ))}
           <button type="button" onClick={() => addLine(false)} disabled={isDisabled}>
-            Add Line
+            Ajouter une ligne
           </button>
           <button type="submit" disabled={isDisabled}>
-            {isActionLoading ? "Creating..." : "Create Draft"}
+            {isActionLoading ? "Création..." : "Créer le brouillon"}
           </button>
         </form>
       </div>

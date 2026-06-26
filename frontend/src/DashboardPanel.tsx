@@ -25,6 +25,7 @@ type OverviewCard = {
   tone: "hah" | "titan" | "neutral";
   actionLabel: string;
   onAction: () => void;
+  glyph: string;
 };
 
 function DashboardPanel({ onNavigate }: DashboardPanelProps) {
@@ -73,44 +74,64 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
 
   const overviewCards: OverviewCard[] = [
     {
-      title: "Titan inventory",
+      title: "Inventaire Titan",
       value: String(metrics.inventoryCount),
-      description: "Rental items, material packs, and stock visibility for operator routing.",
+      description: "Articles, matériels et packs en stock pour les opérateurs.",
       tone: "titan",
-      actionLabel: "Open Titan",
+      actionLabel: "Ouvrir Titan",
       onAction: () => onNavigate("titan"),
+      glyph: "\u25a3",
     },
     {
-      title: "Hahitantsoa drafts",
+      title: "Brouillons Hahitantsoa",
       value: String(metrics.eventDraftCount),
-      description: "Exploratory event drafts and preparation steps for event-scoped work.",
+      description: "Brouillons d'événements en préparation pour le domaine événementiel.",
       tone: "hah",
-      actionLabel: "Open Hahitantsoa",
+      actionLabel: "Ouvrir Hahitantsoa",
       onAction: () => onNavigate("hahitantsoa"),
+      glyph: "\u2606",
     },
     {
-      title: "Reservation drafts",
+      title: "Brouillons de réservation",
       value: String(metrics.reservationDraftCount),
-      description: "Draft reservations waiting for confirmation, validation, or follow-up.",
+      description: "Réservations en attente de confirmation, validation ou suivi.",
       tone: "titan",
-      actionLabel: "Review reservations",
+      actionLabel: "Voir les réservations",
       onAction: () => onNavigate("titan"),
+      glyph: "\u2630",
     },
     {
-      title: "Operational payments",
+      title: "Paiements en cours",
       value: String(metrics.paymentCount),
-      description: "Billing, settlement, and payment touchpoints that still need operator review.",
+      description: "Facturation, règlements et points de paiement nécessitant un suivi.",
       tone: "neutral",
-      actionLabel: "Open operations",
+      actionLabel: "Opérations commerciales",
       onAction: () => onNavigate("commercial-ops"),
+      glyph: "\u2605",
     },
   ];
 
   if (loading) {
     return (
-      <div className="notice loading-notice" role="status">
-        <p className="loading-spinner">Loading ERP dashboard summary...</p>
-      </div>
+      <section className="dashboard-section" aria-labelledby="dashboard-overview-heading" role="status">
+        <div className="dashboard-hero">
+          <div className="dashboard-hero__copy">
+            <p className="eyebrow">Vue d'ensemble</p>
+            <h2 id="dashboard-overview-heading">Centre de commande ERP</h2>
+          </div>
+        </div>
+        <div className="dashboard-grid dashboard-grid--summary" aria-label="Chargement des indicateurs">
+          {[0, 1, 2, 3].map((i) => (
+            <div className="dashboard-card" key={i}>
+              <div className="dashboard-card__header">
+                <div style={{ width: "60%", height: "1rem" }} className="skeleton" />
+              </div>
+              <div style={{ width: "40%", height: "2.5rem", marginTop: "0.5rem" }} className="skeleton" />
+              <div style={{ width: "80%", height: "0.85rem", marginTop: "0.5rem" }} className="skeleton" />
+            </div>
+          ))}
+        </div>
+      </section>
     );
   }
 
@@ -118,48 +139,51 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
     <section className="dashboard-section" aria-labelledby="dashboard-overview-heading">
       <div className="dashboard-hero">
         <div className="dashboard-hero__copy">
-          <p className="eyebrow">Prototype-aligned overview</p>
-          <h2 id="dashboard-overview-heading">ERP command center</h2>
+          <p className="eyebrow">Vue d'ensemble</p>
+          <h2 id="dashboard-overview-heading">Centre de commande ERP</h2>
           <p className="section-helper">
-            Global entry point for Hahitantsoa and Titan operators, with brand context,
-            quick actions, and live summary cards aligned to the client-approved prototype.
+            Point d'entrée global pour les opérateurs Hahitantsoa et Titan, avec
+            indicateurs en direct et accès rapides.
           </p>
         </div>
 
-        <div className="dashboard-hero__rail" aria-label="Operational shortcuts">
+        <div className="dashboard-hero__rail" aria-label="Raccourcis opérationnels">
           <button className="hero-chip hero-chip--hah" type="button" onClick={() => onNavigate("hahitantsoa")}>
-            Hahitantsoa flow
+            Flux Hahitantsoa
           </button>
           <button className="hero-chip hero-chip--titan" type="button" onClick={() => onNavigate("titan")}>
-            Titan inventory
+            Inventaire Titan
           </button>
           <button
             className="hero-chip hero-chip--neutral"
             type="button"
             onClick={() => onNavigate("commercial-ops")}
           >
-            Billing workspace
+            Espace facturation
           </button>
         </div>
       </div>
 
       {error && (
         <div className="notice error-notice" role="alert">
-          <h3>Dashboard diagnostics warning</h3>
+          <h3>Erreur de chargement</h3>
           <p>{error}</p>
-          <p>Verify the authenticated Django session if the summary cannot be loaded.</p>
+          <p>Vérifiez votre session Django authentifiée.</p>
         </div>
       )}
 
       <div className="dashboard-grid dashboard-grid--summary">
         {overviewCards.map((card) => (
-          <article className={`dashboard-card dashboard-card--${card.tone}`} key={card.title}>
+          <article
+            className={`dashboard-card dashboard-card--${card.tone} card-hover`}
+            key={card.title}
+          >
             <div className="dashboard-card__header">
-              <div>
-                <p className="dashboard-card__eyebrow">Live summary</p>
+              <div className={`metric-icon metric-icon--${card.tone}`} aria-hidden="true">{card.glyph}</div>
+              <div style={{ flex: 1 }}>
+                <p className="dashboard-card__eyebrow">Indicateur en direct</p>
                 <h3>{card.title}</h3>
               </div>
-              <span className={`scope-chip scope-chip--${card.tone}`}>Prototype 4</span>
             </div>
             <p className="dashboard-card__value">{card.value}</p>
             <p className="dashboard-card__description">{card.description}</p>
@@ -174,22 +198,22 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
         <section className="dashboard-panel" aria-labelledby="dashboard-quick-actions-heading">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Quick actions</p>
-              <h3 id="dashboard-quick-actions-heading">Prototype-inspired shortcuts</h3>
+              <p className="eyebrow">Accès rapides</p>
+              <h3 id="dashboard-quick-actions-heading">Raccourcis vers les modules</h3>
             </div>
           </div>
           <div className="dashboard-actions">
             <button className="dashboard-action" type="button" onClick={() => onNavigate("titan")}>
-              Manage inventory
-              <span>Jump into the Titan scope.</span>
+              Gérer l'inventaire
+              <span>Accéder au module Titan pour la gestion des stocks.</span>
             </button>
             <button className="dashboard-action" type="button" onClick={() => onNavigate("hahitantsoa")}>
-              Prepare event draft
-              <span>Open the Hahitantsoa planning flow.</span>
+              Préparer un événement
+              <span>Ouvrir le module Hahitantsoa pour les brouillons d'événements.</span>
             </button>
             <button className="dashboard-action" type="button" onClick={() => onNavigate("commercial-ops")}>
-              Review operations
-              <span>Inspect billing, cashbox and settlement workspaces.</span>
+              Opérations commerciales
+              <span>Facturation, caisse et règlements.</span>
             </button>
           </div>
         </section>
@@ -197,33 +221,25 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
         <section className="dashboard-panel" aria-labelledby="dashboard-context-heading">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Brand and scope</p>
-              <h3 id="dashboard-context-heading">Operational context</h3>
+              <p className="eyebrow">Périmètre et marque</p>
+              <h3 id="dashboard-context-heading">Context opérationnel</h3>
             </div>
           </div>
           <ul className="dashboard-context-list">
             <li>
               <strong>Ergon</strong>
-              <span>Master brand in the app shell and login presentation.</span>
+              <span>Marque principale dans l'interface et l'écran de connexion.</span>
             </li>
             <li>
               <strong>Hahitantsoa</strong>
-              <span>Event-domain scope for planning, discovery, and commercial handoff.</span>
+              <span>Domaine événementiel : planning, découverte, commercial.</span>
             </li>
             <li>
               <strong>Titan Rental</strong>
-              <span>Material rental scope for stock, reservations, and operational follow-up.</span>
+              <span>Domaine location matériel : stock, réservations, suivi opérationnel.</span>
             </li>
           </ul>
         </section>
-      </div>
-
-      <div className="dashboard-welcome">
-        <h3>System authenticated session active</h3>
-        <p>
-          The dashboard keeps the current shell, FE-A permission gating, and prototype-driven
-          branding intact while surfacing the main operational routes.
-        </p>
       </div>
     </section>
   );

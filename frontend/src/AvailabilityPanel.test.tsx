@@ -348,23 +348,23 @@ function mockAvailabilityFetch(options: MockOptions = {}) {
 }
 
 function fillValidPeriod() {
-  fireEvent.change(screen.getByLabelText("Start"), {
+  fireEvent.change(screen.getByLabelText("Début"), {
     target: { value: START_AT_LOCAL },
   });
-  fireEvent.change(screen.getByLabelText("End"), {
+  fireEvent.change(screen.getByLabelText("Fin"), {
     target: { value: END_AT_LOCAL },
   });
 }
 
 function submitAvailability() {
-  fireEvent.click(screen.getByRole("button", { name: "Check availability" }));
+  fireEvent.click(screen.getByRole("button", { name: "Vérifier la disponibilité" }));
 }
 
 async function loadAvailability(inventoryItems = INVENTORY_ITEMS) {
   render(<AvailabilityPanel inventoryItems={inventoryItems} />);
   fillValidPeriod();
   submitAvailability();
-  await screen.findByText("Item-specific availability previews");
+  await screen.findByText("Aperçus de disponibilité par article");
 }
 
 afterEach(() => {
@@ -378,16 +378,16 @@ describe("AvailabilityPanel", () => {
 
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
-    expect(screen.getByLabelText("Start")).toHaveAttribute(
+    expect(screen.getByLabelText("Début")).toHaveAttribute(
       "type",
       "datetime-local",
     );
-    expect(screen.getByLabelText("End")).toHaveAttribute(
+    expect(screen.getByLabelText("Fin")).toHaveAttribute(
       "type",
       "datetime-local",
     );
     expect(
-      screen.getByRole("button", { name: "Check availability" }),
+      screen.getByRole("button", { name: "Vérifier la disponibilité" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByLabelText(/username|password/i),
@@ -453,9 +453,9 @@ describe("AvailabilityPanel", () => {
     fillValidPeriod();
     submitAvailability();
 
-    expect(screen.getByText("Checking availability...")).toBeInTheDocument();
+    expect(screen.getByText("Vérification de la disponibilité...")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Check availability" }),
+      screen.getByRole("button", { name: "Vérifier la disponibilité" }),
     ).toBeDisabled();
   });
 
@@ -469,8 +469,8 @@ describe("AvailabilityPanel", () => {
     expect(screen.getByText("material, material_pack")).toBeInTheDocument();
     expect(screen.getAllByText("available")).toHaveLength(3);
     expect(screen.getByText("unavailable")).toBeInTheDocument();
-    expect(screen.getByText("0 conflicts")).toBeInTheDocument();
-    expect(screen.getByText("1 conflicts")).toBeInTheDocument();
+    expect(screen.getByText("0 conflits")).toBeInTheDocument();
+    expect(screen.getByText("1 conflits")).toBeInTheDocument();
   });
 
   it("renders empty preview states", async () => {
@@ -482,11 +482,11 @@ describe("AvailabilityPanel", () => {
     await loadAvailability([]);
 
     expect(
-      screen.getByText("No items are available for this period."),
+      screen.getByText("Aucun article disponible pour cette période."),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "No inventory items are loaded for item-specific preview.",
+        "Aucun article chargé pour l'aperçu individuel.",
       ),
     ).toBeInTheDocument();
   });
@@ -510,10 +510,10 @@ describe("AvailabilityPanel", () => {
     const fetchMock = mockAvailabilityFetch();
 
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
-    fireEvent.change(screen.getByLabelText("Start"), {
+    fireEvent.change(screen.getByLabelText("Début"), {
       target: { value: END_AT_LOCAL },
     });
-    fireEvent.change(screen.getByLabelText("End"), {
+    fireEvent.change(screen.getByLabelText("Fin"), {
       target: { value: START_AT_LOCAL },
     });
 
@@ -537,7 +537,7 @@ describe("AvailabilityPanel", () => {
 
     expect(await screen.findByText("RD-DEMO-001")).toBeInTheDocument();
     expect(screen.getByText("Client Demo")).toBeInTheDocument();
-    expect(screen.getByText("2 lines")).toBeInTheDocument();
+    expect(screen.getByText("2 lignes")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/reservations/drafts/", {
       credentials: "include",
       signal: expect.any(AbortSignal),
@@ -550,28 +550,28 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
     expect(
-      await screen.findByText("Draft detail RD-DEMO-001"),
+      await screen.findByText("Détail du brouillon RD-DEMO-001"),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Client Demo").length).toBeGreaterThan(0);
     expect(screen.getAllByText("draft").length).toBeGreaterThan(0);
-    expect(screen.getByText("Pending prerequisites")).toBeInTheDocument();
-    expect(screen.getAllByText("Quantity: 1")).toHaveLength(2);
+    expect(screen.getByText("Prérequis en attente")).toBeInTheDocument();
+    expect(screen.getAllByText("Quantité : 1")).toHaveLength(2);
     expect(
       screen.getByText(
-        /Confirmation still depends on existing backend truth/i,
+        /La confirmation dépend toujours de la vérité du backend/i,
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Mark contract signed" }),
+      screen.getByRole("button", { name: "Marquer contrat signé" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Mark deposit received" }),
+      screen.getByRole("button", { name: "Marquer dépôt reçu" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Confirm Titan reservation" }),
+      screen.getByRole("button", { name: "Confirmer la réservation" }),
     ).toBeDisabled();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/reservations/drafts/draft-1/",
@@ -588,18 +588,18 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
-    fireEvent.change(await screen.findByLabelText("Draft line 1 quantity"), {
+    fireEvent.change(await screen.findByLabelText("Quantité de la ligne 1"), {
       target: { value: "3" },
     });
-    fireEvent.change(screen.getByLabelText("Draft line 1 notes"), {
+    fireEvent.change(screen.getByLabelText("Notes de la ligne 1"), {
       target: { value: "Frontend replacement line." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save draft lines" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les lignes" }));
 
-    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
-    expect(screen.getByText("Quantity: 3")).toBeInTheDocument();
+    expect(await screen.findByText("Modifications enregistrées.")).toBeInTheDocument();
+    expect(screen.getByText("Quantité : 3")).toBeInTheDocument();
     expect(screen.getAllByText("Frontend replacement line.")).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/reservations/drafts/draft-1/",
@@ -634,23 +634,23 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
-    fireEvent.change(await screen.findByLabelText("Draft customer"), {
+    fireEvent.change(await screen.findByLabelText("Client du brouillon"), {
       target: { value: CUSTOMERS[1].id },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: "Save draft customer" }),
+      screen.getByRole("button", { name: "Enregistrer le client" }),
     );
 
-    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
-    const detailHeading = screen.getByText("Draft detail RD-DEMO-001");
+    expect(await screen.findByText("Modifications enregistrées.")).toBeInTheDocument();
+    const detailHeading = screen.getByText("Détail du brouillon RD-DEMO-001");
     const detailCard = detailHeading.closest("article");
     expect(detailCard).not.toBeNull();
     expect(
       within(detailCard as HTMLElement).getAllByText("Client Updated").length,
     ).toBeGreaterThan(0);
-    expect(screen.getByLabelText("Draft customer")).toHaveValue(
+    expect(screen.getByLabelText("Client du brouillon")).toHaveValue(
       CUSTOMERS[1].id,
     );
     expect(fetchMock).toHaveBeenCalledWith(
@@ -675,21 +675,21 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
-    fireEvent.change(await screen.findByLabelText("Draft start"), {
+    fireEvent.change(await screen.findByLabelText("Début du brouillon"), {
       target: { value: UPDATED_START_AT_LOCAL },
     });
-    fireEvent.change(screen.getByLabelText("Draft end"), {
+    fireEvent.change(screen.getByLabelText("Fin du brouillon"), {
       target: { value: UPDATED_END_AT_LOCAL },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save draft period" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la période" }));
 
-    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Draft start")).toHaveValue(
+    expect(await screen.findByText("Modifications enregistrées.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Début du brouillon")).toHaveValue(
       UPDATED_START_AT_LOCAL,
     );
-    expect(screen.getByLabelText("Draft end")).toHaveValue(
+    expect(screen.getByLabelText("Fin du brouillon")).toHaveValue(
       UPDATED_END_AT_LOCAL,
     );
     expect(fetchMock).toHaveBeenCalledWith(
@@ -715,15 +715,15 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
-    fireEvent.change(await screen.findByLabelText("Draft start"), {
+    fireEvent.change(await screen.findByLabelText("Début du brouillon"), {
       target: { value: UPDATED_END_AT_LOCAL },
     });
-    fireEvent.change(screen.getByLabelText("Draft end"), {
+    fireEvent.change(screen.getByLabelText("Fin du brouillon"), {
       target: { value: UPDATED_START_AT_LOCAL },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save draft period" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer la période" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Choose a valid draft period with an end after the start.",
@@ -744,16 +744,16 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
-    const notesField = await screen.findByLabelText("Draft notes");
+    const notesField = await screen.findByLabelText("Notes du brouillon");
     fireEvent.change(notesField, {
       target: { value: "Updated from frontend notes edit." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save draft notes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les notes" }));
 
-    expect(await screen.findByText("Draft changes saved.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Draft notes")).toHaveValue(
+    expect(await screen.findByText("Modifications enregistrées.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Notes du brouillon")).toHaveValue(
       "Updated from frontend notes edit.",
     );
     expect(fetchMock).toHaveBeenCalledWith(
@@ -778,13 +778,13 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
-    const notesField = await screen.findByLabelText("Draft notes");
+    const notesField = await screen.findByLabelText("Notes du brouillon");
     fireEvent.change(notesField, {
       target: { value: "This save will fail." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save draft notes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer les notes" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The requested data could not be loaded.",
@@ -796,17 +796,17 @@ describe("AvailabilityPanel", () => {
 
     await loadAvailability();
 
-    expect(screen.getByText("New reservation wizard")).toBeInTheDocument();
-    expect(await screen.findByLabelText("Customer")).toBeInTheDocument();
+    expect(screen.getByText("Nouveau brouillon")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Client")).toBeInTheDocument();
     expect(screen.getAllByText("Client Demo").length).toBeGreaterThan(0);
     expect(
-      screen.getByRole("button", { name: "Create Titan draft" }),
+      screen.getByRole("button", { name: "Créer le brouillon" }),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Titan draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Créer le brouillon" }));
 
     expect(
-      await screen.findByText("Reference: RD-DEMO-001"),
+      await screen.findByText("Référence : RD-DEMO-001"),
     ).toBeInTheDocument();
     expect(screen.getAllByText("draft").length).toBeGreaterThan(0);
 
@@ -844,20 +844,20 @@ describe("AvailabilityPanel", () => {
     render(<AvailabilityPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await screen.findByText("RD-DEMO-001");
-    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voir le détail" }));
 
-    fireEvent.click(await screen.findByRole("button", { name: "Mark contract signed" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Marquer contrat signé" }));
     expect(
       await screen.findByText("Contract marker recorded for this Titan reservation."),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Mark deposit received" }));
+    fireEvent.click(screen.getByRole("button", { name: "Marquer dépôt reçu" }));
     expect(
       await screen.findByText("Deposit marker recorded for this Titan reservation."),
     ).toBeInTheDocument();
 
     const confirmButton = screen.getByRole("button", {
-      name: "Confirm Titan reservation",
+      name: "Confirmer la réservation",
     });
     expect(confirmButton).toBeEnabled();
     fireEvent.click(confirmButton);
@@ -884,7 +884,7 @@ describe("AvailabilityPanel", () => {
 
     await loadAvailability();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Titan draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Créer le brouillon" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The requested data could not be loaded.",

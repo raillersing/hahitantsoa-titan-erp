@@ -3578,3 +3578,290 @@ fieldset:disabled {
   background: #dcfce7;
   color: #166534;
 }
+
+/* ── Polish improvements (F180D5) ── */
+
+.card-hover {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-pill--success {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.status-pill--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.status-pill--danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.status-pill--info {
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.status-pill--neutral {
+  background: var(--color-bg-app);
+  color: var(--color-text-muted);
+}
+
+.status-pill--purple {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.scope-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.scope-badge--hah {
+  background: #ccfbf1;
+  color: #134e4a;
+}
+
+.scope-badge--titan {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.scope-badge--neutral {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-border) 25%, var(--color-surface-elevated) 50%, var(--color-border) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-brand-hah);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.25rem;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: var(--color-brand-hah);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-brand-hah);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ops-table thead th {
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-app);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.ops-table tbody td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.ops-table tbody tr:hover {
+  background: var(--color-bg-app);
+}
+
+.ops-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.metric-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.metric-icon--hah {
+  background: #ccfbf1;
+  color: #0d9488;
+}
+
+.metric-icon--titan {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.metric-icon--neutral {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.dashboard-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: var(--radius-btn);
+  background: var(--color-brand-titan);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-app);
+}
+
+:root[data-theme="dark"] .scope-badge--hah {
+  background: rgba(20, 184, 166, 0.2);
+  color: #5eead4;
+}
+
+:root[data-theme="dark"] .scope-badge--titan {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+:root[data-theme="dark"] .scope-badge--neutral {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+:root[data-theme="dark"] .status-pill--purple {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+}
+
+:root[data-theme="dark"] .metric-icon--hah {
+  background: rgba(20, 184, 166, 0.2);
+  color: #5eead4;
+}
+
+:root[data-theme="dark"] .metric-icon--titan {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+:root[data-theme="dark"] .metric-icon--neutral {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}

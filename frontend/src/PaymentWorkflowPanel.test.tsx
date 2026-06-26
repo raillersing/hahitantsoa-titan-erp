@@ -96,7 +96,7 @@ describe('PaymentWorkflowPanel', () => {
       expect(screen.getByTestId(`payment-row-${MOCK_PAYMENT_PENDING.id}`)).toBeInTheDocument();
     });
 
-    expect(screen.getByText('deposit')).toBeInTheDocument();
+    expect(screen.getByText('Dépôt')).toBeInTheDocument();
     expect(screen.getByText(/Direct client/)).toBeInTheDocument();
   });
 

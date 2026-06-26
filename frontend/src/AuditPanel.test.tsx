@@ -42,7 +42,7 @@ describe("AuditPanel", () => {
     render(<AuditPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("Audit log viewer")).toBeInTheDocument();
+      expect(screen.getByText("Journal d'audit")).toBeInTheDocument();
     });
 
     expect(await screen.findByTestId("audit-row-audit-1")).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe("AuditPanel", () => {
     render(<AuditPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("No audit events matched the current filters.")).toBeInTheDocument();
+      expect(screen.getByText("Aucun événement d'audit ne correspond aux filtres actuels.")).toBeInTheDocument();
     });
   });
 
@@ -78,8 +78,8 @@ describe("AuditPanel", () => {
     render(<AuditPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("Audit access unavailable")).toBeInTheDocument();
+      expect(screen.getByText("Accès audit indisponible")).toBeInTheDocument();
     });
-    expect(screen.getByText(/cannot read the audit event endpoints/i)).toBeInTheDocument();
+    expect(screen.getByText("La session actuelle ne peut pas lire les endpoints d'audit.")).toBeInTheDocument();
   });
 });

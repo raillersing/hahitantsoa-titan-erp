@@ -131,10 +131,10 @@ describe("App", () => {
       "#erp-main-content",
     );
     expect(
-      screen.getByRole("heading", { name: "Frontend module shell" }),
+      screen.getByRole("heading", { name: "Modules opérationnels" }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { name: "ERP command center" }),
+      await screen.findByRole("heading", { name: "Centre de commande ERP" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Dashboard" }),
@@ -147,7 +147,7 @@ describe("App", () => {
 
     renderApp();
 
-    const titanNavBtn = await screen.findByRole("button", { name: /Manage Inventory/i });
+    const titanNavBtn = await screen.findByRole("button", { name: /Gérer l'inventaire/i });
     fireEvent.click(titanNavBtn);
 
     expect(
@@ -181,7 +181,7 @@ describe("App", () => {
 
     renderApp();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Open planning" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Ouvrir le planning" }));
 
     expect(
       await screen.findByRole("heading", { name: "Planning hebdomadaire" }),
@@ -195,7 +195,7 @@ describe("App", () => {
 
     renderApp();
 
-    const planningButton = await screen.findByRole("button", { name: "Open planning" });
+    const planningButton = await screen.findByRole("button", { name: "Ouvrir le planning" });
     planningButton.focus();
 
     expect(planningButton).toHaveFocus();
@@ -292,12 +292,12 @@ describe("App", () => {
     renderApp();
 
     expect(
-      await screen.findByRole("heading", { name: "ERP command center" }),
+      await screen.findByRole("heading", { name: "Centre de commande ERP" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Titan" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open Hahitantsoa" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open operations" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Operational context" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ouvrir Titan" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ouvrir Hahitantsoa" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Opérations commerciales" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Context opérationnel" })).toBeInTheDocument();
   });
 
   it("renders an error state for a failed HTTP response", async () => {

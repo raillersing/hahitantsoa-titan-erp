@@ -77,7 +77,7 @@ export default function AuditPanel() {
     if (accessStatus === "denied") {
       setState({
         status: "error",
-        message: "Audit access requires backend reservation-sensitive permission.",
+        message: "L'accès à l'audit nécessite une permission réservation-sensible.",
       });
       return;
     }
@@ -92,7 +92,7 @@ export default function AuditPanel() {
         if (controller.signal.aborted) return;
         setState({
           status: "error",
-          message: err instanceof Error ? err.message : "Failed to load audit events.",
+          message: err instanceof Error ? err.message : "Échec du chargement des événements d'audit.",
         });
       });
     return () => controller.abort();
@@ -102,19 +102,18 @@ export default function AuditPanel() {
     <section className="audit-panel" aria-labelledby="audit-panel-heading">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Security activity</p>
-          <h2 id="audit-panel-heading">Audit log viewer</h2>
+          <p className="eyebrow">Activité de sécurité</p>
+          <h2 id="audit-panel-heading">Journal d'audit</h2>
           <p className="section-helper">
-            Read-only timeline of backend audit events. Filters map directly to the
-            confirmed backend query parameters.
+            Journal des événements d'audit backend. Les filtres correspondent aux paramètres de requête backend confirmés.
           </p>
         </div>
       </div>
 
       {accessStatus === "denied" ? (
         <div className="notice error-notice" role="alert">
-          <h3>Audit access unavailable</h3>
-          <p>The current session cannot read the audit event endpoints.</p>
+          <h3>Accès audit indisponible</h3>
+          <p>La session actuelle ne peut pas lire les endpoints d'audit.</p>
         </div>
       ) : null}
 
@@ -129,12 +128,12 @@ export default function AuditPanel() {
           />
         </label>
         <label>
-          Target type
+          Type de cible
           <select
             value={filters.target_type}
             onChange={(event) => setFilters((prev) => ({ ...prev, target_type: event.target.value }))}
           >
-            <option value="">All targets</option>
+            <option value="">Toutes les cibles</option>
             {TARGET_TYPE_OPTIONS.map((option) => (
               <option key={option} value={option}>
                 {option}
@@ -143,7 +142,7 @@ export default function AuditPanel() {
           </select>
         </label>
         <label>
-          Actor ID
+          ID acteur
           <input
             type="text"
             value={filters.actor_id}
@@ -152,7 +151,7 @@ export default function AuditPanel() {
           />
         </label>
         <label>
-          Created after
+          Créé après
           <input
             type="datetime-local"
             value={filters.created_after}
@@ -160,7 +159,7 @@ export default function AuditPanel() {
           />
         </label>
         <label>
-          Created before
+          Créé avant
           <input
             type="datetime-local"
             value={filters.created_before}
@@ -171,31 +170,31 @@ export default function AuditPanel() {
 
       {state.status === "loading" ? (
         <p className="status notice loading-notice" aria-live="polite">
-          Loading audit events...
+          Chargement des événements d'audit...
         </p>
       ) : null}
 
       {state.status === "error" ? (
         <div className="notice error-notice" role="alert">
-          <h3>Audit events unavailable</h3>
+          <h3>Événements d'audit indisponibles</h3>
           <p>{state.message}</p>
         </div>
       ) : null}
 
       {state.status === "empty" ? (
-        <p className="status">No audit events matched the current filters.</p>
+        <p className="status">Aucun événement d'audit ne correspond aux filtres actuels.</p>
       ) : null}
 
       {state.status === "loaded" ? (
         <div className="audit-table-shell">
-          <table className="data-table audit-table" aria-label="Audit events">
+          <table className="data-table audit-table" aria-label="Événements d'audit">
             <thead>
               <tr>
-                <th scope="col">Created</th>
+                <th scope="col">Date</th>
                 <th scope="col">Action</th>
-                <th scope="col">Target</th>
-                <th scope="col">Actor</th>
-                <th scope="col">Metadata</th>
+                <th scope="col">Cible</th>
+                <th scope="col">Acteur</th>
+                <th scope="col">Métadonnées</th>
               </tr>
             </thead>
             <tbody>

@@ -29,6 +29,14 @@ function formatAmount(amount: string): string {
   }).format(parseFloat(amount));
 }
 
+const STATUS_LABELS: Record<Payment['payment_status'], string> = {
+  pending: 'En attente',
+  confirmed: 'Confirmé',
+  failed: 'Échoué',
+  cancelled: 'Annulé',
+  reconciled: 'Rapproché',
+};
+
 const PAYMENT_KINDS: PaymentKind[] = [
   'deposit',
   'balance',
@@ -45,6 +53,22 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   'cheque',
   'other',
 ];
+const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
+  deposit: 'Dépôt',
+  balance: 'Solde',
+  caution: 'Caution',
+  owner_injection: 'Apport propriétaire',
+  investor_injection: 'Apport investisseur',
+  date_reservation: 'Date de réservation',
+  other: 'Autre',
+};
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'Espèces',
+  bank_transfer: 'Virement',
+  mobile_money: 'Mobile Money',
+  cheque: 'Chèque',
+  other: 'Autre',
+};
 
 // ─── PaymentRow ───────────────────────────────────────────────────────────────
 
@@ -58,8 +82,8 @@ function PaymentRow({ payment, onConfirm, confirming }: PaymentRowProps) {
   return (
     <div className="payment-row" data-testid={`payment-row-${payment.id}`}>
       <div className="payment-row__meta">
-        <span className="payment-row__kind">{payment.payment_kind.replace(/_/g, ' ')}</span>
-        <span className="payment-row__method">{payment.payment_method.replace(/_/g, ' ')}</span>
+        <span className="payment-row__kind">{PAYMENT_KIND_LABELS[payment.payment_kind]}</span>
+        <span className="payment-row__method">{PAYMENT_METHOD_LABELS[payment.payment_method]}</span>
         {payment.source_label && (
           <span className="payment-row__source">{payment.source_label}</span>
         )}
@@ -71,9 +95,9 @@ function PaymentRow({ payment, onConfirm, confirming }: PaymentRowProps) {
       <div
         className="payment-row__status-badge"
         style={{ color: statusColor(payment.payment_status) }}
-        aria-label={`Statut du paiement : ${payment.payment_status}`}
+        aria-label={`Statut du paiement : ${STATUS_LABELS[payment.payment_status]}`}
       >
-        {payment.payment_status}
+        {STATUS_LABELS[payment.payment_status]}
       </div>
       {payment.payment_status === 'pending' && (
         <button
@@ -174,7 +198,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
           >
             {PAYMENT_KINDS.map((k) => (
               <option key={k} value={k}>
-                {k.replace(/_/g, ' ')}
+                {PAYMENT_KIND_LABELS[k]}
               </option>
             ))}
           </select>
@@ -190,7 +214,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
           >
             {PAYMENT_METHODS.map((m) => (
               <option key={m} value={m}>
-                {m.replace(/_/g, ' ')}
+                {PAYMENT_METHOD_LABELS[m]}
               </option>
             ))}
           </select>
@@ -318,7 +342,7 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
       onDone(updated);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
-        setError(err.message || 'Échec de la confirmation.');
+        setError(err.message || 'Échec de la confirmation du paiement.');
       }
     } finally {
       setSubmitting(false);
@@ -506,7 +530,7 @@ export default function PaymentWorkflowPanel() {
       )}
 
       {!loading && !error && payments.length > 0 && (
-        <div className="payment-workflow-panel__list" role="list" aria-label="Payments list">
+        <div className="payment-workflow-panel__list" role="list" aria-label="Liste des paiements">
           {payments.map((p) => (
             <PaymentRow
               key={p.id}
