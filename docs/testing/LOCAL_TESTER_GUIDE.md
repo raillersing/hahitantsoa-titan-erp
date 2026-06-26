@@ -12,7 +12,7 @@
 ```bash
 # 1. Start backend services (PostgreSQL, Redis)
 cd /home/raillersing/projects/hahitantsoa-titan-erp
-docker compose -f compose.agent-ci.yaml up -d postgres18 redis8
+docker compose -f compose.agent-ci.yaml up -d db redis
 
 # 2. Backend environment and migrations
 cd backend
@@ -22,33 +22,37 @@ pip install -r requirements/dev.txt
 cp .env.example .env   # edit if needed
 python manage.py migrate
 
-# 3. Seed demo data
-python manage.py seed_demo_customers
-python manage.py seed_demo_inventory
-python manage.py seed_demo_availability
-python manage.py seed_demo_reservation_drafts
-python manage.py seed_demo_hahitantsoa_event_drafts
-python manage.py seed_dev_user
+# 3. Seed all demo data (in dependency order)
+python manage.py seed_all_demo
 
-# 4. Start backend dev server
+# 4. (Optional) Seed an admin user for full permission testing
+python manage.py seed_dev_admin
+
+# 5. Start backend dev server
 python manage.py runserver 0.0.0.0:8000 &
 
-# 5. Frontend
+# 6. Frontend
 cd ../frontend
 npm ci
 cp .env.example .env
 npm run dev
 
-# 6. Open http://localhost:5173
+# 7. Open http://localhost:5173
 ```
 
-Dev user credentials (from `seed_dev_user`):
-- Username: `dev`
-- Password: `dev`
+## Credentials
+
+| User | Username | Password | Permissions |
+|------|----------|----------|-------------|
+| Dev user (default) | `dev` | `dev` | `is_staff=False`, `is_superuser=False` |
+| Admin (optional) | `admin` | `admin` | `is_staff=True`, `is_superuser=True` |
+
+Dev user credentials are configured via `DJANGO_DEV_USERNAME` / `DJANGO_DEV_PASSWORD` env vars.
+Admin user credentials are configured via `DJANGO_ADMIN_USERNAME` / `DJANGO_ADMIN_PASSWORD` env vars.
 
 ## Demo data overview
 
-After seeding, the system contains:
+After `seed_all_demo`, the system contains:
 
 | Entity | Count | Details |
 |--------|-------|---------|
@@ -70,34 +74,49 @@ After seeding, the system contains:
 
 ## Test scenarios
 
-### Scenario A: Titan rental flow
+### Scenario A: Titan rental flow (full lifecycle)
 
 1. **Log in** as `dev`/`dev`
 2. Navigate to **Titan** in the sidebar
-3. View the list of inventory items and reservation drafts
-4. Create a **new reservation draft**: select a customer, period, and items
+3. View the list of inventory items (3 demo items available)
+4. Create a **new reservation draft**:
+   - Select customer: "SARL Event Plus"
+   - Select period: tomorrow, 4 hours
+   - Select items: "Sonorisation standard" (qty 1)
+   - Save as draft
 5. Open the draft detail and:
    - Mark **contract signed**
    - Mark **deposit received**
    - **Confirm** the reservation
-6. View the draft status change from `draft` to `confirmed`
+6. Verify the draft status changed from `draft` to `confirmed`
+7. Navigate to **Commercial Ops** from the confirmed draft:
+   - **Billing**: create an invoice from the confirmed reservation
+   - **Payments**: record a payment against the invoice
+   - **Logistics**: create a delivery/pickup logistics event
+8. Navigate to **Dashboard** and verify summary counts reflect the new reservation
 
 ### Scenario B: Hahitantsoa event flow
 
 1. Navigate to **Hahitantsoa** in the sidebar
 2. View the discovery panel (read-only concepts)
-3. Create a new event draft with event name, venue, period, and items
-4. Check availability preview
-5. Check confirmation preflight
-6. Confirm the event draft
-7. (Optional) Create an amendment request and modify lines
+3. View the 3 pre-seeded event drafts
+4. Create a new event draft:
+   - Event name: "Fête de la musique"
+   - Venue: "Place de l'Indépendance, Antananarivo"
+   - Customer: "Mairie d'Analakely"
+   - Period: next month, 8 hours
+   - Items: select demo inventory items
+5. Check availability preview for the selected period
+6. Check confirmation preflight
+7. Confirm the event draft
+8. (Optional) Create an amendment request and modify lines
 
 ### Scenario C: Customer and commercial operations
 
 1. Navigate to **Customers**, search for "SARL Event Plus"
 2. View the customer detail
 3. Navigate to **Commercial Ops** — explore the tabbed interface:
-   - **Billing**: view invoices (none seeded yet, can be created from confirmed reservations)
+   - **Billing**: view invoices (none seeded yet, create from confirmed reservation RD-DEMO-TITAN-004)
    - **Payments**: create and confirm a payment
    - **Logistics**: create logistics events for confirmed reservations
    - **Documents**: generate proforma, contract, or invoice PDF
@@ -110,7 +129,23 @@ After seeding, the system contains:
 
 1. Navigate to **Dashboard** — verify summary counts and quick links
 2. Navigate to **Audit** — verify the audit log shows recent events
-3. Navigate to **Identity** — view roles and assignments (read-only for non-admin users)
+3. Navigate to **Identity** — view roles and assignments
+4. (With admin user) Navigate to **Identity** to manage roles and permissions
+
+### Scenario E: Planning panel
+
+1. Navigate to **Planning** in the sidebar
+2. View the weekly planning table with Titan and Hahitantsoa filters
+3. Toggle between this week and next week
+4. Verify pre-seeded reservations appear on their scheduled dates
+5. Verify scope tags (Titan/Hahitantsoa), duration, and resource counts are visible
+
+### Scenario F: Admin user full permission testing
+
+1. **Log in** as `admin`/`admin` (requires `seed_dev_admin`)
+2. Navigate to **Identity** — manage roles, create new roles, assign permissions
+3. Verify all administrative functions are accessible
+4. Verify write operations (create, update, delete) work across all modules
 
 ## Cleanup
 
@@ -121,18 +156,15 @@ After seeding, the system contains:
 cd /home/raillersing/projects/hahitantsoa-titan-erp
 docker compose -f compose.agent-ci.yaml down
 
-# Re-seed from scratch (drops and recreates data):
-python manage.py seed_demo_customers    # re-runnable, upserts
-python manage.py seed_demo_inventory    # re-runnable, upserts
-python manage.py seed_demo_reservation_drafts  # re-runnable, upserts
-python manage.py seed_demo_hahitantsoa_event_drafts  # re-runnable, upserts
+# Re-seed from scratch (idempotent, upserts):
+python manage.py seed_all_demo
 ```
 
 ## Known limitations
 
-- Billing invoices are not pre-seeded; create them from a confirmed reservation
+- Billing invoices are not pre-seeded; create them from a confirmed reservation (RD-DEMO-TITAN-004 is confirmed and ready)
 - Logistics events are not pre-seeded; create them from Commercial Ops
-- No pre-seeded admin user with full permissions (use `seed_dev_user`)
-- Reports/exports UI is a placeholder awaiting business decision
-- Planning/calendar UI is a placeholder
+- Pre-seeded admin user available via `seed_dev_admin` (not included in `seed_all_demo` — run separately)
+- Reports/exports UI is intentionally not implemented — gated behind a pending business/legal decision on export data scope, format, and access controls. No endpoints exist, no frontend components. The `#reports` navigation entry is a placeholder.
+- Availability is seeded with a fixed 2-hour block starting at the next hour; refresh daily for current data
 - All demo data is created with `DEBUG=True` guard — never runs in production
