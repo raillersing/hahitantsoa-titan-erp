@@ -596,6 +596,7 @@ function App() {
                   inventoryItems={
                     inventoryState.status === "loaded" ? inventoryState.items : []
                   }
+                  onNavigate={(scope: string) => setActiveScope(scope as AppScope)}
                 />
                 <TitanStockMovementPanel
                   inventoryItems={

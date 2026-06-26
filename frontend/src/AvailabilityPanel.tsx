@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
@@ -6,9 +6,13 @@ import {
   confirmReservationDraft,
   createReservationDraft,
   getCustomers,
+  getBillingInvoices,
+  getLogisticsEvents,
+  getPayments,
   getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
   getReservationDraft,
+  getReservationDraftDocumentInstances,
   getReservationDrafts,
   getReservationItemAvailabilityPreview,
   markReservationDraftContractSigned,
@@ -16,8 +20,12 @@ import {
   updateReservationDraft,
 } from "./api";
 import type {
+  BillingInvoice,
   Customer,
+  DocumentInstance,
   InventoryItem,
+  LogisticsEvent,
+  Payment,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
   ReservationDraft,
@@ -69,8 +77,15 @@ type DraftLifecycleState =
   | { status: "success"; message: string }
   | { status: "error"; message: string };
 
+type DraftRelatedDataState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "loaded"; payments: Payment[]; invoices: BillingInvoice[]; logistics: LogisticsEvent[]; documents: DocumentInstance[] }
+  | { status: "error"; message: string };
+
 type AvailabilityPanelProps = {
   inventoryItems?: InventoryItem[];
+  onNavigate?: (scope: string) => void;
 };
 
 function toDateTimeLocalValue(date: Date): string {
@@ -120,7 +135,7 @@ function formatLifecycleState(value: string | null): string {
   return value ? formatDateTime(value) : "En attente";
 }
 
-function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
+function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPanelProps) {
   const initialPeriod = defaultPeriod();
   const [startAt, setStartAt] = useState(initialPeriod.startAt);
   const [endAt, setEndAt] = useState(initialPeriod.endAt);
@@ -158,7 +173,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     useState<DraftLifecycleState>({
       status: "idle",
     });
+  const [draftRelatedDataState, setDraftRelatedDataState] =
+    useState<DraftRelatedDataState>({ status: "idle" });
   const [canWrite, setCanWrite] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -384,6 +402,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       });
       setDraftUpdateState({ status: "idle" });
       setDraftLifecycleState({ status: "idle" });
+      void loadRelatedData(draft.id);
     } catch (error) {
       setDraftDetailState({
         status: "error",
@@ -484,6 +503,33 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           error instanceof ApiError || error instanceof Error
             ? error.message
             : "Titan reservation could not be confirmed.",
+      });
+    }
+  }
+
+  async function loadRelatedData(draftId: string) {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setDraftRelatedDataState({ status: "loading" });
+
+    try {
+      const [payments, invoices, logistics, documents] = await Promise.all([
+        getPayments(draftId, controller.signal).catch(() => [] as Payment[]),
+        getBillingInvoices(draftId, controller.signal).catch(() => [] as BillingInvoice[]),
+        getLogisticsEvents(draftId, controller.signal).catch(() => [] as LogisticsEvent[]),
+        getReservationDraftDocumentInstances(draftId, controller.signal).catch(() => [] as DocumentInstance[]),
+      ]);
+
+      if (!controller.signal.aborted) {
+        setDraftRelatedDataState({ status: "loaded", payments, invoices, logistics, documents });
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setDraftRelatedDataState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Related data could not be loaded.",
       });
     }
   }
@@ -966,6 +1012,24 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             </dl>
 
             {canWrite && isDraftEditable(draftDetailState.draft) ? (
+              <>
+              <div className="prerequisite-checklist" aria-label="Prérequis avant confirmation">
+                <h4>Prérequis avant confirmation</h4>
+                <ul>
+                  <li className={draftDetailState.draft.contract_signed_at ? "prereq-met" : "prereq-pending"}>
+                    {draftDetailState.draft.contract_signed_at ? "✓" : "○"} Contrat signé
+                    {draftDetailState.draft.contract_signed_at ? <small> — {formatLifecycleState(draftDetailState.draft.contract_signed_at)}</small> : null}
+                  </li>
+                  <li className={draftDetailState.draft.required_deposit_received_at ? "prereq-met" : "prereq-pending"}>
+                    {draftDetailState.draft.required_deposit_received_at ? "✓" : "○"} Dépôt reçu
+                    {draftDetailState.draft.required_deposit_received_at ? <small> — {formatLifecycleState(draftDetailState.draft.required_deposit_received_at)}</small> : null}
+                  </li>
+                  <li className={draftDetailState.draft.confirmed_at ? "prereq-met" : "prereq-pending"}>
+                    {draftDetailState.draft.confirmed_at ? "✓" : "○"} Réservation confirmée
+                    {draftDetailState.draft.confirmed_at ? <small> — {formatLifecycleState(draftDetailState.draft.confirmed_at)}</small> : null}
+                  </li>
+                </ul>
+              </div>
               <div className="detail-actions">
                 <button
                   type="button"
@@ -1002,6 +1066,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   Confirmer la réservation
                 </button>
               </div>
+              </>
             ) : null}
 
             {draftLifecycleState.status === "loading" ? (
@@ -1026,6 +1091,60 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 <p>{draftLifecycleState.message}</p>
               </div>
             ) : null}
+
+            <div className="related-resources">
+              <h4>Ressources liées</h4>
+              {draftRelatedDataState.status === "loading" ? (
+                <p className="status" aria-live="polite">Chargement des ressources liées...</p>
+              ) : null}
+              {draftRelatedDataState.status === "loaded" ? (
+                <div className="reservation-summary-grid">
+                  <button
+                    type="button"
+                    className="reservation-summary-card related-link"
+                    onClick={() => onNavigate?.("commercial-ops")}
+                    aria-label={`Documents : ${draftRelatedDataState.documents.length} instance(s)`}
+                  >
+                    <span>Documents</span>
+                    <strong>{draftRelatedDataState.documents.length}</strong>
+                    <small>Voir dans Commercial Ops</small>
+                  </button>
+                  <button
+                    type="button"
+                    className="reservation-summary-card related-link"
+                    onClick={() => onNavigate?.("commercial-ops")}
+                    aria-label={`Factures : ${draftRelatedDataState.invoices.length} facture(s)`}
+                  >
+                    <span>Factures</span>
+                    <strong>{draftRelatedDataState.invoices.length}</strong>
+                    <small>Voir dans Commercial Ops</small>
+                  </button>
+                  <button
+                    type="button"
+                    className="reservation-summary-card related-link"
+                    onClick={() => onNavigate?.("commercial-ops")}
+                    aria-label={`Paiements : ${draftRelatedDataState.payments.length} paiement(s)`}
+                  >
+                    <span>Paiements</span>
+                    <strong>{draftRelatedDataState.payments.length}</strong>
+                    <small>Voir dans Commercial Ops</small>
+                  </button>
+                  <button
+                    type="button"
+                    className="reservation-summary-card related-link"
+                    onClick={() => onNavigate?.("commercial-ops")}
+                    aria-label={`Logistique : ${draftRelatedDataState.logistics.length} événement(s)`}
+                  >
+                    <span>Logistique</span>
+                    <strong>{draftRelatedDataState.logistics.length}</strong>
+                    <small>Voir dans Commercial Ops</small>
+                  </button>
+                </div>
+              ) : null}
+              {draftRelatedDataState.status === "error" ? (
+                <p className="status" aria-live="polite">Ressources liées indisponibles.</p>
+              ) : null}
+            </div>
 
             {!isDraftEditable(draftDetailState.draft) ? (
               <div className="notice warning-notice" role="status">
@@ -1312,16 +1431,18 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             )}
           </div>
 
-          <div className="preview-list-section">
+          <div className="preview-list-section wizard-section">
             <h3>Nouveau brouillon</h3>
             <div className="reservation-workflow-rail" aria-label="Nouvel assistant de réservation Titan">
-              <span className="workflow-step workflow-step--done">Choisir la période</span>
+              <span className="workflow-step workflow-step--done">
+                <span className="step-number">1</span> Choisir la période
+              </span>
               <span
                 className={
                   selectedCustomerId ? "workflow-step workflow-step--done" : "workflow-step"
                 }
               >
-                Sélectionner le client
+                <span className="step-number">2</span> Sélectionner le client
               </span>
               <span
                 className={
@@ -1330,7 +1451,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     : "workflow-step"
                 }
               >
-                Choisir les articles
+                <span className="step-number">3</span> Choisir les articles
               </span>
               <span
                 className={
@@ -1339,7 +1460,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     : "workflow-step"
                 }
               >
-                Créer le brouillon
+                <span className="step-number">4</span> Créer le brouillon
               </span>
             </div>
             <p className="section-helper">
@@ -1381,8 +1502,20 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   </select>
                 </label>
 
+                {selectedItemIds.length > 0 && selectedCustomerId && draftCreationState.status !== "created" ? (
+                  <div className="wizard-summary">
+                    <h4>Résumé de la création</h4>
+                    <ul>
+                      <li>Client : {customerState.customers.find((c) => c.id === selectedCustomerId)?.display_name ?? selectedCustomerId}</li>
+                      <li>Période : {formatDateTime(availabilityState.summary.start_at)} — {formatDateTime(availabilityState.summary.end_at)}</li>
+                      <li>Articles ({selectedItemIds.length}) : {selectedItemIds.map((id) => availabilityState.previews.find((p) => p.inventory_item_id === id)?.inventory_item_name ?? id).join(", ")}</li>
+                    </ul>
+                  </div>
+                ) : null}
+
                 <button
                   type="button"
+                  className="primary-btn"
                   disabled={
                     draftCreationState.status === "loading" ||
                     availabilityState.previews.length === 0 ||
@@ -1408,10 +1541,13 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             ) : null}
 
             {draftCreationState.status === "created" ? (
-              <div className="notice">
+              <div className="notice success-notice">
                 <h4>Brouillon créé</h4>
                 <p>Référence : {draftCreationState.draft.public_reference}</p>
                 <p>Statut : {draftCreationState.draft.status}</p>
+                <p className="section-helper">
+                  Utilisez le panneau de détail ci-dessus pour gérer le cycle de vie.
+                </p>
               </div>
             ) : null}
             <p className="section-helper">
