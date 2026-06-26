@@ -86,9 +86,9 @@ describe("BillingInvoicePanel", () => {
     expect(await screen.findByTestId("billing-write-denied")).toBeInTheDocument();
     const invoiceRow = await screen.findByTestId("billing-row-inv-0001");
     expect(invoiceRow).toBeInTheDocument();
-    expect(screen.getByText("Invoice detail")).toBeInTheDocument();
-    expect(invoiceRow).toHaveTextContent(/remaining/);
-    expect(screen.getByText("No credit notes issued for this invoice.")).toBeInTheDocument();
+    expect(screen.getByText("Détail de la facture")).toBeInTheDocument();
+    expect(invoiceRow).toHaveTextContent(/restant/);
+    expect(screen.getByText("Aucune note de crédit pour cette facture.")).toBeInTheDocument();
   });
 
   it("settles an open invoice through the payment link", async () => {
@@ -130,10 +130,10 @@ describe("BillingInvoicePanel", () => {
 
     render(<BillingInvoicePanel />);
 
-    fireEvent.change(await screen.findByLabelText("Payment ID"), {
+    fireEvent.change(await screen.findByLabelText("ID Paiement"), {
       target: { value: "pay-1" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Settle invoice" }));
+    fireEvent.click(screen.getByRole("button", { name: "Régler la facture" }));
 
     await waitFor(() => {
       expect(settleSpy).toHaveBeenCalledWith("inv-0001", {
@@ -142,7 +142,7 @@ describe("BillingInvoicePanel", () => {
       });
     });
 
-    expect(await screen.findByText("Invoice settled successfully.")).toBeInTheDocument();
+    expect(await screen.findByText("Facture réglée avec succès.")).toBeInTheDocument();
   });
 
   it("issues and cancels a credit note", async () => {
@@ -160,10 +160,10 @@ describe("BillingInvoicePanel", () => {
     fireEvent.change((await screen.findAllByPlaceholderText("0.00"))[1], {
       target: { value: "5000.00" },
     });
-    fireEvent.change(screen.getByLabelText("Reason"), {
+    fireEvent.change(screen.getByLabelText("Motif"), {
       target: { value: "Manual correction" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Issue credit note" }));
+    fireEvent.click(screen.getByRole("button", { name: "Émettre une note de crédit" }));
 
     await waitFor(() => {
       expect(issueSpy).toHaveBeenCalledWith("inv-0001", {
@@ -173,7 +173,7 @@ describe("BillingInvoicePanel", () => {
       });
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Cancel note" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Annuler la note" }));
 
     await waitFor(() => {
       expect(cancelSpy).toHaveBeenCalledWith("inv-0001", "cn-1", "Cancelled from FE-C.");
@@ -188,7 +188,7 @@ describe("BillingInvoicePanel", () => {
     render(<BillingInvoicePanel />);
 
     expect(await screen.findByTestId("billing-write-denied")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Settle invoice" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Issue credit note" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Régler la facture" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Émettre une note de crédit" })).toBeDisabled();
   });
 });

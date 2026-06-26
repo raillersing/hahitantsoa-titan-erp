@@ -84,7 +84,7 @@ describe('PaymentWorkflowPanel', () => {
 
   it('shows loading state initially', () => {
     render(<PaymentWorkflowPanel />);
-    expect(screen.getByText('Loading payments...')).toBeInTheDocument();
+    expect(screen.getByText('Chargement des paiements...')).toBeInTheDocument();
   });
 
   it('renders payment list after loading', async () => {
@@ -106,7 +106,7 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText(/No payments recorded yet/)).toBeInTheDocument();
+      expect(screen.getByText(/Aucun paiement enregistré/)).toBeInTheDocument();
     });
   });
 
@@ -117,7 +117,7 @@ describe('PaymentWorkflowPanel', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /Confirm payment aaaa-1111/ }),
+        screen.getByRole('button', { name: /Confirmer le paiement aaaa-1111/ }),
       ).toBeInTheDocument();
     });
   });
@@ -128,7 +128,7 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Receipt generated')).toBeInTheDocument();
+      expect(screen.getByLabelText('Reçu généré')).toBeInTheDocument();
     });
   });
 
@@ -139,21 +139,21 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText(/No payments recorded yet/)).toBeInTheDocument();
+      expect(screen.getByText(/Aucun paiement enregistré/)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Open create payment form'));
+    fireEvent.click(screen.getByLabelText('Ouvrir le formulaire de paiement'));
 
-    expect(screen.getByLabelText('Create payment form')).toBeInTheDocument();
+    expect(screen.getByLabelText('Formulaire de paiement')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Amount (MGA)'), {
+    fireEvent.change(screen.getByLabelText('Montant (MGA)'), {
       target: { name: 'amount', value: '150000' },
     });
-    fireEvent.change(screen.getByLabelText(/Source Label/), {
+    fireEvent.change(screen.getByLabelText(/Libellé source/), {
       target: { name: 'source_label', value: 'Direct client' },
     });
 
-    fireEvent.submit(screen.getByLabelText('Create payment form'));
+    fireEvent.submit(screen.getByLabelText('Formulaire de paiement'));
 
     await waitFor(() => {
       expect(api.createPayment).toHaveBeenCalledWith(
@@ -173,13 +173,13 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Confirm payment aaaa-1111/)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Confirmer le paiement aaaa-1111/)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Confirm payment aaaa-1111'));
+    fireEvent.click(screen.getByLabelText('Confirmer le paiement aaaa-1111'));
 
-    expect(screen.getByRole('dialog', { name: 'Confirm payment dialog' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Confirm and generate receipt')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Confirmer le paiement' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Confirmer et générer le reçu')).toBeInTheDocument();
   });
 
   it('confirms payment and updates the list', async () => {
@@ -195,11 +195,11 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Confirm payment aaaa-1111')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirmer le paiement aaaa-1111')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Confirm payment aaaa-1111'));
-    fireEvent.click(screen.getByLabelText('Confirm and generate receipt'));
+    fireEvent.click(screen.getByLabelText('Confirmer le paiement aaaa-1111'));
+    fireEvent.click(screen.getByLabelText('Confirmer et générer le reçu'));
 
     await waitFor(() => {
       expect(api.confirmPayment).toHaveBeenCalledWith(
@@ -210,7 +210,7 @@ describe('PaymentWorkflowPanel', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Receipt generated')).toBeInTheDocument();
+      expect(screen.getByLabelText('Reçu généré')).toBeInTheDocument();
     });
   });
 
@@ -221,11 +221,11 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Confirm payment aaaa-1111')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirmer le paiement aaaa-1111')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Confirm payment aaaa-1111'));
-    fireEvent.click(screen.getByLabelText('Confirm and generate receipt'));
+    fireEvent.click(screen.getByLabelText('Confirmer le paiement aaaa-1111'));
+    fireEvent.click(screen.getByLabelText('Confirmer et générer le reçu'));
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Confirmation failed.');
@@ -238,12 +238,12 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Confirm payment aaaa-1111')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirmer le paiement aaaa-1111')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Confirm payment aaaa-1111'));
+    fireEvent.click(screen.getByLabelText('Confirmer le paiement aaaa-1111'));
 
-    const dialog = screen.getByRole('dialog', { name: 'Confirm payment dialog' });
+    const dialog = screen.getByRole('dialog', { name: 'Confirmer le paiement' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
   });
 
@@ -254,20 +254,20 @@ describe('PaymentWorkflowPanel', () => {
     render(<PaymentWorkflowPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Confirm payment aaaa-1111')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirmer le paiement aaaa-1111')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Confirm payment aaaa-1111'));
+    fireEvent.click(screen.getByLabelText('Confirmer le paiement aaaa-1111'));
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Confirm and generate receipt')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirmer et générer le reçu')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByLabelText('Confirm and generate receipt'));
+    fireEvent.click(screen.getByLabelText('Confirmer et générer le reçu'));
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Confirm and generate receipt')).toBeDisabled();
-      expect(screen.getByLabelText('Cancel payment confirmation')).toBeDisabled();
+      expect(screen.getByLabelText('Confirmer et générer le reçu')).toBeDisabled();
+      expect(screen.getByLabelText('Annuler la confirmation')).toBeDisabled();
     });
   });
 
@@ -276,7 +276,7 @@ describe('PaymentWorkflowPanel', () => {
 
     render(<PaymentWorkflowPanel />);
 
-    expect(screen.getByLabelText('Refresh payments')).toBeDisabled();
-    expect(screen.getByLabelText('Refresh payments')).toHaveTextContent('Loading...');
+    expect(screen.getByLabelText('Actualiser les paiements')).toBeDisabled();
+    expect(screen.getByLabelText('Actualiser les paiements')).toHaveTextContent('Chargement...');
   });
 });

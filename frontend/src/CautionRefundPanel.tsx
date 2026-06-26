@@ -108,7 +108,7 @@ export default function CautionRefundPanel() {
         setPaymentsState({
           status: "error",
           message:
-            err instanceof Error ? err.message : "Failed to load payments.",
+            err instanceof Error ? err.message : "Échec du chargement des paiements.",
         });
       });
   }, []);
@@ -129,7 +129,7 @@ export default function CautionRefundPanel() {
         setSettlementsState({
           status: "error",
           message:
-            err instanceof Error ? err.message : "Failed to load settlements.",
+            err instanceof Error ? err.message : "Échec du chargement des règlements.",
         });
       });
   }, []);
@@ -157,7 +157,7 @@ export default function CautionRefundPanel() {
         loadPayments();
       } catch (err: unknown) {
         if (err instanceof Error) {
-          setFormError(err.message || "Failed to create caution deposit.");
+          setFormError(err.message || "Échec de la création du dépôt.");
         }
       } finally {
         setSubmitting(false);
@@ -179,17 +179,16 @@ export default function CautionRefundPanel() {
   );
 
   return (
-    <section className="caution-refund-panel" aria-label="Caution and Refund Management">
+    <section className="caution-refund-panel" aria-label="Gestion des cautions et remboursements">
       <div className="section-heading">
-        <p className="eyebrow">Caution &amp; Refund Management</p>
-        <h2>Caution Deposits &amp; Refunds</h2>
+        <p className="eyebrow">Cautions &amp; Remboursements</p>
+        <h2>Dépôts de caution &amp; Remboursements</h2>
         <p className="section-helper">
-          Manage caution deposits and track refund amounts on damage/loss
-          settlements.
+          Gérer les dépôts de caution et suivre les remboursements.
         </p>
       </div>
 
-      <div className="tab-bar" role="tablist" aria-label="Caution sections">
+      <div className="tab-bar" role="tablist" aria-label="Sections caution">
         <button
           role="tab"
           aria-selected={activeTab === "deposits"}
@@ -197,7 +196,7 @@ export default function CautionRefundPanel() {
           className={`tab-button${activeTab === "deposits" ? " tab-button--active" : ""}`}
           onClick={() => setActiveTab("deposits")}
         >
-          Caution Deposits
+          Dépôts de caution
         </button>
         <button
           role="tab"
@@ -206,7 +205,7 @@ export default function CautionRefundPanel() {
           className={`tab-button${activeTab === "settlements" ? " tab-button--active" : ""}`}
           onClick={() => setActiveTab("settlements")}
         >
-          Settlements
+          Règlements
         </button>
       </div>
 
@@ -214,7 +213,7 @@ export default function CautionRefundPanel() {
         <div
           id="deposits-panel"
           role="tabpanel"
-          aria-label="Caution deposits list"
+          aria-label="Liste des dépôts de caution"
           data-testid="caution-deposits-panel"
         >
           <div className="section-actions">
@@ -223,9 +222,9 @@ export default function CautionRefundPanel() {
                 className="action-btn"
                 onClick={() => setShowForm((v) => !v)}
                 aria-expanded={showForm}
-                aria-label={showForm ? "Close caution form" : "New caution deposit"}
+                aria-label={showForm ? "Fermer le formulaire" : "Nouveau dépôt de caution"}
               >
-                {showForm ? "Close" : "New Caution Deposit"}
+                {showForm ? "Fermer" : "Nouveau dépôt de caution"}
               </button>
             )}
           </div>
@@ -236,10 +235,10 @@ export default function CautionRefundPanel() {
               onSubmit={handleCreateCaution}
               aria-label="Create caution deposit form"
             >
-              <h4>New Caution Deposit</h4>
+              <h4>Nouveau dépôt de caution</h4>
               <div className="caution-form__row">
                 <div className="caution-form__field">
-                  <label htmlFor="caution_amount">Amount (MGA)</label>
+                  <label htmlFor="caution_amount">Montant (MGA)</label>
                   <input
                     id="caution_amount"
                     type="number"
@@ -253,24 +252,24 @@ export default function CautionRefundPanel() {
                   />
                 </div>
                 <div className="caution-form__field">
-                  <label htmlFor="caution_method">Method</label>
+                  <label htmlFor="caution_method">Moyen</label>
                   <select
                     id="caution_method"
                     name="payment_method"
                     value={form.payment_method}
                     onChange={handleChange}
                   >
-                    <option value="cash">Cash</option>
-                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="cash">Espèces</option>
+                    <option value="bank_transfer">Virement</option>
                     <option value="mobile_money">Mobile Money</option>
-                    <option value="cheque">Cheque</option>
-                    <option value="other">Other</option>
+                    <option value="cheque">Chèque</option>
+                    <option value="other">Autre</option>
                   </select>
                 </div>
               </div>
               <div className="caution-form__row">
                 <div className="caution-form__field caution-form__field--wide">
-                  <label htmlFor="caution_source">Source Label</label>
+                  <label htmlFor="caution_source">Libellé source</label>
                   <input
                     id="caution_source"
                     type="text"
@@ -301,15 +300,15 @@ export default function CautionRefundPanel() {
                 className="action-btn"
                 type="submit"
                 disabled={submitting || !form.amount}
-                aria-label="Submit caution deposit"
+                aria-label="Soumettre le dépôt"
               >
-                {submitting ? "Creating..." : "Create Caution Deposit"}
+                {submitting ? "Création..." : "Créer le dépôt"}
               </button>
             </form>
           )}
 
           {paymentsState.status === "loading" && (
-            <p className="status" aria-live="polite">Loading caution deposits...</p>
+            <p className="status" aria-live="polite">Chargement des dépôts...</p>
           )}
 
           {paymentsState.status === "error" && (
@@ -319,26 +318,26 @@ export default function CautionRefundPanel() {
                 type="button"
                 className="retry-btn"
                 onClick={loadPayments}
-                aria-label="Retry loading caution deposits"
+                aria-label="Réessayer le chargement"
               >
-                Retry
+                Réessayer
               </button>
             </div>
           )}
 
           {paymentsState.status === "empty" && (
-            <p className="status">No caution deposits recorded.</p>
+            <p className="status">Aucun dépôt de caution enregistré.</p>
           )}
 
           {paymentsState.status === "loaded" && (
-            <table className="data-table" aria-label="Caution deposits">
+            <table className="data-table" aria-label="Dépôts de caution">
               <thead>
                 <tr>
-                  <th scope="col">Amount</th>
-                  <th scope="col">Method</th>
-                  <th scope="col">Status</th>
+                  <th scope="col">Montant</th>
+                  <th scope="col">Moyen</th>
+                  <th scope="col">Statut</th>
                   <th scope="col">Source</th>
-                  <th scope="col">Created</th>
+                  <th scope="col">Créé le</th>
                 </tr>
               </thead>
               <tbody>
@@ -368,11 +367,11 @@ export default function CautionRefundPanel() {
         <div
           id="settlements-panel"
           role="tabpanel"
-          aria-label="Settlements list"
+          aria-label="Liste des règlements"
           data-testid="caution-settlements-panel"
         >
           {settlementsState.status === "loading" && (
-            <p className="status" aria-live="polite">Loading settlements...</p>
+            <p className="status" aria-live="polite">Chargement des règlements...</p>
           )}
 
           {settlementsState.status === "error" && (
@@ -382,28 +381,28 @@ export default function CautionRefundPanel() {
                 type="button"
                 className="retry-btn"
                 onClick={loadSettlements}
-                aria-label="Retry loading settlements"
+                aria-label="Réessayer le chargement"
               >
-                Retry
+                Réessayer
               </button>
             </div>
           )}
 
           {settlementsState.status === "empty" && (
-            <p className="status">No damage/loss settlements found.</p>
+            <p className="status">Aucun règlement sinistre trouvé.</p>
           )}
 
           {settlementsState.status === "loaded" && (
-            <table className="data-table" aria-label="Settlement caution info">
+            <table className="data-table" aria-label="Règlements sinistre">
               <thead>
                 <tr>
-                  <th scope="col">Settlement ID</th>
-                  <th scope="col">Damage/Loss Total</th>
-                  <th scope="col">Caution Available</th>
-                  <th scope="col">Caution Applied</th>
-                  <th scope="col">Refund Due</th>
-                  <th scope="col">Excess Due</th>
-                  <th scope="col">Status</th>
+                  <th scope="col">ID Règlement</th>
+                  <th scope="col">Total sinistre</th>
+                  <th scope="col">Caution disponible</th>
+                  <th scope="col">Caution appliquée</th>
+                  <th scope="col">Remboursement dû</th>
+                  <th scope="col">Excédent dû</th>
+                  <th scope="col">Statut</th>
                 </tr>
               </thead>
               <tbody>

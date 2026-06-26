@@ -296,13 +296,13 @@ export default function CashboxPanel() {
   };
 
   if (loading) {
-    return <p className="status notice loading-notice">Loading cashbox sessions...</p>;
+    return <p className="status notice loading-notice">Chargement des sessions...</p>;
   }
 
   if (error) {
     return (
       <section className="notice error-notice" role="alert">
-        <h3>Cashbox unavailable</h3>
+        <h3>Caisse indisponible</h3>
         <p>{error}</p>
       </section>
     );
@@ -311,14 +311,14 @@ export default function CashboxPanel() {
   if (!canManage) {
     return (
       <section className="notice info-notice" role="note">
-        <h3>Cashbox access unavailable</h3>
-        <p>Read-only users cannot open, close, or record cashbox sessions.</p>
+        <h3>Accès caisse indisponible</h3>
+        <p>Les utilisateurs en lecture seule ne peuvent pas gérer les sessions de caisse.</p>
       </section>
     );
   }
 
   return (
-    <section className="cashbox-panel" aria-label="Cashbox sessions and movements">
+    <section className="cashbox-panel" aria-label="Sessions et mouvements de caisse">
       <div className="section-heading">
         <div>
           <h2>Caisse</h2>
@@ -561,7 +561,7 @@ export default function CashboxPanel() {
           <span>{movements.length}</span>
         </div>
         {movementLoading ? (
-          <p className="status notice loading-notice">Loading cashbox movements...</p>
+          <p className="status notice loading-notice">Chargement des mouvements...</p>
         ) : movementError ? (
           <p className="status status--error" role="alert">
             {movementError}

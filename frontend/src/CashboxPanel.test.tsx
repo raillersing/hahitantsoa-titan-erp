@@ -123,8 +123,8 @@ describe("CashboxPanel", () => {
 
     render(<CashboxPanel />);
 
-    expect(await screen.findByText("Cashbox access unavailable")).toBeInTheDocument();
-    expect(screen.getByText("Read-only users cannot open, close, or record cashbox sessions.")).toBeInTheDocument();
+    expect(await screen.findByText("Accès caisse indisponible")).toBeInTheDocument();
+    expect(screen.getByText("Les utilisateurs en lecture seule ne peuvent pas gérer les sessions de caisse.")).toBeInTheDocument();
   });
 
   it("shows an empty state when no sessions are returned", async () => {
