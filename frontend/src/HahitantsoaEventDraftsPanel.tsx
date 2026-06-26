@@ -855,13 +855,14 @@ export function HahitantsoaEventDraftsPanel({
             <span className={draftDetailState.draft.status === "draft" ? "workflow-step workflow-step--active" : "workflow-step workflow-step--done"}>Draft</span>
             <span className={availabilityPreviewState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Availability</span>
             <span className={preflightState.status === "loaded" ? (preflightState.preflight.can_confirm ? "workflow-step workflow-step--done" : "workflow-step workflow-step--warning") : "workflow-step"}>Preflight</span>
+            <span className={isReadOnly ? "workflow-step workflow-step--done workflow-step--confirmed" : "workflow-step"}>Confirmé</span>
             <span className={amendmentPreflightState.status === "loaded" ? "workflow-step workflow-step--done" : "workflow-step"}>Amendment</span>
           </div>
 
           {isReadOnly && (
-            <div className="notice warning-notice" role="alert">
-              <h4>Confirmed & Immutable Event Draft</h4>
-              <p>This event draft has been confirmed and is read-only. Mutations are disabled.</p>
+            <div className="notice success-notice" role="status">
+              <h4>Événement confirmé</h4>
+              <p>Cet événement a été confirmé et est en lecture seule. Les mutations sont désactivées.</p>
             </div>
           )}
 

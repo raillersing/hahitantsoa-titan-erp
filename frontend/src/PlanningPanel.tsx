@@ -69,6 +69,16 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDuration(start: Date, end: Date): string {
+  const ms = end.getTime() - start.getTime();
+  if (ms < 0) return "-";
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  if (hours === 0) return `${minutes}min`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h${minutes}`;
+}
+
 function planningStatusLabel(draft: ReservationDraft): string {
   if (draft.status === "cancelled") return "Annulé";
   if (draft.confirmed_at) return "Confirmé";
@@ -263,6 +273,8 @@ function PlanningPanel() {
                 <th scope="col">Jour</th>
                 <th scope="col">Événement</th>
                 <th scope="col">Client</th>
+                <th scope="col">Durée</th>
+                <th scope="col">Ressources</th>
                 <th scope="col">Statut</th>
               </tr>
             </thead>
@@ -293,8 +305,13 @@ function PlanningPanel() {
                       {item.subtitle ? (
                         <div className="planning-event-subtitle">{item.subtitle}</div>
                       ) : null}
+                      <span className={item.kind === "hahitantsoa" ? "scope-tag scope-tag--hah" : "scope-tag scope-tag--titan"}>
+                        {item.kind === "hahitantsoa" ? "Hah" : "Titan"}
+                      </span>
                     </td>
                     <td>{item.customerName}</td>
+                    <td>{formatDuration(item.startAt, item.endAt)}</td>
+                    <td>{item.resourceCount}</td>
                     <td>
                       <span className={statusBadgeClass(item.status)}>
                         {item.status}

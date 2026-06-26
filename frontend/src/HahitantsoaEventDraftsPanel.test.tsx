@@ -878,7 +878,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Check readonly alert is displayed
-    expect(screen.getByText("Confirmed & Immutable Event Draft")).toBeInTheDocument();
+    expect(screen.getByText("Événement confirmé")).toBeInTheDocument();
 
     // Verify fields and buttons are disabled
     const eventNameInputs = screen.getAllByLabelText("Event Name");
