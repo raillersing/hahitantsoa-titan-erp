@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `2c94d03`.
-- `main` CI is green as verified on 2026-06-26 (run 28269131366).
+- `origin/main` HEAD is `7645b9c`.
+- `main` CI is green as verified on 2026-06-26 (run 28271059102).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -182,6 +182,20 @@ Status:
     - Decision: **PRÊT pour tests utilisateur réalistes et démo client**
   - No backend, frontend, or test files modified (docs only)
 - CI: main green at `2c94d03` (run 28269131366)
+
+#### Bundle D7 — Reservation detail, new-reservation assistant, and Titan confirmation UI
+
+Status:
+- **merged** as PR #443
+- HEAD at merge: `7645b9c`
+- scope:
+  - **Reservation detail**: New "Ressources liées" section in draft detail showing counts of documents, invoices, payments, and logistics events fetched in parallel via existing APIs; each card navigates to Commercial Ops
+  - **New-reservation assistant**: Numbered step indicators (1–4) on the wizard rail; "Résumé de la création" preview before draft creation; success notice styling improved
+  - **Titan confirmation UI**: Prerequisite checklist (contrat/dépôt/confirmé) with visual met/pending indicators and timestamps
+  - Files: AvailabilityPanel.tsx (+152 lines), App.tsx (+1 line), styles.css (+195 lines)
+- Backend gaps: none found (all used existing APIs)
+- Quality: TS clean, build passes, 246 tests pass
+- CI: main green at `7645b9c` (run 28271059102)
 
 ### Active workflow improvement bundle
 
