@@ -195,7 +195,7 @@ function CustomerListView({
 
       {customersState.status === "loaded" ? (
         <div className="customer-list-wrapper">
-          <table className="customer-table" aria-label="Customer directory">
+          <table className="customer-table" aria-label="Répertoire clients">
             <thead>
               <tr>
                 <th scope="col">Nom</th>
@@ -634,8 +634,8 @@ function CustomerFormView({
 }
 
 function reservationLifecycleLabel(draft: ReservationDraft): string {
-  if (draft.status === "cancelled") return "Cancelled";
-  if (draft.confirmed_at) return "Confirmed";
+  if (draft.status === "cancelled") return "Annulé";
+  if (draft.confirmed_at) return "Confirmé";
   if (draft.required_deposit_received_at) return "Dépôt reçu";
   if (draft.contract_signed_at) return "Contrat signé";
   return "Brouillon";
@@ -719,7 +719,7 @@ function CustomerFileView({
   return (
     <div>
       <button type="button" className="back-btn" onClick={onBack}>
-        &larr; Back to detail
+        &larr; Retour au détail
       </button>
 
       <div className="customer-detail-card">
@@ -1126,7 +1126,7 @@ export function CustomerPanel() {
             message:
               err instanceof Error
                 ? err.message
-                : "Failed to load customers.",
+                : "Échec du chargement des clients.",
           });
         });
     },
@@ -1156,7 +1156,7 @@ export function CustomerPanel() {
           message:
             err instanceof Error
               ? err.message
-              : "Failed to load customer details.",
+              : "Échec du chargement des détails du client.",
         });
       });
 
@@ -1181,7 +1181,7 @@ export function CustomerPanel() {
           message:
             err instanceof Error
               ? err.message
-              : "Failed to load reservation drafts.",
+              : "Échec du chargement des réservations.",
         });
       });
 
@@ -1199,7 +1199,7 @@ export function CustomerPanel() {
           message:
             err instanceof Error
               ? err.message
-              : "Failed to load event drafts.",
+              : "Échec du chargement des événements.",
         });
       });
   }, []);
@@ -1242,7 +1242,7 @@ export function CustomerPanel() {
     ) => {
       setter({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to load data.",
+        message: err instanceof Error ? err.message : "Échec du chargement des données.",
       });
     };
 
@@ -1371,7 +1371,7 @@ export function CustomerPanel() {
         message:
           err instanceof Error
             ? err.message
-            : "Failed to save customer.",
+            : "Échec de l'enregistrement du client.",
         fieldErrors: apiErr.errors,
       });
     }
@@ -1422,7 +1422,7 @@ export function CustomerPanel() {
           message:
             err instanceof Error
               ? err.message
-              : "Failed to delete customer.",
+              : "Échec de la suppression du client.",
         });
       }
     }

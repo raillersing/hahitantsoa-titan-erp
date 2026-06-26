@@ -93,28 +93,28 @@ describe('DashboardPanel', () => {
   it('shows loading state initially', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
-    expect(screen.getByText('Loading ERP dashboard summary...')).toBeInTheDocument();
+    expect(screen.getByText('Centre de commande ERP')).toBeInTheDocument();
   });
 
   it('renders heading and section elements after loading', async () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByText('ERP command center')).toBeInTheDocument();
+      expect(screen.getByText('Centre de commande ERP')).toBeInTheDocument();
     });
-    expect(screen.getByText('Prototype-aligned overview')).toBeInTheDocument();
-    expect(screen.getByText('System authenticated session active')).toBeInTheDocument();
+    expect(screen.getByText('Vue d\'ensemble')).toBeInTheDocument();
+    expect(screen.getByText("Point d'entrée global pour les opérateurs Hahitantsoa et Titan, avec indicateurs en direct et accès rapides.")).toBeInTheDocument();
   });
 
   it('displays all four metric cards', async () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Titan inventory' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Inventaire Titan' })).toBeInTheDocument();
     });
-    expect(screen.getByRole('heading', { name: 'Hahitantsoa drafts' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Reservation drafts' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Operational payments' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Brouillons Hahitantsoa' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Brouillons de réservation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Paiements en cours' })).toBeInTheDocument();
   });
 
   it('shows correct metric counts when data is loaded', async () => {
@@ -169,9 +169,9 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Titan inventory' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Inventaire Titan' })).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Titan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir Titan' }));
     expect(onNavigate).toHaveBeenCalledWith('titan');
   });
 
@@ -180,9 +180,9 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Hahitantsoa drafts' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Brouillons Hahitantsoa' })).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Open Hahitantsoa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir Hahitantsoa' }));
     expect(onNavigate).toHaveBeenCalledWith('hahitantsoa');
   });
 
@@ -191,9 +191,9 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Reservation drafts' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Brouillons de réservation' })).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Review reservations' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Voir les réservations' }));
     expect(onNavigate).toHaveBeenCalledWith('titan');
   });
 
@@ -202,9 +202,9 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Operational payments' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Paiements en cours' })).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Open operations' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Opérations commerciales' }));
     expect(onNavigate).toHaveBeenCalledWith('commercial-ops');
   });
 });

@@ -171,7 +171,7 @@ export default function CashboxPanel() {
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : "Failed to load cashbox sessions.");
+          setError(err instanceof Error ? err.message : "Échec du chargement des sessions de caisse.");
         }
       })
       .finally(() => {
@@ -200,7 +200,7 @@ export default function CashboxPanel() {
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          setMovementError(err instanceof Error ? err.message : "Failed to load cashbox movements.");
+          setMovementError(err instanceof Error ? err.message : "Échec du chargement des mouvements de caisse.");
         }
       })
       .finally(() => {
@@ -569,7 +569,7 @@ export default function CashboxPanel() {
         ) : movements.length === 0 ? (
           <p className="status">Aucun mouvement pour cette session.</p>
         ) : (
-          <ul className="cashbox-movement-list" aria-label="Cashbox movements">
+          <ul className="cashbox-movement-list" aria-label="Mouvements de caisse">
             {movements.map((movement) => (
               <MovementRow key={movement.id} movement={movement} />
             ))}

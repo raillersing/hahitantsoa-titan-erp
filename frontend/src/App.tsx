@@ -171,12 +171,12 @@ const MODULES: ModuleDefinition[] = [
   {
     scope: "audit",
     navLabel: "Audit",
-    heading: "Audit log viewer",
-    eyebrow: "Security activity",
+    heading: "Journal d'audit",
+    eyebrow: "Activité de sécurité",
     description:
-      "Read-only audit timeline for security-sensitive events, filters, and operational traceability.",
+      "Journal des événements d'audit backend avec filtres et traçabilité opérationnelle.",
     boundaryNote:
-      "Audit access remains read-only and is gated behind backend reservation-sensitive permission.",
+      "L'accès à l'audit est en lecture seule et protégé par une permission backend réservation-sensible.",
     badge: "Audit",
     accent: "neutral",
     glyph: "\u26a1",
@@ -504,13 +504,13 @@ function App() {
                 &#x2709;
               </button>
               <div className="erp-topbar__divider" aria-hidden="true"></div>
-              <button className="erp-topbar__quick-chip" type="button" aria-label="Create new reservation">
+              <button className="erp-topbar__quick-chip" type="button" aria-label="Nouvelle réservation">
                 + Nouvelle réservation
               </button>
               <button
                 className="erp-topbar__quick-chip"
                 type="button"
-                aria-label="Open planning"
+                aria-label="Ouvrir le planning"
                 onClick={() => setActiveScope("planning")}
               >
                 Planning
@@ -538,11 +538,11 @@ function App() {
           <div className="module-panel">
             <div className="module-hero">
               <div className="module-hero__copy">
-                <p className="eyebrow">Prototype-aligned shell</p>
-                <h3>Frontend module shell</h3>
+                <p className="eyebrow">Interface ERP</p>
+                <h3>Modules opérationnels</h3>
                 <p className="module-description">
-                  Prototype 4 shell, brand hierarchy, and theme tokens now frame the
-                  existing operator panels without changing backend behavior.
+                  Interface Hahitantsoa / Titan ERP avec hiérarchie de marque et
+                  panneaux opérateurs connectés au backend.
                 </p>
               </div>
             </div>

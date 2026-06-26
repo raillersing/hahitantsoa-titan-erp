@@ -17,17 +17,17 @@ import {
 import type { InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft } from "./types";
 
 const STATUS_LABELS: Record<LogisticsEvent["status"], string> = {
-  planned: "Planned",
-  dispatched: "Dispatched",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  planned: "Planifié",
+  dispatched: "Expédié",
+  completed: "Terminé",
+  cancelled: "Annulé",
 };
 
 const EVENT_TYPE_LABELS: Record<LogisticsEvent["event_type"], string> = {
-  delivery: "Delivery",
-  pickup: "Pickup",
-  preparation: "Preparation",
-  handover: "Handover",
+  delivery: "Livraison",
+  pickup: "Enlèvement",
+  preparation: "Préparation",
+  handover: "Remise",
 };
 
 function formatDateTime(value: string | null): string {
@@ -117,7 +117,7 @@ export function LogisticsDeliveryPanel() {
       );
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== "AbortError") {
-        setError(err.message || "Failed to load logistics events.");
+        setError(err.message || "Échec du chargement des événements logistiques.");
       }
     } finally {
       setLoading(false);
@@ -134,7 +134,7 @@ export function LogisticsDeliveryPanel() {
       setItemLines(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== "AbortError") {
-        setLineError(err.message || "Failed to load logistics item lines.");
+        setLineError(err.message || "Échec du chargement des lignes d'articles.");
       }
     } finally {
       setLineLoading(false);
@@ -190,7 +190,7 @@ export function LogisticsDeliveryPanel() {
       });
       replaceEvent(nextEvent);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to update logistics status.");
+      setError(err instanceof Error ? err.message : "Échec de la mise à jour du statut.");
     } finally {
       setActionLoading(false);
     }
@@ -215,7 +215,7 @@ export function LogisticsDeliveryPanel() {
       setLineNotes("");
       await loadItemLines(selectedEvent.id);
     } catch (err: unknown) {
-      setLineError(err instanceof Error ? err.message : "Failed to add logistics item line.");
+      setLineError(err instanceof Error ? err.message : "Échec de l'ajout de la ligne d'article.");
     } finally {
       setActionLoading(false);
     }
@@ -232,7 +232,7 @@ export function LogisticsDeliveryPanel() {
       await removeLogisticsEventItemLine(selectedEvent.id, lineId);
       await loadItemLines(selectedEvent.id);
     } catch (err: unknown) {
-      setLineError(err instanceof Error ? err.message : "Failed to remove logistics item line.");
+      setLineError(err instanceof Error ? err.message : "Échec de la suppression de la ligne d'article.");
     } finally {
       setActionLoading(false);
     }
@@ -256,7 +256,7 @@ export function LogisticsDeliveryPanel() {
       setPassationState({
         documentInstanceId: null,
         loading: false,
-        error: err instanceof Error ? err.message : "Failed to complete passation.",
+        error: err instanceof Error ? err.message : "Échec de la finalisation de la remise.",
       });
     }
   };
@@ -290,7 +290,7 @@ export function LogisticsDeliveryPanel() {
       });
       await load();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create logistics event.");
+      setError(err instanceof Error ? err.message : "Échec de la création de l'événement logistique.");
     } finally {
       setActionLoading(false);
     }
@@ -303,7 +303,7 @@ export function LogisticsDeliveryPanel() {
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
     } catch {
-      setPassationState((prev) => ({ ...prev, error: "Failed to open delivery note PDF." }));
+      setPassationState((prev) => ({ ...prev, error: "Échec de l'ouverture du PDF du bon de livraison." }));
     }
   };
 
@@ -321,9 +321,9 @@ export function LogisticsDeliveryPanel() {
         </div>
         <div className="ops-panel__actions">
           {canWrite ? (
-            <span className="permission-tag permission-ok" data-testid="logistics-write-ok">Write access</span>
+            <span className="permission-tag permission-ok" data-testid="logistics-write-ok">Accès écriture</span>
           ) : (
-            <span className="permission-tag permission-denied" data-testid="logistics-read-only">Read-only</span>
+            <span className="permission-tag permission-denied" data-testid="logistics-read-only">Lecture seule</span>
           )}
         </div>
       </div>

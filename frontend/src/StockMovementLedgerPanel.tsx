@@ -71,7 +71,7 @@ export function StockMovementLedgerPanel() {
     <div className="ops-panel" data-testid="stock-movement-ledger-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <p className="eyebrow">Registre de stock prototype</p>
+          <p className="eyebrow">Registre de stock</p>
           <h3 className="ops-panel__title">Registre des mouvements et traçabilité</h3>
           <p className="ops-panel__summary">
             L'historique des mouvements de stock utilise une mise en page de registre prototype tout en préservant la limite d'écriture Titan.

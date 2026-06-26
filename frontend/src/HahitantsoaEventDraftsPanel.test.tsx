@@ -344,14 +344,14 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    const eventNameInput = screen.getByLabelText("Event Name");
+    const eventNameInput = screen.getByLabelText("Nom de l'événement");
     fireEvent.change(eventNameInput, { target: { value: "New Party" } });
 
     // Add a line
-    fireEvent.click(screen.getByText("Add Line"));
+    fireEvent.click(screen.getByText("Ajouter une ligne"));
 
     // Submit form
-    fireEvent.click(screen.getByRole("button", { name: "Create Draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Créer le brouillon" }));
 
     await waitFor(() => {
       expect(screen.getByText(/created successfully/i)).toBeInTheDocument();
@@ -366,17 +366,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Cascading Availability"));
+    fireEvent.click(screen.getByText("Vérifier la disponibilité"));
 
     await waitFor(() => {
-      expect(screen.getByText("Cascading Availability Report")).toBeInTheDocument();
-      expect(screen.getByText(/1 \/ 1 lines available/i)).toBeInTheDocument();
+      expect(screen.getByText("Rapport de disponibilité")).toBeInTheDocument();
+      expect(screen.getByText(/1 \/ 1 lignes disponibles/i)).toBeInTheDocument();
     });
   });
 
@@ -389,13 +389,13 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Delete Draft"));
+    fireEvent.click(screen.getByText("Supprimer le brouillon"));
 
     await waitFor(() => {
       expect(screen.getByText(/draft deleted/i)).toBeInTheDocument();
@@ -429,19 +429,19 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Populate name
-    const eventNameInput = screen.getByLabelText("Event Name");
+    const eventNameInput = screen.getByLabelText("Nom de l'événement");
     fireEvent.change(eventNameInput, { target: { value: "New Party" } });
 
     // Add a line item so local validation passes
-    fireEvent.click(screen.getByRole("button", { name: "Add Line" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter une ligne" }));
 
     // Submit
-    fireEvent.click(screen.getByRole("button", { name: "Create Draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Créer le brouillon" }));
 
     // Now in loading state, inputs and buttons should be disabled
     await waitFor(() => {
-      expect(screen.getByLabelText("Event Name")).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Creating..." })).toBeDisabled();
+      expect(screen.getByLabelText("Nom de l'événement")).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Création..." })).toBeDisabled();
     });
 
     resolvePromise(null);
@@ -455,17 +455,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis de confirmation"));
 
     await waitFor(() => {
-      expect(screen.getByText("Confirmation Preflight Report")).toBeInTheDocument();
-      expect(screen.getByText("Yes (Ready)")).toBeInTheDocument();
+      expect(screen.getByText("Rapport des prérequis de confirmation")).toBeInTheDocument();
+      expect(screen.getByText("Oui (Prêt)")).toBeInTheDocument();
     });
   });
 
@@ -480,17 +480,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis de confirmation"));
 
     await waitFor(() => {
-      expect(screen.getByText("Confirmation Preflight Report")).toBeInTheDocument();
-      expect(screen.getByText("No (Blocked)")).toBeInTheDocument();
+      expect(screen.getByText("Rapport des prérequis de confirmation")).toBeInTheDocument();
+      expect(screen.getByText("Non (Bloqué)")).toBeInTheDocument();
       expect(screen.getByText("Conflict item-1 on 2026-06-06")).toBeInTheDocument();
     });
   });
@@ -534,21 +534,21 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
     // Run Preflight Check
-    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis de confirmation"));
 
     // Check loading indicator and disabled state
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "Running Preflight Check..." })
+        screen.getByRole("button", { name: "Vérification des prérequis..." })
       ).toBeDisabled();
-      screen.getAllByLabelText("Event Name").forEach(input => {
+      screen.getAllByLabelText("Nom de l'événement").forEach(input => {
         expect(input).toBeDisabled();
       });
     });
@@ -564,13 +564,13 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis de confirmation"));
 
     await waitFor(() => {
       expect(screen.getByText("The requested data could not be loaded.")).toBeInTheDocument();
@@ -585,17 +585,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
     // Run Preflight Check
-    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis de confirmation"));
 
     // Preflight loaded, confirm button should show
-    const confirmButton = await screen.findByRole("button", { name: "Confirm Event Draft" });
+    const confirmButton = await screen.findByRole("button", { name: "Confirmer le brouillon" });
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
@@ -611,17 +611,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
     // Run Preflight Check
-    fireEvent.click(screen.getByText("Check Confirmation Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis de confirmation"));
 
     // Preflight loaded, confirm button should show
-    const confirmButton = await screen.findByRole("button", { name: "Confirm Event Draft" });
+    const confirmButton = await screen.findByRole("button", { name: "Confirmer le brouillon" });
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
@@ -660,17 +660,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis d'avenant"));
 
     await waitFor(() => {
-      expect(screen.getByText("Amendment Preflight Failed")).toBeInTheDocument();
-      const retryBtn = screen.getByRole("button", { name: "Retry Preflight Check" });
+      expect(screen.getByText("Échec des prérequis d'avenant")).toBeInTheDocument();
+      const retryBtn = screen.getByRole("button", { name: "Réessayer" });
       expect(retryBtn).toBeInTheDocument();
     });
 
@@ -685,14 +685,14 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
     expect(
-      screen.getByText(/Run the amendment preflight check above to verify this draft is eligible/i)
+      screen.getByText(/Exécutez la vérification des prérequis d'avenant ci-dessus pour confirmer que ce brouillon est éligible avant de soumettre une demande/i)
     ).toBeInTheDocument();
   });
 
@@ -704,17 +704,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis d'avenant"));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Amendment is currently blocked/i)
+        screen.getByText(/L'avenant est actuellement bloqué/i)
       ).toBeInTheDocument();
     });
   });
@@ -727,17 +727,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis d'avenant"));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/This draft is eligible for amendment/i)
+        screen.getByText(/Ce brouillon est éligible pour un avenant/i)
       ).toBeInTheDocument();
     });
   });
@@ -750,17 +750,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis d'avenant"));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/This draft has not been confirmed yet/i)
+        screen.getByText(/Ce brouillon n'a pas encore été confirmé/i)
       ).toBeInTheDocument();
     });
   });
@@ -789,10 +789,10 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      const retryBtn = screen.getByRole("button", { name: "Retry Loading Requests" });
+      const retryBtn = screen.getByRole("button", { name: "Réessayer" });
       expect(retryBtn).toBeInTheDocument();
     });
   });
@@ -805,19 +805,19 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis d'avenant"));
 
     await waitFor(() => {
-      const heading = screen.getByRole("heading", { name: "Amendment Preflight Report" });
+      const heading = screen.getByRole("heading", { name: "Rapport des prérequis d'avenant" });
       const container = heading.closest(".notice");
       expect(container).toBeInTheDocument();
-      expect(container).toHaveTextContent(/Can Amend:\s*Yes \(Ready\)/i);
+      expect(container).toHaveTextContent(/Peut faire un avenant :\s*Oui \(Prêt\)/i);
     });
   });
 
@@ -829,20 +829,20 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Check Amendment Preflight"));
+    fireEvent.click(screen.getByText("Vérifier les prérequis d'avenant"));
 
     await waitFor(() => {
-      const heading = screen.getByRole("heading", { name: "Amendment Preflight Report" });
+      const heading = screen.getByRole("heading", { name: "Rapport des prérequis d'avenant" });
       const container = heading.closest(".notice");
       expect(container).toBeInTheDocument();
-      expect(container).toHaveTextContent(/Can Amend:\s*No \(Blocked\)/i);
-      expect(container).toHaveTextContent("This draft has not been confirmed yet. Amendment is only available on confirmed drafts.");
+      expect(container).toHaveTextContent(/Peut faire un avenant :\s*Non \(Bloqué\)/i);
+      expect(container).toHaveTextContent("Ce brouillon n'a pas encore été confirmé. L'avenant n'est disponible que sur les brouillons confirmés.");
     });
   });
 
@@ -871,17 +871,17 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     await waitFor(() => {
-      expect(screen.getByText("Manage Draft: HED-DEMO-001")).toBeInTheDocument();
+      expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
     });
 
     // Check readonly alert is displayed
     expect(screen.getByText("Événement confirmé")).toBeInTheDocument();
 
     // Verify fields and buttons are disabled
-    const eventNameInputs = screen.getAllByLabelText("Event Name");
+    const eventNameInputs = screen.getAllByLabelText("Nom de l'événement");
     expect(eventNameInputs[0]).toBeDisabled(); // The edit input should be disabled
     
     // Save Changes button is a submit button in the edit form
@@ -890,12 +890,12 @@ describe("HahitantsoaEventDraftsPanel", () => {
     const saveButton = editForm.querySelector("button[type='submit']");
     expect(saveButton).toBeDisabled();
 
-    expect(screen.getByRole("button", { name: "Check Cascading Availability" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Check Confirmation Preflight" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Delete Draft" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Vérifier la disponibilité" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Vérifier les prérequis de confirmation" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Supprimer le brouillon" })).toBeDisabled();
 
     // Verify Check Amendment Preflight remains enabled
-    expect(screen.getByRole("button", { name: "Check Amendment Preflight" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Vérifier les prérequis d'avenant" })).not.toBeDisabled();
   });
 
   it("populates default values when prefill props are provided", async () => {
@@ -913,12 +913,12 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Verify draft creation inputs
-    const inputs = screen.getAllByLabelText("Event Name");
+    const inputs = screen.getAllByLabelText("Nom de l'événement");
     // Find the input which has the prefill value
     const prefilledInput = inputs.find((inp) => (inp as HTMLInputElement).value === "Custom Festival");
     expect(prefilledInput).toBeInTheDocument();
 
-    const venueInput = screen.getByLabelText("Venue Name");
+    const venueInput = screen.getByLabelText("Lieu");
     expect(venueInput).toHaveValue("Grand Arena");
   });
 
@@ -949,15 +949,15 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Fill details
-    const inputs = screen.getAllByLabelText("Event Name");
+    const inputs = screen.getAllByLabelText("Nom de l'événement");
     const createInput = inputs.find(inp => !(inp as HTMLInputElement).disabled) as HTMLInputElement;
     fireEvent.change(createInput, { target: { value: "A very long event name..." } });
 
     // Add a line to satisfy local validation
-    fireEvent.click(screen.getByText("Add Line"));
+    fireEvent.click(screen.getByText("Ajouter une ligne"));
 
     // Submit
-    fireEvent.click(screen.getByRole("button", { name: "Create Draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Créer le brouillon" }));
 
     // Verify errors render under fields
     await waitFor(() => {
@@ -975,7 +975,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     // Verify existing amendment request lists correctly
     await waitFor(() => {
@@ -983,7 +983,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("Initial notes")).toBeInTheDocument();
     });
 
-    const section = screen.getByText("Amendment Requests").closest(".amendment-requests-section")!;
+    const section = screen.getByText("Demandes d'avenant").closest(".amendment-requests-section")!;
 
     // Create a new amendment request
     const createSection = section.querySelector(".create-amendment-section")!;
@@ -992,7 +992,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.change(reasonInput, { target: { value: "Reason text" } });
     fireEvent.change(notesInput, { target: { value: "Notes text" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Submit Amendment Request" }));
+    fireEvent.click(screen.getByRole("button", { name: "Soumettre la demande d'avenant" }));
 
     await waitFor(() => {
       expect(screen.getByText("Reason text")).toBeInTheDocument();
@@ -1000,7 +1000,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Edit the request
-    fireEvent.click(screen.getAllByRole("button", { name: "Edit Request Details" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Modifier les détails" })[0]);
 
     const editForm = section.querySelector(".edit-amendment-form")!;
     const editReasonInput = editForm.querySelector("input[type='text']") as HTMLInputElement;
@@ -1008,7 +1008,9 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.change(editReasonInput, { target: { value: "Updated reason" } });
     fireEvent.change(editNotesInput, { target: { value: "Updated notes" } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const saveButtons = screen.getAllByRole("button", { name: "Enregistrer" });
+    const editFormButton = editForm.querySelector("button[type='submit']") as HTMLButtonElement;
+    fireEvent.click(editFormButton);
 
     await waitFor(() => {
       expect(screen.getByText("Updated reason")).toBeInTheDocument();
@@ -1024,7 +1026,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("View & Manage"));
+    fireEvent.click(screen.getByText("Voir et gérer"));
 
     // Verify existing amendment request lines rendering
     await waitFor(() => {
@@ -1034,16 +1036,16 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Add proposed line change
-    const addLineForm = screen.getByText("Add Proposed Line Change").closest("form")!;
+    const addLineForm = screen.getByText("Ajouter une ligne proposée").closest("form")!;
     const itemSelect = addLineForm.querySelector("select") as HTMLSelectElement;
-    const qtyInput = addLineForm.querySelector("input[placeholder='Qty']") as HTMLInputElement;
-    const notesInput = addLineForm.querySelector("input[placeholder='Line Notes']") as HTMLInputElement;
+    const qtyInput = addLineForm.querySelector("input[placeholder='Qté']") as HTMLInputElement;
+    const notesInput = addLineForm.querySelector("input[placeholder='Notes de ligne']") as HTMLInputElement;
 
     fireEvent.change(itemSelect, { target: { value: "item-1" } });
     fireEvent.change(qtyInput, { target: { value: "3" } });
     fireEvent.change(notesInput, { target: { value: "New line notes" } });
 
-    const submitBtn = within(addLineForm).getByRole("button", { name: "Add Line" });
+    const submitBtn = within(addLineForm).getByRole("button", { name: "Ajouter une ligne" });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -1051,13 +1053,13 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
 
     // Check Availability Preflight
-    fireEvent.click(screen.getByRole("button", { name: "Check Amendment Availability Preflight" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vérifier la disponibilité pour l'avenant" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Availability Preflight Report")).toBeInTheDocument();
-      expect(screen.getByText("Lines Checked:")).toBeInTheDocument();
-      expect(screen.getByText("Available Lines:")).toBeInTheDocument();
-      expect(screen.getByText("Unavailable Lines:")).toBeInTheDocument();
+      expect(screen.getByText("Rapport de disponibilité")).toBeInTheDocument();
+      expect(screen.getByText("Lignes vérifiées :")).toBeInTheDocument();
+      expect(screen.getByText("Lignes disponibles :")).toBeInTheDocument();
+      expect(screen.getByText("Lignes indisponibles :")).toBeInTheDocument();
     });
   });
 });

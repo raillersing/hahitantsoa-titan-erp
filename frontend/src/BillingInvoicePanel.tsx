@@ -49,8 +49,21 @@ function formatDate(value: string | null | undefined): string {
   }).format(new Date(value));
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  open: "Ouverte",
+  settled: "Réglée",
+  cancelled: "Annulée",
+  overdue: "En retard",
+  draft: "Brouillon",
+  partial: "Partiel",
+  paid: "Payée",
+  pending: "En attente",
+  overpayment: "Trop-perçu",
+  underpayment: "Sous-paiement",
+};
+
 function statusLabel(value: string): string {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+  return STATUS_LABELS[value] ?? value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
 function InvoiceStatusBadge({ invoice }: { invoice: BillingInvoice }) {
@@ -210,7 +223,7 @@ export function BillingInvoicePanel() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load billing invoices.");
+          setError(err instanceof Error ? err.message : "Échec du chargement des factures.");
         }
       } finally {
         if (!cancelled) {
@@ -565,7 +578,7 @@ export function BillingInvoicePanel() {
                   <div className="ops-inline-form">
                     <div className="ops-inline-form__fields">
                       <label>
-                        Amount
+                        Montant
                         <input
                           value={creditNoteForm.amount}
                           onChange={(e) => setCreditNoteForm((current) => ({ ...current, amount: e.target.value }))}

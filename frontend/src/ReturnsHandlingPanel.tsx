@@ -91,7 +91,7 @@ export function ReturnsHandlingPanel() {
     <div className="ops-panel" data-testid="returns-handling-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <p className="eyebrow">Retours prototype</p>
+          <p className="eyebrow">Workflow retours</p>
           <h3 className="ops-panel__title">Workflow d'inspection des retours</h3>
           <p className="ops-panel__summary">
             Révision des retours avec quantités intactes, endommagées et manquantes par ligne,

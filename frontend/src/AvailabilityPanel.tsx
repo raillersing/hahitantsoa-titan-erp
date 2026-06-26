@@ -117,7 +117,7 @@ function isDraftEditable(draft: ReservationDraft): boolean {
 }
 
 function formatLifecycleState(value: string | null): string {
-  return value ? formatDateTime(value) : "Pending";
+  return value ? formatDateTime(value) : "En attente";
 }
 
 function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
@@ -756,29 +756,26 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
     >
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Prototype 4 · Titan</p>
-          <h2 id="availability-heading">Titan reservations</h2>
+          <p className="eyebrow">Module Titan</p>
+          <h2 id="availability-heading">Réservations Titan</h2>
           <p className="section-helper">
-            Pure rental workflow for <code>material</code>, <code>article</code>, and{" "}
-            <code>material_pack</code> only. Sign in through the backend
-            <code> /api-auth/login/</code> first. For local demo data, run
-            <code> seed_demo_availability</code> and choose a period overlapping
-            its next two-hour window.
+            Workflow de location pure pour les <code>articles</code>, <code>matériels</code> et{" "}
+            <code>packs</code>. Les brouillons de réservation suivent le cycle : création, contrat signé, dépôt reçu, confirmation.
           </p>
         </div>
       </div>
 
       <div className="notice warning-notice" role="status">
-        <h3>Titan business boundary</h3>
+        <h3>Périmètre métier Titan</h3>
         <p>
-          This module must never expose venues, rooms, halls, services, or event
-          operations. Only Titan rental inventory is allowed here.
+          Ce module ne doit jamais exposer les lieux, salles, halls, services ou
+          opérations d'événement. Seul l'inventaire de location Titan est autorisé ici.
         </p>
       </div>
 
       <form className="availability-form" onSubmit={handleSubmit}>
         <label>
-          Start
+          Début
           <input
             name="start_at"
             type="datetime-local"
@@ -787,7 +784,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           />
         </label>
         <label>
-          End
+          Fin
           <input
             name="end_at"
             type="datetime-local"
@@ -796,17 +793,17 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           />
         </label>
         <button type="submit" disabled={availabilityState.status === "loading"}>
-          Check availability
+          Vérifier la disponibilité
         </button>
       </form>
 
       {availabilityState.status === "loading" ? (
-        <p className="status" aria-live="polite">Checking availability...</p>
+        <p className="status" aria-live="polite">Vérification de la disponibilité...</p>
       ) : null}
 
       {availabilityState.status === "error" ? (
         <div className="notice availability-notice" role="alert">
-          <h3>Availability unavailable</h3>
+          <h3>Disponibilité indisponible</h3>
           <p>{availabilityState.message}</p>
         </div>
       ) : null}
@@ -817,12 +814,11 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
       >
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Draft-only reservations</p>
-            <h2 id="reservation-drafts-heading">Reservation drafts</h2>
+            <p className="eyebrow">Brouillons de réservation</p>
+            <h2 id="reservation-drafts-heading">Brouillons de réservation</h2>
             <p className="section-helper">
-              Prototype-aligned Titan list view for draft and confirmed rental
-              reservations. Open a record below to manage lifecycle, customer,
-              dates, and lines.
+              Liste des brouillons Titan pour les réservations de location.
+              Ouvrez un enregistrement ci-dessous pour gérer le cycle de vie, le client, les dates et les lignes.
             </p>
           </div>
           {draftListState.status === "loaded" ? (
@@ -831,12 +827,12 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         </div>
 
         {draftListState.status === "loading" ? (
-          <p className="status" aria-live="polite">Loading reservation drafts...</p>
+          <p className="status" aria-live="polite">Chargement des brouillons...</p>
         ) : null}
 
         {draftListState.status === "error" ? (
           <div className="notice availability-notice" role="alert">
-            <h3>Reservation drafts unavailable</h3>
+            <h3>Brouillons indisponibles</h3>
             <p>{draftListState.message}</p>
           </div>
         ) : null}
@@ -844,7 +840,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         {draftListState.status === "loaded" ? (
           draftListState.drafts.length === 0 ? (
             <p className="status">
-              No reservation drafts are currently visible.
+              Aucun brouillon de réservation visible.
             </p>
           ) : (
             <ul className="preview-list">
@@ -859,12 +855,12 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     </span>
                   </div>
                   <span>{draft.status}</span>
-                  <span>{draft.lines.length} lines</span>
+                  <span>{draft.lines.length} lignes</span>
                   <button
                     type="button"
                     onClick={() => void handleViewDraftDetail(draft.id)}
                   >
-                    View details
+                    Voir le détail
                   </button>
                 </li>
               ))}
@@ -873,50 +869,50 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         ) : null}
 
         {draftDetailState.status === "loading" ? (
-          <p className="status" aria-live="polite">Loading reservation draft detail...</p>
+          <p className="status" aria-live="polite">Chargement du détail...</p>
         ) : null}
 
         {draftDetailState.status === "error" ? (
           <div className="notice availability-notice" role="alert">
-            <h3>Reservation draft detail unavailable</h3>
+            <h3>Détail du brouillon indisponible</h3>
             <p>{draftDetailState.message}</p>
           </div>
         ) : null}
 
         {draftDetailState.status === "loaded" ? (
           <article className="availability-results">
-            <h3>Draft detail {draftDetailState.draft.public_reference}</h3>
+            <h3>Détail du brouillon {draftDetailState.draft.public_reference}</h3>
             <div className="reservation-summary-grid">
               <article className="reservation-summary-card">
-                <span>Customer</span>
+                <span>Client</span>
                 <strong>{draftDetailState.draft.customer_display_name}</strong>
               </article>
               <article className="reservation-summary-card">
-                <span>Period</span>
+                <span>Période</span>
                 <strong>{formatDateTime(draftDetailState.draft.start_at)}</strong>
                 <small>{formatDateTime(draftDetailState.draft.end_at)}</small>
               </article>
               <article className="reservation-summary-card">
-                <span>Status</span>
+                <span>Statut</span>
                 <strong>{draftDetailState.draft.status}</strong>
-                <small>{draftDetailState.draft.lines.length} lines</small>
+                <small>{draftDetailState.draft.lines.length} lignes</small>
               </article>
               <article className="reservation-summary-card">
-                <span>Titan readiness</span>
+                <span>Disponibilité Titan</span>
                 <strong>
                   {draftDetailState.draft.confirmed_at
-                    ? "Confirmed"
+                    ? "Confirmé"
                     : draftDetailState.draft.contract_signed_at &&
                         draftDetailState.draft.required_deposit_received_at
-                      ? "Ready to confirm"
-                      : "Pending prerequisites"}
+                      ? "Prêt à confirmer"
+                      : "Prérequis en attente"}
                 </strong>
-                <small>Contract, deposit, inventory block</small>
+                <small>Contrat, dépôt, blocage de stock</small>
               </article>
             </div>
 
-            <div className="reservation-workflow-rail" aria-label="Titan reservation workflow">
-              <span className="workflow-step workflow-step--done">Draft</span>
+            <div className="reservation-workflow-rail" aria-label="Workflow de réservation Titan">
+              <span className="workflow-step workflow-step--done">Brouillon</span>
               <span
                 className={
                   draftDetailState.draft.contract_signed_at
@@ -924,7 +920,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     : "workflow-step workflow-step--warning"
                 }
               >
-                Contract
+                Contrat
               </span>
               <span
                 className={
@@ -933,7 +929,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     : "workflow-step workflow-step--warning"
                 }
               >
-                Deposit
+                Dépôt
               </span>
               <span
                 className={
@@ -942,17 +938,17 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     : "workflow-step"
                 }
               >
-                Confirmed
+                Confirmé
               </span>
             </div>
 
             <dl className="summary-grid">
               <div>
-                <dt>Contract marker</dt>
+                <dt>Marqueur contrat</dt>
                 <dd>{formatLifecycleState(draftDetailState.draft.contract_signed_at)}</dd>
               </div>
               <div>
-                <dt>Deposit marker</dt>
+                <dt>Marqueur dépôt</dt>
                 <dd>
                   {formatLifecycleState(
                     draftDetailState.draft.required_deposit_received_at,
@@ -960,11 +956,11 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 </dd>
               </div>
               <div>
-                <dt>Confirmed at</dt>
+                <dt>Confirmé le</dt>
                 <dd>{formatLifecycleState(draftDetailState.draft.confirmed_at)}</dd>
               </div>
               <div>
-                <dt>Cancelled at</dt>
+                <dt>Annulé le</dt>
                 <dd>{formatLifecycleState(draftDetailState.draft.cancelled_at)}</dd>
               </div>
             </dl>
@@ -980,7 +976,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   }
                   onClick={() => void handleMarkContractSigned()}
                 >
-                  Mark contract signed
+                  Marquer contrat signé
                 </button>
                 <button
                   type="button"
@@ -991,7 +987,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   }
                   onClick={() => void handleMarkRequiredDepositReceived()}
                 >
-                  Mark deposit received
+                  Marquer dépôt reçu
                 </button>
                 <button
                   type="button"
@@ -1003,7 +999,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   }
                   onClick={() => void handleConfirmDraft()}
                 >
-                  Confirm Titan reservation
+                  Confirmer la réservation
                 </button>
               </div>
             ) : null}
@@ -1011,10 +1007,10 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             {draftLifecycleState.status === "loading" ? (
               <p className="status" aria-live="polite">
                 {draftLifecycleState.action === "contract"
-                  ? "Recording contract marker..."
+                  ? "Enregistrement du contrat..."
                   : draftLifecycleState.action === "deposit"
-                    ? "Recording deposit marker..."
-                    : "Confirming Titan reservation..."}
+                    ? "Enregistrement du dépôt..."
+                    : "Confirmation de la réservation..."}
               </p>
             ) : null}
 
@@ -1026,16 +1022,16 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
 
             {draftLifecycleState.status === "error" ? (
               <div className="notice availability-notice" role="alert">
-                <h4>Titan lifecycle action unavailable</h4>
+                <h4>Action cycle de vie indisponible</h4>
                 <p>{draftLifecycleState.message}</p>
               </div>
             ) : null}
 
             {!isDraftEditable(draftDetailState.draft) ? (
               <div className="notice warning-notice" role="status">
-                <h4>Confirmed or cancelled reservation</h4>
+                <h4>Réservation confirmée ou annulée</h4>
                 <p>
-                  This Titan reservation is no longer editable from the draft workflow.
+                  Cette réservation Titan n'est plus modifiable depuis le workflow brouillon.
                 </p>
               </div>
             ) : null}
@@ -1045,7 +1041,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               onSubmit={handleUpdateDraftCustomer}
             >
               <label>
-                Draft customer
+                Client du brouillon
                 <select
                   name="draft_customer_id"
                   value={draftCustomerIdDraft}
@@ -1070,7 +1066,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   customerState.status !== "loaded"
                 }
               >
-                Save draft customer
+                Enregistrer le client
               </button>
             </form>
             <form
@@ -1078,7 +1074,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               onSubmit={handleUpdateDraftPeriod}
             >
               <label>
-                Draft start
+                Début du brouillon
                 <input
                   name="draft_start_at"
                   type="datetime-local"
@@ -1092,7 +1088,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 />
               </label>
               <label>
-                Draft end
+                Fin du brouillon
                 <input
                   name="draft_end_at"
                   type="datetime-local"
@@ -1112,7 +1108,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   !isDraftEditable(draftDetailState.draft)
                 }
               >
-                Save draft period
+                Enregistrer la période
               </button>
             </form>
             <form
@@ -1120,7 +1116,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               onSubmit={handleUpdateDraftNotes}
             >
               <label>
-                Draft notes
+                Notes du brouillon
                 <textarea
                   name="draft_notes"
                   value={draftNotesDraft}
@@ -1134,21 +1130,21 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   !isDraftEditable(draftDetailState.draft)
                 }
               >
-                Save draft notes
+                Enregistrer les notes
               </button>
             </form>
 
             {draftUpdateState.status === "loading" ? (
-              <p className="status" aria-live="polite">Saving draft changes...</p>
+              <p className="status" aria-live="polite">Enregistrement des modifications...</p>
             ) : null}
 
             {draftUpdateState.status === "updated" ? (
-              <p className="status">Draft changes saved.</p>
+              <p className="status">Modifications enregistrées.</p>
             ) : null}
 
             {draftUpdateState.status === "error" ? (
               <div className="notice availability-notice" role="alert">
-                <h4>Draft update unavailable</h4>
+                <h4>Mise à jour indisponible</h4>
                 <p>{draftUpdateState.message}</p>
               </div>
             ) : null}
@@ -1157,12 +1153,12 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
               className="availability-form"
               onSubmit={handleUpdateDraftLines}
             >
-              <h4>Draft lines</h4>
+              <h4>Lignes du brouillon</h4>
               {draftLinesDraft.map((line, index) => (
                 <fieldset key={`${line.inventory_item_id}-${index}`}>
-                  <legend>Draft line {index + 1}</legend>
+                  <legend>Ligne {index + 1}</legend>
                   <label>
-                    Draft line {index + 1} item
+                    Article de la ligne {index + 1}
                     <select
                       value={line.inventory_item_id}
                       onChange={(event) =>
@@ -1174,7 +1170,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                           inventoryItem.id === line.inventory_item_id,
                       ) ? null : (
                         <option value={line.inventory_item_id}>
-                          Current draft line item
+                          Article actuel de la ligne
                         </option>
                       )}
                       {inventoryItems.map((inventoryItem) => (
@@ -1185,7 +1181,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     </select>
                   </label>
                   <label>
-                    Draft line {index + 1} quantity
+                    Quantité de la ligne {index + 1}
                     <input
                       type="number"
                       min="1"
@@ -1196,7 +1192,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     />
                   </label>
                   <label>
-                    Draft line {index + 1} notes
+                    Notes de la ligne {index + 1}
                     <textarea
                       value={line.notes ?? ""}
                       onChange={(event) =>
@@ -1213,7 +1209,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     }
                     onClick={() => removeDraftLineDraft(index)}
                   >
-                    Remove draft line {index + 1}
+                    Supprimer la ligne {index + 1}
                   </button>
                 </fieldset>
               ))}
@@ -1226,7 +1222,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                 }
                 onClick={addDraftLineDraft}
               >
-                Add draft line
+                Ajouter une ligne
               </button>
               <button
                 type="submit"
@@ -1235,26 +1231,26 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   !isDraftEditable(draftDetailState.draft)
                 }
               >
-                Save draft lines
+                Enregistrer les lignes
               </button>
             </form>
             </>) : null}
 
-            <ul className="preview-list">
-              {draftDetailState.draft.lines.map((line) => (
-                <li key={line.id}>
-                  <span>{line.inventory_item_name}</span>
-                  <span>{line.inventory_item_kind}</span>
-                  <span>Quantity: {line.quantity}</span>
-                  {line.notes ? <span>{line.notes}</span> : null}
-                </li>
-              ))}
-            </ul>
-            <p className="section-helper">
-              Confirmation still depends on existing backend truth: signed contract
-              document, confirmed deposit payment, availability revalidation, and
-              reservation-sensitive authorization.
-            </p>
+              <ul className="preview-list">
+                {draftDetailState.draft.lines.map((line) => (
+                  <li key={line.id}>
+                    <span>{line.inventory_item_name}</span>
+                    <span>{line.inventory_item_kind}</span>
+                    <span>Quantité : {line.quantity}</span>
+                    {line.notes ? <span>{line.notes}</span> : null}
+                  </li>
+                ))}
+              </ul>
+              <p className="section-helper">
+                La confirmation dépend toujours de la vérité du backend : document de contrat
+                signé, paiement du dépôt confirmé, revalidation de la disponibilité et
+                autorisation sensible à la réservation.
+              </p>
           </article>
         ) : null}
       </section>
@@ -1263,35 +1259,35 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
         <div className="availability-results">
           <dl className="summary-grid">
             <div>
-              <dt>Start</dt>
+              <dt>Début</dt>
               <dd>{formatDateTime(availabilityState.summary.start_at)}</dd>
             </div>
             <div>
-              <dt>End</dt>
+              <dt>Fin</dt>
               <dd>{formatDateTime(availabilityState.summary.end_at)}</dd>
             </div>
             <div>
-              <dt>Available items</dt>
+              <dt>Articles disponibles</dt>
               <dd>{availabilityState.summary.available_item_count}</dd>
             </div>
             <div>
-              <dt>Available previews</dt>
+              <dt>Aperçus disponibles</dt>
               <dd>{availabilityState.summary.available_preview_count}</dd>
             </div>
           </dl>
 
           <div className="availability-kinds">
-            <h3>Available kinds</h3>
+            <h3>Types disponibles</h3>
             <p>
               {availabilityState.summary.available_item_kinds.join(", ") ||
-                "None"}
+                "Aucun"}
             </p>
           </div>
 
           <div className="preview-list-section">
-            <h3>Available item previews</h3>
+            <h3>Aperçus des articles disponibles</h3>
             {availabilityState.previews.length === 0 ? (
-              <p className="status">No items are available for this period.</p>
+              <p className="status">Aucun article disponible pour cette période.</p>
             ) : (
               <ul className="preview-list">
                 {availabilityState.previews.map((preview) => (
@@ -1317,15 +1313,15 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
           </div>
 
           <div className="preview-list-section">
-            <h3>New reservation wizard</h3>
-            <div className="reservation-workflow-rail" aria-label="New Titan reservation wizard">
-              <span className="workflow-step workflow-step--done">Choose period</span>
+            <h3>Nouveau brouillon</h3>
+            <div className="reservation-workflow-rail" aria-label="Nouvel assistant de réservation Titan">
+              <span className="workflow-step workflow-step--done">Choisir la période</span>
               <span
                 className={
                   selectedCustomerId ? "workflow-step workflow-step--done" : "workflow-step"
                 }
               >
-                Select customer
+                Sélectionner le client
               </span>
               <span
                 className={
@@ -1334,7 +1330,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     : "workflow-step"
                 }
               >
-                Pick items
+                Choisir les articles
               </span>
               <span
                 className={
@@ -1343,25 +1339,25 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     : "workflow-step"
                 }
               >
-                Create draft
+                Créer le brouillon
               </span>
             </div>
             <p className="section-helper">
-              This guided flow creates an editable Titan draft first, then the
-              reservation can be finalized from the detail panel above.
+              Ce flux guidé crée d'abord un brouillon Titan modifiable, puis
+              la réservation peut être finalisée depuis le panneau de détail ci-dessus.
             </p>
 
             {!canWrite ? (
-              <p className="status">Sign in with write access to create draft reservations.</p>
+              <p className="status">Connectez-vous avec un accès en écriture pour créer des brouillons de réservation.</p>
             ) : null}
 
             {canWrite && customerState.status === "loading" ? (
-              <p className="status" aria-live="polite">Loading customers...</p>
+              <p className="status" aria-live="polite">Chargement des clients...</p>
             ) : null}
 
             {canWrite && customerState.status === "error" ? (
               <div className="notice availability-notice" role="alert">
-                <h4>Customers unavailable</h4>
+                <h4>Clients indisponibles</h4>
                 <p>{customerState.message}</p>
               </div>
             ) : null}
@@ -1369,7 +1365,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
             {canWrite && customerState.status === "loaded" ? (
               <>
                 <label>
-                  Customer
+                  Client
                   <select
                     value={selectedCustomerId}
                     onChange={(event) => {
@@ -1395,40 +1391,40 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                   }
                   onClick={handleCreateDraft}
                 >
-                  Create Titan draft
+                  Créer le brouillon
                 </button>
               </>
             ) : null}
 
             {draftCreationState.status === "loading" ? (
-              <p className="status" aria-live="polite">Creating reservation draft...</p>
+              <p className="status" aria-live="polite">Création du brouillon...</p>
             ) : null}
 
             {draftCreationState.status === "error" ? (
               <div className="notice availability-notice" role="alert">
-                <h4>Reservation draft unavailable</h4>
+                <h4>Brouillon indisponible</h4>
                 <p>{draftCreationState.message}</p>
               </div>
             ) : null}
 
             {draftCreationState.status === "created" ? (
               <div className="notice">
-                <h4>Draft created</h4>
-                <p>Reference: {draftCreationState.draft.public_reference}</p>
-                <p>Status: {draftCreationState.draft.status}</p>
+                <h4>Brouillon créé</h4>
+                <p>Référence : {draftCreationState.draft.public_reference}</p>
+                <p>Statut : {draftCreationState.draft.status}</p>
               </div>
             ) : null}
             <p className="section-helper">
-              Draft-only action. The reservation remains editable and
-              unfinalized.
+              Action limitée au brouillon. La réservation reste modifiable et
+              non finalisée.
             </p>
           </div>
 
           <div className="preview-list-section">
-            <h3>Item-specific availability previews</h3>
+            <h3>Aperçus de disponibilité par article</h3>
             {availabilityState.itemPreviews.length === 0 ? (
               <p className="status">
-                No inventory items are loaded for item-specific preview.
+                Aucun article chargé pour l'aperçu individuel.
               </p>
             ) : (
               <ul className="preview-list">
@@ -1437,7 +1433,7 @@ function AvailabilityPanel({ inventoryItems = [] }: AvailabilityPanelProps) {
                     <span>{preview.inventory_item_name}</span>
                     <span>{preview.inventory_item_kind}</span>
                     <strong>{preview.status}</strong>
-                    <span>{preview.conflict_count} conflicts</span>
+                    <span>{preview.conflict_count} conflits</span>
                   </li>
                 ))}
               </ul>

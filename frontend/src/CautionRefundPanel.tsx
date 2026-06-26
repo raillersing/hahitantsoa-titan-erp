@@ -64,7 +64,7 @@ const INITIAL_FORM: PaymentCreatePayload = {
   payment_method: "cash",
   amount: "",
   reservation_draft: null,
-  source_label: "Caution deposit",
+  source_label: "Dépôt de caution",
   notes: "",
 };
 

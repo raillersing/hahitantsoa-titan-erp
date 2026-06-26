@@ -90,7 +90,7 @@ export function BreakageLossPanel() {
     <div className="ops-panel" data-testid="breakage-loss-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <p className="eyebrow">Dommages prototype</p>
+          <p className="eyebrow">Règlements dommages</p>
           <h3 className="ops-panel__title">Révision des règlements de dommages</h3>
           <p className="ops-panel__summary">
             Les fiches de règlement exposent l'impact sur la caution, le remboursement dû et le statut de validation.
