@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `51056ea`.
-- `main` CI is green as verified on 2026-06-26 (run 28359770421).
+- `origin/main` HEAD is `e920be6`.
+- `main` CI is green as verified on 2026-06-26 (run 28267437949).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -145,18 +145,25 @@ Status:
 - CI: main green at `51056ea`
 - post-merge: continue to Bundle D5
 
-#### Bundle D5 — Fidelity / responsive / accessibility polish (next)
+#### Bundle D5 — Fidelity / responsive / accessibility polish
 
 Status:
-- **pending**
+- **merged** as PR #441
+- HEAD at merge: `e920be6`
 - scope:
-  - Visual polish of existing panels
-  - Contrast and accessibility testing
-  - Prototype fidelity improvements
-  - Mobile/tablet responsive verification
-  - Preparation for pilot production deployment
-- allowed: `frontend/src/`, `docs/`, `tests/`
-- forbidden: new backend models/endpoints/migrations, reports/exports, `.env`, secrets
+  - 288-line CSS addition (card-hover, status-pills, scope-badges, skeleton animation, form-input, ops-table, metric-icons, btn-primary/secondary, dark-mode overrides)
+  - DashboardPanel: French text, metric icons, loading skeleton, removed prototype jargon
+  - App.tsx: audit module French, shell hero French, quick-chip aria-labels French
+  - AuditPanel, AvailabilityPanel, HahitantsoaEventDraftsPanel: full French translation
+  - BillingInvoicePanel: French status labels, "Amount"→"Montant"
+  - PaymentWorkflowPanel: French status/kind/method display labels
+  - CustomerPanel: remaining English labels fixed
+  - LogisticsDeliveryPanel: French event-type/status labels, permission tags
+  - CashboxPanel, CautionRefundPanel: French aria-labels and defaults
+  - ReturnsHandlingPanel, BreakageLossPanel, StockMovementLedgerPanel: prototype eyebrow text removed
+  - All 7 affected test files updated, 246 tests pass
+- CI: main green at `e920be6` (run 28267437949)
+- post-merge: continue to Bundle D6 (final readiness audit)
 
 ### Active workflow improvement bundle
 
