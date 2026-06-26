@@ -88,7 +88,7 @@ class Command(BaseCommand):
                 },
             )
 
-            HahitantsoaEventDraftLine.objects.filter(hahitantsoa_event_draft=draft).delete()
+            HahitantsoaEventDraftLine.objects.filter(event_draft=draft).delete()
             for inventory_item in inventory_items:
                 HahitantsoaEventDraftLine.objects.create(
                     hahitantsoa_event_draft=draft,
