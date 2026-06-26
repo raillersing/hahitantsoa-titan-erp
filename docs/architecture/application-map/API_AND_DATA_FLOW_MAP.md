@@ -89,7 +89,7 @@ Titan gap restant:
 
 | Frontend | API | Backend | Statut |
 |---|---|---|---|
-| `#planning` | aucune route dédiée nouvelle | backend partiel via reservations/logistics | intentional placeholder |
+| `#planning` | reservation drafts, event drafts | reservations + hahitantsoa | connected via `PlanningPanel.tsx` |
 | `#reports` | aucune action export live | non confirmé | intentional placeholder |
 | `#catalog`, `#procurement`, `#hr`, `#help` | aucune API dédiée actuelle | non confirmé ou futur | intentional placeholder |
 

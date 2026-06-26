@@ -2,7 +2,7 @@
 
 ## Current State
 
-- `origin/main` HEAD is `39342f0`.
+- `origin/main` HEAD is `a338ad0`.
 - `main` CI is green as verified on 2026-06-26 (run 28359770421).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
@@ -122,16 +122,29 @@ Status:
 #### Bundle D3 — Demo data, tester guide, and realistic scenarios
 
 Status:
-- **active implementation bundle**
-- branch: `f180d3-demo-data-tester-guide`
+- **merged** as PR #439
+- HEAD at merge: `a338ad0`
 - scope:
   - `seed_all_demo` management command (runs all 6 seeds in dependency order)
   - `seed_dev_admin` management command (staff + superuser for testing full permissions)
   - Update `LOCAL_TESTER_GUIDE.md` with: correct Docker service names (`db`, `redis`), `seed_all_demo` usage, admin credentials, realistic Titan/Hahitantsoa workflow scenarios, blocked reports documentation
   - Tests for new commands
-- allowed: `backend/apps/common/management/commands/seed_all_demo.py`, `backend/apps/common/management/commands/seed_dev_admin.py`, `docs/testing/LOCAL_TESTER_GUIDE.md`, `tests/backend/`,
-- forbidden: new backend models/endpoints/migrations, frontend files, `.env`, secrets
-- post-merge: continue to Bundle D4 (E2E/manual workflow validation)
+  - Bug fix: `seed_demo_hahitantsoa_event_drafts` field name (`hahitantsoa_event_draft` → `event_draft`)
+- CI: main green at `a338ad0` (run 28259049930)
+- post-merge: continue to Bundle D4
+
+#### Bundle D4 — End-to-end/manual workflow validation
+
+Status:
+- **active validation bundle**
+- branch: `f180d4-e2e-validation`
+- scope:
+  - Validation report document
+  - Fix stale planning references found during validation (App.tsx, FutureWorkspacePanel, cartography, design docs)
+  - No E2E tooling added (justified: no existing E2E setup, adding would be large/risky)
+- allowed: `docs/audits/`, `docs/architecture/application-map/`, `docs/design/`, `frontend/src/`, `docs/ai-agents/orchestrator-task-queue.md`
+- forbidden: new backend models/endpoints/migrations, reports/exports, `.env`, secrets
+- post-merge: continue to Bundle D5 (fidelity/responsive/a11y polish)
 
 ### Active workflow improvement bundle
 

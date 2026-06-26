@@ -1,5 +1,4 @@
 type FutureScope =
-  | "planning"
   | "reports"
   | "catalog"
   | "procurement"
@@ -26,26 +25,6 @@ const PANEL_CONTENT: Record<
     cards: PlaceholderCard[];
   }
 > = {
-  planning: {
-    eyebrow: "Prototype placeholder",
-    heading: "Planning and calendar workspace",
-    helper:
-      "Prototype 4 expects a richer planning surface, but the current ERP keeps planning flows split across reservation drafts and logistics APIs.",
-    cards: [
-      {
-        title: "Reservation scheduling",
-        status: "Future route",
-        description: "Calendar layout and operator filters are still routed through reservation and logistics views.",
-        decision: "Requires a dedicated planning route before a full implementation bundle.",
-      },
-      {
-        title: "Operational calendar",
-        status: "Contract pending",
-        description: "No standalone planning API contract exists on the frozen backend.",
-        decision: "Keep read-only placeholder until a mapped route is approved.",
-      },
-    ],
-  },
   reports: {
     eyebrow: "Business gate",
     heading: "Reports and exports",

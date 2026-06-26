@@ -17,7 +17,7 @@
 |---|---|---|---|---|
 | Dashboard | `#dashboard` | aligned | partially prototype-aligned | shell et quick cards merge |
 | Login | auth | partial | partially prototype-aligned | fonctionnel, encore perfectible |
-| Planning / calendar | `#planning` | placeholder | not implemented | vrai scheduler absent |
+| Planning / calendar | `#planning` | current (weekly table) | partial | PlanningPanel hebdo déployé via D1 |
 | Clients liste | `#customers` | partial | partially prototype-aligned | CRUD présent |
 | Fiche client | `#customers` detail | partial | basic/rudimentary | enrichissement encore attendu |
 | Appointments / prospects | futur HAH | missing | not implemented | décision workflow requise |

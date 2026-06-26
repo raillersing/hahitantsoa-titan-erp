@@ -29,11 +29,11 @@ Ces bundles ne doivent plus etre planifies comme travail futur.
 - cibles: `AvailabilityPanel.tsx`, nouvelles surfaces detail/wizard, eventuel raffinage `HahitantsoaEventDraftsPanel.tsx`
 - prerequis: aucun changement backend non autorise
 
-### FE-L — Planning / calendar if contracts are confirmed
+### FE-L — Planning / calendar (livré dans F180D1)
 
-- priorite: haute apres FE-K
-- objectif: transformer `#planning` placeholder en vrai ecran
-- hard stop: pas de decision business/API -> ne pas inventer
+- **livré** — `PlanningPanel.tsx` déployé via F180D1 (PR #438)
+- statut: weekly table avec filtres Titan/HAH, navigation semaine, scope tags, durée, nombre de ressources
+- vue calendrier enrichie (mois/agenda) repoussée si contrat approuvé
 
 ### FE-M — Enriched client file and cross-linked commercial history
 

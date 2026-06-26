@@ -80,7 +80,7 @@ Etat global:
 | Scope | Route hash | Composant | Statut |
 |---|---|---|---|
 | Dashboard | `#dashboard` | `DashboardPanel.tsx` | current |
-| Planning | `#planning` | `FutureWorkspacePanel.tsx` | placeholder |
+| Planning | `#planning` | `PlanningPanel.tsx` | current |
 | Titan | `#titan` | inventaire inline + `AvailabilityPanel.tsx` + `TitanStockMovementPanel.tsx` + `DocumentArtifactPreviewPanel.tsx` | current |
 | Hahitantsoa | `#hahitantsoa` | `HahitantsoaDiscoveryPanel.tsx` + `HahitantsoaEventDraftsPanel.tsx` | current |
 | Customers | `#customers` | `CustomerPanel.tsx` | current |
@@ -165,7 +165,7 @@ Etat global:
 
 | Fichier | Rôle | Statut |
 |---|---|---|
-| `FutureWorkspacePanel.tsx` | placeholder contrôlé pour planning, reports, catalog, procurement, hr, help | intentional placeholder |
+| `FutureWorkspacePanel.tsx` | placeholder contrôlé pour reports, catalog, procurement, hr, help | intentional placeholder |
 
 ---
 
@@ -273,7 +273,7 @@ Les gaps restants à traiter après FE-J sont:
 1. écran `reservation detail` dédié
 2. `new reservation wizard`
 3. UI complète de confirmation Titan
-4. `planning/calendar` réel
+4. planning/calendar → livré (weekly table via F180D1); calendrier enrichi repoussé
 5. enrichissement `client file`
 6. `reports/exports` après décision business/légale
 7. complétion `settings/admin`
@@ -303,7 +303,7 @@ Pourquoi:
 Bundles suivants plausibles:
 
 1. FE-K — reservation detail / new reservation wizard / Titan confirmation
-2. FE-L — planning/calendar si contrat confirmé
+2. FE-L — planning/calendar → livré (weekly table via F180D1)
 3. FE-M — enriched client file + cross-linked commercial history
 4. FE-N — admin/settings completion
 5. FE-O — reports/exports only after business/legal decision
