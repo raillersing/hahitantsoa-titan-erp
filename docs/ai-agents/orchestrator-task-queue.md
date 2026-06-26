@@ -2,7 +2,7 @@
 
 ## Current State
 
-- `origin/main` HEAD is `a338ad0`.
+- `origin/main` HEAD is `51056ea`.
 - `main` CI is green as verified on 2026-06-26 (run 28359770421).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
@@ -136,15 +136,27 @@ Status:
 #### Bundle D4 — End-to-end/manual workflow validation
 
 Status:
-- **active validation bundle**
-- branch: `f180d4-e2e-validation`
+- **merged** as PR #440
+- HEAD at merge: `51056ea`
 - scope:
-  - Validation report document
+  - Validation report document (`docs/audits/F180D4_E2E_VALIDATION_REPORT.md` — 14 workflows, gap classification, ~88% readiness)
   - Fix stale planning references found during validation (App.tsx, FutureWorkspacePanel, cartography, design docs)
   - No E2E tooling added (justified: no existing E2E setup, adding would be large/risky)
-- allowed: `docs/audits/`, `docs/architecture/application-map/`, `docs/design/`, `frontend/src/`, `docs/ai-agents/orchestrator-task-queue.md`
+- CI: main green at `51056ea`
+- post-merge: continue to Bundle D5
+
+#### Bundle D5 — Fidelity / responsive / accessibility polish (next)
+
+Status:
+- **pending**
+- scope:
+  - Visual polish of existing panels
+  - Contrast and accessibility testing
+  - Prototype fidelity improvements
+  - Mobile/tablet responsive verification
+  - Preparation for pilot production deployment
+- allowed: `frontend/src/`, `docs/`, `tests/`
 - forbidden: new backend models/endpoints/migrations, reports/exports, `.env`, secrets
-- post-merge: continue to Bundle D5 (fidelity/responsive/a11y polish)
 
 ### Active workflow improvement bundle
 
