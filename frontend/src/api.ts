@@ -844,9 +844,16 @@ export function generateHahitantsoaEventDraftDocumentInstancePdf(
 
 // ---- Payments ----
 export function getPayments(
+  reservationDraftIdOrSignal?: string | AbortSignal,
   signal?: AbortSignal,
 ): Promise<Payment[]> {
-  return getAuthenticatedJson('/api/v1/payments/', signal);
+  if (typeof reservationDraftIdOrSignal === "string") {
+    return getAuthenticatedJson(
+      `/api/v1/payments/?reservation_draft_id=${encodeURIComponent(reservationDraftIdOrSignal)}`,
+      signal,
+    );
+  }
+  return getAuthenticatedJson("/api/v1/payments/", reservationDraftIdOrSignal);
 }
 
 export function createPayment(
@@ -873,9 +880,16 @@ export function confirmPayment(
 // ---- Billing Invoices ----
 
 export function getBillingInvoices(
+  reservationDraftIdOrSignal?: string | AbortSignal,
   signal?: AbortSignal,
 ): Promise<BillingInvoice[]> {
-  return getAuthenticatedJson('/api/v1/billing/invoices/', signal);
+  if (typeof reservationDraftIdOrSignal === "string") {
+    return getAuthenticatedJson(
+      `/api/v1/billing/invoices/?reservation_draft_id=${encodeURIComponent(reservationDraftIdOrSignal)}`,
+      signal,
+    );
+  }
+  return getAuthenticatedJson("/api/v1/billing/invoices/", reservationDraftIdOrSignal);
 }
 
 export function getBillingInvoice(id: string, signal?: AbortSignal): Promise<BillingInvoice> {
@@ -982,9 +996,16 @@ export function createStockMovement(
 // ---- Logistics Events ----
 
 export function getLogisticsEvents(
+  reservationDraftIdOrSignal?: string | AbortSignal,
   signal?: AbortSignal,
 ): Promise<LogisticsEvent[]> {
-  return getAuthenticatedJson('/api/v1/logistics/events/', signal);
+  if (typeof reservationDraftIdOrSignal === "string") {
+    return getAuthenticatedJson(
+      `/api/v1/logistics/events/?reservation_draft_id=${encodeURIComponent(reservationDraftIdOrSignal)}`,
+      signal,
+    );
+  }
+  return getAuthenticatedJson("/api/v1/logistics/events/", reservationDraftIdOrSignal);
 }
 
 export function transitionLogisticsEvent(
