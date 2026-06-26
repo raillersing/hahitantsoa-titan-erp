@@ -111,7 +111,7 @@ function PaymentRow({ payment, onConfirm, confirming }: PaymentRowProps) {
       )}
       {payment.receipt_document && (
         <div className="payment-row__receipt-badge" aria-label="Reçu généré">
-          Reçu : {STATUS_LABELS[payment.receipt_document.status] ?? payment.receipt_document.status}
+          Reçu : {payment.receipt_document.status}
         </div>
       )}
     </div>
