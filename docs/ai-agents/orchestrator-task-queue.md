@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `c2d4c6c`.
-- `main` CI is green as verified on 2026-06-26 (run 28228566342).
+- `origin/main` HEAD is `39342f0`.
+- `main` CI is green as verified on 2026-06-26 (run 28359770421).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -82,12 +82,56 @@ Status:
 ### F180C1 — Enriched client file
 
 Status:
-- **active implementation bundle**
+- **merged** as PR #435
+- HEAD at merge: `acb7c4c`
 - scope: enrich `CustomerFileView` in `CustomerPanel.tsx` with linked documents, billing/invoices, payments, logistics, financial summary, customer metrics, dossier timeline
-- frontend-first: implement in frontend using existing APIs; report backend gaps (e.g., missing customer-filtered billing/payments/logistics endpoints) if they block required functionality
-- allowed: `frontend/src/CustomerPanel.tsx`, `frontend/src/api.ts`, `frontend/src/types.ts`, `frontend/src/styles.css`
-- forbidden: migrations, new models, new backend endpoints without explicit derogation
-- hard stops: any required backend model/endpoint change without human approval (except small bug fixes)
+- frontend-first: implemented using existing APIs
+
+### F180C2 — French localization
+
+Status:
+- **merged** as PRs #436, #437
+- HEAD at merge: `d83c4b7`
+- scope: French translation for remaining panels (financial, planning, commercial ops, etc.)
+
+### F180D — Application finalization for realistic user testing
+
+Goal: Polish, demo data, documentation, E2E scenarios, final readiness.
+
+Backend freeze policy: frontend-first, reuse existing APIs. Report gaps as (1) bug fix, (2) micro-derogation, (3) business/legal decision, (4) future scope.
+
+#### Bundle D1 — Planning panel enhancement + Hahitantsoa confirmation polish
+
+Status:
+- **merged** as PR #438
+- HEAD at merge: `39342f0`
+- scope: PlanningPanel scope tags, duration column, resource count column; HahitantsoaEventDraftsPanel "Confirmé" step; French success notice
+- tests: 9 new PlanningPanel tests, all 246 frontend tests pass
+- CI: main green at `39342f0`
+
+#### Bundle D2 — Reports/exports UI
+
+Status:
+- **BLOCKED** — business/legal decision and backend API contract gap
+- No backend endpoints exist for report/export data.
+- No frontend report/export components have been implemented.
+- The `#reports` navigation entry is an intentional placeholder.
+- No work will proceed on reports/exports until: (a) business/legal defines export data scope, format, and access controls; (b) backend API contract is approved.
+- This is an accepted critical finding — not to be implemented now.
+
+#### Bundle D3 — Demo data, tester guide, and realistic scenarios
+
+Status:
+- **active implementation bundle**
+- branch: `f180d3-demo-data-tester-guide`
+- scope:
+  - `seed_all_demo` management command (runs all 6 seeds in dependency order)
+  - `seed_dev_admin` management command (staff + superuser for testing full permissions)
+  - Update `LOCAL_TESTER_GUIDE.md` with: correct Docker service names (`db`, `redis`), `seed_all_demo` usage, admin credentials, realistic Titan/Hahitantsoa workflow scenarios, blocked reports documentation
+  - Tests for new commands
+- allowed: `backend/apps/common/management/commands/seed_all_demo.py`, `backend/apps/common/management/commands/seed_dev_admin.py`, `docs/testing/LOCAL_TESTER_GUIDE.md`, `tests/backend/`,
+- forbidden: new backend models/endpoints/migrations, frontend files, `.env`, secrets
+- post-merge: continue to Bundle D4 (E2E/manual workflow validation)
 
 ### Active workflow improvement bundle
 
