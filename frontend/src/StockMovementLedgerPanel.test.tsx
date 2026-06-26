@@ -33,7 +33,7 @@ describe("StockMovementLedgerPanel", () => {
   it("shows loading state initially", () => {
     vi.spyOn(api, "getStockMovements").mockReturnValue(new Promise(() => undefined));
     render(<StockMovementLedgerPanel />);
-    expect(screen.getByText("Loading stock movements...")).toBeInTheDocument();
+    expect(screen.getByText("Chargement des mouvements de stock...")).toBeInTheDocument();
   });
 
   it("shows error state", async () => {
@@ -45,14 +45,14 @@ describe("StockMovementLedgerPanel", () => {
   it("shows empty state", async () => {
     vi.spyOn(api, "getStockMovements").mockResolvedValue([]);
     render(<StockMovementLedgerPanel />);
-    expect(await screen.findByText("No stock movements recorded yet.")).toBeInTheDocument();
+    expect(await screen.findByText("Aucun mouvement de stock enregistré.")).toBeInTheDocument();
   });
 
   it("renders ledger detail", async () => {
     vi.spyOn(api, "getStockMovements").mockResolvedValue([MOCK_MOVEMENT]);
     render(<StockMovementLedgerPanel />);
-    expect(await screen.findByText("Ledger detail")).toBeInTheDocument();
-    expect(screen.getAllByText("Outbound Delivery").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Détail du registre")).toBeInTheDocument();
+    expect(screen.getAllByText("Livraison sortante").length).toBeGreaterThan(0);
     expect(screen.getAllByText("DR-2026-001").length).toBeGreaterThan(0);
   });
 
@@ -68,6 +68,6 @@ describe("StockMovementLedgerPanel", () => {
     render(<StockMovementLedgerPanel />);
     expect(await screen.findByTestId("stock-write-ok")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("stock-movement-row-mov-1"));
-    expect(screen.getByText("Traceability")).toBeInTheDocument();
+    expect(screen.getByText("Traçabilité")).toBeInTheDocument();
   });
 });

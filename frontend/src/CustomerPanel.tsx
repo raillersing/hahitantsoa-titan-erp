@@ -109,10 +109,10 @@ function CustomerListView({
     <div>
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Customers</p>
-          <h2 id="customers-heading">Customer Directory</h2>
+          <p className="eyebrow">Clients</p>
+          <h2 id="customers-heading">Répertoire clients</h2>
           <p className="section-helper">
-            View, create, and manage customer records.
+            Consultez, créez et gérez les fiches clients.
           </p>
         </div>
         {canWrite ? (
@@ -120,9 +120,9 @@ function CustomerListView({
             type="button"
             className="primary-btn"
             onClick={onCreateNew}
-            aria-label="Create new customer"
+            aria-label="Créer un nouveau client"
           >
-            + New Customer
+            + Nouveau client
           </button>
         ) : null}
       </div>
@@ -130,57 +130,57 @@ function CustomerListView({
       <form className="customer-search-form" onSubmit={onSearchSubmit}>
         <div className="customer-search-fields">
           <label>
-            <span className="visually-hidden">Search by name</span>
+            <span className="visually-hidden">Rechercher par nom</span>
             <input
               type="text"
-              placeholder="Name..."
+              placeholder="Nom..."
               value={searchParams.name ?? ""}
               onChange={(e) => onSearchChange("name", e.target.value)}
-              aria-label="Search by name"
+              aria-label="Rechercher par nom"
             />
           </label>
           <label>
-            <span className="visually-hidden">Search by email</span>
+            <span className="visually-hidden">Rechercher par email</span>
             <input
               type="text"
               placeholder="Email..."
               value={searchParams.email ?? ""}
               onChange={(e) => onSearchChange("email", e.target.value)}
-              aria-label="Search by email"
+              aria-label="Rechercher par email"
             />
           </label>
           <label>
-            <span className="visually-hidden">Search by phone</span>
+            <span className="visually-hidden">Rechercher par téléphone</span>
             <input
               type="text"
-              placeholder="Phone..."
+              placeholder="Téléphone..."
               value={searchParams.phone ?? ""}
               onChange={(e) => onSearchChange("phone", e.target.value)}
-              aria-label="Search by phone"
+              aria-label="Rechercher par téléphone"
             />
           </label>
           <button type="submit" className="customer-search-btn">
-            Search
+            Rechercher
           </button>
           <button
             type="button"
             className="customer-search-btn secondary"
             onClick={onClearSearch}
           >
-            Clear
+            Effacer
           </button>
         </div>
       </form>
 
       {customersState.status === "loading" ? (
-        <p className="status loading-spinner" aria-live="polite">Loading customers...</p>
+        <p className="status loading-spinner" aria-live="polite">Chargement des clients...</p>
       ) : null}
 
       {customersState.status === "error" ? (
         <div className="notice error-notice" role="alert">
           <p>{customersState.message}</p>
           <button type="button" onClick={onRetry}>
-            Retry
+            Réessayer
           </button>
         </div>
       ) : null}
@@ -188,8 +188,7 @@ function CustomerListView({
       {customersState.status === "empty" ? (
         <div className="notice info-notice" role="status">
           <p>
-            No customer records found. Create your first customer to get
-            started.
+            Aucune fiche client trouvée. Créez votre premier client pour commencer.
           </p>
         </div>
       ) : null}
@@ -199,10 +198,10 @@ function CustomerListView({
           <table className="customer-table" aria-label="Customer directory">
             <thead>
               <tr>
-                <th scope="col">Name</th>
+                <th scope="col">Nom</th>
                 <th scope="col">Email</th>
-                <th scope="col">Phone</th>
-                <th scope="col">Status</th>
+                <th scope="col">Téléphone</th>
+                <th scope="col">Statut</th>
                 <th scope="col" aria-label="Actions" />
               </tr>
             </thead>
@@ -225,10 +224,10 @@ function CustomerListView({
                   <td>{c.phone || "—"}</td>
                   <td>
                     {c.is_active ? (
-                      <span className="status-badge status-active">Active</span>
+                      <span className="status-badge status-active">Actif</span>
                     ) : (
                       <span className="status-badge status-inactive">
-                        Inactive
+                        Inactif
                       </span>
                     )}
                   </td>
@@ -237,9 +236,9 @@ function CustomerListView({
                       type="button"
                       className="customer-action-btn"
                       onClick={() => onSelectCustomer(c.id)}
-                      aria-label={`View ${c.display_name}`}
+                      aria-label={`Voir ${c.display_name}`}
                     >
-                      View
+                      Voir
                     </button>
                   </td>
                 </tr>
@@ -281,9 +280,9 @@ function CustomerDetailView({
     return (
       <div>
         <button type="button" className="back-btn" onClick={onBack}>
-          &larr; Back to list
+          &larr; Retour à la liste
         </button>
-        <p className="status loading-spinner" aria-live="polite">Loading customer details...</p>
+        <p className="status loading-spinner" aria-live="polite">Chargement des détails du client...</p>
       </div>
     );
   }
@@ -292,12 +291,12 @@ function CustomerDetailView({
     return (
       <div>
         <button type="button" className="back-btn" onClick={onBack}>
-          &larr; Back to list
+          &larr; Retour à la liste
         </button>
         <div className="notice error-notice" role="alert">
           <p>{detailState.message}</p>
           <button type="button" onClick={onRetry}>
-            Retry
+            Réessayer
           </button>
         </div>
       </div>
@@ -308,10 +307,10 @@ function CustomerDetailView({
     return (
       <div>
         <button type="button" className="back-btn" onClick={onBack}>
-          &larr; Back to list
+          &larr; Retour à la liste
         </button>
         <div className="notice warning-notice" role="status">
-          <p>Customer record not found or was removed.</p>
+          <p>Fiche client introuvable ou supprimée.</p>
         </div>
       </div>
     );
@@ -322,19 +321,19 @@ function CustomerDetailView({
   return (
     <div>
       <button type="button" className="back-btn" onClick={onBack}>
-        &larr; Back to list
+        &larr; Retour à la liste
       </button>
 
       <div className="customer-detail-card">
         <div className="detail-header">
           <div>
-            <p className="eyebrow">Customer</p>
+            <p className="eyebrow">Client</p>
             <h2>{customer.display_name}</h2>
           </div>
           {customer.is_active ? (
-            <span className="status-badge status-active">Active</span>
+            <span className="status-badge status-active">Actif</span>
           ) : (
-            <span className="status-badge status-inactive">Inactive</span>
+            <span className="status-badge status-inactive">Inactif</span>
           )}
         </div>
 
@@ -344,11 +343,11 @@ function CustomerDetailView({
             <dd>{customer.email || "—"}</dd>
           </div>
           <div>
-            <dt>Phone</dt>
+            <dt>Téléphone</dt>
             <dd>{customer.phone || "—"}</dd>
           </div>
           <div className="detail-full">
-            <dt>Address</dt>
+            <dt>Adresse</dt>
             <dd>{customer.address || "—"}</dd>
           </div>
           <div className="detail-full">
@@ -356,11 +355,11 @@ function CustomerDetailView({
             <dd>{customer.notes || "—"}</dd>
           </div>
           <div>
-            <dt>Created</dt>
+            <dt>Créé</dt>
             <dd>{new Date(customer.created_at).toLocaleDateString()}</dd>
           </div>
           <div>
-            <dt>Updated</dt>
+            <dt>Mis à jour</dt>
             <dd>{new Date(customer.updated_at).toLocaleDateString()}</dd>
           </div>
         </dl>
@@ -373,7 +372,7 @@ function CustomerDetailView({
               onClick={() => onEdit(customer.id)}
               disabled={deletePending}
             >
-              Edit
+              Modifier
             </button>
             <button
               type="button"
@@ -386,7 +385,7 @@ function CustomerDetailView({
             {deleteConfirming ? (
               <span className="confirm-delete-group">
                 <span className="confirm-delete-hint">
-                  Delete this customer?
+                  Supprimer ce client ?
                 </span>
                 <button
                   type="button"
@@ -394,7 +393,7 @@ function CustomerDetailView({
                   onClick={onDeleteConfirm}
                   disabled={deletePending}
                 >
-                  {deletePending ? "Deleting..." : "Confirm Delete"}
+                  {deletePending ? "Suppression..." : "Confirmer la suppression"}
                 </button>
                 <button
                   type="button"
@@ -402,7 +401,7 @@ function CustomerDetailView({
                   onClick={onDeleteCancel}
                   disabled={deletePending}
                 >
-                  Cancel
+                  Annuler
                 </button>
               </span>
             ) : (
@@ -412,7 +411,7 @@ function CustomerDetailView({
                 onClick={() => onDelete(customer.id)}
                 disabled={deletePending}
               >
-                Delete
+                Supprimer
               </button>
             )}
           </div>
@@ -475,7 +474,7 @@ function CustomerFormView({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.display_name.trim()) {
-      setFieldErrors({ display_name: ["Display name is required."] });
+      setFieldErrors({ display_name: ["Le nom est requis."] });
       return;
     }
     onSave(form);
@@ -484,19 +483,19 @@ function CustomerFormView({
   return (
     <div>
       <button type="button" className="back-btn" onClick={onCancel}>
-        &larr; {view === "create" ? "Back to list" : "Back to detail"}
+        &larr; {view === "create" ? "Retour à la liste" : "Retour au détail"}
       </button>
 
       <form
         className="customer-form"
         onSubmit={handleSubmit}
-        aria-label={view === "create" ? "New customer" : "Edit customer"}
+        aria-label={view === "create" ? "Nouveau client" : "Modifier le client"}
       >
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Customers</p>
+            <p className="eyebrow">Clients</p>
             <h2 id="customer-form-heading">
-              {view === "create" ? "New Customer" : `Edit ${customer?.display_name ?? "Customer"}`}
+              {view === "create" ? "Nouveau client" : `Modifier ${customer?.display_name ?? "Client"}`}
             </h2>
           </div>
         </div>
@@ -510,7 +509,7 @@ function CustomerFormView({
         <div className="customer-form-body">
           <div className="form-group">
             <label htmlFor="customer-name">
-              Display Name <span className="required-mark">*</span>
+              Nom <span className="required-mark">*</span>
             </label>
             <input
               id="customer-name"
@@ -563,7 +562,7 @@ function CustomerFormView({
           </div>
 
           <div className="form-group">
-            <label htmlFor="customer-phone">Phone</label>
+            <label htmlFor="customer-phone">Téléphone</label>
             <input
               id="customer-phone"
               type="text"
@@ -574,7 +573,7 @@ function CustomerFormView({
           </div>
 
           <div className="form-group">
-            <label htmlFor="customer-address">Address</label>
+            <label htmlFor="customer-address">Adresse</label>
             <textarea
               id="customer-address"
               value={form.address ?? ""}
@@ -603,7 +602,7 @@ function CustomerFormView({
                 onChange={(e) => setField("is_active", e.target.checked)}
                 disabled={isSubmitting}
               />
-              Active customer
+              Client actif
             </label>
           </div>
 
@@ -614,10 +613,10 @@ function CustomerFormView({
               disabled={isSubmitting}
             >
               {isSubmitting
-                ? "Saving..."
+                ? "Enregistrement..."
                 : view === "create"
-                  ? "Create Customer"
-                  : "Save Changes"}
+                  ? "Créer le client"
+                  : "Enregistrer"}
             </button>
             <button
               type="button"
@@ -625,7 +624,7 @@ function CustomerFormView({
               onClick={onCancel}
               disabled={isSubmitting}
             >
-              Cancel
+              Annuler
             </button>
           </div>
         </div>
@@ -1363,7 +1362,7 @@ export function CustomerPanel() {
         setMutationState({
           status: "error",
           message:
-            "You do not have permission to modify customers. Contact an administrator.",
+            "Vous n'avez pas la permission de modifier les clients. Contactez un administrateur.",
         });
         return;
       }
@@ -1415,7 +1414,7 @@ export function CustomerPanel() {
         setDetailState({
           status: "error",
           message:
-            "You do not have permission to delete customers. Contact an administrator.",
+            "Vous n'avez pas la permission de supprimer les clients. Contactez un administrateur.",
         });
       } else {
         setDetailState({
@@ -1513,9 +1512,9 @@ export function CustomerPanel() {
       {view === "fiche" && detailState.status !== "loaded" && selectedId ? (
         <div className="customer-detail-shell">
           <button type="button" className="back-btn" onClick={handleBackFromFiche}>
-            &larr; Back to list
+            &larr; Retour à la liste
           </button>
-          <p className="status loading-spinner" aria-live="polite">Loading customer...</p>
+          <p className="status loading-spinner" aria-live="polite">Chargement du client...</p>
         </div>
       ) : null}
 

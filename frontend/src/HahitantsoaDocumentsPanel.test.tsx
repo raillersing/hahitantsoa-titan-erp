@@ -185,9 +185,9 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     expect(screen.getByTestId("hahitantsoa-documents-panel")).toBeInTheDocument();
-    expect(screen.getByText("Hahitantsoa Event Draft Documents")).toBeInTheDocument();
+    expect(screen.getByText("Documents des brouillons d'événements Hahitantsoa")).toBeInTheDocument();
     expect(
-      screen.getByText(/Manage document instances for Hahitantsoa event drafts/),
+      screen.getByText(/Gérez les instances de documents pour les brouillons d'événements Hahitantsoa/),
     ).toBeInTheDocument();
   });
 
@@ -199,13 +199,13 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Event Draft/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Sélectionnez un brouillon d'événement/i)).toBeInTheDocument();
     });
 
-    const select = screen.getByLabelText(/Select Event Draft/i) as HTMLSelectElement;
+    const select = screen.getByLabelText(/Sélectionnez un brouillon d'événement/i) as HTMLSelectElement;
     expect(select.value).toBe("");
     expect(select.options.length).toBe(1);
-    expect(select.options[0].text).toContain("Choose Event Draft");
+    expect(select.options[0].text).toContain("Choisissez un brouillon");
   });
 
   it("loads and displays event drafts in the selector", async () => {
@@ -231,7 +231,7 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
+      const templateSelect = screen.getByLabelText(/Choisissez un modèle/i) as HTMLSelectElement;
       expect(templateSelect).toBeInTheDocument();
       const optionTexts = Array.from(templateSelect.options).map((o) => o.text);
       expect(optionTexts.some((t) => t.includes("Hahitantsoa Contract"))).toBe(true);
@@ -250,7 +250,7 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      const select = screen.getByLabelText(/Select Event Draft/i) as HTMLSelectElement;
+      const select = screen.getByLabelText(/Sélectionnez un brouillon d'événement/i) as HTMLSelectElement;
       expect(select.value).toBe("edraft-1");
     });
 
@@ -273,7 +273,7 @@ describe("HahitantsoaDocumentsPanel", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("No document instances prepared for this draft."),
+        screen.getByText("Aucune instance de document préparée pour ce brouillon."),
       ).toBeInTheDocument();
     });
   });
@@ -319,21 +319,21 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      const select = screen.getByLabelText(/Select Event Draft/i) as HTMLSelectElement;
+      const select = screen.getByLabelText(/Sélectionnez un brouillon d'événement/i) as HTMLSelectElement;
       expect(select.value).toBe("edraft-1");
     });
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Choose Template/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Choisissez un modèle/i)).toBeInTheDocument();
     });
 
-    const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
+    const templateSelect = screen.getByLabelText(/Choisissez un modèle/i) as HTMLSelectElement;
     fireEvent.change(templateSelect, { target: { value: "hahitantsoa.contract.v1" } });
 
-    const notesInput = screen.getByPlaceholderText("Instance Notes") as HTMLInputElement;
+    const notesInput = screen.getByPlaceholderText("Notes de l'instance") as HTMLInputElement;
     fireEvent.change(notesInput, { target: { value: "New Notes" } });
 
-    const prepareBtn = screen.getByRole("button", { name: "Prepare Instance" });
+    const prepareBtn = screen.getByRole("button", { name: "Préparer l'instance" });
     fireEvent.click(prepareBtn);
 
     await waitFor(() => {
@@ -355,10 +355,10 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("HTML ready (ID: inst-2)")).toBeInTheDocument();
+      expect(screen.getByText("HTML prêt (ID : inst-2)")).toBeInTheDocument();
     });
 
-    const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
+    const generateBtn = screen.getByRole("button", { name: "Générer HTML" });
     fireEvent.click(generateBtn);
 
     await waitFor(() => {
@@ -377,10 +377,10 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Generate HTML" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Générer HTML" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Generate HTML" }));
+    fireEvent.click(screen.getByRole("button", { name: "Générer HTML" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Generation failed");
@@ -417,19 +417,19 @@ describe("HahitantsoaDocumentsPanel", () => {
     await waitFor(() => {
       const generatedInstance = screen.getByTestId("hahitantsoa-instance-inst-2");
       expect(generatedInstance).toBeInTheDocument();
-      expect(within(generatedInstance).getByRole("button", { name: "Generate PDF" })).toBeInTheDocument();
+      expect(within(generatedInstance).getByRole("button", { name: "Générer PDF" })).toBeInTheDocument();
     });
 
     fireEvent.click(
       within(screen.getByTestId("hahitantsoa-instance-inst-2")).getByRole("button", {
-        name: "Generate PDF",
+        name: "Générer PDF",
       }),
     );
 
     await waitFor(() => {
       expect(pdfSpy).toHaveBeenCalledWith("edraft-1", "inst-2");
       expect(instancesSpy).toHaveBeenCalledTimes(2);
-      expect(screen.getByText("PDF ready")).toBeInTheDocument();
+      expect(screen.getByText("PDF prêt")).toBeInTheDocument();
     });
   });
 
@@ -443,7 +443,7 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      const draftSelect = screen.getByLabelText(/Select Event Draft/i) as HTMLSelectElement;
+      const draftSelect = screen.getByLabelText(/Sélectionnez un brouillon d'événement/i) as HTMLSelectElement;
       expect(draftSelect.disabled).toBe(true);
     });
   });
@@ -457,11 +457,11 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Event Draft/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Sélectionnez un brouillon d'événement/i)).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: "Prepare Instance" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Write access is required/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Préparer l'instance" })).not.toBeInTheDocument();
+    expect(screen.getByText(/L'accès en écriture est requis/i)).toBeInTheDocument();
   });
 
   it("hides generate button and shows permission note when user lacks write permission", async () => {
@@ -476,7 +476,7 @@ describe("HahitantsoaDocumentsPanel", () => {
       expect(screen.getByText("Hahitantsoa Contract")).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: "Generate HTML" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Write access required/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Générer HTML" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Accès écriture requis/i)).toBeInTheDocument();
   });
 });

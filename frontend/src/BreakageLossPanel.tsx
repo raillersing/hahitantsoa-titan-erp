@@ -5,9 +5,9 @@ import { checkDamageLossWritePermission, getDamageLossSettlements, validateDamag
 import type { InventoryDamageLossSettlement } from "./types";
 
 const STATUS_LABELS: Record<InventoryDamageLossSettlement["settlement_status"], string> = {
-  draft: "Draft",
-  validated: "Validated",
-  cancelled: "Cancelled",
+  draft: "Brouillon",
+  validated: "Validé",
+  cancelled: "Annulé",
 };
 
 function formatAmount(value: number): string {
@@ -90,32 +90,32 @@ export function BreakageLossPanel() {
     <div className="ops-panel" data-testid="breakage-loss-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <p className="eyebrow">Prototype damage</p>
-          <h3 className="ops-panel__title">Damage & loss settlement review</h3>
+          <p className="eyebrow">Dommages prototype</p>
+          <h3 className="ops-panel__title">Révision des règlements de dommages</h3>
           <p className="ops-panel__summary">
-            Settlement cards now expose caution impact, refund due, and validation status using the confirmed inventory contract.
+            Les fiches de règlement exposent l'impact sur la caution, le remboursement dû et le statut de validation.
           </p>
         </div>
         {canWrite ? (
-          <span className="permission-tag permission-ok" data-testid="breakage-write-ok">Write access</span>
+          <span className="permission-tag permission-ok" data-testid="breakage-write-ok">Accès écriture</span>
         ) : (
-          <span className="permission-tag permission-denied" data-testid="breakage-write-denied">Read-only</span>
+          <span className="permission-tag permission-denied" data-testid="breakage-write-denied">Lecture seule</span>
         )}
       </div>
 
-      {loading ? <div className="loading-notice">Loading damage assessment...</div> : null}
+      {loading ? <div className="loading-notice">Chargement de l'évaluation des dommages...</div> : null}
 
       {!loading && error ? (
         <div className="notice error-notice" role="alert">
           {error}
-          <button onClick={() => void load()} aria-label="Retry loading settlements">
-            Retry
+          <button onClick={() => void load()} aria-label="Réessayer le chargement des règlements">
+            Réessayer
           </button>
         </div>
       ) : null}
 
       {!loading && !error && settlements.length === 0 ? (
-        <div className="ops-empty">No damage & loss settlements found.</div>
+        <div className="ops-empty">Aucun règlement de dommages trouvé.</div>
       ) : null}
 
       {!loading && !error && settlements.length > 0 ? (
@@ -123,11 +123,11 @@ export function BreakageLossPanel() {
           <section className="ops-list-panel">
             <div className="ops-section-heading">
               <div>
-                <h4>Settlement queue</h4>
-                <p className="ops-section-helper">Prototype-style financial follow-up on return discrepancies.</p>
+                <h4>File des règlements</h4>
+                <p className="ops-section-helper">Suivi financier des écarts de retour.</p>
               </div>
             </div>
-            <ul className="ops-list" role="list" aria-label="Settlement records list">
+            <ul className="ops-list" role="list" aria-label="Liste des règlements">
               {settlements.map((settlement) => (
                 <li key={settlement.id}>
                   <button
@@ -144,8 +144,8 @@ export function BreakageLossPanel() {
                     <span className={`ops-status-badge ops-status-badge--${settlement.settlement_status}`}>
                       {STATUS_LABELS[settlement.settlement_status]}
                     </span>
-                    <span className="ops-row__detail">{settlement.lines.length} line(s)</span>
-                    <span className="ops-row__qty">Refund {formatAmount(settlement.refund_due)}</span>
+                    <span className="ops-row__detail">{settlement.lines.length} ligne(s)</span>
+                    <span className="ops-row__qty">Remboursement {formatAmount(settlement.refund_due)}</span>
                   </button>
                 </li>
               ))}
@@ -157,8 +157,8 @@ export function BreakageLossPanel() {
               <div className="ops-detail-stack">
                 <div className="ops-section-heading">
                   <div>
-                    <h4>Settlement detail</h4>
-                    <p className="ops-section-helper">Keep validation gated until the caution and damage totals are final.</p>
+                    <h4>Détail du règlement</h4>
+                    <p className="ops-section-helper">La validation reste bloquée tant que les totaux de caution et dommages ne sont pas finaux.</p>
                   </div>
                   <span className={`ops-status-badge ops-status-badge--${selectedSettlement.settlement_status}`}>
                     {STATUS_LABELS[selectedSettlement.settlement_status]}
@@ -167,25 +167,25 @@ export function BreakageLossPanel() {
 
                 <dl className="ops-metrics">
                   <div className="ops-metric-card">
-                    <dt>Total damage</dt>
+                    <dt>Total dommages</dt>
                     <dd>{formatAmount(selectedSettlement.damage_loss_total)} MGA</dd>
                   </div>
                   <div className="ops-metric-card">
-                    <dt>Caution available</dt>
+                    <dt>Caution disponible</dt>
                     <dd>{formatAmount(selectedSettlement.caution_available)} MGA</dd>
                   </div>
                   <div className="ops-metric-card">
-                    <dt>Caution applied</dt>
+                    <dt>Caution appliquée</dt>
                     <dd>{formatAmount(selectedSettlement.caution_applied)} MGA</dd>
                   </div>
                   <div className="ops-metric-card">
-                    <dt>Refund due</dt>
+                    <dt>Remboursement dû</dt>
                     <dd>{formatAmount(selectedSettlement.refund_due)} MGA</dd>
                   </div>
                 </dl>
 
                 <section className="ops-detail-section">
-                  <h5>Settlement lines</h5>
+                  <h5>Lignes de règlement</h5>
                   <ul className="ops-line-list">
                     {selectedSettlement.lines.map((line) => (
                       <li className="ops-line-item" key={line.id}>
@@ -195,8 +195,8 @@ export function BreakageLossPanel() {
                         </div>
                         <div className="ops-line-item__meta">
                           <span>{line.settlement_line_kind}</span>
-                          <span>Qty {line.quantity}</span>
-                          <span>Unit {formatAmount(line.unit_amount)}</span>
+                          <span>Qté {line.quantity}</span>
+                          <span>Prix unitaire {formatAmount(line.unit_amount)}</span>
                         </div>
                       </li>
                     ))}
@@ -210,12 +210,12 @@ export function BreakageLossPanel() {
                     disabled={!canWrite || actionLoading || selectedSettlement.settlement_status !== "draft"}
                     onClick={() => void handleValidate()}
                   >
-                    Validate settlement
+                    Valider le règlement
                   </button>
                 </div>
               </div>
             ) : (
-              <p className="ops-empty">Select a settlement to inspect damage and caution impact.</p>
+              <p className="ops-empty">Sélectionnez un règlement pour inspecter les dommages et l'impact sur la caution.</p>
             )}
           </section>
         </div>

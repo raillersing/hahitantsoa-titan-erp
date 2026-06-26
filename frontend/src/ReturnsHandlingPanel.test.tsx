@@ -48,15 +48,15 @@ describe("ReturnsHandlingPanel", () => {
   it("shows loading state initially", () => {
     vi.spyOn(api, "getReturnOperations").mockReturnValue(new Promise(() => undefined));
     render(<ReturnsHandlingPanel />);
-    expect(screen.getByText("Loading return operations...")).toBeInTheDocument();
+    expect(screen.getByText("Chargement des opérations de retour...")).toBeInTheDocument();
   });
 
   it("renders list and detail", async () => {
     vi.spyOn(api, "getReturnOperations").mockResolvedValue([MOCK_OPERATION]);
     render(<ReturnsHandlingPanel />);
-    expect(await screen.findByText("Inspection detail")).toBeInTheDocument();
-    expect(screen.getByText("Expected 10")).toBeInTheDocument();
-    expect(screen.getByText("Returned 8")).toBeInTheDocument();
+    expect(await screen.findByText("Détail d'inspection")).toBeInTheDocument();
+    expect(screen.getByText("Attendu 10")).toBeInTheDocument();
+    expect(screen.getByText("Retourné 8")).toBeInTheDocument();
   });
 
   it("shows error state and retry button", async () => {
@@ -65,8 +65,8 @@ describe("ReturnsHandlingPanel", () => {
     render(<ReturnsHandlingPanel />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Network error");
     spy.mockResolvedValue([MOCK_OPERATION]);
-    fireEvent.click(screen.getByRole("button", { name: "Retry loading return operations" }));
-    expect(await screen.findByText("Inspection detail")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer le chargement des opérations de retour" }));
+    expect(await screen.findByText("Détail d'inspection")).toBeInTheDocument();
   });
 
   it("shows read-only badge when write permission is absent", async () => {
@@ -84,10 +84,10 @@ describe("ReturnsHandlingPanel", () => {
       validated_at: "2026-06-20T10:00:00Z",
     });
     render(<ReturnsHandlingPanel />);
-    fireEvent.click(await screen.findByRole("button", { name: "Validate return" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Valider le retour" }));
     await waitFor(() => {
       expect(validateSpy).toHaveBeenCalledWith("ret-1");
     });
-    expect((await screen.findAllByText("Validated")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("Validé")).length).toBeGreaterThan(0);
   });
 });

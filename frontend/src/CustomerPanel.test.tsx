@@ -64,14 +64,14 @@ describe("CustomerPanel", () => {
 
     render(<CustomerPanel />);
 
-    expect(screen.getByText("Loading customers...")).toBeTruthy();
+    expect(screen.getByText("Chargement des clients...")).toBeTruthy();
 
     await waitFor(() => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
     expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
-    expect(screen.getByText("Customer Directory")).toBeTruthy();
+    expect(screen.getByText("Répertoire clients")).toBeTruthy();
   });
 
   it("shows empty state when no customers exist", async () => {
@@ -82,7 +82,7 @@ describe("CustomerPanel", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/No customer records found/),
+        screen.getByText(/Aucune fiche client trouvée/),
       ).toBeTruthy();
     });
   });
@@ -99,7 +99,7 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Network error")).toBeTruthy();
     });
 
-    expect(screen.getByText("Retry")).toBeTruthy();
+    expect(screen.getByText("Réessayer")).toBeTruthy();
   });
 
   it("retries loading when retry button is clicked", async () => {
@@ -115,7 +115,7 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Network error")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("Retry"));
+    fireEvent.click(screen.getByText("Réessayer"));
 
     await waitFor(() => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
@@ -131,7 +131,7 @@ describe("CustomerPanel", () => {
     render(<CustomerPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("+ New Customer")).toBeTruthy();
+      expect(screen.getByText("+ Nouveau client")).toBeTruthy();
     });
   });
 
@@ -145,7 +145,7 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
-    expect(screen.queryByText("+ New Customer")).toBeNull();
+    expect(screen.queryByText("+ Nouveau client")).toBeNull();
   });
 
   it("navigates to detail view when view button is clicked", async () => {
@@ -159,11 +159,11 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
-    const viewButtons = screen.getAllByLabelText(/View/);
+    const viewButtons = screen.getAllByLabelText(/Voir/);
     fireEvent.click(viewButtons[0]);
 
     await waitFor(() => {
-      expect(screen.getByText(/Back to list/)).toBeTruthy();
+      expect(screen.getByText(/Retour à la liste/)).toBeTruthy();
     });
 
     expect(screen.getByText("alice@example.test")).toBeTruthy();
@@ -201,27 +201,27 @@ describe("CustomerPanel", () => {
     render(<CustomerPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("+ New Customer")).toBeTruthy();
+      expect(screen.getByText("+ Nouveau client")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("+ New Customer"));
+    fireEvent.click(screen.getByText("+ Nouveau client"));
 
     await waitFor(() => {
-      expect(screen.getByText("New Customer")).toBeTruthy();
+      expect(screen.getByText("Nouveau client")).toBeTruthy();
     });
 
-    const nameInput = screen.getByLabelText(/Display Name/);
+    const nameInput = screen.getByLabelText(/Nom/);
     fireEvent.change(nameInput, { target: { value: "New Client" } });
 
     const emailInput = screen.getByLabelText(/Email/);
     fireEvent.change(emailInput, { target: { value: "new@example.test" } });
 
-    const phoneInput = screen.getByLabelText(/Phone/);
+    const phoneInput = screen.getByLabelText(/Téléphone/);
     fireEvent.change(phoneInput, {
       target: { value: "+261 34 00 000 03" },
     });
 
-    fireEvent.click(screen.getByText("Create Customer"));
+    fireEvent.click(screen.getByText("Créer le client"));
 
     await waitFor(() => {
       expect(screen.getByText("New Client")).toBeTruthy();
@@ -235,18 +235,18 @@ describe("CustomerPanel", () => {
 
     render(<CustomerPanel />);
 
-    await waitFor(() => expect(screen.getByText("+ New Customer")).toBeTruthy());
-    fireEvent.click(screen.getByText("+ New Customer"));
-    await waitFor(() => expect(screen.getByText("New Customer")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("+ Nouveau client")).toBeTruthy());
+    fireEvent.click(screen.getByText("+ Nouveau client"));
+    await waitFor(() => expect(screen.getByText("Nouveau client")).toBeTruthy());
 
-    fireEvent.change(screen.getByLabelText(/Display Name/), {
+    fireEvent.change(screen.getByLabelText(/Nom/), {
       target: { value: "New Client" },
     });
 
-    fireEvent.click(screen.getByText("Create Customer"));
+    fireEvent.click(screen.getByText("Créer le client"));
 
     await waitFor(() => {
-      const submitBtn = screen.getByRole("button", { name: /Saving|Create/ });
+      const submitBtn = screen.getByRole("button", { name: /Enregistrement|Créer/ });
       expect(submitBtn).toBeDisabled();
     });
   });
@@ -258,20 +258,20 @@ describe("CustomerPanel", () => {
     render(<CustomerPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("+ New Customer")).toBeTruthy();
+      expect(screen.getByText("+ Nouveau client")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("+ New Customer"));
+    fireEvent.click(screen.getByText("+ Nouveau client"));
 
     await waitFor(() => {
-      expect(screen.getByText("New Customer")).toBeTruthy();
+      expect(screen.getByText("Nouveau client")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("Create Customer"));
+    fireEvent.click(screen.getByText("Créer le client"));
 
     await waitFor(() => {
       expect(
-        screen.getByText("Display name is required."),
+        screen.getByText("Le nom est requis."),
       ).toBeTruthy();
     });
   });
@@ -286,23 +286,23 @@ describe("CustomerPanel", () => {
     render(<CustomerPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("+ New Customer")).toBeTruthy();
+      expect(screen.getByText("+ Nouveau client")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("+ New Customer"));
+    fireEvent.click(screen.getByText("+ Nouveau client"));
 
     await waitFor(() => {
-      expect(screen.getByText("New Customer")).toBeTruthy();
+      expect(screen.getByText("Nouveau client")).toBeTruthy();
     });
 
-    const nameInput = screen.getByLabelText(/Display Name/);
+    const nameInput = screen.getByLabelText(/Nom/);
     fireEvent.change(nameInput, { target: { value: "New Client" } });
 
-    fireEvent.click(screen.getByText("Create Customer"));
+    fireEvent.click(screen.getByText("Créer le client"));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/do not have permission/),
+        screen.getByText(/vous n'avez pas la permission/i),
       ).toBeTruthy();
     });
   });
@@ -325,7 +325,7 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
-    const badges = screen.getAllByText(/Active|Inactive/);
+    const badges = screen.getAllByText(/Actif|Inactif/);
     expect(badges.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -339,11 +339,11 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
-    expect(screen.getByPlaceholderText("Name...")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Nom...")).toBeTruthy();
     expect(screen.getByPlaceholderText("Email...")).toBeTruthy();
-    expect(screen.getByPlaceholderText("Phone...")).toBeTruthy();
-    expect(screen.getByText("Search")).toBeTruthy();
-    expect(screen.getByText("Clear")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Téléphone...")).toBeTruthy();
+    expect(screen.getByText("Rechercher")).toBeTruthy();
+    expect(screen.getByText("Effacer")).toBeTruthy();
   });
 
   it("searches customers by name on form submit", async () => {
@@ -360,10 +360,10 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
     });
 
-    const nameInput = screen.getByPlaceholderText("Name...");
+    const nameInput = screen.getByPlaceholderText("Nom...");
     fireEvent.change(nameInput, { target: { value: "Alice" } });
 
-    fireEvent.click(screen.getByText("Search"));
+    fireEvent.click(screen.getByText("Rechercher"));
 
     await waitFor(() => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
@@ -389,16 +389,16 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByPlaceholderText("Name..."), {
+    fireEvent.change(screen.getByPlaceholderText("Nom..."), {
       target: { value: "Alice" },
     });
-    fireEvent.click(screen.getByText("Search"));
+    fireEvent.click(screen.getByText("Rechercher"));
 
     await waitFor(() => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("Clear"));
+    fireEvent.click(screen.getByText("Effacer"));
 
     await waitFor(() => {
       expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
@@ -419,14 +419,14 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByPlaceholderText("Name..."), {
+    fireEvent.change(screen.getByPlaceholderText("Nom..."), {
       target: { value: "NonExistent" },
     });
-    fireEvent.click(screen.getByText("Search"));
+    fireEvent.click(screen.getByText("Rechercher"));
 
     await waitFor(() => {
       expect(
-        screen.getByText(/No customer records found/),
+        screen.getByText(/Aucune fiche client trouvée/),
       ).toBeTruthy();
     });
   });

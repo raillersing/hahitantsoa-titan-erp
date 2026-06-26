@@ -133,17 +133,17 @@ export function HahitantsoaCommercialOpsPanel() {
                     onClick={() => setDocTab("titan")}
                     type="button"
                   >
-                    Titan Documents
-                  </button>
-                  <button
-                    role="tab"
-                    aria-selected={docTab === "hahitantsoa"}
-                    aria-controls="hahitantsoa-documents-panel"
-                    className={`documents-tab ${docTab === "hahitantsoa" ? "documents-tab-active" : ""}`}
-                    onClick={() => setDocTab("hahitantsoa")}
-                    type="button"
-                  >
-                    Hahitantsoa Documents
+                    Documents Titan
+                   </button>
+                   <button
+                     role="tab"
+                     aria-selected={docTab === "hahitantsoa"}
+                     aria-controls="hahitantsoa-documents-panel"
+                     className={`documents-tab ${docTab === "hahitantsoa" ? "documents-tab-active" : ""}`}
+                     onClick={() => setDocTab("hahitantsoa")}
+                     type="button"
+                   >
+                     Documents Hahitantsoa
                   </button>
                 </div>
                 <div

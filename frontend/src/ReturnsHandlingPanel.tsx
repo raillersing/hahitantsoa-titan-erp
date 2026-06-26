@@ -5,8 +5,8 @@ import { checkReturnsWritePermission, getReturnOperations, validateReturnOperati
 import type { InventoryReturnOperation } from "./types";
 
 const STATUS_LABELS: Record<InventoryReturnOperation["status"], string> = {
-  draft: "Draft",
-  validated: "Validated",
+  draft: "Brouillon",
+  validated: "Validé",
 };
 
 function quantitySummary(operation: InventoryReturnOperation) {
@@ -91,33 +91,33 @@ export function ReturnsHandlingPanel() {
     <div className="ops-panel" data-testid="returns-handling-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <p className="eyebrow">Prototype returns</p>
-          <h3 className="ops-panel__title">Returns inspection workflow</h3>
+          <p className="eyebrow">Retours prototype</p>
+          <h3 className="ops-panel__title">Workflow d'inspection des retours</h3>
           <p className="ops-panel__summary">
-            Prototype-aligned return review with per-line intact, damaged, and missing quantities,
-            plus validate action when FE-A permits write access.
+            Révision des retours avec quantités intactes, endommagées et manquantes par ligne,
+            plus action de validation lorsque FE-A autorise l'accès en écriture.
           </p>
         </div>
         {canWrite ? (
-          <span className="permission-tag permission-ok" data-testid="returns-write-ok">Write access</span>
+          <span className="permission-tag permission-ok" data-testid="returns-write-ok">Accès écriture</span>
         ) : (
-          <span className="permission-tag permission-denied" data-testid="returns-write-denied">Read-only</span>
+          <span className="permission-tag permission-denied" data-testid="returns-write-denied">Lecture seule</span>
         )}
       </div>
 
-      {loading ? <div className="loading-notice">Loading return operations...</div> : null}
+      {loading ? <div className="loading-notice">Chargement des opérations de retour...</div> : null}
 
       {!loading && error ? (
         <div className="notice error-notice" role="alert">
           {error}
-          <button onClick={() => void load()} aria-label="Retry loading return operations">
-            Retry
+          <button onClick={() => void load()} aria-label="Réessayer le chargement des opérations de retour">
+            Réessayer
           </button>
         </div>
       ) : null}
 
       {!loading && !error && operations.length === 0 ? (
-        <div className="ops-empty">No return operations found.</div>
+        <div className="ops-empty">Aucune opération de retour trouvée.</div>
       ) : null}
 
       {!loading && !error && operations.length > 0 ? (
@@ -125,11 +125,11 @@ export function ReturnsHandlingPanel() {
           <section className="ops-list-panel">
             <div className="ops-section-heading">
               <div>
-                <h4>Return operations</h4>
-                <p className="ops-section-helper">Read/write state remains controlled by backend permission probes.</p>
+                <h4>Opérations de retour</h4>
+                <p className="ops-section-helper">L'état lecture/écriture reste contrôlé par les sondes de permissions backend.</p>
               </div>
             </div>
-            <ul className="ops-list" role="list" aria-label="Return operations list">
+            <ul className="ops-list" role="list" aria-label="Liste des opérations de retour">
               {operations.map((operation) => {
                 const summary = quantitySummary(operation);
                 return (
@@ -143,13 +143,13 @@ export function ReturnsHandlingPanel() {
                     >
                       <div className="ops-row__primary">
                         <span className="ops-row__title">{operation.id.slice(0, 8)}</span>
-                        <span className="ops-row__subtext">{summary.returned} returned / {summary.missing} missing</span>
+                        <span className="ops-row__subtext">{summary.returned} retourné(s) / {summary.missing} manquant(s)</span>
                       </div>
                       <span className={`ops-status-badge ops-status-badge--${operation.status}`}>
                         {STATUS_LABELS[operation.status]}
                       </span>
-                      <span className="ops-row__detail">{operation.lines.length} line(s)</span>
-                      <span className="ops-row__ref">{operation.reservation_draft?.slice(0, 8) ?? "No draft"}</span>
+                      <span className="ops-row__detail">{operation.lines.length} ligne(s)</span>
+                      <span className="ops-row__ref">{operation.reservation_draft?.slice(0, 8) ?? "Pas de brouillon"}</span>
                     </button>
                   </li>
                 );
@@ -162,9 +162,9 @@ export function ReturnsHandlingPanel() {
               <div className="ops-detail-stack">
                 <div className="ops-section-heading">
                   <div>
-                    <h4>Inspection detail</h4>
+                    <h4>Détail d'inspection</h4>
                     <p className="ops-section-helper">
-                      Validate only after physical review is complete.
+                      Valider uniquement après révision physique complète.
                     </p>
                   </div>
                   <span className={`ops-status-badge ops-status-badge--${selectedOperation.status}`}>
@@ -174,17 +174,17 @@ export function ReturnsHandlingPanel() {
 
                 <dl className="ops-metrics">
                   <div className="ops-metric-card">
-                    <dt>Reservation</dt>
+                    <dt>Réservation</dt>
                     <dd>{selectedOperation.reservation_draft?.slice(0, 8) ?? "—"}</dd>
                   </div>
                   <div className="ops-metric-card">
-                    <dt>Validated at</dt>
-                    <dd>{selectedOperation.validated_at ? new Date(selectedOperation.validated_at).toLocaleString() : "Pending"}</dd>
+                    <dt>Validé le</dt>
+                    <dd>{selectedOperation.validated_at ? new Date(selectedOperation.validated_at).toLocaleString() : "En attente"}</dd>
                   </div>
                 </dl>
 
                 <section className="ops-detail-section">
-                  <h5>Return lines</h5>
+                  <h5>Lignes de retour</h5>
                   <ul className="ops-line-list">
                     {selectedOperation.lines.map((line) => (
                       <li className="ops-line-item" key={line.id}>
@@ -195,10 +195,10 @@ export function ReturnsHandlingPanel() {
                           </span>
                         </div>
                         <div className="ops-line-item__meta">
-                          <span>Expected {line.expected_quantity}</span>
-                          <span>Returned {line.returned_quantity}</span>
-                          <span>Damaged {line.damaged_quantity}</span>
-                          <span>Missing {line.missing_quantity}</span>
+                          <span>Attendu {line.expected_quantity}</span>
+                          <span>Retourné {line.returned_quantity}</span>
+                          <span>Endommagé {line.damaged_quantity}</span>
+                          <span>Manquant {line.missing_quantity}</span>
                         </div>
                       </li>
                     ))}
@@ -207,7 +207,7 @@ export function ReturnsHandlingPanel() {
 
                 {selectedOperation.notes ? (
                   <section className="ops-callout">
-                    <strong>Operator note</strong>
+                    <strong>Note opérateur</strong>
                     <p>{selectedOperation.notes}</p>
                   </section>
                 ) : null}
@@ -219,12 +219,12 @@ export function ReturnsHandlingPanel() {
                     disabled={!canWrite || actionLoading || selectedOperation.status !== "draft"}
                     onClick={() => void handleValidate()}
                   >
-                    Validate return
+                    Valider le retour
                   </button>
                 </div>
               </div>
             ) : (
-              <p className="ops-empty">Select a return operation to inspect line-level quantities.</p>
+              <p className="ops-empty">Sélectionnez une opération de retour pour inspecter les quantités par ligne.</p>
             )}
           </section>
         </div>
