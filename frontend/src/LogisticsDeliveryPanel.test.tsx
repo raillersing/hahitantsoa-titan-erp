@@ -81,10 +81,10 @@ describe("LogisticsDeliveryPanel", () => {
   it("shows loading state initially", () => {
     vi.spyOn(api, "getLogisticsEvents").mockReturnValue(new Promise(() => undefined));
     render(<LogisticsDeliveryPanel />);
-    expect(screen.getByText("Loading delivery events...")).toBeInTheDocument();
+    expect(screen.getByText("Chargement des événements...")).toBeInTheDocument();
   });
 
-  it("shows only delivery and handover events", async () => {
+  it("shows all event types with filter bar", async () => {
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([
       MOCK_EVENT,
       MOCK_HANDOVER_EVENT,
@@ -93,15 +93,15 @@ describe("LogisticsDeliveryPanel", () => {
     render(<LogisticsDeliveryPanel />);
     expect(await screen.findByTestId("delivery-row-del-1")).toBeInTheDocument();
     expect(screen.getByTestId("delivery-row-handover-1")).toBeInTheDocument();
-    expect(screen.queryByTestId("delivery-row-pick-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("delivery-row-pick-1")).toBeInTheDocument();
   });
 
   it("renders selected event detail and line items", async () => {
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_EVENT]);
     render(<LogisticsDeliveryPanel />);
-    expect(await screen.findByText("Delivery detail")).toBeInTheDocument();
+    expect(await screen.findByTestId("delivery-row-del-1")).toBeInTheDocument();
     expect(await screen.findByText("Chair")).toBeInTheDocument();
-    expect(await screen.findByText("3 unit(s)")).toBeInTheDocument();
+    expect(await screen.findByText("3 unité(s)")).toBeInTheDocument();
   });
 
   it("shows error state when API call fails", async () => {
@@ -126,7 +126,8 @@ describe("LogisticsDeliveryPanel", () => {
     render(<LogisticsDeliveryPanel />);
 
     expect(await screen.findByTestId("logistics-write-ok")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dispatch" }));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer l'envoi" }));
 
     await waitFor(() => {
       expect(transitionSpy).toHaveBeenCalledWith(
@@ -144,19 +145,19 @@ describe("LogisticsDeliveryPanel", () => {
 
     render(<LogisticsDeliveryPanel />);
 
-    await screen.findByText("Delivery detail");
+    expect(await screen.findByTestId("delivery-row-del-1")).toBeInTheDocument();
     await screen.findByText("Chair");
 
-    fireEvent.change(screen.getByLabelText("Inventory item"), {
+    fireEvent.change(screen.getByLabelText("Article"), {
       target: { value: "item-1" },
     });
-    fireEvent.change(screen.getByLabelText("Quantity"), {
+    fireEvent.change(screen.getByLabelText("Quantité"), {
       target: { value: "2" },
     });
-    fireEvent.change(screen.getByLabelText("Line note"), {
+    fireEvent.change(screen.getByLabelText("Note"), {
       target: { value: "Extra chairs" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Add item line" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter une ligne" }));
 
     await waitFor(() => {
       expect(addSpy).toHaveBeenCalledWith(
@@ -165,7 +166,8 @@ describe("LogisticsDeliveryPanel", () => {
       );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
     await waitFor(() => {
       expect(removeSpy).toHaveBeenCalledWith("del-1", "line-1");
     });
@@ -180,11 +182,11 @@ describe("LogisticsDeliveryPanel", () => {
     });
 
     render(<LogisticsDeliveryPanel />);
-    fireEvent.click(await screen.findByRole("button", { name: "Complete passation" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Finaliser la remise" }));
 
     await waitFor(() => {
       expect(passationSpy).toHaveBeenCalledWith("handover-1", {});
     });
-    expect(await screen.findByText(/Document instance ID: doc-123/i)).toBeInTheDocument();
+    expect(await screen.findByText("Bon de livraison généré.")).toBeInTheDocument();
   });
 });

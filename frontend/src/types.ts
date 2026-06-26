@@ -505,6 +505,28 @@ export type LogisticsEventCompletePassationPayload = {
   notes?: string;
 };
 
+export type LogisticsEventCreatePayload = {
+  reservation_draft: string;
+  event_type: LogisticsEventType;
+  scheduled_at?: string | null;
+  address?: string;
+  contact_name?: string;
+  contact_phone?: string;
+  notes?: string;
+  signature_required?: boolean;
+};
+
+export type LogisticsEventUpdatePayload = Partial<{
+  event_type: LogisticsEventType;
+  scheduled_at: string | null;
+  executed_at: string | null;
+  address: string;
+  contact_name: string;
+  contact_phone: string;
+  notes: string;
+  signature_required: boolean;
+}>;
+
 export type LogisticsEventCompletePassationResponse = {
   event: LogisticsEvent;
   document_instance_id: string;
