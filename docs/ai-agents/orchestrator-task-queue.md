@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `e920be6`.
-- `main` CI is green as verified on 2026-06-26 (run 28267437949).
+- `origin/main` HEAD is `2c94d03`.
+- `main` CI is green as verified on 2026-06-26 (run 28269131366).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -163,7 +163,25 @@ Status:
   - ReturnsHandlingPanel, BreakageLossPanel, StockMovementLedgerPanel: prototype eyebrow text removed
   - All 7 affected test files updated, 246 tests pass
 - CI: main green at `e920be6` (run 28267437949)
-- post-merge: continue to Bundle D6 (final readiness audit)
+- post-merge: continue to Bundle D6
+
+#### Bundle D6 — Final readiness audit and client-demo handoff
+
+Status:
+- **merged** as PR #442
+- HEAD at merge: `2c94d03`
+- scope:
+  - Created `docs/audits/F180D6_FINAL_READINESS_AUDIT.md` — comprehensive readiness audit:
+    - All Titan and Hahitantsoa workflows verified
+    - D5 polish (French, CSS, dark-mode) documented
+    - D2 reports/exports block verified still correct
+    - Demo data and LOCAL_TESTER_GUIDE verified up to date
+    - Accessibility/responsive/dark-mode status documented
+    - 14 remaining gaps classified (2=polish, 4=placeholder, 5=business, 6=future, 7=infra)
+    - Readiness estimate: ~91%
+    - Decision: **PRÊT pour tests utilisateur réalistes et démo client**
+  - No backend, frontend, or test files modified (docs only)
+- CI: main green at `2c94d03` (run 28269131366)
 
 ### Active workflow improvement bundle
 
