@@ -8,15 +8,19 @@ import {
   updateCustomer,
   deleteCustomer,
   checkCustomerWritePermission,
+  getReservationDrafts,
+  getHahitantsoaEventDrafts,
   type CustomerSearchParams,
 } from "./api";
 import type {
   Customer,
   CustomerCreatePayload,
   CustomerUpdatePayload,
+  ReservationDraft,
+  HahitantsoaEventDraft,
 } from "./types";
 
-type ViewState = "list" | "detail" | "create" | "edit";
+type ViewState = "list" | "detail" | "create" | "edit" | "fiche";
 
 type CustomersState =
   | { status: "loading" }
@@ -35,6 +39,18 @@ type MutationState =
   | { status: "submitting" }
   | { status: "success"; customer: Customer }
   | { status: "error"; message: string; fieldErrors?: Record<string, string[]> };
+
+type ReservationDraftsState =
+  | { status: "loading" }
+  | { status: "loaded"; drafts: ReservationDraft[] }
+  | { status: "empty" }
+  | { status: "error"; message: string };
+
+type EventDraftsState =
+  | { status: "loading" }
+  | { status: "loaded"; drafts: HahitantsoaEventDraft[] }
+  | { status: "empty" }
+  | { status: "error"; message: string };
 
 const INITIAL_FORM: CustomerCreatePayload = {
   display_name: "",
@@ -227,6 +243,7 @@ function CustomerDetailView({
   canWrite,
   onBack,
   onEdit,
+  onViewFile,
   onDelete,
   onDeleteConfirm,
   onDeleteCancel,
@@ -238,6 +255,7 @@ function CustomerDetailView({
   canWrite: boolean;
   onBack: () => void;
   onEdit: (id: string) => void;
+  onViewFile: (id: string) => void;
   onDelete: (id: string) => void;
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
@@ -342,6 +360,14 @@ function CustomerDetailView({
               disabled={deletePending}
             >
               Edit
+            </button>
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => onViewFile(customer.id)}
+              disabled={deletePending}
+            >
+              Fiche client
             </button>
             {deleteConfirming ? (
               <span className="confirm-delete-group">
@@ -594,6 +620,164 @@ function CustomerFormView({
   );
 }
 
+function reservationLifecycleLabel(draft: ReservationDraft): string {
+  if (draft.status === "cancelled") return "Cancelled";
+  if (draft.confirmed_at) return "Confirmed";
+  if (draft.required_deposit_received_at) return "Dépôt reçu";
+  if (draft.contract_signed_at) return "Contrat signé";
+  return "Brouillon";
+}
+
+function hahitantsoaStatusLabel(status: HahitantsoaEventDraft["status"]): string {
+  if (status === "confirmed") return "Confirmé";
+  return "Brouillon";
+}
+
+function CustomerFileView({
+  customer,
+  reservationDraftsState,
+  eventDraftsState,
+  onBack,
+  onRetryReservations,
+  onRetryEvents,
+}: {
+  customer: Customer;
+  reservationDraftsState: ReservationDraftsState;
+  eventDraftsState: EventDraftsState;
+  onBack: () => void;
+  onRetryReservations: () => void;
+  onRetryEvents: () => void;
+}) {
+  return (
+    <div>
+      <button type="button" className="back-btn" onClick={onBack}>
+        &larr; Back to detail
+      </button>
+
+      <div className="customer-detail-card">
+        <div className="detail-header">
+          <div>
+            <p className="eyebrow">Fiche client</p>
+            <h2>{customer.display_name}</h2>
+          </div>
+          {customer.is_active ? (
+            <span className="status-badge status-active">Actif</span>
+          ) : (
+            <span className="status-badge status-inactive">Inactif</span>
+          )}
+        </div>
+
+        <dl className="detail-grid">
+          <div>
+            <dt>Email</dt>
+            <dd>{customer.email || "—"}</dd>
+          </div>
+          <div>
+            <dt>Téléphone</dt>
+            <dd>{customer.phone || "—"}</dd>
+          </div>
+          <div className="detail-full">
+            <dt>Adresse</dt>
+            <dd>{customer.address || "—"}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="section-heading" style={{ marginTop: "2rem" }}>
+        <div>
+          <h3>Réservations Titan</h3>
+          <p className="section-helper">
+            Réservation de matériel liées à ce client.
+          </p>
+        </div>
+      </div>
+
+      {reservationDraftsState.status === "loading" ? (
+        <p className="status loading-spinner" aria-live="polite">Chargement des réservations...</p>
+      ) : null}
+
+      {reservationDraftsState.status === "error" ? (
+        <div className="notice error-notice" role="alert">
+          <p>{reservationDraftsState.message}</p>
+          <button type="button" onClick={onRetryReservations}>Réessayer</button>
+        </div>
+      ) : null}
+
+      {reservationDraftsState.status === "empty" ? (
+        <div className="notice info-notice" role="status">
+          <p>Aucune réservation Titan trouvée pour ce client.</p>
+        </div>
+      ) : null}
+
+      {reservationDraftsState.status === "loaded" ? (
+        <ul className="preview-list">
+          {reservationDraftsState.drafts.map((draft) => (
+            <li key={draft.id}>
+              <div>
+                <strong>{draft.public_reference}</strong>
+                <span className="status-badge status-draft">
+                  {reservationLifecycleLabel(draft)}
+                </span>
+              </div>
+              <span>
+                {new Date(draft.start_at).toLocaleDateString()} &rarr;{" "}
+                {new Date(draft.end_at).toLocaleDateString()}
+              </span>
+              <span>{draft.lines.length} ligne(s)</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="section-heading" style={{ marginTop: "2rem" }}>
+        <div>
+          <h3>Événements Hahitantsoa</h3>
+          <p className="section-helper">
+            Événements liés à ce client.
+          </p>
+        </div>
+      </div>
+
+      {eventDraftsState.status === "loading" ? (
+        <p className="status loading-spinner" aria-live="polite">Chargement des événements...</p>
+      ) : null}
+
+      {eventDraftsState.status === "error" ? (
+        <div className="notice error-notice" role="alert">
+          <p>{eventDraftsState.message}</p>
+          <button type="button" onClick={onRetryEvents}>Réessayer</button>
+        </div>
+      ) : null}
+
+      {eventDraftsState.status === "empty" ? (
+        <div className="notice info-notice" role="status">
+          <p>Aucun événement Hahitantsoa trouvé pour ce client.</p>
+        </div>
+      ) : null}
+
+      {eventDraftsState.status === "loaded" ? (
+        <ul className="preview-list">
+          {eventDraftsState.drafts.map((draft) => (
+            <li key={draft.id}>
+              <div>
+                <strong>{draft.event_name}</strong>
+                <span className="status-badge status-draft">
+                  {hahitantsoaStatusLabel(draft.status)}
+                </span>
+              </div>
+              <span>
+                {new Date(draft.start_at).toLocaleDateString()} &rarr;{" "}
+                {new Date(draft.end_at).toLocaleDateString()}
+              </span>
+              <span>{draft.lines.length} ligne(s)</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export function CustomerPanel() {
   const [view, setView] = useState<ViewState>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -609,6 +793,12 @@ export function CustomerPanel() {
   const [canWrite, setCanWrite] = useState(false);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const [searchParams, setSearchParams] = useState<CustomerSearchParams>({});
+  const [reservationDraftsState, setReservationDraftsState] = useState<ReservationDraftsState>({
+    status: "loading",
+  });
+  const [eventDraftsState, setEventDraftsState] = useState<EventDraftsState>({
+    status: "loading",
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -671,6 +861,53 @@ export function CustomerPanel() {
     return () => controller.abort();
   }, []);
 
+  const loadCustomerDrafts = useCallback((customerId: string) => {
+    setReservationDraftsState({ status: "loading" });
+    setEventDraftsState({ status: "loading" });
+
+    getReservationDrafts(customerId)
+      .then((drafts) => {
+        setReservationDraftsState(
+          drafts.length === 0
+            ? { status: "empty" }
+            : { status: "loaded", drafts },
+        );
+      })
+      .catch((err) => {
+        setReservationDraftsState({
+          status: "error",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to load reservation drafts.",
+        });
+      });
+
+    getHahitantsoaEventDrafts(customerId)
+      .then((drafts) => {
+        setEventDraftsState(
+          drafts.length === 0
+            ? { status: "empty" }
+            : { status: "loaded", drafts },
+        );
+      })
+      .catch((err) => {
+        setEventDraftsState({
+          status: "error",
+          message:
+            err instanceof Error
+              ? err.message
+              : "Failed to load event drafts.",
+        });
+      });
+  }, []);
+
+  const handleViewFile = (id: string) => {
+    setSelectedId(id);
+    setView("fiche");
+    loadCustomerDrafts(id);
+  };
+
   const handleSelectCustomer = (id: string) => {
     setSelectedId(id);
     setView("detail");
@@ -682,6 +919,15 @@ export function CustomerPanel() {
     setSelectedId(null);
     setDetailState({ status: "loading" });
     setDeleteConfirming(false);
+  };
+
+  const handleBackFromFiche = () => {
+    if (selectedId) {
+      setView("detail");
+      loadDetail(selectedId);
+    } else {
+      handleBackToList();
+    }
   };
 
   const handleCreateNew = () => {
@@ -854,13 +1100,14 @@ export function CustomerPanel() {
         />
       ) : null}
 
-      {view === "detail" ? (
+      {view === "detail" && selectedId ? (
         <div className="customer-detail-shell">
           <CustomerDetailView
             detailState={detailState}
             canWrite={canWrite}
             onBack={handleBackToList}
             onEdit={handleEdit}
+            onViewFile={handleViewFile}
             onDelete={handleDelete}
             onDeleteConfirm={handleDeleteConfirm}
             onDeleteCancel={handleDeleteCancel}
@@ -868,6 +1115,28 @@ export function CustomerPanel() {
             deleteConfirming={deleteConfirming}
             deletePending={mutationState.status === "submitting"}
           />
+        </div>
+      ) : null}
+
+      {view === "fiche" && detailState.status === "loaded" ? (
+        <div className="customer-detail-shell">
+          <CustomerFileView
+            customer={detailState.customer}
+            reservationDraftsState={reservationDraftsState}
+            eventDraftsState={eventDraftsState}
+            onBack={handleBackFromFiche}
+            onRetryReservations={() => selectedId && loadCustomerDrafts(selectedId)}
+            onRetryEvents={() => selectedId && loadCustomerDrafts(selectedId)}
+          />
+        </div>
+      ) : null}
+
+      {view === "fiche" && detailState.status !== "loaded" && selectedId ? (
+        <div className="customer-detail-shell">
+          <button type="button" className="back-btn" onClick={handleBackFromFiche}>
+            &larr; Back to list
+          </button>
+          <p className="status loading-spinner" aria-live="polite">Loading customer...</p>
         </div>
       ) : null}
 

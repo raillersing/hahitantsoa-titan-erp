@@ -44,8 +44,8 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
       try {
         const [items, eventDrafts, reservationDrafts, payments] = await Promise.all([
           getInventoryItems(controller.signal),
-          getHahitantsoaEventDrafts(controller.signal),
-          getReservationDrafts(controller.signal),
+          getHahitantsoaEventDrafts(undefined, controller.signal),
+          getReservationDrafts(undefined, controller.signal),
           getPayments(controller.signal).catch(() => []),
         ]);
 
