@@ -89,18 +89,18 @@ function InvoiceRow({
       </span>
       <span className="ops-row__detail">{formatAmount(invoice.amount)} MGA</span>
       <InvoiceStatusBadge invoice={invoice} />
-      <span className="ops-row__qty">{formatAmount(invoice.remaining_balance)} remaining</span>
+      <span className="ops-row__qty">{formatAmount(invoice.remaining_balance)} restant</span>
     </button>
   );
 }
 
 function InstallmentList({ installments }: { installments: BillingInvoiceInstallment[] }) {
   if (installments.length === 0) {
-    return <p className="ops-empty">No installments scheduled for this invoice.</p>;
+    return <p className="ops-empty">Aucun échéancier pour cette facture.</p>;
   }
 
   return (
-    <ul className="ops-list" aria-label="Billing installments">
+    <ul className="ops-list" aria-label="Échéancier">
       {installments.map((installment) => (
         <li key={installment.id}>
           <div className="ops-row" data-testid={`installment-row-${installment.id}`}>
@@ -109,13 +109,13 @@ function InstallmentList({ installments }: { installments: BillingInvoiceInstall
               <span className="ops-row__subtext">{formatDate(installment.due_at)}</span>
             </span>
             <span className="ops-row__detail">
-              Paid {formatAmount(installment.paid_amount)} MGA
+              Payé {formatAmount(installment.paid_amount)} MGA
             </span>
             <span className={`ops-status-badge ops-status-badge--${installment.status}`}>
               {statusLabel(installment.status)}
             </span>
             <span className="ops-row__qty">
-              {installment.is_overdue ? "Overdue" : `${installment.allocations.length} allocation(s)`}
+              {installment.is_overdue ? "En retard" : `${installment.allocations.length} allocation(s)`}
             </span>
           </div>
         </li>
@@ -136,11 +136,11 @@ function CreditNoteList({
   onCancelCreditNote: (creditNote: BillingCreditNote) => void;
 }) {
   if (creditNotes.length === 0) {
-    return <p className="ops-empty">No credit notes issued for this invoice.</p>;
+    return <p className="ops-empty">Aucune note de crédit pour cette facture.</p>;
   }
 
   return (
-    <ul className="ops-list" aria-label="Credit notes">
+    <ul className="ops-list" aria-label="Notes de crédit">
       {creditNotes.map((creditNote) => (
         <li key={creditNote.id}>
           <div className="ops-row" data-testid={`credit-note-row-${creditNote.id}`}>
@@ -159,7 +159,7 @@ function CreditNoteList({
             </span>
             {canWrite && creditNote.status === "issued" ? (
               <button type="button" className="ops-button-secondary" onClick={() => onCancelCreditNote(creditNote)}>
-                Cancel note
+                Annuler la note
               </button>
             ) : null}
           </div>
@@ -268,12 +268,12 @@ export function BillingInvoicePanel() {
         notes: settleForm.notes,
       });
       updateInvoice(updated);
-      setActionState({ status: "success", message: "Invoice settled successfully." });
+      setActionState({ status: "success", message: "Facture réglée avec succès." });
       setSettleForm(EMPTY_SETTLE);
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to settle invoice.",
+        message: err instanceof Error ? err.message : "Échec du règlement de la facture.",
       });
     }
   };
@@ -286,12 +286,12 @@ export function BillingInvoicePanel() {
     try {
       const updated = await cancelBillingInvoice(selectedInvoice.id, cancelNotes);
       updateInvoice(updated);
-      setActionState({ status: "success", message: "Invoice cancelled successfully." });
+      setActionState({ status: "success", message: "Facture annulée avec succès." });
       setCancelNotes("");
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to cancel invoice.",
+        message: err instanceof Error ? err.message : "Échec de l'annulation de la facture.",
       });
     }
   };
@@ -316,12 +316,12 @@ export function BillingInvoicePanel() {
         notes: "Created from FE-C billing panel.",
       });
       updateInvoice({ ...selectedInvoice, installments: created });
-      setActionState({ status: "success", message: "Installment schedule created." });
+      setActionState({ status: "success", message: "Échéancier créé." });
       setInstallmentDrafts([{ amount: "", due_at: "" }]);
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to create installments.",
+        message: err instanceof Error ? err.message : "Échec de la création de l'échéancier.",
       });
     }
   };
@@ -335,12 +335,12 @@ export function BillingInvoicePanel() {
       const note = await issueBillingCreditNote(selectedInvoice.id, creditNoteForm);
       const nextNotes = [note, ...creditNotes];
       setCreditNotes(nextNotes);
-      setActionState({ status: "success", message: "Credit note issued." });
+      setActionState({ status: "success", message: "Note de crédit émise." });
       setCreditNoteForm(EMPTY_CREDIT_NOTE);
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to issue credit note.",
+        message: err instanceof Error ? err.message : "Échec de l'émission de la note de crédit.",
       });
     }
   };
@@ -354,11 +354,11 @@ export function BillingInvoicePanel() {
       const updated = await cancelBillingCreditNote(selectedInvoice.id, creditNote.id, "Cancelled from FE-C.");
       const nextNotes = creditNotes.map((note) => (note.id === updated.id ? updated : note));
       setCreditNotes(nextNotes);
-      setActionState({ status: "success", message: "Credit note cancelled." });
+      setActionState({ status: "success", message: "Note de crédit annulée." });
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to cancel credit note.",
+        message: err instanceof Error ? err.message : "Échec de l'annulation de la note de crédit.",
       });
     }
   };
@@ -371,12 +371,12 @@ export function BillingInvoicePanel() {
     try {
       const updated = await executeBillingRefundObligation(selectedInvoice.refund_obligation.id, refundForm);
       updateInvoice({ ...selectedInvoice, refund_obligation: updated });
-      setActionState({ status: "success", message: "Refund obligation executed." });
+      setActionState({ status: "success", message: "Remboursement exécuté." });
       setRefundForm(EMPTY_REFUND);
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to execute refund obligation.",
+        message: err instanceof Error ? err.message : "Échec de l'exécution du remboursement.",
       });
     }
   };
@@ -385,19 +385,19 @@ export function BillingInvoicePanel() {
     <section className="ops-panel" data-testid="billing-invoice-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <h3 className="ops-panel__title">Billing invoices and credit notes</h3>
+          <h3 className="ops-panel__title">Factures et notes de crédit</h3>
           <p className="ops-panel__summary">
-            Operator view for invoice status, installment schedules, credit notes, and refund follow-up.
+            Gestion des factures : échéanciers, notes de crédit, remboursements.
           </p>
         </div>
         <div className="ops-panel__actions">
           <span className={canWrite ? "permission-tag permission-ok" : "permission-tag permission-denied"} data-testid={canWrite ? "billing-write-ok" : "billing-write-denied"}>
-            {canWrite ? "Write access" : "Read-only"}
+            {canWrite ? "Accès écriture" : "Lecture seule"}
           </span>
         </div>
       </div>
 
-      {loading ? <div className="ops-empty">Loading invoices...</div> : null}
+      {loading ? <div className="ops-empty">Chargement des factures...</div> : null}
       {!loading && error ? (
         <div className="ops-callout" role="alert">
           <p>{error}</p>
@@ -405,15 +405,15 @@ export function BillingInvoicePanel() {
       ) : null}
 
       {!loading && !error && invoices.length === 0 ? (
-        <div className="ops-empty">No invoices recorded yet.</div>
+        <div className="ops-empty">Aucune facture pour le moment.</div>
       ) : null}
 
       {!loading && !error && invoices.length > 0 ? (
         <div className="ops-layout">
           <aside className="ops-list-panel">
             <div className="ops-section-heading">
-              <h4>Invoice list</h4>
-              <span className="ops-section-helper">{invoices.length} invoice(s)</span>
+              <h4>Liste des factures</h4>
+              <span className="ops-section-helper">{invoices.length} facture(s)</span>
             </div>
             <ul className="ops-list">
               {invoices.map((invoice) => (
@@ -433,7 +433,7 @@ export function BillingInvoicePanel() {
               <>
                 <div className="ops-section-heading">
                   <div>
-                    <h4>{selectedInvoice.document_instance?.template_label ?? "Invoice detail"}</h4>
+                    <h4>{selectedInvoice.document_instance?.template_label ?? "Détail de la facture"}</h4>
                     <p className="ops-section-helper">
                       Source {selectedInvoice.source_kind} · {formatAmount(selectedInvoice.amount)} MGA
                     </p>
@@ -442,29 +442,29 @@ export function BillingInvoicePanel() {
                 </div>
 
                 <div className="ops-detail-section">
-                  <h5>Financial summary</h5>
+                  <h5>Résumé financier</h5>
                   <div className="ops-metric-grid">
                     <div className="ops-metric-card">
-                      <span className="ops-metric-card__label">Issued</span>
+                      <span className="ops-metric-card__label">Émise le</span>
                       <strong>{formatDate(selectedInvoice.issued_at)}</strong>
                     </div>
                     <div className="ops-metric-card">
-                      <span className="ops-metric-card__label">Settled amount</span>
+                      <span className="ops-metric-card__label">Montant réglé</span>
                       <strong>{formatAmount(selectedInvoice.amount_settled)} MGA</strong>
                     </div>
                     <div className="ops-metric-card">
-                      <span className="ops-metric-card__label">Refunded</span>
+                      <span className="ops-metric-card__label">Remboursé</span>
                       <strong>{formatAmount(selectedInvoice.amount_refunded)} MGA</strong>
                     </div>
                     <div className="ops-metric-card">
-                      <span className="ops-metric-card__label">Remaining</span>
+                      <span className="ops-metric-card__label">Restant</span>
                       <strong>{formatAmount(selectedInvoice.remaining_balance)} MGA</strong>
                     </div>
                   </div>
                 </div>
 
                 <div className="ops-detail-section">
-                  <h5>Installments</h5>
+                  <h5>Échéancier</h5>
                   <InstallmentList installments={selectedInvoice.installments} />
                   {canWrite && selectedInvoice.invoice_status === "open" ? (
                     <div className="ops-inline-form">
@@ -472,7 +472,7 @@ export function BillingInvoicePanel() {
                         {installmentDrafts.map((draft, index) => (
                           <div key={`${index}-${draft.due_at}`} className="ops-inline-form__row">
                             <label>
-                              Amount
+                              Montant
                               <input
                                 value={draft.amount}
                                 onChange={(e) => {
@@ -485,7 +485,7 @@ export function BillingInvoicePanel() {
                               />
                             </label>
                             <label>
-                              Due at
+                              Échéance
                               <input
                                 type="datetime-local"
                                 value={draft.due_at}
@@ -506,10 +506,10 @@ export function BillingInvoicePanel() {
                           className="ops-button-secondary"
                           onClick={() => setInstallmentDrafts((current) => [...current, { amount: "", due_at: "" }])}
                         >
-                          Add installment line
+                          Ajouter une échéance
                         </button>
                         <button type="button" className="ops-button" onClick={() => void handleCreateInstallments()}>
-                          Create schedule
+                          Créer l'échéancier
                         </button>
                       </div>
                     </div>
@@ -517,16 +517,16 @@ export function BillingInvoicePanel() {
                 </div>
 
                 <div className="ops-detail-section">
-                  <h5>Settle or cancel</h5>
+                  <h5>Règlement ou annulation</h5>
                   {canWrite && selectedInvoice.invoice_status === "open" ? (
                     <div className="ops-inline-form">
                       <div className="ops-inline-form__fields">
                         <label>
-                          Payment ID
+                          ID Paiement
                           <input
                             value={settleForm.payment}
                             onChange={(e) => setSettleForm((current) => ({ ...current, payment: e.target.value }))}
-                            placeholder="UUID payment"
+                            placeholder="UUID paiement"
                           />
                         </label>
                         <label>
@@ -534,34 +534,34 @@ export function BillingInvoicePanel() {
                           <input
                             value={settleForm.notes}
                             onChange={(e) => setSettleForm((current) => ({ ...current, notes: e.target.value }))}
-                            placeholder="Optional notes"
+                            placeholder="Notes optionnelles"
                           />
                         </label>
                       </div>
                       <div className="ops-panel__actions">
                         <button type="button" className="ops-button" onClick={() => void handleSettle()} disabled={!settleForm.payment}>
-                          Settle invoice
+                          Régler la facture
                         </button>
                         <label>
-                          Cancel notes
+                          Notes d'annulation
                           <input
                             value={cancelNotes}
                             onChange={(e) => setCancelNotes(e.target.value)}
-                            placeholder="Reason for cancellation"
+                            placeholder="Motif d'annulation"
                           />
                         </label>
                         <button type="button" className="ops-button-danger" onClick={() => void handleCancelInvoice()}>
-                          Cancel invoice
+                          Annuler la facture
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <p className="ops-empty">Invoice settlement actions are available only on open invoices.</p>
+                    <p className="ops-empty">Les actions de règlement sont disponibles uniquement sur les factures ouvertes.</p>
                   )}
                 </div>
 
                 <div className="ops-detail-section">
-                  <h5>Credit notes</h5>
+                  <h5>Notes de crédit</h5>
                   <div className="ops-inline-form">
                     <div className="ops-inline-form__fields">
                       <label>
@@ -573,11 +573,11 @@ export function BillingInvoicePanel() {
                         />
                       </label>
                       <label>
-                        Reason
+                        Motif
                         <input
                           value={creditNoteForm.reason}
                           onChange={(e) => setCreditNoteForm((current) => ({ ...current, reason: e.target.value }))}
-                          placeholder="Reason"
+                          placeholder="Motif"
                         />
                       </label>
                       <label>
@@ -585,14 +585,14 @@ export function BillingInvoicePanel() {
                         <input
                           value={creditNoteForm.notes}
                           onChange={(e) => setCreditNoteForm((current) => ({ ...current, notes: e.target.value }))}
-                          placeholder="Optional notes"
+                          placeholder="Notes optionnelles"
                         />
                       </label>
                     </div>
                     <div className="ops-panel__actions">
-                      <button type="button" className="ops-button-secondary" onClick={() => void handleIssueCreditNote()} disabled={!canWrite || !creditNoteForm.amount || !creditNoteForm.reason}>
-                        Issue credit note
-                      </button>
+                        <button type="button" className="ops-button-secondary" onClick={() => void handleIssueCreditNote()} disabled={!canWrite || !creditNoteForm.amount || !creditNoteForm.reason}>
+                          Émettre une note de crédit
+                        </button>
                     </div>
                   </div>
                   <CreditNoteList
@@ -604,13 +604,13 @@ export function BillingInvoicePanel() {
                 </div>
 
                 <div className="ops-detail-section">
-                  <h5>Refund obligation</h5>
+                  <h5>Obligation de remboursement</h5>
                   {selectedInvoice.refund_obligation ? (
                     <>
                       <p className="ops-section-helper">
-                        Status {statusLabel(selectedInvoice.refund_obligation.status)} · Amount {formatAmount(selectedInvoice.refund_obligation.refund_amount)} MGA
+                        Statut {statusLabel(selectedInvoice.refund_obligation.status)} · Montant {formatAmount(selectedInvoice.refund_obligation.refund_amount)} MGA
                       </p>
-                      <p className="ops-note">{selectedInvoice.refund_obligation.notes || "No notes."}</p>
+                      <p className="ops-note">{selectedInvoice.refund_obligation.notes || "Aucune note."}</p>
                       {canWrite && selectedInvoice.refund_obligation.status === "pending" ? (
                         <div className="ops-inline-form">
                           <label>
@@ -618,24 +618,24 @@ export function BillingInvoicePanel() {
                             <input
                               value={refundForm.notes}
                               onChange={(e) => setRefundForm({ notes: e.target.value })}
-                              placeholder="Execution notes"
+                              placeholder="Notes d'exécution"
                             />
                           </label>
                           <div className="ops-panel__actions">
                             <button type="button" className="ops-button" onClick={() => void handleExecuteRefund()}>
-                              Execute refund obligation
+                              Exécuter le remboursement
                             </button>
                           </div>
                         </div>
                       ) : null}
                     </>
                   ) : (
-                    <p className="ops-empty">No refund obligation linked to this invoice.</p>
+                    <p className="ops-empty">Aucun remboursement lié à cette facture.</p>
                   )}
                 </div>
               </>
             ) : (
-              <p className="ops-empty">Select an invoice to inspect billing, settlement, and credit note details.</p>
+              <p className="ops-empty">Sélectionnez une facture pour voir les détails.</p>
             )}
 
             {actionState.status === "error" ? (

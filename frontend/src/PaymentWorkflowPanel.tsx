@@ -71,7 +71,7 @@ function PaymentRow({ payment, onConfirm, confirming }: PaymentRowProps) {
       <div
         className="payment-row__status-badge"
         style={{ color: statusColor(payment.payment_status) }}
-        aria-label={`Payment status: ${payment.payment_status}`}
+        aria-label={`Statut du paiement : ${payment.payment_status}`}
       >
         {payment.payment_status}
       </div>
@@ -80,14 +80,14 @@ function PaymentRow({ payment, onConfirm, confirming }: PaymentRowProps) {
           className="payment-confirm-btn"
           onClick={() => onConfirm(payment.id)}
           disabled={confirming}
-          aria-label={`Confirm payment ${payment.id}`}
+          aria-label={`Confirmer le paiement ${payment.id}`}
         >
-          {confirming ? 'Confirming...' : 'Confirm'}
+          {confirming ? 'Confirmation...' : 'Confirmer'}
         </button>
       )}
       {payment.receipt_document && (
-        <div className="payment-row__receipt-badge" aria-label="Receipt generated">
-          Receipt: {payment.receipt_document.status}
+        <div className="payment-row__receipt-badge" aria-label="Reçu généré">
+          Reçu : {payment.receipt_document.status}
         </div>
       )}
     </div>
@@ -142,7 +142,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
         setForm(EMPTY_FORM);
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
-          setError(err.message || 'Failed to create payment.');
+          setError(err.message || 'Échec de la création du paiement.');
         }
       } finally {
         setSubmitting(false);
@@ -160,12 +160,12 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
   const needsSource = !form.reservation_draft && !form.source_label;
 
   return (
-    <form className="payment-create-form" onSubmit={handleSubmit} aria-label="Create payment form">
-      <h4 className="payment-form__heading">New Payment</h4>
+    <form className="payment-create-form" onSubmit={handleSubmit} aria-label="Formulaire de paiement">
+      <h4 className="payment-form__heading">Nouveau paiement</h4>
 
       <div className="payment-form__row">
         <div className="payment-form__field">
-          <label htmlFor="payment_kind">Kind</label>
+          <label htmlFor="payment_kind">Type</label>
           <select
             id="payment_kind"
             name="payment_kind"
@@ -181,7 +181,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
         </div>
 
         <div className="payment-form__field">
-          <label htmlFor="payment_method">Method</label>
+          <label htmlFor="payment_method">Moyen</label>
           <select
             id="payment_method"
             name="payment_method"
@@ -197,7 +197,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
         </div>
 
         <div className="payment-form__field">
-          <label htmlFor="payment_amount">Amount (MGA)</label>
+          <label htmlFor="payment_amount">Montant (MGA)</label>
           <input
             id="payment_amount"
             type="number"
@@ -214,12 +214,12 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
 
       <div className="payment-form__row">
         <div className="payment-form__field payment-form__field--wide">
-          <label htmlFor="reservation_draft_id">Reservation Draft UUID (optional)</label>
+          <label htmlFor="reservation_draft_id">UUID réservation (optionnel)</label>
           <input
             id="reservation_draft_id"
             type="text"
             name="reservation_draft"
-            placeholder="Leave blank for standalone payment"
+            placeholder="Laisser vide pour paiement autonome"
             value={form.reservation_draft ?? ''}
             onChange={handleChange}
           />
@@ -227,16 +227,16 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
 
         <div className="payment-form__field payment-form__field--wide">
           <label htmlFor="source_label">
-            Source Label
+            Libellé source
             {needsSource && (
-              <span className="payment-form__required"> (required for standalone)</span>
+              <span className="payment-form__required"> (obligatoire pour paiement autonome)</span>
             )}
           </label>
           <input
             id="source_label"
             type="text"
             name="source_label"
-            placeholder="e.g. Direct client payment"
+            placeholder="Ex : Paiement direct client"
             value={form.source_label}
             onChange={handleChange}
           />
@@ -250,7 +250,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
             id="payment_notes"
             name="notes"
             rows={2}
-            placeholder="Optional notes"
+            placeholder="Notes optionnelles"
             value={form.notes}
             onChange={handleChange}
           />
@@ -267,9 +267,9 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
         className="payment-form__submit"
         type="submit"
         disabled={submitting || !form.amount}
-        aria-label="Submit new payment"
+        aria-label="Soumettre le paiement"
       >
-        {submitting ? 'Creating...' : 'Create Payment'}
+        {submitting ? 'Création...' : 'Créer le paiement'}
       </button>
     </form>
   );
@@ -318,7 +318,7 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
       onDone(updated);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
-        setError(err.message || 'Confirmation failed.');
+        setError(err.message || 'Échec de la confirmation.');
       }
     } finally {
       setSubmitting(false);
@@ -336,17 +336,17 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
       className="confirm-dialog"
       role="dialog"
       aria-modal="true"
-      aria-label="Confirm payment dialog"
+      aria-label="Confirmer le paiement"
     >
       <div className="confirm-dialog__backdrop" onClick={onCancel} />
       <div className="confirm-dialog__panel">
-        <h4 className="confirm-dialog__heading">Confirm Payment</h4>
+        <h4 className="confirm-dialog__heading">Confirmer le paiement</h4>
         <p className="confirm-dialog__hint">
-          Confirming will auto-generate a receipt document.
+          La confirmation générera un reçu automatiquement.
         </p>
 
         <div className="payment-form__field">
-          <label htmlFor="confirm_paid_at">Paid At</label>
+          <label htmlFor="confirm_paid_at">Payé le</label>
           <input
             id="confirm_paid_at"
             type="datetime-local"
@@ -358,12 +358,12 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
         </div>
 
         <div className="payment-form__field">
-          <label htmlFor="confirm_external_ref">External Reference</label>
+          <label htmlFor="confirm_external_ref">Référence externe</label>
           <input
             id="confirm_external_ref"
             type="text"
             name="external_reference"
-            placeholder="Bank ref, TxID..."
+            placeholder="Réf. bancaire, TxID..."
             value={payload.external_reference ?? ''}
             onChange={handleChange}
           />
@@ -391,17 +391,17 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
             className="confirm-dialog__btn confirm-dialog__btn--cancel"
             onClick={onCancel}
             disabled={submitting}
-            aria-label="Cancel payment confirmation"
+            aria-label="Annuler la confirmation"
           >
-            Cancel
+            Annuler
           </button>
           <button
             className="confirm-dialog__btn confirm-dialog__btn--confirm"
             onClick={handleConfirm}
             disabled={submitting}
-            aria-label="Confirm and generate receipt"
+            aria-label="Confirmer et générer le reçu"
           >
-            {submitting ? 'Processing...' : 'Confirm & Generate Receipt'}
+            {submitting ? 'Traitement...' : 'Confirmer et générer le reçu'}
           </button>
         </div>
       </div>
@@ -435,7 +435,7 @@ export default function PaymentWorkflowPanel() {
       setPayments(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
-        setError(err.message || 'Failed to load payments.');
+        setError(err.message || 'Échec du chargement des paiements.');
       }
     } finally {
       setLoading(false);
@@ -462,27 +462,27 @@ export default function PaymentWorkflowPanel() {
   return (
     <div className="payment-workflow-panel" data-testid="payment-workflow-panel">
       <div className="payment-workflow-panel__header">
-        <h3 className="payment-workflow-panel__title">Transactions</h3>
+        <h3 className="payment-workflow-panel__title">Paiements</h3>
         <div className="payment-workflow-panel__actions">
           <button
             className="payment-workflow-panel__refresh"
             onClick={loadPayments}
             disabled={loading}
-            aria-label="Refresh payments"
+            aria-label="Actualiser les paiements"
           >
-            {loading ? 'Loading...' : 'Refresh'}
+            {loading ? 'Chargement...' : 'Actualiser'}
           </button>
           {canWrite ? (
           <button
             className="payment-workflow-panel__new"
             onClick={() => setShowForm((v) => !v)}
             aria-expanded={showForm}
-            aria-label={showForm ? 'Close create payment form' : 'Open create payment form'}
+            aria-label={showForm ? 'Fermer le formulaire' : 'Ouvrir le formulaire de paiement'}
           >
-            {showForm ? 'Close' : 'New Payment'}
+            {showForm ? 'Fermer' : 'Nouveau paiement'}
           </button>
           ) : (
-            <p className="status">Sign in with write access to create payments.</p>
+            <p className="status">Connectez-vous avec un accès écriture pour créer des paiements.</p>
           )}
         </div>
       </div>
@@ -491,7 +491,7 @@ export default function PaymentWorkflowPanel() {
 
       {loading && (
         <div className="payment-workflow-panel__loading" aria-live="polite">
-          Loading payments...
+          Chargement des paiements...
         </div>
       )}
 
@@ -502,7 +502,7 @@ export default function PaymentWorkflowPanel() {
       )}
 
       {!loading && !error && payments.length === 0 && (
-        <div className="payment-workflow-panel__empty">No payments recorded yet.</div>
+        <div className="payment-workflow-panel__empty">Aucun paiement enregistré.</div>
       )}
 
       {!loading && !error && payments.length > 0 && (

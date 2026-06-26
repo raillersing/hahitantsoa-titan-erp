@@ -94,9 +94,9 @@ describe("CautionRefundPanel", () => {
 
     render(<CautionRefundPanel />);
 
-    expect(screen.getByText("Caution Deposits & Refunds")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Caution Deposits" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Settlements" })).toBeInTheDocument();
+    expect(screen.getByText("Dépôts de caution & Remboursements")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Dépôts de caution" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Règlements" })).toBeInTheDocument();
   });
 
   it("shows empty state when no caution deposits exist", async () => {
@@ -105,7 +105,7 @@ describe("CautionRefundPanel", () => {
     render(<CautionRefundPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("No caution deposits recorded.")).toBeInTheDocument();
+      expect(screen.getByText("Aucun dépôt de caution enregistré.")).toBeInTheDocument();
     });
   });
 
@@ -116,7 +116,7 @@ describe("CautionRefundPanel", () => {
 
     render(<CautionRefundPanel />);
 
-    expect(screen.getByText("Loading caution deposits...")).toBeInTheDocument();
+    expect(screen.getByText("Chargement des dépôts...")).toBeInTheDocument();
   });
 
   it("filters to only caution payment kinds", async () => {
@@ -145,7 +145,7 @@ describe("CautionRefundPanel", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "Retry loading caution deposits" }),
+      screen.getByRole("button", { name: "Réessayer le chargement" }),
     ).toBeInTheDocument();
   });
 
@@ -159,7 +159,7 @@ describe("CautionRefundPanel", () => {
       expect(screen.getByTestId("caution-deposits-panel")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "Settlements" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Règlements" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("caution-settlements-panel")).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe("CautionRefundPanel", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByLabelText("New caution deposit"),
+        screen.getByLabelText("Nouveau dépôt de caution"),
       ).toBeInTheDocument();
     });
   });
@@ -193,7 +193,7 @@ describe("CautionRefundPanel", () => {
     });
 
     expect(
-      screen.queryByLabelText("New caution deposit"),
+      screen.queryByLabelText("Nouveau dépôt de caution"),
     ).not.toBeInTheDocument();
   });
 
@@ -208,20 +208,20 @@ describe("CautionRefundPanel", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByLabelText("New caution deposit"),
+        screen.getByLabelText("Nouveau dépôt de caution"),
       ).toBeInTheDocument();
     });
 
-    const toggleBtn = screen.getByLabelText("New caution deposit");
+    const toggleBtn = screen.getByLabelText("Nouveau dépôt de caution");
     fireEvent.click(toggleBtn);
 
-    expect(screen.getByText("New Caution Deposit")).toBeInTheDocument();
+    expect(screen.getByText("Nouveau dépôt de caution")).toBeInTheDocument();
 
-    const amountInput = screen.getByLabelText("Amount (MGA)");
+    const amountInput = screen.getByLabelText("Montant (MGA)");
     fireEvent.change(amountInput, { target: { value: "500000" } });
 
     const submitBtn = screen.getByRole("button", {
-      name: "Submit caution deposit",
+      name: "Soumettre le dépôt",
     });
     fireEvent.click(submitBtn);
 
@@ -239,7 +239,7 @@ describe("CautionRefundPanel", () => {
 
     render(<CautionRefundPanel />);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Settlements" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Règlements" }));
 
     await waitFor(() => {
       expect(
@@ -248,7 +248,7 @@ describe("CautionRefundPanel", () => {
     });
 
     const retryBtn = screen.getByRole("button", {
-      name: "Retry loading settlements",
+      name: "Réessayer le chargement",
     });
     fireEvent.click(retryBtn);
 
