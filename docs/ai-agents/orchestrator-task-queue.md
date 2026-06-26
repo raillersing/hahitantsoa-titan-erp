@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `d2a3246`.
-- `main` CI is green as verified on 2026-06-25 (run 28186281646).
+- `origin/main` HEAD is `c2d4c6c`.
+- `main` CI is green as verified on 2026-06-26 (run 28228566342).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -46,9 +46,8 @@ Status:
 
 Current frontend posture:
 - the planned FE-B0 through FE-J bundle sequence is complete on `main`
-- the next need is not another medium implementation bundle by default
-- the immediate need is a docs/audit refresh so cartography and design references
-  match the real post-frontend state
+- the next need is the F180 finalization series (frontend-first, full-application completion)
+- see F180C bundle 3 and F180C1 entries below
 
 ### Frontend audit state
 
@@ -61,6 +60,34 @@ Immediate rule for future frontend tasks:
 - read `docs/audits/F178A_FRONTEND_CONNECTIVITY_AND_HYGIENE_AUDIT.md`
 - read the refreshed F178B cartography/design docs
 - do not plan FE-C through FE-J again as future work
+
+### F180 finalization series
+
+Goal: Finish the application for realistic user testing — frontend UX, backend gaps if approved, QA, demo data, documentation, E2E scenarios, final polish.
+
+Backend freeze policy for F180:
+- Start frontend-first, reuse existing APIs.
+- If existing APIs are sufficient, continue.
+- If a missing backend capability blocks a required workflow, report the gap.
+- Classify gaps as: (1) small bug fix allowed under freeze, (2) required micro-backend derogation, (3) business/legal decision, (4) future/post-MVP scope.
+- Do not implement backend changes without explicit approval (except small bug fixes).
+
+### F180C bundle 3 — Planning/calendar UI
+
+Status:
+- **merged** as PR #433
+- HEAD at merge: `c2d4c6c`
+- scope: weekly planning table view in `PlanningPanel.tsx`, Titan/Hahitantsoa filters, week navigation, route integration, tests fixed
+
+### F180C1 — Enriched client file
+
+Status:
+- **active implementation bundle**
+- scope: enrich `CustomerFileView` in `CustomerPanel.tsx` with linked documents, billing/invoices, payments, logistics, financial summary, customer metrics, dossier timeline
+- frontend-first: implement in frontend using existing APIs; report backend gaps (e.g., missing customer-filtered billing/payments/logistics endpoints) if they block required functionality
+- allowed: `frontend/src/CustomerPanel.tsx`, `frontend/src/api.ts`, `frontend/src/types.ts`, `frontend/src/styles.css`
+- forbidden: migrations, new models, new backend endpoints without explicit derogation
+- hard stops: any required backend model/endpoint change without human approval (except small bug fixes)
 
 ### Active workflow improvement bundle
 

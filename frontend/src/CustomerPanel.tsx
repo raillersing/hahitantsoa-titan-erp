@@ -10,6 +10,10 @@ import {
   checkCustomerWritePermission,
   getReservationDrafts,
   getHahitantsoaEventDrafts,
+  getBillingInvoices,
+  getPayments,
+  getLogisticsEvents,
+  getReservationDraftDocumentInstances,
   type CustomerSearchParams,
 } from "./api";
 import type {
@@ -18,6 +22,10 @@ import type {
   CustomerUpdatePayload,
   ReservationDraft,
   HahitantsoaEventDraft,
+  BillingInvoice,
+  Payment,
+  LogisticsEvent,
+  DocumentInstance,
 } from "./types";
 
 type ViewState = "list" | "detail" | "create" | "edit" | "fiche";
@@ -49,6 +57,12 @@ type ReservationDraftsState =
 type EventDraftsState =
   | { status: "loading" }
   | { status: "loaded"; drafts: HahitantsoaEventDraft[] }
+  | { status: "empty" }
+  | { status: "error"; message: string };
+
+type FicheLinkedState<T> =
+  | { status: "loading" }
+  | { status: "loaded"; items: T[] }
   | { status: "empty" }
   | { status: "error"; message: string };
 
@@ -637,17 +651,72 @@ function CustomerFileView({
   customer,
   reservationDraftsState,
   eventDraftsState,
+  documentsState,
+  invoicesState,
+  paymentsState,
+  logisticsState,
   onBack,
-  onRetryReservations,
-  onRetryEvents,
+  onRetry,
+  onRetryLinked,
 }: {
   customer: Customer;
   reservationDraftsState: ReservationDraftsState;
   eventDraftsState: EventDraftsState;
+  documentsState: FicheLinkedState<DocumentInstance>;
+  invoicesState: FicheLinkedState<BillingInvoice>;
+  paymentsState: FicheLinkedState<Payment>;
+  logisticsState: FicheLinkedState<LogisticsEvent>;
   onBack: () => void;
-  onRetryReservations: () => void;
-  onRetryEvents: () => void;
+  onRetry: () => void;
+  onRetryLinked: () => void;
 }) {
+  const isLoaded = <T,>(s: FicheLinkedState<T>): s is { status: "loaded"; items: T[] } =>
+    s.status === "loaded";
+  const isEmpty = <T,>(s: FicheLinkedState<T>): s is { status: "empty" } =>
+    s.status === "empty";
+  const isError = <T,>(s: FicheLinkedState<T>): s is { status: "error"; message: string } =>
+    s.status === "error";
+
+  const allItems = [
+    ...(reservationDraftsState.status === "loaded" ? reservationDraftsState.drafts : []),
+    ...(eventDraftsState.status === "loaded" ? eventDraftsState.drafts : []),
+  ];
+  const invoiceItems = isLoaded(invoicesState) ? invoicesState.items : [];
+  const paymentItems = isLoaded(paymentsState) ? paymentsState.items : [];
+  const docItems = isLoaded(documentsState) ? documentsState.items : [];
+  const logisticsItems = isLoaded(logisticsState) ? logisticsState.items : [];
+
+  const totalInvoiced = invoiceItems.reduce((sum, inv) => sum + Number(inv.amount), 0);
+  const totalSettled = invoiceItems.reduce(
+    (sum, inv) => sum + (inv.amount_settled ? Number(inv.amount_settled) : 0),
+    0,
+  );
+  const totalOutstanding = invoiceItems.reduce(
+    (sum, inv) => sum + (inv.remaining_balance ? Number(inv.remaining_balance) : 0),
+    0,
+  );
+
+  const timeline: { date: Date; label: string; kind: string }[] = [];
+
+  for (const d of (reservationDraftsState.status === "loaded" ? reservationDraftsState.drafts : [])) {
+    timeline.push({ date: new Date(d.created_at), label: `Réservation ${d.public_reference} créée`, kind: "reservation" });
+    if (d.confirmed_at) timeline.push({ date: new Date(d.confirmed_at), label: `Réservation ${d.public_reference} confirmée`, kind: "reservation" });
+  }
+  for (const d of (eventDraftsState.status === "loaded" ? eventDraftsState.drafts : [])) {
+    timeline.push({ date: new Date(d.created_at), label: `Événement ${d.event_name} créé`, kind: "event" });
+  }
+  for (const doc of docItems) {
+    timeline.push({ date: new Date(doc.prepared_at), label: `Document ${doc.template_label} préparé`, kind: "document" });
+  }
+  for (const pmt of paymentItems) {
+    if (pmt.confirmed_at) timeline.push({ date: new Date(pmt.confirmed_at), label: `Paiement de ${Number(pmt.amount).toLocaleString()} Ar confirmé`, kind: "payment" });
+  }
+  for (const evt of logisticsItems) {
+    if (evt.scheduled_at) timeline.push({ date: new Date(evt.scheduled_at), label: `Événement logistique ${evt.event_type} planifié`, kind: "logistics" });
+  }
+
+  timeline.sort((a, b) => b.date.getTime() - a.date.getTime());
+
   return (
     <div>
       <button type="button" className="back-btn" onClick={onBack}>
@@ -683,6 +752,40 @@ function CustomerFileView({
         </dl>
       </div>
 
+      <div className="customer-metrics" style={{ marginTop: "1.5rem" }}>
+        <article className="customer-metric-card">
+          <span>Réservations</span>
+          <strong>{allItems.length}</strong>
+        </article>
+        <article className="customer-metric-card">
+          <span>Documents</span>
+          <strong>{docItems.length}</strong>
+        </article>
+        <article className="customer-metric-card">
+          <span>Factures</span>
+          <strong>{invoiceItems.length}</strong>
+        </article>
+        <article className="customer-metric-card">
+          <span>Paiements</span>
+          <strong>{paymentItems.length}</strong>
+        </article>
+      </div>
+
+      <div className="fiche-summary-cards" style={{ marginTop: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <div className="fiche-summary-card">
+          <span className="fiche-summary-label">Total facturé</span>
+          <strong className="fiche-summary-value">{totalInvoiced.toLocaleString()} Ar</strong>
+        </div>
+        <div className="fiche-summary-card">
+          <span className="fiche-summary-label">Réglé</span>
+          <strong className="fiche-summary-value">{totalSettled.toLocaleString()} Ar</strong>
+        </div>
+        <div className="fiche-summary-card">
+          <span className="fiche-summary-label">Restant dû</span>
+          <strong className="fiche-summary-value">{totalOutstanding.toLocaleString()} Ar</strong>
+        </div>
+      </div>
+
       <div className="section-heading" style={{ marginTop: "2rem" }}>
         <div>
           <h3>Réservations Titan</h3>
@@ -699,7 +802,7 @@ function CustomerFileView({
       {reservationDraftsState.status === "error" ? (
         <div className="notice error-notice" role="alert">
           <p>{reservationDraftsState.message}</p>
-          <button type="button" onClick={onRetryReservations}>Réessayer</button>
+          <button type="button" onClick={onRetry}>Réessayer</button>
         </div>
       ) : null}
 
@@ -745,7 +848,7 @@ function CustomerFileView({
       {eventDraftsState.status === "error" ? (
         <div className="notice error-notice" role="alert">
           <p>{eventDraftsState.message}</p>
-          <button type="button" onClick={onRetryEvents}>Réessayer</button>
+          <button type="button" onClick={onRetry}>Réessayer</button>
         </div>
       ) : null}
 
@@ -774,6 +877,194 @@ function CustomerFileView({
           ))}
         </ul>
       ) : null}
+
+      <div className="section-heading" style={{ marginTop: "2rem" }}>
+        <div>
+          <h3>Documents</h3>
+          <p className="section-helper">
+            Documents générés liés à ce client.
+          </p>
+        </div>
+      </div>
+
+      {documentsState.status === "loading" ? (
+        <p className="status loading-spinner" aria-live="polite">Chargement des documents...</p>
+      ) : null}
+
+      {documentsState.status === "error" ? (
+        <div className="notice error-notice" role="alert">
+          <p>{documentsState.message}</p>
+          <button type="button" onClick={onRetryLinked}>Réessayer</button>
+        </div>
+      ) : null}
+
+      {documentsState.status === "empty" ? (
+        <div className="notice info-notice" role="status">
+          <p>Aucun document trouvé pour ce client.</p>
+        </div>
+      ) : null}
+
+      {documentsState.status === "loaded" ? (
+        <ul className="preview-list">
+          {documentsState.items.map((doc) => (
+            <li key={doc.id}>
+              <div>
+                <strong>{doc.template_label}</strong>
+                <span className="status-badge status-draft">{doc.status}</span>
+              </div>
+              <span>{doc.reservation_public_reference || "—"}</span>
+              <span>{new Date(doc.prepared_at).toLocaleDateString()}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="section-heading" style={{ marginTop: "2rem" }}>
+        <div>
+          <h3>Facturation</h3>
+          <p className="section-helper">
+            Factures liées à ce client.
+          </p>
+        </div>
+      </div>
+
+      {invoicesState.status === "loading" ? (
+        <p className="status loading-spinner" aria-live="polite">Chargement des factures...</p>
+      ) : null}
+
+      {invoicesState.status === "error" ? (
+        <div className="notice error-notice" role="alert">
+          <p>{invoicesState.message}</p>
+          <button type="button" onClick={onRetryLinked}>Réessayer</button>
+        </div>
+      ) : null}
+
+      {invoicesState.status === "empty" ? (
+        <div className="notice info-notice" role="status">
+          <p>Aucune facture trouvée pour ce client.</p>
+        </div>
+      ) : null}
+
+      {invoicesState.status === "loaded" ? (
+        <ul className="preview-list">
+          {invoicesState.items.map((inv) => (
+            <li key={inv.id}>
+              <div>
+                <strong>{Number(inv.amount).toLocaleString()} Ar</strong>
+                <span className="status-badge status-draft">{inv.invoice_status}</span>
+              </div>
+              <span>{inv.source_kind}</span>
+              <span>{new Date(inv.issued_at).toLocaleDateString()}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="section-heading" style={{ marginTop: "2rem" }}>
+        <div>
+          <h3>Paiements</h3>
+          <p className="section-helper">
+            Paiements liés à ce client.
+          </p>
+        </div>
+      </div>
+
+      {paymentsState.status === "loading" ? (
+        <p className="status loading-spinner" aria-live="polite">Chargement des paiements...</p>
+      ) : null}
+
+      {paymentsState.status === "error" ? (
+        <div className="notice error-notice" role="alert">
+          <p>{paymentsState.message}</p>
+          <button type="button" onClick={onRetryLinked}>Réessayer</button>
+        </div>
+      ) : null}
+
+      {paymentsState.status === "empty" ? (
+        <div className="notice info-notice" role="status">
+          <p>Aucun paiement trouvé pour ce client.</p>
+        </div>
+      ) : null}
+
+      {paymentsState.status === "loaded" ? (
+        <ul className="preview-list">
+          {paymentsState.items.map((pmt) => (
+            <li key={pmt.id}>
+              <div>
+                <strong>{Number(pmt.amount).toLocaleString()} Ar</strong>
+                <span className="status-badge status-draft">{pmt.payment_status}</span>
+              </div>
+              <span>{pmt.payment_method}</span>
+              <span>{pmt.confirmed_at ? new Date(pmt.confirmed_at).toLocaleDateString() : "—"}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="section-heading" style={{ marginTop: "2rem" }}>
+        <div>
+          <h3>Logistique</h3>
+          <p className="section-helper">
+            Événements logistiques liés à ce client.
+          </p>
+        </div>
+      </div>
+
+      {logisticsState.status === "loading" ? (
+        <p className="status loading-spinner" aria-live="polite">Chargement des événements logistiques...</p>
+      ) : null}
+
+      {logisticsState.status === "error" ? (
+        <div className="notice error-notice" role="alert">
+          <p>{logisticsState.message}</p>
+          <button type="button" onClick={onRetryLinked}>Réessayer</button>
+        </div>
+      ) : null}
+
+      {logisticsState.status === "empty" ? (
+        <div className="notice info-notice" role="status">
+          <p>Aucun événement logistique trouvé pour ce client.</p>
+        </div>
+      ) : null}
+
+      {logisticsState.status === "loaded" ? (
+        <ul className="preview-list">
+          {logisticsState.items.map((evt) => (
+            <li key={evt.id}>
+              <div>
+                <strong>{evt.event_type}</strong>
+                <span className="status-badge status-draft">{evt.status}</span>
+              </div>
+              <span>{evt.scheduled_at ? new Date(evt.scheduled_at).toLocaleDateString() : "—"}</span>
+              <span>{evt.address || "—"}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <div className="section-heading" style={{ marginTop: "2rem" }}>
+        <div>
+          <h3>Chronologie</h3>
+          <p className="section-helper">
+            Historique chronologique des événements.
+          </p>
+        </div>
+      </div>
+
+      {timeline.length === 0 ? (
+        <div className="notice info-notice" role="status">
+          <p>Aucun événement enregistré.</p>
+        </div>
+      ) : (
+        <ul className="timeline-list">
+          {timeline.slice(0, 20).map((entry, i) => (
+            <li key={i} className={`timeline-item timeline-item--${entry.kind}`}>
+              <span className="timeline-date">{entry.date.toLocaleDateString()}</span>
+              <span className="timeline-label">{entry.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -797,6 +1088,18 @@ export function CustomerPanel() {
     status: "loading",
   });
   const [eventDraftsState, setEventDraftsState] = useState<EventDraftsState>({
+    status: "loading",
+  });
+  const [documentsState, setDocumentsState] = useState<FicheLinkedState<DocumentInstance>>({
+    status: "loading",
+  });
+  const [invoicesState, setInvoicesState] = useState<FicheLinkedState<BillingInvoice>>({
+    status: "loading",
+  });
+  const [paymentsState, setPaymentsState] = useState<FicheLinkedState<Payment>>({
+    status: "loading",
+  });
+  const [logisticsState, setLogisticsState] = useState<FicheLinkedState<LogisticsEvent>>({
     status: "loading",
   });
 
@@ -902,10 +1205,82 @@ export function CustomerPanel() {
       });
   }, []);
 
+  const loadFicheLinkedData = useCallback(async (customerId: string) => {
+    setDocumentsState({ status: "loading" });
+    setInvoicesState({ status: "loading" });
+    setPaymentsState({ status: "loading" });
+    setLogisticsState({ status: "loading" });
+
+    const allDraftIds: string[] = [];
+    try {
+      const drafts = await getReservationDrafts(customerId);
+      allDraftIds.push(...drafts.map((d) => d.id));
+    } catch {
+      // reservation drafts already loaded by loadCustomerDrafts
+    }
+
+    const draftSet = new Set(allDraftIds);
+
+    const setLoaded = <T,>(
+      setter: (s: FicheLinkedState<T>) => void,
+      items: T[],
+      getId: (item: T) => string | null,
+    ) => {
+      const filtered = items.filter((item) => {
+        const id = getId(item);
+        return id !== null && draftSet.has(id);
+      });
+      setter(
+        filtered.length === 0
+          ? { status: "empty" }
+          : { status: "loaded", items: filtered },
+      );
+    };
+
+    const setError = <T,>(
+      setter: (s: FicheLinkedState<T>) => void,
+      err: unknown,
+    ) => {
+      setter({
+        status: "error",
+        message: err instanceof Error ? err.message : "Failed to load data.",
+      });
+    };
+
+    await Promise.all([
+      getBillingInvoices()
+        .then((items) => setLoaded(setInvoicesState, items, (i: BillingInvoice) => i.reservation_draft))
+        .catch((err) => setError(setInvoicesState, err)),
+      getPayments()
+        .then((items) => setLoaded(setPaymentsState, items, (p: Payment) => p.reservation_draft))
+        .catch((err) => setError(setPaymentsState, err)),
+      getLogisticsEvents()
+        .then((items) => setLoaded(setLogisticsState, items, (l: LogisticsEvent) => l.reservation_draft))
+        .catch((err) => setError(setLogisticsState, err)),
+      (async () => {
+        const allDocs: DocumentInstance[] = [];
+        for (const draftId of allDraftIds) {
+          try {
+            const docs = await getReservationDraftDocumentInstances(draftId);
+            allDocs.push(...docs);
+          } catch {
+            // skip per-draft failures
+          }
+        }
+        setDocumentsState(
+          allDocs.length === 0
+            ? { status: "empty" }
+            : { status: "loaded", items: allDocs },
+        );
+      })(),
+    ]);
+  }, []);
+
   const handleViewFile = (id: string) => {
     setSelectedId(id);
     setView("fiche");
     loadCustomerDrafts(id);
+    loadFicheLinkedData(id);
   };
 
   const handleSelectCustomer = (id: string) => {
@@ -1124,9 +1499,13 @@ export function CustomerPanel() {
             customer={detailState.customer}
             reservationDraftsState={reservationDraftsState}
             eventDraftsState={eventDraftsState}
+            documentsState={documentsState}
+            invoicesState={invoicesState}
+            paymentsState={paymentsState}
+            logisticsState={logisticsState}
             onBack={handleBackFromFiche}
-            onRetryReservations={() => selectedId && loadCustomerDrafts(selectedId)}
-            onRetryEvents={() => selectedId && loadCustomerDrafts(selectedId)}
+            onRetry={() => selectedId && loadCustomerDrafts(selectedId)}
+            onRetryLinked={() => selectedId && loadFicheLinkedData(selectedId)}
           />
         </div>
       ) : null}
