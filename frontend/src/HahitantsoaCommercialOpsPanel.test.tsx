@@ -200,18 +200,18 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     render(<HahitantsoaCommercialOpsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("Titan Documents")).toBeInTheDocument();
-      expect(screen.getByText("Hahitantsoa Documents")).toBeInTheDocument();
+      expect(screen.getByText("Documents Titan")).toBeInTheDocument();
+      expect(screen.getByText("Documents Hahitantsoa")).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("titan-documents-panel")).toBeInTheDocument();
-    expect(screen.getByText("Titan Reservation Draft Documents")).toBeInTheDocument();
+    expect(screen.getByText("Documents des brouillons de réservation Titan")).toBeInTheDocument();
 
-    const hahitantsoaTab = screen.getByText("Hahitantsoa Documents");
+    const hahitantsoaTab = screen.getByText("Documents Hahitantsoa");
     fireEvent.click(hahitantsoaTab);
 
     await waitFor(() => {
-      expect(screen.getByText("Hahitantsoa Event Draft Documents")).toBeInTheDocument();
+      expect(screen.getByText("Documents des brouillons d'événements Hahitantsoa")).toBeInTheDocument();
     });
   });
 
@@ -230,20 +230,20 @@ describe("HahitantsoaCommercialOpsPanel", () => {
       expect(screen.getByTestId("titan-documents-panel")).toBeInTheDocument();
     });
 
-    const draftSelect = screen.getByLabelText(/Select Reservation Draft:/i) as HTMLSelectElement;
+    const draftSelect = screen.getByLabelText(/Sélectionnez un brouillon de réservation :/i) as HTMLSelectElement;
     fireEvent.change(draftSelect, { target: { value: "draft-1" } });
 
     await waitFor(() => {
       expect(screen.getByText("Hahitantsoa Contract")).toBeInTheDocument();
     });
 
-    const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
+    const templateSelect = screen.getByLabelText(/Choisissez un modèle/i) as HTMLSelectElement;
     fireEvent.change(templateSelect, { target: { value: "hahitantsoa.contract.v1" } });
 
-    const notesInput = screen.getByPlaceholderText("Instance Notes") as HTMLInputElement;
+    const notesInput = screen.getByPlaceholderText("Notes de l'instance") as HTMLInputElement;
     fireEvent.change(notesInput, { target: { value: "New Notes" } });
 
-    const prepareBtn = screen.getByRole("button", { name: "Prepare Instance" });
+    const prepareBtn = screen.getByRole("button", { name: "Préparer l'instance" });
     fireEvent.click(prepareBtn);
 
     await waitFor(() => {
@@ -253,7 +253,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
       });
     });
 
-    const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
+    const generateBtn = screen.getByRole("button", { name: "Générer HTML" });
     fireEvent.click(generateBtn);
 
     await waitFor(() => {

@@ -177,9 +177,9 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     expect(screen.getByTestId("titan-documents-panel")).toBeInTheDocument();
-    expect(screen.getByText("Titan Reservation Draft Documents")).toBeInTheDocument();
+    expect(screen.getByText("Documents des brouillons de réservation Titan")).toBeInTheDocument();
     expect(
-      screen.getByText(/Manage document instances for Titan reservation drafts/),
+      screen.getByText(/Gérez les instances de documents pour les brouillons de réservation Titan/),
     ).toBeInTheDocument();
   });
 
@@ -191,13 +191,13 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Reservation Draft/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Sélectionnez un brouillon de réservation/i)).toBeInTheDocument();
     });
 
-    const select = screen.getByLabelText(/Select Reservation Draft/i) as HTMLSelectElement;
+    const select = screen.getByLabelText(/Sélectionnez un brouillon de réservation/i) as HTMLSelectElement;
     expect(select.value).toBe("");
     expect(select.options.length).toBe(1);
-    expect(select.options[0].text).toContain("Choose Reservation Draft");
+    expect(select.options[0].text).toContain("Choisissez un brouillon");
   });
 
   it("loads and displays drafts in the selector", async () => {
@@ -225,7 +225,7 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      const select = screen.getByLabelText(/Select Reservation Draft/i) as HTMLSelectElement;
+      const select = screen.getByLabelText(/Sélectionnez un brouillon de réservation/i) as HTMLSelectElement;
       expect(select.value).toBe("draft-1");
     });
 
@@ -248,7 +248,7 @@ describe("TitanDocumentsPanel", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("No document instances prepared for this draft."),
+        screen.getByText("Aucune instance de document préparée pour ce brouillon."),
       ).toBeInTheDocument();
     });
   });
@@ -292,21 +292,21 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      const select = screen.getByLabelText(/Select Reservation Draft/i) as HTMLSelectElement;
+      const select = screen.getByLabelText(/Sélectionnez un brouillon de réservation/i) as HTMLSelectElement;
       expect(select.value).toBe("draft-1");
     });
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Choose Template/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Choisissez un modèle/i)).toBeInTheDocument();
     });
 
-    const templateSelect = screen.getByLabelText(/Choose Template/i) as HTMLSelectElement;
+    const templateSelect = screen.getByLabelText(/Choisissez un modèle/i) as HTMLSelectElement;
     fireEvent.change(templateSelect, { target: { value: "titan.proforma.v1" } });
 
-    const notesInput = screen.getByPlaceholderText("Instance Notes") as HTMLInputElement;
+    const notesInput = screen.getByPlaceholderText("Notes de l'instance") as HTMLInputElement;
     fireEvent.change(notesInput, { target: { value: "New Notes" } });
 
-    const prepareBtn = screen.getByRole("button", { name: "Prepare Instance" });
+    const prepareBtn = screen.getByRole("button", { name: "Préparer l'instance" });
     fireEvent.click(prepareBtn);
 
     await waitFor(() => {
@@ -328,10 +328,10 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText("HTML ready (ID: inst-2)")).toBeInTheDocument();
+      expect(screen.getByText("HTML prêt (ID : inst-2)")).toBeInTheDocument();
     });
 
-    const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
+    const generateBtn = screen.getByRole("button", { name: "Générer HTML" });
     fireEvent.click(generateBtn);
 
     await waitFor(() => {
@@ -369,19 +369,19 @@ describe("TitanDocumentsPanel", () => {
     await waitFor(() => {
       const generatedInstance = screen.getByTestId("titan-instance-inst-2");
       expect(generatedInstance).toBeInTheDocument();
-      expect(within(generatedInstance).getByRole("button", { name: "Generate PDF" })).toBeInTheDocument();
+      expect(within(generatedInstance).getByRole("button", { name: "Générer PDF" })).toBeInTheDocument();
     });
 
     fireEvent.click(
       within(screen.getByTestId("titan-instance-inst-2")).getByRole("button", {
-        name: "Generate PDF",
+        name: "Générer PDF",
       }),
     );
 
     await waitFor(() => {
       expect(pdfSpy).toHaveBeenCalledWith("draft-1", "inst-2");
       expect(instancesSpy).toHaveBeenCalledTimes(2);
-      expect(screen.getByText("PDF ready")).toBeInTheDocument();
+      expect(screen.getByText("PDF prêt")).toBeInTheDocument();
     });
   });
 
@@ -400,7 +400,7 @@ describe("TitanDocumentsPanel", () => {
       expect(screen.getByText("Titan Proforma")).toBeInTheDocument();
     });
 
-    const generateBtn = screen.getByRole("button", { name: "Generate HTML" });
+    const generateBtn = screen.getByRole("button", { name: "Générer HTML" });
     fireEvent.click(generateBtn);
 
     await waitFor(() => {
@@ -418,7 +418,7 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      const draftSelect = screen.getByLabelText(/Select Reservation Draft/i) as HTMLSelectElement;
+      const draftSelect = screen.getByLabelText(/Sélectionnez un brouillon de réservation/i) as HTMLSelectElement;
       expect(draftSelect.disabled).toBe(true);
     });
   });
@@ -432,11 +432,11 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Reservation Draft/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Sélectionnez un brouillon de réservation/i)).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: "Prepare Instance" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Write access is required/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Préparer l'instance" })).not.toBeInTheDocument();
+    expect(screen.getByText(/L'accès en écriture est requis/i)).toBeInTheDocument();
   });
 
   it("hides generate button and shows permission note when user lacks write permission", async () => {
@@ -451,7 +451,7 @@ describe("TitanDocumentsPanel", () => {
       expect(screen.getByText("Titan Proforma")).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: "Generate HTML" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Write access required/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Générer HTML" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Accès écriture requis/i)).toBeInTheDocument();
   });
 });

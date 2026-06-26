@@ -53,13 +53,13 @@ describe("BreakageLossPanel", () => {
   it("shows loading state initially", () => {
     vi.spyOn(api, "getDamageLossSettlements").mockReturnValue(new Promise(() => undefined));
     render(<BreakageLossPanel />);
-    expect(screen.getByText("Loading damage assessment...")).toBeInTheDocument();
+    expect(screen.getByText("Chargement de l'évaluation des dommages...")).toBeInTheDocument();
   });
 
   it("renders list and detail", async () => {
     vi.spyOn(api, "getDamageLossSettlements").mockResolvedValue([MOCK_SETTLEMENT]);
     render(<BreakageLossPanel />);
-    expect(await screen.findByText("Settlement detail")).toBeInTheDocument();
+    expect(await screen.findByText("Détail du règlement")).toBeInTheDocument();
     expect(screen.getAllByText("150 000,00 MGA").length).toBeGreaterThan(0);
     expect(screen.getByText("Broken speaker")).toBeInTheDocument();
   });
@@ -70,8 +70,8 @@ describe("BreakageLossPanel", () => {
     render(<BreakageLossPanel />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Network error");
     spy.mockResolvedValue([MOCK_SETTLEMENT]);
-    fireEvent.click(screen.getByRole("button", { name: "Retry loading settlements" }));
-    expect(await screen.findByText("Settlement detail")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer le chargement des règlements" }));
+    expect(await screen.findByText("Détail du règlement")).toBeInTheDocument();
   });
 
   it("shows read-only badge when write permission is absent", async () => {
@@ -89,10 +89,10 @@ describe("BreakageLossPanel", () => {
       validated_at: "2026-06-20T10:00:00Z",
     });
     render(<BreakageLossPanel />);
-    fireEvent.click(await screen.findByRole("button", { name: "Validate settlement" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Valider le règlement" }));
     await waitFor(() => {
       expect(validateSpy).toHaveBeenCalledWith("stl-1");
     });
-    expect((await screen.findAllByText("Validated")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("Validé")).length).toBeGreaterThan(0);
   });
 });

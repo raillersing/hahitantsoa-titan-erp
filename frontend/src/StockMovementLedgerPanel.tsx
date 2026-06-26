@@ -5,18 +5,18 @@ import { checkEndpointPermission, getStockMovements } from "./api";
 import type { InventoryStockMovement } from "./types";
 
 const TYPE_LABELS: Record<string, string> = {
-  outbound_delivery: "Outbound Delivery",
-  inbound_return: "Inbound Return",
-  adjustment_in: "Adjustment In",
-  adjustment_out: "Adjustment Out",
-  damage: "Damage",
-  loss: "Loss",
-  other: "Other",
+  outbound_delivery: "Livraison sortante",
+  inbound_return: "Retour entrant",
+  adjustment_in: "Ajustement entrant",
+  adjustment_out: "Ajustement sortant",
+  damage: "Dommage",
+  loss: "Perte",
+  other: "Autre",
 };
 
 const DIRECTION_LABELS: Record<string, string> = {
-  inbound: "Inbound",
-  outbound: "Outbound",
+  inbound: "Entrant",
+  outbound: "Sortant",
 };
 
 export function StockMovementLedgerPanel() {
@@ -71,32 +71,32 @@ export function StockMovementLedgerPanel() {
     <div className="ops-panel" data-testid="stock-movement-ledger-panel">
       <div className="ops-panel__header">
         <div className="ops-panel__header-copy">
-          <p className="eyebrow">Prototype stock ledger</p>
-          <h3 className="ops-panel__title">Movement ledger and traceability</h3>
+          <p className="eyebrow">Registre de stock prototype</p>
+          <h3 className="ops-panel__title">Registre des mouvements et traçabilité</h3>
           <p className="ops-panel__summary">
-            Stock movement history now uses a prototype-style ledger layout while preserving the Titan-scope write boundary.
+            L'historique des mouvements de stock utilise une mise en page de registre prototype tout en préservant la limite d'écriture Titan.
           </p>
         </div>
         {canWrite ? (
-          <span className="permission-tag permission-ok" data-testid="stock-write-ok">Write access</span>
+          <span className="permission-tag permission-ok" data-testid="stock-write-ok">Accès écriture</span>
         ) : (
-          <span className="permission-tag permission-denied" data-testid="stock-write-denied">Read-only</span>
+          <span className="permission-tag permission-denied" data-testid="stock-write-denied">Lecture seule</span>
         )}
       </div>
 
-      {loading ? <div className="loading-notice">Loading stock movements...</div> : null}
+      {loading ? <div className="loading-notice">Chargement des mouvements de stock...</div> : null}
 
       {!loading && error ? (
         <div className="notice error-notice" role="alert">
           {error}
-          <button onClick={() => void load()} aria-label="Retry loading stock movements">
-            Retry
+          <button onClick={() => void load()} aria-label="Réessayer le chargement des mouvements de stock">
+            Réessayer
           </button>
         </div>
       ) : null}
 
       {!loading && !error && movements.length === 0 ? (
-        <div className="ops-empty">No stock movements recorded yet.</div>
+        <div className="ops-empty">Aucun mouvement de stock enregistré.</div>
       ) : null}
 
       {!loading && !error && movements.length > 0 ? (
@@ -104,11 +104,11 @@ export function StockMovementLedgerPanel() {
           <section className="ops-list-panel">
             <div className="ops-section-heading">
               <div>
-                <h4>Ledger entries</h4>
-                <p className="ops-section-helper">Use the Titan scope for actual movement creation; this view focuses on traceability.</p>
+                <h4>Entrées du registre</h4>
+                <p className="ops-section-helper">Utilisez le scope Titan pour la création de mouvements ; cette vue se concentre sur la traçabilité.</p>
               </div>
             </div>
-            <ul className="ops-list" role="list" aria-label="Stock movements list">
+            <ul className="ops-list" role="list" aria-label="Liste des mouvements de stock">
               {movements.map((movement) => (
                 <li key={movement.id}>
                   <button
@@ -120,7 +120,7 @@ export function StockMovementLedgerPanel() {
                   >
                     <div className="ops-row__primary">
                       <span className="ops-row__title">{TYPE_LABELS[movement.movement_type] || movement.movement_type}</span>
-                      <span className="ops-row__subtext">{movement.source_label || "No source label"}</span>
+                      <span className="ops-row__subtext">{movement.source_label || "Pas de source"}</span>
                     </div>
                     <span className="ops-chip ops-chip--dispatched">{DIRECTION_LABELS[movement.direction] || movement.direction}</span>
                     <span className="ops-row__qty">×{movement.quantity}</span>
@@ -136,15 +136,15 @@ export function StockMovementLedgerPanel() {
               <div className="ops-detail-stack">
                 <div className="ops-section-heading">
                   <div>
-                    <h4>Ledger detail</h4>
-                    <p className="ops-section-helper">This panel remains read-oriented; creation stays in the Titan inventory scope.</p>
+                    <h4>Détail du registre</h4>
+                    <p className="ops-section-helper">Ce panneau reste en lecture seule ; la création reste dans le scope inventaire Titan.</p>
                   </div>
                   <span className="ops-chip ops-chip--planned">{selectedMovement.id.slice(0, 8)}</span>
                 </div>
 
                 <dl className="ops-metrics">
                   <div className="ops-metric-card">
-                    <dt>Movement type</dt>
+                    <dt>Type de mouvement</dt>
                     <dd>{TYPE_LABELS[selectedMovement.movement_type] || selectedMovement.movement_type}</dd>
                   </div>
                   <div className="ops-metric-card">
@@ -152,39 +152,39 @@ export function StockMovementLedgerPanel() {
                     <dd>{DIRECTION_LABELS[selectedMovement.direction] || selectedMovement.direction}</dd>
                   </div>
                   <div className="ops-metric-card">
-                    <dt>Quantity</dt>
+                    <dt>Quantité</dt>
                     <dd>{selectedMovement.quantity}</dd>
                   </div>
                   <div className="ops-metric-card">
-                    <dt>Effective at</dt>
+                    <dt>Effectif le</dt>
                     <dd>{selectedMovement.effective_at ? new Date(selectedMovement.effective_at).toLocaleString() : "—"}</dd>
                   </div>
                 </dl>
 
                 <section className="ops-detail-section">
-                  <h5>Traceability</h5>
+                  <h5>Traçabilité</h5>
                   <dl className="ops-detail-meta">
                     <div>
-                      <dt>Inventory item</dt>
+                      <dt>Article</dt>
                       <dd>{selectedMovement.inventory_item}</dd>
                     </div>
                     <div>
-                      <dt>Reservation</dt>
+                      <dt>Réservation</dt>
                       <dd>{selectedMovement.reservation_draft ?? "—"}</dd>
                     </div>
                     <div>
-                      <dt>Validated at</dt>
-                      <dd>{selectedMovement.validated_at ? new Date(selectedMovement.validated_at).toLocaleString() : "Pending"}</dd>
+                      <dt>Validé le</dt>
+                      <dd>{selectedMovement.validated_at ? new Date(selectedMovement.validated_at).toLocaleString() : "En attente"}</dd>
                     </div>
                     <div>
-                      <dt>Source label</dt>
+                      <dt>Source</dt>
                       <dd>{selectedMovement.source_label || "—"}</dd>
                     </div>
                   </dl>
                 </section>
               </div>
             ) : (
-              <p className="ops-empty">Select a movement to inspect its traceability detail.</p>
+              <p className="ops-empty">Sélectionnez un mouvement pour inspecter sa traçabilité.</p>
             )}
           </section>
         </div>
