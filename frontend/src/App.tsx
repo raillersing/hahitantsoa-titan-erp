@@ -16,6 +16,7 @@ import CautionRefundPanel from "./CautionRefundPanel";
 import AuditPanel from "./AuditPanel";
 import CashboxPanel from "./CashboxPanel";
 import FutureWorkspacePanel from "./FutureWorkspacePanel";
+import PlanningPanel from "./PlanningPanel";
 import { useTheme, type ThemeMode } from "./ThemeContext";
 import type { InventoryItem } from "./types";
 
@@ -645,8 +646,9 @@ function App() {
               <CautionRefundPanel />
             )}
 
-            {(activeScope === "planning" ||
-              activeScope === "reports" ||
+            {activeScope === "planning" && <PlanningPanel />}
+
+            {(activeScope === "reports" ||
               activeScope === "catalog" ||
               activeScope === "procurement" ||
               activeScope === "hr" ||

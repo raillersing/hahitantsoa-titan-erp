@@ -3419,3 +3419,60 @@ fieldset:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Planning Panel ── */
+
+.planning-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.planning-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.planning-filters {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.scope-chip--inactive {
+  opacity: 0.6;
+}
+
+.planning-table th {
+  white-space: nowrap;
+}
+
+.planning-day-label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.planning-time {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.planning-event-name {
+  font-weight: 600;
+}
+
+.planning-event-name--titan {
+  color: var(--color-titan, #2563eb);
+}
+
+.planning-event-name--hah {
+  color: var(--color-hah, #7c3aed);
+}
+
+.planning-event-subtitle {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+}
