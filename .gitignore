@@ -34,3 +34,9 @@ frontend/node_modules/
 frontend/dist/
 .aider*
 /documents/
+
+# Local sensitive business document sources - keep originals out of Git
+docs/references/source/templates/**/*.pdf
+docs/references/source/templates/**/*.png
+docs/references/source/templates/**/*:Zone.Identifier
+*:Zone.Identifier
