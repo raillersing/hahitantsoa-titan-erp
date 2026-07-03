@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from './api';
 import PlanningPanel from './PlanningPanel';
 import type { HahitantsoaEventDraft, ReservationDraft } from './types';
@@ -90,7 +90,13 @@ const MOCK_EVENT_DRAFTS: HahitantsoaEventDraft[] = [
 ];
 
 describe('PlanningPanel', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-06-22T08:00:00Z'));
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
