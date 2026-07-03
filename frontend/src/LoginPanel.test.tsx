@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import * as api from "./api";
 import { AuthProvider } from "./AuthContext";
 import LoginPanel from "./LoginPanel";
 import { ThemeProvider } from "./ThemeContext";
@@ -35,15 +36,7 @@ function jsonResponse(payload: object, status = 200): Response {
 }
 
 function renderLoginPanel() {
-  vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-    const url = String(input);
-
-    if (url === "/api/v1/inventory/items/") {
-      return Promise.resolve(jsonResponse([], 403));
-    }
-
-    return Promise.resolve(jsonResponse({}, 404));
-  });
+  vi.spyOn(api, "checkAuth").mockResolvedValue(false);
 
   render(
     <ThemeProvider>

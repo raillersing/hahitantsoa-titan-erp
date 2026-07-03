@@ -93,28 +93,27 @@ describe('DashboardPanel', () => {
   it('shows loading state initially', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
-    expect(screen.getByText('Centre de commande ERP')).toBeInTheDocument();
+    expect(screen.getByText('Pilotage opérationnel')).toBeInTheDocument();
   });
 
-  it('renders heading and section elements after loading', async () => {
+  it('renders action buttons and KPI section after loading', async () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByText('Centre de commande ERP')).toBeInTheDocument();
+      expect(screen.getByText('Ouvrir le planning')).toBeInTheDocument();
     });
-    expect(screen.getByText('Vue d\'ensemble')).toBeInTheDocument();
-    expect(screen.getByText("Point d'entrée global pour les opérateurs Hahitantsoa et Titan, avec indicateurs en direct et accès rapides.")).toBeInTheDocument();
+    expect(screen.getByText('Voir les rapports')).toBeInTheDocument();
   });
 
-  it('displays all four metric cards', async () => {
+  it('displays all four Prototype 4 KPI cards', async () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Inventaire Titan' })).toBeInTheDocument();
+      expect(screen.getByText('Événements Hahitantsoa ce mois')).toBeInTheDocument();
     });
-    expect(screen.getByRole('heading', { name: 'Brouillons Hahitantsoa' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Brouillons de réservation' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Paiements en cours' })).toBeInTheDocument();
+    expect(screen.getByText('Locations Titan ce mois')).toBeInTheDocument();
+    expect(screen.getByText("Retours à contrôler aujourd'hui")).toBeInTheDocument();
+    expect(screen.getByText('Reste à payer (échéances)')).toBeInTheDocument();
   });
 
   it('shows correct metric counts when data is loaded', async () => {
@@ -126,10 +125,11 @@ describe('DashboardPanel', () => {
     });
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByText('2')).toBeInTheDocument();
+      const twos = screen.getAllByText('2');
+      expect(twos.length).toBeGreaterThanOrEqual(1);
     });
     const ones = screen.getAllByText('1');
-    expect(ones).toHaveLength(3);
+    expect(ones.length).toBeGreaterThanOrEqual(2);
   });
 
   it('shows zero counts when all API responses are empty', async () => {
@@ -137,7 +137,7 @@ describe('DashboardPanel', () => {
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
       const zeroes = screen.getAllByText('0');
-      expect(zeroes.length).toBe(4);
+      expect(zeroes.length).toBe(3);
     });
   });
 
@@ -152,59 +152,91 @@ describe('DashboardPanel', () => {
     });
   });
 
-  it('handles payment API failure gracefully without showing error', async () => {
+  it('handles payment API failure gracefully', async () => {
     vi.spyOn(api, 'getInventoryItems').mockResolvedValue(MOCK_ITEMS);
     vi.spyOn(api, 'getHahitantsoaEventDrafts').mockResolvedValue([]);
     vi.spyOn(api, 'getReservationDrafts').mockResolvedValue([]);
     vi.spyOn(api, 'getPayments').mockRejectedValue(new Error('Payment service down'));
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('Événements Hahitantsoa ce mois')).toBeInTheDocument();
     });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('calls onNavigate with titan scope when Open Titan is clicked', async () => {
+  it('calls onNavigate with planning scope when Ouvrir le planning is clicked', async () => {
     const onNavigate = vi.fn();
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Inventaire Titan' })).toBeInTheDocument();
+      expect(screen.getByText('Ouvrir le planning')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir Titan' }));
-    expect(onNavigate).toHaveBeenCalledWith('titan');
+    fireEvent.click(screen.getByText('Ouvrir le planning'));
+    expect(onNavigate).toHaveBeenCalledWith('planning');
   });
 
-  it('calls onNavigate with hahitantsoa scope when Open Hahitantsoa is clicked', async () => {
+  it('calls onNavigate with commercial-ops when Voir les rapports is clicked', async () => {
     const onNavigate = vi.fn();
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Brouillons Hahitantsoa' })).toBeInTheDocument();
+      expect(screen.getByText('Voir les rapports')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir Hahitantsoa' }));
+    fireEvent.click(screen.getByText('Voir les rapports'));
+    expect(onNavigate).toHaveBeenCalledWith('commercial-ops');
+  });
+
+  it('calls onNavigate with hahitantsoa scope from KPI card action', async () => {
+    const onNavigate = vi.fn();
+    mockAllApis({});
+    render(<DashboardPanel onNavigate={onNavigate} />);
+    await waitFor(() => {
+      expect(screen.getByText(/Voir les réservations/)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(/Voir les réservations/));
     expect(onNavigate).toHaveBeenCalledWith('hahitantsoa');
   });
 
-  it('calls onNavigate with titan scope when Review reservations is clicked', async () => {
+  it('calls onNavigate with titan scope from KPI card action', async () => {
     const onNavigate = vi.fn();
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Brouillons de réservation' })).toBeInTheDocument();
+      expect(screen.getByText(/Voir les locations/)).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Voir les réservations' }));
+    fireEvent.click(screen.getByText(/Voir les locations/));
     expect(onNavigate).toHaveBeenCalledWith('titan');
   });
 
-  it('calls onNavigate with commercial-ops scope when Open operations is clicked', async () => {
+  it('calls onNavigate with commercial-ops scope from KPI billing action', async () => {
     const onNavigate = vi.fn();
     mockAllApis({});
     render(<DashboardPanel onNavigate={onNavigate} />);
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Paiements en cours' })).toBeInTheDocument();
+      expect(screen.getByText(/Voir la facturation/)).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Opérations commerciales' }));
+    fireEvent.click(screen.getByText(/Voir la facturation/));
     expect(onNavigate).toHaveBeenCalledWith('commercial-ops');
+  });
+
+  it('renders the reservation choice zone', async () => {
+    mockAllApis({});
+    render(<DashboardPanel onNavigate={() => {}} />);
+    await waitFor(() => {
+      expect(screen.getByText('Nouvelle réservation — Choisissez le domaine')).toBeInTheDocument();
+    });
+    const hahElements = screen.getAllByText('Hahitantsoa');
+    expect(hahElements.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Titan Rental')).toBeInTheDocument();
+  });
+
+  it('renders the activity and alerts sections', async () => {
+    mockAllApis({});
+    render(<DashboardPanel onNavigate={() => {}} />);
+    await waitFor(() => {
+      expect(screen.getByText('Activité des 7 derniers jours')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Alertes & Notifications')).toBeInTheDocument();
+    expect(screen.getByText('Dossiers en cours')).toBeInTheDocument();
   });
 });

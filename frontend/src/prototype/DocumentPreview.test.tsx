@@ -58,4 +58,38 @@ describe('DocumentPreview', () => {
     expect(screen.getByText(/Annexe 3 : Prix de casse/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 4 : Liste des intervenants non autorisés/)).toBeInTheDocument();
   });
+
+  it('renders Titan Article 2 with correct geography, usage type and venue name', () => {
+    const tDetails = {
+      usageType: 'Anniversaire',
+      destinationName: 'Villa Privée',
+      destinationAddress: 'Lot 45',
+      destinationCity: 'Antananarivo',
+      destinationLat: '-18',
+      destinationLng: '47',
+      movementMode: 'Livraison par Titan',
+      startDate: '01/01/2026',
+      startTime: '08:00',
+      endDate: '02/01/2026',
+      endTime: '18:00',
+      pickupDate: '01/01/2026',
+      deliveryTime: '07:00'
+    };
+    render(<DocumentPreview type="contrat" domain="titan" client={clientMock} date="01/01/2026" refNumber="TEST-1" totalAmount={100} tDetails={tDetails as any} />);
+    expect(screen.getByText(/Anniversaire/)).toBeInTheDocument();
+    expect(screen.getByText(/Villa Privée/)).toBeInTheDocument();
+    expect(screen.getByText(/Lot 45/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Antananarivo/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/-18, 47/)).toBeInTheDocument();
+    expect(screen.queryByText(/Salle des fêtes/)).not.toBeInTheDocument();
+    
+    // Check fallback for returnDate using endDate
+    expect(screen.getByText(/La récupération des matériels est prévue le 02\/01\/2026 à 18:00/)).toBeInTheDocument();
+  });
+
+  it('renders prospect warning on proforma if client is prospect', () => {
+    const prospectMock = { name: 'Test Prospect', phone: '0340000000', status: 'Prospect' };
+    render(<DocumentPreview type="proforma" domain="titan" client={prospectMock} date="01/01/2026" refNumber="TEST-PROSPECT" totalAmount={50000} />);
+    expect(screen.getByText(/Ce document est une proforma émise à titre informatif/)).toBeInTheDocument();
+  });
 });

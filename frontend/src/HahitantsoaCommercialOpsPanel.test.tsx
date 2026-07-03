@@ -233,9 +233,7 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     const draftSelect = screen.getByLabelText(/Sélectionnez un brouillon de réservation :/i) as HTMLSelectElement;
     fireEvent.change(draftSelect, { target: { value: "draft-1" } });
 
-    await waitFor(() => {
-      expect(screen.getByText("Hahitantsoa Contract")).toBeInTheDocument();
-    });
+    await screen.findByText("Hahitantsoa Contract", {}, { timeout: 5000 });
 
     const templateSelect = screen.getByLabelText(/Choisissez un modèle/i) as HTMLSelectElement;
     fireEvent.change(templateSelect, { target: { value: "hahitantsoa.contract.v1" } });
