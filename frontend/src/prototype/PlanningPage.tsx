@@ -1,6 +1,18 @@
 import React from "react";
 
-export default function PlanningPage() {
+interface PlanningPageProps {
+  onNavigate?: (scope: any, param?: string) => void;
+}
+
+export default function PlanningPage({ onNavigate }: PlanningPageProps) {
+  const handleEventClick = (reservationId?: string, fallbackLabel?: string) => {
+    if (reservationId && onNavigate) {
+      onNavigate("reservation-detail", reservationId);
+    } else if (onNavigate) {
+      onNavigate("dashboard");
+    }
+  };
+
   return (
     <div className="page active space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -46,8 +58,13 @@ export default function PlanningPage() {
                 <div className="text-xs text-slate-500">09:00 — 11:00</div>
               </td>
               <td className="px-4 py-4">
-                <div className="font-medium text-slate-900">Visite Domaine Ambohimanga</div>
-                <div className="text-xs text-slate-500">Mariage — 120 invités</div>
+                <button
+                  onClick={() => handleEventClick("RES-2026-0142", "Visite Domaine Ambohimanga")}
+                  className="text-left group"
+                >
+                  <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">Visite Domaine Ambohimanga</div>
+                  <div className="text-xs text-slate-500">Mariage — 120 invités</div>
+                </button>
               </td>
               <td className="px-4 py-4">
                 <div className="flex items-center gap-2">
@@ -65,8 +82,13 @@ export default function PlanningPage() {
                 <div className="text-xs text-slate-500">14:00 — 16:00</div>
               </td>
               <td className="px-4 py-4">
-                <div className="font-medium text-slate-900">Installation mobilier Titan</div>
-                <div className="text-xs text-slate-500">Entreprise — 50 chaises, 10 tables</div>
+                <button
+                  onClick={() => handleEventClick("LOC-2026-0089", "Installation mobilier Titan")}
+                  className="text-left group"
+                >
+                  <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">Installation mobilier Titan</div>
+                  <div className="text-xs text-slate-500">Entreprise — 50 chaises, 10 tables</div>
+                </button>
               </td>
               <td className="px-4 py-4">
                 <div className="flex items-center gap-2">

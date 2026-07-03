@@ -54,45 +54,46 @@ export default function TitanPage({ onNavigate }: TitanPageProps) {
               <th className="px-4 py-3 text-left font-medium">Date location</th>
               <th className="px-4 py-3 text-left font-medium">Articles</th>
               <th className="px-4 py-3 text-right font-medium">Total</th>
-              <th className="px-4 py-3 text-center font-medium">Statut</th>
-              <th className="px-4 py-3 text-center font-medium rounded-tr-lg">Actions</th>
+              <th className="px-4 py-3 text-center font-medium rounded-tr-lg">Statut</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             <tr className="hover:bg-slate-50 transition-colors">
-              <td className="px-4 py-3 font-medium text-slate-700">LOC-2026-0089</td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
+                <button onClick={() => onNavigate("reservation-detail", "LOC-2026-0089")} className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
+                  LOC-2026-0089
+                </button>
+              </td>
+              <td className="px-4 py-3">
+                <button onClick={() => onNavigate("customer", "CUST-001")} className="flex items-center gap-2 group">
                   <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">AR</div>
-                  <span className="text-slate-700">Ando R.</span>
-                </div>
+                  <span className="text-slate-700 group-hover:text-indigo-600 group-hover:underline">Ando R.</span>
+                </button>
               </td>
               <td className="px-4 py-3 text-slate-600">14-16 Juin 2026</td>
               <td className="px-4 py-3 text-slate-600">Chaise x 50, Table x 10, Pack cérémonie x 2</td>
               <td className="px-4 py-3 text-right font-medium text-slate-700">850 000 Ar</td>
-              <td className="px-4 py-3 text-center">
+              <td className="px-4 py-3 text-center rounded-tr-lg">
                 <span className="px-2.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Confirmée</span>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <button onClick={() => onNavigate("reservation-detail", "RES-2026-0142")} className="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-2">Détail</button>
               </td>
             </tr>
             <tr className="hover:bg-slate-50 transition-colors">
-              <td className="px-4 py-3 font-medium text-slate-700">LOC-2026-0088</td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
+                <button onClick={() => onNavigate("reservation-detail", "LOC-2026-0088")} className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
+                  LOC-2026-0088
+                </button>
+              </td>
+              <td className="px-4 py-3">
+                <button onClick={() => onNavigate("customer", "CUST-003")} className="flex items-center gap-2 group">
                   <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 text-xs font-bold">SC</div>
-                  <span className="text-slate-700">Société Construct+</span>
-                </div>
+                  <span className="text-slate-700 group-hover:text-indigo-600 group-hover:underline">Société Construct+</span>
+                </button>
               </td>
-              <td className="px-4 py-3 text-slate-600">20 Juin 2026</td>
-              <td className="px-4 py-3 text-slate-600">Échafaudage x 5, Échelle x 3</td>
-              <td className="px-4 py-3 text-right font-medium text-slate-700">420 000 Ar</td>
-              <td className="px-4 py-3 text-center">
-                <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">Proforma</span>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <button onClick={() => onNavigate("reservation-detail", "RES-2026-0142")} className="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-2">Détail</button>
+              <td className="px-4 py-3 text-slate-600">18-19 Juin 2026</td>
+              <td className="px-4 py-3 text-slate-600">Échafaudage x 5, Échelle x 3, Pack réception x 1</td>
+              <td className="px-4 py-3 text-right font-medium text-slate-700">1 150 000 Ar</td>
+              <td className="px-4 py-3 text-center rounded-tr-lg">
+                <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">En sortie</span>
               </td>
             </tr>
           </tbody>

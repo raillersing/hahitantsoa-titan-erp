@@ -29,6 +29,17 @@ type TitanDocumentsState = {
   canWrite: boolean;
 };
 
+function normalizeDocumentTemplates(payload: unknown): DocumentTemplateDefinition[] {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.results)) return obj.results as DocumentTemplateDefinition[];
+    if (Array.isArray(obj.templates)) return obj.templates as DocumentTemplateDefinition[];
+    if (Array.isArray(obj.data)) return obj.data as DocumentTemplateDefinition[];
+  }
+  return [];
+}
+
 function TitanDocumentsPanel() {
   const [state, setState] = useState<TitanDocumentsState>({
     drafts: [],
@@ -59,7 +70,7 @@ function TitanDocumentsPanel() {
         setState((prev) => ({
           ...prev,
           drafts: draftsData,
-          templates: templatesData,
+          templates: normalizeDocumentTemplates(templatesData),
           selectedDraftId: draftsData.length > 0 ? draftsData[0].id : "",
         }));
       } catch {

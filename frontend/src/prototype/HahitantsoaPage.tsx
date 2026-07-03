@@ -50,18 +50,19 @@ export default function HahitantsoaPage({ onNavigate }: HahitantsoaPageProps) {
               <th className="px-4 py-3 text-left font-medium">Date</th>
               <th className="px-4 py-3 text-left font-medium">Workflow</th>
               <th className="px-4 py-3 text-right font-medium">Total</th>
-              <th className="px-4 py-3 text-center font-medium">Statut</th>
-              <th className="px-4 py-3 text-center font-medium rounded-tr-lg">Actions</th>
+              <th className="px-4 py-3 text-center font-medium rounded-tr-lg">Statut</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             <tr className="hover:bg-slate-50 transition-colors">
-              <td className="px-4 py-3 font-medium text-slate-700">RES-2026-0142</td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
+                <button onClick={() => onNavigate("reservation-detail", "RES-2026-0142")} className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline">RES-2026-0142</button>
+              </td>
+              <td className="px-4 py-3">
+                <button onClick={() => onNavigate("customer", "CUST-001")} className="flex items-center gap-2 group">
                   <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold">AR</div>
-                  <span className="text-slate-700">Ando R.</span>
-                </div>
+                  <span className="text-slate-700 group-hover:text-indigo-600 group-hover:underline">Ando R.</span>
+                </button>
               </td>
               <td className="px-4 py-3 text-slate-600">Mariage traditionnel</td>
               <td className="px-4 py-3 text-slate-600">15 Juin 2026</td>
@@ -79,20 +80,19 @@ export default function HahitantsoaPage({ onNavigate }: HahitantsoaPageProps) {
                 </div>
               </td>
               <td className="px-4 py-3 text-right font-medium text-slate-700">2 400 000 Ar</td>
-              <td className="px-4 py-3 text-center">
+              <td className="px-4 py-3 text-center rounded-tr-lg">
                 <span className="px-2.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Confirmée</span>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <button className="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-2" onClick={() => onNavigate("reservation-detail", "RES-2026-0142")}>Détail</button>
               </td>
             </tr>
             <tr className="hover:bg-slate-50 transition-colors">
-              <td className="px-4 py-3 font-medium text-slate-700">RES-2026-0141</td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
+                <button onClick={() => onNavigate("reservation-detail", "RES-2026-0141")} className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline">RES-2026-0141</button>
+              </td>
+              <td className="px-4 py-3">
+                <button onClick={() => onNavigate("customer", "CUST-002")} className="flex items-center gap-2 group">
                   <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-xs font-bold">RF</div>
-                  <span className="text-slate-700">Rakoto F.</span>
-                </div>
+                  <span className="text-slate-700 group-hover:text-indigo-600 group-hover:underline">Rakoto F.</span>
+                </button>
               </td>
               <td className="px-4 py-3 text-slate-600">Anniversaire 50 ans</td>
               <td className="px-4 py-3 text-slate-600">22 Juin 2026</td>
@@ -106,11 +106,8 @@ export default function HahitantsoaPage({ onNavigate }: HahitantsoaPageProps) {
                 </div>
               </td>
               <td className="px-4 py-3 text-right font-medium text-slate-700">1 850 000 Ar</td>
-              <td className="px-4 py-3 text-center">
+              <td className="px-4 py-3 text-center rounded-tr-lg">
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">Contrat signé</span>
-              </td>
-              <td className="px-4 py-3 text-center">
-                <button className="text-indigo-600 hover:text-indigo-800 text-xs font-medium mr-2" onClick={() => onNavigate("reservation-detail", "RES-2026-0141")}>Détail</button>
               </td>
             </tr>
           </tbody>

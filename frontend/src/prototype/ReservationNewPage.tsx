@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 import { 
   mockClients, Client, hahitantsoaRentalTypes, hahitantsoaDurationOptions, 
   hahitantsoaEventTypes, hahitantsoaDefaultDepositAmount, 
@@ -6,7 +7,7 @@ import {
   hahitantsoaMockPackages, mockCatalog, hahitantsoaMockServices,
   hahitantsoaMockVenuePrice, hahitantsoaMockLogisticsPrice,
   titanUsageTypes, titanMovementModes, titanDefaultAdvanceRate, titanTransportRequirement,
-  titanBalanceDueDaysBeforePickup
+  titanBalanceDueDaysBeforePickup, mockVenues, formatDateFr, addMockReservation
 } from "./mockData";
 import { DocumentPreview } from "./DocumentPreview";
 
@@ -86,10 +87,17 @@ interface TitanDetails {
   remarks: string;
   usageType: string;
   usageTypeOther: string;
-  destinationLocation: string;
+  
+  destinationName: string;
   destinationAddress: string;
-  destinationContact: string;
-  accessNote: string;
+  destinationCity: string;
+  destinationLandmark: string;
+  destinationAccessNote: string;
+  destinationContactName: string;
+  destinationContactPhone: string;
+  destinationLat: string;
+  destinationLng: string;
+
   movementMode: string;
   deliveryTime: string;
   returnTime: string;
@@ -99,9 +107,6 @@ interface TitanDetails {
   vehicleType: string;
   transportPerson: string;
   advanceRate: number;
-  obligationsAccepted: boolean;
-  returnConditionsAccepted: boolean;
-  transportConditionAccepted: boolean;
 }
 
 interface PaymentData {
@@ -136,20 +141,24 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [path, setPath] = useState<PathType>(null);
   const [step, setStep] = useState<number>(0);
   const [maxReachedStep, setMaxReachedStep] = useState<number>(0);
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState<string>("2026-07");
+  const [showVenueSelector, setShowVenueSelector] = useState(false);
 
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [clientSearchStr, setClientSearchStr] = useState<string>("");
   const [newClient, setNewClient] = useState<NewClientData>({ name: "", phone: "", email: "", type: "Particulier", notes: "", civilite: "", idType: "CIN" });
   
   const [domain, setDomain] = useState<DomainType>(null);
   
-  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "", guests: "", remarks: "", startDate: "", startTime: "", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: hahitantsoaMockVenuePrice, logisticsPrice: hahitantsoaMockLogisticsPrice });
+  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: mockVenues[0]?.name || "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: hahitantsoaMockVenuePrice, logisticsPrice: hahitantsoaMockLogisticsPrice });
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
     period: "", startDate: "", startTime: "", endDate: "", endTime: "", pickupDate: "", returnDate: "", remarks: "",
-    usageType: "Mariage", usageTypeOther: "", destinationLocation: "", destinationAddress: "", destinationContact: "", accessNote: "",
+    usageType: "Mariage", usageTypeOther: "", 
+    destinationName: "", destinationAddress: "", destinationCity: "", destinationLandmark: "", destinationAccessNote: "", destinationContactName: "", destinationContactPhone: "", destinationLat: "", destinationLng: "", 
     movementMode: "Livraison par Titan", deliveryTime: "", returnTime: "", deliveryAddress: "",
-    pickupTime: "", clientReturnTime: "", vehicleType: "", transportPerson: "", advanceRate: titanDefaultAdvanceRate,
-    obligationsAccepted: false, returnConditionsAccepted: false, transportConditionAccepted: false
+    pickupTime: "", clientReturnTime: "", vehicleType: "", transportPerson: "", advanceRate: titanDefaultAdvanceRate
   });
   
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
@@ -164,6 +173,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [clientAttachments, setClientAttachments] = useState<Attachment[]>([]);
   const [paymentAttachments, setPaymentAttachments] = useState<Attachment[]>([]);
 
+  const isProspectProforma = param?.startsWith('prospect-proforma-') || false;
+
   // Init from URL param if needed
   useEffect(() => {
     if (param === 'hahitantsoa' || param === 'titan') {
@@ -171,6 +182,34 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setDomain(param as DomainType);
       setStep(2); // Domain is known (step 1 in domain_first is domain, step 2 is client)
       setMaxReachedStep(2);
+    } else if (param && (param.startsWith('CUST-') || param.startsWith('PROS-'))) {
+      const saved = localStorage.getItem("prototypeReservationDraft");
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.selectedClientId === param && data.step >= 2) {
+          setShowDraftPrompt(true);
+          return;
+        }
+      }
+      // New reservation from customer detail: param = clientId
+      setPath('client_first');
+      setClientMode('existing');
+      setSelectedClientId(param);
+      setStep(2); // skip client selection, go to domain choice
+      setMaxReachedStep(2);
+    } else if (param && param.startsWith('quote/')) {
+      const clientId = param.split('/')[1];
+      setTimeout(() => onNavigate('customer', clientId), 0);
+    } else if (param && param.startsWith('prospect-proforma-')) {
+      const parts = param.split('/');
+      const isTitan = parts[0] === 'prospect-proforma-t';
+      const clientId = parts[1];
+      setPath('client_first');
+      setDomain(isTitan ? 'titan' : 'hahitantsoa');
+      setClientMode('existing');
+      setSelectedClientId(clientId);
+      setStep(3); // skip client and domain choice, go directly to details
+      setMaxReachedStep(3);
     }
   }, [param]);
 
@@ -185,8 +224,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       discountValue, discountIsPercentage
     };
     localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
-    alert("Brouillon sauvegardé localement !");
+    // No alert for auto-save
   };
+
+  useEffect(() => {
+    if (step >= 2 && (selectedClientId || newClient.name)) {
+      saveDraft();
+    }
+  }, [step, path, hDetails, tDetails, selectedMaterials, selectedServices, payment, clientAttachments]);
 
   const restoreDraft = () => {
     const saved = localStorage.getItem("prototypeReservationDraft");
@@ -198,12 +243,24 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
       setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment); setClientAttachments(data.clientAttachments || []);
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true);
+      setShowDraftPrompt(false);
     }
   };
 
-  const clearDraft = () => {
+  const clearDraft = (resetState = true) => {
     localStorage.removeItem("prototypeReservationDraft");
-    window.location.reload();
+    if (resetState) {
+      if (param && (param.startsWith('CUST-') || param.startsWith('PROS-'))) {
+        setShowDraftPrompt(false);
+        setPath('client_first');
+        setClientMode('existing');
+        setSelectedClientId(param);
+        setStep(2); 
+        setMaxReachedStep(2);
+      } else {
+        window.location.reload();
+      }
+    }
   };
 
   const addAttachment = (type: 'client' | 'payment', category: string, fileList: FileList | null) => {
@@ -227,6 +284,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           phone: newClient.phone, 
           email: newClient.email, 
           type: newClient.type, 
+          status: "Client",
           colorClass: "bg-slate-100 text-slate-700",
           civilite: newClient.civilite,
           firstName: newClient.type === 'Particulier' ? newClient.name.split(' ')[0] : undefined,
@@ -325,14 +383,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (idx === 4) return "Catalogue";
     if (idx === 5) return domain === "hahitantsoa" ? "Services" : "Livraison";
     if (idx === 6) return "Résumé";
-    if (idx === 7) return "Devis";
+    if (idx === 7) return isProspectProforma ? "Proforma" : "Devis";
     if (idx === 8) return "Paiement";
     if (idx === 9) return "Contrat";
     return "";
   };
 
   const renderStepper = () => {
-    const steps = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const steps = isProspectProforma ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7, 8, 9];
     return (
       <div className="flex items-center justify-between mb-8 overflow-x-auto pb-4 text-sm scrollbar-hide">
         {steps.map((s, i) => {
@@ -396,12 +454,30 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const renderClientStep = () => (
     <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
       <h3 className="text-lg font-bold text-slate-800 mb-4">Sélection ou création du client</h3>
-      {param && (
+      {param && param.startsWith('CUST-') && (
+        <div className="mb-4">
+           <button onClick={() => onNavigate('customer', selectedClientId)} className="text-slate-500 hover:text-slate-800 text-sm font-medium">
+             <i className="fa-solid fa-arrow-left mr-2"></i> 
+             Retour à la fiche {mockClients.find(c => c.id === selectedClientId)?.name || 'client'}
+           </button>
+        </div>
+      )}
+      {param && (param === 'hahitantsoa' || param === 'titan') && (
         <div className="bg-indigo-50 text-indigo-700 text-sm p-3 rounded-lg mb-6 border border-indigo-200 flex items-center gap-2">
           <i className="fa-solid fa-lock text-indigo-400"></i>
           Volet sélectionné : <strong>{param === 'hahitantsoa' ? 'Hahitantsoa' : 'Titan Rental'}</strong>
         </div>
       )}
+      {param && (param.startsWith('CUST-') || param.startsWith('PROS-')) ? (
+        <div className="bg-indigo-50 text-indigo-700 text-sm p-4 rounded-lg mb-6 border border-indigo-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-lock text-indigo-400"></i>
+            <div>
+              Quel volet pour <strong>{mockClients.find(c => c.id === selectedClientId)?.name || 'ce client'}</strong> ?
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="flex gap-4 mb-6">
         <button 
           className={`px-4 py-2 rounded-lg text-sm font-medium ${clientMode === 'existing' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-transparent'}`}
@@ -416,22 +492,34 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           Nouveau client
         </button>
       </div>
+      )}
 
-      {clientMode === "existing" ? (
+      {clientMode === "existing" && (!param || !param.startsWith('CUST-')) ? (
         <div className="space-y-4">
-          <label className="block text-sm font-medium text-slate-700">Choisir dans la base mockée</label>
-          <select 
-            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-            value={selectedClientId}
-            onChange={e => setSelectedClientId(e.target.value)}
-          >
-            <option value="">-- Sélectionner --</option>
-            {mockClients.map(c => (
-              <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
-            ))}
-          </select>
+          <label className="block text-sm font-medium text-slate-700">Chercher un client existant</label>
+          <div className="relative">
+             <i className="fa-solid fa-search absolute left-3 top-3 text-slate-400"></i>
+             <input type="text" className="w-full border border-slate-300 rounded-lg pl-10 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Nom, téléphone, email ou ID..." value={clientSearchStr} onChange={(e) => setClientSearchStr(e.target.value)} />
+          </div>
+          <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-lg bg-slate-50">
+             {mockClients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
+                <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => setSelectedClientId(c.id)}>
+                   <div>
+                     <p className="font-bold text-slate-800 text-sm">{c.name} <span className="text-xs font-normal text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded ml-2">{c.type}</span></p>
+                     <p className="text-xs text-slate-500 mt-0.5">{c.phone} {c.email ? `• ${c.email}` : ''}</p>
+                   </div>
+                   {selectedClientId === c.id && <i className="fa-solid fa-check text-indigo-600"></i>}
+                </div>
+             ))}
+             {mockClients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).length === 0 && (
+                <div className="p-4 text-center text-sm text-slate-500">Aucun client trouvé.</div>
+             )}
+             <div className="p-3 text-center text-sm font-medium text-indigo-600 cursor-pointer hover:bg-slate-100 bg-white sticky bottom-0 border-t border-slate-200" onClick={() => setClientMode("new")}>
+                + Créer un nouveau client
+             </div>
+          </div>
         </div>
-      ) : (
+      ) : clientMode === "new" ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -548,7 +636,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       <div className="mt-8 pt-6 border-t border-slate-100">
         <h4 className="text-md font-bold text-slate-800 mb-1">Pièces jointes client</h4>
@@ -618,7 +706,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const renderDomainStep = () => (
     <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
+      {(param && (param.startsWith('CUST-') || param.startsWith('PROS-'))) && (
+        <div className="mb-6 pb-4 border-b border-slate-100">
+           <button onClick={() => onNavigate('customer', selectedClientId)} className="text-slate-500 hover:text-slate-800 text-sm font-medium flex items-center">
+             <i className="fa-solid fa-arrow-left mr-2"></i> 
+             Retour à la fiche {mockClients.find(c => c.id === selectedClientId)?.name || 'client'}
+           </button>
+        </div>
+      )}
       <h3 className="text-lg font-bold text-slate-800 mb-6">Choix du volet métier</h3>
+      {param && (param.startsWith('CUST-') || param.startsWith('PROS-')) && (
+        <div className="mb-6 bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-slate-500 font-medium">Quel volet pour <span className="font-bold text-slate-800">{mockClients.find(c => c.id === selectedClientId)?.name || 'ce client'}</span> ?</p>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div 
           className={`border-2 rounded-xl p-6 cursor-pointer transition-colors ${domain === 'hahitantsoa' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`}
@@ -673,9 +776,34 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm mt-2" value={hDetails.eventTypeOther} onChange={e => setHDetails({...hDetails, eventTypeOther: e.target.value})} placeholder="Préciser le type d'événement" />
               )}
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-slate-700 mb-1">Local / Lieu</label>
-              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.venue} onChange={e => setHDetails({...hDetails, venue: e.target.value})} placeholder="Domaine Ambohimanga..." />
+              {mockVenues && mockVenues.length > 0 ? (
+                <div className="flex flex-col gap-2 relative">
+                  <div className="flex items-center justify-between border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm">
+                    <div className="flex items-center gap-2">
+                      <i className="fa-solid fa-map-marker-alt text-indigo-500"></i>
+                      <span className="font-medium text-slate-800">{hDetails.venue === 'Salle des fêtes + jardin' ? 'Local par défaut' : 'Local choisi'} : {hDetails.venue}</span>
+                    </div>
+                    <button type="button" onClick={() => setShowVenueSelector(!showVenueSelector)} className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold px-2 py-1 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">Changer</button>
+                  </div>
+                  {showVenueSelector && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 p-2 space-y-1">
+                      {mockVenues.filter(v => v.type === 'location_event' && v.active).map(v => (
+                        <div key={v.id} onClick={() => { setHDetails({...hDetails, venue: v.name}); setShowVenueSelector(false); }} className={`p-2 rounded cursor-pointer text-sm font-medium hover:bg-slate-50 ${hDetails.venue === v.name ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}>
+                          <div>{v.name}</div>
+                          {v.capacity && <div className="text-xs text-slate-500 font-normal">{v.capacity}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 border border-amber-200 bg-amber-50 text-amber-700 p-2.5 rounded-lg text-sm">
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                  <span>Aucun local actif configuré</span>
+                </div>
+              )}
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
@@ -730,26 +858,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             )}
             
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
-              <h4 className="font-bold text-slate-800 mb-4">Durée et horaires de l’événement</h4>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date de début</label>
-              <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={hDetails.startDate} onChange={e => setHDetails({...hDetails, startDate: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Heure de début</label>
-              <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startTime} onChange={e => setHDetails({...hDetails, startTime: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date de fin</label>
-              <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={hDetails.startDate || new Date().toISOString().split('T')[0]} value={hDetails.endDate} onChange={e => setHDetails({...hDetails, endDate: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Heure de fin</label>
-              <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.endTime} onChange={e => setHDetails({...hDetails, endTime: e.target.value})} />
-            </div>
-
-            <div className="md:col-span-2 pt-4 border-t border-slate-100">
               <h4 className="font-bold text-slate-800 mb-4">Type de location</h4>
             </div>
             <div className="md:col-span-2">
@@ -764,6 +872,84 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-slate-800">Date et horaires de l'événement</h4>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => {
+                    const d = new Date();
+                    setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
+                    setCalendarMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
+                  }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Aujourd'hui</button>
+                  <button type="button" onClick={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 1);
+                    setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
+                    setCalendarMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
+                  }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Demain</button>
+                  <button type="button" onClick={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + (6 - d.getDay()));
+                    setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
+                    setCalendarMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
+                  }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Ce Samedi</button>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <MockAvailabilityCalendar 
+                  selectedDate={hDetails.startDate} 
+                  onDateSelect={(dateStr: string) => {
+                    let endDate = dateStr;
+                    if (hDetails.durationOption?.includes('03:30')) {
+                      const dt = new Date(dateStr);
+                      dt.setDate(dt.getDate() + 1);
+                      endDate = dt.toISOString().split('T')[0];
+                    }
+                    setHDetails(p => ({...p, startDate: dateStr, endDate: endDate}));
+                  }}
+                  allowPast={true}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date début</label>
+                    <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startDate} onChange={e => {
+                        let endDate = e.target.value;
+                        if (hDetails.durationOption?.includes('03:30') && e.target.value) {
+                          const dt = new Date(e.target.value);
+                          dt.setDate(dt.getDate() + 1);
+                          endDate = dt.toISOString().split('T')[0];
+                        }
+                        setHDetails({...hDetails, startDate: e.target.value, endDate});
+                    }} />
+                  </div>
+                  <div className="w-1/3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Heure début</label>
+                    <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startTime} onChange={e => setHDetails({...hDetails, startTime: e.target.value})} />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date fin</label>
+                    <input disabled type="date" className={`w-full border rounded-lg p-2.5 text-sm bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed`} value={hDetails.endDate} onChange={e => setHDetails({...hDetails, endDate: e.target.value})} />
+                  </div>
+                  <div className="w-1/3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Heure fin</label>
+                    <input disabled type="time" className="w-full border border-slate-200 bg-slate-50 text-slate-500 rounded-lg p-2.5 text-sm cursor-not-allowed" value={hDetails.endTime} onChange={e => setHDetails({...hDetails, endTime: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              {hDetails.startDate && hDetails.endDate && hDetails.endDate < hDetails.startDate && (
+                <div className="mt-2 text-rose-600 text-sm font-medium flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation"></i> La date de fin ne peut pas être antérieure à la date de début.
+                </div>
+              )}
+            </div>
+
+            <div className="md:col-span-2 pt-4 border-t border-slate-100">
               <h4 className="font-bold text-slate-800 mb-4">Durée (Option horaire)</h4>
             </div>
             <div className="md:col-span-2 space-y-2">
@@ -772,9 +958,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="radio" name="durationOption" value={opt.label} checked={hDetails.durationOption === opt.label} onChange={(e) => {
                       const updates: any = { durationOption: e.target.value, durationOptionPrice: 0 };
-                      if (e.target.value.includes('20:00')) updates.endTime = '20:00';
-                      else if (e.target.value.includes('22:30')) updates.endTime = '22:30';
-                      else if (e.target.value.includes('03:30')) updates.endTime = '03:30';
+                      
+                      const startDate = hDetails.startDate || new Date().toISOString().split('T')[0];
+                      if (!hDetails.startDate) updates.startDate = startDate;
+                      
+                      let endDate = startDate;
+                      if (e.target.value.includes('20:00')) {
+                        updates.endTime = '20:00';
+                      } else if (e.target.value.includes('22:30')) {
+                        updates.endTime = '22:30';
+                      } else if (e.target.value.includes('03:30')) {
+                        updates.endTime = '03:30';
+                        const d = new Date(startDate);
+                        d.setDate(d.getDate() + 1);
+                        endDate = d.toISOString().split('T')[0];
+                      }
+                      updates.endDate = endDate;
                       setHDetails({...hDetails, ...updates});
                     }} className="w-4 h-4 text-indigo-600" />
                     <span className={`font-medium text-sm ${hDetails.durationOption === opt.label ? 'text-indigo-700' : 'text-slate-800'}`}>{opt.label}</span>
@@ -786,12 +985,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                         <input type="number" className="flex-1 border border-indigo-200 rounded p-1.5 text-sm" value={hDetails.durationOptionPrice || ''} onChange={e => setHDetails({...hDetails, durationOptionPrice: parseInt(e.target.value || '0', 10)})} placeholder="Ex: 50000" />
                         <span className="text-sm font-bold text-indigo-600">Ar</span>
                       </div>
-                      <p className="text-xs text-indigo-500 mt-1 italic">Tarif configurable par l’entreprise</p>
                     </div>
                   )}
                 </div>
               ))}
-              <p className="text-xs text-slate-500 mt-2"><i className="fa-solid fa-info-circle mr-1"></i>Cette option pré-remplira l'heure de fin estimée ci-dessus. Vous pouvez la corriger manuellement.</p>
+              <p className="text-xs text-slate-500 mt-2"><i className="fa-solid fa-info-circle mr-1"></i>Cette option pré-remplira l'heure de fin de l'événement.</p>
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
@@ -851,53 +1049,169 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <div className="md:col-span-2">
               <h4 className="font-bold text-slate-800 mb-2">Destination de la location</h4>
             </div>
+            
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Type d'usage</label>
               <select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.usageType} onChange={e => setTDetails({...tDetails, usageType: e.target.value})}>
-                {titanUsageTypes.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                <option value="Mariage">Mariage</option>
+                <option value="Anniversaire">Anniversaire</option>
+                <option value="Séminaire / réunion">Séminaire / réunion</option>
+                <option value="Événement entreprise">Événement entreprise</option>
+                <option value="Cérémonie familiale">Cérémonie familiale</option>
+                <option value="Autre">Autre</option>
               </select>
             </div>
-            {tDetails.usageType === 'Autre' && (
+            
+            {tDetails.usageType === "Autre" ? (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Précision (Autre)</label>
-                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.usageTypeOther} onChange={e => setTDetails({...tDetails, usageTypeOther: e.target.value})} />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Précisez l'usage</label>
+                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.usageTypeOther} onChange={e => setTDetails({...tDetails, usageTypeOther: e.target.value})} placeholder="Précisez..." />
               </div>
+            ) : (
+              <div className="hidden md:block"></div>
             )}
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nom du lieu</label>
+              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationName} onChange={e => setTDetails({...tDetails, destinationName: e.target.value})} placeholder="Ex: Espace Fitiavana, Villa privée, Salle communale, Domicile client" />
+            </div>
+
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Lieu de destination</label>
-              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationLocation} onChange={e => setTDetails({...tDetails, destinationLocation: e.target.value})} placeholder="Ex: Espace Fitiavana" />
+              <label className="block text-sm font-medium text-slate-700 mb-1">Commune / Ville</label>
+              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationCity} onChange={e => setTDetails({...tDetails, destinationCity: e.target.value})} placeholder="Ex: Antananarivo" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Adresse exacte de destination</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Adresse complète</label>
               <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationAddress} onChange={e => setTDetails({...tDetails, destinationAddress: e.target.value})} placeholder="Ex: Lot XYZ Ambohibao" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contact sur site (Nom et Téléphone)</label>
-              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationContact} onChange={e => setTDetails({...tDetails, destinationContact: e.target.value})} placeholder="Ex: Jean - 034 00 000 00" />
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Contact sur place</label>
+                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationContactName} onChange={e => setTDetails({...tDetails, destinationContactName: e.target.value})} placeholder="Ex: Jean" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone contact</label>
+                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationContactPhone} onChange={e => setTDetails({...tDetails, destinationContactPhone: e.target.value})} placeholder="Ex: 034 00 000 00" />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Note d'accès</label>
-              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.accessNote} onChange={e => setTDetails({...tDetails, accessNote: e.target.value})} placeholder="Ex: Portail bleu au fond de l'impasse" />
+            
+            <div className="md:col-span-2 bg-slate-50 border border-slate-200 p-4 rounded-xl">
+              <div className="flex justify-between items-center mb-4">
+                <label className="block text-sm font-bold text-slate-700">Coordonnées GPS & Accès</label>
+                <button 
+                  type="button"
+                  className="px-3 py-1.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded text-xs font-semibold flex items-center gap-2 transition-colors"
+                  onClick={() => {
+                    if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                          setTDetails(prev => ({
+                            ...prev, 
+                            destinationLat: position.coords.latitude.toString(),
+                            destinationLng: position.coords.longitude.toString()
+                          }));
+                        },
+                        (error) => {
+                          alert("Impossible de récupérer la position : " + error.message);
+                        }
+                      );
+                    } else {
+                      alert("La géolocalisation n'est pas supportée par ce navigateur.");
+                    }
+                  }}
+                >
+                  <i className="fa-solid fa-location-crosshairs"></i> Utiliser ma position actuelle
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Latitude</label>
+                  <input type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationLat} onChange={e => setTDetails({...tDetails, destinationLat: e.target.value})} placeholder="Ex: -18.8792" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Longitude</label>
+                  <input type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationLng} onChange={e => setTDetails({...tDetails, destinationLng: e.target.value})} placeholder="Ex: 47.5079" />
+                </div>
+              </div>
+              
+              <div className="mb-4 text-sm">
+                {(tDetails.destinationLat && tDetails.destinationLng) ? (
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${tDetails.destinationLat},${tDetails.destinationLng}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-2">
+                    <i className="fa-solid fa-map-location-dot"></i> Ouvrir dans Google Maps (GPS)
+                  </a>
+                ) : tDetails.destinationAddress ? (
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tDetails.destinationAddress + (tDetails.destinationCity ? ', ' + tDetails.destinationCity : ''))}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-2">
+                    <i className="fa-solid fa-map-location-dot"></i> Ouvrir dans Google Maps (Adresse)
+                  </a>
+                ) : null}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Note d'accès</label>
+                <input type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationAccessNote} onChange={e => setTDetails({...tDetails, destinationAccessNote: e.target.value})} placeholder="Ex: Portail bleu au fond de l'impasse" />
+              </div>
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
               <h4 className="font-bold text-slate-800 mb-2">Période de location</h4>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date début de location</label>
-              <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Heure début location</label>
-              <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startTime || ''} onChange={e => setTDetails({...tDetails, startTime: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date fin de location</label>
-              <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.startDate || new Date().toISOString().split('T')[0]} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Heure fin location</label>
-              <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.endTime || ''} onChange={e => setTDetails({...tDetails, endTime: e.target.value})} />
+              
+              <div className="flex flex-wrap gap-2 mb-4 mt-2">
+                <button type="button" onClick={() => { const s = new Date().toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Aujourd'hui</button>
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 1); const s = d.toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Demain</button>
+                <button type="button" onClick={() => { const d = new Date(); const day = d.getDay(); const diffToSat = day === 6 ? 0 : day === 0 ? -1 : 6 - day; d.setDate(d.getDate() + diffToSat); const d2 = new Date(d); d2.setDate(d.getDate() + 1); setTDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d2.toISOString().split('T')[0]})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Ce week-end</button>
+                <button type="button" onClick={() => { const d = new Date(); const day = d.getDay(); const diffToSat = day === 6 ? 7 : day === 0 ? 6 : 13 - day; d.setDate(d.getDate() + diffToSat); const d2 = new Date(d); d2.setDate(d.getDate() + 1); setTDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d2.toISOString().split('T')[0]})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">Week-end prochain</button>
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 7); const s = d.toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">+7 jours</button>
+                <button type="button" onClick={() => { const d = new Date(); d.setDate(d.getDate() + 14); const s = d.toISOString().split('T')[0]; setTDetails(p => ({...p, startDate: s, endDate: s})) }} className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 text-xs font-medium rounded border border-slate-200 transition-colors">+14 jours</button>
+                <button type="button" onClick={() => setTDetails(p => ({...p, startDate: '', endDate: ''}))} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium rounded border border-rose-200 transition-colors ml-auto">Effacer</button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date début de location</label>
+                    <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
+                  </div>
+                  <div className="w-1/3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
+                    <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startTime || ''} onChange={e => setTDetails({...tDetails, startTime: e.target.value})} />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date fin de location</label>
+                    <input type="date" className={`w-full border rounded-lg p-2.5 text-sm ${tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate ? 'border-rose-500 bg-rose-50' : 'border-slate-300'}`} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
+                  </div>
+                  <div className="w-1/3">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
+                    <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.endTime || ''} onChange={e => setTDetails({...tDetails, endTime: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              {tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate && (
+                <div className="mt-2 text-rose-600 text-sm font-medium flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation"></i> La date de fin ne peut pas être antérieure à la date de début.
+                </div>
+              )}
+
+              {tDetails.startDate && (!tDetails.endDate || tDetails.endDate >= tDetails.startDate) && (
+                <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm flex justify-between items-center">
+                  <div>
+                    <span className="font-semibold text-slate-700">Période sélectionnée : </span>
+                    <span className="text-indigo-700 font-medium">{formatDateFr(tDetails.startDate)} {tDetails.endDate && tDetails.endDate !== tDetails.startDate ? ` → ${formatDateFr(tDetails.endDate)}` : ''}</span>
+                  </div>
+                  {/* Mock conflict logic */}
+                  {tDetails.startDate.includes('2026-12-25') || tDetails.startDate.includes('2026-12-31') ? (
+                    <span className="text-amber-600 font-medium text-xs flex items-center gap-1 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                      <i className="fa-solid fa-lock"></i> Cette date semble déjà occupée dans le planning mock.
+                    </span>
+                  ) : (
+                    <span className="text-emerald-600 font-medium text-xs flex items-center gap-1">
+                      <i className="fa-solid fa-check"></i> Date disponible en mock
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
             
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
@@ -970,25 +1284,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </>
             )}
 
-            <div className="md:col-span-2 pt-4 border-t border-slate-100">
-              <h4 className="font-bold text-slate-800 mb-2">Engagements client</h4>
-            </div>
-            <div className="md:col-span-2 space-y-2">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-1 w-4 h-4 text-indigo-600 rounded" checked={tDetails.obligationsAccepted} onChange={e => setTDetails({...tDetails, obligationsAccepted: e.target.checked})} />
-                <span className="text-sm text-slate-700">Le client est informé de ses obligations d'usage en "bon père de famille" et de l'interdiction de modification.</span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-1 w-4 h-4 text-indigo-600 rounded" checked={tDetails.returnConditionsAccepted} onChange={e => setTDetails({...tDetails, returnConditionsAccepted: e.target.checked})} />
-                <span className="text-sm text-slate-700">Le client est informé des conditions de retour, de pénalités de retard (50% par jour) et de frais liés à la casse ou perte.</span>
-              </label>
-              {tDetails.movementMode === 'Prélèvement par le client' && (
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input type="checkbox" className="mt-1 w-4 h-4 text-indigo-600 rounded" checked={tDetails.transportConditionAccepted} onChange={e => setTDetails({...tDetails, transportConditionAccepted: e.target.checked})} />
-                  <span className="text-sm text-slate-700">Le client est expressément avisé qu'un véhicule FOURGON est obligatoire.</span>
-                </label>
-              )}
-            </div>
+
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
               <label className="block text-sm font-medium text-slate-700 mb-1">Remarques matériels</label>
@@ -1006,8 +1302,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const [catalogSubStep, setCatalogSubStep] = useState(1);
 
+  const [quantityFeedback, setQuantityFeedback] = useState<string | null>(null);
+
   const renderCatalogStep = () => {
-    const handleMaterialToggle = (mat: any, qty: number) => {
+    const handleMaterialToggle = (mat: any, rawQty: number) => {
+      let qty = rawQty;
+      if (Number.isNaN(qty)) qty = 0;
+      
+      const maxQty = mat.available;
+      if (qty > maxQty) {
+        qty = maxQty;
+        setQuantityFeedback(`Maximum disponible : ${maxQty}`);
+        setTimeout(() => setQuantityFeedback(null), 3000);
+      } else if (qty < 0) {
+        qty = 0;
+      }
+
       if (qty <= 0) {
         setSelectedMaterials(selectedMaterials.filter(m => m.id !== mat.id));
       } else {
@@ -1044,11 +1354,54 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       return (
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
           <h3 className="text-lg font-bold text-slate-800 mb-2">Parcours Package Hahitantsoa</h3>
+          {quantityFeedback && (
+            <div className="mb-4 p-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
+              <i className="fa-solid fa-circle-exclamation"></i>
+              {quantityFeedback}
+            </div>
+          )}
           
-          <div className="flex items-center gap-4 mb-6">
-            <button className={`text-sm font-medium px-4 py-2 rounded-full ${catalogSubStep === 1 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`} onClick={() => setCatalogSubStep(1)}>1. Choisir package</button>
-            <button className={`text-sm font-medium px-4 py-2 rounded-full ${catalogSubStep === 2 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'} ${!hDetails.packageId ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => hDetails.packageId && setCatalogSubStep(2)}>2. Ajuster package</button>
-            <button className={`text-sm font-medium px-4 py-2 rounded-full ${catalogSubStep === 3 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'} ${!hDetails.packageId ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={() => hDetails.packageId && setCatalogSubStep(3)}>3. Articles complémentaires</button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div 
+              className={`min-h-[140px] p-6 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-center ${catalogSubStep === 1 ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50 scale-[1.02]' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'}`} 
+              onClick={() => setCatalogSubStep(1)}
+            >
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-bold text-xl ${catalogSubStep === 1 ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>1</div>
+                <div>
+                  <h4 className={`text-lg font-bold mb-1 ${catalogSubStep === 1 ? 'text-indigo-900' : 'text-slate-700'}`}>Choisir package</h4>
+                  <p className="text-sm text-slate-500 leading-snug">Sélectionner un package actif.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className={`min-h-[140px] p-6 rounded-2xl border-2 transition-all flex flex-col justify-center ${!hDetails.packageId ? 'border-slate-100 bg-slate-50/50 opacity-60 cursor-not-allowed' : catalogSubStep === 2 ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50 scale-[1.02] cursor-pointer' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm cursor-pointer'}`} 
+              onClick={() => hDetails.packageId && setCatalogSubStep(2)}
+            >
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-bold text-xl ${catalogSubStep === 2 ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>2</div>
+                <div>
+                  <h4 className={`text-lg font-bold mb-1 ${catalogSubStep === 2 ? 'text-indigo-900' : 'text-slate-700'}`}>Ajuster package</h4>
+                  <p className="text-sm text-slate-500 leading-snug">Adapter les quantités incluses.</p>
+                  {!hDetails.packageId && <p className="text-xs text-rose-500 font-bold mt-2"><i className="fa-solid fa-lock mr-1"></i> Sélectionnez d'abord un package</p>}
+                </div>
+              </div>
+            </div>
+            
+            <div 
+              className={`min-h-[140px] p-6 rounded-2xl border-2 transition-all flex flex-col justify-center ${!hDetails.packageId ? 'border-slate-100 bg-slate-50/50 opacity-60 cursor-not-allowed' : catalogSubStep === 3 ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50 scale-[1.02] cursor-pointer' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm cursor-pointer'}`} 
+              onClick={() => hDetails.packageId && setCatalogSubStep(3)}
+            >
+              <div className="flex items-start gap-4">
+                <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-bold text-xl ${catalogSubStep === 3 ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>3</div>
+                <div>
+                  <h4 className={`text-lg font-bold mb-1 ${catalogSubStep === 3 ? 'text-indigo-900' : 'text-slate-700'}`}>Articles complémentaires</h4>
+                  <p className="text-sm text-slate-500 leading-snug">Ajouter des articles hors package.</p>
+                  {!hDetails.packageId && <p className="text-xs text-rose-500 font-bold mt-2"><i className="fa-solid fa-lock mr-1"></i> Sélectionnez d'abord un package</p>}
+                </div>
+              </div>
+            </div>
           </div>
 
           {catalogSubStep === 1 && (
@@ -1101,7 +1454,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                             <input 
                               type="number" min="0" max={catItem.available}
                               className="w-full border border-slate-300 rounded p-1 text-sm text-center"
-                              value={currentQty || ''} placeholder="0"
+                              value={currentQty} placeholder="0"
                               onChange={e => handleMaterialToggle(catItem, parseInt(e.target.value || '0', 10))}
                             />
                           </div>
@@ -1144,7 +1497,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                             <input 
                               type="number" min="0" max={item.available} 
                               className="w-16 border border-slate-300 rounded p-1 text-sm text-center"
-                              value={currentQty || ''} placeholder="0"
+                              value={currentQty} placeholder="0"
                               onChange={e => handleMaterialToggle(item, parseInt(e.target.value || '0', 10))}
                             />
                           </div>
@@ -1191,6 +1544,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
         <h3 className="text-lg font-bold text-slate-800 mb-2">Catalogue Matériels</h3>
         <p className="text-sm text-slate-500 mb-6">Sélectionnez les articles souhaités.</p>
+        
+        {quantityFeedback && (
+          <div className="mb-4 p-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
+            <i className="fa-solid fa-circle-exclamation"></i>
+            {quantityFeedback}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {mockCatalog.map(item => {
@@ -1215,7 +1575,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                           min="0" 
                           max={item.available} 
                           className="w-16 border border-slate-300 rounded p-1 text-sm text-center"
-                          value={currentQty || ''}
+                          value={currentQty}
                           placeholder="0"
                           onChange={e => handleMaterialToggle(item, parseInt(e.target.value || '0', 10))}
                         />
@@ -1361,7 +1721,46 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <p className="text-xs">{hDetails.durationOption}</p>
               </>
             ) : (
-              <p>{tDetails.period} • Sortie: {tDetails.pickupDate}</p>
+              <>
+                <p className="font-medium text-slate-800 mb-1">{tDetails.usageType === 'Autre' ? tDetails.usageTypeOther : tDetails.usageType}</p>
+                <p className="mb-2"><strong>Période:</strong> Du {tDetails.startDate} {tDetails.startTime} au {tDetails.endDate} {tDetails.endTime}</p>
+                
+                <div className="bg-slate-100 p-2 rounded text-xs mb-2">
+                  <p><strong>Destination:</strong> {tDetails.destinationName || 'Non précisé'}</p>
+                  <p><strong>Adresse:</strong> {tDetails.destinationAddress || 'Non précisé'} {tDetails.destinationCity ? ` - ${tDetails.destinationCity}` : ''}</p>
+                  <p><strong>Contact sur place:</strong> {tDetails.destinationContactName || 'Non précisé'} {tDetails.destinationContactPhone ? `(${tDetails.destinationContactPhone})` : ''}</p>
+                  
+                  {(tDetails.destinationLat && tDetails.destinationLng) ? (
+                    <div className="mt-1">
+                      <p><strong>GPS:</strong> {tDetails.destinationLat}, {tDetails.destinationLng}</p>
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${tDetails.destinationLat},${tDetails.destinationLng}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1 mt-0.5">
+                        <i className="fa-solid fa-map-location-dot"></i> Ouvrir dans Google Maps (GPS)
+                      </a>
+                    </div>
+                  ) : tDetails.destinationAddress ? (
+                    <div className="mt-1">
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tDetails.destinationAddress + (tDetails.destinationCity ? ', ' + tDetails.destinationCity : ''))}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1 mt-0.5">
+                        <i className="fa-solid fa-map-location-dot"></i> Ouvrir dans Google Maps (Adresse)
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+
+                <p className="font-medium text-xs text-indigo-700">{tDetails.movementMode}</p>
+                <div className="text-xs">
+                  {tDetails.movementMode === 'Livraison par Titan' ? (
+                    <>
+                      <p>Livraison prévue : {tDetails.pickupDate} à {tDetails.deliveryTime}</p>
+                      <p>Récupération prévue : {tDetails.returnDate} à {tDetails.returnTime}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>Prélèvement prévu : {tDetails.pickupDate} à {tDetails.deliveryTime || tDetails.pickupTime}</p>
+                      <p>Restitution prévue : {tDetails.returnDate} à {tDetails.returnTime || tDetails.clientReturnTime}</p>
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -1542,7 +1941,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       </div>
       <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Proforma</h3>
       <div className="flex items-center gap-3 mb-6">
-         <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Valide</span>
+         {isProspectProforma ? (
+            <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Proforma prospect - non confirmée</span>
+         ) : (
+            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Valide</span>
+         )}
          <span className="text-sm text-slate-500">Réf : PROF-2026-9042</span>
          <span className="text-sm text-slate-500">Émise le : {new Date().toLocaleDateString('fr-FR')}</span>
       </div>
@@ -1582,22 +1985,47 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="flex justify-between items-center mt-8 pt-4 border-t border-slate-100">
         <button className="px-4 py-2 text-indigo-600 hover:text-indigo-800 font-medium text-sm" onClick={() => jumpTo(4)}>Modifier lignes</button>
         <div className="flex gap-4">
-          <button 
-            className="px-6 py-2.5 bg-slate-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-slate-700 transition-colors"
-            onClick={() => { 
-               setProformaGenerated(true);
-               saveDraft();
-               alert("Proforma confirmée — en attente de décision client. État sauvegardé.");
-            }}
-          >
-            Confirmer proforma
-          </button>
-          <button 
-            className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-indigo-700 transition-colors"
-            onClick={() => { setProformaGenerated(true); goNext(); }}
-          >
-            Passer au paiement
-          </button>
+          {isProspectProforma ? (
+            <button 
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-green-700 transition-colors"
+              onClick={() => { 
+                 const profId = `PROF-PROS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+                 addMockReservation({
+                   id: profId,
+                   clientId: selectedClientId || "NEW",
+                   title: domain === 'hahitantsoa' ? (hDetails.eventTypeOther || hDetails.eventType) : (tDetails.usageTypeOther || tDetails.usageType),
+                   date: domain === 'hahitantsoa' ? hDetails.date : tDetails.period,
+                   amount: totalAmount,
+                   status: "Proforma",
+                   type: domain === 'titan' ? 'Titan' : 'Hahitantsoa'
+                 });
+                 alert("Proforma prospect créée avec succès et liée à la fiche !");
+                 clearDraft(false); // clear without reloading
+                 onNavigate("customer", selectedClientId); 
+              }}
+            >
+              Terminer et lier au prospect
+            </button>
+          ) : (
+            <>
+              <button 
+                className="px-6 py-2.5 bg-slate-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-slate-700 transition-colors"
+                onClick={() => { 
+                   setProformaGenerated(true);
+                   saveDraft();
+                   alert("Proforma confirmée — en attente de décision client. État sauvegardé.");
+                }}
+              >
+                Confirmer proforma
+              </button>
+              <button 
+                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-indigo-700 transition-colors"
+                onClick={() => { setProformaGenerated(true); goNext(); }}
+              >
+                Passer au paiement
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -1769,6 +2197,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           paidAmount={parseInt(payment.amount || '0', 10)}
           paymentMethod={payment.method}
           hDetails={hDetails}
+          tDetails={tDetails}
         />
       </div>
         
@@ -1810,11 +2239,89 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     return null;
   };
 
+  if (showDraftPrompt) {
+    const client = param ? mockClients.find(c => c.id === param) : null;
+    return (
+      <div className="page active max-w-2xl mx-auto mt-12 text-center">
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 shadow-sm animate-fade-in">
+          <div className="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
+            <i className="fa-solid fa-file-signature"></i>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">Brouillon de réservation en cours</h2>
+          <p className="text-slate-600 mb-8">Un brouillon de réservation existe déjà pour {client?.name}. Voulez-vous le reprendre ou recommencer à zéro ?</p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button 
+              onClick={() => clearDraft(true)}
+              className="px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+            >
+              Recommencer
+            </button>
+            <button 
+              onClick={() => restoreDraft()}
+              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+            >
+              Reprendre le brouillon
+            </button>
+          </div>
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            <button 
+              onClick={() => onNavigate('customer', param)}
+              className="text-slate-500 hover:text-slate-700 text-sm font-medium"
+            >
+              <i className="fa-solid fa-arrow-left mr-2"></i> Retour à la fiche {client?.name}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
+  // Si on est sur #reservation-new/CUST-XXX mais que le client n'existe pas
+  if (param && param.startsWith('CUST-') && !mockClients.find(c => c.id === param)) {
+    return (
+      <div className="page active max-w-2xl mx-auto mt-12 text-center">
+        <div className="bg-white rounded-2xl border border-slate-100 p-10 shadow-sm animate-fade-in">
+          <h2 className="text-2xl font-bold text-slate-800 mb-4">Client introuvable</h2>
+          <button 
+            onClick={() => onNavigate('customers')}
+            className="px-4 py-3 bg-slate-100 text-slate-600 font-medium text-sm rounded-xl hover:bg-slate-200 transition-colors"
+          >
+            Retour aux Clients & Prospects
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page active space-y-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Assistant de Création</h2>
-        <p className="text-sm text-slate-500">Parcours modulable mocké, strictement séparé Hahitantsoa / Titan.</p>
+        {param && param.startsWith('CUST-') ? (
+          <>
+            <div className="text-sm font-medium text-slate-500 mb-2">
+              <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('customers')}>Clients & Prospects</span>
+              <span className="mx-2">/</span>
+              <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('customer', param)}>{mockClients.find(c => c.id === param)?.name || "Client"}</span>
+              <span className="mx-2">/</span>
+              <span className="text-slate-800 font-bold">Nouvelle réservation</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800">Nouvelle réservation</h2>
+              <button 
+                onClick={() => onNavigate('customer', param)}
+                className="text-slate-500 hover:text-slate-800 text-sm font-medium border border-slate-200 bg-white px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <i className="fa-solid fa-arrow-left mr-2"></i> Retour à la fiche {mockClients.find(c => c.id === param)?.name || "client"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-2xl font-bold text-slate-800">Assistant de Création</h2>
+            <p className="text-sm text-slate-500">Parcours modulable mocké, strictement séparé Hahitantsoa / Titan.</p>
+          </>
+        )}
       </div>
 
       {step > 0 && renderStepper()}

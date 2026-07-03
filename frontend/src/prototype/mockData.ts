@@ -5,6 +5,7 @@ export interface Client {
   email: string;
   phone: string;
   type: "Particulier" | "Entreprise";
+  status: "Prospect" | "Client" | "Inactif";
   colorClass: string;
   
   // Particulier fields
@@ -29,6 +30,7 @@ export interface Client {
   repFirstName?: string;
   repLastName?: string;
   repRole?: string;
+  notes?: string;
 }
 
 export interface Reservation {
@@ -39,23 +41,103 @@ export interface Reservation {
   amount: number;
   status: "Proforma" | "Contrat signé" | "En attente" | "Confirmée" | "À préparer" | "En sortie" | "Terminée";
   type: "Hahitantsoa" | "Titan";
+  paidAmount?: number;
   lines?: { type: string; desc: string; qty: string; price: string; total: string; statusClass: string }[];
 }
 
-export const mockClients: Client[] = [
-  { id: "CUST-001", initials: "AR", name: "Ando Rakoto", email: "ando.rakoto@email.mg", phone: "+261 34 12 345 67", type: "Particulier", colorClass: "bg-indigo-100 text-indigo-700" },
-  { id: "CUST-002", initials: "RN", name: "Rasoa Nomena", email: "rasoa.nomena@entreprise.mg", phone: "+261 32 98 765 43", type: "Entreprise", colorClass: "bg-emerald-100 text-emerald-700" },
-  { id: "CUST-003", initials: "TR", name: "Traiteur Royal", email: "contact@traiteur-royal.mg", phone: "+261 33 45 678 90", type: "Entreprise", colorClass: "bg-amber-100 text-amber-700" }
+export function clampQuantity(value: number, min: number, max: number): number {
+  if (Number.isNaN(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+export function formatMoney(value: number | string | undefined | null, fallback = "0 Ar"): string {
+  const num = typeof value === "string" ? parseFloat(value.replace(/\s/g, "").replace(/,/g, ".")) : Number(value);
+  if (Number.isNaN(num)) return fallback;
+  return `${num.toLocaleString("fr-FR")} Ar`;
+}
+
+export function formatMoneyRaw(value: number | string | undefined | null, fallback = "0,00"): string {
+  const num = typeof value === "string" ? parseFloat(value.replace(/\s/g, "").replace(/,/g, ".")) : Number(value);
+  if (Number.isNaN(num)) return fallback;
+  return num.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function safeNumber(value: number | string | undefined | null, fallback = 0): number {
+  if (value === undefined || value === null || value === "") return fallback;
+  const num = typeof value === "string" ? parseFloat(value.replace(/\s/g, "").replace(/,/g, ".")) : Number(value);
+  return Number.isNaN(num) ? fallback : num;
+}
+
+export function formatDateFr(dateStr: string | undefined): string {
+  if (!dateStr) return "Date non renseignée";
+  // Attempt to parse "YYYY-MM-DD" or similar ISO date
+  const parts = dateStr.split('-');
+  if (parts.length >= 3) {
+    const year = parts[0];
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2].substring(0,2), 10);
+    
+    const months = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+    if (month >= 1 && month <= 12 && !isNaN(day)) {
+      const dayStr = day < 10 ? `0${day}` : `${day}`;
+      return `${dayStr} ${months[month-1]} ${year}`;
+    }
+  }
+  
+  // Fallback if not matching YYYY-MM-DD
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    // If it's already a formatted string like "15 Juin 2026", just try to normalize it roughly
+    return dateStr.replace(/([0-9]{1,2})\s+([A-Za-z]+)\s+([0-9]{4})/, (m, d, mo, y) => {
+      const dd = d.length === 1 ? `0${d}` : d;
+      return `${dd} ${mo.toLowerCase()} ${y}`;
+    });
+  }
+  
+  const formatter = new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  return formatter.format(date);
+}
+
+export function formatNumber(value: number | string | undefined | null, fallback = "0"): string {
+  const num = safeNumber(value, Number.NaN);
+  if (Number.isNaN(num)) return fallback;
+  return num.toLocaleString("fr-FR");
+}
+
+export function formatQuantity(value: number | string | undefined | null, fallback = 0): number {
+  return safeNumber(value, fallback);
+}
+
+export let mockClients: Client[] = [
+  { id: "CUST-001", initials: "AR", name: "Ando Rakoto", email: "ando.rakoto@email.mg", phone: "+261 34 12 345 67", type: "Particulier", status: "Client", colorClass: "bg-indigo-100 text-indigo-700" },
+  { id: "CUST-002", initials: "RN", name: "Rasoa Nomena", email: "rasoa.nomena@entreprise.mg", phone: "+261 32 98 765 43", type: "Entreprise", status: "Client", colorClass: "bg-emerald-100 text-emerald-700" },
+  { id: "CUST-003", initials: "TR", name: "Traiteur Royal", email: "contact@traiteur-royal.mg", phone: "+261 33 45 678 90", type: "Entreprise", status: "Client", colorClass: "bg-amber-100 text-amber-700" },
+  { id: "PROS-001", initials: "JD", name: "Jean Dupont", email: "jean.dupont@test.com", phone: "+261 34 00 111 22", type: "Particulier", status: "Prospect", colorClass: "bg-blue-100 text-blue-700" }
 ];
 
-export const mockReservations: Reservation[] = [
+export function updateMockClient(updatedClient: Client) {
+  const index = mockClients.findIndex(c => c.id === updatedClient.id);
+  if (index >= 0) {
+    mockClients[index] = updatedClient;
+  }
+}
+
+export function addMockClient(newClient: Client) {
+  mockClients.push(newClient);
+}
+
+export function addMockReservation(newRes: Reservation) {
+  mockReservations.push(newRes);
+}
+
+export let mockReservations: Reservation[] = [
   { id: "RES-2026-0142", clientId: "CUST-001", title: "Mariage Domaine Ambohimanga", date: "15 Juin 2026", amount: 2400000, status: "Confirmée", type: "Hahitantsoa", lines: [
     { type: "Local", desc: "Salle des fêtes principale", qty: "1", price: "1 000 000 Ar", total: "1 000 000 Ar", statusClass: "info" },
     { type: "Article", desc: "Chaise pliante", qty: "200", price: "2 000 Ar", total: "400 000 Ar", statusClass: "ok" },
     { type: "Service", desc: "Service traiteur", qty: "150", price: "6 667 Ar", total: "1 000 000 Ar", statusClass: "warn" }
   ]},
   { id: "LOC-2026-0089", clientId: "CUST-001", title: "Location chaises et tables", date: "14-16 Juin 2026", amount: 850000, status: "Confirmée", type: "Titan" },
-  { id: "LOC-2026-0087", clientId: "CUST-003", title: "Location matériel réception", date: "18-19 Juin 2026", amount: 1150000, status: "En sortie", type: "Titan" }
+  { id: "LOC-2026-0088", clientId: "CUST-003", title: "Location matériel réception", date: "18-19 Juin 2026", amount: 1150000, status: "En sortie", type: "Titan" }
 ];
 
 export const getClient = (id: string) => mockClients.find(c => c.id === id) || mockClients[0];
@@ -101,6 +183,53 @@ export const hahitantsoaEventTypes = [
   "Corporate", "Conférence", "Atelier / Formation", "Fête familiale", "Autre"
 ];
 
+export const mockVenues = [
+  {
+    id: "VENUE-HAH-DEFAULT",
+    name: "Salle des fêtes + jardin",
+    type: "location_event",
+    usage: "location",
+    volet: "Hahitantsoa",
+    active: true,
+    isDefault: true,
+    capacity: "Jusqu'à 300 personnes",
+    note: "Local principal par défaut Hahitantsoa"
+  },
+  {
+    id: "VENUE-HAH-GARDEN",
+    name: "Jardin seul",
+    type: "location_event",
+    usage: "location",
+    volet: "Hahitantsoa",
+    active: true,
+    isDefault: false,
+    capacity: "Jusqu'à 150 personnes",
+    note: ""
+  },
+  {
+    id: "VENUE-LOG-MAIN",
+    name: "Dépôt principal matériel",
+    type: "depot_stock",
+    usage: "depot_interne",
+    volet: "Logistique",
+    active: true,
+    isDefault: false,
+    capacity: "",
+    note: "Stock Titan"
+  },
+  {
+    id: "VENUE-LOG-CONS",
+    name: "Dépôt consommables",
+    type: "depot_stock",
+    usage: "depot_interne",
+    volet: "Logistique",
+    active: true,
+    isDefault: false,
+    capacity: "",
+    note: "Stock Hahitantsoa"
+  }
+];
+
 export const hahitantsoaRentalTypes = [
   "Location nue",
   "Location nue + logistique",
@@ -133,6 +262,39 @@ export const hahitantsoaBlockedIntervenants = [
 ];
 
 export const hahitantsoaAnnex2PlanPath = "/brand/Plan de masse évacuation incendie.png";
+
+export const hahitantsoaAnnex1Rules = [
+  "Interdiction de fumer à l’intérieur des locaux (chapiteau et bâtiments).",
+  "Puissance d’appareils en cuisine limitée à 6 000 W (hors congélateur et réfrigérateur).",
+  "Interdiction de toucher aux plantes du jardin (surtout pour les décorateurs).",
+  "Interdiction de s’asseoir, s’appuyer sur les pierres décoratives.",
+  "Mise en place de tout support suspendu assurée par notre équipe (sur devis) / à confirmer au plus tard 10 jours avant l’événement.",
+  "Accès au salon restreint (mariés et proches à présenter aux responsables avant l’événement).",
+  "Nourriture interdite au salon (sauf boissons).",
+  "Aucun intervenant ne pourra accéder sur site avant la passation avec le représentant du Client.",
+  "Accès sur site des intervenants réglementé par le port de badge mis à la disposition du Client.",
+  "Badges à retourner par le Client lors de la passation de sortie.",
+  "Les matériels sont loués propres ; ils devront être rendus de même.",
+  "Les poubelles doivent être enlevées par les soins des intervenants.",
+  "Pour raison de sécurité, lors des préparatifs, fermeture du portail à 23h00 ou 01h00 selon horaire d’entrée.",
+  "Réouverture du portail à 04h30.",
+  "Respecter le silence lors des préparatifs en soirée.",
+  "Le client est responsable du respect du règlement par ses invités et prestataires.",
+  "Le lieu doit être restitué vidé de tous les contenus et déchets.",
+  "Tout dommage causé par le non-respect du règlement est à la charge du client."
+];
+
+export const hahitantsoaAnnex2Zones = [
+  { label: "Entrée principale", description: "Accès clients et invités, circulation vers le parking intérieur." },
+  { label: "Salle de réception", description: "Zone principale, capacité 600 m², accès direct aux toilettes." },
+  { label: "Cuisine équipée", description: "Zone réservée aux traiteurs, réfrigérateur et congélateur." },
+  { label: "Salon / Loge", description: "Espace réservé aux mariés et proches." },
+  { label: "Parking intérieur", description: "50 places sécurisées, accès contrôlé." },
+  { label: "Parking extérieur", description: "Places supplémentaires, zone de manœuvre livraisons." },
+  { label: "Issue de secours Nord", description: "Issue principale, largeur 1,50 m, signalée." },
+  { label: "Issue de secours Sud", description: "Issue secondaire, accès parking extérieur." },
+  { label: "Extincteurs", description: "Répartis le long des murs, vérifiés annuellement." }
+];
 
 export const hahitantsoaMockVenuePrice = 1500000;
 export const hahitantsoaMockLogisticsPrice = 500000;
@@ -236,3 +398,215 @@ export interface TitanRentalDetails {
   returnDate?: string;
   returnTime?: string;
 }
+
+export interface InventoryArticle {
+  id: string;
+  name: string;
+  category: string;
+  totalStock: number;
+  availableStock: number;
+  reservedStock: number;
+  outStock: number;
+  expectedReturnStock: number;
+  brokenLostStock: number;
+  unitPrice: number;
+  breakagePrice: number;
+  status: "OK" | "Bas" | "Rupture";
+  imageUrl?: string;
+  description?: string;
+}
+
+export const mockInventory: InventoryArticle[] = [
+  { id: "MAT-01", name: "Chaise Napoléon transparente", category: "Mobilier", totalStock: 200, availableStock: 150, reservedStock: 0, outStock: 40, expectedReturnStock: 10, brokenLostStock: 0, unitPrice: 5000, breakagePrice: 150000, status: "OK" },
+  { id: "MAT-02", name: "Table rectangulaire 8 places", category: "Mobilier", totalStock: 30, availableStock: 20, reservedStock: 0, outStock: 10, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 15000, breakagePrice: 200000, status: "OK" },
+  { id: "MAT-03", name: "Tente 5x5m", category: "Structure", totalStock: 5, availableStock: 5, reservedStock: 0, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 150000, breakagePrice: 1000000, status: "OK" },
+  { id: "MAT-04", name: "Sono complète + Micro", category: "Sonorisation", totalStock: 2, availableStock: 0, reservedStock: 0, outStock: 2, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 300000, breakagePrice: 1500000, status: "Rupture" },
+  { id: "MAT-05", name: "Chaise chiavari", category: "Mobilier", totalStock: 250, availableStock: 200, reservedStock: 50, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 8000, breakagePrice: 120000, status: "OK" },
+  { id: "MAT-06", name: "Lumières d'ambiance", category: "Eclairage", totalStock: 15, availableStock: 10, reservedStock: 5, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 50000, breakagePrice: 300000, status: "OK" }
+];
+
+export interface StockMovement {
+  id: string;
+  type: "Entrée" | "Sortie" | "Retour" | "Casse" | "Perte" | "Ajustement" | "Réservation" | "Annulation";
+  date: string;
+  operator: string;
+  articleId: string;
+  quantity: number;
+  reason: string;
+  dossierRef?: string;
+  attachments?: string[];
+}
+
+export const mockMovements: StockMovement[] = [
+  { id: "MOV-001", type: "Sortie", date: "10 Juin 2026 08:00", operator: "Jean R.", articleId: "MAT-01", quantity: 40, reason: "Livraison client", dossierRef: "LOC-2026-0087" },
+  { id: "MOV-002", type: "Retour", date: "11 Juin 2026 18:00", operator: "Marc T.", articleId: "MAT-01", quantity: 10, reason: "Retour anticipé", dossierRef: "LOC-2026-0087" },
+  { id: "MOV-003", type: "Réservation", date: "12 Juin 2026 10:00", operator: "Alice D.", articleId: "MAT-05", quantity: 50, reason: "Réservation mariage", dossierRef: "RES-2026-0142" }
+];
+
+export interface Preparation {
+  id: string;
+  dossierRef: string;
+  clientName: string;
+  dateSortie: string;
+  status: "À préparer" | "Partiel" | "Prêt" | "Bloqué";
+  items: { articleId: string; name: string; qtyOrdered: number; qtyPrepared: number; available: number }[];
+}
+
+export const mockPreparations: Preparation[] = [
+  { 
+    id: "PREP-001", 
+    dossierRef: "LOC-2026-0089", 
+    clientName: "Ando Rakoto", 
+    dateSortie: "14 Juin 2026", 
+    status: "À préparer", 
+    items: [
+      { articleId: "MAT-01", name: "Chaise Napoléon transparente", qtyOrdered: 50, qtyPrepared: 0, available: 150 },
+      { articleId: "MAT-02", name: "Table rectangulaire 8 places", qtyOrdered: 5, qtyPrepared: 0, available: 20 }
+    ] 
+  }
+];
+
+export interface Sortie {
+  id: string;
+  dossierRef: string;
+  mode: "Livraison Titan" | "Prélèvement client" | "Livraison Hahitantsoa";
+  responsable: string;
+  datePrevue: string;
+  dateReelle?: string;
+  vehicule?: string;
+  items: { articleId: string; name: string; qty: number; etatInitial: string }[];
+  photos?: string[];
+  signature?: string;
+}
+
+export const mockSorties: Sortie[] = [
+  {
+    id: "OUT-001",
+    dossierRef: "LOC-2026-0087",
+    mode: "Livraison Titan",
+    responsable: "Chauffeur Michel",
+    datePrevue: "18 Juin 2026 09:00",
+    vehicule: "Fourgon 12m3",
+    items: [
+      { articleId: "MAT-01", name: "Chaise Napoléon transparente", qty: 40, etatInitial: "Bon état" },
+      { articleId: "MAT-02", name: "Table rectangulaire 8 places", qty: 10, etatInitial: "Bon état" }
+    ]
+  }
+];
+
+export interface Retour {
+  id: string;
+  dossierRef: string;
+  datePrevue: string;
+  dateReelle?: string;
+  items: { articleId: string; name: string; qtyExpected: number; qtyReturned: number; etat: "Bon état" | "Cassé" | "Manquant" | "Sale / non lavé" }[];
+  photos?: string[];
+  notes?: string;
+  status?: "En retard" | "Aujourd'hui" | "À venir";
+}
+
+export const mockRetours: Retour[] = [
+  {
+    id: "RET-001",
+    dossierRef: "LOC-2026-0087",
+    datePrevue: "19 Juin 2026 18:00",
+    items: [
+      { articleId: "MAT-01", name: "Chaise Napoléon transparente", qtyExpected: 40, qtyReturned: 38, etat: "Manquant" },
+      { articleId: "MAT-02", name: "Table rectangulaire 8 places", qtyExpected: 10, qtyReturned: 10, etat: "Bon état" },
+      { articleId: "MAT-12", name: "Nappe rectangulaire blanche", qtyExpected: 10, qtyReturned: 10, etat: "Sale / non lavé" }
+    ],
+    notes: "2 chaises manquantes.",
+    status: "En retard"
+  },
+  {
+    id: "RET-002",
+    dossierRef: "LOC-2026-0099",
+    datePrevue: "22 Juin 2026 10:00",
+    items: [
+      { articleId: "MAT-03", name: "Guirlande lumineuse", qtyExpected: 5, qtyReturned: 5, etat: "Bon état" },
+    ],
+    notes: "",
+    status: "Aujourd'hui"
+  },
+  {
+    id: "RET-003",
+    dossierRef: "LOC-2026-0105",
+    datePrevue: "25 Juin 2026 14:00",
+    items: [
+      { articleId: "MAT-08", name: "Assiette plate design", qtyExpected: 100, qtyReturned: 100, etat: "Bon état" },
+    ],
+    notes: "",
+    status: "À venir"
+  }
+];
+
+export interface CassePerte {
+  id: string;
+  dossierRef: string;
+  articleId: string;
+  articleName: string;
+  qtyBroken: number;
+  qtyLost: number;
+  priceBreakage: number;
+  totalAmount: number;
+  cautionAvailable: number;
+  cautionRetained: number;
+  diffToPay: number;
+  status: "À traiter" | "Retenue validée" | "Différence à facturer" | "Clôturé";
+  photos?: string[];
+  notes?: string;
+}
+
+export const mockCassesPertes: CassePerte[] = [
+  {
+    id: "BRK-001",
+    dossierRef: "LOC-2026-0087",
+    articleId: "MAT-01",
+    articleName: "Chaise Napoléon transparente",
+    qtyBroken: 0,
+    qtyLost: 2,
+    priceBreakage: 150000,
+    totalAmount: 300000,
+    cautionAvailable: 500000,
+    cautionRetained: 300000,
+    diffToPay: 0,
+    status: "À traiter",
+    notes: "2 chaises perdues lors du retour."
+  }
+];
+
+export interface Caution {
+  id: string;
+  dossierRef: string;
+  clientName: string;
+  type: "Chèque" | "Espèces" | "Virement";
+  amount: number;
+  status: "Conservée" | "Restituée" | "Partiellement retenue" | "Totalement retenue";
+  retainedAmount: number;
+  refundedAmount: number;
+  notes?: string;
+}
+
+export const mockCautions: Caution[] = [
+  {
+    id: "CAUT-001",
+    dossierRef: "LOC-2026-0089",
+    clientName: "Ando R.",
+    type: "Chèque",
+    amount: 500000,
+    status: "Conservée",
+    retainedAmount: 0,
+    refundedAmount: 0,
+  },
+  {
+    id: "CAUT-002",
+    dossierRef: "LOC-2026-0087",
+    clientName: "Traiteur Royal",
+    type: "Espèces",
+    amount: 500000,
+    status: "Partiellement retenue",
+    retainedAmount: 300000,
+    refundedAmount: 200000,
+    notes: "Retenue pour 2 chaises cassées"
+  }
+];

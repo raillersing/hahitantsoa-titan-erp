@@ -1,9 +1,14 @@
 import React from 'react';
-import { 
-  hahitantsoaDefaultDepositAmount, titanDepositThreshold, 
+import {
+  hahitantsoaDefaultDepositAmount, titanDepositThreshold,
   titanSmallRentalDeposit, titanLargeRentalDepositRate,
   hahitantsoaBreakagePrices, hahitantsoaBlockedIntervenants,
-  hahitantsoaMockPackages
+  hahitantsoaMockPackages,
+  hahitantsoaAnnex2PlanPath,
+  hahitantsoaAnnex1Rules,
+  hahitantsoaAnnex2Zones,
+  formatMoneyRaw,
+  safeNumber
 } from './mockData';
 
 type DocumentType = 'proforma' | 'facture' | 'contrat';
@@ -55,7 +60,10 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
   const titleText = type === 'proforma' ? 'P R O F O R M A' : type === 'facture' ? 'F A C T U R E' : 'CONTRAT';
   const typeRef = type === 'proforma' ? 'PROFORMA' : type === 'facture' ? 'FACTURE' : 'CONTRAT';
 
-  const remaining = Math.max(0, totalAmount - paidAmount);
+  const remaining = Math.max(0, safeNumber(totalAmount, 0) - safeNumber(paidAmount, 0));
+  const safeSubTotal = safeNumber(subTotalAmount, safeNumber(totalAmount, 0));
+  const safeDiscount = safeNumber(discountAmount, 0);
+  const safeTotal = safeNumber(totalAmount, 0);
 
   if (type === 'contrat') {
     const ContractPage = ({ pageNumber, children }: { pageNumber: number, children: React.ReactNode }) => (
@@ -132,9 +140,13 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <h5 className="font-bold underline mb-4">Article 1 : Objet du contrat</h5>
             <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
             <ul className="list-none pl-10 mb-4 space-y-2">
-              {materials.map((m, i) => (
-                <li key={i}>- {m.quantity} {m.designation}</li>
-              ))}
+              {materials.length === 0 ? (
+                <p className="text-sm text-slate-500 italic">Aucune ligne à afficher dans ce document mock.</p>
+              ) : (
+                materials.map((m, i) => (
+                  <li key={m.id || i}>- {safeNumber(m.quantity, 1)} {m.name || m.designation || "Article"}</li>
+                ))
+              )}
               <li>- Livraison et récupération</li>
             </ul>
             <p className="mb-4">Ci-après désignés les « Matériels Loués ».</p>
@@ -144,15 +156,42 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           </ContractPage>
 
           <ContractPage pageNumber={2}>
-            <p className="mb-4">Les matériels loués sont destinés à usage dans le cadre des évènements suivants : {tDetails?.usageType === 'Autre' ? tDetails?.usageTypeOther : (tDetails?.usageType || 'mariages, anniversaires, réceptions privées, séminaires')}.<br/>Toute autre activité en sus non mentionné doit faire l’objet d’une annexe à titre d’avenant conclu entre les parties.</p>
-            <p className="mb-8">Le lieu de destination : {tDetails?.destination || '.............................'} à {tDetails?.address || '.............................'} <br/> Contact sur place : {tDetails?.contactName || '.............................'} ({tDetails?.contactPhone || '.............................'})</p>
+            <p className="mb-4">Les matériels loués sont destinés à un usage de : <strong>{tDetails?.usageType === 'Autre' ? tDetails?.usageTypeOther : (tDetails?.usageType || 'Non précisé')}</strong>.<br/>Toute autre activité en sus non mentionnée doit faire l’objet d’une annexe à titre d’avenant conclu entre les parties.</p>
+            <h6 className="font-semibold mb-2">Destination et lieu de la location :</h6>
+            <ul className="list-disc pl-10 mb-8 space-y-1">
+              <li><strong>Nom du lieu :</strong> {tDetails?.destinationName || 'Non renseigné'}</li>
+              <li><strong>Adresse complète :</strong> {tDetails?.destinationAddress || 'Non renseigné'}</li>
+              <li><strong>Commune / Ville :</strong> {tDetails?.destinationCity || 'Non renseigné'}</li>
+              <li><strong>Contact sur place :</strong> {tDetails?.destinationContactName || 'Non renseigné'}</li>
+              <li><strong>Téléphone contact :</strong> {tDetails?.destinationContactPhone || 'Non renseigné'}</li>
+              {(tDetails?.destinationLat && tDetails?.destinationLng) && (
+                <li><strong>Coordonnées GPS :</strong> {tDetails.destinationLat}, {tDetails.destinationLng} (Lien: https://www.google.com/maps/search/?api=1&query={tDetails.destinationLat},{tDetails.destinationLng})</li>
+              )}
+              {tDetails?.destinationAccessNote && (
+                <li><strong>Note d'accès :</strong> {tDetails.destinationAccessNote}</li>
+              )}
+            </ul>
             
             <h5 className="font-bold underline mb-4">Article 3 : Durée</h5>
-            <p className="mb-4">La présente location est consentie et acceptée du {tDetails?.startDate || eventDate} à {tDetails?.startTime || '......'} heures au {tDetails?.endDate || eventDate} à {tDetails?.endTime || '......'} heures.</p>
-            <p className="mb-6">Il sera alors convenu un prélèvement des matériels du {tDetails?.pickupDate || eventDate} à {tDetails?.pickupTime || '........'} heures, pour une restitution au {tDetails?.returnDate || eventDate} à {tDetails?.returnTime || '.........'} heures.</p>
+            <p className="mb-4">
+              La location est consentie pour la période du {tDetails?.startDate || eventDate || 'non renseigné'} à {tDetails?.startTime || 'non renseigné'} au {tDetails?.endDate || eventDate || 'non renseigné'} à {tDetails?.endTime || 'non renseigné'}.
+            </p>
+            <p className="mb-6">
+              {tDetails?.movementMode === 'Livraison par Titan' ? (
+                <>
+                  La livraison des matériels est prévue le {tDetails?.pickupDate || tDetails?.startDate || eventDate || 'non renseigné'} à {tDetails?.deliveryTime || 'non renseigné'}.<br/>
+                  La récupération des matériels est prévue le {tDetails?.returnDate || tDetails?.endDate || eventDate || 'non renseigné'} à {tDetails?.returnTime || tDetails?.endTime || 'non renseigné'}.
+                </>
+              ) : (
+                <>
+                  Le prélèvement des matériels est prévu le {tDetails?.pickupDate || tDetails?.startDate || eventDate || 'non renseigné'} à {tDetails?.pickupTime || tDetails?.deliveryTime || 'non renseigné'}.<br/>
+                  La restitution des matériels est prévue le {tDetails?.returnDate || tDetails?.endDate || eventDate || 'non renseigné'} à {tDetails?.clientReturnTime || tDetails?.returnTime || tDetails?.endTime || 'non renseigné'}.
+                </>
+              )}
+            </p>
             
             <h5 className="font-bold underline mb-4">Article 4 : Tarifs</h5>
-            <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {totalAmount.toLocaleString('fr-FR')} Ariary TTC.</p>
+            <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {formatMoneyRaw(safeTotal)} Ariary TTC.</p>
             <p className="mb-4">Une facture sera établie après la réception de la totalité du règlement. Un reçu sera établi lors de la réception des fonds pour acompte.</p>
             <p className="mb-4">Dans le cas où le client n’aurait pas rendu les Matériels loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50% du montant total de la facture par jour de non remise des Matériels Loués.</p>
             <p className="mb-6">Dans le cas où il y a préjudice causé par la rallonge de retour des Matériels loués, le Client est tenu de prendre en charge tous les frais liés au démantèlement avec la somme supplémentaire de 100% pour réparation de dommage.</p>
@@ -289,7 +328,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <p className="mb-6">L’heure de fin comprend les heures de démantèlement et reprise des Lieux Loués par le Prestataire.<br/>Toute rallonge sur les heures convenues feront l’objet de facturation en sus suivant la grille du prestataire.</p>
             
             <h5 className="font-bold underline mb-4">Article 4 : Tarifs</h5>
-            <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {totalAmount.toLocaleString('fr-FR')} Ariary TTC.</p>
+            <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {formatMoneyRaw(safeTotal)} Ariary TTC.</p>
             <div className="pl-10 mb-4 flex flex-col gap-2">
               <div className="flex"><span className="w-48">N° Proforma :</span><span>{refNumber}</span></div>
               <div className="flex"><span className="w-48">Nombre de convives :</span><span>{hDetails?.guests || '200'}</span></div>
@@ -328,7 +367,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           </ContractPage>
 
           <ContractPage pageNumber={3}>
-            <p className="mb-4">Le client verse au Prestataire à titre de dépôt de garantie, une somme de {hahitantsoaDefaultDepositAmount.toLocaleString('fr-FR')} Ariary.<br/>La somme correspondant au dépôt de garantie est versée le jour du règlement du solde.<br/>Le montant du dépôt de garantie sera remboursé au Client le jour de la fin de location dans le cas d’un retour sans casse.</p>
+            <p className="mb-4">Le client verse au Prestataire à titre de dépôt de garantie, une somme de {formatMoneyRaw(hahitantsoaDefaultDepositAmount)} Ariary.<br/>La somme correspondant au dépôt de garantie est versée le jour du règlement du solde.<br/>Le montant du dépôt de garantie sera remboursé au Client le jour de la fin de location dans le cas d’un retour sans casse.</p>
             <p className="mb-4">Par ailleurs, dans le cas de constatation de casse le montant du dépôt de garantie sera remboursé au Client dans les cinq jours suivant la fin de la location après déduction de toutes les sommes dont il est destiné à garantir le paiement notamment les désordres que le Client aurait causé aux locaux, aux matériels ou aux espaces verts ainsi que le nettoyage supplémentaire.</p>
             <p className="mb-6">Si le montant du préjudice est supérieur au montant du dépôt de garantie, le Client s’engage à rembourser les frais supplémentaires sous 8 jours après réception d’une mise en demeure l’informant du montant de la somme due au titre de ces désordres.</p>
             
@@ -382,76 +421,108 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           </ContractPage>
 
           <ContractPage pageNumber={5}>
-            <h4 className="text-center font-bold text-[18px] mb-12 underline decoration-2 underline-offset-4">Annexe 1 : REGLEMENT INTERIEUR</h4>
-            <ul className="list-disc pl-8 space-y-2">
-              <li>Interdiction de fumer à l’intérieur des locaux (chapiteau et bâtiments) ;</li>
-              <li>Puissance d’appareils en cuisine limitée à 6 000 W (hors congélateur et réfrigérateur) ;</li>
-              <li>Interdiction de toucher aux plantes du jardin (surtout pour les décorateurs);</li>
-              <li>Interdiction de s’asseoir, s’appuyer sur les pierres décoratives ;</li>
-              <li>Mise en place de tout support suspendu assurée par notre équipe (sur devis) / à confirmer au plus tard 10 jours avant l’événement ;</li>
-              <li>Accès au salon restreint (mariés et ses proches à présenter aux responsables avant l’événement) ;</li>
-              <li>Nourriture interdite au salon (sauf boissons) ;</li>
-              <li>Le salon peut être utilisé comme loge artistes ;</li>
-              <li>Aucun intervenant ne pourra accéder sur site avant la passation avec le représentant du Client (En cas de retard, pour une passation à 15h30, le client devra payer les indemnités de nos agents si la passation dure au-delà de 17h00) ;</li>
-              <li>Accès sur site des intervenants règlementé par le port de badge mis à la disposition du Client ;</li>
-              <li>Badges à retourner par le Client lors de la passation de sortie ;</li>
-              <li>Les matériels sont loués propres ; ils devront être rendus de même. Dans le cas contraire, le nettoyage sera facturé selon notre tarif en vigueur.</li>
-              <li>Les poubelles doivent être enlevées par les soins des intervenants (Pour le traiteur : déchets et restes de nourriture ; pour les décorateurs : fleurs, autocollant sur piste, etc…)</li>
-              <li>Pour raison de sécurité, lors des préparatifs, fermeture du portail :
-                <ul className="list-[circle] pl-8 mt-2 space-y-2">
-                  <li>à 23h00 (si entrée des prestataires à 15h30) ;</li>
-                  <li>à 01h00 (si entrée des prestataires à 23h30).</li>
-                </ul>
-              </li>
-              <li>Réouverture du portail à 04h30 ;</li>
-              <li>Pour les intervenants qui restent sur place, respecter le silence lors des préparatifs en soirée ;</li>
-              <li>Pour les feux d’artifice, le client est prié de se charger de l’autorisation et de nous remettre une copie ainsi qu’à la commune et au commissariat d’Alasora.</li>
+            <h4 className="text-center font-bold text-[18px] mb-6 underline decoration-2 underline-offset-4">Annexe 1 : REGLEMENT INTERIEUR</h4>
+            <div className="mb-4 text-sm text-slate-600 italic">Le client et ses intervenants sont tenus de respecter les règles suivantes durant toute la durée de la location.</div>
+            <ul className="list-disc pl-6 space-y-2 text-sm">
+              {hahitantsoaAnnex1Rules.map((rule, idx) => (
+                <li key={idx}>{rule}</li>
+              ))}
             </ul>
+            <div className="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+              <strong>Responsabilité client :</strong> Le client déclare avoir pris connaissance du règlement intérieur et en informera l’ensemble de ses invités, traiteurs et prestataires. Tout manquement pourra entraîner des frais de nettoyage, de réparation ou des pénalités selon le contrat.
+            </div>
           </ContractPage>
 
           <ContractPage pageNumber={6}>
-            <h4 className="text-center font-bold text-[18px] mb-12 underline decoration-2 underline-offset-4">Annexe 2 : Plan de masse et évacuation incendie</h4>
-            <div className="w-full flex items-center justify-center">
-              <img src="/brand/Plan de masse évacuation incendie.png" alt="Plan de masse et évacuation incendie" className="max-w-full max-h-[800px] object-contain border border-slate-200 shadow-sm" />
+            <h4 className="text-center font-bold text-[18px] mb-6 underline decoration-2 underline-offset-4">Annexe 2 : Plan de masse et évacuation incendie</h4>
+            <div className="w-full flex items-center justify-center mb-6">
+              <img src={hahitantsoaAnnex2PlanPath} alt="Plan de masse et évacuation incendie" className="max-w-full max-h-[600px] object-contain border border-slate-200 shadow-sm rounded-lg" />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {hahitantsoaAnnex2Zones.map((zone, idx) => (
+                <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="font-semibold text-slate-800">{zone.label}</div>
+                  <div className="text-slate-600">{zone.description}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-sm text-slate-600 italic">Plan indicatif mock. En cas de divergence, le plan approuvé par le prestataire et affiché sur place fait foi.</p>
           </ContractPage>
 
           <ContractPage pageNumber={7}>
-            <h4 className="text-center font-bold text-[18px] mb-8 underline decoration-2 underline-offset-4">Annexe 3 : Prix de casse</h4>
-            <ul className="space-y-2">
-              {(() => {
-                if (materials.length === 0) {
-                  return hahitantsoaBreakagePrices.map((bp, idx) => (
-                    <li key={idx} className="mb-2">{bp.item} : Ar {bp.price.toLocaleString('fr-FR')}/u ;</li>
-                  ));
-                }
+            <h4 className="text-center font-bold text-[18px] mb-6 underline decoration-2 underline-offset-4">Annexe 3 : Prix de casse</h4>
+            {(() => {
+              const uniqueMaterials = Array.from(new Set(materials.map(m => m.name || m.designation).filter(Boolean)))
+                .map(name => materials.find(m => (m.name || m.designation) === name)!);
 
-                // Remove duplicate items just in case (same material added multiple times?)
-                const uniqueMaterials = Array.from(new Set(materials.map(m => m.name)))
-                  .map(name => materials.find(m => m.name === name)!);
+              const rows = uniqueMaterials.length === 0
+                ? hahitantsoaBreakagePrices.map(bp => ({
+                    name: bp.item,
+                    qty: 0,
+                    unitPrice: bp.price,
+                    total: 0,
+                    source: 'catalogue'
+                  }))
+                : uniqueMaterials.map(m => {
+                    const itemName = m.name || m.designation || "Article";
+                    const bp = hahitantsoaBreakagePrices.find(p => p.item.toLowerCase() === itemName.toLowerCase());
+                    const unit = bp ? bp.price : 0;
+                    const qty = safeNumber(m.quantity, 1);
+                    return { name: itemName, qty, unitPrice: unit, total: unit * qty, source: bp ? 'catalogue' : 'constat' };
+                  });
 
-                return uniqueMaterials.map((m, idx) => {
-                  const found = hahitantsoaBreakagePrices.find(bp => bp.item.toLowerCase() === m.name.toLowerCase());
-                  return (
-                    <li key={idx} className="mb-2">
-                      {m.name} : {found ? `Ar ${found.price.toLocaleString('fr-FR')}/u` : 'à évaluer selon constat'} ;
-                    </li>
-                  );
-                });
-              })()}
-            </ul>
-            <p className="mt-8 text-sm italic">Note : Le local ou les matériels qui ne figurent pas dans la liste des commandes peuvent également faire l’objet de casse, réparation ou remplacement selon constat.</p>
+              if (rows.length === 0) {
+                return (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
+                    Prix de casse non renseigné.
+                  </div>
+                );
+              }
+
+              return (
+                <>
+                  <table className="w-full text-sm mb-4 border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-300 text-left">
+                        <th className="py-2">Article</th>
+                        <th className="py-2 text-center">Qté commandée</th>
+                        <th className="py-2 text-right">Prix de casse / u</th>
+                        <th className="py-2 text-right">Total potentiel</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, idx) => (
+                        <tr key={idx} className="border-b border-slate-100">
+                          <td className="py-2">{row.name} {row.source === 'constat' && <span className="text-xs text-slate-500">(à évaluer selon constat)</span>}</td>
+                          <td className="py-2 text-center">{row.qty || "—"}</td>
+                          <td className="py-2 text-right">{row.unitPrice ? `Ar ${formatMoneyRaw(row.unitPrice)}` : "—"}</td>
+                          <td className="py-2 text-right">{row.total ? `Ar ${formatMoneyRaw(row.total)}` : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-sm italic text-slate-600">Note : le local ou les matériels qui ne figurent pas dans la liste des commandes peuvent également faire l’objet de casse, réparation ou remplacement selon constat.</p>
+                </>
+              );
+            })()}
           </ContractPage>
 
           <ContractPage pageNumber={8}>
-            <h4 className="text-center font-bold text-[18px] mb-8 underline decoration-2 underline-offset-4">Annexe 4 : Liste des intervenants non autorisés</h4>
-            <div className="flex justify-center">
-              <ul className="space-y-3 list-disc pl-5 w-full max-w-md">
-                {hahitantsoaBlockedIntervenants.filter(i => i.active !== false).map((intervenant, idx) => (
-                  <li key={idx} className="text-base font-medium">{intervenant.name}</li>
-                ))}
-              </ul>
-            </div>
+            <h4 className="text-center font-bold text-[18px] mb-6 underline decoration-2 underline-offset-4">Annexe 4 : Liste des intervenants non autorisés</h4>
+            {hahitantsoaBlockedIntervenants.filter(i => i.active !== false).length === 0 ? (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 text-center">
+                Aucun intervenant non autorisé enregistré.
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <ul className="space-y-3 list-disc pl-5 w-full max-w-md">
+                  {hahitantsoaBlockedIntervenants.filter(i => i.active !== false).map((intervenant, idx) => (
+                    <li key={idx} className="text-base font-medium">{intervenant.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="mt-6 text-sm text-slate-600 italic text-center">Cette liste est consultée par le prestataire et le client lors de la passation d’entrée et de sortie.</p>
           </ContractPage>
         </div>
       );
@@ -507,6 +578,12 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           <p>{eventDate}</p>
         </div>
         
+        {type === 'proforma' && client?.status === 'Prospect' && (
+          <div className="mb-6 p-3 bg-amber-50 text-amber-800 text-xs border border-amber-200 rounded">
+            <strong>Note importante :</strong> Ce document est une proforma émise à titre informatif. Elle ne vaut pas confirmation de réservation et ne vous confère pas le statut de client. La réservation ne sera ferme et définitive qu'après réception de l'acompte et signature du contrat.
+          </div>
+        )}
+        
         <div className="mb-auto">
           <table className="w-full text-xs doc-table-borderless">
             <thead>
@@ -523,8 +600,8 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
                 <tr className="border-none align-top">
                   <td className="text-left py-1.5">001</td>
                   <td className="py-1.5">Location local</td>
-                  <td className="text-right py-1.5">{(hDetails?.venuePrice || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">{(hDetails?.venuePrice || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.venuePrice)}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.venuePrice)}</td>
                   <td className="text-right py-1.5">0,00</td>
                 </tr>
               )}
@@ -532,44 +609,58 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
                 <tr className="border-none align-top">
                   <td className="text-left py-1.5">001</td>
                   <td className="py-1.5">Frais logistique</td>
-                  <td className="text-right py-1.5">{(hDetails?.logisticsPrice || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">{(hDetails?.logisticsPrice || 0).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.logisticsPrice)}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.logisticsPrice)}</td>
                   <td className="text-right py-1.5">0,00</td>
                 </tr>
               )}
-              {materials.map(m => (
-                <tr key={m.id} className="border-none align-top">
-                  <td className="text-left py-1.5">{m.quantity.toString().padStart(3, '0')}</td>
-                  <td className="py-1.5">{m.name}</td>
-                  <td className="text-right py-1.5">{m.price.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">{(m.price * m.quantity).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">{(m.price * 5).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
+              {materials.length === 0 && services.length === 0 && domain !== 'hahitantsoa' && (
+                <tr className="border-none align-top">
+                  <td colSpan={5} className="py-4 text-sm text-slate-500 italic text-center">Aucune ligne à afficher dans ce document mock.</td>
                 </tr>
-              ))}
-              {services.map(s => (
-                <tr key={s.id} className="border-none align-top">
-                  <td className="text-left py-1.5">001</td>
-                  <td className="py-1.5">{s.name}</td>
-                  <td className="text-right py-1.5">{s.price.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">{s.price.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">0,00</td>
-                </tr>
-              ))}
+              )}
+              {materials.map(m => {
+                const mQty = safeNumber(m.quantity, 1);
+                const mPrice = safeNumber(m.price, 0);
+                const mTotal = mQty * mPrice;
+                const mBreakage = mPrice * 5;
+                return (
+                  <tr key={m.id || m.name || Math.random()} className="border-none align-top">
+                    <td className="text-left py-1.5">{mQty.toString().padStart(3, '0')}</td>
+                    <td className="py-1.5">{m.name || m.designation || 'Article'}</td>
+                    <td className="text-right py-1.5">{formatMoneyRaw(mPrice)}</td>
+                    <td className="text-right py-1.5">{formatMoneyRaw(mTotal)}</td>
+                    <td className="text-right py-1.5">{formatMoneyRaw(mBreakage)}</td>
+                  </tr>
+                );
+              })}
+              {services.map(s => {
+                const sPrice = safeNumber(s.price, 0);
+                return (
+                  <tr key={s.id || s.name || Math.random()} className="border-none align-top">
+                    <td className="text-left py-1.5">001</td>
+                    <td className="py-1.5">{s.name || 'Service'}</td>
+                    <td className="text-right py-1.5">{formatMoneyRaw(sPrice)}</td>
+                    <td className="text-right py-1.5">{formatMoneyRaw(sPrice)}</td>
+                    <td className="text-right py-1.5">0,00</td>
+                  </tr>
+                );
+              })}
               {deliveryFee && (
                 <tr className="border-none align-top">
                   <td className="text-left py-1.5">001</td>
                   <td className="py-1.5">Frais de livraison</td>
-                  <td className="text-right py-1.5">{parseInt(deliveryFee, 10).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">{parseInt(deliveryFee, 10).toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(parseInt(deliveryFee, 10))}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(parseInt(deliveryFee, 10))}</td>
                   <td className="text-right py-1.5">0,00</td>
                 </tr>
               )}
-              {hDetails?.durationOptionPrice > 0 && (
+              {safeNumber(hDetails?.durationOptionPrice, 0) > 0 && (
                 <tr className="border-none align-top">
                   <td className="text-left py-1.5">001</td>
                   <td className="py-1.5">Tarif option horaire : {hDetails?.durationOption}</td>
-                  <td className="text-right py-1.5">{hDetails.durationOptionPrice.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
-                  <td className="text-right py-1.5">{hDetails.durationOptionPrice.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.durationOptionPrice)}</td>
+                  <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.durationOptionPrice)}</td>
                   <td className="text-right py-1.5">0,00</td>
                 </tr>
               )}
@@ -580,16 +671,16 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
         <div className="flex justify-end mb-2 mt-8 text-sm">
           <div className="w-[300px] grid grid-cols-[1fr_150px] gap-2">
             <div className="text-left tracking-widest">S O U S  -  T O T A L</div>
-            <div className="text-right">{subTotalAmount.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</div>
+            <div className="text-right">{formatMoneyRaw(safeSubTotal)}</div>
             
-            <div className="text-left tracking-widest">R E M I S e</div>
-            <div className="text-right">- {discountAmount.toLocaleString('fr-FR', {minimumFractionDigits: 2})}</div>
+            <div className="text-left tracking-widest">R E M I S E</div>
+            <div className="text-right">- {formatMoneyRaw(safeDiscount)}</div>
           </div>
         </div>
         
         <div className="flex bg-[#efefef] p-3 text-sm font-bold items-center justify-between mx-[-2.5rem] px-[2.5rem] mb-2">
           <div className="tracking-widest">T O T A L A P A Y E R</div>
-          <div className="">{totalAmount.toLocaleString('fr-FR', {minimumFractionDigits: 2})} Ar</div>
+          <div className="">{formatMoneyRaw(safeTotal)} Ar</div>
         </div>
         
         <div className="flex justify-between text-xs mb-8">
@@ -597,7 +688,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             Arrêtée la présente {type === 'facture' ? 'facture' : 'facture proforma'}<br/>à la somme de
           </div>
           <div className="w-1/2 text-center pt-2">
-            Mock : cent mille Ariary
+            {formatMoneyRaw(safeTotal)} Ar
           </div>
         </div>
 
