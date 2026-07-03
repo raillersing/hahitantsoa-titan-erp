@@ -1,665 +1,209 @@
 import { useEffect, useState } from "react";
+import AppShell from "./prototype/AppShell";
+import DashboardPage from "./prototype/DashboardPage";
+import PlanningPage from "./prototype/PlanningPage";
+import PlaceholderPage from "./prototype/PlaceholderPage";
+import HahitantsoaPage from "./prototype/HahitantsoaPage";
+import TitanPage from "./prototype/TitanPage";
+import CommercialOpsPage from "./prototype/CommercialOpsPage";
+import CustomersPage from "./prototype/CustomersPage";
+import CashboxPage from "./prototype/CashboxPage";
+import CautionPage from "./prototype/CautionPage";
+import ReservationNewPage from "./prototype/ReservationNewPage";
+import ReservationDetailPage from "./prototype/ReservationDetailPage";
+import CustomerDetailPage from "./prototype/CustomerDetailPage";
+import PackageBuilderPage from "./prototype/PackageBuilderPage";
+import AuditPage from "./prototype/AuditPage";
+import ReportsPage from "./prototype/ReportsPage";
+import HelpPage from "./prototype/HelpPage";
+import ServicesPage from "./prototype/ServicesPage";
+import BlacklistPage from "./prototype/BlacklistPage";
+import InventoryPage from "./prototype/InventoryPage";
+import InventoryItemPage from "./prototype/InventoryItemPage";
+import StockMovementsPage from "./prototype/StockMovementsPage";
+import StockPreparationPage from "./prototype/StockPreparationPage";
+import LogisticsDispatchPage from "./prototype/LogisticsDispatchPage";
+import LogisticsReturnsPage from "./prototype/LogisticsReturnsPage";
+import BreakageLossPage from "./prototype/BreakageLossPage";
+import ReservationsPage from "./prototype/ReservationsPage";
+import VenuesPage from "./prototype/VenuesPage";
 
-import { getInventoryItems } from "./api";
-import { useAuth } from "./AuthContext";
-import LoginPanel from "./LoginPanel";
-import AvailabilityPanel from "./AvailabilityPanel";
-import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
-import HahitantsoaDiscoveryPanel from "./HahitantsoaDiscoveryPanel";
-import HahitantsoaEventDraftsPanel from "./HahitantsoaEventDraftsPanel";
-import DashboardPanel from "./DashboardPanel";
-import HahitantsoaCommercialOpsPanel from "./HahitantsoaCommercialOpsPanel";
-import TitanStockMovementPanel from "./TitanStockMovementPanel";
-import CustomerPanel from "./CustomerPanel";
-import IdentityPanel from "./IdentityPanel";
-import CautionRefundPanel from "./CautionRefundPanel";
-import AuditPanel from "./AuditPanel";
-import CashboxPanel from "./CashboxPanel";
-import FutureWorkspacePanel from "./FutureWorkspacePanel";
-import PlanningPanel from "./PlanningPanel";
-import { useTheme, type ThemeMode } from "./ThemeContext";
-import type { InventoryItem } from "./types";
-
-type AppScope =
+export type AppScope =
   | "dashboard"
-  | "titan"
-  | "hahitantsoa"
-  | "commercial-ops"
-  | "customers"
-  | "identity"
-  | "caution-refund"
-  | "audit"
-  | "cashbox"
   | "planning"
+  | "customers"
+  | "hahitantsoa"
+  | "titan"
+  | "commercial-ops"
+  | "cashbox"
+  | "caution"
+  | "audit"
   | "reports"
-  | "catalog"
-  | "procurement"
-  | "hr"
-  | "help";
+  | "help"
+  | "reservation-new"
+  | "reservation-detail"
+  | "reservations"
+  | "customer"
+  | "login"
+  | "packages"
+  | "services"
+  | "blacklist-intervenants"
+  | "inventory"
+  | "inventory-item"
+  | "stock-movements"
+  | "stock-preparation"
+  | "logistics-dispatch"
+  | "logistics-returns"
+  | "breakage-loss"
+  | "venues";
 
-type InventoryState =
-  | { status: "loading" }
-  | { status: "loaded"; items: InventoryItem[] }
-  | { status: "error"; message: string };
-
-type ModuleDefinition = {
-  scope: AppScope;
-  navLabel: string;
-  heading: string;
-  eyebrow: string;
-  description: string;
-  boundaryNote: string;
-  badge: string;
-  accent: "hah" | "titan" | "neutral";
-  glyph: string;
-  section: string;
-};
-
-const MODULES: ModuleDefinition[] = [
-  {
-    scope: "dashboard",
-    navLabel: "Dashboard",
-    heading: "ERP Overview",
-    eyebrow: "System Dashboard",
-    description:
-      "A consolidated view of the ERP modules, providing quick access and summary metrics across business scopes.",
-    boundaryNote:
-      "This panel operates in read-only mode to visualize general system status.",
-    badge: "Overview",
-    accent: "neutral",
-    glyph: "\u2302",
-    section: "Accueil",
-  },
-  {
-    scope: "planning",
-    navLabel: "Planning",
-    heading: "Planning workspace",
-    eyebrow: "Weekly planning",
-    description:
-      "Weekly planning table showing Titan reservation drafts and Hahitantsoa event drafts with scope filters and week navigation.",
-    boundaryNote:
-      "Planning panel operates in read-only mode to visualise reservation and event schedules. Editing flows are handled via Titan and Hahitantsoa modules.",
-    badge: "Weekly planner",
-    accent: "neutral",
-    glyph: "\u2637",
-    section: "Accueil",
-  },
-  {
-    scope: "titan",
-    navLabel: "Titan",
-    heading: "Titan inventory",
-    eyebrow: "Titan module",
-    description:
-      "Operational inventory and reservation draft preparation for Titan materials, articles and material packs.",
-    boundaryNote:
-      "Titan stays limited to rental inventory. Venue, room, hall and service concepts are excluded from this module.",
-    badge: "Titan Rental",
-    accent: "titan",
-    glyph: "\u25a3",
-    section: "Réservations",
-  },
-  {
-    scope: "hahitantsoa",
-    navLabel: "Hahitantsoa",
-    heading: "Hahitantsoa discovery",
-    eyebrow: "Hahitantsoa module",
-    description:
-      "Read-only discovery for the broader event domain, kept separate from Titan inventory and commercial reservation workflows.",
-    boundaryNote:
-      "This module remains exploratory. It does not expose reservation creation, payment, contract or inventory blocking controls.",
-    badge: "Hahitantsoa",
-    accent: "hah",
-    glyph: "\u25b2",
-    section: "Réservations",
-  },
-  {
-    scope: "catalog",
-    navLabel: "Catalogue",
-    heading: "Catalog workspace",
-    eyebrow: "Prototype placeholder",
-    description:
-      "Catalog placeholder for future inventory and pack curation, respecting the Titan and Hahitantsoa business boundary.",
-    boundaryNote:
-      "Catalog consolidation is not approved yet. Titan inventory and Hahitantsoa concepts stay separated until a later decision.",
-    badge: "Future",
-    accent: "neutral",
-    glyph: "\u25a5",
-    section: "Commercial",
-  },
-  {
-    scope: "customers",
-    navLabel: "Customers",
-    heading: "Customer Management",
-    eyebrow: "Customer module",
-    description:
-      "Create, view, and manage customer records. Supports search and write operations for authorised operators.",
-    boundaryNote:
-      "Read operations are available to all authenticated users. Write operations require reservation-sensitive access.",
-    badge: "CRM",
-    accent: "neutral",
-    glyph: "\u263a",
-    section: "Commercial",
-  },
-  {
-    scope: "commercial-ops",
-    navLabel: "Commercial Ops",
-    heading: "Commercial Operations",
-    eyebrow: "Operations module",
-    description:
-      "Operational closeout tracking across Hahitantsoa and Titan business scopes: documents, payments, billing, logistics, returns, breakage, and stock ledger.",
-    boundaryNote:
-      "This panel acts as a foundation. Actions not yet supported by backend services are marked as pending integration.",
-    badge: "Operations",
-    accent: "hah",
-    glyph: "\u2692",
-    section: "Opérations",
-  },
-  {
-    scope: "identity",
-    navLabel: "Identity",
-    heading: "Roles & Permissions",
-    eyebrow: "Identity module",
-    description:
-      "View application roles and user role assignments. Write operations for role and assignment management require backend identity endpoints.",
-    boundaryNote:
-      "Read operations display current roles and assignments. Write operations are gated behind backend identity management availability.",
-    badge: "Security",
-    accent: "neutral",
-    glyph: "\u26e8",
-    section: "Administration",
-  },
-  {
-    scope: "audit",
-    navLabel: "Audit",
-    heading: "Journal d'audit",
-    eyebrow: "Activité de sécurité",
-    description:
-      "Journal des événements d'audit backend avec filtres et traçabilité opérationnelle.",
-    boundaryNote:
-      "L'accès à l'audit est en lecture seule et protégé par une permission backend réservation-sensible.",
-    badge: "Audit",
-    accent: "neutral",
-    glyph: "\u26a1",
-    section: "Administration",
-  },
-  {
-    scope: "reports",
-    navLabel: "Reports",
-    heading: "Reports and exports",
-    eyebrow: "Business gate",
-    description:
-      "Read-only placeholder for reporting and export surfaces suggested by the prototype.",
-    boundaryNote:
-      "No export format or legal reporting contract is confirmed in this frontend slice. Placeholder only.",
-    badge: "Gate",
-    accent: "neutral",
-    glyph: "\u2399",
-    section: "Administration",
-  },
-  {
-    scope: "cashbox",
-    navLabel: "Caisse",
-    heading: "Cashbox sessions",
-    eyebrow: "Cashbox module",
-    description:
-      "Manage cashbox sessions, open/close lifecycle, and cash movements tied to payments, invoices, and refund obligations.",
-    boundaryNote:
-      "Cashbox is limited to session lifecycle and movement tracking. Export format decisions remain future business work.",
-    badge: "Caisse",
-    accent: "titan",
-    glyph: "\u24c8",
-    section: "Opérations",
-  },
-  {
-    scope: "caution-refund",
-    navLabel: "Caution",
-    heading: "Caution Deposits & Refunds",
-    eyebrow: "Caution module",
-    description:
-      "Manage caution deposits and track refund amounts on damage/loss settlements.",
-    boundaryNote:
-      "Caution deposits are processed through the payment workflow. Refund operations require settlement execution.",
-    badge: "Finance",
-    accent: "titan",
-    glyph: "\u25c7",
-    section: "Opérations",
-  },
-  {
-    scope: "procurement",
-    navLabel: "Procurement",
-    heading: "Procurement placeholder",
-    eyebrow: "Unmapped area",
-    description:
-      "Prototype procurement surface preserved as a placeholder pending confirmed ERP cartography and backend contracts.",
-    boundaryNote:
-      "No procurement API contract is exposed in the current frontend map.",
-    badge: "Future",
-    accent: "neutral",
-    glyph: "\u2699",
-    section: "Administration",
-  },
-  {
-    scope: "hr",
-    navLabel: "HR",
-    heading: "HR placeholder",
-    eyebrow: "Out of current scope",
-    description:
-      "Informational HR placeholder aligned to the prototype but not approved for live ERP implementation.",
-    boundaryNote:
-      "No HR backend path is mapped on the frozen backend. This view must remain non-operational.",
-    badge: "Future",
-    accent: "neutral",
-    glyph: "\u2630",
-    section: "Administration",
-  },
-  {
-    scope: "help",
-    navLabel: "Help",
-    heading: "Help and onboarding",
-    eyebrow: "Operator support",
-    description:
-      "Prototype-inspired help entry point for guidance only, without new content contracts or backend calls.",
-    boundaryNote:
-      "Support content remains documentation-driven until a curated onboarding workflow is approved.",
-    badge: "Guide",
-    accent: "neutral",
-    glyph: "\u2753",
-    section: "Administration",
-  },
-];
-
-const THEME_MODE_LABELS: Record<ThemeMode, string> = {
-  light: "Light",
-  dark: "Dark",
-  system: "System",
-};
-
-function isAppScope(value: string | null): value is AppScope {
-  return (
-    value === "dashboard" ||
-    value === "titan" ||
-    value === "hahitantsoa" ||
-    value === "customers" ||
-    value === "commercial-ops" ||
-    value === "identity" ||
-    value === "audit" ||
-    value === "cashbox" ||
-    value === "caution-refund" ||
-    value === "planning" ||
-    value === "reports" ||
-    value === "catalog" ||
-    value === "procurement" ||
-    value === "hr" ||
-    value === "help"
-  );
-}
-
-function readScopeFromHash(hash: string): AppScope {
+function parseHash(hash: string): { scope: AppScope; param?: string } {
   const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
-  return isAppScope(normalizedHash) ? normalizedHash : "dashboard";
+  const parts = normalizedHash.split("/");
+  const rawScope = parts[0];
+  const param = parts[1];
+
+  const validScopes: AppScope[] = [
+    "dashboard",
+    "planning",
+    "customers",
+    "hahitantsoa",
+    "titan",
+    "commercial-ops",
+    "cashbox",
+    "caution",
+    "audit",
+    "reports",
+    "help",
+    "reservation-new",
+    "reservation-detail",
+    "reservations",
+    "customer",
+    "login",
+    "packages",
+    "services",
+    "blacklist-intervenants",
+    "inventory",
+    "inventory-item",
+    "stock-movements",
+    "stock-preparation",
+    "logistics-dispatch",
+    "logistics-returns",
+    "breakage-loss",
+    "venues"
+  ];
+
+  const scope = validScopes.includes(rawScope as AppScope) ? (rawScope as AppScope) : "dashboard";
+  return { scope, param };
 }
 
-function writeScopeHash(scope: AppScope) {
-  window.history.replaceState(null, "", `#${scope}`);
+function writeScopeHash(scope: AppScope, param?: string) {
+  const hash = param ? `#${scope}/${param}` : `#${scope}`;
+  window.history.replaceState(null, "", hash);
 }
-
-function kindLabel(kind: InventoryItem["kind"]): string {
-  if (kind === "material_pack") {
-    return "material pack";
-  }
-
-  return kind;
-}
-
-const SECTIONS = ["Accueil", "Commercial", "Réservations", "Opérations", "Administration"];
 
 function App() {
-  const { state: authState, logout } = useAuth();
-  const { themeMode, cycleThemeMode } = useTheme();
-  const [activeScope, setActiveScope] = useState<AppScope>(() =>
-    readScopeFromHash(window.location.hash),
-  );
-  const [inventoryState, setInventoryState] = useState<InventoryState>({
-    status: "loading",
-  });
-  const [prefillEventName, setPrefillEventName] = useState("");
-  const [prefillVenueName, setPrefillVenueName] = useState("");
+  const initialHash = parseHash(window.location.hash);
+  const [activeScope, setActiveScope] = useState<AppScope>(initialHash.scope);
+  const [activeParam, setActiveParam] = useState<string | undefined>(initialHash.param);
 
   useEffect(() => {
-    writeScopeHash(activeScope);
-  }, [activeScope]);
-
-  useEffect(() => {
-    if (authState.status !== "authenticated") {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    async function loadInventoryItems() {
-      try {
-        const items = await getInventoryItems(controller.signal);
-        setInventoryState({ status: "loaded", items });
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setInventoryState({
-          status: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "The requested data could not be loaded.",
-        });
-      }
-    }
-
-    void loadInventoryItems();
-
-    return () => controller.abort();
-  }, [authState.status]);
+    writeScopeHash(activeScope, activeParam);
+  }, [activeScope, activeParam]);
 
   useEffect(() => {
     function handleHashChange() {
-      setActiveScope(readScopeFromHash(window.location.hash));
+      const parsed = parseHash(window.location.hash);
+      setActiveScope(parsed.scope);
+      setActiveParam(parsed.param);
     }
-
     window.addEventListener("hashchange", handleHashChange);
-
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  if (authState.status === "loading") {
-    return (
-      <main className="app-shell app-shell--loading">
-        <div className="brand-card brand-card--loading">
-          <img
-            alt="Ergon"
-            className="brand-logo"
-            src="/assets/ergon-logo.png"
-            width="32"
-            height="32"
-          />
-          <div className="brand-card__copy">
-            <p className="eyebrow">Ergon ERP</p>
-            <h1>Loading...</h1>
-          </div>
-        </div>
-      </main>
-    );
+  const [returnContext, setReturnContext] = useState<{ from: AppScope; param?: string } | null>(null);
+
+  const navigate = (scope: AppScope, param?: string) => {
+    // Remember where we came from when entering customer or reservation detail
+    if (scope === 'customer' || scope === 'reservation-detail') {
+      setReturnContext({ from: activeScope, param: activeParam });
+    }
+    setActiveScope(scope);
+    setActiveParam(param);
+  };
+
+  const navigateBack = () => {
+    if (returnContext) {
+      setActiveScope(returnContext.from);
+      setActiveParam(returnContext.param);
+      setReturnContext(null);
+    } else {
+      setActiveScope('dashboard');
+      setActiveParam(undefined);
+    }
+  };
+
+  // If login page, don't show shell
+  if (activeScope === "login") {
+    return <PlaceholderPage title="Connexion" scope="login" onNavigate={navigate} />;
   }
-
-  if (authState.status === "unauthenticated") {
-    return <LoginPanel />;
-  }
-
-  const activeModule =
-    MODULES.find((moduleDefinition) => moduleDefinition.scope === activeScope) ??
-    MODULES[0];
-
-  const modulesBySection = SECTIONS.map((section) => ({
-    section,
-    modules: MODULES.filter((m) => m.section === section),
-  }));
 
   return (
-    <main className="erp-shell">
-      <a className="skip-link" href="#erp-main-content">
-        Skip to main content
-      </a>
-
-      <aside className="erp-sidebar" aria-label="Business modules">
-        <div className="erp-sidebar__brand">
-          <div className="brand-card brand-card--sidebar">
-            <img
-              alt="Ergon"
-              className="brand-logo brand-logo--sidebar"
-              src="/assets/ergon-logo.png"
-              width="36"
-              height="36"
-            />
-            <div className="brand-card__copy">
-              <h1>HAHITANTSOA</h1>
-              <p className="brand-subtitle">Titan ERP</p>
-            </div>
-          </div>
-        </div>
-
-        {modulesBySection.map(({ section, modules }) => (
-          <div className="erp-sidebar__section" key={section}>
-            <p className="erp-sidebar__title">{section}</p>
-            <ul className="module-nav-list">
-              {modules.map((moduleDefinition) => {
-                const isActive = moduleDefinition.scope === activeScope;
-
-                return (
-                  <li key={moduleDefinition.scope}>
-                    <button
-                      aria-current={isActive ? "page" : undefined}
-                      aria-label={moduleDefinition.navLabel}
-                      aria-pressed={isActive}
-                      className={`module-nav-button module-nav-button--${moduleDefinition.accent}`}
-                      type="button"
-                      onClick={() => setActiveScope(moduleDefinition.scope)}
-                    >
-                      <span aria-hidden="true" className="module-nav-button__icon">{moduleDefinition.glyph}</span>
-                      <span className="module-nav-button__label">
-                        <span>{moduleDefinition.navLabel}</span>
-                        <small>{moduleDefinition.heading}</small>
-                      </span>
-                      <span className={`module-nav-button__badge`}>{moduleDefinition.badge}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
-
-        <div className="erp-sidebar__footer">
-          <div className="scope-chip-group">
-            <span className="scope-chip scope-chip--hah">Hahitantsoa</span>
-            <span className="scope-chip scope-chip--titan">Titan</span>
-          </div>
-          <p className="erp-sidebar__note">
-            Les routes hash existantes et les panneaux FE-A sont conservés dans ce bundle.
-          </p>
-        </div>
-      </aside>
-
-      <section className="erp-main">
-        <header className="erp-topbar">
-          <div className="erp-topbar__title-block">
-            <div className={`scope-brand-card scope-brand-card--${activeModule.accent}`}>
-              <img
-                alt={activeModule.accent === "hah" ? "Hahitantsoa" : activeModule.accent === "titan" ? "Titan" : "Ergon"}
-                className="brand-logo brand-logo--topbar"
-                src={
-                  activeModule.accent === "hah"
-                    ? "/assets/hahitantsoa-logo.png"
-                    : activeModule.accent === "titan"
-                      ? "/assets/titan-rental-logo.png"
-                      : "/assets/ergon-logo.png"
-                }
-                width="28"
-                height="28"
-              />
-            </div>
-            <div>
-              <p className="eyebrow">{activeModule.eyebrow}</p>
-              <div className="erp-topbar__heading-row">
-                <h2 id="active-module-heading">{activeModule.heading}</h2>
-                <span className={`scope-chip scope-chip--${activeModule.accent}`}>{activeModule.badge}</span>
-              </div>
-              <p className="module-description">{activeModule.description}</p>
-            </div>
-          </div>
-          <div className="erp-topbar__actions">
-            <div className="erp-topbar__content-right">
-              <button className="erp-topbar__icon-btn erp-topbar__icon-btn--dot" type="button" title="Notifications" aria-label="Notifications">
-                &#x1F514;
-              </button>
-              <button className="erp-topbar__icon-btn" type="button" title="Messages" aria-label="Messages">
-                &#x2709;
-              </button>
-              <div className="erp-topbar__divider" aria-hidden="true"></div>
-              <button className="erp-topbar__quick-chip" type="button" aria-label="Nouvelle réservation">
-                + Nouvelle réservation
-              </button>
-              <button
-                className="erp-topbar__quick-chip"
-                type="button"
-                aria-label="Ouvrir le planning"
-                onClick={() => setActiveScope("planning")}
-              >
-                Planning
-              </button>
-            </div>
-            <button
-              aria-label={`Theme mode: ${themeMode}`}
-              className="theme-toggle"
-              type="button"
-              onClick={cycleThemeMode}
-            >
-              Theme: {THEME_MODE_LABELS[themeMode]}
-            </button>
-            <button className="session-logout" type="button" onClick={logout} aria-label="Sign out">
-              Sign out
-            </button>
-          </div>
-        </header>
-
-        <div className="erp-main__content" id="erp-main-content" tabIndex={-1}>
-          <div className="erp-main__intro">
-            <p className="module-boundary">{activeModule.boundaryNote}</p>
-          </div>
-
-          <div className="module-panel">
-            <div className="module-hero">
-              <div className="module-hero__copy">
-                <p className="eyebrow">Interface ERP</p>
-                <h3>Modules opérationnels</h3>
-                <p className="module-description">
-                  Interface Hahitantsoa / Titan ERP avec hiérarchie de marque et
-                  panneaux opérateurs connectés au backend.
-                </p>
-              </div>
-            </div>
-
-            {activeScope === "dashboard" && (
-              <DashboardPanel onNavigate={(scope) => setActiveScope(scope)} />
-            )}
-
-            {activeScope === "titan" && (
-              <>
-                {inventoryState.status === "loading" ? (
-                  <p className="status notice loading-notice">
-                    <span className="loading-spinner">Loading inventory...</span>
-                  </p>
-                ) : null}
-
-                {inventoryState.status === "error" ? (
-                  <section className="notice error-notice" role="alert">
-                    <h3>Inventory unavailable</h3>
-                    <p>{inventoryState.message}</p>
-                    <p>Your session may have expired. Sign in again to continue.</p>
-                  </section>
-                ) : null}
-
-                {inventoryState.status === "loaded" ? (
-                  <section className="inventory-section" aria-label="Inventory items">
-                    <div className="section-heading">
-                      <h2>Items</h2>
-                      <span>{inventoryState.items.length}</span>
-                    </div>
-
-                    {inventoryState.items.length === 0 ? (
-                      <p className="status">No inventory items are currently visible.</p>
-                    ) : (
-                      <ul className="inventory-list">
-                        {inventoryState.items.map((item) => (
-                          <li className="inventory-row" key={item.id}>
-                            <div>
-                              <h3>{item.name}</h3>
-                              {item.description ? <p>{item.description}</p> : null}
-                            </div>
-                            <span className="kind-pill">{kindLabel(item.kind)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                ) : null}
-
-                <AvailabilityPanel
-                  inventoryItems={
-                    inventoryState.status === "loaded" ? inventoryState.items : []
-                  }
-                  onNavigate={(scope: string) => setActiveScope(scope as AppScope)}
-                />
-                <TitanStockMovementPanel
-                  inventoryItems={
-                    inventoryState.status === "loaded" ? inventoryState.items : []
-                  }
-                />
-                <DocumentArtifactPreviewPanel />
-              </>
-            )}
-
-            {activeScope === "hahitantsoa" && (
-              <>
-                <HahitantsoaDiscoveryPanel
-                  onSelectConcept={(eventName, venueName) => {
-                    setPrefillEventName(eventName);
-                    setPrefillVenueName(venueName);
-                  }}
-                />
-                <HahitantsoaEventDraftsPanel
-                  inventoryItems={
-                    inventoryState.status === "loaded" ? inventoryState.items : []
-                  }
-                  prefillEventName={prefillEventName}
-                  prefillVenueName={prefillVenueName}
-                />
-              </>
-            )}
-
-            {activeScope === "customers" && (
-              <CustomerPanel />
-            )}
-
-            {activeScope === "commercial-ops" && (
-              <HahitantsoaCommercialOpsPanel />
-            )}
-
-            {activeScope === "identity" && (
-              <IdentityPanel />
-            )}
-
-            {activeScope === "audit" && (
-              <AuditPanel />
-            )}
-
-            {activeScope === "cashbox" && <CashboxPanel />}
-
-            {activeScope === "caution-refund" && (
-              <CautionRefundPanel />
-            )}
-
-            {activeScope === "planning" && <PlanningPanel />}
-
-            {(activeScope === "reports" ||
-              activeScope === "catalog" ||
-              activeScope === "procurement" ||
-              activeScope === "hr" ||
-              activeScope === "help") && (
-              <FutureWorkspacePanel scope={activeScope} />
-            )}
-          </div>
-        </div>
-      </section>
-    </main>
+    <AppShell activeScope={activeScope} activeParam={activeParam} onNavigate={navigate}>
+      {activeScope === "dashboard" && <DashboardPage onNavigate={navigate} />}
+      {activeScope === "planning" && <PlanningPage onNavigate={navigate} />}
+      {activeScope === "hahitantsoa" && <HahitantsoaPage onNavigate={navigate} />}
+      {activeScope === "titan" && <TitanPage onNavigate={navigate} />}
+      {activeScope === "commercial-ops" && <CommercialOpsPage onNavigate={navigate} />}
+      {activeScope === "customers" && <CustomersPage onNavigate={navigate} />}
+      {activeScope === "cashbox" && <CashboxPage onNavigate={navigate} />}
+      {activeScope === "caution" && <CautionPage onNavigate={navigate} />}
+      {activeScope === "help" && <HelpPage onNavigate={navigate} />}
+      {activeScope === "reservation-new" && <ReservationNewPage onNavigate={navigate} param={activeParam} />}
+      {activeScope === "reservation-detail" && <ReservationDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />}
+      {activeScope === "reservations" && <ReservationsPage onNavigate={navigate} />}
+      {activeScope === "customer" && <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />}
+      {activeScope === "packages" && <PackageBuilderPage />}
+      {activeScope === "services" && <ServicesPage />}
+      {activeScope === "blacklist-intervenants" && <BlacklistPage />}
+      {activeScope === "inventory" && <InventoryPage onNavigate={navigate} />}
+      {activeScope === "inventory-item" && <InventoryItemPage onNavigate={navigate} param={activeParam} />}
+      {activeScope === "stock-movements" && <StockMovementsPage onNavigate={navigate} />}
+      {activeScope === "stock-preparation" && <StockPreparationPage onNavigate={navigate} />}
+      {activeScope === "logistics-dispatch" && <LogisticsDispatchPage onNavigate={navigate} />}
+      {activeScope === "logistics-returns" && <LogisticsReturnsPage onNavigate={navigate} />}
+      {activeScope === "breakage-loss" && <BreakageLossPage onNavigate={navigate} />}
+      {activeScope === "audit" && <AuditPage onNavigate={navigate} />}
+      {activeScope === "reports" && <ReportsPage onNavigate={navigate} />}
+      {activeScope === "venues" && <VenuesPage />}
+      {activeScope !== "dashboard" &&
+        activeScope !== "planning" &&
+        activeScope !== "hahitantsoa" &&
+        activeScope !== "titan" &&
+        activeScope !== "commercial-ops" &&
+        activeScope !== "customers" &&
+        activeScope !== "cashbox" &&
+        activeScope !== "caution" &&
+        activeScope !== "help" &&
+        activeScope !== "reservation-new" &&
+        activeScope !== "reservation-detail" &&
+        activeScope !== "reservations" &&
+        activeScope !== "reports" &&
+        activeScope !== "packages" &&
+        activeScope !== "services" &&
+        activeScope !== "blacklist-intervenants" &&
+        activeScope !== "customer" &&
+        activeScope !== "inventory" &&
+        activeScope !== "inventory-item" &&
+        activeScope !== "stock-movements" &&
+        activeScope !== "stock-preparation" &&
+        activeScope !== "logistics-dispatch" &&
+        activeScope !== "logistics-returns" &&
+        activeScope !== "breakage-loss" &&
+        activeScope !== "venues" && (
+          <PlaceholderPage title={(activeScope as string).toUpperCase()} scope={activeScope} onNavigate={navigate} />
+      )}
+    </AppShell>
   );
 }
 
