@@ -98,10 +98,11 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
     }
   } else if (activeScope === "customer") {
     const client = mockClients.find(c => c.id === activeParam);
-    pageTitle = "Fiche client";
+    const isProspect = client?.status === "Prospect" || client?.notes?.includes("[PROSPECT]");
+    pageTitle = isProspect ? "Fiche prospect" : "Fiche client";
     breadcrumbs = [
       { label: "Clients & Prospects", scope: "customers", param: undefined },
-      { label: client ? client.name : (activeParam || "Fiche client"), scope: "customer", param: activeParam }
+      { label: client ? client.name : (activeParam || pageTitle), scope: "customer", param: activeParam }
     ];
   } else if (activeScope === "customers") {
     pageTitle = "Clients & Prospects";
