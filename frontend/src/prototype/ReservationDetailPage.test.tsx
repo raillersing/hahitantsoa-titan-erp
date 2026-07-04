@@ -115,9 +115,8 @@ describe('ReservationDetailPage', () => {
 
     // Check next step banner
     expect(screen.getByText(/Prochaine étape commerciale/i)).toBeInTheDocument();
-    const btn = screen.getByRole('button', { name: /Passer à la contractualisation/i });
-    expect(btn).toBeDisabled();
-    expect(btn).toHaveAttribute('title', 'Prévu en 6G-R2');
+    const btn = screen.getByRole('button', { name: /Confirmer avec acompte/i });
+    expect(btn).not.toBeDisabled();
 
     // Cleanup mock data
     const idx = mockReservations.findIndex(r => r.id === "PROF-PROS-2026-9999");

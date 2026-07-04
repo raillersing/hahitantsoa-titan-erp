@@ -66,6 +66,20 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
   const safeTotal = safeNumber(totalAmount, 0);
 
   if (type === 'contrat') {
+    if (client?.status === 'Prospect') {
+      return (
+        <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl h-full flex flex-col items-center justify-center min-h-[400px]">
+          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center text-3xl mb-4">
+            <i className="fa-solid fa-lock"></i>
+          </div>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">Contrat indisponible</h3>
+          <p className="text-slate-600 max-w-md mx-auto">
+            Le contrat ne peut être généré qu'après la conversion du prospect en client (paiement d'acompte et informations légales complétées).
+          </p>
+        </div>
+      );
+    }
+
     const ContractPage = ({ pageNumber, children }: { pageNumber: number, children: React.ReactNode }) => (
       <div className="contract-a4-page relative flex flex-col shrink-0 text-[14px] leading-snug">
         <div className="flex-1 relative pt-12 pb-8 px-16 flex flex-col z-10">

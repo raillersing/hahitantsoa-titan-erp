@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { AppScope } from "../App";
 import { DocumentPreview } from "./DocumentPreview";
-import { getReservation, getClient, formatMoney, safeNumber, formatDateFr, titanPreparationMock, titanReturnMock, titanBreakageMock, titanSmallRentalDeposit, titanLateReturnPenaltyRate, titanDamageExtensionPenaltyRate } from "./mockData";
+import { getReservation, getClient, formatMoney, safeNumber, formatDateFr, updateMockClient, addMockReservation } from "./mockData";
+import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 
 interface ReservationDetailPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -28,6 +29,7 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
   const [returnQty2, setReturnQty2] = useState(10);
   const [toast, setToast] = useState<{message: string, type: 'info'|'success'|'warning'|'error'} | null>(null);
   const [previewDoc, setPreviewDoc] = useState<PreviewDoc>(null);
+  const [showConversionAssistant, setShowConversionAssistant] = useState(false);
 
   const showToast = (message: string, type: 'info'|'success'|'warning'|'error' = 'info') => {
     setToast({message, type});
@@ -35,6 +37,25 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
   };
 
   const closePreview = () => setPreviewDoc(null);
+
+  const handleConversionSuccess = (updatedClient: any, payment: any) => {
+    const finalizedClient = { ...updatedClient, status: "Client" as const };
+    updateMockClient(finalizedClient);
+    
+    const newRes = {
+      ...reservation,
+      id: reservation.id.replace("PROF-PROS", "RES").replace("PROF", "RES"),
+      status: "Confirmée" as const,
+      paidAmount: payment.amount
+    };
+    addMockReservation(newRes);
+    
+    setShowConversionAssistant(false);
+    showToast(`Conversion réussie. Redirection vers le dossier confirmé...`, 'success');
+    setTimeout(() => {
+      onNavigate("reservation-detail", newRes.id);
+    }, 1500);
+  };
 
   const docClient = {
     ...client,
@@ -135,12 +156,21 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
               <button onClick={() => onNavigate('customer', client.id)} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 shadow-sm transition-colors whitespace-nowrap">
                 Retour à la fiche prospect
               </button>
-              <button disabled className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium opacity-50 cursor-not-allowed whitespace-nowrap shadow-sm" title="Prévu en 6G-R2">
-                Passer à la contractualisation
+              <button onClick={() => setShowConversionAssistant(true)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium whitespace-nowrap shadow-sm transition-colors">
+                <i className="fa-solid fa-check-circle mr-2"></i> Confirmer avec acompte
               </button>
             </div>
           </div>
         </div>
+
+        {showConversionAssistant && (
+          <ProspectConversionAssistant 
+            client={client}
+            proformaAmount={safeAmount}
+            onCancel={() => setShowConversionAssistant(false)}
+            onSuccess={handleConversionSuccess}
+          />
+        )}
       </div>
     );
   }

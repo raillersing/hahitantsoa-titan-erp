@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { AppScope } from "../App";
-import { Client, getClient, mockReservations, updateMockClient } from "./mockData";
-
+import { Client, getClient, mockReservations, updateMockClient, addMockReservation } from "./mockData";
+import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 interface CustomerDetailPageProps {
   onNavigate: (scope: any, param?: string) => void;
   param?: string;
@@ -14,6 +14,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   const baseClient = getClient(clientId);
   const [client, setClient] = useState<Client>(baseClient);
   const [isEditing, setIsEditing] = useState(false);
+  const [showConversionAssistant, setShowConversionAssistant] = useState(false);
   const reservations = mockReservations.filter(r => r.clientId === client.id);
 
   const [draftExists, setDraftExists] = useState(false);
@@ -65,12 +66,35 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   };
 
   const handleConvert = () => {
+    // This simple convert is now replaced by the assistant, but we keep it for fallback if needed.
     const updated = { ...client, status: "Client" as const };
     setClient(updated);
     updateMockClient(updated);
     setEditFeedback("Prospect converti en Client !");
     setTimeout(() => setEditFeedback(null), 3000);
-    // Ideally update URL param or handle it properly, but for mock UI it's fine.
+  };
+
+  const handleConversionSuccess = (updatedClient: Client, payment: any) => {
+    // Update Client
+    const finalizedClient = { ...updatedClient, status: "Client" as const };
+    setClient(finalizedClient);
+    updateMockClient(finalizedClient);
+    
+    // Create Confirmed Reservation
+    const linkedProforma = reservations.find(r => r.status === "Proforma");
+    if (linkedProforma) {
+      const newRes = {
+        ...linkedProforma,
+        id: linkedProforma.id.replace("PROF-PROS", "RES").replace("PROF", "RES"),
+        status: "Confirmée" as const,
+        paidAmount: payment.amount
+      };
+      addMockReservation(newRes);
+    }
+    
+    setShowConversionAssistant(false);
+    setEditFeedback(`Conversion réussie avec acompte de ${payment.amount.toLocaleString('fr-FR')} Ar`);
+    setTimeout(() => setEditFeedback(null), 5000);
   };
 
   const totalBilled = reservations.reduce((acc, r) => acc + r.amount, 0);
@@ -131,9 +155,9 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             </div>
             
             {client.status === 'Prospect' ? (
-              <button onClick={handleConvert} className="w-full px-4 py-2 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-700 transition-colors mb-2">
-                <i className="fa-solid fa-check-circle mr-2"></i> Convertir en client
-              </button>
+              <div className="w-full flex justify-center text-xs text-slate-500 italic mb-2">
+                Conversion via Demande commerciale
+              </div>
             ) : (
               <button className="w-full px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 mb-2 transition-colors" onClick={() => onNavigate("reservation-new", client.id)}>
                 <i className="fa-solid fa-plus mr-2"></i> Nouvelle réservation
@@ -143,8 +167,45 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
 
           {/* Solde / Demande commerciale */}
           {client.status === 'Prospect' ? (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Demande commerciale</h3>
+            <div className="space-y-6">
+              {linkedProforma && (
+                <div className="bg-white rounded-2xl border border-indigo-100 p-6 shadow-sm relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+                  <h3 className="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-4">Conversion en client</h3>
+                  <div className="space-y-3 mb-5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Proforma liée</span>
+                      <span className="font-bold text-slate-800">{linkedProforma.id}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Total estimatif</span>
+                      <span className="font-bold text-slate-800">{linkedProforma.amount.toLocaleString('fr-FR')} Ar</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-slate-500">Statut</span>
+                      <span className="font-semibold text-amber-600">Prospect non confirmé</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-100">
+                      <span className="text-slate-500">Prochaine étape</span>
+                      <span className="font-semibold text-indigo-600 text-right">Acompte +<br/>Infos légales</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <button onClick={() => setShowConversionAssistant(true)} className="w-full px-4 py-2 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-700 transition-colors">
+                      <i className="fa-solid fa-check-circle mr-2"></i> Confirmer avec acompte
+                    </button>
+                    <button onClick={() => setIsEditing(true)} className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-50 transition-colors">
+                      <i className="fa-solid fa-file-contract mr-2"></i> Compléter infos légales
+                    </button>
+                    <button onClick={() => onNavigate("reservation-detail", linkedProforma.id)} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-indigo-700 font-medium text-sm rounded-lg hover:bg-indigo-50 transition-colors">
+                      <i className="fa-solid fa-eye mr-2"></i> Voir proforma
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Demande commerciale</h3>
               <div className="space-y-4">
                 <div className="text-sm">
                   <span className="font-medium text-slate-500 block mb-1">Demande actuelle</span>
@@ -200,6 +261,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                 </div>
                 <button className="w-full mt-2 py-2 border-2 border-dashed border-slate-300 text-slate-500 rounded-lg text-xs font-bold hover:bg-slate-50 hover:border-slate-400">Planifier relance</button>
               </div>
+            </div>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 p-6">
@@ -620,9 +682,17 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
               </table>
             </div>
           </div>
-
         </div>
       </div>
+      
+      {showConversionAssistant && linkedProforma && (
+        <ProspectConversionAssistant 
+          client={client}
+          proformaAmount={linkedProforma.amount}
+          onCancel={() => setShowConversionAssistant(false)}
+          onSuccess={handleConversionSuccess}
+        />
+      )}
     </div>
   );
 }
