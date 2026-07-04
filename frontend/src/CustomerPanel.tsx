@@ -30,6 +30,27 @@ import type {
 
 type ViewState = "list" | "detail" | "create" | "edit" | "fiche";
 
+// --- MOCK LOCAL PROSPECT ---
+// En attendant que le backend supporte un vrai champ 'status: "prospect" | "client"',
+// on stocke cette information dans le champ 'notes' sous la forme d'un tag "[PROSPECT]".
+export function isCustomerProspect(customer: { notes?: string | null }): boolean {
+  return Boolean(customer.notes && customer.notes.includes("[PROSPECT]"));
+}
+
+export function setCustomerProspect(customer: { notes?: string | null }, isProspect: boolean) {
+  let notes = customer.notes || "";
+  const hasTag = notes.includes("[PROSPECT]");
+  if (isProspect && !hasTag) {
+    notes = notes ? `[PROSPECT] ${notes}` : "[PROSPECT]";
+  } else if (!isProspect && hasTag) {
+    notes = notes.replace(/\[PROSPECT\]\s*/g, "").trim();
+  }
+  customer.notes = notes;
+}
+// ----------------------------
+
+export type ListSegment = "all" | "clients" | "prospects";
+
 type CustomersState =
   | { status: "loading" }
   | { status: "loaded"; customers: Customer[] }
@@ -88,6 +109,8 @@ function CustomerListView({
   customersState,
   canWrite,
   searchParams,
+  segment,
+  onSegmentChange,
   onSearchChange,
   onSearchSubmit,
   onClearSearch,
@@ -98,6 +121,8 @@ function CustomerListView({
   customersState: CustomersState;
   canWrite: boolean;
   searchParams: CustomerSearchParams;
+  segment: ListSegment;
+  onSegmentChange: (segment: ListSegment) => void;
   onSearchChange: (field: keyof CustomerSearchParams, value: string) => void;
   onSearchSubmit: (e: React.FormEvent) => void;
   onClearSearch: () => void;
@@ -125,6 +150,12 @@ function CustomerListView({
             + Nouveau client
           </button>
         ) : null}
+      </div>
+
+      <div className="customer-segments" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <button type="button" className={`segment-btn ${segment === 'all' ? 'active' : ''}`} onClick={() => onSegmentChange('all')}>Tous</button>
+        <button type="button" className={`segment-btn ${segment === 'clients' ? 'active' : ''}`} onClick={() => onSegmentChange('clients')}>Clients confirmés</button>
+        <button type="button" className={`segment-btn ${segment === 'prospects' ? 'active' : ''}`} onClick={() => onSegmentChange('prospects')}>Prospects</button>
       </div>
 
       <form className="customer-search-form" onSubmit={onSearchSubmit}>
@@ -206,7 +237,12 @@ function CustomerListView({
               </tr>
             </thead>
             <tbody>
-              {customersState.customers.map((c) => (
+              {customersState.customers.filter(c => {
+                const isProspect = isCustomerProspect(c);
+                if (segment === 'clients') return !isProspect;
+                if (segment === 'prospects') return isProspect;
+                return true;
+              }).map((c) => (
                 <tr
                   key={c.id}
                   className="customer-row"
@@ -223,13 +259,20 @@ function CustomerListView({
                   <td>{c.email || "—"}</td>
                   <td>{c.phone || "—"}</td>
                   <td>
-                    {c.is_active ? (
-                      <span className="status-badge status-active">Actif</span>
-                    ) : (
-                      <span className="status-badge status-inactive">
-                        Inactif
-                      </span>
-                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", alignItems: "flex-start" }}>
+                      {isCustomerProspect(c) ? (
+                        <span className="status-badge status-warning">Prospect</span>
+                      ) : (
+                        <span className="status-badge status-success">Client</span>
+                      )}
+                      {c.is_active ? (
+                        <span className="status-badge status-active">Actif</span>
+                      ) : (
+                        <span className="status-badge status-inactive">
+                          Inactif
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <button
@@ -327,14 +370,21 @@ function CustomerDetailView({
       <div className="customer-detail-card">
         <div className="detail-header">
           <div>
-            <p className="eyebrow">Client</p>
+            <p className="eyebrow">{isCustomerProspect(customer) ? "Prospect" : "Client"}</p>
             <h2>{customer.display_name}</h2>
           </div>
-          {customer.is_active ? (
-            <span className="status-badge status-active">Actif</span>
-          ) : (
-            <span className="status-badge status-inactive">Inactif</span>
-          )}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {isCustomerProspect(customer) ? (
+              <span className="status-badge status-warning">Prospect</span>
+            ) : (
+              <span className="status-badge status-success">Client</span>
+            )}
+            {customer.is_active ? (
+              <span className="status-badge status-active">Actif</span>
+            ) : (
+              <span className="status-badge status-inactive">Inactif</span>
+            )}
+          </div>
         </div>
 
         <dl className="detail-grid">
@@ -369,6 +419,15 @@ function CustomerDetailView({
             <button
               type="button"
               className="primary-btn"
+              disabled={isCustomerProspect(customer)}
+              title={isCustomerProspect(customer) ? "Action réservée aux clients confirmés (Prospect actuel)" : "Créer une réservation"}
+              aria-label="Nouvelle réservation"
+            >
+              Nouvelle réservation
+            </button>
+            <button
+              type="button"
+              className="primary-btn"
               onClick={() => onEdit(customer.id)}
               disabled={deletePending}
             >
@@ -380,7 +439,7 @@ function CustomerDetailView({
               onClick={() => onViewFile(customer.id)}
               disabled={deletePending}
             >
-              Fiche client
+              {isCustomerProspect(customer) ? "Fiche prospect" : "Fiche client"}
             </button>
             {deleteConfirming ? (
               <span className="confirm-delete-group">
@@ -450,6 +509,7 @@ function CustomerFormView({
   const [fieldErrors, setFieldErrors] = useState<
     Record<string, string[]>
   >({});
+  const [isProspect, setIsProspect] = useState(() => isCustomerProspect(customer || {}));
 
   useEffect(() => {
     if (mutationState.status === "error" && mutationState.fieldErrors) {
@@ -477,7 +537,9 @@ function CustomerFormView({
       setFieldErrors({ display_name: ["Le nom est requis."] });
       return;
     }
-    onSave(form);
+    const payload = { ...form };
+    setCustomerProspect(payload, isProspect);
+    onSave(payload);
   };
 
   return (
@@ -602,7 +664,16 @@ function CustomerFormView({
                 onChange={(e) => setField("is_active", e.target.checked)}
                 disabled={isSubmitting}
               />
-              Client actif
+              Fiche active
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={isProspect}
+                onChange={(e) => setIsProspect(e.target.checked)}
+                disabled={isSubmitting}
+              />
+              Prospect (non confirmé)
             </label>
           </div>
 
@@ -725,14 +796,21 @@ function CustomerFileView({
       <div className="customer-detail-card">
         <div className="detail-header">
           <div>
-            <p className="eyebrow">Fiche client</p>
+            <p className="eyebrow">{isCustomerProspect(customer) ? "Fiche prospect" : "Fiche client"}</p>
             <h2>{customer.display_name}</h2>
           </div>
-          {customer.is_active ? (
-            <span className="status-badge status-active">Actif</span>
-          ) : (
-            <span className="status-badge status-inactive">Inactif</span>
-          )}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {isCustomerProspect(customer) ? (
+              <span className="status-badge status-warning">Prospect</span>
+            ) : (
+              <span className="status-badge status-success">Client</span>
+            )}
+            {customer.is_active ? (
+              <span className="status-badge status-active">Actif</span>
+            ) : (
+              <span className="status-badge status-inactive">Inactif</span>
+            )}
+          </div>
         </div>
 
         <dl className="detail-grid">
@@ -1083,6 +1161,7 @@ export function CustomerPanel() {
   const [canWrite, setCanWrite] = useState(false);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const [searchParams, setSearchParams] = useState<CustomerSearchParams>({});
+  const [segment, setSegment] = useState<ListSegment>("all");
   const [reservationDraftsState, setReservationDraftsState] = useState<ReservationDraftsState>({
     status: "loading",
   });
@@ -1465,6 +1544,8 @@ export function CustomerPanel() {
           customersState={customersState}
           canWrite={canWrite}
           searchParams={searchParams}
+          segment={segment}
+          onSegmentChange={setSegment}
           onSearchChange={handleSearchChange}
           onSearchSubmit={handleSearchSubmit}
           onClearSearch={handleClearSearch}

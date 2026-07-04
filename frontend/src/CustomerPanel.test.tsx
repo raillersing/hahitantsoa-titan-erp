@@ -26,7 +26,7 @@ const MOCK_CUSTOMERS: Customer[] = [
     email: "bob@example.test",
     phone: "+261 34 00 000 02",
     address: "Toamasina",
-    notes: "",
+    notes: "[PROSPECT] A contacter",
     is_active: true,
     created_at: "2026-02-20T10:00:00Z",
     updated_at: "2026-05-15T10:00:00Z",
@@ -72,6 +72,10 @@ describe("CustomerPanel", () => {
 
     expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
     expect(screen.getByText("Répertoire clients")).toBeTruthy();
+    
+    // Check that badges are rendered based on the notes
+    expect(screen.getAllByText("Client")[0]).toBeTruthy();
+    expect(screen.getByText("Prospect")).toBeTruthy();
   });
 
   it("shows empty state when no customers exist", async () => {
@@ -428,6 +432,84 @@ describe("CustomerPanel", () => {
       expect(
         screen.getByText(/Aucune fiche client trouvée/),
       ).toBeTruthy();
+    });
+  });
+
+  it("filters by prospect and client segments", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(false);
+    vi.spyOn(api, "getCustomers").mockResolvedValue(MOCK_CUSTOMERS);
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+      expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText("Prospects"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
+    });
+    expect(screen.queryByText("Alice Dupont")).toBeNull();
+
+    fireEvent.click(screen.getByText("Clients confirmés"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+    });
+    expect(screen.queryByText("Bob Rajaonarison")).toBeNull();
+
+    fireEvent.click(screen.getByText("Tous"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice Dupont")).toBeTruthy();
+      expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
+    });
+  });
+
+  it("disables reservation creation action for prospects", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(true);
+    vi.spyOn(api, "getCustomers").mockResolvedValue(MOCK_CUSTOMERS);
+    vi.spyOn(api, "getCustomer").mockResolvedValue(MOCK_CUSTOMERS[1]); // Bob is prospect
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
+    });
+
+    const viewButtons = screen.getAllByLabelText(/Voir/);
+    fireEvent.click(viewButtons[1]); // View Bob
+
+    await waitFor(() => {
+      expect(screen.getByText(/Retour à la liste/)).toBeTruthy();
+    });
+
+    const reserveButton = screen.getByRole("button", { name: "Nouvelle réservation" });
+    expect(reserveButton).toBeDisabled();
+    expect(reserveButton.getAttribute("title")).toMatch(/Action réservée aux clients confirmés/);
+  });
+
+  it("displays Fiche prospect instead of Fiche client for a prospect in the detail actions", async () => {
+    vi.spyOn(api, "checkCustomerWritePermission").mockResolvedValue(true);
+    vi.spyOn(api, "getCustomers").mockResolvedValue(MOCK_CUSTOMERS);
+    vi.spyOn(api, "getCustomer").mockResolvedValue(MOCK_CUSTOMERS[1]); // Bob is prospect
+
+    render(<CustomerPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
+    });
+
+    const viewButtons = screen.getAllByLabelText(/Voir/);
+    fireEvent.click(viewButtons[1]); // View Bob
+
+    await waitFor(() => {
+      expect(screen.getByText(/Retour à la liste/)).toBeTruthy();
+      // Test the button in detail actions (titre global du bouton pour ouvrir la fiche)
+      expect(screen.getByRole("button", { name: "Fiche prospect" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Fiche client" })).toBeNull();
     });
   });
 });
