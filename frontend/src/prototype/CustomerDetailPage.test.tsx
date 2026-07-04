@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import CustomerDetailPage from './CustomerDetailPage';
+import { mockReservations } from './mockData';
 
 describe('CustomerDetailPage', () => {
   it('1. Affiche un particulier (CUST-001) avec ses sections', () => {
@@ -31,18 +32,32 @@ describe('CustomerDetailPage', () => {
   });
 
   it('3. Affiche un prospect et permet la conversion (PROS-001)', () => {
+    // Add mock proforma so the conversion block appears
+    mockReservations.push({
+      id: "PROF-TEST",
+      clientId: "PROS-001",
+      title: "Test",
+      date: "2026-08-15",
+      amount: 1500000,
+      status: "Proforma",
+      type: "Hahitantsoa"
+    });
+
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage param="PROS-001" onNavigate={mockNavigate} />);
     
     expect(screen.getByText('Fiche prospect — Jean Dupont')).toBeInTheDocument();
     expect(screen.getByText('Prospect')).toBeInTheDocument();
     
-    // Convert
-    const convertBtn = screen.getByText('Convertir en client');
+    // Check that the new "Conversion en client" block is there
+    expect(screen.getByText('Conversion en client')).toBeInTheDocument();
+    
+    // Click Confirmer avec acompte
+    const convertBtn = screen.getByText(/Confirmer avec acompte/i);
     fireEvent.click(convertBtn);
     
-    expect(screen.getByText('Prospect converti en Client !')).toBeInTheDocument();
-    expect(screen.getByText('Nouvelle réservation')).toBeInTheDocument(); // Bouton devient dispo
+    // Check that assistant opens
+    expect(screen.getByText('1. Infos légales')).toBeInTheDocument();
   });
 
   it('4. Modification du nom (mode local/mock)', () => {
