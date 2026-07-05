@@ -19,6 +19,7 @@ import HelpPage from "./prototype/HelpPage";
 import ServicesPage from "./prototype/ServicesPage";
 import BlacklistPage from "./prototype/BlacklistPage";
 import InventoryPage from "./prototype/InventoryPage";
+import InventoryManagementPage from "./prototype/InventoryManagementPage";
 import InventoryItemPage from "./prototype/InventoryItemPage";
 import StockMovementsPage from "./prototype/StockMovementsPage";
 import StockPreparationPage from "./prototype/StockPreparationPage";
@@ -49,13 +50,22 @@ export type AppScope =
   | "services"
   | "blacklist-intervenants"
   | "inventory"
+  | "inventory-management"
   | "inventory-item"
   | "stock-movements"
   | "stock-preparation"
   | "logistics-dispatch"
   | "logistics-returns"
   | "breakage-loss"
-  | "venues";
+  | "venues"
+  | "agenda-visitors"
+  | "import-excel"
+  | "documents"
+  | "hr-payroll"
+  | "purchasing"
+  | "notifications"
+  | "admin"
+  | "mobile-tablet";
 
 function parseHash(hash: string): { scope: AppScope; param?: string } {
   const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
@@ -84,13 +94,22 @@ function parseHash(hash: string): { scope: AppScope; param?: string } {
     "services",
     "blacklist-intervenants",
     "inventory",
+    "inventory-management",
     "inventory-item",
     "stock-movements",
     "stock-preparation",
     "logistics-dispatch",
     "logistics-returns",
     "breakage-loss",
-    "venues"
+    "venues",
+    "agenda-visitors",
+    "import-excel",
+    "documents",
+    "hr-payroll",
+    "purchasing",
+    "notifications",
+    "admin",
+    "mobile-tablet"
   ];
 
   const scope = validScopes.includes(rawScope as AppScope) ? (rawScope as AppScope) : "dashboard";
@@ -124,8 +143,8 @@ function App() {
   const [returnContext, setReturnContext] = useState<{ from: AppScope; param?: string } | null>(null);
 
   const navigate = (scope: AppScope, param?: string) => {
-    // Remember where we came from when entering customer or reservation detail
-    if (scope === 'customer' || scope === 'reservation-detail') {
+    // Remember where we came from when entering customer, reservation detail, or inventory-item
+    if (scope === 'customer' || scope === 'reservation-detail' || scope === 'inventory-item') {
       setReturnContext({ from: activeScope, param: activeParam });
     }
     setActiveScope(scope);
@@ -149,7 +168,7 @@ function App() {
   }
 
   return (
-    <AppShell activeScope={activeScope} activeParam={activeParam} onNavigate={navigate}>
+    <AppShell activeScope={activeScope} activeParam={activeParam} onNavigate={navigate} returnContext={returnContext}>
       {activeScope === "dashboard" && <DashboardPage onNavigate={navigate} />}
       {activeScope === "planning" && <PlanningPage onNavigate={navigate} />}
       {activeScope === "hahitantsoa" && <HahitantsoaPage onNavigate={navigate} />}
@@ -167,7 +186,8 @@ function App() {
       {activeScope === "services" && <ServicesPage />}
       {activeScope === "blacklist-intervenants" && <BlacklistPage />}
       {activeScope === "inventory" && <InventoryPage onNavigate={navigate} />}
-      {activeScope === "inventory-item" && <InventoryItemPage onNavigate={navigate} param={activeParam} />}
+      {activeScope === "inventory-management" && <InventoryManagementPage onNavigate={navigate} />}
+      {activeScope === "inventory-item" && <InventoryItemPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />}
       {activeScope === "stock-movements" && <StockMovementsPage onNavigate={navigate} />}
       {activeScope === "stock-preparation" && <StockPreparationPage onNavigate={navigate} />}
       {activeScope === "logistics-dispatch" && <LogisticsDispatchPage onNavigate={navigate} />}
@@ -194,6 +214,7 @@ function App() {
         activeScope !== "blacklist-intervenants" &&
         activeScope !== "customer" &&
         activeScope !== "inventory" &&
+        activeScope !== "inventory-management" &&
         activeScope !== "inventory-item" &&
         activeScope !== "stock-movements" &&
         activeScope !== "stock-preparation" &&

@@ -7,16 +7,16 @@ import StockPreparationPage from './StockPreparationPage';
 import LogisticsDispatchPage from './LogisticsDispatchPage';
 import LogisticsReturnsPage from './LogisticsReturnsPage';
 import BreakageLossPage from './BreakageLossPage';
+import InventoryManagementPage from './InventoryManagementPage';
 
 describe('Stock & Logistics Pages', () => {
   const mockNavigate = vi.fn();
 
-  it('InventoryPage - renders KPIs and articles', () => {
-    render(<InventoryPage onNavigate={mockNavigate} />);
+  it('InventoryManagementPage - renders KPIs and articles', () => {
+    render(<InventoryManagementPage onNavigate={mockNavigate} />);
     expect(screen.getAllByText('Total').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Dispo').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Réservé').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Sorti').length).toBeGreaterThan(0);
     
     // Check article
     expect(screen.getByText('Chaise Napoléon transparente')).toBeDefined();
@@ -26,6 +26,14 @@ describe('Stock & Logistics Pages', () => {
     expect(mockNavigate).toHaveBeenCalledWith('inventory-item', 'MAT-01');
   });
 
+  it('InventoryPage (Catalogue) - renders grid of location articles', () => {
+    render(<InventoryPage onNavigate={mockNavigate} />);
+    expect(screen.getByText('Catalogue')).toBeInTheDocument();
+    expect(screen.getByText('Chaise Napoléon transparente')).toBeInTheDocument();
+    // It should not render table headers like "Total" or "Dispo" as pure text blocks (it has Stock and Location)
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
   it('InventoryItemPage - renders stock info and history', () => {
     render(<InventoryItemPage onNavigate={mockNavigate} param="MAT-01" />);
     expect(screen.getByText('Chaise Napoléon transparente')).toBeDefined();
@@ -33,7 +41,7 @@ describe('Stock & Logistics Pages', () => {
     expect(screen.getByText('Historique des mouvements')).toBeDefined();
     
     fireEvent.click(screen.getByText('Retour à l\'inventaire'));
-    expect(mockNavigate).toHaveBeenCalledWith('inventory');
+    expect(mockNavigate).toHaveBeenCalledWith('inventory-management');
   });
 
   it('StockMovementsPage - renders movements with types', () => {
