@@ -210,6 +210,18 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setSelectedClientId(clientId);
       setStep(3); // skip client and domain choice, go directly to details
       setMaxReachedStep(3);
+    } else if (param && param.startsWith('catalog-prep|')) {
+      const payload = param.split('catalog-prep|')[1];
+      try {
+        const items = JSON.parse(payload);
+        setPath('domain_first');
+        setDomain('titan');
+        setSelectedMaterials(items);
+        setStep(2); // Go to Client step
+        setMaxReachedStep(2);
+      } catch (e) {
+        console.error("Failed to parse catalog-prep param", e);
+      }
     }
   }, [param]);
 

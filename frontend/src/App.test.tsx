@@ -83,13 +83,13 @@ describe("App Prototype", () => {
   it("shows all logistics routes in the sidebar", () => {
     window.history.replaceState(null, "", "/");
     render(<App />);
-    expect(screen.getByRole("link", { name: /Stock/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Catalogue/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Mouvements/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Préparation/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Sortie \/ Livraison/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Retour \/ Restitution/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Casse & Perte/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Packages/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Packs/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Services/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Liste noire/i })).toBeInTheDocument();
   });
@@ -97,15 +97,15 @@ describe("App Prototype", () => {
   it("navigates to packages and shows correct breadcrumbs and titles", () => {
     window.history.replaceState(null, "", "/#packages");
     render(<App />);
-    expect(screen.getByRole("heading", { name: "Packages" })).toBeInTheDocument();
-    expect(screen.getAllByText("Inventaire & Stocks").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Gestion des Packs" })).toBeInTheDocument();
+    expect(screen.getAllByText("Offres").length).toBeGreaterThan(0);
   });
 
   it("navigates correctly from sidebar clicks for logistics routes", () => {
     window.history.replaceState(null, "", "/");
     render(<App />);
     
-    fireEvent.click(screen.getByRole("link", { name: /Stock/i }));
+    fireEvent.click(screen.getByRole("link", { name: /Catalogue/i }));
     expect(window.location.hash).toBe("#inventory");
     
     fireEvent.click(screen.getByRole("link", { name: /Mouvements/i }));

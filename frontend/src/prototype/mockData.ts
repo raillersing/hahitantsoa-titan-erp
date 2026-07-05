@@ -300,12 +300,12 @@ export const hahitantsoaMockVenuePrice = 1500000;
 export const hahitantsoaMockLogisticsPrice = 500000;
 
 export const mockCatalog = [
-  { id: "MAT-01", name: "Chaise Napoléon transparente", category: "Mobilier", available: 150, price: 5000 },
-  { id: "MAT-02", name: "Table rectangulaire 8 places", category: "Mobilier", available: 20, price: 15000 },
-  { id: "MAT-03", name: "Tente 5x5m", category: "Structure", available: 5, price: 150000 },
-  { id: "MAT-04", name: "Sono complète + Micro", category: "Sonorisation", available: 2, price: 300000 },
-  { id: "MAT-05", name: "Chaise chiavari", category: "Mobilier", available: 200, price: 8000 },
-  { id: "MAT-06", name: "Lumières d'ambiance", category: "Eclairage", available: 10, price: 50000 }
+  { id: "MAT-01", name: "Chaise Napoléon transparente", category: "Mobilier", available: 150, price: 5000, imageUrl: "" },
+  { id: "MAT-02", name: "Table rectangulaire 8 places", category: "Mobilier", available: 20, price: 15000, imageUrl: "" },
+  { id: "MAT-03", name: "Tente 5x5m", category: "Structure", available: 5, price: 150000, imageUrl: "" },
+  { id: "MAT-04", name: "Sono complète + Micro", category: "Sonorisation", available: 2, price: 300000, imageUrl: "" },
+  { id: "MAT-05", name: "Chaise chiavari", category: "Mobilier", available: 200, price: 8000, imageUrl: "" },
+  { id: "MAT-06", name: "Lumières d'ambiance", category: "Eclairage", available: 10, price: 50000, imageUrl: "" }
 ];
 
 export const hahitantsoaMockPackages = [
@@ -412,17 +412,20 @@ export interface InventoryArticle {
   unitPrice: number;
   breakagePrice: number;
   status: "OK" | "Bas" | "Rupture";
+  type: "Location" | "Consommable" | "Uniforme";
   imageUrl?: string;
   description?: string;
 }
 
 export const mockInventory: InventoryArticle[] = [
-  { id: "MAT-01", name: "Chaise Napoléon transparente", category: "Mobilier", totalStock: 200, availableStock: 150, reservedStock: 0, outStock: 40, expectedReturnStock: 10, brokenLostStock: 0, unitPrice: 5000, breakagePrice: 150000, status: "OK" },
-  { id: "MAT-02", name: "Table rectangulaire 8 places", category: "Mobilier", totalStock: 30, availableStock: 20, reservedStock: 0, outStock: 10, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 15000, breakagePrice: 200000, status: "OK" },
-  { id: "MAT-03", name: "Tente 5x5m", category: "Structure", totalStock: 5, availableStock: 5, reservedStock: 0, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 150000, breakagePrice: 1000000, status: "OK" },
-  { id: "MAT-04", name: "Sono complète + Micro", category: "Sonorisation", totalStock: 2, availableStock: 0, reservedStock: 0, outStock: 2, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 300000, breakagePrice: 1500000, status: "Rupture" },
-  { id: "MAT-05", name: "Chaise chiavari", category: "Mobilier", totalStock: 250, availableStock: 200, reservedStock: 50, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 8000, breakagePrice: 120000, status: "OK" },
-  { id: "MAT-06", name: "Lumières d'ambiance", category: "Eclairage", totalStock: 15, availableStock: 10, reservedStock: 5, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 50000, breakagePrice: 300000, status: "OK" }
+  { id: "MAT-01", name: "Chaise Napoléon transparente", category: "Mobilier", totalStock: 200, availableStock: 150, reservedStock: 0, outStock: 40, expectedReturnStock: 10, brokenLostStock: 0, unitPrice: 5000, breakagePrice: 150000, status: "OK", type: "Location" },
+  { id: "MAT-02", name: "Table rectangulaire 8 places", category: "Mobilier", totalStock: 30, availableStock: 20, reservedStock: 0, outStock: 10, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 15000, breakagePrice: 200000, status: "OK", type: "Location" },
+  { id: "MAT-03", name: "Tente 5x5m", category: "Structure", totalStock: 5, availableStock: 5, reservedStock: 0, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 150000, breakagePrice: 1000000, status: "OK", type: "Location" },
+  { id: "MAT-04", name: "Sono complète + Micro", category: "Sonorisation", totalStock: 2, availableStock: 0, reservedStock: 0, outStock: 2, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 300000, breakagePrice: 1500000, status: "Rupture", type: "Location" },
+  { id: "MAT-05", name: "Chaise chiavari", category: "Mobilier", totalStock: 250, availableStock: 200, reservedStock: 50, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 8000, breakagePrice: 120000, status: "OK", type: "Location" },
+  { id: "MAT-06", name: "Lumières d'ambiance", category: "Eclairage", totalStock: 15, availableStock: 10, reservedStock: 5, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 50000, breakagePrice: 300000, status: "OK", type: "Location" },
+  { id: "CONS-01", name: "Savon liquide main 5L", category: "Nettoyage", totalStock: 10, availableStock: 10, reservedStock: 0, outStock: 0, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 25000, breakagePrice: 0, status: "OK", type: "Consommable" },
+  { id: "UNIF-01", name: "Polo staff Titan taille M", category: "Vêtement", totalStock: 20, availableStock: 15, reservedStock: 0, outStock: 5, expectedReturnStock: 0, brokenLostStock: 0, unitPrice: 0, breakagePrice: 50000, status: "OK", type: "Uniforme" }
 ];
 
 export interface StockMovement {

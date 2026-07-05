@@ -6,10 +6,11 @@ interface AppShellProps {
   activeScope: AppScope;
   activeParam?: string;
   onNavigate: (scope: any, param?: string) => void;
+  returnContext?: { from: string; param?: string } | null;
   children: React.ReactNode;
 }
 
-export default function AppShell({ activeScope, activeParam, onNavigate, children }: AppShellProps) {
+export default function AppShell({ activeScope, activeParam, onNavigate, returnContext, children }: AppShellProps) {
   const scopeHeading: Record<string, string> = {
     dashboard: "Tableau de bord",
     planning: "Planning",
@@ -35,6 +36,28 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
     return false;
   });
 
+  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   React.useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add("dark", "theme-dark");
@@ -52,22 +75,28 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
 
   if (
     [
-      "inventory", "inventory-item", "stock-movements", "stock-preparation",
-      "logistics-dispatch", "logistics-returns", "breakage-loss", "packages",
-      "services", "blacklist-intervenants", "venues"
+      "inventory-management", "inventory-item", "stock-movements", "stock-preparation",
+      "logistics-dispatch", "logistics-returns", "breakage-loss", "blacklist-intervenants"
     ].includes(activeScope)
   ) {
     breadcrumbs = [
-      { label: "Inventaire & Stocks", scope: "inventory", param: undefined }
+      { label: "Inventaire & Logistique", scope: "inventory-management", param: undefined }
     ];
     
-    if (activeScope === "inventory") {
-      pageTitle = "Stock";
-      breadcrumbs.push({ label: "Stock", scope: "inventory", param: undefined });
+    if (activeScope === "inventory-management") {
+      pageTitle = "Inventaire";
+      breadcrumbs.push({ label: "Inventaire", scope: "inventory-management", param: undefined });
     } else if (activeScope === "inventory-item") {
       pageTitle = "Fiche article";
-      breadcrumbs.push({ label: "Stock", scope: "inventory", param: undefined });
-      breadcrumbs.push({ label: "Fiche article", scope: "inventory-item", param: activeParam });
+      if (returnContext?.from === 'inventory') {
+        breadcrumbs = [
+          { label: "Offres", scope: "inventory", param: undefined },
+          { label: "Catalogue", scope: "inventory", param: undefined },
+          { label: "Fiche article", scope: "inventory-item", param: activeParam }
+        ];
+      } else {
+        breadcrumbs.push({ label: "Fiche article", scope: "inventory-item", param: activeParam });
+      }
     } else if (activeScope === "stock-movements") {
       pageTitle = "Mouvements de stock";
       breadcrumbs.push({ label: "Mouvements", scope: "stock-movements", param: undefined });
@@ -79,19 +108,32 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
       breadcrumbs.push({ label: "Sortie / Livraison", scope: "logistics-dispatch", param: undefined });
     } else if (activeScope === "logistics-returns") {
       pageTitle = "Retour & Restitution";
-      breadcrumbs.push({ label: "Retour / Restitution", scope: "logistics-returns", param: undefined });
+      breadcrumbs.push({ label: "Retour / Restit.", scope: "logistics-returns", param: undefined });
     } else if (activeScope === "breakage-loss") {
       pageTitle = "Casse & Perte";
       breadcrumbs.push({ label: "Casse & Perte", scope: "breakage-loss", param: undefined });
-    } else if (activeScope === "packages") {
-      pageTitle = "Packages";
-      breadcrumbs.push({ label: "Packages", scope: "packages", param: undefined });
-    } else if (activeScope === "services") {
-      pageTitle = "Services";
-      breadcrumbs.push({ label: "Services", scope: "services", param: undefined });
     } else if (activeScope === "blacklist-intervenants") {
       pageTitle = "Liste noire";
       breadcrumbs.push({ label: "Liste noire", scope: "blacklist-intervenants", param: undefined });
+    }
+  } else if (
+    [
+      "inventory", "packages", "services", "venues"
+    ].includes(activeScope)
+  ) {
+    breadcrumbs = [
+      { label: "Offres", scope: "inventory", param: undefined }
+    ];
+
+    if (activeScope === "inventory") {
+      pageTitle = "Catalogue";
+      breadcrumbs.push({ label: "Catalogue", scope: "inventory", param: undefined });
+    } else if (activeScope === "packages") {
+      pageTitle = "Packs";
+      breadcrumbs.push({ label: "Packs", scope: "packages", param: undefined });
+    } else if (activeScope === "services") {
+      pageTitle = "Services";
+      breadcrumbs.push({ label: "Services", scope: "services", param: undefined });
     } else if (activeScope === "venues") {
       pageTitle = "Locaux & Dépôts";
       breadcrumbs.push({ label: "Locaux & Dépôts", scope: "venues", param: undefined });
@@ -175,9 +217,6 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
           <a href="#dashboard" onClick={(e) => { e.preventDefault(); onNavigate("dashboard"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "dashboard" ? "active" : ""}`}>
             <i className="fas fa-chart-pie w-5 text-center"></i><span>Tableau de bord</span>
           </a>
-          <a href="#login" onClick={(e) => { e.preventDefault(); onNavigate("login"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium`}>
-            <i className="fas fa-lock w-5 text-center"></i><span>Déconnexion</span>
-          </a>
 
           {/* COMMERCIAL */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Commercial</div>
@@ -187,13 +226,16 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
           <a href="#customers" onClick={(e) => { e.preventDefault(); onNavigate("customers"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "customers" ? "active" : ""}`}>
             <i className="fas fa-users w-5 text-center"></i><span>Clients & Prospects</span>
           </a>
+          <a href="#agenda-visitors" onClick={(e) => { e.preventDefault(); onNavigate("agenda-visitors"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "agenda-visitors" ? "active" : ""}`}>
+            <i className="fas fa-user-clock w-5 text-center"></i><span>Agenda visiteurs</span>
+          </a>
 
-          {/* RESERVATIONS */}
+          {/* RÉSERVATIONS */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Réservations</div>
-                    <a href="#reservations" onClick={(e) => { e.preventDefault(); onNavigate("reservations"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reservations" ? "active" : ""}`}>
+          <a href="#reservations" onClick={(e) => { e.preventDefault(); onNavigate("reservations"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reservations" ? "active" : ""}`}>
             <i className="fas fa-list w-5 text-center"></i><span>Toutes les réservations</span>
           </a>
-<a href="#hahitantsoa" onClick={(e) => { e.preventDefault(); onNavigate("hahitantsoa"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hahitantsoa" ? "active" : ""}`}>
+          <a href="#hahitantsoa" onClick={(e) => { e.preventDefault(); onNavigate("hahitantsoa"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hahitantsoa" ? "active" : ""}`}>
             <i className="fas fa-building w-5 text-center"></i><span>Hahitantsoa</span>
             <span className="ml-auto bg-hah-900 text-hah-100 nav-badge">Événement</span>
           </a>
@@ -202,10 +244,25 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
             <span className="ml-auto bg-tit-900 text-tit-100 nav-badge">Matériel</span>
           </a>
 
-          {/* INVENTAIRE & STOCKS */}
-          <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Inventaire & Stocks</div>
+          {/* OFFRES */}
+          <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Offres</div>
           <a href="#inventory" onClick={(e) => { e.preventDefault(); onNavigate("inventory"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "inventory" ? "active" : ""}`}>
-            <i className="fas fa-boxes w-5 text-center"></i><span>Stock</span>
+            <i className="fas fa-box-open w-5 text-center"></i><span>Catalogue</span>
+          </a>
+          <a href="#packages" onClick={(e) => { e.preventDefault(); onNavigate("packages"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "packages" ? "active" : ""}`}>
+            <i className="fas fa-boxes-stacked w-5 text-center"></i><span>Packs</span>
+          </a>
+          <a href="#services" onClick={(e) => { e.preventDefault(); onNavigate("services"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "services" ? "active" : ""}`}>
+            <i className="fas fa-concierge-bell w-5 text-center"></i><span>Services</span>
+          </a>
+          <a href="#venues" onClick={(e) => { e.preventDefault(); onNavigate("venues"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "venues" ? "active" : ""}`}>
+            <i className="fas fa-map-location-dot w-5 text-center"></i><span>Locaux & Dépôts</span>
+          </a>
+
+          {/* INVENTAIRE & LOGISTIQUE */}
+          <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Inventaire & Logistique</div>
+          <a href="#inventory-management" onClick={(e) => { e.preventDefault(); onNavigate("inventory-management"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "inventory-management" ? "active" : ""}`}>
+            <i className="fas fa-boxes w-5 text-center"></i><span>Inventaire</span>
           </a>
           <a href="#stock-movements" onClick={(e) => { e.preventDefault(); onNavigate("stock-movements"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "stock-movements" ? "active" : ""}`}>
             <i className="fas fa-exchange-alt w-5 text-center"></i><span>Mouvements</span>
@@ -222,23 +279,20 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
           <a href="#breakage-loss" onClick={(e) => { e.preventDefault(); onNavigate("breakage-loss"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "breakage-loss" ? "active" : ""}`}>
             <i className="fas fa-heart-broken w-5 text-center"></i><span>Casse & Perte</span>
           </a>
-          <a href="#packages" onClick={(e) => { e.preventDefault(); onNavigate("packages"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "packages" ? "active" : ""}`}>
-            <i className="fas fa-boxes-stacked w-5 text-center"></i><span>Packages</span>
-          </a>
-          <a href="#services" onClick={(e) => { e.preventDefault(); onNavigate("services"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "services" ? "active" : ""}`}>
-            <i className="fas fa-concierge-bell w-5 text-center"></i><span>Services</span>
-          </a>
           <a href="#blacklist-intervenants" onClick={(e) => { e.preventDefault(); onNavigate("blacklist-intervenants"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "blacklist-intervenants" ? "active" : ""}`}>
             <i className="fas fa-ban w-5 text-center"></i><span>Liste noire</span>
           </a>
-          <a href="#venues" onClick={(e) => { e.preventDefault(); onNavigate("venues"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "venues" ? "active" : ""}`}>
-            <i className="fas fa-map-location-dot w-5 text-center"></i><span>Locaux & Dépôts</span>
+          <a href="#import-excel" onClick={(e) => { e.preventDefault(); onNavigate("import-excel"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "import-excel" ? "active" : ""}`}>
+            <i className="fas fa-file-excel w-5 text-center"></i><span>Import Excel</span>
           </a>
 
-          {/* FINANCE & RH */}
+          {/* FINANCE & OPÉRATIONS */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Finance & Opérations</div>
           <a href="#commercial-ops" onClick={(e) => { e.preventDefault(); onNavigate("commercial-ops"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "commercial-ops" ? "active" : ""}`}>
-            <i className="fas fa-file-invoice-dollar w-5 text-center"></i><span>Opérations</span>
+            <i className="fas fa-file-invoice-dollar w-5 text-center"></i><span>Facturation & Paiements</span>
+          </a>
+          <a href="#documents" onClick={(e) => { e.preventDefault(); onNavigate("documents"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "documents" ? "active" : ""}`}>
+            <i className="fas fa-file-alt w-5 text-center"></i><span>Documents & Templates</span>
           </a>
           <a href="#cashbox" onClick={(e) => { e.preventDefault(); onNavigate("cashbox"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "cashbox" ? "active" : ""}`}>
             <i className="fas fa-cash-register w-5 text-center"></i><span>Caisse</span>
@@ -246,28 +300,60 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
           <a href="#caution" onClick={(e) => { e.preventDefault(); onNavigate("caution"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "caution" ? "active" : ""}`}>
             <i className="fas fa-undo w-5 text-center"></i><span>Caution</span>
           </a>
+          <a href="#hr-payroll" onClick={(e) => { e.preventDefault(); onNavigate("hr-payroll"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hr-payroll" ? "active" : ""}`}>
+            <i className="fas fa-user-tie w-5 text-center"></i><span>Personnel & Paie</span>
+          </a>
+          <a href="#purchasing" onClick={(e) => { e.preventDefault(); onNavigate("purchasing"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "purchasing" ? "active" : ""}`}>
+            <i className="fas fa-shopping-cart w-5 text-center"></i><span>Achats & Fournisseurs</span>
+          </a>
 
           {/* PILOTAGE */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Pilotage</div>
+          <a href="#notifications" onClick={(e) => { e.preventDefault(); onNavigate("notifications"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "notifications" ? "active" : ""}`}>
+            <i className="fas fa-bell w-5 text-center"></i><span>Notifications</span>
+          </a>
           <a href="#reports" onClick={(e) => { e.preventDefault(); onNavigate("reports"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reports" ? "active" : ""}`}>
             <i className="fas fa-chart-bar w-5 text-center"></i><span>Reporting</span>
           </a>
+          <a href="#admin" onClick={(e) => { e.preventDefault(); onNavigate("admin"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "admin" ? "active" : ""}`}>
+            <i className="fas fa-cogs w-5 text-center"></i><span>Administration</span>
+          </a>
           <a href="#audit" onClick={(e) => { e.preventDefault(); onNavigate("audit"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "audit" ? "active" : ""}`}>
             <i className="fas fa-shield-alt w-5 text-center"></i><span>Audit & Sécurité</span>
+          </a>
+          <a href="#mobile-tablet" onClick={(e) => { e.preventDefault(); onNavigate("mobile-tablet"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "mobile-tablet" ? "active" : ""}`}>
+            <i className="fas fa-mobile-alt w-5 text-center"></i><span>Mobile & Tablette</span>
           </a>
           <a href="#help" onClick={(e) => { e.preventDefault(); onNavigate("help"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "help" ? "active" : ""}`}>
             <i className="fas fa-question-circle w-5 text-center"></i><span>Aide & Onboarding</span>
           </a>
         </nav>
 
-        <div className="p-4 border-t border-slate-800 mt-auto">
-          <div className="flex items-center gap-3">
+        <div className="p-4 border-t border-slate-800 mt-auto relative" ref={userMenuRef}>
+          <button 
+            type="button"
+            aria-label="Menu utilisateur"
+            aria-haspopup="menu"
+            aria-expanded={isUserMenuOpen}
+            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            className="flex items-center gap-3 w-full text-left focus:outline-none focus:ring-2 focus:ring-hah-500 rounded p-1 hover:bg-slate-800 transition-colors"
+          >
             <img src="https://ui-avatars.com/api/?name=G%C3%A9rant+ERP&background=0d9488&color=fff" className="w-9 h-9 rounded-full" alt="avatar" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">Jean R.</p>
               <p className="text-xs text-slate-500 truncate">Gérant · En ligne</p>
             </div>
-          </div>
+          </button>
+
+          {isUserMenuOpen && (
+            <div className="absolute bottom-full mb-2 left-4 right-4 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 z-50">
+              <a href="#profile" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Profil utilisateur</a>
+              <a href="#preferences" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Préférences</a>
+              <a href="#support" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Aide / support</a>
+              <div className="my-1 border-t border-slate-700"></div>
+              <a href="#login" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); onNavigate("login"); }} className="block px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 transition-colors">Déconnexion</a>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -282,6 +368,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, childre
                   <span 
                     className={`transition ${idx === breadcrumbs.length - 1 ? "text-slate-800 dark:text-slate-200 font-semibold" : "cursor-pointer hover:text-slate-800 dark:hover:text-slate-200"}`} 
                     onClick={() => idx < breadcrumbs.length - 1 && onNavigate(crumb.scope, crumb.param)}
+                    aria-current={idx === breadcrumbs.length - 1 ? "page" : undefined}
                   >
                     {crumb.label}
                   </span>

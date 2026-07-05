@@ -71,4 +71,48 @@ describe('AppShell', () => {
     const titleElements = screen.queryAllByText('Fiche client');
     expect(titleElements.length).toBe(0);
   });
+
+  it('7. La sidebar contient un groupe "OFFRES" avec Catalogue, Packs, Services, Locaux & Dépôts', () => {
+    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+    expect(screen.getByText('Offres')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Catalogue/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Packs/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Services/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Locaux & Dépôts/i })).toBeInTheDocument();
+    // 'Packages' n'apparait plus comme libellé
+    expect(screen.queryByRole('link', { name: /^Packages$/i })).toBeNull();
+  });
+
+  it('7b. La sidebar contient les autres groupes mis à jour', () => {
+    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+    expect(screen.getByText('Inventaire & Logistique')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Facturation & Paiements/i })).toBeInTheDocument();
+
+    // Verifier que "Inventaire & Stocks", "Opérations" et "Stock" n'apparaissent plus
+    expect(screen.queryByText('Inventaire & Stocks')).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Opérations$/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Stock$/i })).toBeNull();
+  });
+
+  it('8. Déconnexion n\'est plus dans Accueil, mais dans le menu utilisateur', () => {
+    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+    // Le lien direct n'existe plus car il est caché dans le menu (qui est fermé)
+    expect(screen.queryByRole('link', { name: /Déconnexion/i })).toBeNull();
+    
+    // Ouvre le menu
+    const userMenuButton = screen.getByRole('button', { name: 'Menu utilisateur' });
+    expect(userMenuButton).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(userMenuButton);
+    expect(userMenuButton).toHaveAttribute('aria-expanded', 'true');
+
+    // Vérifie les éléments du menu
+    expect(screen.getByRole('link', { name: /Profil utilisateur/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Préférences/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Aide \/ support/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Déconnexion/i })).toBeInTheDocument();
+    
+    // Teste le clic sur déconnexion
+    fireEvent.click(screen.getByRole('link', { name: /Déconnexion/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('login');
+  });
 });
