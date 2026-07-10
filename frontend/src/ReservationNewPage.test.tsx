@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, beforeEach, it, expect, vi } from 'vitest';
+import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
 import ReservationNewPage from './prototype/ReservationNewPage';
 
 describe('ReservationNewPage', () => {
@@ -8,7 +8,13 @@ describe('ReservationNewPage', () => {
 
   beforeEach(() => {
     mockNavigate = vi.fn();
-    vi.spyOn(window, 'alert').mockImplementation(() => {});
+    vi.spyOn(window, 'alert').mockImplementation(() => {}); vi.spyOn(window, 'confirm').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    expect(window.alert).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
   });
 
   it('1. la première étape affiche les deux chemins si pas de param', () => {

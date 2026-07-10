@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { hahitantsoaMockPackages, mockCatalog } from "./mockData";
+import { hahitantsoaMockPackages, mockCatalog, saveMockPackages } from "./mockData";
 
 export default function PackageBuilderPage() {
   const [packages, setPackages] = useState(hahitantsoaMockPackages);
@@ -27,6 +27,8 @@ export default function PackageBuilderPage() {
       articles: []
     };
     setPackages([...packages, newPkg]);
+    hahitantsoaMockPackages.push(newPkg);
+    saveMockPackages();
     setSelectedPkgId(newPkg.id);
     setViewMode("details");
     showToast('Nouveau pack créé', 'success');
@@ -34,16 +36,31 @@ export default function PackageBuilderPage() {
 
   const handleUpdatePackage = (updatedPkg: any) => {
     setPackages(packages.map(p => p.id === updatedPkg.id ? updatedPkg : p));
+    const idx = hahitantsoaMockPackages.findIndex(p => p.id === updatedPkg.id);
+    if (idx !== -1) {
+      hahitantsoaMockPackages[idx] = updatedPkg;
+      saveMockPackages();
+    }
   };
 
   const handleDisablePackage = (id: string) => {
     showToast("Pack désactivé", "warning");
     setPackages(packages.map(p => p.id === id ? { ...p, active: false } : p));
+    const idx = hahitantsoaMockPackages.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      hahitantsoaMockPackages[idx].active = false;
+      saveMockPackages();
+    }
   };
 
   const handleDeletePackage = (id: string) => {
     showToast("Pack supprimé définitivement", "error");
     setPackages(packages.filter(p => p.id !== id));
+    const idx = hahitantsoaMockPackages.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      hahitantsoaMockPackages.splice(idx, 1);
+      saveMockPackages();
+    }
     setSelectedPkgId(null);
   };
 
@@ -272,14 +289,19 @@ export default function PackageBuilderPage() {
                   <input type="text" className="w-full border border-slate-300 dark:border-slate-600 rounded-lg p-2.5 text-sm" value={selectedPkg.desc} onChange={e => handleUpdatePackage({...selectedPkg, desc: e.target.value})} />
                 </div>
                   <div className="md:col-span-2 flex justify-between items-center mt-2">
-                    <div className="flex items-center gap-4">
-                      <input type="checkbox" id="active" checked={selectedPkg.active !== false} onChange={e => handleUpdatePackage({...selectedPkg, active: e.target.checked})} />
-                      <label htmlFor="active" className="text-sm font-medium text-slate-700 dark:text-slate-300">Pack actif</label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 ${selectedPkg.active !== false ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                        onClick={() => handleUpdatePackage({...selectedPkg, active: selectedPkg.active === false ? true : false})}
+                      >
+                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${selectedPkg.active !== false ? 'translate-x-5' : 'translate-x-0'}`} />
+                      </button>
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {selectedPkg.active !== false ? 'Actif' : 'Inactif'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      <button className="text-sm font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:text-amber-400" onClick={() => handleDisablePackage(selectedPkg.id)}>
-                        Désactiver
-                      </button>
                       <button className="text-sm font-medium text-rose-600 hover:text-rose-700" onClick={() => handleDeletePackage(selectedPkg.id)}>
                         Supprimer
                       </button>

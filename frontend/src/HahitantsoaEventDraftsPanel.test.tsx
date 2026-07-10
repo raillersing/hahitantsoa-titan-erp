@@ -398,6 +398,12 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.click(screen.getByText("Supprimer le brouillon"));
 
     await waitFor(() => {
+      expect(screen.getByText("Êtes-vous sûr de vouloir supprimer ce brouillon d'événement ?")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Supprimer" }).slice(-1)[0]);
+
+    await waitFor(() => {
       expect(screen.getByText(/draft deleted/i)).toBeInTheDocument();
     });
   });

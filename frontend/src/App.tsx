@@ -28,6 +28,9 @@ import LogisticsReturnsPage from "./prototype/LogisticsReturnsPage";
 import BreakageLossPage from "./prototype/BreakageLossPage";
 import ReservationsPage from "./prototype/ReservationsPage";
 import VenuesPage from "./prototype/VenuesPage";
+import AdminPage from "./prototype/AdminPage";
+import DocumentsPage from "./prototype/DocumentsPage";
+import AgendaVisitorsPage from "./prototype/AgendaVisitorsPage";
 
 export type AppScope =
   | "dashboard"
@@ -196,6 +199,9 @@ function App() {
       {activeScope === "audit" && <AuditPage onNavigate={navigate} />}
       {activeScope === "reports" && <ReportsPage onNavigate={navigate} />}
       {activeScope === "venues" && <VenuesPage />}
+      {activeScope === "admin" && <AdminPage onNavigate={navigate} />}
+      {activeScope === "documents" && <DocumentsPage onNavigate={navigate} />}
+      {activeScope === "agenda-visitors" && <AgendaVisitorsPage onNavigate={navigate} />}
       {activeScope !== "dashboard" &&
         activeScope !== "planning" &&
         activeScope !== "hahitantsoa" &&
@@ -221,7 +227,10 @@ function App() {
         activeScope !== "logistics-dispatch" &&
         activeScope !== "logistics-returns" &&
         activeScope !== "breakage-loss" &&
-        activeScope !== "venues" && (
+        activeScope !== "venues" &&
+        activeScope !== "admin" &&
+        activeScope !== "documents" &&
+        activeScope !== "agenda-visitors" && (
           <PlaceholderPage title={(activeScope as string).toUpperCase()} scope={activeScope} onNavigate={navigate} />
       )}
     </AppShell>

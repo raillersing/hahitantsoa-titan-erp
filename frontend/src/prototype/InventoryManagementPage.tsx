@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { mockInventory } from "./mockData";
+import { validateStockChange } from "./inventoryStockUtils";
 
 export default function InventoryManagementPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
   const [filter, setFilter] = useState("Tous");
+  const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
   // Local state for the inventory to allow mock modifications
@@ -13,6 +15,9 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editForm, setEditForm] = useState<any>({});
   
+  const [originalTotalStock, setOriginalTotalStock] = useState(0);
+  const [stockChangeReason, setStockChangeReason] = useState("");
+  const [stockError, setStockError] = useState("");
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
   const [adjustItem, setAdjustItem] = useState<any>(null);
   const [stockDelta, setStockDelta] = useState(0);
@@ -37,13 +42,34 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   };
 
   const filteredData = inventory.filter(item => {
-    if (filter === "Tous") return true;
-    if (filter === "Disponible") return item.availableStock > 0;
-    if (filter === "Réservé") return item.reservedStock > 0;
-    if (filter === "Sorti") return item.outStock > 0;
-    if (filter === "En retour") return item.expectedReturnStock > 0;
-    if (filter === "Alertes") return item.status === "Bas" || item.status === "Rupture";
-    return true;
+    let matchFilter = true;
+    if (filter !== "Tous") {
+      if (filter === "Disponible" && item.availableStock <= 0) matchFilter = false;
+      if (filter === "Réservé" && item.reservedStock <= 0) matchFilter = false;
+      if (filter === "Sorti" && item.outStock <= 0) matchFilter = false;
+      if (filter === "En retour" && item.expectedReturnStock <= 0) matchFilter = false;
+      if (filter === "Alertes" && item.status !== "Bas" && item.status !== "Rupture") matchFilter = false;
+    }
+
+    let matchSearch = true;
+    if (searchQuery.trim() !== "") {
+      const normalizeSearchValue = (value: string) => {
+        return value
+          .trim()
+          .replace(/\s+/g, " ")
+          .toLocaleLowerCase("fr")
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      };
+      
+      const query = normalizeSearchValue(searchQuery);
+      matchSearch = 
+        normalizeSearchValue(item.name).includes(query) ||
+        normalizeSearchValue(item.id).includes(query) ||
+        normalizeSearchValue(item.type).includes(query) ||
+        normalizeSearchValue(item.category).includes(query);
+    }
+
+    return matchFilter && matchSearch;
   });
 
   const handleOpenCreate = () => {
@@ -64,28 +90,48 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       brokenLostStock: 0,
       status: "OK"
     });
+    setOriginalTotalStock(0);
+    setStockChangeReason("");
+    setStockError("");
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (item: any) => {
     setFormMode("edit");
     setEditForm({ ...item });
+    setOriginalTotalStock(item.totalStock);
+    setStockChangeReason("");
+    setStockError("");
     setIsFormOpen(true);
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
+    if (formMode === "edit" && editForm.totalStock !== originalTotalStock) {
+      if (!stockChangeReason) {
+        setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
+        return;
+      }
+      
+      const validation = validateStockChange(editForm.totalStock, editForm.reservedStock, editForm.outStock, editForm.expectedReturnStock, editForm.brokenLostStock);
+      if (!validation.isValid) {
+        setStockError(validation.error || "Stock invalide.");
+        return;
+      }
+      editForm.availableStock = validation.newAvailable;
+    }
+
     if (formMode === "create") {
       const newInv = [editForm, ...inventory];
       setInventory(newInv);
       mockInventory.unshift(editForm); // sync global
-      setToast("Article créé avec succès.");
+      setToast("Enregistré localement — mock (Article créé avec succès)");
     } else {
       const newInv = inventory.map(i => i.id === editForm.id ? editForm : i);
       setInventory(newInv);
       const idx = mockInventory.findIndex(i => i.id === editForm.id);
       if (idx !== -1) mockInventory[idx] = editForm;
-      setToast("Article modifié avec succès.");
+      setToast("Stock ajusté localement — mock");
     }
     setIsFormOpen(false);
   };
@@ -109,16 +155,29 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const handleSaveStock = (e: React.FormEvent) => {
     e.preventDefault();
     if (!adjustItem) return;
+    
+    if (!stockChangeReason) {
+      setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
+      return;
+    }
+
     const newTotal = adjustItem.totalStock + stockDelta;
-    const newAvailable = adjustItem.availableStock + stockDelta;
-    const newItem = { ...adjustItem, totalStock: newTotal, availableStock: newAvailable };
+    const validation = validateStockChange(newTotal, adjustItem.reservedStock, adjustItem.outStock, adjustItem.expectedReturnStock, adjustItem.brokenLostStock);
+    
+    if (!validation.isValid) {
+      setStockError(validation.error || "Stock invalide.");
+      return;
+    }
+
+    const newItem = { ...adjustItem, totalStock: newTotal, availableStock: validation.newAvailable };
     const newInv = inventory.map(i => i.id === adjustItem.id ? newItem : i);
     setInventory(newInv);
     const idx = mockInventory.findIndex(i => i.id === adjustItem.id);
     if (idx !== -1) mockInventory[idx] = newItem;
-    setToast(`Stock ajusté : ${stockDelta > 0 ? '+' : ''}${stockDelta}`);
+    setToast(`Enregistré localement — mock (Stock ajusté : ${stockDelta > 0 ? '+' : ''}${stockDelta})`);
     setIsAdjustingStock(false);
     setStockDelta(0);
+    setStockChangeReason("");
   };
 
   const handleOpenDelete = (item: any) => {
@@ -166,7 +225,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center flex-1">
             {["Tous", "Disponible", "Réservé", "Sorti", "En retour", "Alertes"].map(f => (
               <button 
                 key={f}
@@ -176,8 +235,34 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                 {f}
               </button>
             ))}
+            <div className="relative ml-2 flex-1 max-w-sm">
+              <label htmlFor="search-inventory" className="sr-only">Rechercher un article</label>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i className="fas fa-search text-slate-400"></i>
+              </div>
+              <input
+                id="search-inventory"
+                type="text"
+                role="searchbox"
+                className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-tit-500 focus:border-tit-500"
+                placeholder="Rechercher par nom, code, type ou catégorie…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  onClick={() => setSearchQuery("")}
+                  title="Effacer la recherche"
+                  aria-label="Effacer la recherche"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
+            </div>
           </div>
-          <button onClick={handleOpenCreate} className="px-4 py-2 bg-tit-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-tit-700 whitespace-nowrap">
+          <button onClick={handleOpenCreate} className="px-4 py-2 bg-tit-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-tit-700 whitespace-nowrap ml-4">
             <i className="fas fa-plus mr-2"></i>Nouvel Article
           </button>
         </div>
@@ -235,20 +320,20 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                     )}
                   </td>
                   <td className="p-4 text-right whitespace-nowrap">
-                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => onNavigate("inventory-item", item.id)} title="Détail">
-                      <i className="fas fa-eye"></i>
+                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => onNavigate("inventory-item", item.id)} aria-label={`Détail ${item.name}`} title="Détail">
+                      <i className="fas fa-eye" aria-hidden="true"></i>
                     </button>
-                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleOpenEdit(item)} title="Modifier">
-                      <i className="fas fa-edit"></i>
+                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleOpenEdit(item)} aria-label={`Modifier ${item.name}`} title="Modifier">
+                      <i className="fas fa-edit" aria-hidden="true"></i>
                     </button>
-                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleOpenAdjustStock(item)} title="Ajuster stock">
-                      <i className="fas fa-boxes"></i>
+                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleOpenAdjustStock(item)} aria-label={`Ajuster stock ${item.name}`} title="Ajuster stock">
+                      <i className="fas fa-boxes" aria-hidden="true"></i>
                     </button>
-                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleToggleStatus(item)} title={item.status === 'OK' ? "Désactiver" : "Réactiver"}>
-                      <i className={`fas ${item.status === 'OK' ? 'fa-ban' : 'fa-check'}`}></i>
+                    <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => handleToggleStatus(item)} aria-label={`${item.status === 'OK' ? 'Désactiver' : 'Réactiver'} ${item.name}`} title={item.status === 'OK' ? "Désactiver" : "Réactiver"}>
+                      <i className={`fas ${item.status === 'OK' ? 'fa-ban' : 'fa-check'}`} aria-hidden="true"></i>
                     </button>
-                    <button className="text-slate-400 hover:text-rose-600 px-1.5" onClick={() => handleOpenDelete(item)} title="Supprimer">
-                      <i className="fas fa-trash"></i>
+                    <button className="text-slate-400 hover:text-rose-600 px-1.5" onClick={() => handleOpenDelete(item)} aria-label={`Supprimer ${item.name}`} title="Supprimer">
+                      <i className="fas fa-trash" aria-hidden="true"></i>
                     </button>
                   </td>
                 </tr>
@@ -277,27 +362,27 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <form onSubmit={handleSaveForm} className="p-6 overflow-y-auto space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Code / ID</label>
-                  <input type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.id} onChange={e => setEditForm({...editForm, id: e.target.value})} />
+                  <label htmlFor="item-id" className="block text-sm font-medium text-slate-700 mb-1">Code / ID</label>
+                  <input id="item-id" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.id} onChange={e => setEditForm({...editForm, id: e.target.value})} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nom de l'article</label>
-                  <input type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} required />
+                  <label htmlFor="item-name" className="block text-sm font-medium text-slate-700 mb-1">Nom de l'article</label>
+                  <input id="item-name" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
-                  <select className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.type} onChange={e => setEditForm({...editForm, type: e.target.value as "Location" | "Consommable" | "Uniforme"})}>
+                  <label htmlFor="item-type" className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                  <select id="item-type" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.type} onChange={e => setEditForm({...editForm, type: e.target.value as "Location" | "Consommable" | "Uniforme"})}>
                     <option value="Location">Location</option>
                     <option value="Consommable">Consommable</option>
                     <option value="Uniforme">Uniforme</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Catégorie</label>
-                  <input type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})} />
+                  <label htmlFor="item-category" className="block text-sm font-medium text-slate-700 mb-1">Catégorie</label>
+                  <input id="item-category" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})} />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Photo de l'article (URL ou Fichier local)</label>
+                  <label htmlFor="item-photo-url" className="block text-sm font-medium text-slate-700 mb-1">Photo de l'article (URL ou Fichier local)</label>
                   <div className="flex gap-4 items-start">
                     <div className="w-24 h-24 bg-slate-100 rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                       {editForm.imageUrl ? (
@@ -308,7 +393,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                     </div>
                     <div className="flex-1 space-y-3">
                       <div>
-                        <input type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.imageUrl || ''} placeholder="https://... (URL externe)" onChange={e => setEditForm({...editForm, imageUrl: e.target.value})} />
+                        <input id="item-photo-url" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.imageUrl || ''} placeholder="https://... (URL externe)" onChange={e => setEditForm({...editForm, imageUrl: e.target.value})} />
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-500 font-bold uppercase">Ou local</span>
@@ -329,20 +414,50 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Prix de location/vente (Ar)</label>
-                  <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.unitPrice} onChange={e => setEditForm({...editForm, unitPrice: parseInt(e.target.value || '0', 10)})} />
+                  <label htmlFor="item-price" className="block text-sm font-medium text-slate-700 mb-1">Prix de location/vente (Ar)</label>
+                  <input id="item-price" type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.unitPrice} onChange={e => setEditForm({...editForm, unitPrice: parseInt(e.target.value || '0', 10)})} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Prix en cas de casse (Ar)</label>
-                  <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.breakagePrice} onChange={e => setEditForm({...editForm, breakagePrice: parseInt(e.target.value || '0', 10)})} />
+                  <label htmlFor="item-breakage-price" className="block text-sm font-medium text-slate-700 mb-1">Prix en cas de casse (Ar)</label>
+                  <input id="item-breakage-price" type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.breakagePrice} onChange={e => setEditForm({...editForm, breakagePrice: parseInt(e.target.value || '0', 10)})} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Stock Total</label>
-                  <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.totalStock} onChange={e => setEditForm({...editForm, totalStock: parseInt(e.target.value || '0', 10)})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Stock Disponible</label>
-                  <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.availableStock} onChange={e => setEditForm({...editForm, availableStock: parseInt(e.target.value || '0', 10)})} />
+                <div className="col-span-2">
+                  <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div>
+                      <label htmlFor="stock-total" className="block text-sm font-medium text-slate-700 mb-1">Stock Total</label>
+                      <input id="stock-total" type="number" min="0" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.totalStock} onChange={e => {
+                        setEditForm({...editForm, totalStock: parseInt(e.target.value || '0', 10)});
+                        setStockError("");
+                      }} />
+                    </div>
+                    <div>
+                      <label htmlFor="stock-dispo" className="block text-sm font-medium text-slate-700 mb-1">Stock Disponible (calculé)</label>
+                      <input id="stock-dispo" type="number" disabled className="w-full border border-slate-200 bg-slate-100 rounded p-2 text-sm text-slate-500 cursor-not-allowed" value={formMode === "edit" ? editForm.totalStock - (editForm.reservedStock + editForm.outStock + editForm.expectedReturnStock + editForm.brokenLostStock) : editForm.availableStock} />
+                    </div>
+                    {formMode === "edit" && editForm.totalStock !== originalTotalStock && (
+                      <div className="col-span-2 mt-2">
+                        <div className="text-sm flex gap-4 mb-3">
+                          <div>Valeur actuelle : <span className="font-bold">{originalTotalStock}</span></div>
+                          <div>Nouvelle valeur : <span className="font-bold text-indigo-600">{editForm.totalStock}</span></div>
+                          <div>Différence : <span className={`font-bold ${editForm.totalStock > originalTotalStock ? 'text-emerald-600' : 'text-rose-600'}`}>{editForm.totalStock > originalTotalStock ? '+' : ''}{editForm.totalStock - originalTotalStock}</span></div>
+                        </div>
+                        <label htmlFor="stock-change-reason" className="block text-sm font-medium text-slate-700 mb-1">Motif de la modification <span className="text-rose-500">*</span></label>
+                        <select id="stock-change-reason" className="w-full border border-slate-300 rounded p-2 text-sm" value={stockChangeReason} onChange={e => {
+                          setStockChangeReason(e.target.value);
+                          setStockError("");
+                        }}>
+                          <option value="">Sélectionner un motif...</option>
+                          <option value="Inventaire physique">Inventaire physique</option>
+                          <option value="Nouvel achat">Nouvel achat</option>
+                          <option value="Correction de saisie">Correction de saisie</option>
+                          <option value="Mise au rebut">Mise au rebut</option>
+                          <option value="Perte validée">Perte validée</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  {stockError && <div className="mt-2 text-sm text-rose-600 font-medium"><i className="fas fa-exclamation-circle mr-1"></i>{stockError}</div>}
                 </div>
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
@@ -366,11 +481,48 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <form onSubmit={handleSaveStock} className="p-6 space-y-4">
               <p className="text-sm text-slate-600">Ajoutez ou retirez du stock total (et disponible) pour <strong>{adjustItem?.name}</strong>.</p>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ajustement (ex: +5, -2)</label>
-                <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={stockDelta} onChange={e => setStockDelta(parseInt(e.target.value || '0', 10))} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nouveau Stock Total</label>
+                    <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm mb-3" min={adjustItem ? adjustItem.reservedStock + adjustItem.outStock + adjustItem.expectedReturnStock + adjustItem.brokenLostStock : 0} value={adjustItem ? adjustItem.totalStock + stockDelta : 0} onChange={e => {
+                      const val = parseInt(e.target.value || '0', 10);
+                      setStockDelta(val - (adjustItem?.totalStock || 0));
+                      setStockError("");
+                    }} />
+                    
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Ajustement (ex: +5, -2)</label>
+                    <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={stockDelta} onChange={e => {
+                      setStockDelta(parseInt(e.target.value || '0', 10));
+                      setStockError("");
+                    }} />
+                  </div>
+                  <div>
+                    <div className="text-sm bg-slate-50 p-3 rounded border border-slate-200 space-y-2 h-full">
+                      <div>Total actuel: <span className="font-bold">{adjustItem?.totalStock}</span></div>
+                      <div>Engagé (min): <span className="font-bold">{adjustItem ? adjustItem.reservedStock + adjustItem.outStock + adjustItem.expectedReturnStock + adjustItem.brokenLostStock : 0}</span></div>
+                      <div>Nouveau dispo: <span className="font-bold text-emerald-600">{adjustItem ? (adjustItem.totalStock + stockDelta) - (adjustItem.reservedStock + adjustItem.outStock + adjustItem.expectedReturnStock + adjustItem.brokenLostStock) : 0}</span></div>
+                    </div>
+                  </div>
+                </div>
               </div>
+              <div>
+                <label htmlFor="adjust-stock-reason" className="block text-sm font-medium text-slate-700 mb-1">Motif de la modification <span className="text-rose-500">*</span></label>
+                <select id="adjust-stock-reason" className="w-full border border-slate-300 rounded p-2 text-sm" value={stockChangeReason} onChange={e => {
+                  setStockChangeReason(e.target.value);
+                  setStockError("");
+                }}>
+                  <option value="">Sélectionner un motif...</option>
+                  <option value="Inventaire physique">Inventaire physique</option>
+                  <option value="Nouvel achat">Nouvel achat</option>
+                  <option value="Correction de saisie">Correction de saisie</option>
+                  <option value="Mise au rebut">Mise au rebut</option>
+                  <option value="Perte validée">Perte validée</option>
+                  <option value="Autre">Autre</option>
+                </select>
+              </div>
+              {stockError && <div className="text-sm text-rose-600 font-medium"><i className="fas fa-exclamation-circle mr-1"></i>{stockError}</div>}
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
-                <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => { setIsAdjustingStock(false); setStockDelta(0); }}>Annuler</button>
+                <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => { setIsAdjustingStock(false); setStockDelta(0); setStockChangeReason(""); setStockError(""); }}>Annuler</button>
                 <button type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
               </div>
             </form>
@@ -396,7 +548,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       )}
 
       {toast && (
-        <div className="fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center gap-3">
+        <div className="toast fixed bottom-4 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center gap-3">
           <span>{toast}</span>
           <button className="text-slate-400 hover:text-white" onClick={() => setToast(null)}><i className="fas fa-times"></i></button>
         </div>

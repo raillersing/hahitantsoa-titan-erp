@@ -139,6 +139,7 @@ export function HahitantsoaEventDraftsPanel({
   const [actionState, setActionState] = useState<ActionState>({
     status: "idle",
   });
+  const [deleteDraftId, setDeleteDraftId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[] | undefined>>({});
 
   const [preflightState, setPreflightState] = useState<PreflightState>({
@@ -597,9 +598,14 @@ export function HahitantsoaEventDraftsPanel({
     }
   };
 
-  const handleDeleteDraft = async (draftId: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce brouillon d'événement ?"))
-      return;
+  const handleDeleteDraft = (draftId: string) => {
+    setDeleteDraftId(draftId);
+  };
+
+  const confirmDeleteDraft = async () => {
+    if (!deleteDraftId) return;
+    const draftId = deleteDraftId;
+    setDeleteDraftId(null);
 
     setFieldErrors({});
     setActionState({ status: "loading" });
@@ -1798,6 +1804,28 @@ export function HahitantsoaEventDraftsPanel({
           </button>
         </form>
       </div>
+
+      {deleteDraftId && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50">
+              <h3 className="text-lg font-bold text-rose-800 flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation"></i> Supprimer
+              </h3>
+              <button onClick={() => setDeleteDraftId(null)} className="text-rose-400 hover:text-rose-600">
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer ce brouillon d'événement ?</p>
+              <div className="pt-4 flex justify-end gap-3 mt-4">
+                <button type="button" onClick={() => setDeleteDraftId(null)} className="px-4 py-2 text-slate-600 font-medium text-sm hover:bg-slate-100 rounded-lg transition-colors">Annuler</button>
+                <button type="button" onClick={confirmDeleteDraft} className="px-4 py-2 bg-rose-600 text-white font-medium text-sm hover:bg-rose-700 rounded-lg transition-colors shadow-sm">Supprimer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

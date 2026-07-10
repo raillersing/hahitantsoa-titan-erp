@@ -31,9 +31,11 @@ const BlacklistPage: React.FC = () => {
   const handleSave = () => {
     if (editingId) {
       setIntervenants(intervenants.map(i => i.id === editingId ? { ...i, ...formData } : i));
+      showToast('Enregistré localement — mock (Modification)', 'success');
     } else {
       const newId = `INT-${intervenants.length + 1}`;
       setIntervenants([...intervenants, { id: newId, ...formData }]);
+      showToast('Enregistré localement — mock (Ajout)', 'success');
     }
     setShowForm(false);
     setEditingId(null);

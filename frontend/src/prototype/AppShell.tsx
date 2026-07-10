@@ -37,6 +37,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
   });
 
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const userMenuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -201,8 +202,16 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
 
   return (
     <div className="flex h-screen overflow-hidden app-frame bg-slate-50 text-slate-800 font-sans">
+      {/* Mobile Sidebar Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 overflow-y-auto sidebar-responsive">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 overflow-y-auto transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 flex items-center gap-3 border-b border-slate-800">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-hah-500 to-tit-500 flex items-center justify-center text-white font-extrabold text-lg shadow-lg">H/T</div>
           <div>
@@ -214,117 +223,117 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
         <nav className="flex-1 py-3 space-y-0.5">
           {/* ACCUEIL */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Accueil</div>
-          <a href="#dashboard" onClick={(e) => { e.preventDefault(); onNavigate("dashboard"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "dashboard" ? "active" : ""}`}>
+          <a href="#dashboard" onClick={(e) => { e.preventDefault(); onNavigate("dashboard"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "dashboard" ? "active" : ""}`}>
             <i className="fas fa-chart-pie w-5 text-center"></i><span>Tableau de bord</span>
           </a>
 
           {/* COMMERCIAL */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Commercial</div>
-          <a href="#planning" onClick={(e) => { e.preventDefault(); onNavigate("planning"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "planning" ? "active" : ""}`}>
+          <a href="#planning" onClick={(e) => { e.preventDefault(); onNavigate("planning"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "planning" ? "active" : ""}`}>
             <i className="fas fa-calendar-days w-5 text-center"></i><span>Planning</span>
           </a>
-          <a href="#customers" onClick={(e) => { e.preventDefault(); onNavigate("customers"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "customers" ? "active" : ""}`}>
+          <a href="#customers" onClick={(e) => { e.preventDefault(); onNavigate("customers"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "customers" ? "active" : ""}`}>
             <i className="fas fa-users w-5 text-center"></i><span>Clients & Prospects</span>
           </a>
-          <a href="#agenda-visitors" onClick={(e) => { e.preventDefault(); onNavigate("agenda-visitors"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "agenda-visitors" ? "active" : ""}`}>
+          <a href="#agenda-visitors" onClick={(e) => { e.preventDefault(); onNavigate("agenda-visitors"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "agenda-visitors" ? "active" : ""}`}>
             <i className="fas fa-user-clock w-5 text-center"></i><span>Agenda visiteurs</span>
           </a>
 
           {/* RÉSERVATIONS */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Réservations</div>
-          <a href="#reservations" onClick={(e) => { e.preventDefault(); onNavigate("reservations"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reservations" ? "active" : ""}`}>
+          <a href="#reservations" onClick={(e) => { e.preventDefault(); onNavigate("reservations"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reservations" ? "active" : ""}`}>
             <i className="fas fa-list w-5 text-center"></i><span>Toutes les réservations</span>
           </a>
-          <a href="#hahitantsoa" onClick={(e) => { e.preventDefault(); onNavigate("hahitantsoa"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hahitantsoa" ? "active" : ""}`}>
+          <a href="#hahitantsoa" onClick={(e) => { e.preventDefault(); onNavigate("hahitantsoa"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hahitantsoa" ? "active" : ""}`}>
             <i className="fas fa-building w-5 text-center"></i><span>Hahitantsoa</span>
             <span className="ml-auto bg-hah-900 text-hah-100 nav-badge">Événement</span>
           </a>
-          <a href="#titan" onClick={(e) => { e.preventDefault(); onNavigate("titan"); }} className={`sidebar-link titan flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "titan" ? "active" : ""}`}>
+          <a href="#titan" onClick={(e) => { e.preventDefault(); onNavigate("titan"); setIsMobileMenuOpen(false); }} className={`sidebar-link titan flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "titan" ? "active" : ""}`}>
             <i className="fas fa-box w-5 text-center"></i><span>Titan</span>
             <span className="ml-auto bg-tit-900 text-tit-100 nav-badge">Matériel</span>
           </a>
 
           {/* OFFRES */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Offres</div>
-          <a href="#inventory" onClick={(e) => { e.preventDefault(); onNavigate("inventory"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "inventory" ? "active" : ""}`}>
+          <a href="#inventory" onClick={(e) => { e.preventDefault(); onNavigate("inventory"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "inventory" ? "active" : ""}`}>
             <i className="fas fa-box-open w-5 text-center"></i><span>Catalogue</span>
           </a>
-          <a href="#packages" onClick={(e) => { e.preventDefault(); onNavigate("packages"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "packages" ? "active" : ""}`}>
+          <a href="#packages" onClick={(e) => { e.preventDefault(); onNavigate("packages"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "packages" ? "active" : ""}`}>
             <i className="fas fa-boxes-stacked w-5 text-center"></i><span>Packs</span>
           </a>
-          <a href="#services" onClick={(e) => { e.preventDefault(); onNavigate("services"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "services" ? "active" : ""}`}>
+          <a href="#services" onClick={(e) => { e.preventDefault(); onNavigate("services"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "services" ? "active" : ""}`}>
             <i className="fas fa-concierge-bell w-5 text-center"></i><span>Services</span>
           </a>
-          <a href="#venues" onClick={(e) => { e.preventDefault(); onNavigate("venues"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "venues" ? "active" : ""}`}>
+          <a href="#venues" onClick={(e) => { e.preventDefault(); onNavigate("venues"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "venues" ? "active" : ""}`}>
             <i className="fas fa-map-location-dot w-5 text-center"></i><span>Locaux & Dépôts</span>
           </a>
 
           {/* INVENTAIRE & LOGISTIQUE */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Inventaire & Logistique</div>
-          <a href="#inventory-management" onClick={(e) => { e.preventDefault(); onNavigate("inventory-management"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "inventory-management" ? "active" : ""}`}>
+          <a href="#inventory-management" onClick={(e) => { e.preventDefault(); onNavigate("inventory-management"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "inventory-management" ? "active" : ""}`}>
             <i className="fas fa-boxes w-5 text-center"></i><span>Inventaire</span>
           </a>
-          <a href="#stock-movements" onClick={(e) => { e.preventDefault(); onNavigate("stock-movements"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "stock-movements" ? "active" : ""}`}>
+          <a href="#stock-movements" onClick={(e) => { e.preventDefault(); onNavigate("stock-movements"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "stock-movements" ? "active" : ""}`}>
             <i className="fas fa-exchange-alt w-5 text-center"></i><span>Mouvements</span>
           </a>
-          <a href="#stock-preparation" onClick={(e) => { e.preventDefault(); onNavigate("stock-preparation"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "stock-preparation" ? "active" : ""}`}>
+          <a href="#stock-preparation" onClick={(e) => { e.preventDefault(); onNavigate("stock-preparation"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "stock-preparation" ? "active" : ""}`}>
             <i className="fas fa-clipboard-list w-5 text-center"></i><span>Préparation</span>
           </a>
-          <a href="#logistics-dispatch" onClick={(e) => { e.preventDefault(); onNavigate("logistics-dispatch"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "logistics-dispatch" ? "active" : ""}`}>
+          <a href="#logistics-dispatch" onClick={(e) => { e.preventDefault(); onNavigate("logistics-dispatch"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "logistics-dispatch" ? "active" : ""}`}>
             <i className="fas fa-truck-loading w-5 text-center"></i><span>Sortie / Livraison</span>
           </a>
-          <a href="#logistics-returns" onClick={(e) => { e.preventDefault(); onNavigate("logistics-returns"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "logistics-returns" ? "active" : ""}`}>
+          <a href="#logistics-returns" onClick={(e) => { e.preventDefault(); onNavigate("logistics-returns"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "logistics-returns" ? "active" : ""}`}>
             <i className="fas fa-undo-alt w-5 text-center"></i><span>Retour / Restitution</span>
           </a>
-          <a href="#breakage-loss" onClick={(e) => { e.preventDefault(); onNavigate("breakage-loss"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "breakage-loss" ? "active" : ""}`}>
+          <a href="#breakage-loss" onClick={(e) => { e.preventDefault(); onNavigate("breakage-loss"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "breakage-loss" ? "active" : ""}`}>
             <i className="fas fa-heart-broken w-5 text-center"></i><span>Casse & Perte</span>
           </a>
-          <a href="#blacklist-intervenants" onClick={(e) => { e.preventDefault(); onNavigate("blacklist-intervenants"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "blacklist-intervenants" ? "active" : ""}`}>
+          <a href="#blacklist-intervenants" onClick={(e) => { e.preventDefault(); onNavigate("blacklist-intervenants"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "blacklist-intervenants" ? "active" : ""}`}>
             <i className="fas fa-ban w-5 text-center"></i><span>Liste noire</span>
           </a>
-          <a href="#import-excel" onClick={(e) => { e.preventDefault(); onNavigate("import-excel"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "import-excel" ? "active" : ""}`}>
+          <a href="#import-excel" onClick={(e) => { e.preventDefault(); onNavigate("import-excel"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "import-excel" ? "active" : ""}`}>
             <i className="fas fa-file-excel w-5 text-center"></i><span>Import Excel</span>
           </a>
 
           {/* FINANCE & OPÉRATIONS */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Finance & Opérations</div>
-          <a href="#commercial-ops" onClick={(e) => { e.preventDefault(); onNavigate("commercial-ops"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "commercial-ops" ? "active" : ""}`}>
+          <a href="#commercial-ops" onClick={(e) => { e.preventDefault(); onNavigate("commercial-ops"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "commercial-ops" ? "active" : ""}`}>
             <i className="fas fa-file-invoice-dollar w-5 text-center"></i><span>Facturation & Paiements</span>
           </a>
-          <a href="#documents" onClick={(e) => { e.preventDefault(); onNavigate("documents"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "documents" ? "active" : ""}`}>
+          <a href="#documents" onClick={(e) => { e.preventDefault(); onNavigate("documents"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "documents" ? "active" : ""}`}>
             <i className="fas fa-file-alt w-5 text-center"></i><span>Documents & Templates</span>
           </a>
-          <a href="#cashbox" onClick={(e) => { e.preventDefault(); onNavigate("cashbox"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "cashbox" ? "active" : ""}`}>
+          <a href="#cashbox" onClick={(e) => { e.preventDefault(); onNavigate("cashbox"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "cashbox" ? "active" : ""}`}>
             <i className="fas fa-cash-register w-5 text-center"></i><span>Caisse</span>
           </a>
-          <a href="#caution" onClick={(e) => { e.preventDefault(); onNavigate("caution"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "caution" ? "active" : ""}`}>
+          <a href="#caution" onClick={(e) => { e.preventDefault(); onNavigate("caution"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "caution" ? "active" : ""}`}>
             <i className="fas fa-undo w-5 text-center"></i><span>Caution</span>
           </a>
-          <a href="#hr-payroll" onClick={(e) => { e.preventDefault(); onNavigate("hr-payroll"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hr-payroll" ? "active" : ""}`}>
+          <a href="#hr-payroll" onClick={(e) => { e.preventDefault(); onNavigate("hr-payroll"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hr-payroll" ? "active" : ""}`}>
             <i className="fas fa-user-tie w-5 text-center"></i><span>Personnel & Paie</span>
           </a>
-          <a href="#purchasing" onClick={(e) => { e.preventDefault(); onNavigate("purchasing"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "purchasing" ? "active" : ""}`}>
+          <a href="#purchasing" onClick={(e) => { e.preventDefault(); onNavigate("purchasing"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "purchasing" ? "active" : ""}`}>
             <i className="fas fa-shopping-cart w-5 text-center"></i><span>Achats & Fournisseurs</span>
           </a>
 
           {/* PILOTAGE */}
           <div className="px-6 pt-3 pb-1 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">Pilotage</div>
-          <a href="#notifications" onClick={(e) => { e.preventDefault(); onNavigate("notifications"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "notifications" ? "active" : ""}`}>
+          <a href="#notifications" onClick={(e) => { e.preventDefault(); onNavigate("notifications"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "notifications" ? "active" : ""}`}>
             <i className="fas fa-bell w-5 text-center"></i><span>Notifications</span>
           </a>
-          <a href="#reports" onClick={(e) => { e.preventDefault(); onNavigate("reports"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reports" ? "active" : ""}`}>
+          <a href="#reports" onClick={(e) => { e.preventDefault(); onNavigate("reports"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reports" ? "active" : ""}`}>
             <i className="fas fa-chart-bar w-5 text-center"></i><span>Reporting</span>
           </a>
-          <a href="#admin" onClick={(e) => { e.preventDefault(); onNavigate("admin"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "admin" ? "active" : ""}`}>
+          <a href="#admin" onClick={(e) => { e.preventDefault(); onNavigate("admin"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "admin" ? "active" : ""}`}>
             <i className="fas fa-cogs w-5 text-center"></i><span>Administration</span>
           </a>
-          <a href="#audit" onClick={(e) => { e.preventDefault(); onNavigate("audit"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "audit" ? "active" : ""}`}>
+          <a href="#audit" onClick={(e) => { e.preventDefault(); onNavigate("audit"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "audit" ? "active" : ""}`}>
             <i className="fas fa-shield-alt w-5 text-center"></i><span>Audit & Sécurité</span>
           </a>
-          <a href="#mobile-tablet" onClick={(e) => { e.preventDefault(); onNavigate("mobile-tablet"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "mobile-tablet" ? "active" : ""}`}>
+          <a href="#mobile-tablet" onClick={(e) => { e.preventDefault(); onNavigate("mobile-tablet"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "mobile-tablet" ? "active" : ""}`}>
             <i className="fas fa-mobile-alt w-5 text-center"></i><span>Mobile & Tablette</span>
           </a>
-          <a href="#help" onClick={(e) => { e.preventDefault(); onNavigate("help"); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "help" ? "active" : ""}`}>
+          <a href="#help" onClick={(e) => { e.preventDefault(); onNavigate("help"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "help" ? "active" : ""}`}>
             <i className="fas fa-question-circle w-5 text-center"></i><span>Aide & Onboarding</span>
           </a>
         </nav>
@@ -360,8 +369,15 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden main-shell dark:bg-slate-900">
         {/* Topbar */}
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 flex-shrink-0 topbar-responsive">
-          <div className="flex flex-col min-w-0">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 topbar-responsive">
+          <div className="flex items-center gap-3 min-w-0">
+            <button 
+              className="md:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+              onClick={() => setIsMobileMenuOpen(true)}
+            >
+              <i className="fas fa-bars text-xl"></i>
+            </button>
+            <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">
               {breadcrumbs.map((crumb, idx) => (
                 <React.Fragment key={idx}>
@@ -377,6 +393,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
               ))}
             </div>
             <h2 className="text-xl font-extrabold text-slate-800 dark:text-white truncate">{pageTitle}</h2>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={() => setDarkMode(!darkMode)} className="relative p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition focus-ring" title="Changer le thème">

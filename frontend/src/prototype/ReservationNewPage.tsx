@@ -142,6 +142,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [step, setStep] = useState<number>(0);
   const [maxReachedStep, setMaxReachedStep] = useState<number>(0);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' | 'warning' } | null>(null);
+  
+  const showToastMsg = (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const [calendarMonth, setCalendarMonth] = useState<string>("2026-07");
   const [showVenueSelector, setShowVenueSelector] = useState(false);
 
@@ -160,6 +167,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     movementMode: "Livraison par Titan", deliveryTime: "", returnTime: "", deliveryAddress: "",
     pickupTime: "", clientReturnTime: "", vehicleType: "", transportPerson: "", advanceRate: titanDefaultAdvanceRate
   });
+  
+  const [deliveryModifiedManually, setDeliveryModifiedManually] = useState(false);
+  const [returnModifiedManually, setReturnModifiedManually] = useState(false);
+  const [showResuggest, setShowResuggest] = useState(false);
+  const [lastCalculatedDelivery, setLastCalculatedDelivery] = useState({ date: "", time: "" });
+  const [lastCalculatedReturn, setLastCalculatedReturn] = useState({ date: "", time: "" });
   
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
@@ -228,6 +241,72 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [discountIsPercentage, setDiscountIsPercentage] = useState<boolean>(true);
 
+  useEffect(() => {
+    if (domain === 'titan' && tDetails.startDate && tDetails.startTime && tDetails.endDate && tDetails.endTime) {
+      try {
+        const [startYear, startMonth, startDay] = tDetails.startDate.split('-').map(Number);
+        const [startHour, startMinute] = tDetails.startTime.split(':').map(Number);
+        const startDateTime = new Date(startYear, startMonth - 1, startDay, startHour, startMinute, 0, 0);
+        startDateTime.setHours(startDateTime.getHours() - 2);
+        
+        const suggDeliveryDate = `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')}`;
+        const suggDeliveryTime = `${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`;
+
+        const [endYear, endMonth, endDay] = tDetails.endDate.split('-').map(Number);
+        const [endHour, endMinute] = tDetails.endTime.split(':').map(Number);
+        const endDateTime = new Date(endYear, endMonth - 1, endDay, endHour, endMinute, 0, 0);
+        endDateTime.setHours(endDateTime.getHours() + 2);
+        
+        const suggReturnDate = `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')}`;
+        const suggReturnTime = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
+        
+        let changed = false;
+        const newDetails = { ...tDetails };
+        
+        if (!deliveryModifiedManually) {
+          if (newDetails.pickupDate !== suggDeliveryDate || newDetails.deliveryTime !== suggDeliveryTime || newDetails.pickupTime !== suggDeliveryTime) {
+            newDetails.pickupDate = suggDeliveryDate;
+            newDetails.deliveryTime = suggDeliveryTime;
+            newDetails.pickupTime = suggDeliveryTime;
+            changed = true;
+          }
+        } else if (lastCalculatedDelivery.date !== suggDeliveryDate || lastCalculatedDelivery.time !== suggDeliveryTime) {
+          setShowResuggest(true);
+        }
+        
+        if (!returnModifiedManually) {
+          if (newDetails.returnDate !== suggReturnDate || newDetails.returnTime !== suggReturnTime) {
+            newDetails.returnDate = suggReturnDate;
+            newDetails.returnTime = suggReturnTime;
+            changed = true;
+          }
+        } else if (lastCalculatedReturn.date !== suggReturnDate || lastCalculatedReturn.time !== suggReturnTime) {
+          setShowResuggest(true);
+        }
+
+        if (lastCalculatedDelivery.date !== suggDeliveryDate || lastCalculatedDelivery.time !== suggDeliveryTime) {
+          setLastCalculatedDelivery({ date: suggDeliveryDate, time: suggDeliveryTime });
+        }
+        if (lastCalculatedReturn.date !== suggReturnDate || lastCalculatedReturn.time !== suggReturnTime) {
+          setLastCalculatedReturn({ date: suggReturnDate, time: suggReturnTime });
+        }
+        
+        if (changed) {
+          setTDetails(newDetails);
+        }
+      } catch (e) {
+        // ignore invalid dates
+      }
+    }
+  }, [tDetails.startDate, tDetails.startTime, tDetails.endDate, tDetails.endTime, domain]);
+
+  const applySuggestions = () => {
+    setDeliveryModifiedManually(false);
+    setReturnModifiedManually(false);
+    setShowResuggest(false);
+    setTDetails(prev => ({...prev})); // trigger the effect again
+  };
+
   // Draft persistence
   const saveDraft = () => {
     const draft = {
@@ -236,7 +315,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       discountValue, discountIsPercentage
     };
     localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
-    // No alert for auto-save
   };
 
   useEffect(() => {
@@ -402,7 +480,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   const renderStepper = () => {
-    const steps = isProspectProforma ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let steps = isProspectProforma ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    if (domain === 'hahitantsoa' && (hDetails.rentalType === 'Location nue' || hDetails.rentalType === 'Location nue + logistique')) {
+      steps = steps.filter(s => s !== 4);
+    }
     return (
       <div className="flex items-center justify-between mb-8 overflow-x-auto pb-4 text-sm scrollbar-hide">
         {steps.map((s, i) => {
@@ -919,7 +1000,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     }
                     setHDetails(p => ({...p, startDate: dateStr, endDate: endDate}));
                   }}
-                  allowPast={true}
+                  allowPast={false}
                 />
               </div>
 
@@ -927,7 +1008,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date début</label>
-                    <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startDate} onChange={e => {
+                    <input type="date" min={new Date().toISOString().split('T')[0]} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startDate} onChange={e => {
                         let endDate = e.target.value;
                         if (hDetails.durationOption?.includes('03:30') && e.target.value) {
                           const dt = new Date(e.target.value);
@@ -945,7 +1026,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date fin</label>
-                    <input disabled type="date" className={`w-full border rounded-lg p-2.5 text-sm bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed`} value={hDetails.endDate} onChange={e => setHDetails({...hDetails, endDate: e.target.value})} />
+                    <input disabled type="date" min={hDetails.startDate || new Date().toISOString().split('T')[0]} className={`w-full border rounded-lg p-2.5 text-sm bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed`} value={hDetails.endDate} onChange={e => setHDetails({...hDetails, endDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure fin</label>
@@ -957,6 +1038,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               {hDetails.startDate && hDetails.endDate && hDetails.endDate < hDetails.startDate && (
                 <div className="mt-2 text-rose-600 text-sm font-medium flex items-center gap-2">
                   <i className="fa-solid fa-triangle-exclamation"></i> La date de fin ne peut pas être antérieure à la date de début.
+                </div>
+              )}
+              {hDetails.startDate && hDetails.endDate && hDetails.startDate === hDetails.endDate && hDetails.startTime && hDetails.endTime && hDetails.endTime <= hDetails.startTime && (
+                <div className="mt-2 text-rose-600 text-sm font-medium flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation"></i> L'heure de fin doit être postérieure à l'heure de début pour une même date.
                 </div>
               )}
             </div>
@@ -1124,11 +1210,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                           }));
                         },
                         (error) => {
-                          alert("Impossible de récupérer la position : " + error.message);
+                          showToastMsg("Impossible de récupérer la position : " + error.message, 'error');
                         }
                       );
                     } else {
-                      alert("La géolocalisation n'est pas supportée par ce navigateur.");
+                      showToastMsg("La géolocalisation n'est pas supportée par ce navigateur.", 'error');
                     }
                   }}
                 >
@@ -1181,7 +1267,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date début de location</label>
-                    <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
+                    <input type="date" min={new Date().toISOString().split('T')[0]} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
@@ -1191,7 +1277,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date fin de location</label>
-                    <input type="date" className={`w-full border rounded-lg p-2.5 text-sm ${tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate ? 'border-rose-500 bg-rose-50' : 'border-slate-300'}`} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
+                    <input type="date" min={tDetails.startDate || new Date().toISOString().split('T')[0]} className={`w-full border rounded-lg p-2.5 text-sm ${tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate ? 'border-rose-500 bg-rose-50' : 'border-slate-300'}`} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
@@ -1203,6 +1289,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               {tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate && (
                 <div className="mt-2 text-rose-600 text-sm font-medium flex items-center gap-2">
                   <i className="fa-solid fa-triangle-exclamation"></i> La date de fin ne peut pas être antérieure à la date de début.
+                </div>
+              )}
+              {tDetails.startDate && tDetails.endDate && tDetails.startDate === tDetails.endDate && tDetails.startTime && tDetails.endTime && tDetails.endTime <= tDetails.startTime && (
+                <div className="mt-2 text-rose-600 text-sm font-medium flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation"></i> L'heure de fin doit être postérieure à l'heure de début pour une même date.
                 </div>
               )}
 
@@ -1242,18 +1333,32 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
             {tDetails.movementMode === 'Livraison par Titan' ? (
               <>
+                {showResuggest && (
+                  <div className="md:col-span-2 mb-4">
+                    <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-lg flex items-center justify-between">
+                      <span className="text-sm text-indigo-700"><i className="fa-solid fa-lightbulb mr-2"></i>Les dates d'événement ont changé. Voulez-vous réappliquer les horaires suggérés ?</span>
+                      <button type="button" onClick={applySuggestions} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded shadow hover:bg-indigo-700">Réappliquer</button>
+                    </div>
+                  </div>
+                )}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date et Heure Livraison prévue</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date et Heure Livraison prévue 
+                    {!deliveryModifiedManually && tDetails.pickupDate && tDetails.deliveryTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                  </label>
                   <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} onChange={e => setTDetails({...tDetails, pickupDate: e.target.value})} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.deliveryTime || ''} onChange={e => setTDetails({...tDetails, deliveryTime: e.target.value})} />
+                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, pickupDate: e.target.value})}} />
+                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.deliveryTime || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, deliveryTime: e.target.value})}} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date et Heure Récupération prévue</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date et Heure Récupération prévue
+                    {!returnModifiedManually && tDetails.returnDate && tDetails.returnTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                  </label>
                   <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} onChange={e => setTDetails({...tDetails, returnDate: e.target.value})} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.returnTime || ''} onChange={e => setTDetails({...tDetails, returnTime: e.target.value})} />
+                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnDate: e.target.value})}} />
+                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.returnTime || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnTime: e.target.value})}} />
                   </div>
                 </div>
                 <div className="md:col-span-2">
@@ -1271,18 +1376,32 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     </div>
                   </div>
                 </div>
+                {showResuggest && (
+                  <div className="md:col-span-2 mb-4">
+                    <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-lg flex items-center justify-between">
+                      <span className="text-sm text-indigo-700"><i className="fa-solid fa-lightbulb mr-2"></i>Les dates d'événement ont changé. Voulez-vous réappliquer les horaires suggérés ?</span>
+                      <button type="button" onClick={applySuggestions} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded shadow hover:bg-indigo-700">Réappliquer</button>
+                    </div>
+                  </div>
+                )}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date et Heure Prélèvement prévue</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date et Heure Prélèvement prévue
+                    {!deliveryModifiedManually && tDetails.pickupDate && tDetails.pickupTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                  </label>
                   <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} onChange={e => setTDetails({...tDetails, pickupDate: e.target.value})} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.pickupTime || ''} onChange={e => setTDetails({...tDetails, pickupTime: e.target.value})} />
+                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, pickupDate: e.target.value})}} />
+                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.pickupTime || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, pickupTime: e.target.value})}} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Date et Heure Restitution prévue</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Date et Heure Retour prévue
+                    {!returnModifiedManually && tDetails.returnDate && tDetails.returnTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                  </label>
                   <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} onChange={e => setTDetails({...tDetails, returnDate: e.target.value})} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.clientReturnTime || ''} onChange={e => setTDetails({...tDetails, clientReturnTime: e.target.value})} />
+                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnDate: e.target.value})}} />
+                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.returnTime || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnTime: e.target.value})}} />
                   </div>
                 </div>
                 <div>
@@ -2011,8 +2130,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                    status: "Proforma",
                    type: domain === 'titan' ? 'Titan' : 'Hahitantsoa'
                  });
-                 alert("Proforma prospect créée avec succès et liée à la fiche !");
-                 clearDraft(false); // clear without reloading
+                 showToastMsg("Proforma prospect créée avec succès et liée à la fiche !", 'success');
+                 clearDraft(false);
                  onNavigate("customer", selectedClientId); 
               }}
             >
@@ -2025,7 +2144,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 onClick={() => { 
                    setProformaGenerated(true);
                    saveDraft();
-                   alert("Proforma confirmée — en attente de décision client. État sauvegardé.");
+                   showToastMsg("Proforma confirmée — en attente de décision client. État sauvegardé.", 'success');
                 }}
               >
                 Confirmer proforma
@@ -2218,6 +2337,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <button 
             className="px-8 py-3 bg-green-600 text-white rounded-xl font-bold text-md shadow-lg hover:bg-green-700 transition-all hover:-translate-y-1"
             onClick={() => {
+              const msg = domain === "hahitantsoa" 
+                ? "Dossier Hahitantsoa brouillon créé localement — mock" 
+                : "Dossier Titan brouillon créé localement — mock";
+              showToastMsg(msg, 'success');
               clearDraft();
               onNavigate("dashboard");
             }}
@@ -2339,6 +2462,18 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       {step > 0 && renderStepper()}
 
       {renderCurrentStep()}
+      
+      {toast && (
+        <div className={`fixed bottom-4 right-4 text-white px-4 py-3 rounded-lg shadow-xl z-50 flex items-center gap-3 animate-fade-in ${
+          toast.type === 'success' ? 'bg-emerald-600' :
+          toast.type === 'error' ? 'bg-rose-600' :
+          toast.type === 'warning' ? 'bg-amber-600' :
+          'bg-slate-800'
+        }`}>
+          <span>{toast.message}</span>
+          <button className="text-white/80 hover:text-white" onClick={() => setToast(null)}><i className="fas fa-times"></i></button>
+        </div>
+      )}
     </div>
   );
 }

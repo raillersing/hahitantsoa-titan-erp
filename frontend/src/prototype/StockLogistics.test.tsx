@@ -37,10 +37,59 @@ describe('Stock & Logistics Pages', () => {
   it('InventoryItemPage - renders stock info and history', () => {
     render(<InventoryItemPage onNavigate={mockNavigate} param="MAT-01" />);
     expect(screen.getByText('Chaise Napoléon transparente')).toBeDefined();
-    expect(screen.getByText('Stock Total')).toBeDefined();
+    expect(screen.getAllByText('Stock Total').length).toBeGreaterThan(0);
     expect(screen.getByText('Historique des mouvements')).toBeDefined();
     
-    fireEvent.click(screen.getByText('Retour à l\'inventaire'));
+    // Test Ajuster stock modal
+    fireEvent.click(screen.getByRole('button', { name: /ajuster stock/i }));
+    const adjustDialog = screen.getByRole('dialog');
+    expect(adjustDialog).toBeInTheDocument();
+    
+    // Find nouveau stock total which should contain 200 (initial stock for MAT-01)
+    const newTotalInput = screen.getByLabelText(/nouveau stock total/i);
+    expect((newTotalInput as HTMLInputElement).value).toBe("200");
+    
+    // Cancel the modal
+    fireEvent.click(screen.getByRole('button', { name: /annuler/i }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    
+    // Test Modifier l'article normalization
+    fireEvent.click(screen.getByRole('button', { name: /modifier l'article/i }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    
+    // It should have stock-total-edit
+    const stockTotalEdit = screen.getByLabelText('Stock Total');
+    
+    // Clear and enter 0200
+    fireEvent.change(stockTotalEdit, { target: { value: '' } });
+    expect((stockTotalEdit as HTMLInputElement).value).toBe('');
+    
+    fireEvent.change(stockTotalEdit, { target: { value: '0200' } });
+    expect((stockTotalEdit as HTMLInputElement).value).toBe('0200');
+    
+    // Blur to trigger normalization
+    fireEvent.blur(stockTotalEdit);
+    expect((stockTotalEdit as HTMLInputElement).value).toBe('200');
+    
+    // Also test "00" -> "0"
+    fireEvent.change(stockTotalEdit, { target: { value: '00' } });
+    fireEvent.blur(stockTotalEdit);
+    expect((stockTotalEdit as HTMLInputElement).value).toBe('0');
+    
+    // Also test "00050" -> "50"
+    fireEvent.change(stockTotalEdit, { target: { value: '00050' } });
+    fireEvent.blur(stockTotalEdit);
+    expect((stockTotalEdit as HTMLInputElement).value).toBe('50');
+
+    // Add reason and save
+    const reasonSelect = screen.getByLabelText(/motif de la modification/i);
+    fireEvent.change(reasonSelect, { target: { value: 'Correction de saisie' } });
+    fireEvent.click(screen.getByRole('button', { name: /enregistrer/i }));
+    
+    // Check that modal closes
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /retour à l'inventaire/i }));
     expect(mockNavigate).toHaveBeenCalledWith('inventory-management');
   });
 
