@@ -1,5 +1,5 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
@@ -7,6 +7,13 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     testTimeout: 30000,
+    exclude: [
+      ...configDefaults.exclude,
+      "e2e/**",
+      "**/e2e/**",
+      "playwright-report/**",
+      "test-results/**"
+    ],
   },
   server: {
     proxy: {

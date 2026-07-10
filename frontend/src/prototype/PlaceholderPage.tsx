@@ -44,19 +44,32 @@ export default function PlaceholderPage({ title, scope, onNavigate }: Placeholde
     );
   }
 
+  // Configuration métier pour les pages "À venir"
+  const upcomingContent: Record<string, { desc: string, icon: string }> = {
+    "hr-payroll": { desc: "Gestion des ressources humaines, pointages et fiches de paie.", icon: "fa-users-cog" },
+    "purchasing": { desc: "Gestion des achats, fournisseurs et commandes d'approvisionnement.", icon: "fa-cart-shopping" },
+    "notifications": { desc: "Centre de notifications et alertes système.", icon: "fa-bell" },
+    "mobile-tablet": { desc: "Interface dédiée pour les opérateurs sur le terrain.", icon: "fa-mobile-screen" },
+    "import-excel": { desc: "Outil d'importation en masse depuis Excel/CSV.", icon: "fa-file-import" },
+  };
+
+  const content = upcomingContent[scope] || { desc: "Interface en cours de développement.", icon: "fa-tools" };
+
   return (
     <div className="page active">
-      <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-        <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-400">
-          <i className="fas fa-tools text-3xl"></i>
+      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-2xl mx-auto mt-10 shadow-sm">
+        <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+          <i className={`fas ${content.icon} text-3xl`}></i>
         </div>
         <h2 className="text-2xl font-bold text-slate-800 mb-2">{title}</h2>
-        <p className="text-slate-500 max-w-md mx-auto mb-8">
-          Cette section ({scope}) est en cours d'intégration depuis le Prototype 4.
-          Elle contiendra bientôt les interfaces dédiées avec données mockées.
+        <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full mb-6">
+          <i className="fas fa-person-digging"></i> À venir — nécessite raccordement API
+        </div>
+        <p className="text-slate-600 mb-8 text-base">
+          {content.desc}
         </p>
-        <button className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors" onClick={() => onNavigate("dashboard")}>
-          Retour au tableau de bord
+        <button className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-bold transition-colors shadow-sm" onClick={() => onNavigate("dashboard")}>
+          <i className="fas fa-arrow-left mr-2"></i>Retour au tableau de bord
         </button>
       </div>
     </div>

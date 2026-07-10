@@ -28,6 +28,7 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
   const [returnQty1, setReturnQty1] = useState(98);
   const [returnQty2, setReturnQty2] = useState(10);
   const [toast, setToast] = useState<{message: string, type: 'info'|'success'|'warning'|'error'} | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<PreviewDoc>(null);
   const [showConversionAssistant, setShowConversionAssistant] = useState(false);
 
@@ -291,16 +292,17 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
           </div>
           {remainingAmount > 0 && (
             <form
-              className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end"
+              className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end relative"
               onSubmit={(e) => {
                 e.preventDefault();
                 const form = e.currentTarget as HTMLFormElement;
                 const fd = new FormData(form);
                 const amount = safeNumber(fd.get('amount') as string, 0);
                 if (amount <= 0 || amount > remainingAmount) {
-                  showToast(`Le montant doit être compris entre 1 Ar et ${formatMoney(remainingAmount)}`, 'error');
+                  setPaymentError(`Le montant doit être compris entre 1 Ar et ${formatMoney(remainingAmount)}`);
                   return;
                 }
+                setPaymentError(null);
                 const newPayment = {
                   id: `PAY-${Date.now()}`,
                   date: new Date().toISOString().split('T')[0],
@@ -311,9 +313,14 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
                 };
                 setPayments([...payments, newPayment]);
                 form.reset();
-                showToast(`Paiement de ${formatMoney(amount)} enregistré`, 'success');
+                showToast(`Enregistré localement — mock (Paiement de ${formatMoney(amount)})`, 'success');
               }}
             >
+              {paymentError && (
+                <div className="md:col-span-4 bg-red-50 text-red-700 p-3 rounded-lg text-sm border border-red-200">
+                  <i className="fas fa-exclamation-circle mr-2"></i>{paymentError}
+                </div>
+              )}
               <div>
                 <label htmlFor="payment-method" className="block text-xs font-semibold text-slate-500 uppercase mb-1">Mode</label>
                 <select id="payment-method" name="method" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
@@ -472,7 +479,7 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
                     <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${prepStatus === 'Prêt' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{prepStatus}</span>
                   </div>
                   {prepStatus !== 'Prêt' && (
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700" onClick={() => setPrepStatus('Prêt')}>Marquer comme prêt</button>
+                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700" onClick={() => { setPrepStatus('Prêt'); showToast('Enregistré localement — mock (Marqué comme prêt)', 'success'); }}>Marquer comme prêt</button>
                   )}
                 </div>
                 <table className="w-full text-sm text-left border-collapse">
@@ -592,7 +599,7 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
                 </div>
 
                 <div className="flex justify-end">
-                  <button className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700" onClick={() => showToast('Bon de livraison généré et sortie validée', 'success')}>Valider la sortie / Bon de livraison</button>
+                  <button className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700" onClick={() => showToast('Enregistré localement — mock (Bon de livraison généré et sortie validée)', 'success')}>Valider la sortie / Bon de livraison</button>
                 </div>
               </div>
             )}
@@ -676,8 +683,8 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
                 </div>
 
                 <div className="flex justify-end gap-3">
-                  <button className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-300" onClick={() => showToast('État de retour provisoire sauvegardé', 'info')}>Enregistrer provisoire</button>
-                  <button className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700" onClick={() => { showToast('Retour validé', 'success'); setActiveTab('casse'); }}>Valider retour & Aller à Casse</button>
+                  <button className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-300" onClick={() => showToast('Enregistré localement — mock (État de retour provisoire sauvegardé)', 'info')}>Enregistrer provisoire</button>
+                  <button className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700" onClick={() => { showToast('Enregistré localement — mock (Retour validé)', 'success'); setActiveTab('casse'); }}>Valider retour & Aller à Casse</button>
                 </div>
               </div>
             )}
@@ -775,8 +782,8 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
                       <p className="text-xs text-indigo-600 mt-2">Dépôt de garantie initial de 425 000 Ar imputé de 120 000 Ar de casse.</p>
                     </div>
                     <div className="flex flex-col gap-3 min-w-[200px]">
-                      <button className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700 text-center w-full" onClick={() => showToast('Remboursement de 305 000 Ar enregistré', 'success')}>Rembourser 305 000 Ar</button>
-                      <button className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-lg text-sm font-bold shadow-sm hover:bg-rose-200 text-center w-full" onClick={() => showToast('Retenue totale de la caution appliquée', 'warning')}>Retenir caution totale</button>
+                      <button className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700 text-center w-full" onClick={() => showToast('Enregistré localement — mock (Remboursement de 305 000 Ar enregistré)', 'success')}>Rembourser 305 000 Ar</button>
+                      <button className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-lg text-sm font-bold shadow-sm hover:bg-rose-200 text-center w-full" onClick={() => showToast('Enregistré localement — mock (Retenue totale de la caution appliquée)', 'warning')}>Retenir caution totale</button>
                     </div>
                   </div>
                 </div>
@@ -830,8 +837,8 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
               <i className="fa-solid fa-eye text-slate-400 hover:text-emerald-600"></i>
             </button>
             <button
-              className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50 opacity-60 cursor-not-allowed text-left"
-              disabled
+              className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
+              onClick={() => showToast('À venir — nécessite raccordement API/PDF', 'info')}
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg"><i className="fa-solid fa-file-signature"></i></div>
@@ -842,8 +849,8 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
               </div>
             </button>
             <button
-              className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50 opacity-60 cursor-not-allowed text-left"
-              disabled
+              className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
+              onClick={() => showToast('À venir — nécessite raccordement API/PDF', 'info')}
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg"><i className="fa-solid fa-truck"></i></div>
@@ -854,8 +861,8 @@ export default function ReservationDetailPage({ onNavigate, param, onBack, retur
               </div>
             </button>
             <button
-              className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50 opacity-60 cursor-not-allowed text-left"
-              disabled
+              className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
+              onClick={() => showToast('À venir — nécessite raccordement API/PDF', 'info')}
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg"><i className="fa-solid fa-rotate-left"></i></div>

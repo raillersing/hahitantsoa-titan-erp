@@ -308,11 +308,39 @@ export const mockCatalog = [
   { id: "MAT-06", name: "Lumières d'ambiance", category: "Eclairage", available: 10, price: 50000, imageUrl: "" }
 ];
 
-export const hahitantsoaMockPackages = [
+const PACKAGES_STORAGE_KEY = 'hahitantsoa-titan.mock.packages.v1';
+
+const seedPackages = [
   { id: "PACK-1", name: "Package Standard 100 pax", price: 2000000, desc: "Local + 100 chaises + 10 tables", imageUrl: "", active: true, articles: [{id: "MAT-01", qty: 100}, {id: "MAT-02", qty: 10}] },
   { id: "PACK-2", name: "Package Premium 200 pax", price: 3500000, desc: "Local + 200 chaises chiavari + 20 tables + Sono", imageUrl: "", active: true, articles: [{id: "MAT-05", qty: 200}, {id: "MAT-02", qty: 20}, {id: "MAT-04", qty: 1}] },
   { id: "PACK-3", name: "Package VIP 300 pax", price: 5000000, desc: "Local + 300 chaises + 30 tables + Sono + Lumières", imageUrl: "", active: true, articles: [{id: "MAT-01", qty: 300}, {id: "MAT-02", qty: 30}, {id: "MAT-04", qty: 1}, {id: "MAT-06", qty: 4}] }
 ];
+
+export let hahitantsoaMockPackages = [...seedPackages];
+
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const stored = localStorage.getItem(PACKAGES_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        hahitantsoaMockPackages = parsed;
+      }
+    }
+  } catch (e) {
+    console.warn("Persistance frontend mock locale (packages) - erreur de chargement", e);
+  }
+}
+
+export const saveMockPackages = () => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      localStorage.setItem(PACKAGES_STORAGE_KEY, JSON.stringify(hahitantsoaMockPackages));
+    } catch (e) {
+      console.warn("Persistance frontend mock locale (packages) - erreur de sauvegarde", e);
+    }
+  }
+};
 
 export const hahitantsoaMockServices = [
   { id: "SRV-H1", name: "Nettoyage après événement", desc: "Nettoyage complet de la salle et des extérieurs", price: 150000, active: true },

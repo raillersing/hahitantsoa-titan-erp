@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { AppScope } from "../App";
 
 interface ReportsPageProps {
@@ -6,6 +6,13 @@ interface ReportsPageProps {
 }
 
 export default function ReportsPage({ onNavigate }: ReportsPageProps) {
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
+
   return (
     <div className="page active space-y-6">
       <div>
@@ -29,14 +36,20 @@ export default function ReportsPage({ onNavigate }: ReportsPageProps) {
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">Rapports disponibles</h3>
           <ul className="space-y-3">
-            <li className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <li 
+              className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 cursor-pointer"
+              onClick={() => showToast("Export PDF simulé (mock)")}
+            >
               <div className="flex items-center gap-3">
                 <i className="fa-solid fa-file-pdf text-rose-500"></i>
                 <span className="text-sm font-medium text-slate-700">Bilan financier Q2</span>
               </div>
               <i className="fa-solid fa-download text-slate-400"></i>
             </li>
-            <li className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 cursor-pointer">
+            <li 
+              className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 cursor-pointer"
+              onClick={() => showToast("Export Excel simulé (mock)")}
+            >
               <div className="flex items-center gap-3">
                 <i className="fa-solid fa-file-excel text-emerald-500"></i>
                 <span className="text-sm font-medium text-slate-700">Export Clients Actifs</span>
@@ -46,6 +59,13 @@ export default function ReportsPage({ onNavigate }: ReportsPageProps) {
           </ul>
         </div>
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-medium text-sm z-50 flex items-center gap-3 animate-fade-in">
+          <i className="fas fa-check-circle text-emerald-400"></i>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

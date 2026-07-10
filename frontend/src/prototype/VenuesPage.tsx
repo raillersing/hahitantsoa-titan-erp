@@ -8,6 +8,12 @@ export default function VenuesPage() {
   const [currentVenue, setCurrentVenue] = useState<any>({
     id: "", name: "", type: "location_event", capacity: "", active: true, note: "", price: 0
   });
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const openModal = (mode: "add" | "edit", venue?: any) => {
     setModalMode(mode);
@@ -23,15 +29,25 @@ export default function VenuesPage() {
     e.preventDefault();
     if (modalMode === "add") {
       setVenues([...venues, currentVenue]);
+      showToast("Enregistré localement — mock (Ajout)");
     } else {
       setVenues(venues.map(v => v.id === currentVenue.id ? currentVenue : v));
+      showToast("Enregistré localement — mock (Modification)");
     }
     setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce lieu ?")) {
-      setVenues(venues.filter(v => v.id !== id));
+  const [deleteVenueId, setDeleteVenueId] = useState<string | null>(null);
+
+  const handleDeleteClick = (id: string) => {
+    setDeleteVenueId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteVenueId) {
+      setVenues(venues.filter(v => v.id !== deleteVenueId));
+      showToast("Enregistré localement — mock (Suppression)");
+      setDeleteVenueId(null);
     }
   };
 
@@ -108,7 +124,7 @@ export default function VenuesPage() {
                       <button onClick={() => toggleActive(v.id)} className={`p-1.5 rounded ${v.active ? 'text-rose-400 hover:text-rose-600' : 'text-emerald-500 hover:text-emerald-700'}`} title={v.active ? 'Désactiver' : 'Activer'}>
                         <i className={`fa-solid ${v.active ? 'fa-power-off' : 'fa-play'}`}></i>
                       </button>
-                      <button onClick={() => handleDelete(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
+                      <button onClick={() => handleDeleteClick(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
                     </div>
                   </td>
                 </tr>
@@ -159,7 +175,7 @@ export default function VenuesPage() {
                       <button onClick={() => toggleActive(v.id)} className={`p-1.5 rounded ${v.active ? 'text-rose-400 hover:text-rose-600' : 'text-emerald-500 hover:text-emerald-700'}`} title={v.active ? 'Désactiver' : 'Activer'}>
                         <i className={`fa-solid ${v.active ? 'fa-power-off' : 'fa-play'}`}></i>
                       </button>
-                      <button onClick={() => handleDelete(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
+                      <button onClick={() => handleDeleteClick(v.id)} className="p-1.5 text-slate-400 hover:text-rose-600 rounded" title="Supprimer"><i className="fa-solid fa-trash"></i></button>
                     </div>
                   </td>
                 </tr>
@@ -219,6 +235,35 @@ export default function VenuesPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {deleteVenueId && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50">
+              <h3 className="text-lg font-bold text-rose-800 flex items-center gap-2">
+                <i className="fa-solid fa-triangle-exclamation"></i> Supprimer
+              </h3>
+              <button onClick={() => setDeleteVenueId(null)} className="text-rose-400 hover:text-rose-600">
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est simulée mais définitive dans la session.</p>
+              <div className="pt-4 flex justify-end gap-3 mt-4">
+                <button type="button" onClick={() => setDeleteVenueId(null)} className="px-4 py-2 text-slate-600 font-medium text-sm hover:bg-slate-100 rounded-lg transition-colors">Annuler</button>
+                <button type="button" onClick={confirmDelete} className="px-4 py-2 bg-rose-600 text-white font-medium text-sm hover:bg-rose-700 rounded-lg transition-colors shadow-sm">Supprimer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-medium text-sm z-50 flex items-center gap-3 animate-fade-in">
+          <i className="fas fa-check-circle text-emerald-400"></i>
+          {toast}
         </div>
       )}
     </div>

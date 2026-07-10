@@ -31,10 +31,11 @@ const ServicesPage: React.FC = () => {
   const handleSave = () => {
     if (editingId) {
       setServices(services.map(s => s.id === editingId ? { ...s, ...formData } : s));
-      showToast('Service mis à jour avec succès', 'success');
+      showToast('Enregistré localement — mock (Modification)', 'success');
     } else {
       const newId = `SRV-H${services.length + 1}`;
       setServices([...services, { id: newId, ...formData }]);
+      showToast('Enregistré localement — mock (Ajout)', 'success');
     }
     setShowForm(false);
     setEditingId(null);

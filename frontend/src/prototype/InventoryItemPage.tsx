@@ -1,5 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { mockInventory, mockMovements } from "./mockData";
+import { validateStockChange } from "./inventoryStockUtils";
+
+function normalizeNonNegativeIntegerDraft(value: string): string {
+  const trimmed = value.trim();
+
+  if (trimmed === "") {
+    return "";
+  }
+
+  if (!/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return String(Number.parseInt(trimmed, 10));
+}
 
 export default function InventoryItemPage({ onNavigate, param, onBack, returnContext }: { onNavigate: (scope: any, param?: string) => void, param?: string, onBack?: () => void, returnContext?: any }) {
   const [toast, setToast] = useState<string | null>(null);
@@ -9,8 +24,18 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
   const [item, setItem] = useState(initialItem);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(item);
+  const [originalTotalStock, setOriginalTotalStock] = useState(item.totalStock);
+  const [editTotalDraft, setEditTotalDraft] = useState<string>(String(item.totalStock));
+  const [adjustmentDraft, setAdjustmentDraft] = useState<string>("0");
+  const [newTotalDraft, setNewTotalDraft] = useState<string>("");
+  
+  useEffect(() => {
+    if (item) setNewTotalDraft(String(item.totalStock));
+  }, [item]);
+
+  const [stockChangeReason, setStockChangeReason] = useState("");
+  const [stockError, setStockError] = useState("");
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
-  const [stockDelta, setStockDelta] = useState(0);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const itemMovements = mockMovements.filter(m => m.articleId === item.id);
@@ -41,25 +66,74 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    setItem(editForm);
+    
+    const normalizedDraft = normalizeNonNegativeIntegerDraft(editTotalDraft);
+    const finalTotal = normalizedDraft === "" ? originalTotalStock : parseInt(normalizedDraft, 10);
+    setEditTotalDraft(String(finalTotal));
+    
+    const updatedForm = { ...editForm, totalStock: finalTotal };
+
+    if (finalTotal !== originalTotalStock) {
+      if (!stockChangeReason) {
+        setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
+        return;
+      }
+      const validation = validateStockChange(finalTotal, updatedForm.reservedStock, updatedForm.outStock, updatedForm.expectedReturnStock, updatedForm.brokenLostStock);
+      if (!validation.isValid) {
+        setStockError(validation.error || "Stock invalide.");
+        return;
+      }
+      updatedForm.availableStock = validation.newAvailable;
+    }
+    
+    setItem(updatedForm);
     // Update mockInventory
     const idx = mockInventory.findIndex(i => i.id === item.id);
-    if (idx !== -1) mockInventory[idx] = editForm;
+    if (idx !== -1) mockInventory[idx] = updatedForm;
     setIsEditing(false);
-    setToast("Article modifié avec succès.");
+    setToast("Enregistré localement — mock (Article modifié avec succès)");
   };
 
   const handleSaveStock = (e: React.FormEvent) => {
     e.preventDefault();
-    const newTotal = item.totalStock + stockDelta;
-    const newAvailable = item.availableStock + stockDelta;
-    const newItem = { ...item, totalStock: newTotal, availableStock: newAvailable };
+    if (!stockChangeReason) {
+      setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
+      return;
+    }
+    
+    // Only proceed if draft is a valid complete integer
+    if (!/^[+-]?\d+$/.test(adjustmentDraft) && !/^\d+$/.test(newTotalDraft)) {
+      setStockError("Veuillez saisir un ajustement ou un stock total valide.");
+      return;
+    }
+    
+    let newTotal = item.totalStock;
+    let actualDelta = 0;
+    
+    if (/^[+-]?\d+$/.test(adjustmentDraft)) {
+       actualDelta = parseInt(adjustmentDraft, 10);
+       newTotal = item.totalStock + actualDelta;
+    } else if (/^\d+$/.test(newTotalDraft)) {
+       newTotal = parseInt(newTotalDraft, 10);
+       actualDelta = newTotal - item.totalStock;
+    }
+
+    const validation = validateStockChange(newTotal, item.reservedStock, item.outStock, item.expectedReturnStock, item.brokenLostStock);
+    
+    if (!validation.isValid) {
+      setStockError(validation.error || "Stock invalide.");
+      return;
+    }
+    
+    const newItem = { ...item, totalStock: newTotal, availableStock: validation.newAvailable };
     setItem(newItem);
     const idx = mockInventory.findIndex(i => i.id === item.id);
     if (idx !== -1) mockInventory[idx] = newItem;
     setIsAdjustingStock(false);
-    setStockDelta(0);
-    setToast(`Stock ajusté : ${stockDelta > 0 ? '+' : ''}${stockDelta}`);
+    setAdjustmentDraft("0");
+    setNewTotalDraft(String(newTotal));
+    setStockChangeReason("");
+    setToast(`Enregistré localement — mock (Stock ajusté : ${actualDelta > 0 ? '+' : ''}${actualDelta})`);
   };
 
   const handleConfirmDelete = () => {
@@ -82,13 +156,13 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
           <button className={`px-4 py-2 ${item.status === 'OK' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'} font-bold rounded-lg`} onClick={handleToggleStatus}>
             {item.status === 'OK' ? 'Désactiver' : 'Réactiver'}
           </button>
-          <button className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-50" onClick={() => { setEditForm(item); setIsEditing(true); }}>
-            Modifier
+          <button className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-lg hover:bg-slate-50" onClick={() => { setEditForm(item); setOriginalTotalStock(item.totalStock); setEditTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsEditing(true); }}>
+            Modifier l'article
           </button>
           <button className="px-4 py-2 border border-rose-200 text-rose-600 font-bold rounded-lg hover:bg-rose-50" onClick={() => setIsDeleteOpen(true)}>
             Supprimer
           </button>
-          <button className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700" onClick={() => setIsAdjustingStock(true)}>
+          <button className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700" onClick={() => { setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); setStockChangeReason(""); setStockError(""); setIsAdjustingStock(true); }}>
             Ajuster stock
           </button>
         </div>
@@ -279,13 +353,47 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
                   <label className="block text-sm font-medium text-slate-700 mb-1">Prix en cas de casse (Ar)</label>
                   <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.breakagePrice} onChange={e => setEditForm({...editForm, breakagePrice: parseInt(e.target.value || '0', 10)})} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Stock Total</label>
-                  <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50" value={editForm.totalStock} readOnly title="Utiliser 'Ajuster stock' pour modifier" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Stock Disponible</label>
-                  <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm bg-slate-50" value={editForm.availableStock} readOnly title="Utiliser 'Ajuster stock' pour modifier" />
+                <div className="col-span-2">
+                  <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div>
+                      <label htmlFor="stock-total-edit" className="block text-sm font-medium text-slate-700 mb-1">Stock Total</label>
+                      <input id="stock-total-edit" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editTotalDraft} onChange={e => {
+                        setEditTotalDraft(e.target.value);
+                        setStockError("");
+                      }} onBlur={e => {
+                        const norm = normalizeNonNegativeIntegerDraft(e.target.value);
+                        setEditTotalDraft(norm);
+                        if (norm !== "") setEditForm({...editForm, totalStock: parseInt(norm, 10)});
+                      }} />
+                    </div>
+                    <div>
+                      <label htmlFor="stock-dispo-edit" className="block text-sm font-medium text-slate-700 mb-1">Stock Disponible (calculé)</label>
+                      <input id="stock-dispo-edit" type="number" disabled className="w-full border border-slate-200 bg-slate-100 rounded p-2 text-sm text-slate-500 cursor-not-allowed" value={editForm.totalStock - (editForm.reservedStock + editForm.outStock + editForm.expectedReturnStock + editForm.brokenLostStock)} />
+                    </div>
+                    {editForm.totalStock !== originalTotalStock && (
+                      <div className="col-span-2 mt-2">
+                        <div className="text-sm flex gap-4 mb-3">
+                          <div>Valeur actuelle : <span className="font-bold">{originalTotalStock}</span></div>
+                          <div>Nouvelle valeur : <span className="font-bold text-indigo-600">{editForm.totalStock}</span></div>
+                          <div>Différence : <span className={`font-bold ${editForm.totalStock > originalTotalStock ? 'text-emerald-600' : 'text-rose-600'}`}>{editForm.totalStock > originalTotalStock ? '+' : ''}{editForm.totalStock - originalTotalStock}</span></div>
+                        </div>
+                        <label htmlFor="stock-change-reason-edit" className="block text-sm font-medium text-slate-700 mb-1">Motif de la modification <span className="text-rose-500">*</span></label>
+                        <select id="stock-change-reason-edit" className="w-full border border-slate-300 rounded p-2 text-sm" value={stockChangeReason} onChange={e => {
+                          setStockChangeReason(e.target.value);
+                          setStockError("");
+                        }}>
+                          <option value="">Sélectionner un motif...</option>
+                          <option value="Inventaire physique">Inventaire physique</option>
+                          <option value="Nouvel achat">Nouvel achat</option>
+                          <option value="Correction de saisie">Correction de saisie</option>
+                          <option value="Mise au rebut">Mise au rebut</option>
+                          <option value="Perte validée">Perte validée</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  {stockError && <div className="mt-2 text-sm text-rose-600 font-medium"><i className="fas fa-exclamation-circle mr-1"></i>{stockError}</div>}
                 </div>
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
@@ -302,18 +410,62 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm flex flex-col" role="dialog" aria-modal="true" aria-labelledby="adjust-stock-title">
             <div className="p-6 border-b border-slate-200 flex justify-between items-center">
               <h3 id="adjust-stock-title" className="text-xl font-bold text-slate-800">Ajuster le stock</h3>
-              <button onClick={() => { setIsAdjustingStock(false); setStockDelta(0); }} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => { setIsAdjustingStock(false); setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); }} className="text-slate-400 hover:text-slate-600">
                 <i className="fas fa-times"></i>
               </button>
             </div>
             <form onSubmit={handleSaveStock} className="p-6 space-y-4">
               <p className="text-sm text-slate-600">Ajoutez ou retirez du stock total (et disponible) pour <strong>{item.name}</strong>.</p>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Ajustement (ex: +5, -2)</label>
-                <input type="number" className="w-full border border-slate-300 rounded p-2 text-sm" value={stockDelta} onChange={e => setStockDelta(parseInt(e.target.value || '0', 10))} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="new-total-draft" className="block text-sm font-medium text-slate-700 mb-1">Nouveau Stock Total</label>
+                    <input id="new-total-draft" type="text" className="w-full border border-slate-300 rounded p-2 text-sm mb-3" value={newTotalDraft} onChange={e => {
+                      const val = e.target.value;
+                      setNewTotalDraft(val);
+                      if (/^\d+$/.test(val)) {
+                        setAdjustmentDraft(String(parseInt(val, 10) - item.totalStock));
+                      }
+                      setStockError("");
+                    }} />
+                    
+                    <label htmlFor="adjustment-draft" className="block text-sm font-medium text-slate-700 mb-1">Ajustement (ex: +5, -2)</label>
+                    <input id="adjustment-draft" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={adjustmentDraft} onChange={e => {
+                      const val = e.target.value;
+                      setAdjustmentDraft(val);
+                      if (/^[+-]?\d+$/.test(val)) {
+                        setNewTotalDraft(String(item.totalStock + parseInt(val, 10)));
+                      }
+                      setStockError("");
+                    }} />
+                  </div>
+                  <div>
+                    <div className="text-sm bg-slate-50 p-3 rounded border border-slate-200 space-y-2 h-full">
+                      <div>Total actuel: <span className="font-bold">{item.totalStock}</span></div>
+                      <div>Engagé (min): <span className="font-bold">{item.reservedStock + item.outStock + item.expectedReturnStock + item.brokenLostStock}</span></div>
+                      <div>Nouveau dispo: <span className="font-bold text-emerald-600">{/^\d+$/.test(newTotalDraft) ? (parseInt(newTotalDraft, 10) - (item.reservedStock + item.outStock + item.expectedReturnStock + item.brokenLostStock)) : '-'}</span></div>
+                    </div>
+                  </div>
+                </div>
               </div>
+              <div>
+                <label htmlFor="adjust-stock-reason-item" className="block text-sm font-medium text-slate-700 mb-1">Motif de la modification <span className="text-rose-500">*</span></label>
+                <select id="adjust-stock-reason-item" className="w-full border border-slate-300 rounded p-2 text-sm" value={stockChangeReason} onChange={e => {
+                  setStockChangeReason(e.target.value);
+                  setStockError("");
+                }}>
+                  <option value="">Sélectionner un motif...</option>
+                  <option value="Inventaire physique">Inventaire physique</option>
+                  <option value="Nouvel achat">Nouvel achat</option>
+                  <option value="Correction de saisie">Correction de saisie</option>
+                  <option value="Mise au rebut">Mise au rebut</option>
+                  <option value="Perte validée">Perte validée</option>
+                  <option value="Autre">Autre</option>
+                </select>
+              </div>
+              {stockError && <div className="text-sm text-rose-600 font-medium"><i className="fas fa-exclamation-circle mr-1"></i>{stockError}</div>}
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
-                <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => { setIsAdjustingStock(false); setStockDelta(0); }}>Annuler</button>
+                <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => { setIsAdjustingStock(false); setAdjustmentDraft("0"); setNewTotalDraft(String(item.totalStock)); }}>Annuler</button>
                 <button type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Appliquer</button>
               </div>
             </form>

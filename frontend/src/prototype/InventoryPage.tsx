@@ -39,7 +39,7 @@ export default function InventoryPage({ onNavigate }: { onNavigate: (scope: any,
       setSelectedQuantities(newQtys);
     } else {
       if (item.availableStock <= 0) {
-        showToast(`L'article "${item.name}" est en rupture de stock.`);
+        // Prevent selection of out-of-stock items silently
         return;
       }
       setSelectedIds([...selectedIds, item.id]);
@@ -54,7 +54,7 @@ export default function InventoryPage({ onNavigate }: { onNavigate: (scope: any,
       return;
     }
     if (qty > item.availableStock) {
-      showToast(`Quantité max disponible pour "${item.name}" : ${item.availableStock}.`);
+      // Cap silently
       setSelectedQuantities({ ...selectedQuantities, [item.id]: item.availableStock });
     } else {
       setSelectedQuantities({ ...selectedQuantities, [item.id]: qty });

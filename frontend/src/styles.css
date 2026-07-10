@@ -38,10 +38,8 @@ body { font-family:'Inter',sans-serif; }
 
 .nav-dot { width:6px;height:6px;border-radius:50%;background:#475569;display:inline-block;transition:background .2s; }
 
-@media (max-width:1100px){
-  .app-frame{flex-direction:column}
-  .sidebar-responsive{position:relative;height:auto;width:100%!important}
-  .topbar-responsive{position:relative}
+@media (max-width:768px){
+  /* Tailwind handles responsive layout now */
 }
 
 .mobile-hint { display:none; }

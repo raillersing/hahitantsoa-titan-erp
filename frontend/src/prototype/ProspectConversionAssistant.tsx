@@ -27,16 +27,19 @@ export function ProspectConversionAssistant({ client, proformaAmount, onCancel, 
     }
   };
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const handleNext = () => {
+    setErrorMsg(null);
     if (step === 1) {
       if (!isLegalComplete()) {
-        alert("Veuillez remplir toutes les informations légales obligatoires.");
+        setErrorMsg("Veuillez remplir toutes les informations légales obligatoires.");
         return;
       }
       setStep(2);
     } else if (step === 2) {
       if (paymentAmount <= 0 || paymentAmount > proformaAmount) {
-        alert("Montant invalide.");
+        setErrorMsg("Montant invalide.");
         return;
       }
       setStep(3);
@@ -69,6 +72,12 @@ export function ProspectConversionAssistant({ client, proformaAmount, onCancel, 
             <div className={`flex-1 text-center border-b-2 pb-2 ${step >= 2 ? 'border-indigo-600 text-indigo-600 font-bold' : 'border-slate-200 text-slate-400'}`}>2. Acompte mock</div>
             <div className={`flex-1 text-center border-b-2 pb-2 ${step >= 3 ? 'border-indigo-600 text-indigo-600 font-bold' : 'border-slate-200 text-slate-400'}`}>3. Confirmation</div>
           </div>
+
+          {errorMsg && (
+            <div className="p-3 mb-4 bg-rose-50 text-rose-700 text-sm font-semibold rounded-lg border border-rose-200">
+              {errorMsg}
+            </div>
+          )}
 
           {step === 1 && (
             <div className="space-y-4">
