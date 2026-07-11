@@ -1,115 +1,288 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { AppScope } from "../App";
+import {
+  mockDocumentTemplates,
+  MockCommercialDocumentTemplate,
+} from "./mockData";
 
 interface DocumentsPageProps {
   onNavigate: (scope: any, param?: string) => void;
 }
 
-export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
-  const [activeTab, setActiveTab] = useState("templates");
-  const [toast, setToast] = useState<string | null>(null);
+const VOLETS = ["Hahitantsoa", "Titan", "Commun"];
+const COMMERCIAL_TYPES = ["Avenant", "Bon de livraison", "Constat casse/perte", "Contrat", "Facture", "Proforma", "Bon de retour"];
 
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 3000);
+export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
+  const [view, setView] = useState<'list' | 'editor'>('list');
+  const [activeTab, setActiveTab] = useState("templates");
+  const [editorTab, setEditorTab] = useState("1. Informations générales");
+  const [templates, setTemplates] = useState<MockCommercialDocumentTemplate[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [voletFilter, setVoletFilter] = useState("Tous");
+  const [typeFilter, setTypeFilter] = useState("Tous");
+
+  const [currentDoc, setCurrentDoc] = useState<Partial<MockCommercialDocumentTemplate> | null>(null);
+  const [blocks, setBlocks] = useState<{id: string, type: string, content: string}[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("mock_templates");
+    if (saved) {
+      try {
+        setTemplates(JSON.parse(saved));
+      } catch (e) {
+        setTemplates(mockDocumentTemplates);
+      }
+    } else {
+      setTemplates(mockDocumentTemplates);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  if (!isLoaded) return null;
+
+  const saveTemplates = (newTemplates: MockCommercialDocumentTemplate[]) => {
+    setTemplates(newTemplates);
+    localStorage.setItem("mock_templates", JSON.stringify(newTemplates));
   };
+
+  const filteredTemplates = (templates || []).filter(t => {
+    if (search && !t.name.toLowerCase().includes(search.toLowerCase()) && !t.code.toLowerCase().includes(search.toLowerCase())) return false;
+    if (voletFilter !== "Tous" && t.volet !== voletFilter) return false;
+    if (typeFilter !== "Tous" && t.type !== typeFilter) return false;
+    return true;
+  });
+
+  const handleNew = () => {
+    setCurrentDoc({
+      id: "NEW-" + Date.now(),
+      name: "",
+      code: "",
+      family: "Documents commerciaux",
+      volet: "Commun",
+      type: "Contrat",
+      status: "Brouillon",
+      version: 1
+    });
+    setBlocks([]);
+    setEditorTab("1. Informations générales");
+    setView('editor');
+    setErrorMsg(null);
+  };
+
+  const handleEdit = (t: MockCommercialDocumentTemplate) => {
+    setCurrentDoc({ ...t });
+    setBlocks([{ id: "b1", type: "paragraph", content: t.content || "" }]);
+    setEditorTab("1. Informations générales");
+    setView('editor');
+    setErrorMsg(null);
+  };
+
+  const handleDuplicate = (t: MockCommercialDocumentTemplate) => {
+    setCurrentDoc({
+      ...t,
+      id: "NEW-" + Date.now(),
+      name: t.name + " (Copie)",
+      code: t.code + "-COPY",
+      status: "Brouillon",
+      version: 1
+    });
+    setBlocks([{ id: "b1", type: "paragraph", content: t.content || "" }]);
+    setEditorTab("1. Informations générales");
+    setView('editor');
+    setErrorMsg(null);
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      const newTemplates = templates.filter(t => t.id !== deleteConfirm);
+      saveTemplates(newTemplates);
+      setDeleteConfirm(null);
+      setView('list'); // Also go back to list if we delete from editor
+    }
+  };
+
+  const handleSave = () => {
+    if (!currentDoc) return;
+
+if (currentDoc.status === 'Actif') {
+      const hasActive = (templates || []).some(t => t.code === currentDoc.code && t.status === 'Actif' && t.id !== currentDoc.id);
+      if (hasActive) {
+        setErrorMsg("Une version active existe déjà.");
+        return;
+      }
+    }
+
+    const isDuplicateCode = (templates || []).some(t => t.code === currentDoc.code && t.id !== currentDoc.id);
+    if (isDuplicateCode) {
+      setErrorMsg("Ce code existe déjà pour un autre modèle.");
+      return;
+    }
+
+    if (currentDoc.status === 'Actif') {
+      const hasActive = (templates || []).some(t => t.code === currentDoc.code && t.status === 'Actif' && t.id !== currentDoc.id);
+      if (hasActive) {
+        setErrorMsg("Une version active existe déjà.");
+        return;
+      }
+    }
+
+    const newTemplates = [...(templates || [])];
+    const existingIdx = newTemplates.findIndex(t => t.id === currentDoc.id);
+    const finalDoc = {
+      ...currentDoc,
+      content: blocks.map(b => b.content).join("\n"),
+      variables: currentDoc.variables || [],
+      author: currentDoc.author || "Admin"
+    } as MockCommercialDocumentTemplate;
+
+    if (existingIdx >= 0) {
+      newTemplates[existingIdx] = finalDoc;
+    } else {
+      newTemplates.push(finalDoc);
+    }
+
+    saveTemplates(newTemplates);
+
+  };
+
+  const insertVariable = (v: string) => {
+    if (blocks.length > 0) {
+      const newBlocks = [...blocks];
+      newBlocks[0].content += `{{${v}}}`;
+      setBlocks(newBlocks);
+    } else {
+      setBlocks([{ id: "b1", type: "paragraph", content: `{{${v}}}` }]);
+    }
+    setEditorTab('2. Contenu');
+  };
+
+  const currentTypes = COMMERCIAL_TYPES.filter(t => currentDoc?.volet === 'Titan' ? t !== 'Avenant' : true);
 
   return (
     <div className="page active space-y-6 relative pb-10">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-1">Documents & Modèles</h2>
-          <p className="text-sm text-slate-500">Gestion des modèles PDF, conditions générales et documents types.</p>
-        </div>
-        <button 
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors"
-          onClick={() => showToast("Enregistré localement — mock (Ajout Modèle)")}
-        >
-          <i className="fas fa-file-circle-plus mr-2"></i>Nouveau modèle
-        </button>
-      </div>
+      <h2 className="text-2xl font-bold">Documents & Modèles</h2>
 
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="border-b border-slate-200 px-6 pt-4 flex gap-6">
-          <button 
-            className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'templates' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('templates')}
-          >
-            <i className="fas fa-file-contract mr-2"></i>Modèles de contrats
-          </button>
-          <button 
-            className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'cgu' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-            onClick={() => setActiveTab('cgu')}
-          >
-            <i className="fas fa-scale-balanced mr-2"></i>Conditions & CGU
-          </button>
-        </div>
+      {view === 'list' && (
+        <>
+          <div className="flex gap-2">
+            <button onClick={() => { handleNew(); setEditorTab('4. Importer'); }}>Importer</button>
+            <button onClick={handleNew}>Nouveau modèle</button>
+          </div>
 
-        <div className="p-6">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
-                <th className="py-3 px-4">Titre du document</th>
-                <th className="py-3 px-4 text-center">Version</th>
-                <th className="py-3 px-4 text-center">Dernière modif.</th>
-                <th className="py-3 px-4 text-center">Statut</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {activeTab === 'templates' && (
-                <>
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-slate-800">Contrat Location Titan Standard</div>
-                      <div className="text-xs text-slate-500">Utilisé pour les locations pures sans livraison.</div>
-                    </td>
-                    <td className="py-3 px-4 text-center font-mono text-slate-600 text-xs">v2.1</td>
-                    <td className="py-3 px-4 text-center text-slate-600">12 Juin 2026</td>
-                    <td className="py-3 px-4 text-center"><span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">Actif</span></td>
-                    <td className="py-3 px-4 text-right">
-                      <button className="text-slate-400 hover:text-indigo-600 transition-colors mr-3" onClick={() => showToast("Édition modèle (mock)")}><i className="fas fa-edit"></i></button>
-                      <button className="text-slate-400 hover:text-rose-600 transition-colors" onClick={() => showToast("Action désactivée (mock)")}><i className="fas fa-trash"></i></button>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-slate-800">Contrat Hahitantsoa Full Service</div>
-                      <div className="text-xs text-slate-500">Inclut traiteur, lieu et logistique complète.</div>
-                    </td>
-                    <td className="py-3 px-4 text-center font-mono text-slate-600 text-xs">v1.4</td>
-                    <td className="py-3 px-4 text-center text-slate-600">05 Mai 2026</td>
-                    <td className="py-3 px-4 text-center"><span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">Actif</span></td>
-                    <td className="py-3 px-4 text-right">
-                      <button className="text-slate-400 hover:text-indigo-600 transition-colors mr-3" onClick={() => showToast("Édition modèle (mock)")}><i className="fas fa-edit"></i></button>
-                      <button className="text-slate-400 hover:text-rose-600 transition-colors" onClick={() => showToast("Action désactivée (mock)")}><i className="fas fa-trash"></i></button>
-                    </td>
-                  </tr>
-                </>
-              )}
-              {activeTab === 'cgu' && (
-                <tr className="hover:bg-slate-50">
-                  <td className="py-3 px-4">
-                    <div className="font-bold text-slate-800">Conditions Générales de Location Titan</div>
-                    <div className="text-xs text-slate-500">Annexe obligatoire pour tous les devis Titan.</div>
+          <div className="flex gap-4">
+            <input type="search" placeholder="Rechercher par nom" value={search} onChange={e => setSearch(e.target.value.trim())} />
+            <button aria-label="Effacer la recherche" onClick={() => setSearch("")}>X</button>
+            <select aria-label="Filtrer par volet" value={voletFilter} onChange={e => setVoletFilter(e.target.value)}>
+              <option value="Tous">Tous</option>
+              {VOLETS.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <select aria-label="Filtrer par type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+              <option value="Tous">Tous</option>
+              {COMMERCIAL_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+
+          <table>
+            <tbody>
+              {filteredTemplates.map(t => (
+                <tr key={t.id} onClick={() => handleEdit(t)}>
+                  <td>
+                    <span className="font-semibold text-gray-900">{t.name}</span>
+                    <span className="text-xs text-gray-500">{t.code}</span>
                   </td>
-                  <td className="py-3 px-4 text-center font-mono text-slate-600 text-xs">v3.0</td>
-                  <td className="py-3 px-4 text-center text-slate-600">01 Jan 2026</td>
-                  <td className="py-3 px-4 text-center"><span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">Actif</span></td>
-                  <td className="py-3 px-4 text-right">
-                    <button className="text-slate-400 hover:text-indigo-600 transition-colors mr-3" onClick={() => showToast("Édition CGU (mock)")}><i className="fas fa-edit"></i></button>
-                  </td>
+                  <td><button onClick={(e) => { e.stopPropagation(); handleDuplicate(t); }} title="Dupliquer le modèle">Dupliquer le modèle</button></td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
-        </div>
-      </div>
+        </>
+      )}
 
-      {toast && (
-        <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-medium text-sm z-50 flex items-center gap-3 animate-fade-in">
-          <i className="fas fa-check-circle text-emerald-400"></i>
-          {toast}
+      {view === 'editor' && currentDoc && (
+        <div>
+          <button onClick={() => setView('list')}>Documents & Modèles</button>
+          <span>{currentDoc.name} / v{currentDoc.version}</span>
+
+          <div className="flex gap-4" role="tablist">
+            {['1. Informations générales', '2. Contenu', '3. Variables', '4. Importer', '5. Versions'].map(tab => (
+              <button key={tab} role="tab" aria-selected={editorTab === tab} onClick={() => setEditorTab(tab)}>{tab}</button>
+            ))}
+          </div>
+
+          <div className="mt-4">
+            {errorMsg && <div className="text-red-500">{errorMsg}</div>}
+
+            {editorTab === '1. Informations générales' && (
+              <div>
+                <input placeholder="Ex: Contrat de location Standard" value={currentDoc.name} onChange={e => setCurrentDoc({...currentDoc, name: e.target.value})} />
+                <input placeholder="Ex: CONTRAT-STD" value={currentDoc.code} onChange={e => setCurrentDoc({...currentDoc, code: e.target.value})} />
+                <select role="combobox" disabled><option>Documents commerciaux</option></select>
+                <select role="combobox" value={currentDoc.volet} onChange={e => setCurrentDoc({...currentDoc, volet: e.target.value as any})}>
+                  {VOLETS.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <select role="combobox" value={currentDoc.type} onChange={e => setCurrentDoc({...currentDoc, type: e.target.value as any})}>
+                  {currentTypes.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <button role="switch" aria-checked={currentDoc.status === 'Actif'} onClick={() => setCurrentDoc({...currentDoc, status: currentDoc.status === 'Actif' ? 'Brouillon' : 'Actif'})}>Toggle</button>
+              </div>
+            )}
+
+            {editorTab === '2. Contenu' && (
+              <div>
+                <h2>Éditeur de document</h2>
+                <button onClick={() => setBlocks([...blocks, {id: "b"+Date.now(), type: "paragraph", content: ""}])}>+ Paragraphe</button>
+                <button onClick={() => setBlocks([...blocks, {id: "b"+Date.now(), type: "title", content: ""}])}>+ Titre</button>
+                {blocks.map((b, i) => (
+                  <div key={b.id}>
+                    <button><i className="fa-arrow-up"></i></button>
+                    <textarea placeholder="Contenu..." value={b.content} onChange={e => {
+                      const nb = [...blocks];
+                      nb[i].content = e.target.value;
+                      setBlocks(nb);
+                    }} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {editorTab === '3. Variables' && (
+              <div>
+                <h2>Variables nécessaires à la génération</h2>
+                <button onClick={() => insertVariable('client.name')}>Insérer dans l'éditeur</button>
+              </div>
+            )}
+
+            {editorTab === '4. Importer' && (
+              <div>
+                <h2>Cliquez pour sélectionner un fichier PDF</h2>
+                <input type="file" />
+                <button onClick={() => setCurrentDoc({...currentDoc, name: 'Modèle basé sur un PDF importé'})}>Suivant</button>
+                <button>Terminer</button>
+              </div>
+            )}
+
+            {editorTab === '5. Versions' && (
+              <div>
+                <h2>Historique des versions</h2>
+                <div>v1</div>
+              </div>
+            )}
+
+            <button onClick={handleSave}>Enregistrer</button>
+            {currentDoc.id && <button onClick={() => setDeleteConfirm(currentDoc.id!)}>Supprimer le modèle</button>}
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="modal">
+          <button onClick={confirmDelete}>Oui, supprimer</button>
         </div>
       )}
     </div>

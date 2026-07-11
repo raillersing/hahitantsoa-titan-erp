@@ -301,7 +301,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
             <i className="fas fa-file-invoice-dollar w-5 text-center"></i><span>Facturation & Paiements</span>
           </a>
           <a href="#documents" onClick={(e) => { e.preventDefault(); onNavigate("documents"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "documents" ? "active" : ""}`}>
-            <i className="fas fa-file-alt w-5 text-center"></i><span>Documents & Templates</span>
+            <i className="fas fa-file-alt w-5 text-center"></i><span>Documents & Modèles</span>
           </a>
           <a href="#cashbox" onClick={(e) => { e.preventDefault(); onNavigate("cashbox"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "cashbox" ? "active" : ""}`}>
             <i className="fas fa-cash-register w-5 text-center"></i><span>Caisse</span>

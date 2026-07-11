@@ -14,44 +14,95 @@ import {
 type DocumentType = 'proforma' | 'facture' | 'contrat';
 
 interface DocumentProps {
-  type: DocumentType;
-  domain: 'titan' | 'hahitantsoa';
-  client: any;
-  date: string;
-  refNumber: string;
+  type?: DocumentType | string;
+  domain?: 'titan' | 'hahitantsoa' | string;
+  client?: any;
+  date?: string;
+  refNumber?: string;
   eventDate?: string;
   materials?: any[];
   services?: any[];
   deliveryFee?: string;
-  totalAmount: number;
+  totalAmount?: number;
   discountAmount?: number;
   subTotalAmount?: number;
   paidAmount?: number;
   paymentMethod?: string;
   hDetails?: any;
   tDetails?: any;
+  template?: any;
+  blocks?: any[];
+  isGuided?: boolean;
 }
 
 export const DocumentPreview: React.FC<DocumentProps> = ({
-  type,
-  domain,
+  type = 'proforma',
+  domain = 'titan',
   client,
-  date,
-  refNumber,
-  eventDate,
+  date = '',
+  refNumber = '',
+  eventDate = '',
   materials = [],
   services = [],
   deliveryFee,
-  totalAmount,
+  totalAmount = 0,
   discountAmount = 0,
-  subTotalAmount = totalAmount,
+  subTotalAmount = 0,
   paidAmount = 0,
   paymentMethod = 'Non précisé',
   hDetails = {},
-  tDetails = {}
+  tDetails = {},
+  template,
+  blocks,
+  isGuided
 }) => {
+  if (template) {
+    const volet = template.volet === 'Hahitantsoa' ? 'hahitantsoa' : 'titan';
+    const logoPath = volet === 'titan' ? '/brand/titan-rental-logo.png' : '/brand/hahitantsoa-logo.png';
+    const emailText = volet === 'titan' ? 'titan@ergon.mg' : 'hahitantsoa@ergon.mg';
+    const phoneText = volet === 'titan' ? '+261 34 61 791 42' : '+261 34 61 791 44';
+
+    return (
+      <div className="p-8 bg-white border border-slate-200 rounded-xl h-full shadow-sm text-[12px] font-sans relative overflow-y-auto">
+        <div className="flex justify-between items-start mb-8 border-b pb-4">
+          <div>
+            <img src="/brand/ergon-logo.png" className="h-[60px] object-contain mb-2" alt="Ergon logo" />
+            <div className="text-slate-500">ergon@ergon.mg<br/>+261 34 61 791 41</div>
+          </div>
+          <div className="text-right">
+            <img src={logoPath} className="h-[80px] object-contain mb-2 ml-auto" alt="Brand logo" />
+            <div className="text-slate-500">{emailText}<br/>{phoneText}</div>
+          </div>
+        </div>
+
+        {isGuided && blocks ? (
+          <div className="space-y-4">
+            {blocks.map((b: any) => {
+              if (b.type === "Titre") return <h2 key={b.id} className="text-xl font-bold text-center underline mb-6">{b.text || "TITRE DU DOCUMENT"}</h2>;
+              if (b.type === "Paragraphe") return <p key={b.id} className="text-justify mb-4">{b.text || "..."}</p>;
+              if (b.type === "Tableau articles/packs") return (
+                <table key={b.id} className="w-full border-collapse border border-slate-300 mb-6">
+                  <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Désignation</th><th className="border p-2">Qté</th><th className="border p-2">PU</th><th className="border p-2 text-right">Total</th></tr></thead>
+                  <tbody><tr><td className="border p-2">Article / Pack</td><td className="border p-2 text-center">1</td><td className="border p-2 text-center">X Ar</td><td className="border p-2 text-right">X Ar</td></tr></tbody>
+                </table>
+              );
+              return (
+                <div key={b.id} className="mb-4">
+                  {b.title && <h4 className="font-bold underline mb-2">{b.title}</h4>}
+                  <div className="whitespace-pre-wrap">{b.text || `[Bloc ${b.type} vide]`}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: template.content || "" }} />
+        )}
+      </div>
+    );
+  }
+
   const isTitan = domain === 'titan';
-  
+
   const logoPath = isTitan ? '/brand/titan-rental-logo.png' : '/brand/hahitantsoa-logo.png';
   const ergonLogo = '/brand/ergon-logo.png';
   const emailText = isTitan ? 'titan@ergon.mg' : 'hahitantsoa@ergon.mg';
@@ -84,7 +135,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
       <div className="contract-a4-page relative flex flex-col shrink-0 text-[14px] leading-snug">
         <div className="flex-1 relative pt-12 pb-8 px-16 flex flex-col z-10">
           <img src={logoPath} alt="Watermark" className="contract-watermark absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[70%] opacity-[0.08] pointer-events-none -z-10" />
-          
+
           <div className="flex justify-between items-start mb-10 shrink-0 contract-header font-sans">
             <div className="w-1/2 flex flex-col items-start gap-4">
               <img src={ergonLogo} alt="Ergon logo" className="h-[90px] object-contain mb-2" />
@@ -101,11 +152,11 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               </div>
             </div>
           </div>
-          
+
           <div className="flex-1 contract-body text-justify">
             {children}
           </div>
-          
+
           <div className="contract-footer shrink-0 mt-8 pt-2 border-t border-black text-center text-[11px] flex justify-between items-end font-sans text-slate-400">
             <div className="text-left">
               <p>Ergon Group SARL</p>
@@ -134,12 +185,12 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <h4 className="text-center font-bold text-[18px] mb-8 underline decoration-2 underline-offset-4 font-serif leading-tight">
               CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS « TITAN RENTAL »
             </h4>
-            
+
             <p className="mb-4">Entre les soussignés :</p>
             <p className="mb-6"><strong>La société ERGON GROUP</strong>, dont le siège social se situe au Lot P93M Sud Ambohipo Alasora Antananarivo<br/>10301, représentée par RASOAMANANA Narindra en sa qualité de Gérante</p>
             <p className="text-right mb-6">Ci-après dénommée « Le prestataire »</p>
             <p className="text-right font-bold underline mb-8">D'UNE PART,</p>
-            
+
             {client?.type === 'Particulier' ? (
               <p className="mb-4">Monsieur/Madame <strong>{client.name}</strong> domicilié(e) au {client.address || '................................'}<br/>Titulaire de la CIN / Passeport N° {client.idNumber || '................................'} délivré(e) le {client.idIssueDate ? new Date(client.idIssueDate).toLocaleDateString('fr-FR') : '................................'} à {client.idIssuePlace || '................................'}</p>
             ) : (
@@ -147,10 +198,10 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             )}
             <p className="text-right mb-6">Ci-après dénommée « Le client »</p>
             <p className="text-right font-bold underline mb-8">D'AUTRE PART,</p>
-            
+
             <p className="mb-6">Le Client et le Prestataire étant dénommés ci-après les <strong>« Parties »</strong></p>
             <p className="mb-6 uppercase">IL A ETE CONVENU CE QUI SUIT :</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 1 : Objet du contrat</h5>
             <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
             <ul className="list-none pl-10 mb-4 space-y-2">
@@ -185,7 +236,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
                 <li><strong>Note d'accès :</strong> {tDetails.destinationAccessNote}</li>
               )}
             </ul>
-            
+
             <h5 className="font-bold underline mb-4">Article 3 : Durée</h5>
             <p className="mb-4">
               La location est consentie pour la période du {tDetails?.startDate || eventDate || 'non renseigné'} à {tDetails?.startTime || 'non renseigné'} au {tDetails?.endDate || eventDate || 'non renseigné'} à {tDetails?.endTime || 'non renseigné'}.
@@ -203,22 +254,22 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
                 </>
               )}
             </p>
-            
+
             <h5 className="font-bold underline mb-4">Article 4 : Tarifs</h5>
             <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {formatMoneyRaw(safeTotal)} Ariary TTC.</p>
             <p className="mb-4">Une facture sera établie après la réception de la totalité du règlement. Un reçu sera établi lors de la réception des fonds pour acompte.</p>
             <p className="mb-4">Dans le cas où le client n’aurait pas rendu les Matériels loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50% du montant total de la facture par jour de non remise des Matériels Loués.</p>
             <p className="mb-6">Dans le cas où il y a préjudice causé par la rallonge de retour des Matériels loués, le Client est tenu de prendre en charge tous les frais liés au démantèlement avec la somme supplémentaire de 100% pour réparation de dommage.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 5 : Modalités de paiement</h5>
             <p className="mb-4">La présente location est consentie et acceptée moyennant le versement d’un acompte de 25 % de la somme totale due. Celui-ci devra être réglé le jour de la réservation des matériels, soit à la signature par le Client du présent contrat.</p>
             <p className="mb-6">Le client s’engage à verser le solde du montant de la location cinq jours avant l’enlèvement des Matériels Loués au plus tard.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 6 : Etat des Matériels</h5>
             <p className="mb-4">Un état des Matériels sera établi à l’enlèvement à contrario d’un état dressé à la remise des dits matériels à la fin du contrat.</p>
             <p className="mb-4">Le client est tenu de rester le temps nécessaire pour procéder à l’état des Matériels.</p>
             <p className="mb-6">Chaque article devra être restitué à l’état lors de la prise de possession.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 7 : Dépôt de garantie</h5>
             <p className="mb-2">Le client verse au Prestataire à titre de dépôt de garantie :</p>
             <ul className="list-none pl-10 mb-4 space-y-1">
@@ -233,11 +284,11 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
 
           <ContractPage pageNumber={3}>
             <p className="mb-6">Si le montant du préjudice est supérieur au montant du dépôt de garantie, le Client s’engage à rembourser les frais supplémentaires sous 8 jours après réception d’une mise en demeure l’informant du montant de la somme due au titre de ces désagréments.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 8 : Obligations du Prestataire</h5>
             <p className="mb-4">Le Prestataire s’engage à mettre à disposition du Client l’ensemble des éléments mentionnés dans l’article 1 du présent contrat.</p>
             <p className="mb-6">Il s’engage à ne pas faire entrave à la jouissance du Client pendant toute la durée de la location.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 9 : Obligations du Client</h5>
             <ul className="list-disc pl-10 mb-6 space-y-2">
               <li>Le Client prendra les Matériels Loués dans l’état où ils se trouvent au moment de l’entrée en jouissance, sans pouvoir exiger du Prestataire toute forme de modifications en sus ;</li>
@@ -246,15 +297,15 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               <li>Le Client s’engage à respecter et à faire respecter par toutes les personnes présentes lors de l’évènement le bon usage en bon père de famille des Matériels Loués ;</li>
               <li>Le Client s’engage à rendre les Matériels loués lavés et séchés.</li>
             </ul>
-            
+
             <h5 className="font-bold underline mb-4">Article 10 : Annulation</h5>
             <p className="mb-4">Le preneur ne pourrait annuler la location sauf pour cas de force majeure, et ne peut prévaloir un droit à remboursement.</p>
             <p className="mb-4">En cas de force majeur, les deux parties se rapprochent pour évaluer les éventuels remboursements sans engagement de part et d’autres.</p>
             <p className="mb-6">Dans le cas où le Prestataire ne pourrait respecter ses engagements pour cas de force majeure, il se réserve le droit d’annuler la réservation et de rembourser intégralement au Client les sommes qu’il a versées.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 11 : Clause résolutoire</h5>
             <p className="mb-6">Il est expressément convenu qu’en cas de paiement par chèque, le règlement ne sera considéré effectif qu’après l’encaissement du chèque. Dans le cas où le chèque serait sans provision, la présente clause sera appliquée et le présent contrat deviendra nul de plein droit.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 12 : Transport</h5>
             <p className="mb-16">Un véhicule fourgon est exigé pour le transport des matériels.</p>
 
@@ -275,12 +326,12 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <h4 className="text-center font-bold text-[18px] mb-8 underline decoration-2 underline-offset-4 font-serif">
               CONTRAT DE LOCATION « HAHITANTSOA »
             </h4>
-            
+
             <p className="mb-4">Entre les soussignés :</p>
             <p className="mb-6"><strong>La société ERGON GROUP</strong> dont le siège social se situe au Lot P93M Sud Ambohipo Alasora Antananarivo,<br/>représentée par RASOAMANANA Narindra en sa qualité de Gérante</p>
             <p className="text-right mb-6">Ci-après dénommée « Le prestataire »</p>
             <p className="text-right font-bold underline mb-8">D'UNE PART,</p>
-            
+
             {client?.type === 'Particulier' ? (
               <p className="mb-4">Monsieur/Madame <strong>{client.name}</strong> domicilié(e) au {client.address || '................................'}<br/>Titulaire de la CIN / Passeport N° {client.idNumber || '................................'} délivré(e) le {client.idIssueDate ? new Date(client.idIssueDate).toLocaleDateString('fr-FR') : '................................'} à {client.idIssuePlace || '................................'}<br/>Contact : {client.phone || '................................'}</p>
             ) : (
@@ -288,10 +339,10 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             )}
             <p className="text-right mb-6">Ci-après dénommée « Le client »</p>
             <p className="text-right font-bold underline mb-8">D'AUTRE PART,</p>
-            
+
             <p className="mb-6">Le Client et le Prestataire étant dénommés ci-après les <strong>« Parties »</strong></p>
             <p className="mb-6 uppercase">IL A ETE CONVENU CE QUI SUIT :</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 1 : Objet du contrat</h5>
             <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, un lieu de réception situé au Lot P93M Sud Ambohipo Alasora Antananarivo comprenant :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
@@ -332,7 +383,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
                 Référent(s) : {hDetails.otherReferentName}
               </p>
             )}
-            
+
             <h5 className="font-bold underline mb-4">Article 3 : Durée</h5>
             <p className="mb-4">La présente location est consentie et acceptée du {hDetails?.startDate || eventDate} à {hDetails?.startTime || '.................'} heures au {hDetails?.endDate || eventDate} à {hDetails?.endTime || '......03H30............'} heures.<br/>Les intervenants du client peuvent accéder aux locaux (veuillez rayer les mentions inutiles) :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
@@ -340,7 +391,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               <li><span className="line-through">le jour-J à 07 heures.</span></li>
             </ul>
             <p className="mb-6">L’heure de fin comprend les heures de démantèlement et reprise des Lieux Loués par le Prestataire.<br/>Toute rallonge sur les heures convenues feront l’objet de facturation en sus suivant la grille du prestataire.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 4 : Tarifs</h5>
             <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {formatMoneyRaw(safeTotal)} Ariary TTC.</p>
             <div className="pl-10 mb-4 flex flex-col gap-2">
@@ -361,7 +412,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               </span></div>
             </div>
             <p className="mb-4">Une facture sera établie après la réception de la totalité du règlement. Un reçu sera établi lors de la réception des fonds pour acompte.<br/>Dans le cas où le client n’aurait pas quitté les Lieux Loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50 000,00 Ariary TTC par tranche de 30 minutes mais selon les besoins du prestataire, il se réserve le droit de sortir tous les intervenants et leurs matériels en dehors de l’enceinte et décline toute responsabilité en cas de perte ou de détérioration.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 5 : Modalités de paiement</h5>
             <p className="mb-2">La présente location est consentie et acceptée moyennant le versement d’un acompte de :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
@@ -373,10 +424,10 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               <li>La première tranche (50%) 1 mois avant l’évènement au plus tard ;</li>
               <li>La deuxième tranche (50%) 10 jours avant l’évènement au plus tard.</li>
             </ul>
-            
+
             <h5 className="font-bold underline mb-4">Article 6 : Remise des clés – Etat des lieux</h5>
             <p className="mb-4">Un état des lieux d’entrée sera établi lors de la prise de possession des Lieux Loués et un des lieux de sortie sera dressé lors de la remise des clés ou à la fin du contrat. Le client est tenu de rester le temps nécessaire pour procéder à l’état des lieux. Les lieux loués devront être restitués conformément à l’état des lieux d’entrée.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 7 : Dépôt de garantie</h5>
           </ContractPage>
 
@@ -384,10 +435,10 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <p className="mb-4">Le client verse au Prestataire à titre de dépôt de garantie, une somme de {formatMoneyRaw(hahitantsoaDefaultDepositAmount)} Ariary.<br/>La somme correspondant au dépôt de garantie est versée le jour du règlement du solde.<br/>Le montant du dépôt de garantie sera remboursé au Client le jour de la fin de location dans le cas d’un retour sans casse.</p>
             <p className="mb-4">Par ailleurs, dans le cas de constatation de casse le montant du dépôt de garantie sera remboursé au Client dans les cinq jours suivant la fin de la location après déduction de toutes les sommes dont il est destiné à garantir le paiement notamment les désordres que le Client aurait causé aux locaux, aux matériels ou aux espaces verts ainsi que le nettoyage supplémentaire.</p>
             <p className="mb-6">Si le montant du préjudice est supérieur au montant du dépôt de garantie, le Client s’engage à rembourser les frais supplémentaires sous 8 jours après réception d’une mise en demeure l’informant du montant de la somme due au titre de ces désordres.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 8 : Obligations du Prestataire</h5>
             <p className="mb-6">Le Prestataire s’engage à mettre à disposition du Client l’ensemble des éléments mentionnés dans l’article 1 du présent contrat.<br/>Il s’engage à ne pas faire entrave à la jouissance du Client pendant toute la durée de la location.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 9 : Obligations du Client</h5>
             <ul className="list-disc pl-10 mb-6 space-y-2">
               <li>Le Client prendra les Lieux Loués dans l’état où ils se trouvent au moment de l’entrée en jouissance, sans pouvoir exiger du Prestataire aucun aménagement, aucune réparation, aucuns travaux de remise en état tels qu’ils résultent de l’état des lieux contradictoirement dressé entre les parties.</li>
@@ -397,25 +448,25 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               <li>Le Client s’engage à rendre les Lieux Loués vidés de leurs contenus.<br/>Dans le cas où le Client fait appel aux services d’un traiteur, il s’assure que ce dernier laisse également les Lieux Loués dans l’état initial, c’est-à-dire locaux débarrassés et rangés, cuisine rangée et poubelles enlevées par ses soins.</li>
               <li>Le Client octroie un droit de diffusion des vidéos et photographies lors de l’évènement pour usage Marketing sans porter atteinte à la personnalité tant des invités que du Client.</li>
             </ul>
-            
+
             <h5 className="font-bold underline mb-4">Article 10 : Annulation</h5>
             <p className="mb-4">Le Client ne pourrait annuler la location sauf pour cas de force majeure, et ne peut prévaloir un droit à remboursement.<br/>En cas de force majeur, les deux parties se rapprochent pour évaluer les éventuels remboursements sans engagement de part et d’autres.<br/>Dans le cas où le Prestataire ne pourrait respecter ses engagements pour cas de force majeure, il se réserve le droit d’annuler la réservation et de rembourser intégralement au Client les sommes qu’il a versées.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 11 : Sécurité incendie</h5>
             <p className="mb-6">Le Client déclare avoir pris connaissance de la règlementation incendie relative aux Lieux Loués et notamment du plan d’évacuation <strong>(Cf Annexe).</strong></p>
-            
+
             <h5 className="font-bold underline mb-4">Article 12 : Assurances</h5>
           </ContractPage>
 
           <ContractPage pageNumber={4}>
             <p className="mb-4">Le Client fera parvenir au Prestataire un justificatif de domicile (Facture d’abonnement électricité/eau).<br/>Dans le cas où il y a des dégâts en plus sur les Lieux Loués, le Client s’engage à procéder aux réparations de ces derniers.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 13 : Responsabilité</h5>
             <p className="mb-4">Le prestataire décline toute responsabilité d’un éventuel accident survenu lors des festivités et ne peut être tenu responsable des vols et dégradations sur les biens du Client ou de ses convives.<br/>Il ne pourra pas non plus être tenu responsable des dommages causés aux véhicules ou au matériel situés sur le parking.<br/>Le Client est tenu d’assurer la sécurité des objets valeureux de ses convives. Le Prestataire décline toute responsabilité sur des objets valeureux non déclarés.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 14 : Clause résolutoire</h5>
             <p className="mb-4">Il est expressément convenu qu’en cas de paiement par chèque, le règlement ne sera considéré effectif qu’après l’encaissement du chèque. Dans le cas où le chèque serait sans provision, la présente clause sera appliquée et le présent contrat deviendra nul de plein droit.<br/>A défaut de production par le Client d’une attestation couvrant sa responsabilité civile dans les délais prévus à l’article 13, il sera également fait application de la présente clause. Le présent contrat sera nul.</p>
-            
+
             <h5 className="font-bold underline mb-4">Article 15 : Annexes</h5>
             <p className="mb-2">Sont annexés au présent contrat :</p>
             <ul className="list-disc pl-10 mb-16 space-y-1">
@@ -573,16 +624,16 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           <img src={ergonLogo} alt="Ergon logo" className="w-12 h-auto" />
         </div>
       </div>
-      
+
       <div className="doc-body flex-1 py-12 px-10 relative flex flex-col">
         <img src={logoPath} alt="Watermark" className="absolute top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[80%] opacity-[0.03] pointer-events-none" />
-        
+
         <div className="text-right mb-12">
           <p className="text-sm font-bold mb-1">{typeRef} N°: {refNumber}</p>
           <h2 className="text-4xl font-bold tracking-[0.3em] text-black mb-2 whitespace-nowrap">{titleText}</h2>
           <p className="text-sm">DATE {date}</p>
         </div>
-        
+
         <div className="mb-10 text-sm grid grid-cols-[150px_1fr] gap-y-3">
           <p className="font-bold tracking-widest">N O M :</p>
           <p>{client?.name}</p>
@@ -591,13 +642,13 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           <p className="font-bold tracking-widest">E V E N E M E N T d u :</p>
           <p>{eventDate}</p>
         </div>
-        
+
         {type === 'proforma' && client?.status === 'Prospect' && (
           <div className="mb-6 p-3 bg-amber-50 text-amber-800 text-xs border border-amber-200 rounded">
             <strong>Note importante :</strong> Ce document est une proforma émise à titre informatif. Elle ne vaut pas confirmation de réservation et ne vous confère pas le statut de client. La réservation ne sera ferme et définitive qu'après réception de l'acompte et signature du contrat.
           </div>
         )}
-        
+
         <div className="mb-auto">
           <table className="w-full text-xs doc-table-borderless">
             <thead>
@@ -686,17 +737,17 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           <div className="w-[300px] grid grid-cols-[1fr_150px] gap-2">
             <div className="text-left tracking-widest">S O U S  -  T O T A L</div>
             <div className="text-right">{formatMoneyRaw(safeSubTotal)}</div>
-            
+
             <div className="text-left tracking-widest">R E M I S E</div>
             <div className="text-right">- {formatMoneyRaw(safeDiscount)}</div>
           </div>
         </div>
-        
+
         <div className="flex bg-[#efefef] p-3 text-sm font-bold items-center justify-between mx-[-2.5rem] px-[2.5rem] mb-2">
           <div className="tracking-widest">T O T A L A P A Y E R</div>
           <div className="">{formatMoneyRaw(safeTotal)} Ar</div>
         </div>
-        
+
         <div className="flex justify-between text-xs mb-8">
           <div className="w-1/2">
             Arrêtée la présente {type === 'facture' ? 'facture' : 'facture proforma'}<br/>à la somme de
@@ -710,7 +761,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           <div className="w-1/2">Le responsable</div>
           <div className="w-1/2">Le Client</div>
         </div>
-        
+
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-xs font-bold">
           {emailText}
         </div>
