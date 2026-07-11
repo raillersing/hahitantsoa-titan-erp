@@ -641,3 +641,94 @@ export const mockCautions: Caution[] = [
     notes: "Retenue pour 2 chaises cassées"
   }
 ];
+
+// ---- Document Templates Mock ----
+
+export interface DocumentTemplatePdfImportMetadata {
+  filename: string;
+  size: number;
+  mimeType: string;
+}
+
+export interface MockCommercialDocumentTemplate {
+  id: string;
+  name: string;
+  code: string;
+  family: "Documents commerciaux" | "Communications" | "Clauses et textes";
+  volet: "Hahitantsoa" | "Titan" | "Commun";
+  type: "Avenant" | "Bon de livraison" | "Constat casse/perte" | "Contrat" | "Facture" | "Proforma" | "Bon de retour" | string;
+  description: string;
+  content: string;
+  variables: string[];
+  status: "Brouillon" | "Actif" | "Archivé";
+  version: number;
+  lastModified: string;
+  author: string;
+  pdfImportMetadata?: DocumentTemplatePdfImportMetadata;
+  previousVersions?: Omit<MockCommercialDocumentTemplate, "previousVersions">[];
+}
+
+const TEMPLATES_STORAGE_KEY_V1 = 'hahitantsoa-titan.mock.document-templates.v1';
+const TEMPLATES_STORAGE_KEY_V2 = 'hahitantsoa-titan.mock.commercial-document-templates.v3'; // Changed to v3 to invalidate cache
+
+const seedTemplatesV2: MockCommercialDocumentTemplate[] = [
+  // HAHITANTSOA
+  { id: "TPL-H1", name: "Avenant Hahitantsoa Standard", code: "HAH-AVENANT", family: "Documents commerciaux", volet: "Hahitantsoa", type: "Avenant", description: "Pour toute modification de la réservation", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"AVENANT AU CONTRAT\"},{\"id\":\"2\",\"type\":\"Paragraphe\",\"title\":\"\",\"text\":\"Suite à la demande de {{client.name}}...\"}]", variables: ["client.name"], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-H2", name: "Bon de livraison Hahitantsoa", code: "HAH-BL", family: "Documents commerciaux", volet: "Hahitantsoa", type: "Bon de livraison", description: "Document de livraison matériel", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"BON DE LIVRAISON\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-H3", name: "Constat casse/perte Hahitantsoa", code: "HAH-CONSTAT", family: "Documents commerciaux", volet: "Hahitantsoa", type: "Constat casse/perte", description: "Constat de casse ou perte de matériel", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"CONSTAT DE CASSE / PERTE\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-H4", name: "Contrat Hahitantsoa Full Service", code: "HAH-CONTRAT", family: "Documents commerciaux", volet: "Hahitantsoa", type: "Contrat", description: "Inclut traiteur, lieu et logistique complète.", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"CONTRAT DE LOCATION « HAHITANTSOA »\"},{\"id\":\"2\",\"type\":\"Paragraphe\",\"title\":\"\",\"text\":\"Entre {{client.name}} et Ergon Group...\"}]", variables: ["client.name"], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-H5", name: "Facture Hahitantsoa", code: "HAH-FACTURE", family: "Documents commerciaux", volet: "Hahitantsoa", type: "Facture", description: "Facture de la prestation", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"FACTURE\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-H6", name: "Proforma Hahitantsoa", code: "HAH-PROFORMA", family: "Documents commerciaux", volet: "Hahitantsoa", type: "Proforma", description: "Devis proforma de la prestation", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"FACTURE PROFORMA\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-H7", name: "Bon de retour Hahitantsoa", code: "HAH-RETOUR", family: "Documents commerciaux", volet: "Hahitantsoa", type: "Bon de retour", description: "Document de retour matériel", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"BON DE RETOUR\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+
+  // TITAN
+  { id: "TPL-T1", name: "Bon de livraison Titan", code: "TITAN-BL", family: "Documents commerciaux", volet: "Titan", type: "Bon de livraison", description: "Document de livraison matériel", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"BON DE LIVRAISON\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-T2", name: "Constat casse/perte Titan", code: "TITAN-CONSTAT", family: "Documents commerciaux", volet: "Titan", type: "Constat casse/perte", description: "Constat de casse ou perte de matériel", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"CONSTAT DE CASSE / PERTE\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-T3", name: "Contrat Location Titan Standard", code: "TITAN-CONTRAT", family: "Documents commerciaux", volet: "Titan", type: "Contrat", description: "Utilisé pour les locations pures sans livraison.", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"CONTRAT DE LOCATION DE MATÉRIELS ÉVÉNEMENTIELS « TITAN RENTAL »\"},{\"id\":\"2\",\"type\":\"Paragraphe\",\"title\":\"\",\"text\":\"Entre {{client.name}} et Ergon Group...\"}]", variables: ["client.name"], status: "Actif", version: 2, lastModified: "2026-07-11", author: "Mock Admin", previousVersions: [{ id: "TPL-T3-v1", name: "Contrat Location Titan Standard", code: "TITAN-CONTRAT", family: "Documents commerciaux", volet: "Titan", type: "Contrat", description: "Brouillon initial", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"CONTRAT DE LOCATION\"}]", variables: [], status: "Archivé", version: 1, lastModified: "2026-06-01", author: "Mock Admin" }] },
+  { id: "TPL-T4", name: "Facture Titan", code: "TITAN-FACTURE", family: "Documents commerciaux", volet: "Titan", type: "Facture", description: "Facture de location", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"FACTURE\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-T5", name: "Proforma Titan", code: "TITAN-PROFORMA", family: "Documents commerciaux", volet: "Titan", type: "Proforma", description: "Devis proforma de location", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"FACTURE PROFORMA\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+  { id: "TPL-T6", name: "Bon de retour Titan", code: "TITAN-RETOUR", family: "Documents commerciaux", volet: "Titan", type: "Bon de retour", description: "Document de retour matériel", content: "[{\"id\":\"1\",\"type\":\"Titre\",\"title\":\"\",\"text\":\"BON DE RETOUR\"}]", variables: [], status: "Actif", version: 1, lastModified: "2026-07-11", author: "Mock Admin" },
+];
+
+export let mockDocumentTemplates = [...seedTemplatesV2];
+
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const storedV2 = localStorage.getItem(TEMPLATES_STORAGE_KEY_V2);
+    if (storedV2) {
+      const parsed = JSON.parse(storedV2);
+      if (Array.isArray(parsed)) {
+        mockDocumentTemplates = parsed;
+      }
+    } else {
+      // Fallback to V1
+      const storedV1 = localStorage.getItem(TEMPLATES_STORAGE_KEY_V1);
+      if (storedV1) {
+        const parsed = JSON.parse(storedV1);
+        if (Array.isArray(parsed)) {
+          // simple migration
+          mockDocumentTemplates = parsed.map((p: any) => ({
+            ...p,
+            variables: [],
+            author: "System (Migration)",
+            previousVersions: []
+          }));
+          localStorage.setItem(TEMPLATES_STORAGE_KEY_V2, JSON.stringify(mockDocumentTemplates));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Persistance frontend mock locale (templates v2) - erreur de chargement", e);
+  }
+}
+
+export const saveMockTemplates = (templates: MockCommercialDocumentTemplate[]) => {
+  mockDocumentTemplates = templates;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      localStorage.setItem(TEMPLATES_STORAGE_KEY_V2, JSON.stringify(mockDocumentTemplates));
+    } catch (e) {
+      console.warn("Persistance frontend mock locale (templates v2) - erreur de sauvegarde", e);
+    }
+  }
+};
