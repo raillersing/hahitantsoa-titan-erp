@@ -67,13 +67,13 @@ describe('DocumentsPage', () => {
 
     fireEvent.click(screen.getByText('3. Variables'));
 
-    // Click "Insérer dans l'éditeur" for client.name
-    const insertBtns = screen.getAllByRole('button', { name: /Insérer dans l'éditeur/i });
+    // Click "Insérer" for client.name
+    const insertBtns = screen.getAllByRole('button', { name: /Insérer/i });
     fireEvent.click(insertBtns[0]); // should insert client name
 
     // Note: setTimeout is used in component, so we must wait
     await waitFor(() => {
-      const contentInputs = screen.getAllByPlaceholderText(/Contenu/i);
+      const contentInputs = screen.getAllByPlaceholderText(/Saisissez votre contenu/i);
       expect((contentInputs[0] as HTMLTextAreaElement).value).toContain('{{client.name}}');
     });
   });
@@ -87,10 +87,8 @@ describe('DocumentsPage', () => {
     if (fileInput) {
       const file = new File(['dummy content'], 'test.pdf', { type: 'application/pdf' });
       fireEvent.change(fileInput, { target: { files: [file] } });
-      fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-      fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
-      fireEvent.click(screen.getByRole('button', { name: /Terminer/i }));
-      expect(screen.getByText(/Modèle basé sur un PDF importé/i)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Extraire le contenu/i }));
+      expect(screen.getByText(/Modèle importé/i)).toBeInTheDocument();
     }
   });
 
@@ -105,7 +103,7 @@ describe('DocumentsPage', () => {
 
     fireEvent.click(screen.getByText('2. Contenu'));
     fireEvent.click(screen.getByText('+ Paragraphe'));
-    const contentInputs = screen.getAllByPlaceholderText(/Contenu/i);
+    const contentInputs = screen.getAllByPlaceholderText(/Saisissez votre contenu/i);
     fireEvent.change(contentInputs[0], { target: { value: 'Some content' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
@@ -130,7 +128,7 @@ describe('DocumentsPage', () => {
 
     fireEvent.click(screen.getByText('2. Contenu'));
     fireEvent.click(screen.getByText('+ Paragraphe'));
-    const contentInputs = screen.getAllByPlaceholderText(/Contenu/i);
+    const contentInputs = screen.getAllByPlaceholderText(/Saisissez votre contenu/i);
     fireEvent.change(contentInputs[0], { target: { value: 'Some content' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
