@@ -4,6 +4,49 @@ import {
   mockDocumentTemplates,
   MockCommercialDocumentTemplate,
 } from "./mockData";
+import { DocumentPreview } from "./DocumentPreview";
+
+const VARIABLE_DICTIONARY = [
+  { key: 'client.name', label: 'Nom complet du client', desc: 'Nom complet du client' },
+  { key: 'client.address', label: 'Adresse de facturation', desc: 'Adresse de facturation' },
+  { key: 'dossier.ref', label: 'Numéro de dossier', desc: 'Référence unique du dossier' },
+  { key: 'event.date', label: 'Date de l\'événement', desc: 'Date prévue de l\'événement' },
+  { key: 'event.venue', label: 'Lieu', desc: 'Lieu de l\'événement' },
+  { key: 'event.usage', label: 'Type d\'usage', desc: 'Type d\'événement' },
+  { key: 'finance.totalAmount', label: 'Montant total', desc: 'Montant total TTC' },
+  { key: 'finance.depositAmount', label: 'Acompte', desc: 'Acompte versé' },
+  { key: 'finance.balanceAmount', label: 'Solde', desc: 'Reste à payer' },
+  { key: 'finance.cautionAmount', label: 'Caution', desc: 'Dépôt de garantie' },
+  { key: 'inventory.articles', label: 'Articles', desc: 'Liste des articles' },
+  { key: 'inventory.packs', label: 'Packs', desc: 'Liste des packs' },
+  { key: 'logistics.deliveryDate', label: 'Date de livraison', desc: 'Date de livraison' },
+  { key: 'logistics.returnDate', label: 'Date de reprise', desc: 'Date de récupération' },
+  { key: 'company.name', label: 'Nom société', desc: 'Nom de notre société' },
+  { key: 'document.date', label: 'Date édition', desc: 'Date d\'édition' },
+  { key: 'document.total', label: 'Montant total', desc: 'Montant total TTC' },
+  { key: 'reservation.start_date', label: 'Date de début', desc: 'Date de début de location' }
+];
+
+const normalizeDocumentContent = (content: any) => {
+  if (!content) return [];
+  if (Array.isArray(content)) return content;
+  if (typeof content === 'string') {
+    try {
+      const parsed = JSON.parse(content);
+      if (typeof parsed === 'string') {
+        const doubleParsed = JSON.parse(parsed);
+        if (Array.isArray(doubleParsed)) return doubleParsed;
+        return [{ id: "b1", type: "Paragraphe", text: doubleParsed || "" }];
+      }
+      if (Array.isArray(parsed)) return parsed;
+      return [{ id: "b1", type: "Paragraphe", text: content }];
+    } catch (e) {
+      return [{ id: "b1", type: "Paragraphe", text: content }];
+    }
+  }
+  return [];
+};
+
 
 interface DocumentsPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -24,7 +67,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
   const [typeFilter, setTypeFilter] = useState("Tous");
 
   const [currentDoc, setCurrentDoc] = useState<Partial<MockCommercialDocumentTemplate> | null>(null);
-  const [blocks, setBlocks] = useState<{id: string, type: string, content: string}[]>([]);
+  const [blocks, setBlocks] = useState<any[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -56,7 +99,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
   };
 
   const filteredTemplates = (templates || []).filter(t => {
-    if (search && !t.name.toLowerCase().includes(search.toLowerCase()) && !t.code.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !t.name.toLowerCase().includes(search.trim().toLowerCase()) && !t.code.toLowerCase().includes(search.trim().toLowerCase())) return false;
     if (voletFilter !== "Tous" && t.volet !== voletFilter) return false;
     if (typeFilter !== "Tous" && t.type !== typeFilter) return false;
     return true;
@@ -81,7 +124,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
 
   const handleEdit = (t: MockCommercialDocumentTemplate) => {
     setCurrentDoc({ ...t });
-    setBlocks([{ id: "b1", type: "paragraph", content: t.content || "" }]);
+    setBlocks(normalizeDocumentContent(t.content));
     setEditorTab("1. Informations générales");
     setView('editor');
     setErrorMsg(null);
@@ -96,7 +139,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
       status: "Brouillon",
       version: 1
     });
-    setBlocks([{ id: "b1", type: "paragraph", content: t.content || "" }]);
+    setBlocks(normalizeDocumentContent(t.content));
     setEditorTab("1. Informations générales");
     setView('editor');
     setErrorMsg(null);
@@ -105,6 +148,12 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
 
   const confirmDelete = () => {
     if (deleteConfirm) {
+      const docToDelete = templates.find(t => t.id === deleteConfirm) || currentDoc;
+      if (docToDelete && docToDelete.status === 'Actif') {
+        setErrorMsg("Un modèle actif ne peut pas être supprimé. Veuillez l'archiver d'abord.");
+        setDeleteConfirm(null);
+        return;
+      }
       const newTemplates = templates.filter(t => t.id !== deleteConfirm);
       saveTemplates(newTemplates);
       setDeleteConfirm(null);
@@ -134,7 +183,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
     const existingIdx = newTemplates.findIndex(t => t.id === currentDoc.id);
     const finalDoc = {
       ...currentDoc,
-      content: blocks.map(b => b.content).join("\n"),
+      content: JSON.stringify(blocks),
       variables: currentDoc.variables || [],
       author: currentDoc.author || "Admin"
     } as MockCommercialDocumentTemplate;
@@ -153,10 +202,11 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
   const insertVariable = (v: string) => {
     if (blocks.length > 0) {
       const newBlocks = [...blocks];
-      newBlocks[0].content += `{{${v}}}`;
+      newBlocks[0].text = (newBlocks[0].text || newBlocks[0].content || '') + `{{${v}}}`;
+      newBlocks[0].content = newBlocks[0].text;
       setBlocks(newBlocks);
     } else {
-      setBlocks([{ id: "b1", type: "paragraph", content: `{{${v}}}` }]);
+      setBlocks([{ id: "b1", type: "Paragraphe", text: `{{${v}}}` }]);
     }
     setEditorTab('2. Contenu');
     showToast(`Variable ${v} insérée.`);
@@ -283,11 +333,18 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                             <i className="fas fa-copy"></i>
                           </button>
                           <button 
-                            className="w-8 h-8 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center" 
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirm(t.id!); }} 
-                            title="Supprimer"
+                            className="w-8 h-8 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              if (t.status === 'Actif') {
+                                showToast("Archivage requis pour un modèle actif.");
+                              } else {
+                                setDeleteConfirm(t.id!); 
+                              }
+                            }} 
+                            title={t.status === 'Actif' ? "Archivage requis" : "Supprimer"}
                           >
-                            <i className="fas fa-trash"></i>
+                            <i className={t.status === 'Actif' ? "fas fa-archive" : "fas fa-trash"}></i>
                           </button>
                         </div>
                       </td>
@@ -305,15 +362,16 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button 
-                className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-colors flex items-center justify-center shadow-sm"
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-colors flex items-center justify-center shadow-sm font-medium"
                 onClick={() => setView('list')}
               >
-                <i className="fas fa-arrow-left"></i>
+                <i className="fas fa-arrow-left mr-2"></i>
+                Documents & Modèles
               </button>
               <div>
                 <div className="flex items-center gap-3 mb-1">
                   <h2 className="text-xl font-bold text-slate-800 leading-none">
-                    {currentDoc.name || "Nouveau modèle"}
+                    {currentDoc.name || "Nouveau modèle"} {currentDoc.version ? `/ v${currentDoc.version}` : ''}
                   </h2>
                   <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${
                     currentDoc.status === 'Actif' ? 'bg-emerald-100 text-emerald-700' :
@@ -338,11 +396,11 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
             <div className="flex items-center gap-3">
               {currentDoc.id && (
                 <button 
-                  className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2"
-                  onClick={() => setDeleteConfirm(currentDoc.id!)}
+                  className="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => currentDoc.status === 'Actif' ? showToast("Désactivez le modèle pour pouvoir le supprimer.") : setDeleteConfirm(currentDoc.id!)}
                 >
-                  <i className="fas fa-trash-alt"></i>
-                  Supprimer le modèle
+                  <i className={currentDoc.status === 'Actif' ? "fas fa-lock" : "fas fa-trash-alt"}></i>
+                  {currentDoc.status === 'Actif' ? "Suppression verrouillée" : "Supprimer le modèle"}
                 </button>
               )}
               <button 
@@ -356,7 +414,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-sm flex overflow-x-auto hide-scrollbar gap-1" role="tablist">
-            {['1. Informations générales', '2. Contenu', '3. Variables', '4. Importer', '5. Versions'].map(tab => (
+            {['1. Informations générales', '2. Contenu', '3. Variables', '4. Importer', '5. Prévisualisation', '6. Versions'].map(tab => (
               <button 
                 key={tab} 
                 role="tab" 
@@ -461,15 +519,21 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                     <div className="flex gap-2">
                       <button 
                         className="px-3 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
-                        onClick={() => setBlocks([...blocks, {id: "b"+Date.now(), type: "paragraph", content: ""}])}
+                        onClick={() => setBlocks([...blocks, {id: "b"+Date.now(), type: "Paragraphe", text: ""}])}
                       >
                         <i className="fas fa-align-left"></i> + Paragraphe
                       </button>
                       <button 
                         className="px-3 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
-                        onClick={() => setBlocks([...blocks, {id: "b"+Date.now(), type: "title", content: ""}])}
+                        onClick={() => setBlocks([...blocks, {id: "b"+Date.now(), type: "Titre", text: ""}])}
                       >
                         <i className="fas fa-heading"></i> + Titre
+                      </button>
+                      <button 
+                        className="px-3 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+                        onClick={() => setBlocks([...blocks, {id: "b"+Date.now(), type: "Tableau articles/packs"}])}
+                      >
+                        <i className="fas fa-table"></i> + Tableau
                       </button>
                     </div>
                   </div>
@@ -492,16 +556,21 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                               <i className="fas fa-arrow-down text-xs"></i>
                             </button>
                           </div>
-                          <textarea 
-                            className="flex-1 w-full min-h-[90px] py-3 pr-4 text-sm text-slate-800 bg-transparent outline-none resize-y"
-                            placeholder={b.type === 'title' ? "Titre de section..." : "Saisissez votre contenu ou insérez des variables..."} 
-                            value={b.content} 
-                            onChange={e => {
-                              const nb = [...blocks];
-                              nb[i].content = e.target.value;
-                              setBlocks(nb);
-                            }} 
-                          />
+                          {b.type === 'Tableau articles/packs' || b.type === 'Tableau' ? (
+                            <div className="flex-1 py-3 text-sm text-slate-500 italic">Tableau généré automatiquement</div>
+                          ) : (
+                            <textarea 
+                              className="flex-1 w-full min-h-[90px] py-3 pr-4 text-sm text-slate-800 bg-transparent outline-none resize-y"
+                              placeholder={b.type === 'Titre' || b.type === 'title' ? "Titre de section..." : "Saisissez votre contenu ou insérez des variables..."} 
+                              value={b.text || b.content || ''} 
+                              onChange={e => {
+                                const nb = [...blocks];
+                                nb[i].text = e.target.value;
+                                nb[i].content = e.target.value;
+                                setBlocks(nb);
+                              }} 
+                            />
+                          )}
                           <button 
                             className="absolute -right-2.5 -top-2.5 w-6 h-6 bg-white border border-slate-200 rounded-full text-rose-500 hover:bg-rose-500 hover:text-white hover:border-rose-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm flex items-center justify-center"
                             onClick={() => setBlocks(blocks.filter((_, idx) => idx !== i))}
@@ -520,10 +589,15 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                       <div className="bg-white min-h-full rounded shadow-sm border border-slate-200 p-6 sm:p-8 text-sm text-slate-800 space-y-4">
                         {blocks.map(b => (
                           <div key={'preview-'+b.id}>
-                            {b.type === 'title' ? (
-                              <h4 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2 mt-6 mb-4">{b.content || 'Titre de section'}</h4>
+                            {b.type === 'Titre' || b.type === 'title' ? (
+                              <h4 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-2 mt-6 mb-4">{b.text || b.content || 'Titre de section'}</h4>
+                            ) : b.type === 'Tableau articles/packs' || b.type === 'Tableau' ? (
+                              <table className="w-full border-collapse border border-slate-300 mb-6 text-xs">
+                                <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Désignation</th><th className="border p-2">Qté</th><th className="border p-2 text-right">Total</th></tr></thead>
+                                <tbody><tr><td className="border p-2 text-slate-400 italic">Articles mock</td><td className="border p-2 text-center">-</td><td className="border p-2 text-right">-</td></tr></tbody>
+                              </table>
                             ) : (
-                              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{b.content || 'Paragraphe de contenu'}</p>
+                              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{b.text || b.content || 'Paragraphe de contenu'}</p>
                             )}
                           </div>
                         ))}
@@ -540,14 +614,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                 <p className="text-sm text-slate-500 mb-8">Ces variables seront remplacées dynamiquement par les données de la réservation lors de la génération du document.</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { key: 'client.name', desc: 'Nom complet du client' },
-                    { key: 'client.address', desc: 'Adresse de facturation' },
-                    { key: 'company.name', desc: 'Nom de notre société' },
-                    { key: 'document.date', desc: 'Date d\'édition' },
-                    { key: 'document.total', desc: 'Montant total TTC' },
-                    { key: 'reservation.start_date', desc: 'Date de début de location' }
-                  ].map(v => (
+                  {VARIABLE_DICTIONARY.map(v => (
                     <div key={v.key} className="flex flex-col justify-center p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition-all group">
                       <div className="flex items-center justify-between mb-2">
                         <code className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded">{`{{${v.key}}}`}</code>
@@ -593,10 +660,10 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                   <button 
                     className="flex-1 py-3 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2"
                     onClick={() => {
-                      setCurrentDoc({...currentDoc, name: 'Modèle importé depuis un PDF'});
-                      setBlocks([{id: 'b1', type: 'paragraph', content: 'Le texte extrait du PDF apparaîtra ici. Remplacez les valeurs fixes par les variables encadrées de doubles accolades, ex: {{client.name}}.'}]);
+                      setCurrentDoc({...currentDoc, name: 'Modèle importé (MOCK)'});
+                      setBlocks([{id: 'b1', type: 'Paragraphe', text: 'Le texte simulé extrait du PDF apparaîtra ici. Aucune vraie extraction n\'a été faite.'}]);
                       setEditorTab('2. Contenu');
-                      showToast("PDF importé et analysé avec succès.");
+                      showToast("MOCK : Simulation d'importation effectuée.");
                     }}
                   >
                     <i className="fas fa-magic"></i> Extraire le contenu
@@ -605,7 +672,29 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
               </div>
             )}
 
-            {editorTab === '5. Versions' && (
+            {editorTab === '5. Prévisualisation' && (
+              <div className="h-[700px] border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                <DocumentPreview 
+                  template={{...currentDoc, content: blocks} as any} 
+                  blocks={blocks} 
+                  isGuided={true} 
+                  client={{
+                    name: "Jean Dupont (MOCK)", 
+                    address: "123 Rue de la République",
+                    nif: "123456789", stat: "987654321", rcs: "RCS-123", repFirstName: "Jean", repRole: "Gérant"
+                  }} 
+                  date={new Date().toLocaleDateString('fr-FR')} 
+                  refNumber="PRO-2026-0001" 
+                  totalAmount={150000} 
+                  paidAmount={50000} 
+                  materials={[{id: "1", name: "Chaise Napoléon", quantity: 100}, {id: "2", name: "Table rectangulaire", quantity: 10}]} 
+                  tDetails={{usageType: "Mariage", destinationName: "Domaine des Oliviers"}} 
+                  hDetails={{eventType: "Mariage", guests: 200, rentalType: "Location nue"}} 
+                />
+              </div>
+            )}
+
+            {editorTab === '6. Versions' && (
               <div className="max-w-3xl">
                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
                   <div>
