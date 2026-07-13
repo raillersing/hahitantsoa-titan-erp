@@ -26,6 +26,21 @@ describe('DocumentPreview', () => {
     expect(screen.getByAltText('Ergon logo')).toBeInTheDocument();
   });
 
+  it('keeps common templates neutral instead of attributing them to Titan', () => {
+    const { container } = render(
+      <DocumentPreview
+        template={{ volet: 'Commun', content: '' }}
+        blocks={[]}
+        isGuided
+      />
+    );
+
+    expect(screen.getByText('Document commun')).toBeInTheDocument();
+    expect(container).toHaveTextContent('ergon@ergon.mg');
+    expect(screen.queryByAltText('Titan logo')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Hahitantsoa logo')).not.toBeInTheDocument();
+  });
+
   it('renders Contrats with unchanged labels and multipage content', () => {
     const { rerender, container } = render(<DocumentPreview type="contrat" domain="titan" client={clientMock} date="01/01/2026" refNumber="TEST-CTR" totalAmount={50000} />);
     

@@ -57,10 +57,26 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
   isGuided
 }) => {
   if (template) {
-    const volet = template.volet === 'Hahitantsoa' ? 'hahitantsoa' : 'titan';
-    const logoPath = volet === 'titan' ? '/brand/titan-rental-logo.png' : '/brand/hahitantsoa-logo.png';
-    const emailText = volet === 'titan' ? 'titan@ergon.mg' : 'hahitantsoa@ergon.mg';
-    const phoneText = volet === 'titan' ? '+261 34 61 791 42' : '+261 34 61 791 44';
+    const volet = template.volet === 'Hahitantsoa'
+      ? 'hahitantsoa'
+      : template.volet === 'Titan'
+        ? 'titan'
+        : 'commun';
+    const logoPath = volet === 'titan'
+      ? '/brand/titan-rental-logo.png'
+      : volet === 'hahitantsoa'
+        ? '/brand/hahitantsoa-logo.png'
+        : null;
+    const emailText = volet === 'titan'
+      ? 'titan@ergon.mg'
+      : volet === 'hahitantsoa'
+        ? 'hahitantsoa@ergon.mg'
+        : 'ergon@ergon.mg';
+    const phoneText = volet === 'titan'
+      ? '+261 34 61 791 42'
+      : volet === 'hahitantsoa'
+        ? '+261 34 61 791 44'
+        : '+261 34 61 791 41';
 
     return (
       <div className="p-8 bg-white border border-slate-200 rounded-xl h-full shadow-sm text-[12px] font-sans relative overflow-y-auto">
@@ -70,7 +86,11 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <div className="text-slate-500">ergon@ergon.mg<br/>+261 34 61 791 41</div>
           </div>
           <div className="text-right">
-            <img src={logoPath} className="h-[80px] object-contain mb-2 ml-auto" alt="Brand logo" />
+            {logoPath ? (
+              <img src={logoPath} className="h-[80px] object-contain mb-2 ml-auto" alt={`${template.volet} logo`} />
+            ) : (
+              <div className="h-[80px] flex items-center justify-end font-bold text-slate-700">Document commun</div>
+            )}
             <div className="text-slate-500">{emailText}<br/>{phoneText}</div>
           </div>
         </div>
