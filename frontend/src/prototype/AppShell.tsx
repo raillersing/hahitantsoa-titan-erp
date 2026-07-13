@@ -201,7 +201,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
   }
 
   return (
-    <div className="flex h-screen overflow-hidden app-frame bg-slate-50 text-slate-800 font-sans">
+    <div className="flex h-screen overflow-y-hidden app-frame bg-slate-50 text-slate-800 font-sans">
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div 
@@ -347,7 +347,13 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
             onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             className="flex items-center gap-3 w-full text-left focus:outline-none focus:ring-2 focus:ring-hah-500 rounded p-1 hover:bg-slate-800 transition-colors"
           >
-            <img src="https://ui-avatars.com/api/?name=G%C3%A9rant+ERP&background=0d9488&color=fff" className="w-9 h-9 rounded-full" alt="avatar" />
+            <span
+              role="img"
+              aria-label="Avatar Gérant ERP"
+              className="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs font-bold"
+            >
+              GE
+            </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">Jean R.</p>
               <p className="text-xs text-slate-500 truncate">Gérant · En ligne</p>
@@ -367,7 +373,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden main-shell dark:bg-slate-900">
+      <div className="flex-1 min-w-0 flex flex-col overflow-y-hidden main-shell dark:bg-slate-900">
         {/* Topbar */}
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 topbar-responsive">
           <div className="flex items-center gap-3 min-w-0">
@@ -419,7 +425,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
         </header>
 
         {/* Content Scroll Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-900 relative">
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-900 relative">
           {children}
         </main>
       </div>
