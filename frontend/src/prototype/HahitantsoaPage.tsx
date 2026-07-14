@@ -1,5 +1,5 @@
 import React from "react";
-import { AppScope } from "../App";
+import BrandIdentity from "./BrandIdentity";
 
 interface HahitantsoaPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -10,6 +10,7 @@ export default function HahitantsoaPage({ onNavigate }: HahitantsoaPageProps) {
     <div className="page active space-y-6">
       <div className="flex items-center justify-between">
         <div>
+          <BrandIdentity brand="hahitantsoa" className="module-brand" />
           <h1 className="text-2xl font-bold text-slate-800">
             <i className="fa-solid fa-calendar-check text-indigo-600 mr-2"></i>Réservations Hahitantsoa
           </h1>
