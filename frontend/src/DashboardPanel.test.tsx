@@ -57,7 +57,10 @@ const MOCK_PAYMENTS: Payment[] = [
   {
     id: 'pay-1',
     reservation_draft: null,
+    hahitantsoa_event_draft: null,
     receipt_document: null,
+    refund_obligation: null,
+    billing_refund_obligation: null,
     payment_kind: 'deposit',
     payment_method: 'cash',
     payment_status: 'confirmed',

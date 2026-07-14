@@ -402,10 +402,13 @@ export type PaymentKind =
   | 'deposit'
   | 'balance'
   | 'caution'
+  | 'refund'
   | 'owner_injection'
   | 'investor_injection'
   | 'date_reservation'
   | 'other';
+
+export type PaymentCreateKind = Exclude<PaymentKind, 'refund'>;
 
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'other';
 
@@ -414,7 +417,10 @@ export type PaymentStatus = 'pending' | 'confirmed' | 'failed' | 'cancelled' | '
 export type Payment = {
   id: string;
   reservation_draft: string | null;
+  hahitantsoa_event_draft: string | null;
   receipt_document: DocumentInstance | null;
+  refund_obligation: string | null;
+  billing_refund_obligation: string | null;
   payment_kind: PaymentKind;
   payment_method: PaymentMethod;
   payment_status: PaymentStatus;
@@ -431,7 +437,7 @@ export type Payment = {
 
 export type PaymentCreatePayload = {
   reservation_draft?: string | null;
-  payment_kind: PaymentKind;
+  payment_kind: PaymentCreateKind;
   payment_method: PaymentMethod;
   payment_status?: PaymentStatus;
   amount: string;
@@ -443,6 +449,10 @@ export type PaymentCreatePayload = {
 export type PaymentConfirmPayload = {
   paid_at?: string;
   external_reference?: string;
+  notes?: string;
+};
+
+export type PaymentActionPayload = {
   notes?: string;
 };
 

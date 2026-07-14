@@ -8,7 +8,10 @@ const MOCK_CAUTION_PAYMENTS: Payment[] = [
   {
     id: "caution-1",
     reservation_draft: null,
+    hahitantsoa_event_draft: null,
     receipt_document: null,
+    refund_obligation: null,
+    billing_refund_obligation: null,
     payment_kind: "caution",
     payment_method: "cash",
     payment_status: "confirmed",
@@ -25,7 +28,10 @@ const MOCK_CAUTION_PAYMENTS: Payment[] = [
   {
     id: "caution-2",
     reservation_draft: null,
+    hahitantsoa_event_draft: null,
     receipt_document: null,
+    refund_obligation: null,
+    billing_refund_obligation: null,
     payment_kind: "caution",
     payment_method: "bank_transfer",
     payment_status: "pending",
@@ -45,7 +51,10 @@ const MOCK_NON_CAUTION_PAYMENTS: Payment[] = [
   {
     id: "payment-deposit",
     reservation_draft: null,
+    hahitantsoa_event_draft: null,
     receipt_document: null,
+    refund_obligation: null,
+    billing_refund_obligation: null,
     payment_kind: "deposit",
     payment_method: "cash",
     payment_status: "confirmed",

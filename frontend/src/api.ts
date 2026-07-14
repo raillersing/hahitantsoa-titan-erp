@@ -61,6 +61,7 @@ import type {
   AuditEvent,
   AuditEventQueryParams,
   Payment,
+  PaymentActionPayload,
   PaymentCreatePayload,
   PaymentConfirmPayload,
 } from "./types";
@@ -878,6 +879,22 @@ export function confirmPayment(
   signal?: AbortSignal,
 ): Promise<Payment> {
   return postAuthenticatedJson(`/api/v1/payments/${id}/confirm/`, payload, signal);
+}
+
+export function cancelPayment(
+  id: string,
+  payload: PaymentActionPayload = {},
+  signal?: AbortSignal,
+): Promise<Payment> {
+  return postAuthenticatedJson(`/api/v1/payments/${id}/cancel/`, payload, signal);
+}
+
+export function reconcilePayment(
+  id: string,
+  payload: PaymentActionPayload = {},
+  signal?: AbortSignal,
+): Promise<Payment> {
+  return postAuthenticatedJson(`/api/v1/payments/${id}/reconcile/`, payload, signal);
 }
 // ---- Billing Invoices ----
 

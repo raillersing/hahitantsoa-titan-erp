@@ -9,7 +9,10 @@ import PaymentWorkflowPanel from './PaymentWorkflowPanel';
 const MOCK_PAYMENT_PENDING = {
   id: 'aaaa-1111',
   reservation_draft: null,
+  hahitantsoa_event_draft: null,
   receipt_document: null,
+  refund_obligation: null,
+  billing_refund_obligation: null,
   payment_kind: 'deposit' as const,
   payment_method: 'cash' as const,
   payment_status: 'pending' as const,
@@ -70,6 +73,8 @@ vi.mock('./api', () => ({
   getPayments: vi.fn(),
   createPayment: vi.fn(),
   confirmPayment: vi.fn(),
+  cancelPayment: vi.fn(),
+  reconcilePayment: vi.fn(),
   checkEndpointPermission: vi.fn().mockResolvedValue(true),
 }));
 
@@ -80,6 +85,7 @@ import * as api from './api';
 describe('PaymentWorkflowPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.checkEndpointPermission).mockResolvedValue(true);
   });
 
   it('shows loading state initially', () => {
@@ -120,6 +126,48 @@ describe('PaymentWorkflowPanel', () => {
         screen.getByRole('button', { name: /Confirmer le paiement aaaa-1111/ }),
       ).toBeInTheDocument();
     });
+    expect(screen.getByRole('button', { name: 'Annuler le paiement aaaa-1111' })).toBeInTheDocument();
+  });
+
+  it('shows Reconcile only for a confirmed payment and no lifecycle action for terminal states', async () => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([
+      MOCK_PAYMENT_CONFIRMED,
+      { ...MOCK_PAYMENT_PENDING, id: 'failed-1', payment_status: 'failed' as const },
+      { ...MOCK_PAYMENT_PENDING, id: 'cancelled-1', payment_status: 'cancelled' as const },
+      { ...MOCK_PAYMENT_PENDING, id: 'reconciled-1', payment_status: 'reconciled' as const },
+    ]);
+
+    render(<PaymentWorkflowPanel />);
+
+    expect(await screen.findByRole('button', { name: 'Rapprocher le paiement bbbb-2222' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /failed-1/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancelled-1/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /reconciled-1/ })).not.toBeInTheDocument();
+  });
+
+  it('uses neutral copy and keeps lifecycle actions hidden when coarse write gating is unavailable', async () => {
+    vi.mocked(api.checkEndpointPermission).mockResolvedValueOnce(false);
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+
+    render(<PaymentWorkflowPanel />);
+
+    expect(await screen.findByTestId('payment-row-aaaa-1111')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Actions indisponibles pour cette session.')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /Confirmer le paiement/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Annuler le paiement/ })).not.toBeInTheDocument();
+  });
+
+  it('shows neutral capability-checking copy without flashing write controls', async () => {
+    vi.mocked(api.checkEndpointPermission).mockImplementationOnce(() => new Promise(() => {}));
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+
+    render(<PaymentWorkflowPanel />);
+
+    expect(await screen.findByText('Vérification de la disponibilité des actions...')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Ouvrir le formulaire de paiement')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Confirmer le paiement/ })).not.toBeInTheDocument();
   });
 
   it('shows receipt info for confirmed payments', async () => {
@@ -130,6 +178,25 @@ describe('PaymentWorkflowPanel', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Reçu généré')).toBeInTheDocument();
     });
+  });
+
+  it('renders refund in French without exposing generic creation or confirmation', async () => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([
+      {
+        ...MOCK_PAYMENT_PENDING,
+        id: 'refund-1',
+        payment_kind: 'refund' as const,
+      },
+    ]);
+
+    render(<PaymentWorkflowPanel />);
+
+    expect(await screen.findByText('Remboursement')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Confirmer le paiement refund-1' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Annuler le paiement refund-1' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Ouvrir le formulaire de paiement'));
+    expect(screen.queryByRole('option', { name: 'Remboursement' })).not.toBeInTheDocument();
   });
 
   it('opens and submits the create payment form', async () => {
@@ -245,6 +312,28 @@ describe('PaymentWorkflowPanel', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Confirmer le paiement' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await waitFor(() => expect(screen.getByLabelText('Payé le')).toHaveFocus());
+
+    const lastButton = screen.getByLabelText('Confirmer et générer le reçu');
+    lastButton.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(screen.getByLabelText('Payé le')).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(lastButton).toHaveFocus();
+  });
+
+  it('restores focus to the confirm trigger after Escape closes the dialog', async () => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+
+    render(<PaymentWorkflowPanel />);
+
+    const trigger = await screen.findByLabelText('Confirmer le paiement aaaa-1111');
+    fireEvent.click(trigger);
+    await waitFor(() => expect(screen.getByLabelText('Payé le')).toHaveFocus());
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it('disables confirm dialog buttons while submitting', async () => {
@@ -269,6 +358,186 @@ describe('PaymentWorkflowPanel', () => {
       expect(screen.getByLabelText('Confirmer et générer le reçu')).toBeDisabled();
       expect(screen.getByLabelText('Annuler la confirmation')).toBeDisabled();
     });
+  });
+
+  it('cancels a pending payment with optional notes and replaces the returned row', async () => {
+    const cancelled = {
+      ...MOCK_PAYMENT_PENDING,
+      payment_status: 'cancelled' as const,
+      notes: 'Doublon saisi',
+    };
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+    vi.mocked(api.cancelPayment).mockResolvedValueOnce(cancelled);
+
+    render(<PaymentWorkflowPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Annuler le paiement aaaa-1111' }));
+    const dialog = screen.getByRole('dialog', { name: 'Annuler le paiement' });
+    expect(dialog).toHaveTextContent('Paiement aaaa-1111 — 150 000,00 MGA');
+    expect(dialog).toHaveTextContent('ne pourra plus être confirmé');
+
+    fireEvent.change(screen.getByLabelText('Notes (optionnel)'), {
+      target: { value: '  Doublon saisi  ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler le paiement' }));
+
+    await waitFor(() => {
+      expect(api.cancelPayment).toHaveBeenCalledWith(
+        MOCK_PAYMENT_PENDING.id,
+        { notes: 'Doublon saisi' },
+        expect.any(AbortSignal),
+      );
+    });
+    expect(await screen.findByLabelText('Statut du paiement : Annulé')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Annuler le paiement aaaa-1111' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('payment-row-aaaa-1111')).toHaveFocus());
+  });
+
+  it('reconciles a confirmed payment and sends an empty payload when notes are blank', async () => {
+    const reconciled = {
+      ...MOCK_PAYMENT_CONFIRMED,
+      payment_status: 'reconciled' as const,
+    };
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_CONFIRMED]);
+    vi.mocked(api.reconcilePayment).mockResolvedValueOnce(reconciled);
+
+    render(<PaymentWorkflowPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Rapprocher le paiement bbbb-2222' }));
+    expect(screen.getByRole('dialog', { name: 'Rapprocher le paiement' })).toHaveTextContent(
+      'passera à l’état Rapproché',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Rapprocher le paiement' }));
+
+    await waitFor(() => {
+      expect(api.reconcilePayment).toHaveBeenCalledWith(
+        MOCK_PAYMENT_CONFIRMED.id,
+        {},
+        expect.any(AbortSignal),
+      );
+    });
+    expect(await screen.findByLabelText('Statut du paiement : Rapproché')).toBeInTheDocument();
+  });
+
+  it('closes the lifecycle dialog with Escape or its backdrop before submission', async () => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+
+    render(<PaymentWorkflowPanel />);
+
+    const trigger = await screen.findByRole('button', { name: 'Annuler le paiement aaaa-1111' });
+    fireEvent.click(trigger);
+    await waitFor(() => expect(screen.getByLabelText('Notes (optionnel)')).toHaveFocus());
+
+    const submitButton = screen.getByRole('button', { name: 'Annuler le paiement' });
+    submitButton.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(screen.getByLabelText('Notes (optionnel)')).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(submitButton).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Annuler le paiement' })).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    fireEvent.click(trigger);
+    await waitFor(() => expect(screen.getByLabelText('Notes (optionnel)')).toHaveFocus());
+    fireEvent.click(screen.getByTestId('payment-action-dialog-backdrop'));
+    expect(screen.queryByRole('dialog', { name: 'Annuler le paiement' })).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('disables lifecycle dialog controls while submitting', async () => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+    vi.mocked(api.cancelPayment).mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<PaymentWorkflowPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Annuler le paiement aaaa-1111' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler le paiement' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Traitement...' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Retour' })).toBeDisabled();
+      expect(screen.getByLabelText('Notes (optionnel)')).toBeDisabled();
+    });
+  });
+
+  it.each([
+    [400, 'Le paiement est déjà confirmé', 'Action impossible : Le paiement est déjà confirmé'],
+    [404, 'Not found', 'Ce paiement est introuvable.'],
+  ])('closes stale %i dialog and reports a successful list refresh', async (status, detail, expected) => {
+    vi.mocked(api.getPayments)
+      .mockResolvedValueOnce([MOCK_PAYMENT_PENDING])
+      .mockResolvedValueOnce([]);
+    vi.mocked(api.cancelPayment).mockRejectedValueOnce(
+      Object.assign(new Error(detail), { status }),
+    );
+
+    render(<PaymentWorkflowPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Annuler le paiement aaaa-1111' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler le paiement' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(expected);
+    expect(alert).toHaveTextContent('La liste a été actualisée depuis le serveur.');
+    await waitFor(() => expect(api.getPayments).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('dialog', { name: 'Annuler le paiement' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('payment-workflow-panel')).toHaveFocus());
+  });
+
+  it('closes a stale dialog, preserves the warning and blocks stale actions when refresh fails', async () => {
+    vi.mocked(api.getPayments)
+      .mockResolvedValueOnce([MOCK_PAYMENT_PENDING])
+      .mockRejectedValueOnce(new Error('Refresh failed'));
+    vi.mocked(api.cancelPayment).mockRejectedValueOnce(
+      Object.assign(new Error('État modifié'), { status: 400 }),
+    );
+
+    render(<PaymentWorkflowPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Annuler le paiement aaaa-1111' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler le paiement' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Action impossible : État modifié. L’actualisation a échoué',
+    );
+    expect(screen.queryByRole('dialog', { name: 'Annuler le paiement' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Annuler le paiement aaaa-1111' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('payment-row-aaaa-1111')).toHaveFocus());
+  });
+
+  it('aborts an in-flight lifecycle request when the panel unmounts', async () => {
+    let actionSignal: AbortSignal | undefined;
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+    vi.mocked(api.cancelPayment).mockImplementationOnce((_id, _payload, signal) => {
+      actionSignal = signal;
+      return new Promise(() => {});
+    });
+
+    const { unmount } = render(<PaymentWorkflowPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Annuler le paiement aaaa-1111' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler le paiement' }));
+    await waitFor(() => expect(actionSignal).toBeDefined());
+
+    unmount();
+    expect(actionSignal?.aborted).toBe(true);
+  });
+
+  it.each([
+    [403, Object.assign(new Error('Forbidden'), { status: 403 }), /n’avez pas l’autorisation/],
+    [0, new TypeError('Failed to fetch'), /Connexion au serveur impossible/],
+  ])('maps action failure case %i to a useful French message', async (_case, failure, expected) => {
+    vi.mocked(api.getPayments).mockResolvedValueOnce([MOCK_PAYMENT_CONFIRMED]);
+    vi.mocked(api.reconcilePayment).mockRejectedValueOnce(failure);
+
+    render(<PaymentWorkflowPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Rapprocher le paiement bbbb-2222' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rapprocher le paiement' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(expected);
   });
 
   it('disables Refresh button while loading', () => {

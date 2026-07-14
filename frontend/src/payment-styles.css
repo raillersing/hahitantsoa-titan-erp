@@ -148,22 +148,55 @@
   white-space: nowrap;
 }
 
-.payment-confirm-btn {
+.payment-row__lifecycle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.payment-confirm-btn,
+.payment-cancel-btn,
+.payment-reconcile-btn {
   font-size: 0.75rem;
   padding: 4px 10px;
-  background: #e8f4ea;
-  color: #2e7d32;
-  border: 1px solid #a5d6a7;
   border-radius: 5px;
   cursor: pointer;
   transition: background 0.15s;
+}
+
+.payment-confirm-btn {
+  background: #e8f4ea;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
 }
 
 .payment-confirm-btn:hover {
   background: #c8e6c9;
 }
 
-.payment-confirm-btn:disabled {
+.payment-cancel-btn {
+  background: color-mix(in srgb, var(--danger, #b71c1c) 10%, var(--surface-strong, #ffffff));
+  color: var(--danger, #b71c1c);
+  border: 1px solid color-mix(in srgb, var(--danger, #b71c1c) 45%, var(--border, #e0e0e0));
+}
+
+.payment-cancel-btn:hover {
+  background: color-mix(in srgb, var(--danger, #b71c1c) 16%, var(--surface-strong, #ffffff));
+}
+
+.payment-reconcile-btn {
+  background: color-mix(in srgb, var(--info, #1565c0) 10%, var(--surface-strong, #ffffff));
+  color: var(--info, #0d5fa8);
+  border: 1px solid color-mix(in srgb, var(--info, #1565c0) 45%, var(--border, #e0e0e0));
+}
+
+.payment-reconcile-btn:hover {
+  background: color-mix(in srgb, var(--info, #1565c0) 16%, var(--surface-strong, #ffffff));
+}
+
+.payment-confirm-btn:disabled,
+.payment-cancel-btn:disabled,
+.payment-reconcile-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -322,6 +355,14 @@
   margin: 0 0 16px;
 }
 
+.confirm-dialog__target {
+  overflow-wrap: anywhere;
+  color: var(--text, #2c3e50);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
 .confirm-dialog__actions {
   display: flex;
   justify-content: flex-end;
@@ -358,7 +399,74 @@
   background: #1b5e20;
 }
 
+.confirm-dialog__btn--destructive {
+  background: var(--danger, #b71c1c);
+  color: #ffffff;
+  border: 1px solid var(--danger, #b71c1c);
+}
+
+.confirm-dialog__btn--destructive:hover {
+  background: color-mix(in srgb, var(--danger, #b71c1c) 82%, #000000);
+}
+
 .confirm-dialog__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.payment-workflow-panel button:focus-visible,
+.payment-form__field input:focus-visible,
+.payment-form__field select:focus-visible,
+.payment-form__field textarea:focus-visible,
+.payment-workflow-panel:focus-visible,
+.payment-row:focus-visible,
+.confirm-dialog__panel:focus-visible {
+  outline: 3px solid var(--focus-ring, var(--brand-ergon, #14b8a6));
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .payment-workflow-panel__header,
+  .payment-workflow-panel__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .payment-workflow-panel__header {
+    gap: 12px;
+  }
+
+  .payment-row {
+    align-items: flex-start;
+  }
+
+  .payment-row__meta,
+  .payment-row__lifecycle-actions {
+    flex-basis: 100%;
+  }
+
+  .payment-workflow-panel__refresh,
+  .payment-workflow-panel__new,
+  .payment-confirm-btn,
+  .payment-cancel-btn,
+  .payment-reconcile-btn,
+  .confirm-dialog__btn {
+    min-height: 44px;
+  }
+
+  .payment-row__lifecycle-actions > button {
+    flex: 1 1 120px;
+  }
+
+  .confirm-dialog__panel {
+    box-sizing: border-box;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    padding: 20px;
+    width: calc(100% - 24px);
+  }
+
+  .confirm-dialog__actions {
+    flex-direction: column-reverse;
+  }
 }

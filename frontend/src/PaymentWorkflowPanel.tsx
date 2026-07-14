@@ -1,9 +1,18 @@
 import './payment-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { checkEndpointPermission, confirmPayment, createPayment, getPayments } from './api';
+import {
+  cancelPayment,
+  checkEndpointPermission,
+  confirmPayment,
+  createPayment,
+  getPayments,
+  reconcilePayment,
+} from './api';
 import {
   Payment,
+  PaymentActionPayload,
   PaymentConfirmPayload,
+  PaymentCreateKind,
   PaymentCreatePayload,
   PaymentKind,
   PaymentMethod,
@@ -37,7 +46,7 @@ const STATUS_LABELS: Record<Payment['payment_status'], string> = {
   reconciled: 'Rapproché',
 };
 
-const PAYMENT_KINDS: PaymentKind[] = [
+const PAYMENT_KINDS: PaymentCreateKind[] = [
   'deposit',
   'balance',
   'caution',
@@ -57,6 +66,7 @@ const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
   deposit: 'Dépôt',
   balance: 'Solde',
   caution: 'Caution',
+  refund: 'Remboursement',
   owner_injection: 'Apport propriétaire',
   investor_injection: 'Apport investisseur',
   date_reservation: 'Date de réservation',
@@ -74,13 +84,25 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 interface PaymentRowProps {
   payment: Payment;
-  onConfirm: (id: string) => void;
-  confirming: boolean;
+  onConfirm: (trigger: HTMLButtonElement) => void;
+  onCancel: (trigger: HTMLButtonElement) => void;
+  onReconcile: (trigger: HTMLButtonElement) => void;
+  canWrite: boolean;
+  actionActive: boolean;
+  actionBlocked: boolean;
 }
 
-function PaymentRow({ payment, onConfirm, confirming }: PaymentRowProps) {
+function PaymentRow({
+  payment,
+  onConfirm,
+  onCancel,
+  onReconcile,
+  canWrite,
+  actionActive,
+  actionBlocked,
+}: PaymentRowProps) {
   return (
-    <div className="payment-row" data-testid={`payment-row-${payment.id}`}>
+    <div className="payment-row" data-testid={`payment-row-${payment.id}`} tabIndex={-1}>
       <div className="payment-row__meta">
         <span className="payment-row__kind">{PAYMENT_KIND_LABELS[payment.payment_kind]}</span>
         <span className="payment-row__method">{PAYMENT_METHOD_LABELS[payment.payment_method]}</span>
@@ -99,15 +121,42 @@ function PaymentRow({ payment, onConfirm, confirming }: PaymentRowProps) {
       >
         {STATUS_LABELS[payment.payment_status]}
       </div>
-      {payment.payment_status === 'pending' && (
-        <button
-          className="payment-confirm-btn"
-          onClick={() => onConfirm(payment.id)}
-          disabled={confirming}
-          aria-label={`Confirmer le paiement ${payment.id}`}
-        >
-          {confirming ? 'Confirmation...' : 'Confirmer'}
-        </button>
+      {canWrite && !actionBlocked && payment.payment_status === 'pending' && (
+        <div className="payment-row__lifecycle-actions">
+          {payment.payment_kind !== 'refund' && (
+            <button
+              className="payment-confirm-btn"
+              type="button"
+              onClick={(event) => onConfirm(event.currentTarget)}
+              disabled={actionActive}
+              aria-label={`Confirmer le paiement ${payment.id}`}
+            >
+              Confirmer
+            </button>
+          )}
+          <button
+            className="payment-cancel-btn"
+            type="button"
+            onClick={(event) => onCancel(event.currentTarget)}
+            disabled={actionActive}
+            aria-label={`Annuler le paiement ${payment.id}`}
+          >
+            Annuler
+          </button>
+        </div>
+      )}
+      {canWrite && !actionBlocked && payment.payment_status === 'confirmed' && (
+        <div className="payment-row__lifecycle-actions">
+          <button
+            className="payment-reconcile-btn"
+            type="button"
+            onClick={(event) => onReconcile(event.currentTarget)}
+            disabled={actionActive}
+            aria-label={`Rapprocher le paiement ${payment.id}`}
+          >
+            Rapprocher
+          </button>
+        </div>
       )}
       {payment.receipt_document && (
         <div className="payment-row__receipt-badge" aria-label="Reçu généré">
@@ -301,6 +350,61 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
 
 // ─── ConfirmDialog ────────────────────────────────────────────────────────────
 
+const DIALOG_FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'textarea:not([disabled])',
+  'select:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function useDialogKeyboard(
+  panelRef: React.RefObject<HTMLDivElement | null>,
+  initialFocusRef: React.RefObject<HTMLElement | null>,
+  onCancel: () => void,
+  submitting: boolean,
+) {
+  useEffect(() => {
+    initialFocusRef.current?.focus();
+  }, [initialFocusRef]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) {
+        event.preventDefault();
+        onCancel();
+        return;
+      }
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusable = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(DIALOG_FOCUSABLE_SELECTOR) ?? [],
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !panelRef.current?.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (active === last || !panelRef.current?.contains(active))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel, panelRef, submitting]);
+}
+
 interface ConfirmDialogProps {
   paymentId: string;
   onDone: (payment: Payment) => void;
@@ -316,6 +420,10 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const initialFocusRef = useRef<HTMLInputElement | null>(null);
+
+  useDialogKeyboard(panelRef, initialFocusRef, onCancel, submitting);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -350,9 +458,7 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
   }, [paymentId, payload, onDone]);
 
   useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
+    return () => abortRef.current?.abort();
   }, []);
 
   return (
@@ -362,8 +468,12 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
       aria-modal="true"
       aria-label="Confirmer le paiement"
     >
-      <div className="confirm-dialog__backdrop" onClick={onCancel} />
-      <div className="confirm-dialog__panel">
+      <div
+        className="confirm-dialog__backdrop"
+        onClick={submitting ? undefined : onCancel}
+        data-testid="confirm-dialog-backdrop"
+      />
+      <div className="confirm-dialog__panel" ref={panelRef} tabIndex={-1}>
         <h4 className="confirm-dialog__heading">Confirmer le paiement</h4>
         <p className="confirm-dialog__hint">
           La confirmation générera un reçu automatiquement.
@@ -377,7 +487,7 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
             name="paid_at"
             value={payload.paid_at ?? ''}
             onChange={handleChange}
-            autoFocus
+            ref={initialFocusRef}
           />
         </div>
 
@@ -413,6 +523,7 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
         <div className="confirm-dialog__actions">
           <button
             className="confirm-dialog__btn confirm-dialog__btn--cancel"
+            type="button"
             onClick={onCancel}
             disabled={submitting}
             aria-label="Annuler la confirmation"
@@ -421,6 +532,7 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
           </button>
           <button
             className="confirm-dialog__btn confirm-dialog__btn--confirm"
+            type="button"
             onClick={handleConfirm}
             disabled={submitting}
             aria-label="Confirmer et générer le reçu"
@@ -433,20 +545,210 @@ function ConfirmDialog({ paymentId, onDone, onCancel }: ConfirmDialogProps) {
   );
 }
 
+// ─── LifecycleActionDialog ───────────────────────────────────────────────────
+
+type LifecycleAction = 'cancel' | 'reconcile';
+
+interface LifecycleActionDialogProps {
+  action: LifecycleAction;
+  payment: Payment;
+  onDone: (payment: Payment) => void;
+  onCancel: () => void;
+  onStaleResponse: (paymentId: string, message: string) => Promise<void>;
+}
+
+function getApiStatus(error: unknown): number | null {
+  if (
+    error instanceof Error
+    && 'status' in error
+    && typeof (error as Error & { status?: unknown }).status === 'number'
+  ) {
+    return (error as Error & { status: number }).status;
+  }
+  return null;
+}
+
+function lifecycleErrorMessage(error: unknown, action: LifecycleAction): string {
+  const status = getApiStatus(error);
+  const verb = action === 'cancel' ? 'annuler' : 'rapprocher';
+  const backendMessage = error instanceof Error ? error.message : '';
+
+  if (status === 400) {
+    return `Action impossible : ${backendMessage || 'le paiement a changé d’état.'}`;
+  }
+  if (status === 403) {
+    return `Vous n’avez pas l’autorisation de ${verb} ce paiement.`;
+  }
+  if (status === 404) {
+    return 'Ce paiement est introuvable.';
+  }
+  if (status === null) {
+    return `Connexion au serveur impossible. Le paiement n’a pas été modifié ; réessayez pour le ${verb}.`;
+  }
+  return `Impossible de ${verb} le paiement pour le moment.`;
+}
+
+function LifecycleActionDialog({
+  action,
+  payment,
+  onDone,
+  onCancel,
+  onStaleResponse,
+}: LifecycleActionDialogProps) {
+  const [payload, setPayload] = useState<PaymentActionPayload>({ notes: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const initialFocusRef = useRef<HTMLTextAreaElement | null>(null);
+  const isCancellation = action === 'cancel';
+  const title = isCancellation ? 'Annuler le paiement' : 'Rapprocher le paiement';
+  const target = `Paiement ${payment.id} — ${formatAmount(payment.amount)} MGA`;
+
+  useDialogKeyboard(panelRef, initialFocusRef, onCancel, submitting);
+
+  const handleSubmit = useCallback(async () => {
+    setError(null);
+    setSubmitting(true);
+    abortRef.current = new AbortController();
+    try {
+      const actionPayload = payload.notes?.trim() ? { notes: payload.notes.trim() } : {};
+      const updated = isCancellation
+        ? await cancelPayment(payment.id, actionPayload, abortRef.current.signal)
+        : await reconcilePayment(payment.id, actionPayload, abortRef.current.signal);
+      onDone(updated);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      const message = lifecycleErrorMessage(err, action);
+      const status = getApiStatus(err);
+      if (status === 400 || status === 404) {
+        await onStaleResponse(payment.id, message);
+      } else {
+        setError(message);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }, [action, isCancellation, onDone, onStaleResponse, payment.id, payload.notes]);
+
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
+
+  return (
+    <div
+      className="confirm-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="payment-action-dialog-title"
+      aria-describedby="payment-action-dialog-description"
+    >
+      <div
+        className="confirm-dialog__backdrop"
+        onClick={submitting ? undefined : onCancel}
+        data-testid="payment-action-dialog-backdrop"
+      />
+      <div className="confirm-dialog__panel" ref={panelRef} tabIndex={-1}>
+        <h4 id="payment-action-dialog-title" className="confirm-dialog__heading">
+          {title}
+        </h4>
+        <p className="confirm-dialog__target">{target}</p>
+        <p id="payment-action-dialog-description" className="confirm-dialog__hint">
+          {isCancellation
+            ? 'Ce paiement en attente passera à l’état Annulé et ne pourra plus être confirmé.'
+            : 'Ce paiement confirmé passera à l’état Rapproché pour indiquer son contrôle comptable.'}
+        </p>
+
+        <div className="payment-form__field">
+          <label htmlFor="payment_action_notes">Notes (optionnel)</label>
+          <textarea
+            id="payment_action_notes"
+            name="notes"
+            rows={3}
+            value={payload.notes ?? ''}
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+              setPayload({ notes: event.target.value });
+            }}
+            disabled={submitting}
+            ref={initialFocusRef}
+          />
+        </div>
+
+        {error && (
+          <div className="payment-form__error" role="alert" aria-live="assertive">
+            {error}
+          </div>
+        )}
+
+        <div className="confirm-dialog__actions">
+          <button
+            className="confirm-dialog__btn confirm-dialog__btn--cancel"
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+          >
+            Retour
+          </button>
+          <button
+            className={`confirm-dialog__btn ${
+              isCancellation
+                ? 'confirm-dialog__btn--destructive'
+                : 'confirm-dialog__btn--confirm'
+            }`}
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? 'Traitement...' : title}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PaymentWorkflowPanel ─────────────────────────────────────────────────────
 
+type WriteAccessState = 'checking' | 'allowed' | 'unavailable';
+
+type ActivePaymentDialog = {
+  action: 'confirm' | LifecycleAction;
+  payment: Payment;
+  trigger: HTMLButtonElement;
+};
+
 export default function PaymentWorkflowPanel() {
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [activeDialog, setActiveDialog] = useState<ActivePaymentDialog | null>(null);
+  const activeDialogRef = useRef<ActivePaymentDialog | null>(null);
+  const [blockedPaymentIds, setBlockedPaymentIds] = useState<Set<string>>(() => new Set());
   const [showForm, setShowForm] = useState(false);
-  const [canWrite, setCanWrite] = useState(false);
+  const [writeAccess, setWriteAccess] = useState<WriteAccessState>('checking');
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    activeDialogRef.current = activeDialog;
+  }, [activeDialog]);
+
+  useEffect(() => {
     const controller = new AbortController();
-    checkEndpointPermission("/api/v1/payments/", "OPTIONS", controller.signal).then(setCanWrite);
+    void checkEndpointPermission('/api/v1/payments/', 'OPTIONS', controller.signal)
+      .then((allowed) => {
+        if (!controller.signal.aborted) {
+          setWriteAccess(allowed ? 'allowed' : 'unavailable');
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setWriteAccess('unavailable');
+        }
+      });
     return () => controller.abort();
   }, []);
 
@@ -457,6 +759,8 @@ export default function PaymentWorkflowPanel() {
     try {
       const data = await getPayments(abortRef.current.signal);
       setPayments(Array.isArray(data) ? data : []);
+      setActionError(null);
+      setBlockedPaymentIds(new Set());
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
         setError(err.message || 'Échec du chargement des paiements.');
@@ -478,13 +782,77 @@ export default function PaymentWorkflowPanel() {
     setShowForm(false);
   }, []);
 
-  const handleConfirmDone = useCallback((updated: Payment) => {
-    setPayments((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    setConfirmingId(null);
+  const restoreDialogFocus = useCallback((dialog: ActivePaymentDialog | null) => {
+    if (!dialog) {
+      return;
+    }
+    window.setTimeout(() => {
+      if (dialog.trigger.isConnected && !dialog.trigger.disabled) {
+        dialog.trigger.focus();
+        return;
+      }
+      const row = document.querySelector<HTMLElement>(
+        `[data-testid="payment-row-${dialog.payment.id}"]`,
+      );
+      (row ?? panelRef.current)?.focus();
+    }, 0);
   }, []);
 
+  const handleActionDone = useCallback((updated: Payment) => {
+    const dialog = activeDialogRef.current;
+    setPayments((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setActiveDialog(null);
+    restoreDialogFocus(dialog);
+  }, [restoreDialogFocus]);
+
+  const closeDialog = useCallback(() => {
+    const dialog = activeDialogRef.current;
+    setActiveDialog(null);
+    restoreDialogFocus(dialog);
+  }, [restoreDialogFocus]);
+
+  const openDialog = useCallback(
+    (action: ActivePaymentDialog['action'], payment: Payment, trigger: HTMLButtonElement) => {
+      setActiveDialog({ action, payment, trigger });
+    },
+    [],
+  );
+
+  const refreshPaymentsAfterStale = useCallback(async (paymentId: string, message: string) => {
+    const alertPrefix = /[.!?]$/.test(message) ? message : `${message}.`;
+    setBlockedPaymentIds((current) => new Set(current).add(paymentId));
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const data = await getPayments(controller.signal);
+      setPayments(Array.isArray(data) ? data : []);
+      setError(null);
+      setBlockedPaymentIds((current) => {
+        const next = new Set(current);
+        next.delete(paymentId);
+        return next;
+      });
+      setActionError(`${alertPrefix} La liste a été actualisée depuis le serveur.`);
+    } catch (refreshError: unknown) {
+      if (!(refreshError instanceof Error && refreshError.name === 'AbortError')) {
+        setActionError(
+          `${alertPrefix} L’actualisation a échoué ; utilisez « Actualiser » avant une nouvelle action.`,
+        );
+      }
+    } finally {
+      const dialog = activeDialogRef.current;
+      setActiveDialog(null);
+      restoreDialogFocus(dialog);
+    }
+  }, [restoreDialogFocus]);
+
   return (
-    <div className="payment-workflow-panel" data-testid="payment-workflow-panel">
+    <div
+      className="payment-workflow-panel"
+      data-testid="payment-workflow-panel"
+      ref={panelRef}
+      tabIndex={-1}
+    >
       <div className="payment-workflow-panel__header">
         <h3 className="payment-workflow-panel__title">Paiements</h3>
         <div className="payment-workflow-panel__actions">
@@ -496,7 +864,7 @@ export default function PaymentWorkflowPanel() {
           >
             {loading ? 'Chargement...' : 'Actualiser'}
           </button>
-          {canWrite ? (
+          {writeAccess === 'allowed' ? (
           <button
             className="payment-workflow-panel__new"
             onClick={() => setShowForm((v) => !v)}
@@ -505,13 +873,21 @@ export default function PaymentWorkflowPanel() {
           >
             {showForm ? 'Fermer' : 'Nouveau paiement'}
           </button>
+          ) : writeAccess === 'checking' ? (
+            <p className="status" aria-live="polite">Vérification de la disponibilité des actions...</p>
           ) : (
-            <p className="status">Connectez-vous avec un accès écriture pour créer des paiements.</p>
+            <p className="status">Actions indisponibles pour cette session.</p>
           )}
         </div>
       </div>
 
       {showForm && <CreatePaymentForm onCreated={handlePaymentCreated} />}
+
+      {actionError && (
+        <div className="payment-workflow-panel__error" role="alert" aria-live="assertive">
+          {actionError}
+        </div>
+      )}
 
       {loading && (
         <div className="payment-workflow-panel__loading" aria-live="polite">
@@ -535,18 +911,31 @@ export default function PaymentWorkflowPanel() {
             <PaymentRow
               key={p.id}
               payment={p}
-              onConfirm={(id) => setConfirmingId(id)}
-              confirming={confirmingId === p.id}
+              onConfirm={(trigger) => openDialog('confirm', p, trigger)}
+              onCancel={(trigger) => openDialog('cancel', p, trigger)}
+              onReconcile={(trigger) => openDialog('reconcile', p, trigger)}
+              canWrite={writeAccess === 'allowed'}
+              actionActive={activeDialog !== null}
+              actionBlocked={blockedPaymentIds.has(p.id)}
             />
           ))}
         </div>
       )}
 
-      {confirmingId && (
+      {activeDialog?.action === 'confirm' && (
         <ConfirmDialog
-          paymentId={confirmingId}
-          onDone={handleConfirmDone}
-          onCancel={() => setConfirmingId(null)}
+          paymentId={activeDialog.payment.id}
+          onDone={handleActionDone}
+          onCancel={closeDialog}
+        />
+      )}
+      {activeDialog && activeDialog.action !== 'confirm' && (
+        <LifecycleActionDialog
+          action={activeDialog.action}
+          payment={activeDialog.payment}
+          onDone={handleActionDone}
+          onCancel={closeDialog}
+          onStaleResponse={refreshPaymentsAfterStale}
         />
       )}
     </div>
