@@ -5,6 +5,8 @@ import {
   getRoleAssignments,
   checkEndpointPermission,
   checkIdentityWritePermission,
+  cancelPayment,
+  reconcilePayment,
 } from "./api";
 import type { ApplicationRole, UserRoleAssignment } from "./types";
 
@@ -278,6 +280,60 @@ describe("checkIdentityWritePermission", () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       "/api/v1/identity/roles/",
       expect.objectContaining({ signal: controller.signal }),
+    );
+  });
+});
+
+describe("payment lifecycle actions", () => {
+  it.each([
+    ["cancel", cancelPayment],
+    ["reconcile", reconcilePayment],
+  ] as const)("posts the optional notes payload to the %s endpoint", async (action, request) => {
+    const response = { id: "payment-1", payment_status: action === "cancel" ? "cancelled" : "reconciled" };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse(response),
+    );
+    const controller = new AbortController();
+
+    await expect(request("payment-1", { notes: "Contrôle opérateur" }, controller.signal))
+      .resolves.toEqual(response);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `/api/v1/payments/payment-1/${action}/`,
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: "Contrôle opérateur" }),
+        signal: controller.signal,
+      }),
+    );
+  });
+
+  it("surfaces backend detail and status for a rejected lifecycle action", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse({ detail: "Payment cannot be cancelled." }, 400, false),
+    );
+
+    await expect(cancelPayment("payment-1", {})).rejects.toMatchObject({
+      message: "Payment cannot be cancelled.",
+      status: 400,
+    });
+  });
+
+  it.each([
+    ["cancel", cancelPayment],
+    ["reconcile", reconcilePayment],
+  ] as const)("uses an empty payload by default for %s", async (action, request) => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse({ id: "payment-1" }),
+    );
+
+    await request("payment-1");
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `/api/v1/payments/payment-1/${action}/`,
+      expect.objectContaining({ body: "{}" }),
     );
   });
 });
