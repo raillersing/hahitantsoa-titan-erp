@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 
 import { useAuth } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
+import BrandIdentity from "./prototype/BrandIdentity";
 
 function LoginPanel() {
   const { state, login } = useAuth();
@@ -25,10 +26,8 @@ function LoginPanel() {
           <div className="brand-card" aria-label="Ergon corporate identity">
             <img
               alt="Ergon"
-              className="brand-logo"
+              className="brand-logo brand-logo--ergon"
               src="/assets/ergon-logo.png"
-              width="32"
-              height="32"
             />
             <div className="brand-card__copy">
               <p className="eyebrow">Ergon ERP</p>
@@ -51,11 +50,11 @@ function LoginPanel() {
 
         <div className="login-identity-strip" aria-label="Operational brand contexts">
           <div className="login-identity-chip">
-            <span aria-hidden="true" className="brand-mark brand-mark--hah" style={{ width: 30, height: 30, fontSize: "0.85rem" }}>H</span>
+            <BrandIdentity brand="hahitantsoa" compact />
             <span>Événement / full-service</span>
           </div>
           <div className="login-identity-chip">
-            <span aria-hidden="true" className="brand-mark brand-mark--titan" style={{ width: 30, height: 30, fontSize: "0.85rem" }}>T</span>
+            <BrandIdentity brand="titan" compact />
             <span>Location matériel</span>
           </div>
         </div>

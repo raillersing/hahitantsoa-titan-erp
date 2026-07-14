@@ -13,6 +13,10 @@ describe('6F-R9 stabilization', () => {
     const mockNavigate = vi.fn();
     render(<TitanPage onNavigate={mockNavigate} />);
 
+    const titanBrand = screen.getByRole('img', { name: 'Titan Rental' });
+    expect(titanBrand).toHaveClass('module-brand');
+    expect(titanBrand.querySelector('img')).toHaveAttribute('src', '/assets/titan-rental-logo.png');
+
     fireEvent.click(screen.getByRole('button', { name: /LOC-2026-0088/i }));
     expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'LOC-2026-0088');
 
@@ -32,6 +36,10 @@ describe('6F-R9 stabilization', () => {
   it('HahitantsoaPage - reservation numbers and client names are clickable', () => {
     const mockNavigate = vi.fn();
     render(<HahitantsoaPage onNavigate={mockNavigate} />);
+
+    const hahitantsoaBrand = screen.getByRole('img', { name: 'Hahitantsoa' });
+    expect(hahitantsoaBrand).toHaveClass('module-brand');
+    expect(hahitantsoaBrand.querySelector('img')).toHaveAttribute('src', '/assets/hahitantsoa-logo.png');
 
     fireEvent.click(screen.getByRole('button', { name: /RES-2026-0142/i }));
     expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'RES-2026-0142');

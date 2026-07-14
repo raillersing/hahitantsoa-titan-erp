@@ -63,6 +63,13 @@ describe("LoginPanel", () => {
     expect(
       screen.getByRole("button", { name: "Sign in" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Hahitantsoa" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Titan Rental" })).toBeInTheDocument();
+
+    const ergonLogo = screen.getByRole("img", { name: "Ergon" });
+    expect(ergonLogo).not.toHaveAttribute("width");
+    expect(ergonLogo).not.toHaveAttribute("height");
+    expect(ergonLogo).toHaveClass("brand-logo--ergon");
   });
 
   it("shows the unauthenticated notice by default", async () => {

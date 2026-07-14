@@ -1,5 +1,6 @@
 import React from "react";
-import { AppScope } from "../App";
+import type { AppScope } from "../App";
+import BrandIdentity, { type BrandScope } from "./BrandIdentity";
 import { mockClients } from "./mockData";
 
 interface AppShellProps {
@@ -10,7 +11,69 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+type StaticAppScope = Exclude<AppScope, "reservation-new" | "reservation-detail">;
+
+const brandScopeByAppScope = {
+  dashboard: "ergon",
+  planning: "ergon",
+  customers: "ergon",
+  hahitantsoa: "hahitantsoa",
+  titan: "titan",
+  "commercial-ops": "ergon",
+  cashbox: "ergon",
+  caution: "titan",
+  audit: "ergon",
+  reports: "ergon",
+  help: "ergon",
+  reservations: "ergon",
+  customer: "ergon",
+  login: "ergon",
+  packages: "hahitantsoa",
+  services: "hahitantsoa",
+  "blacklist-intervenants": "hahitantsoa",
+  inventory: "titan",
+  "inventory-management": "titan",
+  "inventory-item": "titan",
+  "stock-movements": "titan",
+  "stock-preparation": "titan",
+  "logistics-dispatch": "titan",
+  "logistics-returns": "titan",
+  "breakage-loss": "titan",
+  venues: "hahitantsoa",
+  "agenda-visitors": "hahitantsoa",
+  "import-excel": "titan",
+  documents: "ergon",
+  "hr-payroll": "ergon",
+  purchasing: "ergon",
+  notifications: "ergon",
+  admin: "ergon",
+  "mobile-tablet": "ergon",
+} satisfies Record<StaticAppScope, BrandScope>;
+
+export function resolveBrandScope(activeScope: AppScope, activeParam?: string): BrandScope {
+  if (activeScope === "reservation-detail") {
+    if (activeParam?.startsWith("LOC-")) return "titan";
+    if (activeParam?.startsWith("RES-")) return "hahitantsoa";
+    return "ergon";
+  }
+
+  if (activeScope === "reservation-new") {
+    if (
+      activeParam === "titan" ||
+      activeParam?.startsWith("catalog-prep|") ||
+      activeParam?.startsWith("prospect-proforma-t")
+    ) return "titan";
+    if (activeParam === "hahitantsoa" || activeParam?.startsWith("prospect-proforma-h")) {
+      return "hahitantsoa";
+    }
+    return "ergon";
+  }
+
+  return brandScopeByAppScope[activeScope];
+}
+
 export default function AppShell({ activeScope, activeParam, onNavigate, returnContext, children }: AppShellProps) {
+  const activeBrand = resolveBrandScope(activeScope, activeParam);
   const scopeHeading: Record<string, string> = {
     dashboard: "Tableau de bord",
     planning: "Planning",
@@ -213,10 +276,10 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 overflow-y-auto transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 flex items-center gap-3 border-b border-slate-800">
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-hah-500 to-tit-500 flex items-center justify-center text-white font-extrabold text-lg shadow-lg">H/T</div>
+          <BrandIdentity brand="ergon" compact className="sidebar-brand" />
           <div>
-            <h1 className="text-white font-extrabold text-sm leading-tight tracking-wide">HAHITANTSOA</h1>
-            <p className="text-xs text-slate-400">Titan ERP <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded ml-1">v3.4</span></p>
+            <h1 className="text-white font-extrabold text-sm leading-tight tracking-wide">ERGON ERP</h1>
+            <p className="text-xs text-slate-400">Hahitantsoa · Titan Rental <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded ml-1">v3.4</span></p>
           </div>
         </div>
 
@@ -398,7 +461,10 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
                 </React.Fragment>
               ))}
             </div>
-            <h2 className="text-xl font-extrabold text-slate-800 dark:text-white truncate">{pageTitle}</h2>
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="min-w-0 text-xl font-extrabold text-slate-800 dark:text-white truncate">{pageTitle}</h2>
+              <BrandIdentity brand={activeBrand} compact className="topbar-brand-scope" />
+            </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -414,11 +480,11 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
                 <i className="fas fa-plus-circle mr-1"></i> Nouvelle réservation
               </button>
             ) : (
-              <button className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-medium text-sm cursor-not-allowed hidden md:inline-flex" title="Disponible depuis le tableau de bord">
+              <button className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-medium text-sm cursor-not-allowed hidden lg:inline-flex" title="Disponible depuis le tableau de bord">
                 <i className="fas fa-plus-circle mr-1"></i> Nouvelle réservation
               </button>
             )}
-            <button className="px-3 py-1.5 rounded-full bg-tit-50 dark:bg-tit-900/30 text-tit-600 dark:text-tit-400 font-medium text-sm hover:bg-tit-100 dark:hover:bg-tit-900/50 transition focus-ring hidden md:inline-flex" onClick={() => onNavigate("planning")}>
+            <button className="px-3 py-1.5 rounded-full bg-tit-50 dark:bg-tit-900/30 text-tit-600 dark:text-tit-400 font-medium text-sm hover:bg-tit-100 dark:hover:bg-tit-900/50 transition focus-ring hidden lg:inline-flex" onClick={() => onNavigate("planning")}>
               <i className="fas fa-calendar-alt mr-1"></i> Planning
             </button>
           </div>

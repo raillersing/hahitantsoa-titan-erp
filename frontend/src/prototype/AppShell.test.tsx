@@ -1,7 +1,49 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import AppShell from './AppShell';
+import type { AppScope } from '../App';
+import AppShell, { resolveBrandScope } from './AppShell';
+
+const hahitantsoaScopes: AppScope[] = [
+  'hahitantsoa',
+  'packages',
+  'services',
+  'venues',
+  'agenda-visitors',
+  'blacklist-intervenants',
+];
+const titanScopes: AppScope[] = [
+  'titan',
+  'inventory',
+  'inventory-management',
+  'inventory-item',
+  'stock-movements',
+  'stock-preparation',
+  'logistics-dispatch',
+  'logistics-returns',
+  'breakage-loss',
+  'caution',
+  'import-excel',
+];
+const mixedErgonScopes: AppScope[] = [
+  'dashboard',
+  'planning',
+  'reservations',
+  'customers',
+  'commercial-ops',
+  'documents',
+  'cashbox',
+  'audit',
+  'reports',
+  'admin',
+  'help',
+  'customer',
+  'login',
+  'hr-payroll',
+  'purchasing',
+  'notifications',
+  'mobile-tablet',
+];
 
 describe('AppShell', () => {
   let mockNavigate: any;
@@ -25,6 +67,8 @@ describe('AppShell', () => {
     render(<AppShell activeScope="hahitantsoa" onNavigate={mockNavigate}><div>Content</div></AppShell>);
     const newResButton = screen.getByRole('button', { name: /Nouvelle réservation/i });
     expect(newResButton).toHaveClass('cursor-not-allowed');
+    expect(newResButton).toHaveClass('hidden', 'lg:inline-flex');
+    expect(newResButton).not.toHaveClass('md:inline-flex');
     fireEvent.click(newResButton);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
@@ -32,6 +76,8 @@ describe('AppShell', () => {
   it('3. "Planning" reste actif', () => {
     render(<AppShell activeScope="hahitantsoa" onNavigate={mockNavigate}><div>Content</div></AppShell>);
     const planningButton = screen.getByRole('button', { name: /Planning/i });
+    expect(planningButton).toHaveClass('hidden', 'lg:inline-flex');
+    expect(planningButton).not.toHaveClass('md:inline-flex');
     fireEvent.click(planningButton);
     expect(mockNavigate).toHaveBeenCalledWith('planning');
   });
@@ -114,5 +160,55 @@ describe('AppShell', () => {
     // Teste le clic sur déconnexion
     fireEvent.click(screen.getByRole('link', { name: /Déconnexion/i }));
     expect(mockNavigate).toHaveBeenCalledWith('login');
+  });
+
+  it('9. utilise Ergon pour le shell et les pages mixtes', () => {
+    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+
+    expect(screen.getAllByRole('img', { name: 'Ergon ERP' })).toHaveLength(2);
+    expect(screen.queryByText('H/T')).not.toBeInTheDocument();
+  });
+
+  it('10. expose le nom accessible du scope même si son libellé est masqué sur mobile', () => {
+    render(<AppShell activeScope="titan" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+
+    const scopeIdentity = screen.getByRole('img', { name: 'Titan Rental' });
+    expect(scopeIdentity).toHaveClass('topbar-brand-scope');
+    expect(scopeIdentity.querySelector('.brand-identity__label')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it.each(hahitantsoaScopes)('résout le scope mono Hahitantsoa : %s', (scope) => {
+    expect(resolveBrandScope(scope)).toBe('hahitantsoa');
+  });
+
+  it.each(titanScopes)('résout le scope mono Titan : %s', (scope) => {
+    expect(resolveBrandScope(scope)).toBe('titan');
+  });
+
+  it.each(mixedErgonScopes)('conserve Ergon pour le scope mixte : %s', (scope) => {
+    expect(resolveBrandScope(scope)).toBe('ergon');
+  });
+
+  it.each([
+    ['RES-2026-0142', 'hahitantsoa'],
+    ['LOC-2026-0089', 'titan'],
+    ['UNKNOWN-001', 'ergon'],
+    [undefined, 'ergon'],
+  ] as const)('résout reservation-detail/%s en %s', (param, expected) => {
+    expect(resolveBrandScope('reservation-detail', param)).toBe(expected);
+  });
+
+  it.each([
+    ['hahitantsoa', 'hahitantsoa'],
+    ['prospect-proforma-h', 'hahitantsoa'],
+    ['prospect-proforma-h/PROS-001', 'hahitantsoa'],
+    ['titan', 'titan'],
+    ['prospect-proforma-t', 'titan'],
+    ['prospect-proforma-t/PROS-001', 'titan'],
+    ['catalog-prep|[]', 'titan'],
+    ['CUST-001', 'ergon'],
+    [undefined, 'ergon'],
+  ] as const)('résout reservation-new/%s en %s', (param, expected) => {
+    expect(resolveBrandScope('reservation-new', param)).toBe(expected);
   });
 });
