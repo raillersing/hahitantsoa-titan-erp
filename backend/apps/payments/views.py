@@ -1,11 +1,10 @@
-from decimal import Decimal
-
+from django.conf import settings
 from django.http import Http404
-from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
-from rest_framework import serializers, status
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import status
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess
@@ -13,6 +12,8 @@ from apps.identity.permissions import HasReservationSensitiveAccess
 from .gateway import PaymentGatewayError
 from .permissions import IsAuthenticatedPaymentBoundary
 from .serializers import (
+    GatewayPaymentCallbackSerializer,
+    GatewayPaymentInitiateSerializer,
     PaymentConfirmSerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
@@ -31,6 +32,42 @@ from .services import (
     process_gateway_callback,
     reconcile_payment,
 )
+
+
+class SandboxGatewayUserThrottle(UserRateThrottle):
+    rate = "30/minute"
+
+
+def _sandbox_gateway_disabled_response() -> Response | None:
+    if settings.DEBUG:
+        return None
+    return Response(
+        {
+            "detail": "The sandbox payment gateway is disabled in production.",
+            "code": "gateway_sandbox_disabled",
+        },
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+def _gateway_error_http_status(error: PaymentGatewayError) -> int:
+    if error.code == "gateway_callback_payment_not_found":
+        return status.HTTP_404_NOT_FOUND
+    if error.code in {
+        "gateway_callback_amount_mismatch",
+        "gateway_callback_method_mismatch",
+        "gateway_callback_reference_ambiguous",
+        "gateway_callback_source_mismatch",
+        "gateway_callback_status_conflict",
+    }:
+        return status.HTTP_409_CONFLICT
+    if error.code in {
+        "gateway_adapter_load_failed",
+        "gateway_sandbox_disabled",
+        "gateway_unknown",
+    }:
+        return status.HTTP_503_SERVICE_UNAVAILABLE
+    return status.HTTP_400_BAD_REQUEST
 
 
 class PaymentListCreateAPIView(ListCreateAPIView):
@@ -253,45 +290,42 @@ class RefundPaymentConfirmAPIView(APIView):
 class GatewayPaymentInitiateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
     permission_classes = [HasReservationSensitiveAccess]
+    throttle_classes = [SandboxGatewayUserThrottle]
 
     @extend_schema(
-        request=inline_serializer(
-            name="GatewayPaymentInitiateRequest",
-            fields={
-                "amount": serializers.DecimalField(max_digits=12, decimal_places=2),
-                "currency": serializers.CharField(required=False, default="MGA"),
-                "notes": serializers.CharField(required=False, allow_blank=True),
-            },
-        ),
+        request=GatewayPaymentInitiateSerializer,
         responses={
             201: OpenApiResponse(description="Payment initiated via gateway."),
             400: OpenApiResponse(description="Initiation failed."),
             404: OpenApiResponse(description="Reservation draft not found."),
+            503: OpenApiResponse(description="Sandbox gateway disabled or unavailable."),
         },
     )
     def post(self, request, reservation_draft_id):
         from apps.reservations.models import ReservationDraft
 
+        disabled_response = _sandbox_gateway_disabled_response()
+        if disabled_response is not None:
+            return disabled_response
+
+        serializer = GatewayPaymentInitiateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         draft = ReservationDraft.objects.filter(id=reservation_draft_id).first()
         if draft is None:
             raise Http404("Reservation draft not found.")
 
-        amount = request.data.get("amount")
-        currency = request.data.get("currency", "MGA")
-        notes = request.data.get("notes", "")
-
         try:
             result = initiate_mobile_money_payment(
                 reservation_draft=draft,
-                amount=Decimal(str(amount)),
-                currency=currency,
+                amount=serializer.validated_data["amount"],
+                currency=serializer.validated_data["currency"],
                 actor=request.user,
-                notes=notes,
+                notes=serializer.validated_data["notes"],
             )
         except PaymentGatewayError as error:
             return Response(
                 {"detail": str(error), "code": error.code},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=_gateway_error_http_status(error),
             )
 
         return Response(
@@ -307,39 +341,36 @@ class GatewayPaymentInitiateAPIView(APIView):
 
 class GatewayPaymentCallbackAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
+    throttle_classes = [SandboxGatewayUserThrottle]
 
     @extend_schema(
-        request=inline_serializer(
-            name="GatewayPaymentCallbackRequest",
-            fields={
-                "transaction_reference": serializers.CharField(),
-                "status": serializers.CharField(),
-                "amount": serializers.DecimalField(max_digits=12, decimal_places=2, required=False),
-            },
-        ),
+        request=GatewayPaymentCallbackSerializer,
         responses={
             200: OpenApiResponse(description="Callback processed."),
             400: OpenApiResponse(description="Callback validation failed."),
             404: OpenApiResponse(description="Payment not found."),
+            409: OpenApiResponse(description="Callback conflicts with payment state."),
+            503: OpenApiResponse(description="Sandbox gateway disabled or unavailable."),
         },
     )
     def post(self, request):
-        payload = {
-            "transaction_reference": request.data.get("transaction_reference"),
-            "status": request.data.get("status"),
-            "amount": request.data.get("amount"),
-        }
+        disabled_response = _sandbox_gateway_disabled_response()
+        if disabled_response is not None:
+            return disabled_response
+
+        serializer = GatewayPaymentCallbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
         try:
             result = process_gateway_callback(
-                payload=payload,
+                payload=serializer.validated_data,
                 actor=request.user,
             )
         except PaymentGatewayError as error:
             return Response(
                 {"detail": str(error), "code": error.code},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=_gateway_error_http_status(error),
             )
 
         return Response(
