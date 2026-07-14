@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -41,6 +42,7 @@ PAYMENT_RECEIPT_TEMPLATE_NOT_FOUND = "payment_receipt_template_not_found"
 PAYMENT_REFUND_TEMPLATE_NOT_FOUND = "payment_refund_template_not_found"
 REFUND_OBLIGATION_NOT_FOUND = "refund_obligation_not_found"
 REFUND_OBLIGATION_NOT_PENDING = "refund_obligation_not_pending"
+GATEWAY_SANDBOX_DISABLED = "gateway_sandbox_disabled"
 
 
 @dataclass(frozen=True)
@@ -236,6 +238,7 @@ def confirm_payment(
     external_reference: str | None = None,
     notes: str | None = None,
 ) -> PaymentConfirmationResult:
+    payment = Payment.objects.select_for_update().get(pk=payment.pk)
     if payment.payment_status != PaymentStatus.PENDING:
         raise PaymentLifecycleError(
             f"Cannot confirm payment from status: {payment.payment_status}",
@@ -305,6 +308,7 @@ def cancel_payment(
     actor: object | None = None,
     notes: str | None = None,
 ) -> Payment:
+    payment = Payment.objects.select_for_update().get(pk=payment.pk)
     if payment.payment_status != PaymentStatus.PENDING:
         raise PaymentLifecycleError(
             f"Cannot cancel payment from status: {payment.payment_status}",
@@ -340,6 +344,7 @@ def reconcile_payment(
     actor: object | None = None,
     notes: str | None = None,
 ) -> Payment:
+    payment = Payment.objects.select_for_update().get(pk=payment.pk)
     if payment.payment_status != PaymentStatus.CONFIRMED:
         raise PaymentLifecycleError(
             f"Cannot reconcile payment from status: {payment.payment_status}",
@@ -530,6 +535,15 @@ class GatewayCallbackResult:
     callback_result: CallbackValidationResult
 
 
+def _ensure_sandbox_gateway_enabled() -> None:
+    if not settings.DEBUG:
+        raise PaymentGatewayError(
+            "The sandbox payment gateway is disabled in production.",
+            code=GATEWAY_SANDBOX_DISABLED,
+        )
+
+
+@transaction.atomic
 def initiate_mobile_money_payment(
     *,
     reservation_draft,
@@ -539,6 +553,12 @@ def initiate_mobile_money_payment(
     currency: str = "MGA",
 ) -> GatewayPaymentInitiateResult:
     """Create a pending payment and initiate it via the configured mobile-money gateway."""
+    _ensure_sandbox_gateway_enabled()
+    if not isinstance(amount, Decimal) or not amount.is_finite() or amount <= Decimal("0.00"):
+        raise PaymentGatewayError(
+            "Payment amount must be a positive decimal.",
+            code="gateway_invalid_amount",
+        )
     adapter = get_payment_gateway_adapter(gateway_name="mvola")
     gateway_result = adapter.initiate_payment(
         amount=amount,
@@ -546,6 +566,7 @@ def initiate_mobile_money_payment(
         description=notes or "Mobile money payment",
     )
 
+    actor_id = getattr(actor, "pk", None)
     payment = Payment.objects.create(
         reservation_draft=reservation_draft,
         payment_kind=PaymentKind.BALANCE,
@@ -555,6 +576,8 @@ def initiate_mobile_money_payment(
         external_reference=gateway_result.transaction_reference,
         source_label=adapter.gateway_name,
         notes=notes,
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
     )
 
     record_audit_event_on_commit(
@@ -573,6 +596,7 @@ def initiate_mobile_money_payment(
     return GatewayPaymentInitiateResult(payment=payment, gateway_result=gateway_result)
 
 
+@transaction.atomic
 def process_gateway_callback(
     *,
     payload: dict,
@@ -583,7 +607,8 @@ def process_gateway_callback(
     Validates the payload, locates the matching payment by external_reference,
     and transitions the payment to the reported status.
     """
-    adapter = get_payment_gateway_adapter()
+    _ensure_sandbox_gateway_enabled()
+    adapter = get_payment_gateway_adapter(gateway_name="mvola")
     callback_result = adapter.validate_callback(payload)
 
     if not callback_result.valid:
@@ -592,28 +617,59 @@ def process_gateway_callback(
             code="gateway_callback_invalid",
         )
 
-    payment = (
-        Payment.objects.select_related("reservation_draft")
-        .filter(external_reference=callback_result.transaction_reference)
-        .first()
-    )
-    if payment is None:
+    try:
+        payment = Payment.objects.select_for_update().get(
+            external_reference=callback_result.transaction_reference
+        )
+    except Payment.DoesNotExist:
         raise PaymentGatewayError(
             "Payment not found for transaction reference.",
             code="gateway_callback_payment_not_found",
         )
+    except Payment.MultipleObjectsReturned:
+        raise PaymentGatewayError(
+            "Multiple payments use the callback transaction reference.",
+            code="gateway_callback_reference_ambiguous",
+        )
 
-    if callback_result.status == "confirmed" and payment.payment_status == PaymentStatus.PENDING:
-        confirm_payment(
+    if payment.payment_method != PaymentMethod.MOBILE_MONEY:
+        raise PaymentGatewayError(
+            "Callback payment method does not match mobile money.",
+            code="gateway_callback_method_mismatch",
+        )
+    if payment.source_label != adapter.gateway_name:
+        raise PaymentGatewayError(
+            "Callback gateway does not match the payment source.",
+            code="gateway_callback_source_mismatch",
+        )
+    if callback_result.amount is not None and callback_result.amount != payment.amount:
+        raise PaymentGatewayError(
+            "Callback amount does not match the payment amount.",
+            code="gateway_callback_amount_mismatch",
+        )
+
+    if callback_result.status == payment.payment_status:
+        return GatewayCallbackResult(payment=payment, callback_result=callback_result)
+    if payment.payment_status != PaymentStatus.PENDING:
+        raise PaymentGatewayError(
+            "Callback status contradicts the current payment status.",
+            code="gateway_callback_status_conflict",
+        )
+
+    if callback_result.status == "confirmed":
+        confirmation = confirm_payment(
             payment=payment,
             actor=actor,
             paid_at=timezone.now(),
             external_reference=callback_result.transaction_reference,
             notes="Confirmed via gateway callback.",
         )
-    elif callback_result.status == "failed" and payment.payment_status == PaymentStatus.PENDING:
+        payment = confirmation.payment
+    elif callback_result.status == "failed":
         payment.payment_status = PaymentStatus.FAILED
-        payment.save(update_fields=["payment_status", "updated_at"])
+        payment.updated_by_id = getattr(actor, "pk", None)
+        payment.full_clean()
+        payment.save(update_fields=["payment_status", "updated_by", "updated_at"])
         record_audit_event_on_commit(
             actor=actor,
             action="payment.gateway_failed",
@@ -621,9 +677,11 @@ def process_gateway_callback(
             target_id=str(payment.id),
             metadata={"gateway": adapter.gateway_name, "reason": "callback"},
         )
-    elif callback_result.status == "cancelled" and payment.payment_status == PaymentStatus.PENDING:
+    elif callback_result.status == "cancelled":
         payment.payment_status = PaymentStatus.CANCELLED
-        payment.save(update_fields=["payment_status", "updated_at"])
+        payment.updated_by_id = getattr(actor, "pk", None)
+        payment.full_clean()
+        payment.save(update_fields=["payment_status", "updated_by", "updated_at"])
         record_audit_event_on_commit(
             actor=actor,
             action="payment.gateway_cancelled",

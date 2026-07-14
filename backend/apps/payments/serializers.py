@@ -138,3 +138,31 @@ class RefundPaymentCreateSerializer(serializers.Serializer):
 class RefundPaymentConfirmSerializer(serializers.Serializer):
     paid_at = serializers.DateTimeField(required=False)
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class GatewayPaymentInitiateSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+    currency = serializers.CharField(required=False, default="MGA", max_length=3)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class GatewayPaymentCallbackSerializer(serializers.Serializer):
+    transaction_reference = serializers.CharField(max_length=255)
+    status = serializers.ChoiceField(choices=("confirmed", "failed", "cancelled"))
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        required=False,
+    )
+
+    def validate(self, attrs):
+        if attrs["status"] == "confirmed" and "amount" not in attrs:
+            raise serializers.ValidationError(
+                {"amount": "Amount is required for confirmed callbacks."}
+            )
+        return attrs

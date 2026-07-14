@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
+from uuid import uuid4
 
 
 class PaymentGatewayError(ValueError):
@@ -68,8 +69,6 @@ class MockPaymentGatewayAdapter(PaymentGatewayAdapter):
     No external network calls. Suitable for CI and local development.
     """
 
-    _counter: int = 0
-
     @property
     def gateway_name(self) -> str:
         return "mock"
@@ -82,8 +81,7 @@ class MockPaymentGatewayAdapter(PaymentGatewayAdapter):
         description: str,
         **kwargs: Any,
     ) -> GatewayInitiateResult:
-        MockPaymentGatewayAdapter._counter += 1
-        ref = f"MOCK-{MockPaymentGatewayAdapter._counter:06d}"
+        ref = f"MOCK-{uuid4()}"
         return GatewayInitiateResult(
             transaction_reference=ref,
             status="pending",
@@ -97,16 +95,7 @@ class MockPaymentGatewayAdapter(PaymentGatewayAdapter):
         )
 
     def validate_callback(self, payload: dict[str, Any]) -> CallbackValidationResult:
-        ref = str(payload.get("transaction_reference", ""))
-        amount = payload.get("amount")
-        status = str(payload.get("status", "confirmed"))
-        return CallbackValidationResult(
-            valid=bool(ref),
-            transaction_reference=ref,
-            amount=Decimal(str(amount)) if amount is not None else None,
-            status=status,
-            raw_payload=payload,
-        )
+        return _validate_sandbox_callback_payload(payload)
 
 
 class MVolaGatewayAdapter(PaymentGatewayAdapter):
@@ -116,8 +105,6 @@ class MVolaGatewayAdapter(PaymentGatewayAdapter):
     - initiate returns a pending transaction reference
     - callbacks transition to confirmed/failed
     """
-
-    _counter: int = 0
 
     @property
     def gateway_name(self) -> str:
@@ -131,8 +118,7 @@ class MVolaGatewayAdapter(PaymentGatewayAdapter):
         description: str,
         **kwargs: Any,
     ) -> GatewayInitiateResult:
-        MVolaGatewayAdapter._counter += 1
-        ref = f"MVOLA-SANDBOX-{MVolaGatewayAdapter._counter:08d}"
+        ref = f"MVOLA-SANDBOX-{uuid4()}"
         return GatewayInitiateResult(
             transaction_reference=ref,
             status="pending",
@@ -151,16 +137,36 @@ class MVolaGatewayAdapter(PaymentGatewayAdapter):
         )
 
     def validate_callback(self, payload: dict[str, Any]) -> CallbackValidationResult:
-        ref = str(payload.get("transaction_reference", ""))
-        amount = payload.get("amount")
-        status = str(payload.get("status", "confirmed"))
-        return CallbackValidationResult(
-            valid=bool(ref) and status in {"confirmed", "failed", "cancelled"},
-            transaction_reference=ref,
-            amount=Decimal(str(amount)) if amount is not None else None,
-            status=status,
-            raw_payload=payload,
-        )
+        return _validate_sandbox_callback_payload(payload)
+
+
+def _validate_sandbox_callback_payload(
+    payload: dict[str, Any],
+) -> CallbackValidationResult:
+    reference_value = payload.get("transaction_reference")
+    reference = reference_value.strip() if isinstance(reference_value, str) else ""
+    status_value = payload.get("status")
+    callback_status = status_value.strip() if isinstance(status_value, str) else ""
+    amount_value = payload.get("amount")
+    amount: Decimal | None = None
+    amount_valid = amount_value is None
+    if amount_value is not None and not isinstance(amount_value, bool):
+        try:
+            amount = Decimal(str(amount_value))
+            amount_valid = amount.is_finite() and amount > Decimal("0.00")
+        except InvalidOperation, TypeError, ValueError:
+            amount_valid = False
+
+    valid_status = callback_status in {"confirmed", "failed", "cancelled"}
+    valid_reference = bool(reference) and len(reference) <= 255
+    confirmed_amount_valid = callback_status != "confirmed" or amount is not None
+    return CallbackValidationResult(
+        valid=(valid_reference and valid_status and amount_valid and confirmed_amount_valid),
+        transaction_reference=reference,
+        amount=amount,
+        status=callback_status,
+        raw_payload=payload,
+    )
 
 
 def get_payment_gateway_adapter(
@@ -187,6 +193,11 @@ def get_payment_gateway_adapter(
             ) from error
 
     name = gateway_name or getattr(settings, "PAYMENT_GATEWAY_NAME", "mock")
-    if name == "mvola":
+    if name in {"mvola", "mvola_sandbox"}:
         return MVolaGatewayAdapter()
-    return MockPaymentGatewayAdapter()
+    if name == "mock":
+        return MockPaymentGatewayAdapter()
+    raise PaymentGatewayError(
+        f"Unknown payment gateway: {name}",
+        code="gateway_unknown",
+    )
