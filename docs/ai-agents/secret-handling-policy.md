@@ -44,6 +44,10 @@ The scanner:
 - exempts only an explicit allowlist of synthetic test-password values and the exact
   `tough-cookie` dependency declaration, and ignores only the exact `<redacted>`
   placeholder while continuing to inspect every other match on the same line;
+- scans terminal logs for high-confidence token, key, private-key, bearer, HTTP cookie
+  header, and high-entropy generic-assignment signatures; weak generic assignment and
+  cookie heuristics remain limited to source files because recursive command output and
+  dependency paths are not reliable assignments;
 - excludes `.env` and `.env.*`;
 - never follows symbolic links while reading file content;
 - excludes common binary and certificate-like file suffixes from content reads;
