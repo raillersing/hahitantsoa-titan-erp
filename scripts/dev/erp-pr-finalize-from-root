@@ -32,7 +32,7 @@ Purpose:
   - requiring mergeable=MERGEABLE before merge
   - requiring required PR checks success before merge
   - validating PR changed files when an allowlist is provided
-  - merging with gh pr merge --squash and without --delete-branch
+  - merging with gh pr merge --squash --match-head-commit and without --delete-branch
   - syncing main with fetch plus pull --ff-only
   - waiting for the post-merge main CI run tied to the merged HEAD
   - removing the optional task worktree only after main CI succeeds
@@ -151,6 +151,7 @@ pr_url="$(gh pr view "$PR_REF" --json url --jq '.url')"
 pr_state="$(gh pr view "$PR_REF" --json state --jq '.state')"
 pr_mergeable="$(gh pr view "$PR_REF" --json mergeable --jq '.mergeable')"
 pr_head_branch="$(gh pr view "$PR_REF" --json headRefName --jq '.headRefName')"
+pr_head_sha="$(gh pr view "$PR_REF" --json headRefOid --jq '.headRefOid')"
 pr_base_branch="$(gh pr view "$PR_REF" --json baseRefName --jq '.baseRefName')"
 pr_title="$(gh pr view "$PR_REF" --json title --jq '.title')"
 
@@ -196,6 +197,11 @@ main_ci_url=""
 post_merge_head=""
 
 if [ "$pr_state" = "OPEN" ]; then
+  if [ -z "$pr_head_sha" ]; then
+    echo "ERROR: open PR #$pr_number did not expose a head commit SHA"
+    exit 1
+  fi
+
   if [ "$pr_mergeable" != "MERGEABLE" ]; then
     echo "ERROR: PR #$pr_number is not mergeable: $pr_mergeable"
     exit 1
@@ -236,7 +242,8 @@ if [ "$pr_state" = "OPEN" ]; then
 
   before_main_head="$(git rev-parse HEAD)"
 
-  gh pr merge "$pr_number" --squash
+  echo "INFO: Merging reviewed PR head SHA: $pr_head_sha"
+  gh pr merge "$pr_number" --squash --match-head-commit "$pr_head_sha"
 
   git fetch origin --prune
   git pull --ff-only origin main
@@ -354,6 +361,7 @@ git worktree prune
 echo "FINALIZED_PR: #$pr_number"
 echo "PR_TITLE: $pr_title"
 echo "PR_URL: $pr_url"
+echo "PR_HEAD_SHA: ${pr_head_sha:-unavailable-already-merged}"
 echo "MERGE_COMMIT: $merge_commit"
 echo "MAIN_CI_RUN_ID: $main_ci_run_id"
 echo "MAIN_CI_URL: ${main_ci_url:-unavailable}"
