@@ -76,6 +76,7 @@ Frontend roles:
 - [Prompt contracts](prompt-contracts/backend-orchestrator.md)
 - [Macro-goal backend completion plan](macro-goals/backend-completion-plan.md)
 - [Macro-goal frontend completion plan](macro-goals/frontend-completion-plan.md)
+- [Prototype-to-production roadmap](macro-goals/prototype-to-production-roadmap.md)
 - [Skill improvement loop](skill-improvement-loop.md)
 - [Application cartography](../architecture/application-map/README.md) — point d'entrée obligatoire avant toute tâche d'implémentation
 - [Graphify knowledge graph](tooling/graphify.md) — consultation order: cartography → Graphify → raw search
