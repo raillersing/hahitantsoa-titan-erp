@@ -7,6 +7,25 @@ from django.db import models
 from apps.common.models import AuditableModel, TimestampedModel, UUIDModel
 
 
+class LoginAttemptBucket(models.Model):
+    class Dimension(models.TextChoices):
+        ACCOUNT = "account", "Account"
+        ACCOUNT_PEER = "account_peer", "Account and transport peer"
+        TRANSPORT_PEER = "transport_peer", "Transport peer"
+
+    key = models.CharField(max_length=64, primary_key=True)
+    dimension = models.CharField(max_length=16, choices=Dimension.choices)
+    attempt_count = models.PositiveIntegerField(default=0)
+    window_started_at = models.DateTimeField()
+    expires_at = models.DateTimeField(db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["key"]
+        verbose_name = "Login attempt bucket"
+        verbose_name_plural = "Login attempt buckets"
+
+
 class ApplicationRole(UUIDModel, TimestampedModel, AuditableModel):
     name = models.CharField(max_length=64, unique=True)
     slug = models.SlugField(max_length=64, unique=True)

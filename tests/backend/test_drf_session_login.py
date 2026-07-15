@@ -4,14 +4,17 @@ from apps.inventory.models import InventoryItem
 
 
 @pytest.mark.django_db
-def test_drf_session_login_page_is_available(client) -> None:
+def test_drf_session_login_page_remains_available_during_frontend_transition(client) -> None:
     response = client.get("/api-auth/login/")
 
     assert response.status_code == 200
 
 
 @pytest.mark.django_db
-def test_drf_session_logout_post_logs_out_user(client, django_user_model) -> None:
+def test_drf_session_logout_post_remains_available_during_frontend_transition(
+    client,
+    django_user_model,
+) -> None:
     user = django_user_model.objects.create_user(
         username="session-reader",
         password="test-password",
