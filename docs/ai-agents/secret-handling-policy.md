@@ -33,11 +33,19 @@ Use:
 scripts/dev/erp-secret-scan-local --help
 scripts/dev/erp-secret-scan-local
 scripts/dev/erp-secret-scan-local --paths-only
+scripts/dev/erp-secret-scan-local --all
 ```
 
 The scanner:
 
+- scans branch commits, staged changes, unstaged changes, and untracked candidate files
+  by default, so pre-existing findings outside the task do not block an unrelated PR;
+- scans every eligible repository file only when `--all` is explicitly requested;
+- exempts only an explicit allowlist of synthetic test-password values and the exact
+  `tough-cookie` dependency declaration, and ignores only the exact `<redacted>`
+  placeholder while continuing to inspect every other match on the same line;
 - excludes `.env` and `.env.*`;
+- never follows symbolic links while reading file content;
 - excludes common binary and certificate-like file suffixes from content reads;
 - reports only file, line, pattern label, and redacted snippet;
 - never prints the full matched value.
