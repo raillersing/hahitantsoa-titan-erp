@@ -272,6 +272,12 @@ if [ "$PR_STATE" = "OPEN" ]; then
     exit 1
   fi
 
+  POLICY_STATUS="$(gh_retry gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "CI policy gate") | .conclusion' 2>/dev/null || true)"
+  if [ "$POLICY_STATUS" != "SUCCESS" ]; then
+    echo "ERROR: CI policy gate must be SUCCESS, got: '$POLICY_STATUS'"
+    exit 1
+  fi
+
   echo "OK: All CI checks completed with success."
 else
   echo "INFO: PR #$PR_NUMBER is already MERGED. Skipping mergeability and PR-CI merge gating, and continuing with main CI verification plus cleanup."

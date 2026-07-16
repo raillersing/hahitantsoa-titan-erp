@@ -26,6 +26,7 @@ Never remove a dirty worktree without an explicit stop and human confirmation.
 | `/home/raillersing/projects/hahitantsoa-titan-erp-backend` | backend | `feat/f135b-*` and later backend task branches | `backend/`, `tests/backend/`, backend audits | persistent |
 | `/home/raillersing/projects/hahitantsoa-titan-erp-frontend` | frontend | detached or future `feat/f137*` frontend branches | `frontend/`, frontend audits | persistent |
 | `/home/raillersing/projects/hahitantsoa-titan-erp-agent-tools` | agent-tools | `chore/f138-agent-ready-*` | `scripts/dev/`, `compose.agent-ci.yaml`, F138 tools audit files | persistent |
+| temporary dedicated CI worktree | agent-ci | `agent-ci/*` | `.github/workflows/ci.yml`, exact CI/finalization helpers, and directly related agent-governance docs | temporary |
 | `/home/raillersing/projects/hahitantsoa-titan-erp-agent-docs` | agent-docs | `docs/f138-*` docs branches | `docs/ai-agents/`, docs audits, minimal approved agent doc links | persistent |
 | `/home/raillersing/projects/hahitantsoa-titan-erp-agent-lifecycle` | agent-lifecycle | `chore/f138f-*` | lifecycle scripts and lifecycle/recovery docs only | persistent |
 | `/home/raillersing/projects/hahitantsoa-titan-erp-agent-security` | agent-security | `chore/f138g-*` | security hygiene docs or approved workflow files only | persistent |

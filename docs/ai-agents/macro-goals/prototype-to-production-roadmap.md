@@ -52,8 +52,8 @@ authorization control, and a successful mock notification is not persistence evi
 ## Current program checkpoint
 
 Checkpoint date: 2026-07-16. Current verified baseline:
-`de746e29e907759acb36accf98ddd625669d542a`, with exact-SHA `main` CI success in run
-`29488633090`.
+`a96ea1f3edd174cd9d03e0c594aee62e65247057`, with exact-SHA `main` CI success in run
+`29491225953`.
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
@@ -62,6 +62,9 @@ Checkpoint date: 2026-07-16. Current verified baseline:
 | Phase 1B backend session/CSRF | Completed and integrated | PR `#460`, merged `main` SHA `3ba2b669b728f34c6f3dda5b1cf129aff1431d8d`, exact-SHA CI run `29443962863` green. |
 | Phase 1 frontend connection through multi-role acceptance | Pending | `checkAuth` bypass and approved-UI integration must be reverified on the implementation baseline. |
 | Codex skills reassessment and deduplication | Completed and integrated | PR `#461`, merged `main` SHA `de746e29e907759acb36accf98ddd625669d542a`, exact-SHA CI run `29488633090` green. |
+| Graphify/Ponytail durable-memory policy | Completed and integrated | PR `#462`, merged `main` SHA `31262c948e412343e74c8ee505f12c519607c4b0`, exact-SHA CI run `29489955113` green. |
+| Proportional local-test matrix | Completed and integrated | PR `#463`, merged `main` SHA `a96ea1f3edd174cd9d03e0c594aee62e65247057`, exact-SHA CI run `29491225953` green. |
+| Path/risk-aware CI and Graphify gate hardening | In progress | Dedicated `agent-ci` lot; completion requires focused policy tests, independent review, green PR CI, merge, and exact-SHA `main` CI. |
 | Phases 2–12 | Planned, not started by this roadmap | No phase may be inferred complete from historical panels or backend endpoints alone. |
 
 The current phase is **Phase 1**. Phase 2 must not start until all Phase 1 exit gates are
@@ -339,8 +342,7 @@ a second roadmap or infer completion from an unmerged worktree.
 
 ## Remaining sequence at this checkpoint
 
-1. formalize proportional local-test selection, then implement path/risk-aware CI and
-   harden the Graphify invocation helper without weakening security-critical gates;
+1. finish and prove path/risk-aware CI plus the hardened Graphify invocation gate;
 2. complete `1B-FE`, `1C`, `1D`, `1E-BE`, `1E-FE`, and `1F`;
 3. execute Phases 2 through 12 in order, split into the bounded bundles above.
 
@@ -348,5 +350,5 @@ The skills reassessment completed in PR `#461`; it is a governance improvement, 
 substitute for any product phase.
 
 The proportional test policy is defined in `docs/ai-agents/pr-quality-gates.md`. Its CI
-enforcement remains pending until the path/risk-aware `agent-tools` lot is merged and
+enforcement remains pending until the path/risk-aware `agent-ci` lot is merged and
 proven on representative documentation, frontend, backend, and high-risk changes.

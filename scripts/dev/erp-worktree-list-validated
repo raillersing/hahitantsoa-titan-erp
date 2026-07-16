@@ -48,6 +48,7 @@ infer_profile() {
     */hahitantsoa-titan-erp-backend) echo "backend" ;;
     */hahitantsoa-titan-erp-frontend) echo "frontend" ;;
     */hahitantsoa-titan-erp-agent-tools) echo "agent-tools" ;;
+    */hahitantsoa-titan-erp-ci-policy) echo "agent-ci" ;;
     */hahitantsoa-titan-erp-agent-docs) echo "agent-docs" ;;
     */hahitantsoa-titan-erp-agent-lifecycle) echo "agent-lifecycle" ;;
     */hahitantsoa-titan-erp-agent-prompts) echo "agent-prompts" ;;
@@ -59,6 +60,7 @@ infer_profile() {
         refs/heads/feat/f135b-*) echo "backend" ;;
         refs/heads/feat/f137*) echo "frontend" ;;
         refs/heads/chore/f138-agent-ready-*) echo "agent-tools" ;;
+        refs/heads/agent-ci/*) echo "agent-ci" ;;
         refs/heads/docs/f138-agent-*) echo "agent-docs" ;;
         refs/heads/chore/f138f-*) echo "agent-lifecycle" ;;
         refs/heads/chore/f138g-*) echo "agent-security" ;;
@@ -76,6 +78,9 @@ infer_persistence() {
   case "$profile" in
     main-root|backend|frontend|agent-tools|agent-docs|agent-lifecycle|agent-prompts|agent-security)
       echo "persistent"
+      ;;
+    agent-ci)
+      echo "temporary-or-review"
       ;;
     forbidden-openclaw)
       echo "forbidden"

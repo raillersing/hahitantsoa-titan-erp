@@ -82,6 +82,9 @@ One agent equals one worktree equals one branch equals one non-overlapping scope
   audits only.
 - `agent-tools` agent: agent-tools worktree, one agent-tools branch,
   `scripts/dev/`, `compose.agent-ci.yaml`, and F138 agent-tools audit files only.
+- `agent-ci` agent: dedicated CI worktree, one agent-ci branch, the canonical
+  `.github/workflows/ci.yml`, exact CI/finalization helpers under `scripts/dev/`, and
+  directly related agent-governance documents only.
 - `agent-docs` agent: agent-docs worktree, one docs branch, `docs/ai-agents/` and docs
   audits only.
 - future `business-rules` agent: business-documentation worktree, one docs branch,

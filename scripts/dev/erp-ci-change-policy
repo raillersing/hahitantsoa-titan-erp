@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-ci-change-policy --range <pr|push> <base-sha> <head-sha>
+  scripts/dev/erp-ci-change-policy --files-from <path|->
+
+Classify changed paths for CI. Unknown and CI/tooling-critical paths fail closed by
+requiring both application stacks. When GITHUB_OUTPUT is set, outputs are appended
+for GitHub Actions.
+USAGE
+}
+
+changed_files=""
+case "${1:-}" in
+  --range)
+    [ "$#" -eq 4 ] || { usage; exit 2; }
+    mode="$2"
+    base_sha="$3"
+    head_sha="$4"
+    case "$mode" in pr|push) ;; *) usage; exit 2 ;; esac
+    if [[ "$base_sha" =~ ^0+$ ]] || ! git cat-file -e "$base_sha^{commit}" 2>/dev/null || ! git cat-file -e "$head_sha^{commit}" 2>/dev/null; then
+      changed_files="__CI_INVALID_RANGE__"
+    elif [ "$mode" = pr ]; then
+      changed_files="$(git diff --name-only --diff-filter=ACDMRTUXB "$base_sha...$head_sha")"
+    else
+      changed_files="$(git diff --name-only --diff-filter=ACDMRTUXB "$base_sha" "$head_sha")"
+    fi
+    ;;
+  --files-from)
+    [ "$#" -eq 2 ] || { usage; exit 2; }
+    if [ "$2" = "-" ]; then
+      changed_files="$(cat)"
+    else
+      changed_files="$(cat -- "$2")"
+    fi
+    ;;
+  help|--help|-h)
+    usage
+    exit 0
+    ;;
+  *) usage; exit 2 ;;
+esac
+
+backend=false
+frontend=false
+level=L0
+reasons=""
+
+add_reason() {
+  if [ -z "$reasons" ]; then reasons="$1"; else reasons="$reasons,$1"; fi
+}
+
+require_backend() {
+  backend=true
+  if [ "$frontend" = true ]; then level=L4; elif [ "$level" = L0 ]; then level=L3; fi
+}
+require_frontend() {
+  frontend=true
+  if [ "$backend" = true ]; then level=L4; elif [ "$level" = L0 ]; then level=L3; fi
+}
+require_both() { backend=true; frontend=true; level=L4; }
+
+if [ -z "$changed_files" ]; then
+  require_both
+  add_reason "empty-diff-fail-closed"
+fi
+
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  case "$path" in
+    __CI_INVALID_RANGE__)
+      require_both; add_reason "invalid-range-fail-closed" ;;
+    backend/identity/*|backend/config/*|backend/*/migrations/*|backend/*/api.py|backend/*/urls.py|backend/*/serializers.py)
+      require_both; add_reason "backend-contract-or-trust-boundary" ;;
+    backend/*|tests/backend/*)
+      require_backend; add_reason "backend" ;;
+    frontend/src/*auth*|frontend/src/*Auth*|frontend/src/*api*|frontend/src/*Api*)
+      require_both; add_reason "frontend-contract-or-auth" ;;
+    frontend/*)
+      require_frontend; add_reason "frontend" ;;
+    pyproject.toml|requirements*.txt)
+      require_backend; add_reason "backend-dependency" ;;
+    frontend/package.json|frontend/package-lock.json|frontend/vite.config.*|frontend/tsconfig*.json)
+      require_frontend; add_reason "frontend-toolchain" ;;
+    .github/workflows/*|scripts/ci/*|compose.agent-ci.yaml|scripts/dev/erp-backend-*|scripts/dev/erp-frontend-*|scripts/dev/erp-ci-*|scripts/dev/erp-agent-scope-guard|scripts/dev/erp-worktree-preflight|scripts/dev/erp-pr-*-finalize|scripts/dev/erp-pr-finalize-from-root)
+      require_both; add_reason "ci-or-test-infrastructure" ;;
+    docs/*|.agents/skills/*|AGENTS.md|CLAUDE.md|.github/copilot-instructions.md|*.md|scripts/dev/erp-graphify-update|.gitignore)
+      add_reason "governance-or-docs" ;;
+    *)
+      require_both; add_reason "unknown-path-fail-closed" ;;
+  esac
+done <<< "$changed_files"
+
+reason="$(printf '%s' "$reasons" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)"
+
+printf 'backend=%s\nfrontend=%s\nlevel=%s\nreason=%s\n' "$backend" "$frontend" "$level" "$reason"
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  printf 'backend=%s\nfrontend=%s\nlevel=%s\nreason=%s\n' "$backend" "$frontend" "$level" "$reason" >> "$GITHUB_OUTPUT"
+fi

@@ -40,11 +40,10 @@ distributed on PyPI as `graphifyy`.
 - Record the consulted map, Graphify build SHA and targeted entities/paths in the lot
   report. Do not claim that reading the whole report is required.
 
-The current `erp-graphify-update` wrapper is only an invocation helper: it does not yet
-enforce root-worktree location, `main`, cleanliness, target containment, or mutual
-exclusion. Until the planned `agent-tools` hardening lands, the orchestrator must prove
-those preconditions explicitly and stop if another Graphify update is running. Do not
-describe the helper as a safety gate.
+The `erp-graphify-update` wrapper is the safety gate for generation. It requires the
+canonical root worktree on clean `main`, equality with `origin/main`, a repository-root
+target, Graphify availability, and a shared nonblocking `flock`. Agents still consume
+the graph read-only from task worktrees; only the orchestrator runs generation.
 
 ## How Graphify Works
 

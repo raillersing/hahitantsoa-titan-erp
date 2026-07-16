@@ -144,15 +144,13 @@ echo "Head: \$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')"
 echo "Mergeable: \$(gh pr view "$PR_NUMBER" --json mergeable --jq '.mergeable')"
 
 echo "==== CI CHECKS ===="
-BE_STATUS=\$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select((.name // .context) == "Backend quality") | .conclusion' 2>/dev/null || echo "")
-FE_STATUS=\$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select((.name // .context) == "Frontend quality") | .conclusion' 2>/dev/null || echo "")
+POLICY_STATUS=\$(gh pr view "$PR_NUMBER" --json statusCheckRollup --jq '.statusCheckRollup[] | select((.name // .context) == "CI policy gate") | .conclusion' 2>/dev/null || echo "")
 
-echo "Backend quality: \$BE_STATUS"
-echo "Frontend quality: \$FE_STATUS"
+echo "CI policy gate: \$POLICY_STATUS"
 
-if [ "\$BE_STATUS" = "SUCCESS" ] && [ "\$FE_STATUS" = "SUCCESS" ]; then
+if [ "\$POLICY_STATUS" = "SUCCESS" ]; then
   echo "Classification: PASS"
-elif [ "\$BE_STATUS" = "FAILURE" ] || [ "\$FE_STATUS" = "FAILURE" ]; then
+elif [ "\$POLICY_STATUS" = "FAILURE" ]; then
   echo "Classification: FAIL"
 else
   echo "Classification: PENDING"
