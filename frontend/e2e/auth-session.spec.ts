@@ -17,6 +17,19 @@ test("protège un deep-link, restaure la session et déconnecte réellement", as
   await page.reload();
   await expect(page.getByRole("heading", { name: "Documents & Modèles" })).toBeVisible();
 
+  await page.getByRole("link", { name: /Titan/ }).click();
+  await expect(page.getByRole("heading", { name: "Titan", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Planning/ }).first().click();
+  await expect(page.getByRole("heading", { name: "Planning", exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Titan", exact: true })).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: "Planning", exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Titan", exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Documents & Modèles" })).toBeVisible();
+
   await page.getByRole("button", { name: "Menu utilisateur" }).click();
   await page.getByRole("button", { name: "Déconnexion" }).click();
   await expect(page.getByRole("heading", { name: "Connexion opérateur" })).toBeVisible();
