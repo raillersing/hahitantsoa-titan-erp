@@ -10,6 +10,7 @@ import {
   checkAuth,
   login,
   logout,
+  SESSION_REVALIDATION_EVENT,
 } from "./api";
 import type { ApplicationRole, UserRoleAssignment } from "./types";
 
@@ -92,6 +93,18 @@ describe("session authentication", () => {
     expect(fetchSpy.mock.calls[0][0]).toBe("/api/v1/auth/logout/");
     expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ method: "POST", credentials: "include" }));
     await expect(logout()).rejects.toThrow("CSRF verification failed.");
+  });
+
+  it.each([401, 403])("requests session revalidation after HTTP %s", async (status) => {
+    const listener = vi.fn();
+    window.addEventListener(SESSION_REVALIDATION_EVENT, listener);
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse({ detail: "Denied" }, status, false),
+    );
+
+    await expect(getRoles()).rejects.toThrow("Denied");
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener(SESSION_REVALIDATION_EVENT, listener);
   });
 });
 

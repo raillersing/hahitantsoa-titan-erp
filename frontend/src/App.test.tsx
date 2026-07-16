@@ -12,6 +12,7 @@ const authMock = vi.hoisted(() => ({
       error: null,
     } as any,
     isSubmitting: false,
+    isOnline: true,
     refreshSession: vi.fn(),
     login: vi.fn(),
     logout: vi.fn(),
@@ -83,6 +84,14 @@ describe("App Prototype", () => {
     render(<ThemeProvider><App /></ThemeProvider>);
     expect(screen.getByRole("heading", { name: "Connexion opérateur" })).toBeInTheDocument();
     expect(screen.queryByText("Documents & Modèles")).not.toBeInTheDocument();
+  });
+
+  it("shows the read-only backend profile", () => {
+    window.history.replaceState(null, "", "/#profile");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Profil utilisateur", level: 1 })).toBeInTheDocument();
+    expect(screen.getAllByText("Ada Operator")).toHaveLength(2);
+    expect(screen.getByText("commercial")).toBeInTheDocument();
   });
 
   it("does not call /api/v1/inventory/items on dashboard", () => {

@@ -10,8 +10,9 @@ interface AppShellProps {
   onNavigate: (scope: any, param?: string) => void;
   returnContext?: { from: string; param?: string } | null;
   user?: SessionUser;
+  isOnline?: boolean;
   isLoggingOut?: boolean;
-  logoutError?: string | null;
+  sessionError?: string | null;
   onLogout?: () => Promise<void>;
   children: React.ReactNode;
 }
@@ -53,6 +54,7 @@ const brandScopeByAppScope = {
   notifications: "ergon",
   admin: "ergon",
   "mobile-tablet": "ergon",
+  profile: "ergon",
 } satisfies Record<StaticAppScope, BrandScope>;
 
 export function resolveBrandScope(activeScope: AppScope, activeParam?: string): BrandScope {
@@ -83,8 +85,9 @@ export default function AppShell({
   onNavigate,
   returnContext,
   user,
+  isOnline = true,
   isLoggingOut = false,
-  logoutError = null,
+  sessionError = null,
   onLogout,
   children,
 }: AppShellProps) {
@@ -103,6 +106,7 @@ export default function AppShell({
     reports: "Reporting",
     help: "Aide & Onboarding",
     "reservation-new": "Nouvelle réservation",
+    profile: "Profil utilisateur",
   };
 
   const [darkMode, setDarkMode] = React.useState(() => {
@@ -445,15 +449,15 @@ export default function AppShell({
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">{displayName}</p>
-              <p className="text-xs text-slate-500 truncate">{roleLabel} · En ligne</p>
+              <p className="text-xs text-slate-500 truncate">{roleLabel} · {isOnline ? "En ligne" : "Hors ligne"}</p>
             </div>
           </button>
 
           {isUserMenuOpen && (
             <div className="absolute bottom-full mb-2 left-4 right-4 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 z-50">
-              <a href="#profile" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Profil utilisateur</a>
-              <a href="#preferences" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Préférences</a>
-              <a href="#support" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Aide / support</a>
+              <a href="#profile" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); onNavigate("profile"); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Profil utilisateur</a>
+              <button type="button" disabled className="block w-full cursor-not-allowed px-4 py-2 text-left text-sm text-slate-500" title="Disponible dans un prochain lot">Préférences</button>
+              <a href="#help" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); onNavigate("help"); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Aide / support</a>
               <div className="my-1 border-t border-slate-700"></div>
               <button
                 type="button"
@@ -468,9 +472,9 @@ export default function AppShell({
               </button>
             </div>
           )}
-          {logoutError ? (
+          {sessionError ? (
             <p className="mt-2 rounded bg-red-950/60 px-3 py-2 text-xs text-red-200" role="alert">
-              {logoutError}
+              {sessionError}
             </p>
           ) : null}
         </div>
