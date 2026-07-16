@@ -43,6 +43,7 @@ const mixedErgonScopes: AppScope[] = [
   'purchasing',
   'notifications',
   'mobile-tablet',
+  'profile',
 ];
 
 describe('AppShell', () => {
@@ -154,7 +155,7 @@ describe('AppShell', () => {
 
     // Vérifie les éléments du menu
     expect(screen.getByRole('link', { name: /Profil utilisateur/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Préférences/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Préférences/i })).toBeDisabled();
     expect(screen.getByRole('link', { name: /Aide \/ support/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Déconnexion/i })).toBeInTheDocument();
     
@@ -164,12 +165,25 @@ describe('AppShell', () => {
     expect(mockNavigate).not.toHaveBeenCalledWith('login');
   });
 
+  it("8a. ouvre le profil réel et branche l'aide existante", () => {
+    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+    const userMenuButton = screen.getByRole("button", { name: "Menu utilisateur" });
+
+    fireEvent.click(userMenuButton);
+    fireEvent.click(screen.getByRole("link", { name: "Profil utilisateur" }));
+    expect(mockNavigate).toHaveBeenCalledWith("profile");
+
+    fireEvent.click(userMenuButton);
+    fireEvent.click(screen.getByRole("link", { name: "Aide / support" }));
+    expect(mockNavigate).toHaveBeenCalledWith("help");
+  });
+
   it("8b. affiche une erreur de déconnexion persistante et l'identité backend", () => {
     render(
       <AppShell
         activeScope="dashboard"
         onNavigate={mockNavigate}
-        logoutError="Déconnexion refusée"
+        sessionError="Déconnexion refusée"
         user={{ id: "1", username: "ada", display_name: "Ada Operator", is_staff: false, roles: ["commercial"] }}
       >
         <div>Content</div>

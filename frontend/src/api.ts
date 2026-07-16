@@ -79,6 +79,14 @@ export class ApiError extends Error {
   }
 }
 
+export const SESSION_REVALIDATION_EVENT = "erp:session-revalidation-required";
+
+function requestSessionRevalidation(status: number): void {
+  if ((status === 401 || status === 403) && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(SESSION_REVALIDATION_EVENT, { detail: { status } }));
+  }
+}
+
 async function parseErrorResponse(
   response: Response,
 ): Promise<{ message: string; errors: Record<string, string[]> }> {
@@ -116,6 +124,7 @@ async function parseErrorResponse(
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    requestSessionRevalidation(response.status);
     const parsed = await parseErrorResponse(response);
     throw new ApiError(parsed.message, response.status, parsed.errors);
   }

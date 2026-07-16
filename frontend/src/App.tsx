@@ -33,6 +33,7 @@ import VenuesPage from "./prototype/VenuesPage";
 import AdminPage from "./prototype/AdminPage";
 import DocumentsPage from "./prototype/DocumentsPage";
 import AgendaVisitorsPage from "./prototype/AgendaVisitorsPage";
+import ProfilePage from "./prototype/ProfilePage";
 
 export type AppScope =
   | "dashboard"
@@ -70,7 +71,8 @@ export type AppScope =
   | "purchasing"
   | "notifications"
   | "admin"
-  | "mobile-tablet";
+  | "mobile-tablet"
+  | "profile";
 
 function parseHash(hash: string): { scope: AppScope; param?: string } {
   const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
@@ -114,7 +116,8 @@ function parseHash(hash: string): { scope: AppScope; param?: string } {
     "purchasing",
     "notifications",
     "admin",
-    "mobile-tablet"
+    "mobile-tablet",
+    "profile"
   ];
 
   const scope = validScopes.includes(rawScope as AppScope) ? (rawScope as AppScope) : "dashboard";
@@ -127,7 +130,7 @@ function writeScopeHash(scope: AppScope, param?: string) {
 }
 
 function App() {
-  const { state, isSubmitting, refreshSession, logout } = useAuth();
+  const { state, isSubmitting, isOnline, refreshSession, logout } = useAuth();
   const initialHash = parseHash(window.location.hash);
   const [activeScope, setActiveScope] = useState<AppScope>(initialHash.scope);
   const [activeParam, setActiveParam] = useState<string | undefined>(initialHash.param);
@@ -212,8 +215,9 @@ function App() {
       onNavigate={navigate}
       returnContext={returnContext}
       user={state.user}
+      isOnline={isOnline}
       isLoggingOut={isSubmitting}
-      logoutError={state.error}
+      sessionError={state.error}
       onLogout={logout}
     >
       {activeScope === "dashboard" && <DashboardPage onNavigate={navigate} />}
@@ -246,6 +250,7 @@ function App() {
       {activeScope === "admin" && <AdminPage onNavigate={navigate} />}
       {activeScope === "documents" && <DocumentsPage onNavigate={navigate} />}
       {activeScope === "agenda-visitors" && <AgendaVisitorsPage onNavigate={navigate} />}
+      {activeScope === "profile" && <ProfilePage user={state.user} />}
       {activeScope !== "dashboard" &&
         activeScope !== "planning" &&
         activeScope !== "hahitantsoa" &&
@@ -274,7 +279,8 @@ function App() {
         activeScope !== "venues" &&
         activeScope !== "admin" &&
         activeScope !== "documents" &&
-        activeScope !== "agenda-visitors" && (
+        activeScope !== "agenda-visitors" &&
+        activeScope !== "profile" && (
           <PlaceholderPage title={(activeScope as string).toUpperCase()} scope={activeScope} onNavigate={navigate} />
       )}
     </AppShell>

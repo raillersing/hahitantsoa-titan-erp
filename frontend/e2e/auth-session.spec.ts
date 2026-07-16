@@ -35,3 +35,20 @@ test("le formulaire de connexion reste contenu à 320 px", async ({ page }) => {
   }));
   expect(widths.scrollWidth).toBeLessThanOrEqual(widths.clientWidth);
 });
+
+test("affiche le profil backend et demande une reconnexion après expiration", async ({ page, context }) => {
+  await page.goto("/#profile");
+  await page.getByRole("textbox", { name: "Nom d’utilisateur" }).fill(username);
+  await page.getByLabel("Mot de passe").fill(password);
+  await page.getByRole("button", { name: "Se connecter" }).click();
+
+  await expect(page.getByRole("heading", { name: "Profil utilisateur", level: 1 })).toBeVisible();
+  await expect(page.getByText(username, { exact: true })).toHaveCount(3);
+
+  await context.clearCookies();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("erp:session-revalidation-required")));
+
+  await expect(page.getByRole("heading", { name: "Connexion opérateur" })).toBeVisible();
+  await expect(page.getByText(/Votre session a expiré/)).toBeVisible();
+  await expect(page).toHaveURL(/#profile$/);
+});

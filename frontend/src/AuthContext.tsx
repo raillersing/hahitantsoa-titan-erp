@@ -1,9 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
   checkAuth,
   login as apiLogin,
   logout as apiLogout,
+  SESSION_REVALIDATION_EVENT,
   type SessionStateResponse,
   type SessionUser,
 } from "./api";
@@ -17,12 +18,14 @@ export type AuthState =
 export type AuthContextValue = {
   state: AuthState;
   isSubmitting: boolean;
+  isOnline: boolean;
   refreshSession: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const SESSION_REVALIDATION_TIMEOUT_MS = 10_000;
 
 function stateFromSession(session: SessionStateResponse): AuthState {
   return session.authenticated
@@ -31,41 +34,118 @@ function stateFromSession(session: SessionStateResponse): AuthState {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null && "name" in error && error.name === "AbortError") {
+    return "La vérification de la session a expiré. Vérifiez votre connexion puis réessayez.";
+  }
   return error instanceof Error ? error.message : fallback;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const stateRef = useRef(state);
+  const revalidationRef = useRef<Promise<void> | null>(null);
+
+  const commitState = useCallback((nextState: AuthState) => {
+    stateRef.current = nextState;
+    setState(nextState);
+  }, []);
+
+  const revalidateSession = useCallback((sessionExpiredMessage = false) => {
+    if (revalidationRef.current) return revalidationRef.current;
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), SESSION_REVALIDATION_TIMEOUT_MS);
+    const request = checkAuth(controller.signal)
+      .then((session) => {
+        commitState(
+          session.authenticated
+            ? stateFromSession(session)
+            : {
+                status: "unauthenticated",
+                error: sessionExpiredMessage
+                  ? "Votre session a expiré. Reconnectez-vous pour continuer."
+                  : null,
+              },
+        );
+      })
+      .catch((error) => {
+        const currentState = stateRef.current;
+        const message = errorMessage(error, "La session n'a pas pu être vérifiée.");
+        commitState(
+          currentState.status === "authenticated"
+            ? { ...currentState, error: message }
+            : { status: "error", error: message },
+        );
+        throw error;
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+        revalidationRef.current = null;
+      });
+
+    revalidationRef.current = request;
+    return request;
+  }, [commitState]);
 
   const refreshSession = useCallback(async () => {
-    setState({ status: "loading" });
+    commitState({ status: "loading" });
     try {
-      setState(stateFromSession(await checkAuth()));
+      await revalidateSession();
     } catch (error) {
-      setState({
+      commitState({
         status: "error",
         error: errorMessage(error, "La session n'a pas pu être vérifiée."),
       });
       throw error;
     }
-  }, []);
+  }, [commitState, revalidateSession]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    void revalidateSession().catch(() => undefined);
+  }, [revalidateSession]);
 
-    checkAuth(controller.signal)
-      .then((session) => setState(stateFromSession(session)))
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        setState({
-          status: "error",
-          error: errorMessage(error, "La session n'a pas pu être vérifiée."),
-        });
-      });
+  useEffect(() => {
+    const handleOffline = () => {
+      setIsOnline(false);
+      const currentState = stateRef.current;
+      const message = "Vous êtes hors ligne. La session sera vérifiée au retour du réseau.";
+      commitState(
+        currentState.status === "authenticated"
+          ? { ...currentState, error: message }
+          : { status: "error", error: message },
+      );
+    };
+    const handleOnline = () => {
+      setIsOnline(true);
+      void revalidateSession().catch(() => undefined);
+    };
+    const handleFocus = () => {
+      if (navigator.onLine) void revalidateSession().catch(() => undefined);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") handleFocus();
+    };
+    const handleSessionRevalidation = () => {
+      if (stateRef.current.status === "authenticated") {
+        void revalidateSession(true).catch(() => undefined);
+      }
+    };
 
-    return () => controller.abort();
-  }, []);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener(SESSION_REVALIDATION_EVENT, handleSessionRevalidation);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(SESSION_REVALIDATION_EVENT, handleSessionRevalidation);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [commitState, revalidateSession]);
 
   const login = useCallback(async (username: string, password: string) => {
     setIsSubmitting(true);
@@ -74,9 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!session.authenticated) {
         throw new Error("Le serveur n'a pas ouvert de session authentifiée.");
       }
-      setState(stateFromSession(session));
+      commitState(stateFromSession(session));
     } catch (error) {
-      setState({
+      commitState({
         status: "unauthenticated",
         error: errorMessage(error, "La connexion a échoué."),
       });
@@ -84,21 +164,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, []);
+  }, [commitState]);
 
   const logout = useCallback(async () => {
     if (state.status !== "authenticated") return;
 
     const currentUser = state.user;
     setIsSubmitting(true);
-    setState({ status: "authenticated", user: currentUser, error: null });
+    commitState({ status: "authenticated", user: currentUser, error: null });
     try {
       await apiLogout();
-      setState({ status: "unauthenticated", error: null });
+      commitState({ status: "unauthenticated", error: null });
     } catch (error) {
       try {
         const session = await checkAuth();
-        setState(
+        commitState(
           session.authenticated
             ? {
                 status: "authenticated",
@@ -108,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             : stateFromSession(session),
         );
       } catch {
-        setState({
+        commitState({
           status: "authenticated",
           user: currentUser,
           error: errorMessage(error, "La déconnexion n'a pas pu être confirmée."),
@@ -118,10 +198,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [state]);
+  }, [commitState, state]);
 
   return (
-    <AuthContext.Provider value={{ state, isSubmitting, refreshSession, login, logout }}>
+    <AuthContext.Provider value={{ state, isSubmitting, isOnline, refreshSession, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
