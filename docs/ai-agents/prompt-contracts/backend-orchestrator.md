@@ -78,8 +78,11 @@ Every backend task prompt must start with a short Backend Skill Plan:
 3. Validation plan
 
    - focused loop: `scripts/dev/erp-backend-fast ...`
-   - migration-sensitive check: `scripts/dev/erp-backend-migration-guard`
-   - final backend gate: `scripts/dev/erp-backend-ci`
+   - selected `L0`–`L4` level from `pr-quality-gates.md`
+   - migration-sensitive check only when applicable: `scripts/dev/erp-backend-migration-guard`
+   - explicit Django check for backend runtime changes
+   - complete backend gate without pytest targets only for `L3`, `L4`, or a mandatory
+     risk override: `scripts/dev/erp-backend-ci`
 
 4. Hard stops
 

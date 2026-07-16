@@ -217,20 +217,20 @@ scripts/dev/erp-backend-compose-ci run --rm backend python -m ruff check backend
 EOF
 ```
 
-When `backend/` or `tests/backend/` changes, focused pytest alone is not enough before
-push. Run backend quality gates or, at minimum:
+When `backend/` or `tests/backend/` changes, select the level in the proportional matrix
+in `pr-quality-gates.md`. Focused pytest plus touched-scope Ruff is sufficient for an
+`L1` local loop; widen for subsystem impact or a mandatory risk override:
 
 ```sh
 scripts/dev/erp-logged-run backend-focused-quality <<'EOF'
 set -euo pipefail
 
-scripts/dev/erp-backend-compose-ci run --rm backend python -m ruff check backend tests
+scripts/dev/erp-backend-compose-ci run --rm backend python -m ruff check backend/apps/changed_app tests/backend/changed_test.py
 scripts/dev/erp-backend-compose-ci run --rm backend python -m pytest tests/backend/path_or_module.py -q
 EOF
 ```
 
-If Ruff is skipped locally, expect PR CI to catch style/import violations and stop the
-bundle.
+Do not deliberately defer predictable touched-scope Ruff failures to PR CI.
 
 ```sh
 scripts/dev/erp-logged-run backend-compose-down <<'EOF'
@@ -248,7 +248,8 @@ must be treated as pending repository capability.
 Backend validation now uses three wrappers:
 
 - `scripts/dev/erp-backend-fast` for focused slice validation
-- `scripts/dev/erp-backend-ci` for pre-push / pre-PR backend quality
+- `scripts/dev/erp-backend-ci` for `L3` full-backend local quality or an explicit full
+  affected-stack gate
 - `scripts/dev/erp-backend-migration-guard` for migration-sensitive tasks
 
 ## Backend Productivity Report
@@ -267,7 +268,7 @@ Include:
 - local validation commands run
 - focused validation result
 - migration guard result, if applicable
-- full backend CI wrapper result
+- selected validation level and full backend wrapper result only when applicable
 - PR number
 - PR CI first-pass result
 - number of CI attempts before green
@@ -281,11 +282,12 @@ Include:
 Interpretation guidance:
 
 - Good outcome: small PR, skill plan present, relevant skills only, focused tests used
-  during development, backend CI wrapper run before PR, PR CI green first try or with a
-  understood repair, exact-SHA `main` CI green
+  during development, proportional gate and mandatory risk overrides satisfied, PR CI
+  green first try or with an understood repair, exact-SHA `main` CI green
 - Warning signs: all skills selected by default, no skill plan, migration guard skipped
-  on model changes, only focused pytest run before PR, PR CI fails from a predictable
-  local issue, backend and frontend scope mixed
+  on model changes, only focused pytest when the matrix or a risk override requires
+  broader evidence, PR CI fails from a predictable local issue, backend and frontend
+  scope mixed
 - Do not optimize for raw speed alone.
 - Do not reward large PRs.
 - Do not treat PR count as productivity.
@@ -323,7 +325,8 @@ Before any backend implementation, include a short Backend Skill Plan:
 
 - Task slice: one sentence about the backend slice
 - Selected skills: only the relevant backend specialist skills
-- Validation plan: `erp-backend-fast`, `erp-backend-migration-guard`, `erp-backend-ci`
+- Validation plan: selected `L0`–`L4` level, focused command, applicable risk override,
+  and full wrapper only when that level requires it
 - Hard stops: auth/security, payment/idempotency, transaction/data-integrity, migration drift, API contract ambiguity, CI failure, scope drift, `.env`/secret need
 - Completion plan: PR checks, head-SHA merge protection, exact-SHA main CI, cleanup after main CI success
 
@@ -348,13 +351,14 @@ scripts/dev/erp-backend-fast tests/backend/test_identity_api.py -q
 EOF
 ```
 
-Pre-push and pre-PR backend validation:
+Full affected-backend validation (`L3`/`L4` or risk override):
 
 ```sh
 scripts/dev/erp-logged-run backend-ci <<'EOF'
 set -euo pipefail
 
-scripts/dev/erp-backend-ci tests/backend/path_or_module.py -q
+scripts/dev/erp-backend-compose-ci run --rm backend python backend/manage.py check
+scripts/dev/erp-backend-ci
 EOF
 ```
 
@@ -379,7 +383,8 @@ Use the smallest specialist skill that matches the backend risk:
 - `erp-backend-payment-idempotency` for payment, refund, receipt, and replay-safety slices
 - `erp-backend-api-contracts` for endpoint shape, error shape, pagination, and frontend compatibility
 - `erp-backend-data-integrity` for lifecycle invariants, stock movement, audit fields, and domain consistency
-- `erp-backend-pr-finalizer` for focused tests, migration guard, full backend CI, PR checks, merge, exact-SHA main CI, and cleanup
+- `erp-backend-pr-finalizer` for proportional local evidence, applicable migration gate,
+  scope, and independent-review readiness before PR
 
 General rule:
 
@@ -410,13 +415,18 @@ scripts/dev/erp-frontend-ci
 EOF
 ```
 
-The wrapper (`scripts/dev/erp-frontend-ci`) performs:
+The full frontend wrapper (`scripts/dev/erp-frontend-ci`) performs:
 1. Frontend scope guard
 2. Automatic `npm ci` when vitest/tsc/vite are missing in `node_modules`
 3. `npm test`
 4. `npm run build`
-5. Manifest integrity check — fails if `package.json` or
-   `package-lock.json` changed unexpectedly
+5. Manifest integrity check — fails if `package.json` or `package-lock.json` changed
+   unexpectedly
+
+Use it for `L3`/`L4`, dependency/build configuration changes, or a mandatory risk
+override. For `L1`/`L2`, run affected Vitest files and a production build when shipped
+frontend source changes. Run only the relevant Playwright journey when browser-level,
+routing, responsive, or integration behavior requires it.
 
 It never runs `npm audit fix`.
 

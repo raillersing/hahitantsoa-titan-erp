@@ -18,6 +18,10 @@ Guide frontend agents to write meaningful, resilient tests using Vitest and Reac
 - [ ] No tests rely on unmocked network calls
 - [ ] Test descriptions read as behavior specifications ("renders error when API fails")
 - [ ] New components have a corresponding test file
+- [ ] Select `L1`–`L4` from `docs/ai-agents/pr-quality-gates.md`; do not run unrelated suites
+- [ ] Run a production build for shipped frontend source changes
+- [ ] Use targeted Playwright only for browser-level, routing, responsive, or integration risk
+- [ ] Reuse green implementer evidence during review unless reproducing a finding
 
 ## When to use me
 

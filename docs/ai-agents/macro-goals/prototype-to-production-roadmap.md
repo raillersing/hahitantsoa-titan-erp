@@ -346,3 +346,7 @@ a second roadmap or infer completion from an unmerged worktree.
 
 The skills reassessment completed in PR `#461`; it is a governance improvement, not a
 substitute for any product phase.
+
+The proportional test policy is defined in `docs/ai-agents/pr-quality-gates.md`. Its CI
+enforcement remains pending until the path/risk-aware `agent-tools` lot is merged and
+proven on representative documentation, frontend, backend, and high-risk changes.
