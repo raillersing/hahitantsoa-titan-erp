@@ -2,9 +2,31 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
+import { ThemeProvider } from "./ThemeContext";
+
+const authMock = vi.hoisted(() => ({
+  value: {
+    state: {
+      status: "authenticated" as const,
+      user: { id: "1", username: "ada", display_name: "Ada Operator", is_staff: false, roles: ["commercial"] },
+      error: null,
+    } as any,
+    isSubmitting: false,
+    refreshSession: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
+}));
+
+vi.mock("./AuthContext", () => ({ useAuth: () => authMock.value }));
 
 beforeEach(() => {
   window.localStorage.clear();
+  authMock.value.state = {
+    status: "authenticated",
+    user: { id: "1", username: "ada", display_name: "Ada Operator", is_staff: false, roles: ["commercial"] },
+    error: null,
+  };
 });
 
 afterEach(() => {
@@ -14,7 +36,7 @@ afterEach(() => {
 describe("App Prototype", () => {
   it("defaults to the Dashboard when the URL hash is missing", () => {
     window.history.replaceState(null, "", "/");
-    render(<App />);
+    render(<ThemeProvider><App /></ThemeProvider>);
     expect(screen.getByRole("heading", { name: "Tableau de bord" })).toBeInTheDocument();
   });
 
@@ -48,11 +70,19 @@ describe("App Prototype", () => {
     expect(screen.getByRole("heading", { name: "Rapports & BI" })).toBeInTheDocument();
   });
 
-  it("shows the login page from the URL hash", () => {
+  it("redirects an authenticated login hash to the dashboard", async () => {
     window.history.replaceState(null, "", "/#login");
     render(<App />);
-    expect(screen.getByRole("heading", { name: "Hahitantsoa / Titan ERP" })).toBeInTheDocument();
-    expect(screen.getByText("Connexion à votre espace")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Tableau de bord" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#dashboard");
+  });
+
+  it("protects a deep link with the real login panel when anonymous", () => {
+    authMock.value.state = { status: "unauthenticated", error: null };
+    window.history.replaceState(null, "", "/#documents");
+    render(<ThemeProvider><App /></ThemeProvider>);
+    expect(screen.getByRole("heading", { name: "Connexion opérateur" })).toBeInTheDocument();
+    expect(screen.queryByText("Documents & Modèles")).not.toBeInTheDocument();
   });
 
   it("does not call /api/v1/inventory/items on dashboard", () => {

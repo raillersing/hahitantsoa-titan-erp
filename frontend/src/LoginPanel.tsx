@@ -1,14 +1,21 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "./AuthContext";
 import { useTheme } from "./ThemeContext";
 import BrandIdentity from "./prototype/BrandIdentity";
 
 function LoginPanel() {
-  const { state, login } = useAuth();
+  const { state, isSubmitting, login } = useAuth();
   const { themeMode, cycleThemeMode } = useTheme();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const errorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (state.status === "unauthenticated" && state.error) {
+      errorRef.current?.focus();
+    }
+  }, [state]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -20,8 +27,8 @@ function LoginPanel() {
   };
 
   return (
-    <main className="login-shell">
-      <section className="login-panel">
+    <main className="login-shell min-h-screen bg-slate-100 px-4 py-8 sm:px-6 flex items-center justify-center">
+      <section className="login-panel w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl sm:p-8">
         <div className="login-panel__header">
           <div className="brand-card" aria-label="Ergon corporate identity">
             <img
@@ -39,12 +46,12 @@ function LoginPanel() {
             </div>
           </div>
           <button
-            aria-label={`Theme mode: ${themeMode}`}
+            aria-label={`Mode de thème : ${themeMode}`}
             className="theme-toggle"
             type="button"
             onClick={cycleThemeMode}
           >
-            Theme: {themeMode}
+            Thème : {themeMode}
           </button>
         </div>
 
@@ -59,9 +66,20 @@ function LoginPanel() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="login-form" aria-label="Sign in">
+        <form
+          onSubmit={handleSubmit}
+          className="login-form grid gap-4"
+          aria-label="Connexion"
+          aria-busy={isSubmitting}
+        >
           {state.status === "unauthenticated" && state.error ? (
-            <div className="notice" role="alert">
+            <div
+              className="notice"
+              id="login-error"
+              ref={errorRef}
+              role="alert"
+              tabIndex={-1}
+            >
               <p>{state.error}</p>
             </div>
           ) : null}
@@ -69,38 +87,40 @@ function LoginPanel() {
           {state.status === "unauthenticated" && !state.error ? (
             <div className="notice">
               <p>
-                Your session is not authenticated. Enter your Django account
-                credentials below.
+                Votre session n’est pas authentifiée. Saisissez les identifiants
+                de votre compte pour continuer.
               </p>
             </div>
           ) : null}
 
           <label>
-            <span>Username</span>
+            <span>Nom d’utilisateur</span>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              disabled={state.status === "loading"}
+              disabled={isSubmitting}
               autoComplete="username"
+              aria-describedby={state.status === "unauthenticated" && state.error ? "login-error" : undefined}
             />
           </label>
 
           <label>
-            <span>Password</span>
+            <span>Mot de passe</span>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              disabled={state.status === "loading"}
+              disabled={isSubmitting}
               autoComplete="current-password"
+              aria-describedby={state.status === "unauthenticated" && state.error ? "login-error" : undefined}
             />
           </label>
 
-          <button type="submit" disabled={state.status === "loading"}>
-            {state.status === "loading" ? "Signing in..." : "Sign in"}
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Connexion en cours…" : "Se connecter"}
           </button>
         </form>
       </section>

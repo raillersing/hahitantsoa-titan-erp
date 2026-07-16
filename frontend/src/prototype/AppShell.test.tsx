@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AppScope } from '../App';
 import AppShell, { resolveBrandScope } from './AppShell';
@@ -141,7 +141,8 @@ describe('AppShell', () => {
   });
 
   it('8. Déconnexion n\'est plus dans Accueil, mais dans le menu utilisateur', () => {
-    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+    const onLogout = vi.fn().mockResolvedValue(undefined);
+    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate} onLogout={onLogout}><div>Content</div></AppShell>);
     // Le lien direct n'existe plus car il est caché dans le menu (qui est fermé)
     expect(screen.queryByRole('link', { name: /Déconnexion/i })).toBeNull();
     
@@ -155,11 +156,40 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: /Profil utilisateur/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Préférences/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Aide \/ support/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Déconnexion/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Déconnexion/i })).toBeInTheDocument();
     
     // Teste le clic sur déconnexion
-    fireEvent.click(screen.getByRole('link', { name: /Déconnexion/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('login');
+    fireEvent.click(screen.getByRole('button', { name: /Déconnexion/i }));
+    expect(onLogout).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).not.toHaveBeenCalledWith('login');
+  });
+
+  it("8b. affiche une erreur de déconnexion persistante et l'identité backend", () => {
+    render(
+      <AppShell
+        activeScope="dashboard"
+        onNavigate={mockNavigate}
+        logoutError="Déconnexion refusée"
+        user={{ id: "1", username: "ada", display_name: "Ada Operator", is_staff: false, roles: ["commercial"] }}
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    expect(screen.getByText("Ada Operator")).toBeInTheDocument();
+    expect(screen.getByText(/commercial · En ligne/)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Déconnexion refusée");
+  });
+
+  it("8c. restaure le focus après un rejet de déconnexion", async () => {
+    const onLogout = vi.fn().mockRejectedValue(new Error("Network error"));
+    render(<AppShell activeScope="dashboard" onNavigate={mockNavigate} onLogout={onLogout}><div>Content</div></AppShell>);
+
+    const userMenuButton = screen.getByRole("button", { name: "Menu utilisateur" });
+    fireEvent.click(userMenuButton);
+    fireEvent.click(screen.getByRole("button", { name: "Déconnexion" }));
+
+    await waitFor(() => expect(userMenuButton).toHaveFocus());
   });
 
   it('9. utilise Ergon pour le shell et les pages mixtes', () => {

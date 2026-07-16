@@ -135,20 +135,54 @@ async function getAuthenticatedJson<T>(
   return parseJsonResponse<T>(response);
 }
 
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+async function getCsrfTokenForWrite(signal?: AbortSignal): Promise<string> {
+  const existingToken = getCsrfToken();
+  if (existingToken) {
+    return existingToken;
+  }
+
+  await getSession(signal);
+  const bootstrappedToken = getCsrfToken();
+  if (!bootstrappedToken) {
+    throw new Error("La protection CSRF n'a pas pu être initialisée.");
+  }
+  return bootstrappedToken;
+}
+
+async function unsafeAuthenticatedRequest(
+  url: string,
+  init: RequestInit,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const csrfToken = await getCsrfTokenForWrite(signal);
+  const headers = new Headers(init.headers);
+  headers.set("X-CSRFToken", csrfToken);
+
+  return fetch(url, {
+    ...init,
+    credentials: "include",
+    headers,
+    signal,
+  });
+}
+
 async function postAuthenticatedJson<T>(
   url: string,
   payload: object,
   signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetch(url, {
+  const response = await unsafeAuthenticatedRequest(url, {
     method: "POST",
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-    signal,
-  });
+  }, signal);
 
   return parseJsonResponse<T>(response);
 }
@@ -158,15 +192,13 @@ async function patchAuthenticatedJson<T>(
   payload: object,
   signal?: AbortSignal,
 ): Promise<T> {
-  const response = await fetch(url, {
+  const response = await unsafeAuthenticatedRequest(url, {
     method: "PATCH",
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-    signal,
-  });
+  }, signal);
 
   return parseJsonResponse<T>(response);
 }
@@ -306,15 +338,13 @@ export async function deleteCustomer(
   id: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`/api/v1/customers/${id}/delete/`, {
+  const response = await unsafeAuthenticatedRequest(`/api/v1/customers/${id}/delete/`, {
     method: "POST",
-    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
     body: "{}",
-    signal,
-  });
+  }, signal);
   if (!response.ok) {
     const parsed = await parseErrorResponse(response);
     throw new ApiError(parsed.message, response.status, parsed.errors);
@@ -560,9 +590,8 @@ export function updateHahitantsoaEventDraft(
 export async function deleteHahitantsoaEventDraft(
   draftId: string,
 ): Promise<void> {
-  const response = await fetch(`/api/v1/hahitantsoa/event-drafts/${draftId}/`, {
+  const response = await unsafeAuthenticatedRequest(`/api/v1/hahitantsoa/event-drafts/${draftId}/`, {
     method: "DELETE",
-    credentials: "include",
   });
   if (!response.ok) {
     const parsed = await parseErrorResponse(response);
@@ -700,11 +729,10 @@ export async function deleteHahitantsoaEventDraftAmendmentRequestLine(
   amendmentRequestId: string,
   lineId: string,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await unsafeAuthenticatedRequest(
     `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/lines/${lineId}/`,
     {
       method: "DELETE",
-      credentials: "include",
     },
   );
   if (!response.ok) {
@@ -1077,11 +1105,9 @@ export async function removeLogisticsEventItemLine(
   lineId: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(`/api/v1/logistics/events/${id}/lines/${lineId}/remove/`, {
+  const response = await unsafeAuthenticatedRequest(`/api/v1/logistics/events/${id}/lines/${lineId}/remove/`, {
     method: "POST",
-    credentials: "include",
-    signal,
-  });
+  }, signal);
   if (!response.ok) {
     const parsed = await parseErrorResponse(response);
     throw new ApiError(parsed.message, response.status, parsed.errors);
@@ -1217,43 +1243,48 @@ export async function checkDamageLossWritePermission(
 
 // ---- Auth ----
 
-function getCsrfToken(): string {
-  const match = document.cookie.match(/csrftoken=([^;]+)/);
-  return match ? match[1] : "";
+export type SessionUser = {
+  id: string;
+  username: string;
+  display_name: string;
+  is_staff: boolean;
+  roles: string[];
+};
+
+export type SessionStateResponse =
+  | { authenticated: false; user: null }
+  | { authenticated: true; user: SessionUser };
+
+export function getSession(signal?: AbortSignal): Promise<SessionStateResponse> {
+  return getAuthenticatedJson("/api/v1/auth/session/", signal);
 }
 
 export async function login(
   username: string,
   password: string,
-): Promise<void> {
-  const params = new URLSearchParams({ username, password, next: "/" });
-  const response = await fetch("/api-auth/login/", {
+  signal?: AbortSignal,
+): Promise<SessionStateResponse> {
+  const response = await unsafeAuthenticatedRequest("/api/v1/auth/login/", {
     method: "POST",
-    credentials: "include",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "X-CSRFToken": getCsrfToken(),
+      "Content-Type": "application/json",
     },
-    body: params,
-    redirect: "manual",
-  });
+    body: JSON.stringify({ username, password }),
+  }, signal);
 
-  if (response.status < 200 || response.status >= 400) {
-    throw new Error("Login failed. Please check your credentials.");
+  return parseJsonResponse<SessionStateResponse>(response);
+}
+
+export async function logout(signal?: AbortSignal): Promise<void> {
+  const response = await unsafeAuthenticatedRequest("/api/v1/auth/logout/", {
+    method: "POST",
+  }, signal);
+  if (!response.ok) {
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
   }
 }
 
-export async function logout(): Promise<void> {
-  await fetch("/api-auth/logout/?next=/", {
-    credentials: "include",
-    headers: {
-      "X-CSRFToken": getCsrfToken(),
-    },
-    redirect: "manual",
-  });
-}
-
-export async function checkAuth(signal?: AbortSignal): Promise<boolean> {
-  // Bypassed for prototype
-  return true;
+export async function checkAuth(signal?: AbortSignal): Promise<SessionStateResponse> {
+  return getSession(signal);
 }

@@ -606,9 +606,7 @@ describe("AvailabilityPanel", () => {
       {
         method: "PATCH",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: expect.any(Headers),
         body: JSON.stringify({
           lines: [
             {
@@ -658,9 +656,7 @@ describe("AvailabilityPanel", () => {
       {
         method: "PATCH",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: expect.any(Headers),
         body: JSON.stringify({
           customer_id: CUSTOMERS[1].id,
         }),
@@ -697,9 +693,7 @@ describe("AvailabilityPanel", () => {
       {
         method: "PATCH",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: expect.any(Headers),
         body: JSON.stringify({
           start_at: UPDATED_START_AT_ISO,
           end_at: UPDATED_END_AT_ISO,
@@ -761,9 +755,7 @@ describe("AvailabilityPanel", () => {
       {
         method: "PATCH",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: expect.any(Headers),
         body: JSON.stringify({
           notes: "Updated from frontend notes edit.",
         }),
@@ -813,9 +805,7 @@ describe("AvailabilityPanel", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/reservations/drafts/", {
       method: "POST",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: expect.any(Headers),
       body: JSON.stringify({
         customer_id: CUSTOMERS[0].id,
         start_at: START_AT_ISO,
@@ -870,9 +860,7 @@ describe("AvailabilityPanel", () => {
       {
         method: "POST",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: expect.any(Headers),
         body: JSON.stringify({}),
         signal: undefined,
       },

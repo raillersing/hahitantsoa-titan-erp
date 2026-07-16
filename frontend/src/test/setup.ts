@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, beforeEach } from "vitest";
 
 if (typeof window !== "undefined" && window.localStorage === undefined) {
   const store = new Map<string, string>();
@@ -14,6 +14,11 @@ if (typeof window !== "undefined" && window.localStorage === undefined) {
     key: (index: number) => Array.from(store.keys())[index] ?? null,
   } as unknown as Storage;
 }
+
+beforeEach(() => {
+  // The real session bootstrap sets this cookie before any unsafe request.
+  document.cookie = "csrftoken=test-csrf-token; path=/";
+});
 
 afterEach(() => {
   cleanup();

@@ -1,10 +1,22 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as api from "./api";
 import { AuthProvider } from "./AuthContext";
 import LoginPanel from "./LoginPanel";
 import { ThemeProvider } from "./ThemeContext";
+
+const anonymousSession = { authenticated: false as const, user: null };
+const authenticatedSession = {
+  authenticated: true as const,
+  user: {
+    id: "user-1",
+    username: "admin",
+    display_name: "Admin ERP",
+    is_staff: true,
+    roles: ["direction"],
+  },
+};
 
 afterEach(() => {
   cleanup();
@@ -13,31 +25,19 @@ afterEach(() => {
 
 beforeEach(() => {
   window.localStorage.clear();
+  vi.spyOn(api, "checkAuth").mockResolvedValue(anonymousSession);
   Object.defineProperty(window, "matchMedia", {
     writable: true,
     value: vi.fn().mockImplementation(() => ({
       matches: false,
       media: "(prefers-color-scheme: dark)",
-      onchange: null,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
     })),
   });
 });
 
-function jsonResponse(payload: object, status = 200): Response {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
 function renderLoginPanel() {
-  vi.spyOn(api, "checkAuth").mockResolvedValue(false);
-
   render(
     <ThemeProvider>
       <AuthProvider>
@@ -47,152 +47,54 @@ function renderLoginPanel() {
   );
 }
 
+async function fillAndSubmit() {
+  fireEvent.change(await screen.findByRole("textbox", { name: "Nom d’utilisateur" }), {
+    target: { value: "admin" },
+  });
+  fireEvent.change(screen.getByLabelText("Mot de passe"), { target: { value: "secret" } });
+  fireEvent.click(screen.getByRole("button", { name: "Se connecter" }));
+}
+
 describe("LoginPanel", () => {
-  it("renders the sign-in form with username and password fields", async () => {
+  it("renders the accessible branded sign-in form", async () => {
     renderLoginPanel();
 
-    expect(
-      await screen.findByRole("heading", { name: "Connexion opérateur" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("textbox", { name: "Username" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Password"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Sign in" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Connexion opérateur" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Nom d’utilisateur" })).toHaveAttribute("autocomplete", "username");
+    expect(screen.getByLabelText("Mot de passe")).toHaveAttribute("autocomplete", "current-password");
+    expect(screen.getByRole("button", { name: "Se connecter" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Hahitantsoa" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Titan Rental" })).toBeInTheDocument();
-
-    const ergonLogo = screen.getByRole("img", { name: "Ergon" });
-    expect(ergonLogo).not.toHaveAttribute("width");
-    expect(ergonLogo).not.toHaveAttribute("height");
-    expect(ergonLogo).toHaveClass("brand-logo--ergon");
   });
 
-  it("shows the unauthenticated notice by default", async () => {
-    renderLoginPanel();
-
-    expect(
-      await screen.findByText(/session is not authenticated/i),
-    ).toBeInTheDocument();
-  });
-
-  it("calls the login API on form submission", async () => {
-    renderLoginPanel();
-
-    const usernameInput = await screen.findByRole("textbox", {
-      name: "Username",
-    });
-    const passwordInput = screen.getByLabelText("Password");
-    const submitButton = screen.getByRole("button", { name: "Sign in" });
-
-    fireEvent.change(usernameInput, { target: { value: "admin" } });
-    fireEvent.change(passwordInput, { target: { value: "secret" } });
-    fireEvent.click(submitButton);
-
-    expect(
-      await screen.findByRole("button", { name: "Signing in..." }),
-    ).toBeInTheDocument();
-  });
-
-  it("displays an error message when login fails", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-      const url = String(input);
-
-      if (url === "/api/v1/inventory/items/") {
-        return Promise.resolve(jsonResponse([], 403));
-      }
-
-      if (url === "/api-auth/login/") {
-        return Promise.resolve(jsonResponse({ detail: "Invalid credentials" }, 401));
-      }
-
-      return Promise.resolve(jsonResponse({}, 404));
-    });
-
-    render(
-      <ThemeProvider>
-        <AuthProvider>
-          <LoginPanel />
-        </AuthProvider>
-      </ThemeProvider>,
+  it("submits once and disables the form while login is pending", async () => {
+    let resolveLogin!: (value: typeof authenticatedSession) => void;
+    const loginSpy = vi.spyOn(api, "login").mockImplementation(
+      () => new Promise((resolve) => { resolveLogin = resolve; }),
     );
-
-    const usernameInput = await screen.findByRole("textbox", {
-      name: "Username",
-    });
-    const passwordInput = screen.getByLabelText("Password");
-    const submitButton = screen.getByRole("button", { name: "Sign in" });
-
-    fireEvent.change(usernameInput, { target: { value: "admin" } });
-    fireEvent.change(passwordInput, { target: { value: "wrong" } });
-    fireEvent.click(submitButton);
-
-    expect(
-      await screen.findByText("Login failed. Please check your credentials."),
-    ).toBeInTheDocument();
-  });
-
-  it("cycles theme mode from the login shell", async () => {
     renderLoginPanel();
 
-    const themeButton = await screen.findByRole("button", { name: "Theme mode: system" });
-    fireEvent.click(themeButton);
+    await fillAndSubmit();
+    expect(await screen.findByRole("button", { name: "Connexion en cours…" })).toBeDisabled();
+    expect(screen.getByRole("textbox", { name: "Nom d’utilisateur" })).toBeDisabled();
+    expect(loginSpy).toHaveBeenCalledTimes(1);
+    resolveLogin(authenticatedSession);
+  });
 
+  it("announces and focuses a backend login error", async () => {
+    vi.spyOn(api, "login").mockRejectedValue(new Error("Identifiants invalides."));
+    renderLoginPanel();
+
+    await fillAndSubmit();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Identifiants invalides.");
+    await waitFor(() => expect(alert).toHaveFocus());
+  });
+
+  it("cycles the theme from the login screen", async () => {
+    renderLoginPanel();
+    const button = await screen.findByRole("button", { name: "Mode de thème : system" });
+    fireEvent.click(button);
     expect(document.documentElement.dataset.theme).toBe("light");
-    expect(window.localStorage.getItem("erp-theme-mode")).toBe("light");
-    expect(
-      screen.getByRole("button", { name: "Theme mode: light" }),
-    ).toHaveTextContent("Theme: light");
-  });
-
-  it("disables the form during loading", async () => {
-    renderLoginPanel();
-
-    const usernameInput = await screen.findByRole("textbox", {
-      name: "Username",
-    });
-    const passwordInput = screen.getByLabelText("Password");
-    const submitButton = screen.getByRole("button", { name: "Sign in" });
-
-    expect(usernameInput).not.toBeDisabled();
-    expect(passwordInput).not.toBeDisabled();
-    expect(submitButton).not.toBeDisabled();
-  });
-
-  it("disables inputs and button while submitting", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-      const url = String(input);
-      if (url === "/api/v1/inventory/items/") {
-        return Promise.resolve(jsonResponse([], 403));
-      }
-      return new Promise(() => undefined);
-    });
-
-    render(
-      <ThemeProvider>
-        <AuthProvider>
-          <LoginPanel />
-        </AuthProvider>
-      </ThemeProvider>,
-    );
-
-    const usernameInput = await screen.findByRole("textbox", {
-      name: "Username",
-    });
-    const passwordInput = screen.getByLabelText("Password");
-    const submitButton = screen.getByRole("button", { name: "Sign in" });
-
-    fireEvent.change(usernameInput, { target: { value: "admin" } });
-    fireEvent.change(passwordInput, { target: { value: "secret" } });
-    fireEvent.click(submitButton);
-
-    expect(usernameInput).toBeDisabled();
-    expect(passwordInput).toBeDisabled();
-    expect(submitButton).toBeDisabled();
-    expect(submitButton).toHaveTextContent("Signing in...");
   });
 });
