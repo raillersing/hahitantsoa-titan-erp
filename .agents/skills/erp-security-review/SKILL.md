@@ -1,6 +1,6 @@
 ---
 name: erp-security-review
-description: Authorization, permission checks, data isolation, input validation, and secure-coding checklist for security-sensitive changes
+description: Review broad secure-coding risks spanning input validation, isolation, uploads, browser protections, and secret handling. Use for cross-cutting security changes; use erp-backend-auth-permission-auditor alone for a permission-only backend review.
 ---
 
 ## What I do
@@ -9,8 +9,6 @@ Ensure backend changes maintain proper authorization, data isolation, and input 
 
 ## Checklist
 
-- [ ] Every write endpoint checks authorization: `request.user` has the required permission or role
-- [ ] Read endpoints filter querysets by the user's organization or tenant scope — no cross-tenant data leaks
 - [ ] Input is validated against expected types and ranges — no raw user input passed to ORM filters or raw SQL
 - [ ] No secrets, API keys, or credentials are logged, exposed in responses, or committed
 - [ ] `transaction.atomic()` is used for writes that span multiple model changes
@@ -20,12 +18,8 @@ Ensure backend changes maintain proper authorization, data isolation, and input 
 - [ ] Rate limiting or throttling is considered for public-facing endpoints
 - [ ] Agent B (Independent Backend Reviewer) reviews all security-sensitive changes
 
-## When to use me
-
-Load when implementing or reviewing changes that touch authorization, permissions, data isolation, input handling, or any security-sensitive logic.
-
 ## Source
 
-- [Backend Agent Template — Agent B](../backend-agent-template.md#agent-b---independent-backend-reviewer)
-- [AGENTS.md — Engineering rules](../../AGENTS.md#engineering-rules)
-- [PR Quality Gates — Backend gates](../pr-quality-gates.md#backend-gates)
+- [Backend Agent Template — Agent B](../../../docs/ai-agents/backend-agent-template.md#agent-b---independent-backend-reviewer)
+- [AGENTS.md — Engineering rules](../../../AGENTS.md#engineering-rules)
+- [PR Quality Gates — Backend gates](../../../docs/ai-agents/pr-quality-gates.md#backend-gates)

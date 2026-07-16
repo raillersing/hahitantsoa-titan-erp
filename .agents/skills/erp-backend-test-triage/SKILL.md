@@ -1,6 +1,6 @@
 ---
 name: erp-backend-test-triage
-description: Focused backend test selection, failure reproduction, and escalation to full backend CI before PR
+description: Select focused backend tests during development and reproduce or classify failures. Use before implementation stabilizes or when a test fails; use erp-quality-gates for final local readiness.
 ---
 
 ## What I do

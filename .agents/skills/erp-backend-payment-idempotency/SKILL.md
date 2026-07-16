@@ -1,6 +1,6 @@
 ---
 name: erp-backend-payment-idempotency
-description: Payment, refund, receipt, and replay-safety review for backend payment slices
+description: Review payment, refund, receipt, callback, and replay idempotency. Use only when a financial write or external payment event changes; do not load for unrelated transaction usage.
 ---
 
 ## What I do

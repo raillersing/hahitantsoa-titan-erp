@@ -1,6 +1,6 @@
 ---
 name: erp-business-boundaries
-description: Titan vs Hahitantsoa domain rules for ERP agents. Use when implementing or reviewing any feature to ensure the correct domain boundary is respected.
+description: Review the Titan versus Hahitantsoa domain boundary. Use when a task changes catalogue, inventory, reservation, planning, navigation, or API exposure across those domains; do not load for identity or tooling-only work.
 ---
 
 # ERP Business Boundaries

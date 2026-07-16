@@ -1,6 +1,6 @@
 ---
 name: erp-backend-transaction-concurrency
-description: Atomicity, race-condition, rollback, and concurrent-write review for backend changes
+description: Review atomicity, locking, rollback, and concurrent-write races. Use when multiple records or competing writers can affect one invariant; do not load for ordinary single-record reads.
 ---
 
 ## What I do

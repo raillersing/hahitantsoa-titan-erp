@@ -1,11 +1,12 @@
 ---
 name: erp-secret-handling
-description: Never-read-.env and log hygiene rules for Titan ERP agents. Use at the start of any task and before running commands that access the filesystem.
+description: Respond to suspected Titan ERP secret exposure and perform secret-specific review. Use when a path, diff, log, or scanner finding may expose secrets; routine baseline protection belongs to erp-task-start.
 ---
 
 # ERP Secret Handling
 
-Load at the start of every task and before any command that accesses the filesystem.
+Load when a secret-like path or value is detected, when reviewing log hygiene, or when
+triaging `erp-secret-scan-local`. Do not load this specialist for every ordinary command.
 
 ## What I do
 
@@ -33,10 +34,6 @@ Prevent accidental secret exposure through terminal commands, logs, or diffs.
 3. Rotate the secret through human-controlled channel
 4. Remove or quarantine the sensitive artifact
 5. Resume only when the incident is contained
-
-## When to use me
-
-Load at the start of every task and before running any command.
 
 ## References
 

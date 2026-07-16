@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-state-forms
-description: Form handling, validation, data fetching, and client-side state management patterns
+description: Review frontend form state, client validation, async data state, and submission lifecycle. Use when a form or data-fetching state machine changes; do not load for static presentation work.
 ---
 
 ## What I do

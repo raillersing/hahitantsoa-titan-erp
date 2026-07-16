@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-error-recovery
-description: Error boundary patterns, graceful degradation, and user-facing error communication checklist
+description: Review frontend API-failure, retry, empty-state, and error-boundary behavior. Use when a change adds or modifies an error path; do not load for an unrelated final quality review.
 ---
 
 ## What I do

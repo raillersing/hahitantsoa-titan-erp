@@ -1,6 +1,6 @@
 ---
 name: erp-agent-role-assignment
-description: Quick-reference guide for orchestrators on which agent roles to assign per task type
+description: Select the minimum relevant ERP agent roles for an orchestrated task. Use only while planning delegation; assigned backend agents use erp-agent-roles for their role checklist.
 ---
 
 ## What I do
@@ -50,12 +50,8 @@ Docs/tooling tasks use backend or frontend roles depending on which worktree the
 - Reporting alone is not a stopping condition
 - After merge and green main CI, continue to the next clear bundle unless a hard stop occurs
 
-## When to use me
-
-Load when orchestrating a multi-agent task or when unsure which roles to assign for a given change type.
-
 ## Source
 
-- [Backend Agent Template — Default role policy](../backend-agent-template.md)
-- [Frontend Agent Template — Default role policy](../frontend-agent-template.md)
-- [AGENTS.md — Official multi-agent workflow](../../AGENTS.md#official-multi-agent-workflow)
+- [Backend Agent Template — Default role policy](../../../docs/ai-agents/backend-agent-template.md)
+- [Frontend Agent Template — Default role policy](../../../docs/ai-agents/frontend-agent-template.md)
+- [AGENTS.md — Official multi-agent workflow](../../../AGENTS.md#official-multi-agent-workflow)

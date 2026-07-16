@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-testing
-description: Component and page test checklist — coverage, mocking, edge cases, and regression safety for Vitest + RTL
+description: Select or review focused Vitest and React Testing Library coverage for changed behavior. Use when authoring tests or reviewing test adequacy; do not act as a general frontend quality gate.
 ---
 
 ## What I do

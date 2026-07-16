@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-scope-guard
-description: Verify that frontend changes stay within approved files, avoid backend drift, and respect the Hahitantsoa/Titan business boundary
+description: Diagnose frontend scope drift, forbidden backend edits, or Hahitantsoa/Titan boundary risk. Use when the scope guard fails or a cross-domain UI change is proposed; normal baseline checks belong to erp-task-start.
 ---
 
 ## What I do

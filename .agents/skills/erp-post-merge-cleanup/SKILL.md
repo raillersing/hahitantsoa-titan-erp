@@ -1,6 +1,6 @@
 ---
 name: erp-post-merge-cleanup
-description: Branch, worktree, and Docker cleanup procedure after Titan ERP PR merge. Use after a PR is merged and post-merge main CI is green.
+description: Clean Titan ERP task branches, worktrees, and containers after an authorized merge and green exact-SHA main CI. Use only for cleanup; CI verification belongs to erp-ci-workflow.
 ---
 
 # ERP Post-Merge Cleanup
@@ -15,10 +15,9 @@ Safely clean up task resources without data loss or orphaned containers.
 
 - [ ] Post-merge main CI is green (SHA-bound verification)
 - [ ] Human has authorized cleanup
-- [ ] Local branch deleted: `git branch -d branch-name`
-- [ ] Remote branch deleted: `git push origin --delete branch-name`
-- [ ] Worktree removed using dedicated wrapper: `bash scripts/dev/erp-worktree-clean-after-merge --apply branch-name`
-- [ ] Docker containers cleaned: `bash scripts/dev/erp-docker-agent-cleanup --apply`
+- [ ] Prefer the cleanup phase of `scripts/dev/erp-pr-finalize-from-root` from root `main`
+- [ ] Otherwise use `bash scripts/dev/erp-worktree-clean-after-merge --apply branch-name`; it cleans task containers, removes the worktree, then deletes the local branch
+- [ ] Delete the remote task branch only after the worktree is gone and only when cleanup authorization covers it
 - [ ] Stale worktree metadata pruned: `git worktree prune`
 - [ ] No orphaned containers remaining
 
@@ -28,7 +27,7 @@ Safely clean up task resources without data loss or orphaned containers.
 - Never manually delete `.git/worktrees/` metadata — use `git worktree prune` or dedicated wrappers
 - Never run `rm -rf` on worktree directories
 - Docker cleanup preserves volumes by default (no `--dangerous-allow-volume-removal`)
-- Cleanup runs automatically in `erp-pr-worktree-finalize` and `erp-worktree-clean-after-merge`
+- Cleanup runs through the approved finalization or cleanup wrappers; do not reconstruct their sequence manually
 
 ## When to use me
 
