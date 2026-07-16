@@ -51,16 +51,17 @@ authorization control, and a successful mock notification is not persistence evi
 
 ## Current program checkpoint
 
-Checkpoint date: 2026-07-15. Live baseline observed for this roadmap lot:
-`bd3994223260fdcbc60bdc72e05a414508627bca`, with exact-SHA `main` CI success in run
-`29431040100`.
+Checkpoint date: 2026-07-16. Current verified baseline:
+`de746e29e907759acb36accf98ddd625669d542a`, with exact-SHA `main` CI success in run
+`29488633090`.
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
 | Phase 0 audit | Completed as a local read-only report | `reports/ERP_PROTOTYPE_TO_PRODUCTION_PHASE0_AUDIT_2026-07-15.md`; local and gitignored, therefore not a versioned proof artifact. |
 | Phase 1A auth contract audit | Completed as a local read-only report | `reports/ERP_PROTOTYPE_TO_PRODUCTION_PHASE1A_AUTH_CONTRACT_AUDIT_2026-07-15.md`; local and gitignored. |
-| Phase 1B backend session/CSRF | In progress, not integrated | Dedicated backend worktree is dirty; no merged PR or green exact-SHA `main` CI proves completion yet. |
+| Phase 1B backend session/CSRF | Completed and integrated | PR `#460`, merged `main` SHA `3ba2b669b728f34c6f3dda5b1cf129aff1431d8d`, exact-SHA CI run `29443962863` green. |
 | Phase 1 frontend connection through multi-role acceptance | Pending | `checkAuth` bypass and approved-UI integration must be reverified on the implementation baseline. |
+| Codex skills reassessment and deduplication | Completed and integrated | PR `#461`, merged `main` SHA `de746e29e907759acb36accf98ddd625669d542a`, exact-SHA CI run `29488633090` green. |
 | Phases 2–12 | Planned, not started by this roadmap | No phase may be inferred complete from historical panels or backend endpoints alone. |
 
 The current phase is **Phase 1**. Phase 2 must not start until all Phase 1 exit gates are
@@ -162,8 +163,8 @@ Required exit evidence:
 - frontend build, Vitest, relevant Playwright, and human visual validation green;
 - PR and exact merged-SHA `main` CI green for every accepted bundle.
 
-Status: in progress. `1A` has local audit evidence; `1B-BE` is not complete until merge,
-exact-SHA `main` CI, and cleanup. All later bundles remain pending.
+Status: in progress. `1A` has local audit evidence and `1B-BE` is complete with merged,
+exact-SHA-green evidence. `1B-FE`, `1C`, `1D`, `1E-BE`, `1E-FE`, and `1F` remain pending.
 
 ### Phase 2 — Customers and prospects, read-only
 
@@ -320,13 +321,28 @@ For each implementation bundle:
 No phase is complete because code merely exists. Completion requires the applicable
 runtime, persistence, permission, audit, tests, CI, cleanup, and human evidence.
 
+## Durable execution memory
+
+This roadmap is the versioned program checkpoint. After every merged lot, update only
+facts supported by the merged SHA and exact-SHA `main` CI:
+
+- completed phase or bundle and its remaining limitations;
+- PR number, reviewed head SHA, merged `main` SHA, and CI run;
+- module maturity rows affected by the change;
+- next bounded lot and unresolved dependencies;
+- durable workflow lesson only when it changes future execution.
+
+Git history, PRs, accepted decisions, and exact-SHA CI are supporting evidence.
+`reports/`, `logs/terminal/`, Codex conversational memory, and `graphify-out/` are useful
+local context but are not program sources of truth. Do not duplicate this checkpoint in
+a second roadmap or infer completion from an unmerged worktree.
+
 ## Remaining sequence at this checkpoint
 
-1. finish and integrate Phase `1B-BE`;
+1. formalize proportional local-test selection, then implement path/risk-aware CI and
+   harden the Graphify invocation helper without weakening security-critical gates;
 2. complete `1B-FE`, `1C`, `1D`, `1E-BE`, `1E-FE`, and `1F`;
-3. perform the planned post-Phase-1 installed-skills reassessment;
-4. execute Phases 2 through 12 in order, split into the bounded bundles above.
+3. execute Phases 2 through 12 in order, split into the bounded bundles above.
 
-The skills reassessment is a governance quality task, not a substitute for any product
-phase. It must verify relevance, compatibility with the current Codex agent, triggers,
-paths, duplication, safety, and adherence to this repository's canonical workflow.
+The skills reassessment completed in PR `#461`; it is a governance improvement, not a
+substitute for any product phase.

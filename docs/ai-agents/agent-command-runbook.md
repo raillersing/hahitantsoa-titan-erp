@@ -118,22 +118,19 @@ not execute it themselves.
 
 Before any implementation task, consult sources in this order:
 
-1. **Application cartography** (`docs/architecture/application-map/`) — canonical
-   architecture, domain boundaries, and navigation rules.
-2. **Graphify report** (`graphify-out/GRAPH_REPORT.md`) — code-level entity graph,
-   community clusters, and dependency paths. Regenerate with `graphify update .` if
-   absent or stale (see `docs/ai-agents/tooling/graphify.md`).
-3. **Raw search** (`grep`, `glob`, file read) — fallback when the first two sources
-   are insufficient.
-4. **Ponytail ladder** — before writing new code, apply the ERP Ponytail
-   anti-overengineering ladder (see AGENTS.md and `docs/ai-agents/tooling/ponytail.md`):
-   - reuse existing code instead of rewriting
-   - use native platform / stdlib before adding dependencies
-   - one line before one helper
-   - smallest robust implementation
-   - test and document only what changed
+1. Read `docs/architecture/application-map/README.md` and select only the normative
+   map relevant to the approved scope.
+2. Compare the build SHA in `graphify-out/GRAPH_REPORT.md` with current `main`, then
+   inspect only relevant Graphify entities, communities, or dependency paths.
+3. Use `rg` and targeted file reads only for details not answered by those sources.
+4. Apply the ERP Ponytail ladder before writing code.
 
-The consultation order is defined in AGENTS.md "Knowledge graph consultation order".
+Agents report Graphify freshness but do not update it from task worktrees. The
+orchestrator performs one update from clean `main` before structural work when stale,
+or after structural code, route, model, API-contract, or dependency changes merge.
+Documentation-only changes do not require graph regeneration.
+
+The consultation order is defined in AGENTS.md "Knowledge consultation and durable memory".
 The ERP Ponytail ladder is defined in AGENTS.md "Anti-overengineering ladder (ERP Ponytail)".
 
 ## Standard Task Start

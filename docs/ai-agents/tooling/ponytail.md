@@ -8,11 +8,11 @@ it adopts Ponytail's anti-overengineering ladder as a native ERP workflow rule. 
 external plugin dependencies, lifecycle hooks, Node.js runtime requirements, and trust
 decisions while keeping the same discipline.
 
-All ERP agents follow the combined Graphify + Ponytail workflow:
+All ERP agents follow the targeted Graphify + Ponytail workflow:
 
-1. **Cartography** — consult `docs/architecture/application-map/`
-2. **Graphify** — consult `graphify-out/GRAPH_REPORT.md`
-3. **Raw search** — fallback grep/glob/read
+1. **Cartography index** — select the relevant normative map
+2. **Graphify** — verify freshness and inspect relevant entities or paths
+3. **Raw search** — confirm only unresolved live-code details
 4. **Ponytail ladder** — anti-overengineering before writing new code
 
 ---
@@ -59,11 +59,13 @@ Graphify and Ponytail serve complementary roles:
 
 | Tool | When | What it provides |
 |------|------|------------------|
-| Cartography | Before any task | Architecture, domain boundaries, navigation tree |
-| Graphify | Before any task | Code-level entity graph, community clusters, dependency paths |
+| Cartography | Before implementation | Normative intent for the selected domain or flow |
+| Graphify | Before structural implementation | Current code-level entities and dependency paths |
 | Ponytail | After consultation, before writing | Anti-overengineering discipline |
 
-The consultation order is: **cartography → Graphify → raw search → Ponytail ladder**
+The consultation order is: **selected normative map → targeted Graphify evidence →
+targeted raw search → Ponytail ladder**. Do not read every map and the complete graph
+for each task.
 
 Graphify tells the agent **what exists** (entities, dependencies, clusters).
 Ponytail tells the agent **don't rewrite what exists** and **write the smallest
@@ -95,13 +97,17 @@ plugin installation.
 ## How Future Agents Use Graphify + Ponytail Together
 
 1. **Before implementation**: follow the consultation order:
-   - Read cartography (`docs/architecture/application-map/`)
-   - Read Graphify report (`graphify-out/GRAPH_REPORT.md`)
-   - Search existing code (`grep`, `glob`, file read)
+   - Select the relevant map from `docs/architecture/application-map/README.md`
+   - Report Graphify freshness and inspect only relevant entities or paths
+   - Search existing code with `rg` only for unresolved details
 2. **Apply the Ponytail ladder**: before writing new code, verify each rung
 3. **Implement**: smallest robust addition that passes all quality gates
-4. **Report**: state which cartography/Graphify sources were consulted, what
-   existing code was reused, and the Ponytail intensity mode used
+4. **Report**: state the selected map, Graphify build SHA and targeted evidence, what
+   existing code was reused, tests intentionally not repeated, and Ponytail intensity
+
+Ponytail itself is a policy, not generated state: agents apply and report it but do not
+"update Ponytail" after every task. Change this document only when a durable workflow
+lesson changes the ladder.
 
 ---
 
