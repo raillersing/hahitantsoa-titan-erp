@@ -52,8 +52,8 @@ authorization control, and a successful mock notification is not persistence evi
 ## Current program checkpoint
 
 Checkpoint date: 2026-07-16. Current verified baseline:
-`97768abae975e337a08497fae40f18f2399df888`, with exact-SHA `main` CI success in run
-`29497402230`.
+`306ab3d14576aacd0f05df47798eaba265799d43`, with exact-SHA `main` CI success in run
+`29510304381`.
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
@@ -61,7 +61,8 @@ Checkpoint date: 2026-07-16. Current verified baseline:
 | Phase 1A auth contract audit | Completed as a local read-only report | `reports/ERP_PROTOTYPE_TO_PRODUCTION_PHASE1A_AUTH_CONTRACT_AUDIT_2026-07-15.md`; local and gitignored. |
 | Phase 1B backend session/CSRF | Completed and integrated | PR `#460`, merged `main` SHA `3ba2b669b728f34c6f3dda5b1cf129aff1431d8d`, exact-SHA CI run `29443962863` green. |
 | Phase 1B frontend authentication/session connection | Completed, integrated, and validated by the human | PR `#466`, reviewed head `5689629fbfc1097344f725efa466a9b1bff86dbb`, merged `main` SHA `97768abae975e337a08497fae40f18f2399df888`, exact-SHA CI run `29497402230` green. The approved prototype UI now uses the real Django session contract, centralized CSRF handling, real logout, and explicit loading/error/retry states; the former `checkAuth` bypass is removed. |
-| Phase 1C through multi-role acceptance | Pending | The next bounded bundle is `1C`: current-user profile, session restoration/expiry, network recovery, and explicit anonymous/denied states. Route protection, RBAC reflection, and multi-role acceptance remain in `1D`–`1F`. |
+| Phase 1C session resilience and profile | Completed, integrated, and validated by the human | PR `#468`, reviewed head `8cb6b03e1241a4b10056cc1922091c4056b4960c`, merged `main` SHA `306ab3d14576aacd0f05df47798eaba265799d43`, exact-SHA CI run `29510304381` green, and independent FE-B verdict `APPROVE`. The mounted prototype now exposes the real session user in a read-only profile and handles session expiry, offline/online recovery, and coalesced revalidation without replacing backend data with a mock. Frontend evidence: build green, Vitest 42 files / 436 tests green, and real-backend Playwright 3/3 green. |
+| Phase 1D through multi-role acceptance | Pending | The next bounded bundle is `1D`: structured route protection while preserving the intended destination. Backend-authoritative RBAC reflection and multi-role acceptance remain in `1E`–`1F`. |
 | Codex skills reassessment and deduplication | Completed and integrated | PR `#461`, merged `main` SHA `de746e29e907759acb36accf98ddd625669d542a`, exact-SHA CI run `29488633090` green. |
 | Graphify/Ponytail durable-memory policy | Completed and integrated | PR `#462`, merged `main` SHA `31262c948e412343e74c8ee505f12c519607c4b0`, exact-SHA CI run `29489955113` green. |
 | Proportional local-test matrix | Completed and integrated | PR `#463`, merged `main` SHA `a96ea1f3edd174cd9d03e0c594aee62e65247057`, exact-SHA CI run `29491225953` green. |
@@ -85,7 +86,7 @@ known reusable backend assets and explicitly marks missing or unconfirmed contra
 
 | Module / surface | Mounted route and component | Runtime source at checkpoint | API / persistent model known at checkpoint | Permissions, audit, tests | Visible maturity | Confirmed anomaly or uncertainty | Next bounded action |
 |---|---|---|---|---|---:|---|---|
-| Authentication and session | Approved login UI and prototype shell gated by `AuthProvider`; intended hash destination preserved across login | Real Django session API; no authentication bypass or business-auth fallback | `/api/v1/auth/session/`, `/api/v1/auth/login/`, `/api/v1/auth/logout/`; Django session and CSRF contracts | Backend auth contract tests, frontend build/Vitest, real-backend Playwright, independent review, and human UI validation proven in PR `#466`; full RBAC acceptance remains pending | P0 | Real session connection is acquired, but the P1 gate remains incomplete until profile/session expiry, explicit denied states, structured route protection, capability-aware UI, and multi-role denied flows are proven | `1C`, then `1D`–`1F` |
+| Authentication and session | Approved login UI and prototype shell gated by `AuthProvider`; intended hash destination preserved across login; read-only profile mounted from the real session identity | Real Django session API; no authentication bypass or business-auth fallback; authenticated identity is preserved during recoverable network loss and revalidated on recovery | `/api/v1/auth/session/`, `/api/v1/auth/login/`, `/api/v1/auth/logout/`; Django session and CSRF contracts | Backend auth contract tests plus frontend build, 42-file/436-test Vitest suite, real-backend Playwright 3/3, FE-B approval, and human UI validation proven through PRs `#466` and `#468`; full RBAC acceptance remains pending | P0 | Login, profile, expiry, and network recovery are connected, but the P1 gate remains incomplete until structured route protection, capability-aware UI, backend-authoritative RBAC, and multi-role denied flows are proven | `1D`, then `1E`–`1F` |
 | Dashboard | `#dashboard` → `prototype/DashboardPage` | Mock/static | Aggregates dispersed; consolidated dashboard endpoint `Non confirmé` | Authenticated access/audit/test coverage for displayed totals `Non confirmé` | P0 | Visible indicators do not prove PostgreSQL origin | Reassess after Phases 2–9; target phase for a consolidated read model requires contract decision |
 | Customers and prospects | `#customers`, `#customer/:id` → prototype customer pages | `mockClients`, `mockReservations`, reservation draft in `localStorage` | Customers API / `Customer`; prospect, conversion, history, and visitor contracts missing at checkpoint | Customer endpoint permissions exist; full role/object access and visible-flow tests not proven | P0 | Prototype DTO richer than backend; prospect lifecycle absent | Phases 2–3 |
 | Titan reservations | `#reservation-new`, `#reservation-detail/:id`, `#reservations` → prototype reservation pages | Mock plus business draft in `localStorage` | Reservation draft APIs / `ReservationDraft`, `ReservationLine` | Sensitive confirmation controls and audit exist backend-side; mounted-flow proof absent | P0 | Mock type merges concepts that backend keeps separate; no visible persistence | Phase 5 |
@@ -167,9 +168,10 @@ Required exit evidence:
 - frontend build, Vitest, relevant Playwright, and human visual validation green;
 - PR and exact merged-SHA `main` CI green for every accepted bundle.
 
-Status: in progress. `1A` has local audit evidence; `1B-BE` and `1B-FE` are complete
-with merged, exact-SHA-green evidence, and `1B-FE` has human validation. `1C` is the
-next bounded bundle; `1D`, `1E-BE`, `1E-FE`, and `1F` remain pending.
+Status: in progress. `1A` has local audit evidence; `1B-BE`, `1B-FE`, and `1C` are
+complete with merged, exact-SHA-green evidence, and the frontend bundles have human
+validation. The authentication/session module remains at P0 because the full P1 gate is
+not yet met. `1D` is the next bounded bundle; `1E-BE`, `1E-FE`, and `1F` remain pending.
 
 ### Phase 2 — Customers and prospects, read-only
 
@@ -344,7 +346,7 @@ a second roadmap or infer completion from an unmerged worktree.
 
 ## Remaining sequence at this checkpoint
 
-1. complete `1C`, `1D`, `1E-BE`, `1E-FE`, and `1F`;
+1. complete `1D`, `1E-BE`, `1E-FE`, and `1F`;
 2. execute Phases 2 through 12 in order, split into the bounded bundles above.
 
 The skills reassessment completed in PR `#461`; it is a governance improvement, not a
