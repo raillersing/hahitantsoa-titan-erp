@@ -1,6 +1,6 @@
 ---
 name: erp-backend-api-contracts
-description: Endpoint, request/response, pagination, and frontend-compatibility review for backend APIs
+description: "Review the backend side of an approved API contract: routes, serializers, response and error shapes, and pagination. Use for backend implementation or review; use erp-api-contracts only to resolve a cross-boundary decision."
 ---
 
 ## What I do

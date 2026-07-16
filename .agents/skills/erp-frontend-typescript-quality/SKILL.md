@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-typescript-quality
-description: TypeScript strictness, React patterns, and code quality checklist for frontend components
+description: Review TypeScript type safety and React component contracts. Use when types, props, hooks, or component boundaries change; do not load solely because frontend files changed.
 ---
 
 ## What I do

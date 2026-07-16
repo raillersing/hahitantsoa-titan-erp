@@ -5,8 +5,8 @@
 This page documents the shared agent skills under `.agents/skills/` for
 frontend agents working on the Hahitantsoa/Titan ERP frontend. These skills are
 optional helpers — they accelerate repetitive quality checks but never replace the
-canonical workflow docs in `docs/ai-agents/`. They were promoted from
-`.opencode/skills/` to `.agents/skills/` for cross-agent compatibility.
+canonical workflow docs in `docs/ai-agents/`. They live in `.agents/skills/` for
+Codex discovery.
 
 ## Available Skills
 
@@ -48,16 +48,19 @@ canonical workflow docs in `docs/ai-agents/`. They were promoted from
 | Agent FE-E (API Contract Reviewer) | `erp-frontend-api-contracts` during review |
 | Agent FE-F (Scope Guardian) | `erp-frontend-scope-guard` during review |
 
-Skills are loaded on demand via the `skill` tool. Agents call `skill({ name: "erp-frontend-scope-guard" })` to load the full checklist. Skills are optional — the canonical workflow in `frontend-agent-template.md` and `frontend-quality-workflow.md` remains authoritative.
+Skills are loaded on demand. An agent can name one explicitly as
+`$erp-frontend-scope-guard`; Codex may also select it automatically when its
+description clearly matches the task. Skills are optional helpers — the canonical
+workflow in `frontend-agent-template.md` and `frontend-quality-workflow.md` remains
+authoritative.
 
 ## Model Notes
 
-These skills are model-agnostic. They were authored using Deepseek-v4-flash as the
-reference model but do not depend on any specific provider capabilities.
+These skills use the repository's Codex skill format and contain no dependency on a
+specific Codex model version.
 
 ## References
 
 - [Frontend Agent Template](../frontend-agent-template.md)
 - [Frontend Quality Workflow](../frontend-quality-workflow.md)
 - [Agent Shared Skills Guide](agent-shared-skills.md)
-- [OpenCode Skills Documentation](https://opencode.ai/docs/skills/)

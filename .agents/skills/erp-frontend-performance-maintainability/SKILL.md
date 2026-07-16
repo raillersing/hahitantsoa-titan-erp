@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-performance-maintainability
-description: Checklist for render performance, bundle hygiene, and long-term maintainability of frontend code
+description: Review measured render, bundle, dependency, or component-complexity risk. Use for performance-sensitive changes or an explicitly scoped refactor; do not load as a generic final reviewer.
 ---
 
 ## What I do

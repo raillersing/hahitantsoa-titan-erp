@@ -1,6 +1,6 @@
 ---
 name: erp-migration-safety
-description: Migration necessity, reversibility, constraints, indexes, locking, and rollback checklist for model or data changes
+description: Design migration safety for schema evolution, backfills, reversibility, locking, and destructive-change planning. Use during implementation; use erp-backend-migration-guardian later for drift and non-destructive PR validation.
 ---
 
 ## What I do
@@ -14,18 +14,13 @@ Prevent unsafe or unnecessary database migrations by enforcing a structured revi
 - [ ] Existing data backfill is included in the same migration (not a separate deploy step) or has an explicit plan
 - [ ] Constraints (unique_together, check, FK on_delete) are reviewed for deadlock or long-table-lock risk on large tables
 - [ ] Index changes account for table size — large-table index creation/deletion uses CONCURRENTLY or is explicitly planned
-- [ ] Migration is reversible — `migrate app zero` or a reverse migration path exists
+- [ ] Migration has a reviewed reverse path; execute reversal only against an explicitly approved disposable database when the task requires it
 - [ ] No destructive operations (DROP COLUMN, DROP TABLE) without explicit human approval and a data-preservation plan
 - [ ] Migration order is correct — no circular dependencies between apps
-- [ ] Run `python manage.py makemigrations --check` to verify no uncreated migrations
-- [ ] Run `python manage.py migrate --plan` to preview the SQL before applying
+- [ ] Inspect generated SQL with the approved backend wrapper when lock or data risk requires it; never use bare host Python
 - [ ] Agent E (Migration and Data Integrity Reviewer) reviews all migration files
-
-## When to use me
-
-Load when a task introduces new models, fields, constraints, indexes, or data migrations. Use during implementation (before commit) and during Agent E review.
 
 ## Source
 
-- [Backend Agent Template — Agent E](../backend-agent-template.md#agent-e---migration-and-data-integrity-reviewer)
-- [PR Quality Gates — Backend gates](../pr-quality-gates.md#backend-gates)
+- [Backend Agent Template — Agent E](../../../docs/ai-agents/backend-agent-template.md#agent-e---migration-and-data-integrity-reviewer)
+- [PR Quality Gates — Backend gates](../../../docs/ai-agents/pr-quality-gates.md#backend-gates)

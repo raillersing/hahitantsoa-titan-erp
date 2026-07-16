@@ -1,6 +1,6 @@
 ---
 name: erp-quality-gates
-description: Pre-commit quality verification checklist for Titan ERP backend PRs. Use when implementing or reviewing a backend change before pushing.
+description: Run the complete applicable backend pre-commit quality gate after implementation stabilizes. Use for final local readiness; use erp-backend-test-triage during development or failure diagnosis.
 ---
 
 # ERP Quality Gates

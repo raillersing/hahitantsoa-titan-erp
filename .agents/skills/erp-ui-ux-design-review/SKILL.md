@@ -1,6 +1,6 @@
 ---
 name: erp-ui-ux-design-review
-description: Portable ERP UI/UX review checklist that points agents to docs/design/DESIGN.md as the canonical Hahitantsoa/Titan design source
+description: Review an intentional ERP visual, responsive, navigation, or interaction change against docs/design/DESIGN.md. Use for UI/UX changes; do not load for API-only or test-only frontend work.
 ---
 
 ## Purpose

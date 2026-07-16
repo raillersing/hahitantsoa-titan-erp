@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-accessibility-ux
-description: WCAG fundamentals, keyboard navigation, semantic HTML, and user experience consistency checklist
+description: Review WCAG semantics, focus, keyboard behavior, labels, and interaction clarity. Use when visible or interactive frontend behavior changes or accessibility risk is explicitly in scope.
 ---
 
 ## What I do

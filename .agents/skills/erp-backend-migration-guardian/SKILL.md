@@ -1,6 +1,6 @@
 ---
 name: erp-backend-migration-guardian
-description: Migration drift, schema safety, and non-destructive validation checklist for backend PRs
+description: Validate migration drift and schema consistency non-destructively at the backend PR gate. Use after migration implementation; use erp-migration-safety earlier for design, backfill, reversibility, and locking decisions.
 ---
 
 ## What I do

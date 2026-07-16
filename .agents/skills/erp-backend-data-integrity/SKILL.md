@@ -1,6 +1,6 @@
 ---
 name: erp-backend-data-integrity
-description: Model invariants, lifecycle consistency, audit fields, and domain integrity review for backend changes
+description: Review backend model invariants, lifecycle consistency, durable attribution, and audit fields. Use when persisted domain state or lifecycle rules change; do not load for read-only API presentation changes.
 ---
 
 ## What I do

@@ -1,6 +1,6 @@
 ---
 name: erp-backend-auth-permission-auditor
-description: Django/DRF permission, object-level authorization, and sensitive-action review for backend PRs
+description: Review Django/DRF permission classes, queryset isolation, object-level authorization, and sensitive actions. Use for backend authorization risk; use erp-security-review instead when the change spans broader trust boundaries.
 ---
 
 ## What I do
