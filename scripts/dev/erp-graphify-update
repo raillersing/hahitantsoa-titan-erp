@@ -1,17 +1,61 @@
 #!/usr/bin/env bash
-# Lightweight wrapper: regenerate graphify knowledge graph from a clean main worktree.
+# Regenerate the Graphify knowledge graph only from the clean canonical main worktree.
 # Usage:  scripts/dev/erp-graphify-update [target-directory]
 # See:    docs/ai-agents/tooling/graphify.md
 #         AGENTS.md — "Knowledge graph consultation order"
 set -euo pipefail
 
 target="${1:-.}"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+cd "$REPO_ROOT"
+
+[ "$(git branch --show-current)" = main ] || {
+  echo "ERROR: Graphify update requires the main branch"
+  exit 1
+}
+[ -z "$(git status --short)" ] || {
+  echo "ERROR: Graphify update requires a clean main worktree"
+  exit 1
+}
+git rev-parse --verify origin/main >/dev/null 2>&1 || {
+  echo "ERROR: origin/main is unavailable; fetch it before updating Graphify"
+  exit 1
+}
+[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || {
+  echo "ERROR: local main must match origin/main before updating Graphify"
+  exit 1
+}
+
+main_worktree="$(git worktree list --porcelain | awk '/^worktree / { path=substr($0,10) } /^branch refs\/heads\/main$/ { print path; exit }')"
+[ -n "$main_worktree" ] && [ "$(realpath "$main_worktree")" = "$REPO_ROOT" ] || {
+  echo "ERROR: Graphify update must run from the canonical main worktree"
+  exit 1
+}
+
+resolved_target="$(realpath -m "$target")"
+[ "$resolved_target" = "$REPO_ROOT" ] || {
+  echo "ERROR: Graphify target must be the repository root: $REPO_ROOT"
+  exit 1
+}
 
 if ! command -v graphify &>/dev/null; then
   echo "ERROR: 'graphify' not found. Install with: pipx install graphify"
   exit 1
 fi
+if ! command -v flock &>/dev/null; then
+  echo "ERROR: 'flock' is required to serialize Graphify updates"
+  exit 1
+fi
 
-echo "==> Running: graphify update $target"
-graphify update "$target"
-echo "==> Done. Output in $target/graphify-out/"
+common_dir="$(git rev-parse --git-common-dir)"
+exec 9>"$common_dir/erp-graphify-update.lock"
+flock -n 9 || {
+  echo "ERROR: another Graphify update is already running"
+  exit 1
+}
+
+echo "==> Running: graphify update $REPO_ROOT"
+graphify update "$REPO_ROOT"
+echo "==> Done. Output in $REPO_ROOT/graphify-out/"

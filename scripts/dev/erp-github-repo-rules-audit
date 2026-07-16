@@ -86,10 +86,10 @@ else
   echo "PASS: no GitHub secrets reference found in workflow file"
 fi
 
-if grep -q 'name: Backend quality' "$workflow_file" && grep -q 'name: Frontend quality' "$workflow_file"; then
-  echo "PASS: expected required check names found"
+if grep -q 'name: CI policy gate' "$workflow_file"; then
+  echo "PASS: stable required policy-gate check name found"
 else
-  echo "WARN: expected required check names missing or renamed"
+  echo "WARN: expected CI policy gate check name missing or renamed"
 fi
 
 echo
@@ -99,7 +99,7 @@ grep -En 'uses: ' "$workflow_file" || true
 echo
 echo "GitHub settings checklist to verify manually:"
 echo "- branch protection on main"
-echo "- required status checks include Backend quality and Frontend quality"
+echo "- required status checks include CI policy gate only"
 echo "- squash merge policy reviewed"
 echo "- Actions permissions remain least-privilege"
 echo "- PR jobs do not receive unnecessary secrets"

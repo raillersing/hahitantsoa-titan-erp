@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[ "$#" -eq 5 ] || {
+  echo "Usage: scripts/dev/erp-ci-policy-gate <classifier-result> <backend-required> <backend-result> <frontend-required> <frontend-result>"
+  exit 2
+}
+
+classifier_result="$1"
+backend_required="$2"
+backend_result="$3"
+frontend_required="$4"
+frontend_result="$5"
+
+[ "$classifier_result" = success ] || {
+  echo "ERROR: change classification did not succeed: $classifier_result"
+  exit 1
+}
+
+check_stack() {
+  local name="$1" required="$2" result="$3"
+  case "$required" in true|false) ;; *) echo "ERROR: invalid $name requirement: $required"; exit 1 ;; esac
+  if [ "$required" = true ] && [ "$result" != success ]; then
+    echo "ERROR: $name is required but result is '$result'"
+    exit 1
+  fi
+  if [ "$required" = false ] && [ "$result" != skipped ] && [ "$result" != success ]; then
+    echo "ERROR: optional $name has unexpected result '$result'"
+    exit 1
+  fi
+}
+
+check_stack backend "$backend_required" "$backend_result"
+check_stack frontend "$frontend_required" "$frontend_result"
+echo "CI policy gate: PASS"

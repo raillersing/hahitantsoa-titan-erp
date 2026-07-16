@@ -217,20 +217,6 @@ if [ "$pr_state" = "OPEN" ]; then
   else
     echo "INFO: No required checks reported or checks failed. Falling back to statusCheckRollup validation..."
 
-    # Check Backend quality
-    backend_status="$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "Backend quality") | .conclusion' 2>/dev/null || true)"
-    if [ "$backend_status" != "SUCCESS" ]; then
-      echo "ERROR: Backend quality check must be SUCCESS, got: '$backend_status'"
-      exit 1
-    fi
-
-    # Check Frontend quality
-    frontend_status="$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "Frontend quality") | .conclusion' 2>/dev/null || true)"
-    if [ "$frontend_status" != "SUCCESS" ]; then
-      echo "ERROR: Frontend quality check must be SUCCESS, got: '$frontend_status'"
-      exit 1
-    fi
-
     # Check if any check failed
     failed_count="$(gh pr view "$pr_number" --json statusCheckRollup --jq '[.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null)] | length' 2>/dev/null || echo "0")"
     if [ "${failed_count:-0}" -gt 0 ]; then
@@ -238,6 +224,12 @@ if [ "$pr_state" = "OPEN" ]; then
       gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.conclusion != "SUCCESS" and .conclusion != "NEUTRAL" and .conclusion != "SKIPPED" and .conclusion != null) | "Check run \(.name) is \(.conclusion)"'
       exit 1
     fi
+  fi
+
+  policy_status="$(gh pr view "$pr_number" --json statusCheckRollup --jq '.statusCheckRollup[] | select(.name == "CI policy gate") | .conclusion' 2>/dev/null || true)"
+  if [ "$policy_status" != "SUCCESS" ]; then
+    echo "ERROR: CI policy gate must be SUCCESS, got: '$policy_status'"
+    exit 1
   fi
 
   before_main_head="$(git rev-parse HEAD)"

@@ -12,8 +12,32 @@ permissions:
   contents: read
 
 jobs:
+  classify-changes:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.policy.outputs.backend }}
+      frontend: ${{ steps.policy.outputs.frontend }}
+      level: ${{ steps.policy.outputs.level }}
+      reason: ${{ steps.policy.outputs.reason }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed paths and risk
+        id: policy
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          RANGE_MODE: ${{ github.event_name == 'pull_request' && 'pr' || 'push' }}
+        run: bash scripts/dev/erp-ci-change-policy --range "$RANGE_MODE" "$BASE_SHA" "$HEAD_SHA"
+
   backend-quality:
     name: Backend quality
+    needs: classify-changes
+    if: needs.classify-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -73,6 +97,8 @@ jobs:
 
   frontend-quality:
     name: Frontend quality
+    needs: classify-changes
+    if: needs.classify-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     defaults:
@@ -98,3 +124,30 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+  ci-policy-gate:
+    name: CI policy gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - classify-changes
+      - backend-quality
+      - frontend-quality
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Verify required checks completed
+        env:
+          CLASSIFIER_RESULT: ${{ needs.classify-changes.result }}
+          BACKEND_REQUIRED: ${{ needs.classify-changes.outputs.backend }}
+          BACKEND_RESULT: ${{ needs.backend-quality.result }}
+          FRONTEND_REQUIRED: ${{ needs.classify-changes.outputs.frontend }}
+          FRONTEND_RESULT: ${{ needs.frontend-quality.result }}
+        run: >-
+          bash scripts/dev/erp-ci-policy-gate
+          "$CLASSIFIER_RESULT"
+          "$BACKEND_REQUIRED"
+          "$BACKEND_RESULT"
+          "$FRONTEND_REQUIRED"
+          "$FRONTEND_RESULT"

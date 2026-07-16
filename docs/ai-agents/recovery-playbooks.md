@@ -222,7 +222,9 @@ Recovery:
 1. Do not use external `jq` to parse JSON. External `jq` is strictly forbidden in project scripts.
 2. Ensure JSON query/filtering is performed natively using `gh --json --jq`.
 3. The helper will fallback to `statusCheckRollup` verification if `gh pr checks --required` fails due to unconfigured rules.
-4. Verify that both `Backend quality` and `Frontend quality` are explicitly marked as `SUCCESS` in the output of the fallback statusCheckRollup audit.
+4. Verify that `CI policy gate` is explicitly marked as `SUCCESS` in the fallback
+   statusCheckRollup audit. Conditional backend/frontend jobs may be skipped only when
+   the classifier did not select them.
 5. If any essential quality checks are failing, do not finalize the PR. Report the failure and request implementer action.
 
 ## Windows-to-WSL Bridge Violations

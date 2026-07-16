@@ -22,10 +22,13 @@ Verify on GitHub:
 
 ## Required Checks
 
-The expected required checks are:
+The expected required check is:
 
-- `Backend quality`
-- `Frontend quality`
+- `CI policy gate`
+
+`Backend quality` and `Frontend quality` are conditional implementation checks and must
+not be configured as required branch checks. The policy gate requires whichever of them
+the classifier selected.
 
 A PR must not be merged unless these checks are green, or a documented human-approved
 exception exists.

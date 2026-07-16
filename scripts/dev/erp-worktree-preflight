@@ -12,7 +12,7 @@ PROFILE=""
 print_usage() {
   cat <<'USAGE'
 Usage:
-  scripts/dev/erp-worktree-preflight [--require-clean] [backend|frontend|agent-tools]
+  scripts/dev/erp-worktree-preflight [--require-clean] [backend|frontend|agent-tools|agent-ci]
 
 Purpose:
   Print the current repository baseline and optionally stop when the worktree is
@@ -35,7 +35,7 @@ while [ "$#" -gt 0 ]; do
     --require-clean)
       REQUIRE_CLEAN=1
       ;;
-    backend|frontend|agent-tools)
+    backend|frontend|agent-tools|agent-ci)
       if [ -n "$PROFILE" ]; then
         echo "ERROR: only one profile may be provided"
         exit 2

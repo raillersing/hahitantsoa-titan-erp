@@ -164,6 +164,7 @@ set -euo pipefail
 scripts/dev/erp-worktree-preflight backend
 scripts/dev/erp-worktree-preflight frontend
 scripts/dev/erp-worktree-preflight agent-tools
+scripts/dev/erp-worktree-preflight agent-ci
 EOF
 ```
 
@@ -691,7 +692,24 @@ stop until fixed.
 ### PR Check Finalization Rules
 
 - **Required Checks:** Verification of required PR checks via `gh pr checks <PR> --required` is preferred when configured on the branch protection rules.
-- **Rollup Fallback:** If no required checks are reported by the CLI (or the check command fails/returns empty because none are configured), the finalizer falls back to statusCheckRollup validation. Under statusCheckRollup validation, both `Backend quality` and `Frontend quality` checks are explicitly required to be `SUCCESS`.
+- **Rollup Fallback:** If no required checks are reported by the CLI, the finalizer
+  requires `CI policy gate` to be `SUCCESS` in statusCheckRollup. The gate itself checks
+  that every stack selected by the fail-closed path/risk classifier succeeded.
+
+## Conditional CI policy
+
+The `CI` workflow always runs `Classify changes` and `CI policy gate`.
+
+- Documentation and agent-governance-only changes run neither application stack.
+- Backend or frontend changes run the affected full stack.
+- Authentication/API trust-boundary changes and CI/test-infrastructure changes run both.
+- Unknown paths, empty diffs, and invalid Git ranges fail closed by selecting both.
+- `CI policy gate` accepts `SKIPPED` only for a stack the classifier explicitly did not
+  select.
+
+Until GitHub branch protection requires `CI policy gate`, the protected ERP finalizers
+remain the enforcement boundary. Configure that single stable check when repository
+rules are enabled; do not require conditionally skipped job names.
 - **JSON Processing:** The use of external `jq` is strictly forbidden in project scripts to maintain environment portability. All JSON parsing and filtering must be handled natively using the `gh --json --jq` option built into the GitHub CLI.
 
 ## CI Wait Policy

@@ -89,6 +89,8 @@ One agent equals one worktree equals one branch equals one non-overlapping scope
 - frontend agent: frontend worktree, `frontend/`, frontend audits
 - agent-tools agent: agent-tools worktree, `scripts/dev/`, `compose.agent-ci.yaml`,
   F138 agent-tools audit files
+- agent-ci agent: dedicated CI worktree, canonical `.github/workflows/ci.yml`, exact
+  CI/finalization helpers, and directly related agent-governance documents
 - agent-docs agent: agent-docs worktree, `docs/ai-agents/`, docs audits
 - future business-rules agent: business docs only
 - review agent: non-mutating unless explicitly authorized

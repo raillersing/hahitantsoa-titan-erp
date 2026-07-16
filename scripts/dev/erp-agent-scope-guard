@@ -9,7 +9,7 @@ cd "$REPO_ROOT"
 print_usage() {
   cat <<'USAGE'
 Usage:
-  scripts/dev/erp-agent-scope-guard <backend|frontend|agent-tools|agent-docs>
+  scripts/dev/erp-agent-scope-guard <backend|frontend|agent-tools|agent-ci|agent-docs>
 
 Purpose:
   Stop early when the current worktree or branch diff contains files outside the
@@ -25,6 +25,10 @@ Profiles:
   agent-tools
     Forbid backend, frontend, .github, dependency manifests, .env-like files, and
     secret-looking files. Allow only scripts/dev, compose.agent-ci.yaml, docs/audits, and docs/ai-agents.
+
+  agent-ci
+    Allow only the canonical CI workflow, ERP CI/tooling helpers, and their governance
+    documentation. Application and dependency files remain forbidden.
 
   agent-docs
     Forbid backend, frontend, tests, .github, dependency manifests, .env-like files,
@@ -113,6 +117,13 @@ case "$PROFILE" in
     check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
     check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
     check_allowed_only '^(scripts/dev/|compose\.agent-ci\.yaml$|docs/audits/|docs/ai-agents/)'
+    ;;
+  agent-ci)
+    check_blocked '^(backend/|backend$|frontend/|frontend$|tests/|tests$)' "application or application-test paths are out of scope"
+    check_blocked '^(package\.json|package-lock\.json|pyproject\.toml|requirements[^/]*\.txt|poetry\.lock|pnpm-lock\.yaml|yarn\.lock)$' "dependency manifests are out of scope"
+    check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
+    check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
+    check_allowed_only '^(AGENTS\.md$|\.github/workflows/ci\.yml$|scripts/dev/erp-(ci-|agent-scope-guard$|worktree-preflight$|worktree-list-validated$|graphify-update$|pr-finalize-from-root$|pr-worktree-finalize$|github-repo-rules-audit$|antigravity-wsl-adapter$)|scripts/dev/test-erp-ci-policy$|docs/ai-agents/|\.agents/skills/erp-scope-guard-setup/SKILL\.md$)'
     ;;
   agent-docs)
     check_blocked '^(backend/|backend$|frontend/|frontend$|tests/|tests$|\.github/|\.github$)' "application, test, or GitHub workflow paths are out of scope"
