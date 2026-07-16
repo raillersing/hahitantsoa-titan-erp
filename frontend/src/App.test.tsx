@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -48,6 +48,7 @@ describe("App Prototype", () => {
     fireEvent.click(titanBtn);
     expect(screen.getByRole("heading", { name: "Titan" })).toBeInTheDocument();
     expect(window.location.hash).toBe("#titan");
+    expect(screen.getByTestId("route-content")).toHaveFocus();
   });
 
   it("opens the Hahitantsoa module from the URL hash", () => {
@@ -76,6 +77,33 @@ describe("App Prototype", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Tableau de bord" })).toBeInTheDocument();
     expect(window.location.hash).toBe("#dashboard");
+    expect(screen.queryByText("LOGIN")).not.toBeInTheDocument();
+  });
+
+  it("shows an explicit recovery page for an unknown hash", () => {
+    window.history.replaceState(null, "", "/#unknown/route");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Page introuvable" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#unknown/route");
+    expect(screen.getByRole("main")).toHaveFocus();
+    expect(screen.queryByRole("link", { name: "Tableau de bord" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nouvelle réservation" })).not.toBeInTheDocument();
+  });
+
+  it("uses browser history for user navigation", async () => {
+    window.history.replaceState(null, "", "/#dashboard");
+    render(<App />);
+    fireEvent.click(screen.getByRole("link", { name: /Titan/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Planning/i })[0]);
+    expect(window.location.hash).toBe("#planning");
+
+    act(() => window.history.back());
+    await waitFor(() => expect(window.location.hash).toBe("#titan"));
+    expect(screen.getByRole("heading", { name: "Titan" })).toBeInTheDocument();
+
+    act(() => window.history.forward());
+    await waitFor(() => expect(window.location.hash).toBe("#planning"));
+    expect(screen.getByRole("heading", { name: "Planning" })).toBeInTheDocument();
   });
 
   it("protects a deep link with the real login panel when anonymous", () => {
@@ -84,6 +112,14 @@ describe("App Prototype", () => {
     render(<ThemeProvider><App /></ThemeProvider>);
     expect(screen.getByRole("heading", { name: "Connexion opérateur" })).toBeInTheDocument();
     expect(screen.queryByText("Documents & Modèles")).not.toBeInTheDocument();
+  });
+
+  it("preserves an encoded deep-link parameter while anonymous", () => {
+    authMock.value.state = { status: "unauthenticated", error: null };
+    window.history.replaceState(null, "", "/#customer/client%20%C3%A9t%C3%A9%2F001");
+    render(<ThemeProvider><App /></ThemeProvider>);
+    expect(screen.getByRole("heading", { name: "Connexion opérateur" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#customer/client%20%C3%A9t%C3%A9%2F001");
   });
 
   it("shows the read-only backend profile", () => {

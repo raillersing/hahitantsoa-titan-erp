@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { formatHash, isAppScope, parseHash, type AppRoute, type AppScope } from "./app-routes";
 import { useAuth } from "./AuthContext";
 import LoginPanel from "./LoginPanel";
 import AppShell from "./prototype/AppShell";
@@ -34,147 +35,89 @@ import AdminPage from "./prototype/AdminPage";
 import DocumentsPage from "./prototype/DocumentsPage";
 import AgendaVisitorsPage from "./prototype/AgendaVisitorsPage";
 import ProfilePage from "./prototype/ProfilePage";
+import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
 
-export type AppScope =
-  | "dashboard"
-  | "planning"
-  | "customers"
-  | "hahitantsoa"
-  | "titan"
-  | "commercial-ops"
-  | "cashbox"
-  | "caution"
-  | "audit"
-  | "reports"
-  | "help"
-  | "reservation-new"
-  | "reservation-detail"
-  | "reservations"
-  | "customer"
-  | "login"
-  | "packages"
-  | "services"
-  | "blacklist-intervenants"
-  | "inventory"
-  | "inventory-management"
-  | "inventory-item"
-  | "stock-movements"
-  | "stock-preparation"
-  | "logistics-dispatch"
-  | "logistics-returns"
-  | "breakage-loss"
-  | "venues"
-  | "agenda-visitors"
-  | "import-excel"
-  | "documents"
-  | "hr-payroll"
-  | "purchasing"
-  | "notifications"
-  | "admin"
-  | "mobile-tablet"
-  | "profile";
+export type { AppScope } from "./app-routes";
 
-function parseHash(hash: string): { scope: AppScope; param?: string } {
-  const normalizedHash = hash.startsWith("#") ? hash.slice(1) : hash;
-  const parts = normalizedHash.split("/");
-  const rawScope = parts[0];
-  const param = parts[1];
+type ReturnContext = { from: AppScope; param?: string };
 
-  const validScopes: AppScope[] = [
-    "dashboard",
-    "planning",
-    "customers",
-    "hahitantsoa",
-    "titan",
-    "commercial-ops",
-    "cashbox",
-    "caution",
-    "audit",
-    "reports",
-    "help",
-    "reservation-new",
-    "reservation-detail",
-    "reservations",
-    "customer",
-    "login",
-    "packages",
-    "services",
-    "blacklist-intervenants",
-    "inventory",
-    "inventory-management",
-    "inventory-item",
-    "stock-movements",
-    "stock-preparation",
-    "logistics-dispatch",
-    "logistics-returns",
-    "breakage-loss",
-    "venues",
-    "agenda-visitors",
-    "import-excel",
-    "documents",
-    "hr-payroll",
-    "purchasing",
-    "notifications",
-    "admin",
-    "mobile-tablet",
-    "profile"
-  ];
-
-  const scope = validScopes.includes(rawScope as AppScope) ? (rawScope as AppScope) : "dashboard";
-  return { scope, param };
-}
-
-function writeScopeHash(scope: AppScope, param?: string) {
-  const hash = param ? `#${scope}/${param}` : `#${scope}`;
-  window.history.replaceState(null, "", hash);
+function returnContextFromHistoryState(value: unknown): ReturnContext | null {
+  if (typeof value !== "object" || value === null || !("erpReturnContext" in value)) return null;
+  const context = value.erpReturnContext;
+  if (typeof context !== "object" || context === null || !("from" in context) || !isAppScope(context.from)) return null;
+  return {
+    from: context.from,
+    ...("param" in context && typeof context.param === "string" ? { param: context.param } : {}),
+  };
 }
 
 function App() {
   const { state, isSubmitting, isOnline, refreshSession, logout } = useAuth();
-  const initialHash = parseHash(window.location.hash);
-  const [activeScope, setActiveScope] = useState<AppScope>(initialHash.scope);
-  const [activeParam, setActiveParam] = useState<string | undefined>(initialHash.param);
+  const [route, setRoute] = useState<AppRoute>(() => parseHash(window.location.hash));
+  const [returnContext, setReturnContext] = useState<ReturnContext | null>(() =>
+    returnContextFromHistoryState(window.history.state),
+  );
+  const routeContentRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    writeScopeHash(activeScope, activeParam);
-  }, [activeScope, activeParam]);
-
-  useEffect(() => {
-    function handleHashChange() {
-      const parsed = parseHash(window.location.hash);
-      setActiveScope(parsed.scope);
-      setActiveParam(parsed.param);
+    if (!window.location.hash) {
+      window.history.replaceState(null, "", formatHash("dashboard"));
     }
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   useEffect(() => {
-    if (state.status === "authenticated" && activeScope === "login") {
-      setActiveScope("dashboard");
-      setActiveParam(undefined);
+    function syncRouteFromLocation() {
+      setRoute(parseHash(window.location.hash));
+      setReturnContext(returnContextFromHistoryState(window.history.state));
     }
-  }, [activeScope, state.status]);
+    window.addEventListener("hashchange", syncRouteFromLocation);
+    window.addEventListener("popstate", syncRouteFromLocation);
+    return () => {
+      window.removeEventListener("hashchange", syncRouteFromLocation);
+      window.removeEventListener("popstate", syncRouteFromLocation);
+    };
+  }, []);
 
-  const [returnContext, setReturnContext] = useState<{ from: AppScope; param?: string } | null>(null);
+  const authenticatedLoginRoute = state.status === "authenticated" && route.kind === "known" && route.scope === "login";
+  useEffect(() => {
+    if (authenticatedLoginRoute) {
+      const dashboardRoute: AppRoute = { kind: "known", scope: "dashboard" };
+      window.history.replaceState(null, "", formatHash("dashboard"));
+      setRoute(dashboardRoute);
+      setReturnContext(null);
+    }
+  }, [authenticatedLoginRoute]);
+
+  const effectiveRoute: AppRoute = authenticatedLoginRoute ? { kind: "known", scope: "dashboard" } : route;
+  const activeScope = effectiveRoute.kind === "known" ? effectiveRoute.scope : "dashboard";
+  const activeParam = effectiveRoute.kind === "known" ? effectiveRoute.param : undefined;
+  const routeFocusKey = effectiveRoute.kind === "known"
+    ? `${effectiveRoute.scope}/${effectiveRoute.param ?? ""}`
+    : effectiveRoute.requestedHash;
+
+  useEffect(() => {
+    if (state.status === "authenticated") routeContentRef.current?.focus({ preventScroll: true });
+  }, [routeFocusKey, state.status]);
 
   const navigate = (scope: AppScope, param?: string) => {
-    // Remember where we came from when entering customer, reservation detail, or inventory-item
-    if (scope === 'customer' || scope === 'reservation-detail' || scope === 'inventory-item') {
-      setReturnContext({ from: activeScope, param: activeParam });
-    }
-    setActiveScope(scope);
-    setActiveParam(param);
+    const nextReturnContext =
+      (scope === "customer" || scope === "reservation-detail" || scope === "inventory-item") && effectiveRoute.kind === "known"
+        ? { from: effectiveRoute.scope, ...(effectiveRoute.param ? { param: effectiveRoute.param } : {}) }
+        : null;
+    window.history.pushState(
+      nextReturnContext ? { erpReturnContext: nextReturnContext } : null,
+      "",
+      formatHash(scope, param),
+    );
+    setRoute({ kind: "known", scope, ...(param ? { param } : {}) });
+    setReturnContext(nextReturnContext);
   };
 
   const navigateBack = () => {
     if (returnContext) {
-      setActiveScope(returnContext.from);
-      setActiveParam(returnContext.param);
-      setReturnContext(null);
+      window.history.back();
     } else {
-      setActiveScope('dashboard');
-      setActiveParam(undefined);
+      navigate("dashboard");
     }
   };
 
@@ -208,6 +151,61 @@ function App() {
     return <LoginPanel />;
   }
 
+  if (effectiveRoute.kind === "not-found") {
+    return (
+      <main
+        ref={routeContentRef}
+        tabIndex={-1}
+        className="min-h-screen bg-slate-50 outline-none dark:bg-slate-900"
+      >
+        <RouteNotFoundPage requestedHash={effectiveRoute.requestedHash} onNavigateHome={() => navigate("dashboard")} />
+      </main>
+    );
+  }
+
+  const renderKnownRoute = (scope: AppScope) => {
+    switch (scope) {
+      case "dashboard": return <DashboardPage onNavigate={navigate} />;
+      case "planning": return <PlanningPage onNavigate={navigate} />;
+      case "hahitantsoa": return <HahitantsoaPage onNavigate={navigate} />;
+      case "titan": return <TitanPage onNavigate={navigate} />;
+      case "commercial-ops": return <CommercialOpsPage onNavigate={navigate} />;
+      case "customers": return <CustomersPage onNavigate={navigate} />;
+      case "cashbox": return <CashboxPage onNavigate={navigate} />;
+      case "caution": return <CautionPage onNavigate={navigate} />;
+      case "help": return <HelpPage onNavigate={navigate} />;
+      case "reservation-new": return <ReservationNewPage onNavigate={navigate} param={activeParam} />;
+      case "reservation-detail": return <ReservationDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
+      case "reservations": return <ReservationsPage onNavigate={navigate} />;
+      case "customer": return <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
+      case "packages": return <PackageBuilderPage />;
+      case "services": return <ServicesPage />;
+      case "blacklist-intervenants": return <BlacklistPage />;
+      case "inventory": return <InventoryPage onNavigate={navigate} />;
+      case "inventory-management": return <InventoryManagementPage onNavigate={navigate} />;
+      case "inventory-item": return <InventoryItemPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
+      case "stock-movements": return <StockMovementsPage onNavigate={navigate} />;
+      case "stock-preparation": return <StockPreparationPage onNavigate={navigate} />;
+      case "logistics-dispatch": return <LogisticsDispatchPage onNavigate={navigate} />;
+      case "logistics-returns": return <LogisticsReturnsPage onNavigate={navigate} />;
+      case "breakage-loss": return <BreakageLossPage onNavigate={navigate} />;
+      case "audit": return <AuditPage onNavigate={navigate} />;
+      case "reports": return <ReportsPage onNavigate={navigate} />;
+      case "venues": return <VenuesPage />;
+      case "admin": return <AdminPage onNavigate={navigate} />;
+      case "documents": return <DocumentsPage onNavigate={navigate} />;
+      case "agenda-visitors": return <AgendaVisitorsPage onNavigate={navigate} />;
+      case "profile": return <ProfilePage user={state.user} />;
+      case "login": return <DashboardPage onNavigate={navigate} />;
+      case "import-excel":
+      case "hr-payroll":
+      case "purchasing":
+      case "notifications":
+      case "mobile-tablet":
+        return <PlaceholderPage title={scope.toUpperCase()} scope={scope} onNavigate={navigate} />;
+    }
+  };
+
   return (
     <AppShell
       activeScope={activeScope}
@@ -220,69 +218,9 @@ function App() {
       sessionError={state.error}
       onLogout={logout}
     >
-      {activeScope === "dashboard" && <DashboardPage onNavigate={navigate} />}
-      {activeScope === "planning" && <PlanningPage onNavigate={navigate} />}
-      {activeScope === "hahitantsoa" && <HahitantsoaPage onNavigate={navigate} />}
-      {activeScope === "titan" && <TitanPage onNavigate={navigate} />}
-      {activeScope === "commercial-ops" && <CommercialOpsPage onNavigate={navigate} />}
-      {activeScope === "customers" && <CustomersPage onNavigate={navigate} />}
-      {activeScope === "cashbox" && <CashboxPage onNavigate={navigate} />}
-      {activeScope === "caution" && <CautionPage onNavigate={navigate} />}
-      {activeScope === "help" && <HelpPage onNavigate={navigate} />}
-      {activeScope === "reservation-new" && <ReservationNewPage onNavigate={navigate} param={activeParam} />}
-      {activeScope === "reservation-detail" && <ReservationDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />}
-      {activeScope === "reservations" && <ReservationsPage onNavigate={navigate} />}
-      {activeScope === "customer" && <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />}
-      {activeScope === "packages" && <PackageBuilderPage />}
-      {activeScope === "services" && <ServicesPage />}
-      {activeScope === "blacklist-intervenants" && <BlacklistPage />}
-      {activeScope === "inventory" && <InventoryPage onNavigate={navigate} />}
-      {activeScope === "inventory-management" && <InventoryManagementPage onNavigate={navigate} />}
-      {activeScope === "inventory-item" && <InventoryItemPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />}
-      {activeScope === "stock-movements" && <StockMovementsPage onNavigate={navigate} />}
-      {activeScope === "stock-preparation" && <StockPreparationPage onNavigate={navigate} />}
-      {activeScope === "logistics-dispatch" && <LogisticsDispatchPage onNavigate={navigate} />}
-      {activeScope === "logistics-returns" && <LogisticsReturnsPage onNavigate={navigate} />}
-      {activeScope === "breakage-loss" && <BreakageLossPage onNavigate={navigate} />}
-      {activeScope === "audit" && <AuditPage onNavigate={navigate} />}
-      {activeScope === "reports" && <ReportsPage onNavigate={navigate} />}
-      {activeScope === "venues" && <VenuesPage />}
-      {activeScope === "admin" && <AdminPage onNavigate={navigate} />}
-      {activeScope === "documents" && <DocumentsPage onNavigate={navigate} />}
-      {activeScope === "agenda-visitors" && <AgendaVisitorsPage onNavigate={navigate} />}
-      {activeScope === "profile" && <ProfilePage user={state.user} />}
-      {activeScope !== "dashboard" &&
-        activeScope !== "planning" &&
-        activeScope !== "hahitantsoa" &&
-        activeScope !== "titan" &&
-        activeScope !== "commercial-ops" &&
-        activeScope !== "customers" &&
-        activeScope !== "cashbox" &&
-        activeScope !== "caution" &&
-        activeScope !== "help" &&
-        activeScope !== "reservation-new" &&
-        activeScope !== "reservation-detail" &&
-        activeScope !== "reservations" &&
-        activeScope !== "reports" &&
-        activeScope !== "packages" &&
-        activeScope !== "services" &&
-        activeScope !== "blacklist-intervenants" &&
-        activeScope !== "customer" &&
-        activeScope !== "inventory" &&
-        activeScope !== "inventory-management" &&
-        activeScope !== "inventory-item" &&
-        activeScope !== "stock-movements" &&
-        activeScope !== "stock-preparation" &&
-        activeScope !== "logistics-dispatch" &&
-        activeScope !== "logistics-returns" &&
-        activeScope !== "breakage-loss" &&
-        activeScope !== "venues" &&
-        activeScope !== "admin" &&
-        activeScope !== "documents" &&
-        activeScope !== "agenda-visitors" &&
-        activeScope !== "profile" && (
-          <PlaceholderPage title={(activeScope as string).toUpperCase()} scope={activeScope} onNavigate={navigate} />
-      )}
+      <section ref={routeContentRef} tabIndex={-1} className="min-w-0 outline-none" data-testid="route-content">
+        {renderKnownRoute(effectiveRoute.scope)}
+      </section>
     </AppShell>
   );
 }
