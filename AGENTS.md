@@ -236,11 +236,13 @@ structural implementation task, or after a merged change to application code, ro
 models, API contracts, or dependencies. Documentation-only and copy-only changes do not
 require regeneration. Never run concurrent Graphify updates from task worktrees.
 
-The current wrapper is an invocation helper, not yet an enforcement boundary. Before
-calling it, prove root `main`, a clean status, and absence of another Graphify update.
-Hardening these checks and mutual exclusion belongs to the dedicated `agent-tools` lot.
+The wrapper is now the enforcement boundary for Graphify generation. It requires the
+canonical root worktree on clean `main`, equality with `origin/main`, an exact
+repository-root target, Graphify and `flock` availability, and a shared nonblocking
+lock. Agents consume the graph read-only from task worktrees; only the orchestrator
+runs generation.
 
-Invocation helper:
+Generation gate:
 
 ```sh
 bash scripts/dev/erp-graphify-update .
