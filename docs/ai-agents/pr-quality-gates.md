@@ -8,6 +8,54 @@ Use the standard command patterns in
 referencing the current task state in
 [`orchestrator-task-queue.md`](orchestrator-task-queue.md).
 
+## Proportional local validation matrix
+
+Test the changed behavior at the lowest level that proves it, then add only the
+mandatory risk overrides below. Do not repeat an unchanged green suite merely because a
+reviewer or orchestrator phase changed.
+
+| Level | Change profile | Required local evidence before PR |
+|---|---|---|
+| `L0 — governance/docs` | Markdown, agent skills, reports, copy, or ignored evidence with no executable/config change | scope guard, relevant document/skill/link validator, `git diff --check`; no backend/frontend application suite |
+| `L1 — focused` | Isolated backend function/view/serializer or frontend component behavior | affected focused tests, touched-language lint/type check, and frontend build when shipped frontend source changes |
+| `L2 — subsystem` | Several files in one bounded backend app or frontend journey | focused subsystem tests plus applicable Django check, migration check, frontend build, or targeted Playwright journey |
+| `L3 — full affected stack` | Cross-cutting framework/config/dependency change or mandatory risk override | complete backend or frontend local gate for each affected stack; backend runtime changes also require explicit Django check |
+| `L4 — cross-boundary` | Approved backend/frontend contract or end-to-end workflow change | complete gates for both affected stacks plus targeted E2E/Playwright proof |
+
+Selection rules:
+
+- Start with `L1` during implementation; widen only when changed dependencies or a
+  failure demonstrate broader impact.
+- `L0` never runs application suites solely for reassurance.
+- A frontend source change requires a production build, but not every Playwright suite.
+- Run Playwright only for the changed journey, browser-only behavior, responsive/layout
+  risk, routing, or a contract integration that component tests cannot prove.
+- Reviewers reuse command/result evidence only when it records the tested Git HEAD and
+  that HEAD still matches the reviewed diff. Accept logged local evidence tied to that
+  SHA or completed PR CI for the exact head. Rerun impacted checks after a code-changing
+  commit; rerun otherwise only to reproduce a finding, investigate nondeterminism, or
+  cover a missed risk.
+- After a documentation-only rebase, rerun document/scope/diff checks, not previously
+  green application suites.
+- PR CI and exact-SHA `main` CI remain mandatory. The path/risk-aware CI implementation
+  must expose one required policy-gate check so skipped inapplicable jobs cannot look
+  like missing validation.
+
+### Mandatory risk overrides
+
+| Risk | Minimum level and additional evidence |
+|---|---|
+| Authentication, session, CSRF, authorization, tenant/object isolation, secrets | `L3` backend; add affected frontend gate and targeted E2E when browser auth behavior changes |
+| Model or migration change | `L3` backend plus migration guard and migration/data-integrity review |
+| Payment, refund, receipt, cashbox, financial calculation or idempotency | `L3` backend plus payment/idempotency and transaction review |
+| Stock, reservation availability, confirmation, allocation, or competing writes | `L3` backend plus transaction/concurrency and rollback evidence |
+| Public API contract used by frontend | `L4` unless the change is proven backward-compatible and frontend-neutral by contract tests and independent review |
+| Dependency, compiler, bundler, Django settings, test infrastructure, or CI wrapper | `L3` for every affected stack |
+| Sensitive upload or private document access | `L3` affected stack plus security and authorization review |
+
+These overrides may increase validation, never decrease trust-boundary, data-loss,
+financial, migration, or concurrency proof.
+
 ## Universal gates
 
 - Baseline commit and dedicated branch verified.

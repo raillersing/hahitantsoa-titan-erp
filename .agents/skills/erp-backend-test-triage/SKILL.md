@@ -5,14 +5,16 @@ description: Select focused backend tests during development and reproduce or cl
 
 ## What I do
 
-Help Codex pick the smallest useful backend test slice first, then escalate to the full backend CI wrapper before PR.
+Help Codex select the smallest useful backend test slice and the proportional `L0`–`L4`
+level, then widen only for demonstrated impact or a mandatory risk override.
 
 ## Checklist
 
 - [ ] Identify the smallest relevant pytest target for the changed backend slice
 - [ ] Reproduce the failure with `scripts/dev/erp-backend-fast`
-- [ ] Use `scripts/dev/erp-backend-ci` before PR or when Ruff or migration coverage matters
-- [ ] Escalate from focused tests to full backend CI instead of expanding the slice blindly
+- [ ] Record the selected level from `docs/ai-agents/pr-quality-gates.md`
+- [ ] Use `scripts/dev/erp-backend-ci` for `L3`/`L4` or a mandatory risk override
+- [ ] Widen from focused tests only when dependencies, failures, or risk require it
 - [ ] Stop if the failure looks cross-cutting, contract-heavy, or migration-sensitive
 - [ ] Keep pytest targets explicit and short
 
@@ -30,7 +32,8 @@ Load when choosing backend tests, debugging a failing slice, or deciding whether
 ## Commands / wrappers to run
 
 - `scripts/dev/erp-backend-fast tests/backend/path_or_module.py -q`
-- `scripts/dev/erp-backend-ci tests/backend/path_or_module.py -q`
+- `scripts/dev/erp-backend-ci` for `L3`/`L4` or a mandatory risk override; never pass a
+  focused pytest target when claiming a complete backend suite
 
 ## Hard stops
 
@@ -42,7 +45,7 @@ Load when choosing backend tests, debugging a failing slice, or deciding whether
 
 - chosen pytest target(s)
 - reproduction command
-- whether the issue stays focused or needs full backend CI
+- selected level, applicable risk override, and whether evidence requires widening
 
 ## Source
 

@@ -9,7 +9,8 @@ Use after implementing a backend change, before commit and push.
 
 ## What I do
 
-Verify that all backend quality gates pass before opening a PR.
+Verify that the selected proportional backend gate and every mandatory risk override
+pass before opening a PR.
 
 ## Checklist
 
@@ -25,6 +26,11 @@ Verify that all backend quality gates pass before opening a PR.
 - [ ] `git diff --check` passes
 - [ ] Agent scope guard passes for the active profile
 - [ ] No host Python — use `scripts/dev/erp-backend-compose-ci` or `scripts/ci/backend-quality` for backend validation
+- [ ] Validation level `L0`–`L4` and its evidence are recorded
+- [ ] Full backend CI is required only by `L3`, `L4`, or a mandatory risk override
+- [ ] Complete backend claims include an explicit Django check because
+  `erp-backend-ci` does not currently run it
+- [ ] No unchanged green suite is repeated without an impact or failure reason
 
 ## When to use me
 
