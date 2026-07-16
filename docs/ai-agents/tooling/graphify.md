@@ -16,13 +16,35 @@ distributed on PyPI as `graphifyy`.
 - **Phase:** F178D operational integration — pilot executed.
 - **Installation method:** `pipx install graphifyy` (no `graphify install` variant used).
 - **Installation status:** Installed (v0.8.49) via pipx at `~/.local/bin/graphify`.
-- **Graph output:** Generated 2026-06-25 from `main` @ `dc39a64b`.
-  - 6425 nodes, 11749 edges, 448 communities (code-only, no API key).
+- **Graph output:** Refreshed 2026-07-16 from `main` @ `de746e29`.
+  - 7600 nodes, 13331 edges, 526 communities (code-only, no API key).
   - Files: `graphify-out/graph.json` (6.7 MB), `graphify-out/GRAPH_REPORT.md` (116 KB),
     `graphify-out/manifest.json` (112 KB), `graphify-out/cache/` (8.1 MB AST cache).
   - All outputs are gitignored under `graphify-out/`.
-- **Workflow rule:** Added to `AGENTS.md` — cartography first, Graphify report second,
-  raw search third.
+- **Workflow rule:** Select the relevant normative map, inspect current targeted
+  Graphify evidence, confirm with raw search, then apply Ponytail.
+
+## Ownership and freshness gate
+
+- The orchestrator owns graph generation. Individual implementation and review agents
+  verify freshness and consume the current graph read-only.
+- Compare the report's `Built from commit` value with clean `main`, not with a task
+  branch that contains the unmerged delta under review.
+- If stale before structural implementation, stop that implementation and request one
+  orchestrator update from clean `main`.
+- Refresh after a merged change to application code, routes, models, API contracts, or
+  dependencies. Batch adjacent merged structural changes into one refresh.
+- Do not refresh for documentation, copy, screenshots, reports, or tests that do not
+  alter application structure.
+- Never run simultaneous updates from agents or task worktrees.
+- Record the consulted map, Graphify build SHA and targeted entities/paths in the lot
+  report. Do not claim that reading the whole report is required.
+
+The current `erp-graphify-update` wrapper is only an invocation helper: it does not yet
+enforce root-worktree location, `main`, cleanliness, target containment, or mutual
+exclusion. Until the planned `agent-tools` hardening lands, the orchestrator must prove
+those preconditions explicitly and stop if another Graphify update is running. Do not
+describe the helper as a safety gate.
 
 ## How Graphify Works
 
@@ -102,6 +124,13 @@ From a clean `main` worktree (never on an active task branch):
 scripts/dev/erp-logged-run graphify-update <<'EOF'
 set -euo pipefail
 
+test "$(pwd -P)" = "/home/raillersing/projects/hahitantsoa-titan-erp"
+test "$(git branch --show-current)" = "main"
+test -z "$(git status --short)"
+if pgrep -af '[g]raphify update' >/dev/null; then
+  echo "ERROR: another Graphify update is already running"
+  exit 1
+fi
 bash scripts/dev/erp-graphify-update .
 EOF
 ```
@@ -110,7 +139,8 @@ EOF
 It produces `graphify-out/graph.json`, `graphify-out/GRAPH_REPORT.md`, and
 `graphify-out/manifest.json`.
 
-To rebuild after code changes, run the same command again.
+To rebuild after qualifying structural changes, run the same command once from the
+clean root `main` worktree. Do not rebuild from every task branch.
 
 ### Full graph generation (with semantic extraction)
 
@@ -129,10 +159,10 @@ EOF
 
 ### Agent read of existing output
 
-Agents may consult `graphify-out/GRAPH_REPORT.md` or `graphify-out/graph.json`
-directly without using the `graphify` CLI, provided the graph was generated
-under the approved workflow above. See `AGENTS.md` for the required consultation
-order (cartography → Graphify → raw search).
+Agents consult `graphify-out/GRAPH_REPORT.md` or `graphify-out/graph.json` read-only
+without using the CLI. Start from the cartography index, select the relevant normative
+map, inspect targeted Graphify evidence, confirm remaining details with `rg`, and apply
+Ponytail. This avoids duplicating exhaustive cartography and graph reads.
 
 ## Future Promotion Path
 

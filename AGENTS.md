@@ -210,29 +210,48 @@ Apply the relevant gates in
 PR CI must be green before merge. `main` CI must be green after merge. Human merge
 control remains mandatory unless a task explicitly authorizes otherwise.
 
-## Knowledge graph consultation order
+## Knowledge consultation and durable memory
 
-Before any implementation task, consult sources in this order:
+Before implementation, consult only the material relevant to the approved scope:
 
-1. **Application cartography** in `docs/architecture/application-map/` — canonical
-   architecture, domain boundaries, and navigation rules.
-2. **Graphify report** at `graphify-out/GRAPH_REPORT.md` (when present) — code-level
-   entity graph, community clusters, and dependency paths. Generated from the current
-   `main` commit. Stale if `git rev-parse HEAD` has moved since the report's build
-   commit.
-3. **Raw search** (`grep`, `glob`, file read) — fallback when the first two sources
-   are insufficient.
+1. **Application cartography index** in `docs/architecture/application-map/README.md`
+   — select the one or two normative maps that own the domain boundary, route, or flow.
+   Do not read the complete cartography by default.
+2. **Graphify report** at `graphify-out/GRAPH_REPORT.md` — compare its build commit
+   with current `main`, then inspect only the relevant entities, communities, or paths.
+3. **Raw search** (`rg`, file read) — confirm live implementation details not answered
+   by the selected map or Graphify evidence.
+4. **ERP Ponytail ladder** — reuse the discovered implementation and add only the
+   smallest robust delta.
 
-If `graphify-out/GRAPH_REPORT.md` is absent or stale, regenerate it from a clean
-`main` worktree with:
+Application cartography is normative intent; Graphify is generated implementation
+evidence. Neither may duplicate the other. An agent reports which targeted sources it
+used and whether Graphify was current; it does not regenerate Graphify independently.
+
+The orchestrator regenerates a stale graph once from a clean `main` worktree before a
+structural implementation task, or after a merged change to application code, routes,
+models, API contracts, or dependencies. Documentation-only and copy-only changes do not
+require regeneration. Never run concurrent Graphify updates from task worktrees.
+
+The current wrapper is an invocation helper, not yet an enforcement boundary. Before
+calling it, prove root `main`, a clean status, and absence of another Graphify update.
+Hardening these checks and mutual exclusion belongs to the dedicated `agent-tools` lot.
+
+Invocation helper:
 
 ```sh
-graphify update .
+bash scripts/dev/erp-graphify-update .
 ```
 
 No API key is required for code-only extraction. The generated output lives under
 `graphify-out/` which is gitignored. See `docs/ai-agents/tooling/graphify.md` for
 the full pilot governance rules and installation steps.
+
+The durable program memory is
+`docs/ai-agents/macro-goals/prototype-to-production-roadmap.md`, backed by Git history,
+PRs, merged SHAs, and exact-SHA `main` CI. Update its checkpoint only after verified
+merge evidence. `reports/`, `logs/terminal/`, and `graphify-out/` are local evidence,
+not durable sources of truth.
 
 ## Anti-overengineering ladder (ERP Ponytail)
 
