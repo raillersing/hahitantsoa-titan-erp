@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 
 import {
   getRoles,
@@ -7,6 +7,9 @@ import {
   checkIdentityWritePermission,
   cancelPayment,
   reconcilePayment,
+  checkAuth,
+  login,
+  logout,
 } from "./api";
 import type { ApplicationRole, UserRoleAssignment } from "./types";
 
@@ -25,6 +28,71 @@ function mockFetchResponse(
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  document.cookie = "csrftoken=test-csrf-token; path=/";
+});
+
+describe("session authentication", () => {
+  it("loads the real session with credentials", async () => {
+    const payload = { authenticated: false as const, user: null };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse(payload),
+    );
+
+    await expect(checkAuth()).resolves.toEqual(payload);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/v1/auth/session/",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
+  it("posts JSON credentials with the current CSRF token", async () => {
+    const payload = {
+      authenticated: true as const,
+      user: { id: "1", username: "ada", display_name: "Ada", is_staff: false, roles: ["commercial"] },
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse(payload),
+    );
+
+    await expect(login("ada", "secret")).resolves.toEqual(payload);
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(fetchSpy.mock.calls[0][0]).toBe("/api/v1/auth/login/");
+    expect(init).toEqual(expect.objectContaining({ method: "POST", credentials: "include", body: JSON.stringify({ username: "ada", password: "secret" }) }));
+    expect(new Headers(init?.headers).get("X-CSRFToken")).toBe("test-csrf-token");
+  });
+
+  it("bootstraps the CSRF cookie before a write when it is missing", async () => {
+    document.cookie = "csrftoken=; Max-Age=0; path=/";
+    const payload = {
+      authenticated: true as const,
+      user: { id: "1", username: "ada", display_name: "Ada", is_staff: false, roles: [] },
+    };
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => {
+        document.cookie = "csrftoken=bootstrapped-token; path=/";
+        return mockFetchResponse({ authenticated: false, user: null });
+      })
+      .mockImplementationOnce(() => mockFetchResponse(payload));
+
+    await login("ada", "secret");
+    expect(fetchSpy.mock.calls[0][0]).toBe("/api/v1/auth/session/");
+    expect(fetchSpy.mock.calls[1][0]).toBe("/api/v1/auth/login/");
+    expect(new Headers(fetchSpy.mock.calls[1][1]?.headers).get("X-CSRFToken")).toBe("bootstrapped-token");
+  });
+
+  it("posts logout and rejects an API failure", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => Promise.resolve(new Response(null, { status: 204 })))
+      .mockImplementationOnce(() => mockFetchResponse({ detail: "CSRF verification failed." }, 403, false));
+
+    await expect(logout()).resolves.toBeUndefined();
+    expect(fetchSpy.mock.calls[0][0]).toBe("/api/v1/auth/logout/");
+    expect(fetchSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ method: "POST", credentials: "include" }));
+    await expect(logout()).rejects.toThrow("CSRF verification failed.");
+  });
 });
 
 const MOCK_ROLES: ApplicationRole[] = [
@@ -303,11 +371,13 @@ describe("payment lifecycle actions", () => {
       expect.objectContaining({
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: "Contrôle opérateur" }),
         signal: controller.signal,
       }),
     );
+    const headers = new Headers(fetchSpy.mock.calls[0][1]?.headers);
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(headers.get("X-CSRFToken")).toBe("test-csrf-token");
   });
 
   it("surfaces backend detail and status for a rejected lifecycle action", async () => {

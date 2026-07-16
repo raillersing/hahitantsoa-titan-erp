@@ -1,7 +1,11 @@
 import react from "@vitejs/plugin-react";
+import { loadEnv } from "vite";
 import { defineConfig, configDefaults } from "vitest/config";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const backendOrigin = loadEnv(mode, ".", "").VITE_BACKEND_ORIGIN || "http://127.0.0.1:8000";
+
+  return {
   plugins: [react()],
   test: {
     environment: "jsdom",
@@ -17,8 +21,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": "http://127.0.0.1:8000",
-      "/api-auth": "http://127.0.0.1:8000",
+      "/api": backendOrigin,
+      "/api-auth": backendOrigin,
     },
   },
+  };
 });

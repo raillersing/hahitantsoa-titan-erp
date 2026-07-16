@@ -1,5 +1,6 @@
 import React from "react";
 import type { AppScope } from "../App";
+import type { SessionUser } from "../api";
 import BrandIdentity, { type BrandScope } from "./BrandIdentity";
 import { mockClients } from "./mockData";
 
@@ -8,6 +9,10 @@ interface AppShellProps {
   activeParam?: string;
   onNavigate: (scope: any, param?: string) => void;
   returnContext?: { from: string; param?: string } | null;
+  user?: SessionUser;
+  isLoggingOut?: boolean;
+  logoutError?: string | null;
+  onLogout?: () => Promise<void>;
   children: React.ReactNode;
 }
 
@@ -72,7 +77,17 @@ export function resolveBrandScope(activeScope: AppScope, activeParam?: string): 
   return brandScopeByAppScope[activeScope];
 }
 
-export default function AppShell({ activeScope, activeParam, onNavigate, returnContext, children }: AppShellProps) {
+export default function AppShell({
+  activeScope,
+  activeParam,
+  onNavigate,
+  returnContext,
+  user,
+  isLoggingOut = false,
+  logoutError = null,
+  onLogout,
+  children,
+}: AppShellProps) {
   const activeBrand = resolveBrandScope(activeScope, activeParam);
   const scopeHeading: Record<string, string> = {
     dashboard: "Tableau de bord",
@@ -102,6 +117,15 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
   const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const userMenuRef = React.useRef<HTMLDivElement>(null);
+  const userMenuButtonRef = React.useRef<HTMLButtonElement>(null);
+  const displayName = user?.display_name || user?.username || "Utilisateur";
+  const roleLabel = user?.roles.length ? user.roles.join(" · ") : "Utilisateur";
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "U";
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -112,6 +136,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsUserMenuOpen(false);
+        userMenuButtonRef.current?.focus();
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -403,6 +428,7 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
 
         <div className="p-4 border-t border-slate-800 mt-auto relative" ref={userMenuRef}>
           <button 
+            ref={userMenuButtonRef}
             type="button"
             aria-label="Menu utilisateur"
             aria-haspopup="menu"
@@ -412,14 +438,14 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
           >
             <span
               role="img"
-              aria-label="Avatar Gérant ERP"
+              aria-label={`Avatar ${displayName}`}
               className="w-9 h-9 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs font-bold"
             >
-              GE
+              {initials}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">Jean R.</p>
-              <p className="text-xs text-slate-500 truncate">Gérant · En ligne</p>
+              <p className="text-sm font-medium text-white truncate">{displayName}</p>
+              <p className="text-xs text-slate-500 truncate">{roleLabel} · En ligne</p>
             </div>
           </button>
 
@@ -429,9 +455,24 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
               <a href="#preferences" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Préférences</a>
               <a href="#support" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); }} className="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">Aide / support</a>
               <div className="my-1 border-t border-slate-700"></div>
-              <a href="#login" onClick={(e) => { e.preventDefault(); setIsUserMenuOpen(false); onNavigate("login"); }} className="block px-4 py-2 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 transition-colors">Déconnexion</a>
+              <button
+                type="button"
+                disabled={isLoggingOut || !onLogout}
+                onClick={() => {
+                  setIsUserMenuOpen(false);
+                  void onLogout?.().catch(() => userMenuButtonRef.current?.focus());
+                }}
+                className="block w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 transition-colors disabled:cursor-wait disabled:opacity-60"
+              >
+                {isLoggingOut ? "Déconnexion…" : "Déconnexion"}
+              </button>
             </div>
           )}
+          {logoutError ? (
+            <p className="mt-2 rounded bg-red-950/60 px-3 py-2 text-xs text-red-200" role="alert">
+              {logoutError}
+            </p>
+          ) : null}
         </div>
       </aside>
 
@@ -441,6 +482,8 @@ export default function AppShell({ activeScope, activeParam, onNavigate, returnC
         <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 flex-shrink-0 topbar-responsive">
           <div className="flex items-center gap-3 min-w-0">
             <button 
+              type="button"
+              aria-label="Ouvrir le menu de navigation"
               className="md:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               onClick={() => setIsMobileMenuOpen(true)}
             >

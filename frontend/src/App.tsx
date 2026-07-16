@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "./AuthContext";
+import LoginPanel from "./LoginPanel";
 import AppShell from "./prototype/AppShell";
 import DashboardPage from "./prototype/DashboardPage";
 import PlanningPage from "./prototype/PlanningPage";
@@ -125,6 +127,7 @@ function writeScopeHash(scope: AppScope, param?: string) {
 }
 
 function App() {
+  const { state, isSubmitting, refreshSession, logout } = useAuth();
   const initialHash = parseHash(window.location.hash);
   const [activeScope, setActiveScope] = useState<AppScope>(initialHash.scope);
   const [activeParam, setActiveParam] = useState<string | undefined>(initialHash.param);
@@ -142,6 +145,13 @@ function App() {
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
+
+  useEffect(() => {
+    if (state.status === "authenticated" && activeScope === "login") {
+      setActiveScope("dashboard");
+      setActiveParam(undefined);
+    }
+  }, [activeScope, state.status]);
 
   const [returnContext, setReturnContext] = useState<{ from: AppScope; param?: string } | null>(null);
 
@@ -165,13 +175,47 @@ function App() {
     }
   };
 
-  // If login page, don't show shell
-  if (activeScope === "login") {
-    return <PlaceholderPage title="Connexion" scope="login" onNavigate={navigate} />;
+  if (state.status === "loading") {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6" role="status" aria-live="polite">
+        <p className="rounded-xl bg-white px-6 py-4 shadow">Vérification de la session…</p>
+      </main>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+        <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" role="alert">
+          <h1 className="text-xl font-semibold text-slate-900">Session indisponible</h1>
+          <p className="mt-2 text-slate-600">{state.error}</p>
+          <button
+            className="mt-5 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white"
+            type="button"
+            onClick={() => void refreshSession().catch(() => undefined)}
+          >
+            Réessayer
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (state.status === "unauthenticated") {
+    return <LoginPanel />;
   }
 
   return (
-    <AppShell activeScope={activeScope} activeParam={activeParam} onNavigate={navigate} returnContext={returnContext}>
+    <AppShell
+      activeScope={activeScope}
+      activeParam={activeParam}
+      onNavigate={navigate}
+      returnContext={returnContext}
+      user={state.user}
+      isLoggingOut={isSubmitting}
+      logoutError={state.error}
+      onLogout={logout}
+    >
       {activeScope === "dashboard" && <DashboardPage onNavigate={navigate} />}
       {activeScope === "planning" && <PlanningPage onNavigate={navigate} />}
       {activeScope === "hahitantsoa" && <HahitantsoaPage onNavigate={navigate} />}
