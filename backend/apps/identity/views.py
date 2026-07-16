@@ -21,14 +21,14 @@ from apps.identity.services import (
     sync_system_roles,
 )
 
-from .permissions import HasReservationSensitiveAccess
+from .permissions import HasIdentityAdminAccess
 
 User = get_user_model()
 
 
 class ApplicationRoleListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasIdentityAdminAccess]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -53,7 +53,7 @@ class ApplicationRoleListCreateAPIView(generics.ListCreateAPIView):
 
 class ApplicationRoleDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ["get", "put", "patch", "delete", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasIdentityAdminAccess]
     queryset = ApplicationRole.objects.all()
 
     def get_serializer_class(self):
@@ -74,7 +74,7 @@ class ApplicationRoleDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
 
 class UserRoleAssignmentListAPIView(generics.ListAPIView):
     http_method_names = ["get", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasIdentityAdminAccess]
     serializer_class = UserRoleAssignmentSerializer
 
     def get_queryset(self):
@@ -99,7 +99,7 @@ class UserRoleAssignmentListAPIView(generics.ListAPIView):
 
 class UserRoleAssignmentDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ["get", "patch", "delete", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasIdentityAdminAccess]
     lookup_field = "id"
     queryset = UserRoleAssignment.objects.select_related("role").all()
 
@@ -127,7 +127,7 @@ class UserRoleAssignmentDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
 
 class AssignRoleAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasIdentityAdminAccess]
 
     @extend_schema(
         request=AssignRoleRequestSerializer,
@@ -164,7 +164,7 @@ class AssignRoleAPIView(APIView):
 
 class RevokeRoleAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasIdentityAdminAccess]
 
     @extend_schema(
         request=RevokeRoleRequestSerializer,
@@ -197,7 +197,7 @@ class RevokeRoleAPIView(APIView):
 
 class SyncSystemRolesAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasIdentityAdminAccess]
 
     @extend_schema(
         responses={

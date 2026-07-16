@@ -32,6 +32,18 @@ def staff_authenticated_client(client):
 
 
 @pytest.fixture
+def inactive_staff_authenticated_client(client):
+    user = User.objects.create_user(
+        username="inactive-staff",
+        password="test-pass",
+        is_staff=True,
+        is_active=False,
+    )
+    client.force_login(user, backend="django.contrib.auth.backends.ModelBackend")
+    return client
+
+
+@pytest.fixture
 def operator_authenticated_client(client):
     user = User.objects.create_user(username="operator", password="test-pass")
     group = Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value)
@@ -64,9 +76,14 @@ def test_role_list_staff_allowed(staff_authenticated_client):
     assert isinstance(response.json(), list)
 
 
-def test_role_list_operator_allowed(operator_authenticated_client):
+def test_role_list_inactive_staff_forbidden(inactive_staff_authenticated_client):
+    response = inactive_staff_authenticated_client.get(IDENTITY_ROLE_LIST_URL)
+    assert response.status_code in {401, 403}
+
+
+def test_role_list_operator_forbidden(operator_authenticated_client):
     response = operator_authenticated_client.get(IDENTITY_ROLE_LIST_URL)
-    assert response.status_code == 200
+    assert response.status_code == 403
 
 
 def test_role_list_filters_by_name_and_system_flags(staff_authenticated_client):
@@ -368,6 +385,26 @@ def test_assign_role_to_inactive_user_returns_400(staff_authenticated_client, sa
     assert "inactive user" in response.json()["detail"]
 
 
+def test_assign_inactive_role_returns_400_without_assignment(staff_authenticated_client):
+    target = User.objects.create_user(username="inactive-role-target", password="p")
+    role = ApplicationRole.objects.create(
+        name="Inactive assignment role",
+        slug="inactive-assignment-role",
+        is_active=False,
+    )
+    payload = {"user_id": str(target.id), "role_id": str(role.id)}
+
+    response = staff_authenticated_client.post(
+        IDENTITY_ASSIGN_URL,
+        payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "role_inactive"
+    assert not UserRoleAssignment.objects.filter(user=target, role=role).exists()
+
+
 # ---- revoke role ----
 
 
@@ -392,14 +429,14 @@ def test_revoke_role_staff_success(staff_authenticated_client, sample_role):
     assert "removed" in data["notes"]
 
 
-def test_revoke_system_managed_role_returns_400(staff_authenticated_client):
+def test_revoke_system_managed_role_assignment_succeeds(staff_authenticated_client):
     sys_role = ApplicationRole.objects.create(name="Sys", slug="sys", is_system_managed=True)
     target = User.objects.create_user(username="target7", password="p")
     assignment = UserRoleAssignment.objects.create(user=target, role=sys_role)
     url = f"/api/v1/identity/assignments/{assignment.id}/revoke/"
     response = staff_authenticated_client.post(url, {}, content_type="application/json")
-    assert response.status_code == 400
-    assert "System-managed" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
 
 
 def test_revoke_role_not_found_returns_404(staff_authenticated_client):
@@ -520,14 +557,14 @@ def test_assignment_delete_unauthenticated(client, sample_role):
     assert response.status_code in {401, 403}
 
 
-def test_assignment_delete_system_managed_returns_400(staff_authenticated_client):
+def test_assignment_delete_system_managed_assignment_succeeds(staff_authenticated_client):
     sys_role = ApplicationRole.objects.create(name="SysDel", slug="sys-del", is_system_managed=True)
     target = User.objects.create_user(username="delete-target-4", password="p")
     assignment = UserRoleAssignment.objects.create(user=target, role=sys_role)
     url = IDENTITY_ASSIGNMENT_DETAIL.format(id=assignment.id)
     response = staff_authenticated_client.delete(url)
-    assert response.status_code == 400
-    assert "System-managed" in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
 
 
 def test_assignment_delete_not_found_returns_404(staff_authenticated_client):

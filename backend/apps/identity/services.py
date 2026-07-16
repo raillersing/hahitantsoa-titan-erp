@@ -1,16 +1,21 @@
 from __future__ import annotations
 
-from django.db import transaction
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.identity.authorization import is_reservation_sensitive_actor
+from apps.audit.services import record_audit_event_on_commit
+from apps.identity.authorization import is_identity_admin_actor
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 from apps.identity.roles import ROLE_GROUP_NAME_BY_ROLE, IdentityRole
 
 UNAUTHORIZED_ROLE_ASSIGNMENT = "unauthorized_role_assignment"
 ROLE_ASSIGNMENT_NOT_FOUND = "role_assignment_not_found"
 ROLE_ALREADY_REVOKED = "role_already_revoked"
-SYSTEM_ROLE_REMOVAL_FORBIDDEN = "system_role_removal_forbidden"
+ROLE_ALREADY_ASSIGNED = "role_already_assigned"
+ROLE_INACTIVE = "role_inactive"
+
+User = get_user_model()
 
 
 class IdentityServiceError(ValueError):
@@ -20,7 +25,7 @@ class IdentityServiceError(ValueError):
 
 
 def _require_identity_admin(*, actor: object | None) -> None:
-    if not is_reservation_sensitive_actor(actor=actor):
+    if not is_identity_admin_actor(actor=actor):
         raise IdentityServiceError(
             "Actor is not authorized to manage role assignments.",
             code=UNAUTHORIZED_ROLE_ASSIGNMENT,
@@ -55,29 +60,58 @@ def assign_role(
 ) -> UserRoleAssignment:
     _require_identity_admin(actor=actor)
 
-    if not getattr(user, "is_active", True):
-        raise IdentityServiceError(
-            "Cannot assign a role to an inactive user.",
-            code=UNAUTHORIZED_ROLE_ASSIGNMENT,
-        )
-
     with transaction.atomic():
+        locked_user = User.objects.select_for_update().get(pk=user.pk)
+        locked_role = ApplicationRole.objects.select_for_update().get(pk=role.pk)
+        if not locked_user.is_active:
+            raise IdentityServiceError(
+                "Cannot assign a role to an inactive user.",
+                code=UNAUTHORIZED_ROLE_ASSIGNMENT,
+            )
+        if not locked_role.is_active:
+            raise IdentityServiceError(
+                "Cannot assign an inactive role.",
+                code=ROLE_INACTIVE,
+            )
+
         existing = (
-            UserRoleAssignment.objects.filter(user=user, role=role, is_active=True)
+            UserRoleAssignment.objects.filter(
+                user=locked_user,
+                role=locked_role,
+                is_active=True,
+            )
             .select_for_update()
             .first()
         )
         if existing is not None:
             raise IdentityServiceError(
                 "User already has an active assignment for this role.",
-                code=UNAUTHORIZED_ROLE_ASSIGNMENT,
+                code=ROLE_ALREADY_ASSIGNED,
             )
 
-        assignment = UserRoleAssignment.objects.create(
-            user=user,
-            role=role,
-            assigned_by=actor if actor else None,
-            notes=notes,
+        try:
+            with transaction.atomic():
+                assignment = UserRoleAssignment.objects.create(
+                    user=locked_user,
+                    role=locked_role,
+                    assigned_by=actor if actor else None,
+                    notes=notes,
+                )
+        except IntegrityError as exc:
+            raise IdentityServiceError(
+                "User already has an active assignment for this role.",
+                code=ROLE_ALREADY_ASSIGNED,
+            ) from exc
+        record_audit_event_on_commit(
+            actor=actor,
+            action="identity.role_assigned",
+            target_type="user_role_assignment",
+            target_id=str(assignment.id),
+            metadata={
+                "user_id": locked_user.pk,
+                "role_id": str(locked_role.id),
+                "role_slug": locked_role.slug,
+            },
         )
 
     return assignment
@@ -105,16 +139,21 @@ def revoke_role(
                 code=ROLE_ALREADY_REVOKED,
             )
 
-        if assignment.role.is_system_managed:
-            raise IdentityServiceError(
-                "System-managed role assignments cannot be revoked.",
-                code=SYSTEM_ROLE_REMOVAL_FORBIDDEN,
-            )
-
         assignment.is_active = False
         assignment.revoked_at = timezone.now()
         if notes:
             assignment.notes = f"{assignment.notes}\nRevoked: {notes}".strip()
         assignment.save(update_fields=["is_active", "revoked_at", "updated_at", "notes"])
+        record_audit_event_on_commit(
+            actor=actor,
+            action="identity.role_revoked",
+            target_type="user_role_assignment",
+            target_id=str(assignment.id),
+            metadata={
+                "user_id": assignment.user_id,
+                "role_id": str(assignment.role_id),
+                "role_slug": assignment.role.slug,
+            },
+        )
 
     return assignment
