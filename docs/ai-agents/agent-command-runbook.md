@@ -258,6 +258,15 @@ Backend validation now uses three wrappers:
 After each backend PR finalizes, add a short backend productivity report to the PR
 body or final repo-facing report. Keep it lightweight and evidence-based.
 
+## Phase Closeout Validation
+
+Do not postpone a lot's proportional validation or PR/main CI. Once every approved lot
+of a phase is merged and its exact-SHA `main` CI is green, the orchestrator runs one
+read-only phase closeout: complete affected-stack gates, changed end-to-end journeys,
+and the relevant role, responsive, or operational checks. Consolidate ordinary findings
+into one subsequent corrective bundle; fix security, authorization, integrity, migration,
+financial, concurrency, CI, and release-blocking failures immediately.
+
 Include:
 
 - task ID and title

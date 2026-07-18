@@ -141,6 +141,7 @@ scope_fixture backend backend/example.py fail
 scope_fixture frontend frontend/example.ts fail
 scope_fixture manifest pyproject.toml fail
 scope_fixture tooling-test scripts/dev/test-erp-logged-run pass
+scope_fixture finalizer-cleanup scripts/dev/erp-worktree-clean-after-merge pass
 scope_fixture docs-runbook docs/runbooks/example.md pass agent-docs
 
 preflight_repo="$tmp_root/preflight-agent-docs"
@@ -163,5 +164,6 @@ grep -Fq 'needs.classify-changes.outputs.backend' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.frontend' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.tooling' "$workflow"
 grep -Fq '[backend|frontend|agent-tools|agent-ci|agent-docs]' "$worktree_preflight"
+grep -Fq 'repairing ownership of generated worktree artifacts' "$SCRIPT_DIR/erp-worktree-clean-after-merge"
 
 echo "ERP CI policy tests: PASS"

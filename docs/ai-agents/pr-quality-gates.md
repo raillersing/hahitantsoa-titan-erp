@@ -56,6 +56,18 @@ Selection rules:
 These overrides may increase validation, never decrease trust-boundary, data-loss,
 financial, migration, or concurrency proof.
 
+## Phase integration checkpoint
+
+After all approved lots of a phase are merged and their exact-SHA `main` CI runs are
+green, run one read-only phase checkpoint before declaring the phase complete. It must
+reuse the exact per-PR evidence where the reviewed SHA is unchanged, then add only the
+complete affected-stack gates, changed E2E journeys, and role, responsive, or operational
+proof that cannot be established by a single lot.
+
+Record ordinary presentation or ergonomic findings for one consolidated corrective bundle
+after that checkpoint. Do not defer a security, permission, data-integrity, migration,
+financial, concurrency, CI, or release-blocking failure: stop and correct it immediately.
+
 ## Universal gates
 
 - Baseline commit and dedicated branch verified.
