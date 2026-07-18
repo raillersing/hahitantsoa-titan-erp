@@ -80,8 +80,8 @@ authorization control, and a successful mock notification is not persistence evi
 ## Current program checkpoint
 
 Checkpoint date: 2026-07-18. Current verified baseline:
-`42f49293ff5a5540a1948fac7a831ed2a1db7246`, with exact-SHA `main` CI success in run
-`29636383746`.
+`9b974771bcc4cd56142e54fd54858ec2a9215bce`, with exact-SHA `main` CI success in run
+`29636668414`.
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
