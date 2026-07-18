@@ -46,8 +46,8 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase 1E-BE — consolidate backend-authoritative roles and
-permissions**. Phase 1E-FE and 1F follow only after its accepted merge evidence.
+Current next bundle: **Phase 1F — multi-role backend/frontend/E2E, responsive, console,
+and network acceptance**. Phase 1E-BE and 1E-FE are integrated with exact-SHA evidence.
 
 ## Product target
 
