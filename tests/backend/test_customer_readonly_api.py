@@ -1,8 +1,11 @@
 import uuid
+from datetime import timedelta
 
 import pytest
+from django.utils import timezone
 
 from apps.customers.models import Customer
+from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
 
@@ -66,6 +69,12 @@ def test_authenticated_user_can_read_customer_detail(authenticated_client) -> No
     payload = response.json()
     assert payload["id"] == str(customer.id)
     assert payload["display_name"] == "Detail Customer"
+    assert payload["lifecycle_status"] == "client"
+    assert payload["party_type"] == "individual"
+    assert payload["reservation_count"] == 0
+    assert payload["event_count"] == 0
+    assert payload["document_count"] == 0
+    assert payload["last_activity_at"] is None
 
 
 def test_customer_detail_returns_404_for_inactive_or_deleted_customer(
@@ -170,3 +179,39 @@ def test_customer_list_filter_by_phone(authenticated_client):
     results = response.json()
     assert len(results) == 1
     assert results[0]["display_name"] == "Eve Entrepreneur"
+
+
+def test_customer_list_filters_by_lifecycle_and_party_type(authenticated_client):
+    Customer.objects.create(
+        display_name="Prospect Company",
+        lifecycle_status="prospect",
+        party_type="company",
+    )
+    Customer.objects.create(display_name="Client Individual")
+
+    response = authenticated_client.get(
+        f"{CUSTOMER_LIST_URL}?lifecycle_status=prospect&party_type=company"
+    )
+
+    assert response.status_code == 200
+    results = response.json()
+    assert [result["display_name"] for result in results] == ["Prospect Company"]
+    assert results[0]["lifecycle_status"] == "prospect"
+    assert results[0]["party_type"] == "company"
+
+
+def test_customer_list_exposes_existing_reservation_activity(authenticated_client):
+    customer = _create_customer("Active Reservation Customer")
+    start_at = timezone.now() + timedelta(days=1)
+    ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=2),
+    )
+
+    response = authenticated_client.get(CUSTOMER_LIST_URL)
+
+    assert response.status_code == 200
+    payload = response.json()[0]
+    assert payload["reservation_count"] == 1
+    assert payload["last_activity_at"] is not None

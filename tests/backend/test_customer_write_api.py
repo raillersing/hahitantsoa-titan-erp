@@ -121,6 +121,21 @@ def test_update_staff_success(staff_authenticated_client):
     assert customer.display_name == "New Name"
 
 
+def test_update_does_not_transition_lifecycle_or_party_type(staff_authenticated_client):
+    customer = Customer.objects.create(display_name="Existing Customer")
+    url = f"/api/v1/customers/{customer.id}/update/"
+    response = staff_authenticated_client.post(
+        url,
+        {"lifecycle_status": "prospect", "party_type": "company"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    customer.refresh_from_db()
+    assert customer.lifecycle_status == "client"
+    assert customer.party_type == "individual"
+
+
 def test_update_not_found_returns_404(staff_authenticated_client):
     url = "/api/v1/customers/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/update/"
     response = staff_authenticated_client.post(url, {}, content_type="application/json")
