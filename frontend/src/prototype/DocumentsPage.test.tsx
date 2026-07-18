@@ -148,7 +148,7 @@ describe('DocumentsPage', () => {
     expect(createObjectURL).toHaveBeenCalledWith(file);
     expect(screen.getByText('test.pdf')).toBeInTheDocument();
     expect(screen.getByText(/aperçu local\/mock/i)).toBeInTheDocument();
-    expect(screen.getByTitle('Aperçu local du PDF importé')).toHaveAttribute('sandbox', '');
+    expect(screen.getByTitle('Aperçu local du PDF importé')).not.toHaveAttribute('sandbox');
     expect(screen.getByRole('button', { name: /Extraire le contenu/i })).toBeEnabled();
 
     const replacement = new File(['replacement'], 'replacement.pdf', { type: 'application/pdf' });
