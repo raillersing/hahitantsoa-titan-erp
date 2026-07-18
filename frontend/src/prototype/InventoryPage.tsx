@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { mockInventory } from "./mockData";
 
-export default function InventoryPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
+interface InventoryPageProps {
+  onNavigate: (scope: any, param?: string) => void;
+  canSensitiveWrite?: boolean;
+}
+
+export default function InventoryPage({ onNavigate, canSensitiveWrite = false }: InventoryPageProps) {
   const [filter, setFilter] = useState("Tous");
   const [viewMode, setViewMode] = useState<"grid-large" | "grid-medium" | "list" | "compact">("grid-large");
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -73,6 +78,7 @@ export default function InventoryPage({ onNavigate }: { onNavigate: (scope: any,
   };
 
   const handlePrepareTitan = () => {
+    if (!canSensitiveWrite) return;
     // Generate payload
     const payloadItems = selectedItems.map(item => ({
       id: item.id,
@@ -384,9 +390,11 @@ export default function InventoryPage({ onNavigate }: { onNavigate: (scope: any,
             <button onClick={() => setSelectedIds([])} className="px-4 py-2 text-slate-500 font-medium hover:bg-slate-100 rounded-lg">
               Vider
             </button>
-            <button onClick={() => setIsPrepModalOpen(true)} className="px-6 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 shadow-md flex items-center gap-2">
-              Préparer location Titan <i className="fas fa-arrow-right"></i>
-            </button>
+            {canSensitiveWrite && (
+              <button onClick={() => setIsPrepModalOpen(true)} className="px-6 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 shadow-md flex items-center gap-2">
+                Préparer location Titan <i className="fas fa-arrow-right"></i>
+              </button>
+            )}
           </div>
         </div>
       )}

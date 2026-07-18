@@ -3,15 +3,18 @@ import { AppScope } from "../App";
 
 interface DashboardPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  canSensitiveWrite?: boolean;
 }
 
-export default function DashboardPage({ onNavigate }: DashboardPageProps) {
+export default function DashboardPage({ onNavigate, canSensitiveWrite = false }: DashboardPageProps) {
   return (
     <div className="page active">
       <div className="template-extra-actions flex flex-wrap gap-2 mb-6">
-        <button className="px-4 py-2 bg-hah-600 text-white rounded-lg text-sm font-medium hover:bg-hah-700 transition shadow-sm" onClick={() => onNavigate("reservation-new")}>
-          <i className="fas fa-plus mr-2"></i>Nouvelle réservation
-        </button>
+        {canSensitiveWrite && (
+          <button className="px-4 py-2 bg-hah-600 text-white rounded-lg text-sm font-medium hover:bg-hah-700 transition shadow-sm" onClick={() => onNavigate("reservation-new")}>
+            <i className="fas fa-plus mr-2"></i>Nouvelle réservation
+          </button>
+        )}
         <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition" onClick={() => onNavigate("planning")}>
           <i className="fas fa-calendar mr-2"></i>Ouvrir le planning
         </button>

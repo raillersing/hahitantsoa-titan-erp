@@ -130,6 +130,28 @@ describe("App Prototype", () => {
     expect(screen.getByText("commercial")).toBeInTheDocument();
   });
 
+  it("hides restricted navigation and denies restricted deep links for a regular session", () => {
+    window.history.replaceState(null, "", "/#admin");
+    render(<App />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Accès non autorisé");
+    expect(screen.queryByRole("link", { name: "Administration" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Audit & Sécurité" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nouvelle réservation" })).not.toBeInTheDocument();
+  });
+
+  it("keeps reservation creation available for the backend sensitive role", () => {
+    authMock.value.state.user = {
+      ...authMock.value.state.user,
+      roles: ["reservation_sensitive_operator"],
+    };
+    window.history.replaceState(null, "", "/#dashboard");
+    render(<App />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Nouvelle réservation" })[0]);
+    expect(window.location.hash).toBe("#reservation-new");
+  });
+
   it("does not call /api/v1/inventory/items on dashboard", () => {
     const fetchSpy = vi.spyOn(window, "fetch");
     window.history.replaceState(null, "", "/#dashboard");

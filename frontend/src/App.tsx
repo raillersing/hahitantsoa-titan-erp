@@ -36,6 +36,7 @@ import DocumentsPage from "./prototype/DocumentsPage";
 import AgendaVisitorsPage from "./prototype/AgendaVisitorsPage";
 import ProfilePage from "./prototype/ProfilePage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
+import { capabilitiesForUser } from "./capabilities";
 
 export type { AppScope } from "./app-routes";
 
@@ -91,6 +92,7 @@ function App() {
   const effectiveRoute: AppRoute = authenticatedLoginRoute ? { kind: "known", scope: "dashboard" } : route;
   const activeScope = effectiveRoute.kind === "known" ? effectiveRoute.scope : "dashboard";
   const activeParam = effectiveRoute.kind === "known" ? effectiveRoute.param : undefined;
+  const capabilities = state.status === "authenticated" ? capabilitiesForUser(state.user) : undefined;
   const routeFocusKey = effectiveRoute.kind === "known"
     ? `${effectiveRoute.scope}/${effectiveRoute.param ?? ""}`
     : effectiveRoute.requestedHash;
@@ -163,25 +165,31 @@ function App() {
     );
   }
 
+  const deniedRoute = effectiveRoute.kind === "known" && (
+    (effectiveRoute.scope === "admin" && capabilities && !capabilities.canManageIdentity) ||
+    (effectiveRoute.scope === "audit" && capabilities && !capabilities.canViewAudit) ||
+    (effectiveRoute.scope === "reservation-new" && capabilities && !capabilities.canSensitiveWrite)
+  );
+
   const renderKnownRoute = (scope: AppScope) => {
     switch (scope) {
-      case "dashboard": return <DashboardPage onNavigate={navigate} />;
+      case "dashboard": return <DashboardPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "planning": return <PlanningPage onNavigate={navigate} />;
-      case "hahitantsoa": return <HahitantsoaPage onNavigate={navigate} />;
-      case "titan": return <TitanPage onNavigate={navigate} />;
+      case "hahitantsoa": return <HahitantsoaPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
+      case "titan": return <TitanPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "commercial-ops": return <CommercialOpsPage onNavigate={navigate} />;
-      case "customers": return <CustomersPage onNavigate={navigate} />;
+      case "customers": return <CustomersPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "cashbox": return <CashboxPage onNavigate={navigate} />;
       case "caution": return <CautionPage onNavigate={navigate} />;
       case "help": return <HelpPage onNavigate={navigate} />;
       case "reservation-new": return <ReservationNewPage onNavigate={navigate} param={activeParam} />;
       case "reservation-detail": return <ReservationDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
-      case "reservations": return <ReservationsPage onNavigate={navigate} />;
-      case "customer": return <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
+      case "reservations": return <ReservationsPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
+      case "customer": return <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "packages": return <PackageBuilderPage />;
       case "services": return <ServicesPage />;
       case "blacklist-intervenants": return <BlacklistPage />;
-      case "inventory": return <InventoryPage onNavigate={navigate} />;
+      case "inventory": return <InventoryPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "inventory-management": return <InventoryManagementPage onNavigate={navigate} />;
       case "inventory-item": return <InventoryItemPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
       case "stock-movements": return <StockMovementsPage onNavigate={navigate} />;
@@ -213,13 +221,26 @@ function App() {
       onNavigate={navigate}
       returnContext={returnContext}
       user={state.user}
+      capabilities={capabilities}
       isOnline={isOnline}
       isLoggingOut={isSubmitting}
       sessionError={state.error}
       onLogout={logout}
     >
       <section ref={routeContentRef} tabIndex={-1} className="min-w-0 outline-none" data-testid="route-content">
-        {renderKnownRoute(effectiveRoute.scope)}
+        {deniedRoute ? (
+          <section className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm" role="alert">
+            <h1 className="text-xl font-bold">Accès non autorisé</h1>
+            <p className="mt-2">Votre session ne dispose pas de la capacité nécessaire pour ouvrir cette page.</p>
+            <button
+              type="button"
+              className="mt-4 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white"
+              onClick={() => navigate("dashboard")}
+            >
+              Retour au tableau de bord
+            </button>
+          </section>
+        ) : renderKnownRoute(effectiveRoute.scope)}
       </section>
     </AppShell>
   );

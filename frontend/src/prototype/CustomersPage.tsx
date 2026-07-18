@@ -4,9 +4,10 @@ import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 
 interface CustomersPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  canSensitiveWrite?: boolean;
 }
 
-export default function CustomersPage({ onNavigate }: CustomersPageProps) {
+export default function CustomersPage({ onNavigate, canSensitiveWrite = false }: CustomersPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("Tous");
   
@@ -143,7 +144,7 @@ export default function CustomersPage({ onNavigate }: CustomersPageProps) {
 
     addMockClient(newClient);
 
-    if (isProspect && prospectRequestType === "Proforma demandée") {
+    if (canSensitiveWrite && isProspect && prospectRequestType === "Proforma demandée") {
       // Redirect to ReservationNewPage with prospect-proforma param
       const path = prospectDomain === "Titan Rental" ? "prospect-proforma-t" : "prospect-proforma-h";
       setIsAdding(false);
