@@ -1,3 +1,4 @@
+from django.db.models import Count, Max, Q
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, status
@@ -12,7 +13,28 @@ from .serializers import CustomerSerializer
 
 
 def active_customers():
-    return Customer.objects.filter(is_active=True, is_deleted=False).order_by("display_name")
+    return (
+        Customer.objects.filter(is_active=True, is_deleted=False)
+        .annotate(
+            reservation_count=Count(
+                "reservation_drafts",
+                filter=Q(reservation_drafts__is_deleted=False),
+                distinct=True,
+            ),
+            event_count=Count(
+                "hahitantsoa_event_drafts",
+                filter=Q(hahitantsoa_event_drafts__is_deleted=False),
+                distinct=True,
+            ),
+            document_count=Count("document_instances", distinct=True),
+            last_reservation_at=Max(
+                "reservation_drafts__updated_at",
+            ),
+            last_event_at=Max("hahitantsoa_event_drafts__updated_at"),
+            last_document_at=Max("document_instances__updated_at"),
+        )
+        .order_by("display_name")
+    )
 
 
 class CustomerListAPIView(generics.ListAPIView):
@@ -31,6 +53,12 @@ class CustomerListAPIView(generics.ListAPIView):
         phone_param = self.request.query_params.get("phone")
         if phone_param:
             qs = qs.filter(phone__icontains=phone_param)
+        lifecycle_status = self.request.query_params.get("lifecycle_status")
+        if lifecycle_status:
+            qs = qs.filter(lifecycle_status=lifecycle_status)
+        party_type = self.request.query_params.get("party_type")
+        if party_type:
+            qs = qs.filter(party_type=party_type)
         return qs
 
 
