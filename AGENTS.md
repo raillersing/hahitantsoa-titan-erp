@@ -85,8 +85,8 @@ One agent equals one worktree equals one branch equals one non-overlapping scope
 - `agent-ci` agent: dedicated CI worktree, one agent-ci branch, the canonical
   `.github/workflows/ci.yml`, exact CI/finalization helpers under `scripts/dev/`, and
   directly related agent-governance documents only.
-- `agent-docs` agent: agent-docs worktree, one docs branch, `docs/ai-agents/` and docs
-  audits only.
+- `agent-docs` agent: agent-docs worktree, one docs branch, `docs/ai-agents/`,
+  `docs/audits/`, and `docs/runbooks/` only.
 - future `business-rules` agent: business-documentation worktree, one docs branch,
   business docs only.
 - review agent: non-mutating by default and may edit only when the task explicitly

@@ -114,7 +114,7 @@ printf '%s\n' "$rename_result" | grep -Fqx 'backend=true'
 printf '%s\n' "$rename_result" | grep -Fqx 'frontend=true'
 
 scope_fixture() {
-  local name="$1" path="$2" expected="$3" repo
+  local name="$1" path="$2" expected="$3" profile="${4:-agent-ci}" repo
   repo="$tmp_root/scope-$name"
   git init -q -b main "$repo"
   git -C "$repo" config user.email ci-policy@example.invalid
@@ -126,7 +126,7 @@ scope_fixture() {
   mkdir -p "$(dirname "$repo/$path")"
   : > "$repo/$path"
   git -C "$repo" add "$path"
-  if (cd "$repo" && bash scripts/dev/erp-agent-scope-guard agent-ci >/dev/null 2>&1); then
+  if (cd "$repo" && bash scripts/dev/erp-agent-scope-guard "$profile" >/dev/null 2>&1); then
     actual=pass
   else
     actual=fail
@@ -140,6 +140,7 @@ scope_fixture backend backend/example.py fail
 scope_fixture frontend frontend/example.ts fail
 scope_fixture manifest pyproject.toml fail
 scope_fixture tooling-test scripts/dev/test-erp-logged-run pass
+scope_fixture docs-runbook docs/runbooks/example.md pass agent-docs
 
 grep -Fq 'name: Classify changes' "$workflow"
 grep -Fq 'name: CI policy gate' "$workflow"
