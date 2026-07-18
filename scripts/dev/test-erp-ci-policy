@@ -21,32 +21,46 @@ assert_output() {
 
 assert_output 'docs/ai-agents/README.md' 'backend=false'
 assert_output 'docs/ai-agents/README.md' 'frontend=false'
+assert_output 'docs/ai-agents/README.md' 'tooling=false'
 assert_output 'backend/customers/models.py' 'backend=true'
 assert_output 'backend/customers/models.py' 'frontend=false'
+assert_output 'backend/customers/models.py' 'tooling=false'
 assert_output 'frontend/src/App.tsx' 'backend=false'
 assert_output 'frontend/src/App.tsx' 'frontend=true'
+assert_output 'frontend/src/App.tsx' 'tooling=false'
 assert_output 'backend/identity/api.py' 'frontend=true'
+assert_output 'scripts/dev/erp-logged-run' 'backend=false'
+assert_output 'scripts/dev/erp-logged-run' 'frontend=false'
+assert_output 'scripts/dev/erp-logged-run' 'tooling=true'
+assert_output 'scripts/dev/erp-logged-run' 'level=L1'
+assert_output 'scripts/dev/erp-quality-check' 'backend=true'
+assert_output 'scripts/dev/erp-quality-check' 'frontend=true'
+assert_output 'scripts/dev/erp-quality-check' 'tooling=true'
+assert_output 'scripts/dev/erp-quality-check' 'level=L4'
 assert_output '.github/workflows/ci.yml' 'level=L4'
+assert_output '.github/workflows/ci.yml' 'tooling=true'
 assert_output 'unexpected-root-config.toml' 'level=L4'
 assert_output '__CI_INVALID_RANGE__' 'reason=invalid-range-fail-closed'
 assert_output $'docs/README.md\nbackend/customers/models.py\nfrontend/src/App.tsx' 'level=L4'
 
-"$gate" success false skipped false skipped
-"$gate" success true success false skipped
+"$gate" success false skipped false skipped false skipped
+"$gate" success true success false skipped false skipped
+"$gate" success false skipped false skipped true success
 expect_gate_failure() {
   if "$gate" "$@" >/dev/null 2>&1; then
     echo "FAIL: gate accepted: $*"
     exit 1
   fi
 }
-expect_gate_failure success true skipped false skipped
-expect_gate_failure success true failure false skipped
-expect_gate_failure success false skipped true skipped
-expect_gate_failure success false skipped true failure
-expect_gate_failure success maybe skipped false skipped
-expect_gate_failure success false cancelled false skipped
-expect_gate_failure failure false skipped false skipped
-expect_gate_failure success '' skipped false skipped
+expect_gate_failure success true skipped false skipped false skipped
+expect_gate_failure success true failure false skipped false skipped
+expect_gate_failure success false skipped true skipped false skipped
+expect_gate_failure success false skipped true failure false skipped
+expect_gate_failure success false skipped false skipped true skipped
+expect_gate_failure success maybe skipped false skipped false skipped
+expect_gate_failure success false cancelled false skipped false skipped
+expect_gate_failure failure false skipped false skipped false skipped
+expect_gate_failure success '' skipped false skipped false skipped
 
 range_repo="$tmp_root/ranges"
 git init -q -b main "$range_repo"
@@ -73,9 +87,11 @@ main_sha="$(git -C "$range_repo" rev-parse HEAD)"
 pr_result="$(cd "$range_repo" && "$classifier" --range pr "$main_sha" "$feature_sha")"
 printf '%s\n' "$pr_result" | grep -Fqx 'backend=true'
 printf '%s\n' "$pr_result" | grep -Fqx 'frontend=false'
+printf '%s\n' "$pr_result" | grep -Fqx 'tooling=false'
 push_result="$(cd "$range_repo" && "$classifier" --range push "$base_sha" "$main_sha")"
 printf '%s\n' "$push_result" | grep -Fqx 'backend=false'
 printf '%s\n' "$push_result" | grep -Fqx 'frontend=true'
+printf '%s\n' "$push_result" | grep -Fqx 'tooling=false'
 
 invalid_result="$(cd "$range_repo" && "$classifier" --range push 0000000000000000000000000000000000000000 "$main_sha")"
 printf '%s\n' "$invalid_result" | grep -Fqx 'reason=invalid-range-fail-closed'
@@ -123,11 +139,13 @@ scope_fixture other-workflow .github/workflows/release.yml fail
 scope_fixture backend backend/example.py fail
 scope_fixture frontend frontend/example.ts fail
 scope_fixture manifest pyproject.toml fail
+scope_fixture tooling-test scripts/dev/test-erp-logged-run pass
 
 grep -Fq 'name: Classify changes' "$workflow"
 grep -Fq 'name: CI policy gate' "$workflow"
 grep -Fq 'if: always()' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.backend' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.frontend' "$workflow"
+grep -Fq 'needs.classify-changes.outputs.tooling' "$workflow"
 
 echo "ERP CI policy tests: PASS"

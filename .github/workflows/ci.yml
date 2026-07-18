@@ -18,6 +18,7 @@ jobs:
     outputs:
       backend: ${{ steps.policy.outputs.backend }}
       frontend: ${{ steps.policy.outputs.frontend }}
+      tooling: ${{ steps.policy.outputs.tooling }}
       level: ${{ steps.policy.outputs.level }}
       reason: ${{ steps.policy.outputs.reason }}
     steps:
@@ -125,6 +126,21 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+  tooling-quality:
+    name: Tooling quality
+    needs: classify-changes
+    if: needs.classify-changes.outputs.tooling == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Validate CI policy tooling
+        run: |
+          bash scripts/dev/test-erp-ci-policy
+          bash scripts/dev/test-erp-logged-run
+
   ci-policy-gate:
     name: CI policy gate
     runs-on: ubuntu-latest
@@ -133,6 +149,7 @@ jobs:
       - classify-changes
       - backend-quality
       - frontend-quality
+      - tooling-quality
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -144,6 +161,8 @@ jobs:
           BACKEND_RESULT: ${{ needs.backend-quality.result }}
           FRONTEND_REQUIRED: ${{ needs.classify-changes.outputs.frontend }}
           FRONTEND_RESULT: ${{ needs.frontend-quality.result }}
+          TOOLING_REQUIRED: ${{ needs.classify-changes.outputs.tooling }}
+          TOOLING_RESULT: ${{ needs.tooling-quality.result }}
         run: >-
           bash scripts/dev/erp-ci-policy-gate
           "$CLASSIFIER_RESULT"
@@ -151,3 +170,5 @@ jobs:
           "$BACKEND_RESULT"
           "$FRONTEND_REQUIRED"
           "$FRONTEND_RESULT"
+          "$TOOLING_REQUIRED"
+          "$TOOLING_RESULT"

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+RUNNER="$SCRIPT_DIR/erp-logged-run"
+TMP_ROOT="$(mktemp -d)"
+
+cleanup() {
+  rm -rf -- "$TMP_ROOT"
+}
+trap cleanup EXIT
+
+FAKE_BIN="$TMP_ROOT/bin"
+SENTINEL="$TMP_ROOT/clipboard-called"
+OUTPUT="$TMP_ROOT/output.log"
+mkdir -p "$FAKE_BIN"
+
+cat > "$FAKE_BIN/clip.exe" <<'FAKE'
+#!/usr/bin/env bash
+touch "$CLIP_SENTINEL"
+FAKE
+chmod +x "$FAKE_BIN/clip.exe"
+
+CLIP_SENTINEL="$SENTINEL" PATH="$FAKE_BIN:$PATH" "$RUNNER" logged-run-success > "$OUTPUT" <<'INNER'
+echo logged-run-smoke-ok
+INNER
+
+test ! -e "$SENTINEL"
+grep -q 'logged-run-smoke-ok' "$OUTPUT"
+grep -q 'LOG SAVED' "$OUTPUT"
+! grep -qi 'clipboard\|presse-papiers' "$OUTPUT"
+
+set +e
+CLIP_SENTINEL="$SENTINEL" PATH="$FAKE_BIN:$PATH" "$RUNNER" logged-run-failure > /dev/null <<'INNER'
+exit 7
+INNER
+FAILURE_CODE=$?
+set -e
+
+test "$FAILURE_CODE" -eq 7
+test ! -e "$SENTINEL"
+echo "erp-logged-run regression tests passed."

@@ -46,6 +46,7 @@ esac
 
 backend=false
 frontend=false
+tooling=false
 level=L0
 reasons=""
 
@@ -61,10 +62,15 @@ require_frontend() {
   frontend=true
   if [ "$backend" = true ]; then level=L4; elif [ "$level" = L0 ]; then level=L3; fi
 }
+require_tooling() {
+  tooling=true
+  if [ "$level" = L0 ]; then level=L1; fi
+}
 require_both() { backend=true; frontend=true; level=L4; }
+require_ci_critical() { require_both; require_tooling; }
 
 if [ -z "$changed_files" ]; then
-  require_both
+  require_ci_critical
   add_reason "empty-diff-fail-closed"
 fi
 
@@ -72,7 +78,7 @@ while IFS= read -r path; do
   [ -n "$path" ] || continue
   case "$path" in
     __CI_INVALID_RANGE__)
-      require_both; add_reason "invalid-range-fail-closed" ;;
+      require_ci_critical; add_reason "invalid-range-fail-closed" ;;
     backend/identity/*|backend/config/*|backend/*/migrations/*|backend/*/api.py|backend/*/urls.py|backend/*/serializers.py)
       require_both; add_reason "backend-contract-or-trust-boundary" ;;
     backend/*|tests/backend/*)
@@ -86,17 +92,19 @@ while IFS= read -r path; do
     frontend/package.json|frontend/package-lock.json|frontend/vite.config.*|frontend/tsconfig*.json)
       require_frontend; add_reason "frontend-toolchain" ;;
     .github/workflows/*|scripts/ci/*|compose.agent-ci.yaml|scripts/dev/erp-backend-*|scripts/dev/erp-frontend-*|scripts/dev/erp-ci-*|scripts/dev/erp-agent-scope-guard|scripts/dev/erp-worktree-preflight|scripts/dev/erp-pr-*-finalize|scripts/dev/erp-pr-finalize-from-root)
-      require_both; add_reason "ci-or-test-infrastructure" ;;
+      require_ci_critical; add_reason "ci-or-test-infrastructure" ;;
+    scripts/dev/erp-logged-run|scripts/dev/test-erp-logged-run)
+      require_tooling; add_reason "agent-tools" ;;
     docs/*|.agents/skills/*|AGENTS.md|CLAUDE.md|.github/copilot-instructions.md|*.md|scripts/dev/erp-graphify-update|.gitignore)
       add_reason "governance-or-docs" ;;
     *)
-      require_both; add_reason "unknown-path-fail-closed" ;;
+      require_ci_critical; add_reason "unknown-path-fail-closed" ;;
   esac
 done <<< "$changed_files"
 
 reason="$(printf '%s' "$reasons" | tr ',' '\n' | awk 'NF && !seen[$0]++' | paste -sd, -)"
 
-printf 'backend=%s\nfrontend=%s\nlevel=%s\nreason=%s\n' "$backend" "$frontend" "$level" "$reason"
+printf 'backend=%s\nfrontend=%s\ntooling=%s\nlevel=%s\nreason=%s\n' "$backend" "$frontend" "$tooling" "$level" "$reason"
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
-  printf 'backend=%s\nfrontend=%s\nlevel=%s\nreason=%s\n' "$backend" "$frontend" "$level" "$reason" >> "$GITHUB_OUTPUT"
+  printf 'backend=%s\nfrontend=%s\ntooling=%s\nlevel=%s\nreason=%s\n' "$backend" "$frontend" "$tooling" "$level" "$reason" >> "$GITHUB_OUTPUT"
 fi
