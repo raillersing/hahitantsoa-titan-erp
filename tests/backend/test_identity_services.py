@@ -8,6 +8,7 @@ from django.db import IntegrityError, close_old_connections, transaction
 
 from apps.audit.models import AuditEvent
 from apps.identity.models import ApplicationRole, UserRoleAssignment
+from apps.identity.roles import IdentityRole
 from apps.identity.services import (
     IdentityServiceError,
     assign_role,
@@ -47,6 +48,41 @@ def test_sync_system_roles_requires_admin(regular_user):
     actor = ActorStub(is_staff=False)
     with pytest.raises(IdentityServiceError, match="not authorized"):
         sync_system_roles(actor=actor)
+
+
+def test_delegated_identity_admin_cannot_sync_or_assign_system_roles(
+    django_user_model,
+    regular_user,
+):
+    delegated = django_user_model.objects.create_user(username="delegated-admin")
+    delegated.groups.create(name=IdentityRole.IDENTITY_ADMIN.value)
+    system_role = ApplicationRole.objects.create(
+        name="Identity admin",
+        slug=IdentityRole.IDENTITY_ADMIN.value,
+        is_system_managed=True,
+    )
+
+    with pytest.raises(IdentityServiceError, match="platform administrator"):
+        sync_system_roles(actor=delegated)
+    with pytest.raises(IdentityServiceError, match="platform administrator"):
+        assign_role(actor=delegated, user=regular_user, role=system_role)
+
+
+def test_delegated_identity_admin_cannot_revoke_system_role(
+    django_user_model,
+    regular_user,
+):
+    delegated = django_user_model.objects.create_user(username="delegated-revoker")
+    delegated.groups.create(name=IdentityRole.IDENTITY_ADMIN.value)
+    system_role = ApplicationRole.objects.create(
+        name="Reservation operator",
+        slug=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value,
+        is_system_managed=True,
+    )
+    assignment = UserRoleAssignment.objects.create(user=regular_user, role=system_role)
+
+    with pytest.raises(IdentityServiceError, match="platform administrator"):
+        revoke_role(actor=delegated, assignment_id=assignment.id)
 
 
 def test_sync_system_roles_creates_records(admin_user):
@@ -120,6 +156,8 @@ def test_assign_role_success(
     assert assignment.role == sample_role
     assert assignment.is_active is True
     assert assignment.assigned_by == admin_user
+    assert assignment.created_by == admin_user
+    assert assignment.updated_by == admin_user
     event = AuditEvent.objects.get(action="identity.role_assigned")
     assert event.actor == admin_user
     assert event.target_type == "user_role_assignment"
@@ -205,6 +243,7 @@ def test_revoke_role_success(
         result = revoke_role(actor=admin_user, assignment_id=assignment.id, notes="bye")
     assert result.is_active is False
     assert result.revoked_at is not None
+    assert result.updated_by == admin_user
     assert "bye" in result.notes
     event = AuditEvent.objects.get(action="identity.role_revoked")
     assert event.actor == admin_user

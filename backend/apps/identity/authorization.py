@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib.auth import get_user_model
 
 from apps.identity.roles import ROLE_GROUP_NAME_BY_ROLE, IdentityRole
-from apps.identity.selectors import user_has_application_role
+from apps.identity.selectors import user_effective_role_slugs, user_has_application_role
 
 User = get_user_model()
 
@@ -32,22 +32,7 @@ def actor_has_identity_role(*, actor: object | None, role: IdentityRole) -> bool
         return False
 
     role_slug = ROLE_GROUP_NAME_BY_ROLE[role]
-    if actor_has_application_role(actor=actor, role_slug=role_slug):
-        return True
-
-    group_manager = getattr(actor, "groups", None)
-    if group_manager is None:
-        return False
-
-    filter_method = getattr(group_manager, "filter", None)
-    if callable(filter_method):
-        return filter_method(name=role_slug).exists()
-
-    groups_iterable = getattr(group_manager, "all", None)
-    if callable(groups_iterable):
-        return any(getattr(group, "name", None) == role_slug for group in groups_iterable())
-
-    return any(getattr(group, "name", None) == role_slug for group in group_manager)
+    return role_slug in user_effective_role_slugs(user=actor)
 
 
 def actor_has_application_role(*, actor: object | None, role_slug: str) -> bool:
@@ -59,7 +44,15 @@ def actor_has_application_role(*, actor: object | None, role_slug: str) -> bool:
 
 
 def is_identity_admin_actor(*, actor: object | None) -> bool:
-    return is_authenticated_active_actor(actor=actor) and getattr(actor, "is_staff", False) is True
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+    # Staff remains the explicit platform superuser path for backwards
+    # compatibility; the application role/group path is independently usable
+    # for delegated identity administration.
+    return getattr(actor, "is_staff", False) is True or actor_has_identity_role(
+        actor=actor,
+        role=IdentityRole.IDENTITY_ADMIN,
+    )
 
 
 def is_reservation_sensitive_actor(*, actor: object | None) -> bool:

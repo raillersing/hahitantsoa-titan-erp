@@ -46,6 +46,30 @@ def test_active_staff_actor_is_identity_admin() -> None:
     assert is_identity_admin_actor(actor=actor) is True
 
 
+def test_identity_admin_group_actor_is_identity_admin(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="delegated-identity-admin",
+        password="test-pass",
+        is_staff=False,
+    )
+    group = Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value)
+    actor.groups.add(group)
+
+    assert is_identity_admin_actor(actor=actor) is True
+
+
+def test_reservation_operator_is_not_identity_admin(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="reservation-only-operator",
+        password="test-pass",
+        is_staff=False,
+    )
+    group = Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value)
+    actor.groups.add(group)
+
+    assert is_identity_admin_actor(actor=actor) is False
+
+
 def test_inactive_staff_actor_is_not_identity_admin() -> None:
     actor = ActorStub(is_authenticated=True, is_staff=True, is_active=False)
 

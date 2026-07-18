@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 from apps.identity.selectors import (
@@ -51,3 +52,32 @@ def test_user_effective_role_slugs():
     UserRoleAssignment.objects.create(user=user, role=role_b, is_active=True)
     slugs = user_effective_role_slugs(user=user)
     assert slugs == {"a", "b"}
+
+
+def test_user_effective_role_slugs_merges_active_assignments_and_groups():
+    user = User.objects.create_user(username="merged-roles", password="p")
+    role = ApplicationRole.objects.create(name="Assigned", slug="assigned")
+    UserRoleAssignment.objects.create(user=user, role=role, is_active=True)
+    user.groups.add(Group.objects.create(name="reservation_sensitive_operator"))
+
+    assert user_effective_role_slugs(user=user) == {"assigned", "reservation_sensitive_operator"}
+
+
+def test_inactive_system_role_disables_legacy_group_capability():
+    user = User.objects.create_user(username="inactive-group-role", password="p")
+    user.groups.add(Group.objects.create(name="identity_admin"))
+    ApplicationRole.objects.create(
+        name="Identity admin",
+        slug="identity_admin",
+        is_system_managed=True,
+        is_active=False,
+    )
+
+    assert "identity_admin" not in user_effective_role_slugs(user=user)
+
+
+def test_arbitrary_group_names_are_not_effective_roles():
+    user = User.objects.create_user(username="arbitrary-group", password="p")
+    user.groups.add(Group.objects.create(name="unapproved-capability"))
+
+    assert user_effective_role_slugs(user=user) == set()
