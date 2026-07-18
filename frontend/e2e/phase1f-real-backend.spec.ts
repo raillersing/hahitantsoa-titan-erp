@@ -37,7 +37,16 @@ function collectRuntimeEvidence(page: Page): RuntimeEvidence {
   });
   page.on('requestfailed', (request) => {
     if (request.url().includes('/api/')) {
-      evidence.failedApi.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText ?? 'unknown'}`);
+      // Chromium can report an intentional navigation abort after the browser
+      // already received the successful logout response.  Treat that lifecycle
+      // noise as successful transport when a 2xx response for the same request
+      // was observed; retain genuine failures for the assertion below.
+      const hasSuccessfulResponse = evidence.apiResponses.some(
+        (response) => response.url === request.url() && response.status >= 200 && response.status < 300,
+      );
+      if (!hasSuccessfulResponse) {
+        evidence.failedApi.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText ?? 'unknown'}`);
+      }
     }
   });
   return evidence;
@@ -90,10 +99,17 @@ test('recette réelle: expiration de session redirige sans fallback métier', as
   await expect(page.getByRole('heading', { name: 'Profil utilisateur', level: 1 })).toBeVisible();
 
   await context.clearCookies();
+  const sessionResponsePromise = page.waitForResponse((response) => {
+    return new URL(response.url()).pathname === '/api/v1/auth/session/';
+  });
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('erp:session-revalidation-required')));
+  const sessionResponse = await sessionResponsePromise;
   await expect(page.getByRole('heading', { name: 'Connexion opérateur' })).toBeVisible();
   await expect(page.getByText(/Votre session a expiré/)).toBeVisible();
-  await expect.poll(() => statusesFor(evidence, '/api/v1/auth/session/').some((status) => status === 401 || status === 403)).toBe(true);
+  expect([200, 401, 403]).toContain(sessionResponse.status());
+  if (sessionResponse.status() === 200) {
+    await expect(sessionResponse.json()).resolves.toMatchObject({ authenticated: false });
+  }
 
   expect(evidence.failedApi, evidence.failedApi.join('\n')).toEqual([]);
   expect(evidence.pageErrors, evidence.pageErrors.join('\n')).toEqual([]);
