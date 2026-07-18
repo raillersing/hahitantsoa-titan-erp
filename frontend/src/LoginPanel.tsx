@@ -93,10 +93,13 @@ function LoginPanel() {
             </div>
           ) : null}
 
-          <label>
+          <label className="login-form__field" htmlFor="login-username">
             <span>Nom d’utilisateur</span>
             <input
+              id="login-username"
               type="text"
+              name="username"
+              className="login-form__input"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -106,10 +109,13 @@ function LoginPanel() {
             />
           </label>
 
-          <label>
+          <label className="login-form__field" htmlFor="login-password">
             <span>Mot de passe</span>
             <input
+              id="login-password"
               type="password"
+              name="password"
+              className="login-form__input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
