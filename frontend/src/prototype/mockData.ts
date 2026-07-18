@@ -31,6 +31,9 @@ export interface Client {
   repLastName?: string;
   repRole?: string;
   notes?: string;
+  reservationCount?: number;
+  eventCount?: number;
+  documentCount?: number;
 }
 
 export interface Reservation {

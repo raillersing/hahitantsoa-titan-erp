@@ -306,6 +306,8 @@ export type CustomerSearchParams = {
   name?: string;
   email?: string;
   phone?: string;
+  lifecycle_status?: "prospect" | "client";
+  party_type?: "individual" | "company";
 };
 
 export function getCustomers(
@@ -318,6 +320,8 @@ export function getCustomers(
     if (params.name) qs.set("name", params.name);
     if (params.email) qs.set("email", params.email);
     if (params.phone) qs.set("phone", params.phone);
+    if (params.lifecycle_status) qs.set("lifecycle_status", params.lifecycle_status);
+    if (params.party_type) qs.set("party_type", params.party_type);
     const qsStr = qs.toString();
     if (qsStr) url += `?${qsStr}`;
   }

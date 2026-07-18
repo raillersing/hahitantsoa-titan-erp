@@ -1,12 +1,19 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import TitanPage from './TitanPage';
 import HahitantsoaPage from './HahitantsoaPage';
 import CustomersPage from './CustomersPage';
 import PlanningPage from './PlanningPage';
 import CustomerDetailPage from './CustomerDetailPage';
 import ReservationDetailPage from './ReservationDetailPage';
+import * as api from '../api';
+
+beforeEach(() => {
+  vi.spyOn(api, 'getCustomers').mockResolvedValue([
+    { id: 'CUST-001', display_name: 'Ando Rakoto', lifecycle_status: 'client', party_type: 'individual', email: '', phone: '', address: '', notes: '', is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null },
+  ]);
+});
 
 describe('6F-R9 stabilization', () => {
   it('TitanPage - location numbers and client names are clickable', () => {
@@ -49,18 +56,14 @@ describe('6F-R9 stabilization', () => {
     expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-001');
   });
 
-  it('CustomersPage - client name and last dossier open correct routes, no Voir fiche column', () => {
+  it('CustomersPage - client name opens correct route, no mock dossier column', async () => {
     const mockNavigate = vi.fn();
     render(<CustomersPage onNavigate={mockNavigate} />);
 
     expect(screen.queryAllByRole('button', { name: /Voir fiche/i }).length).toBe(0);
 
-    fireEvent.click(screen.getByRole('button', { name: /Ando Rakoto/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Ando Rakoto/i }));
     expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-001');
-
-    mockNavigate.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: /LOC-2026-0089/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'LOC-2026-0089');
   });
 
   it('CustomerDetailPage - back button returns to customers, dossier ID navigates, edition works', () => {

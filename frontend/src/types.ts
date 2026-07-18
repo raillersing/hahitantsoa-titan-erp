@@ -10,6 +10,8 @@ export type InventoryItem = {
 export type Customer = {
   id: string;
   display_name: string;
+  lifecycle_status?: "prospect" | "client";
+  party_type?: "individual" | "company";
   email: string;
   phone: string;
   address: string;
@@ -21,6 +23,10 @@ export type Customer = {
   deleted_at: string | null;
   created_by: string | null;
   updated_by: string | null;
+  reservation_count?: number;
+  event_count?: number;
+  document_count?: number;
+  last_activity_at?: string | null;
 };
 
 export type CustomerCreatePayload = {

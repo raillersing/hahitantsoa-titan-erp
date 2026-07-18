@@ -1,5 +1,7 @@
-import React, { useState } from "react";
-import { mockClients, mockReservations, Client, addMockClient, addMockReservation } from "./mockData";
+import React, { useEffect, useState } from "react";
+import { getCustomers } from "../api";
+import type { Customer as ApiCustomer } from "../types";
+import { Client } from "./mockData";
 import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 
 interface CustomersPageProps {
@@ -8,6 +10,9 @@ interface CustomersPageProps {
 }
 
 export default function CustomersPage({ onNavigate, canSensitiveWrite = false }: CustomersPageProps) {
+  const [apiClients, setApiClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("Tous");
   
@@ -59,9 +64,45 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
   const [profAmount, setProfAmount] = useState("");
   const [profStatus, setProfStatus] = useState("Brouillon");
 
-  const filters = ["Tous", "Prospects", "Clients", "Particuliers", "Entreprises", "Avec solde restant", "Avec dossier actif", "À relancer"];
+  const filters = ["Tous", "Prospects", "Clients", "Particuliers", "Entreprises", "Avec dossier actif", "À relancer"];
 
-  const filteredClients = mockClients.filter(c => {
+  const mapApiCustomer = (customer: ApiCustomer): Client => {
+    const isProspect = customer.lifecycle_status === "prospect";
+    const isCompany = customer.party_type === "company";
+    const name = customer.display_name || "Client sans nom";
+    return {
+      id: customer.id,
+      initials: name.slice(0, 2).toUpperCase(),
+      name,
+      email: customer.email,
+      phone: customer.phone,
+      type: isCompany ? "Entreprise" : "Particulier",
+      status: isProspect ? "Prospect" : "Client",
+      colorClass: isProspect ? "bg-blue-100 text-blue-700" : isCompany ? "bg-emerald-100 text-emerald-700" : "bg-indigo-100 text-indigo-700",
+      address: customer.address,
+      notes: customer.notes,
+      reservationCount: customer.reservation_count ?? 0,
+      eventCount: customer.event_count ?? 0,
+      documentCount: customer.document_count ?? 0,
+    };
+  };
+
+  const loadCustomers = async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const customers = await getCustomers();
+      setApiClients(customers.map(mapApiCustomer));
+    } catch {
+      setLoadError("Impossible de charger les fiches clients. Réessayez.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { void loadCustomers(); }, []);
+
+  const filteredClients = apiClients.filter(c => {
     // Text search
     const q = searchQuery.toLowerCase();
     const matchSearch = c.name.toLowerCase().includes(q) || 
@@ -77,16 +118,8 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
     if (filterType === "Entreprises" && c.type !== "Entreprise") return false;
     
     // Derived filters
-    const clientReservations = mockReservations.filter(r => r.clientId === c.id);
-    
-    if (filterType === "Avec solde restant") {
-      const hasBalance = clientReservations.some(r => r.amount > (r.paidAmount || 0));
-      if (!hasBalance) return false;
-    }
-    
     if (filterType === "Avec dossier actif") {
-      const hasActive = clientReservations.some(r => !["Terminée", "Annulée"].includes(r.status));
-      if (!hasActive) return false;
+      if (!c.reservationCount) return false;
     }
     
     // À relancer is just mock logic, we'll say prospects are to be re-contacted
@@ -142,7 +175,8 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
       notes: isProspect ? `Demande : ${prospectRequestType}\nVolet : ${prospectDomain}\nDate : ${prospectDate}\nBudget : ${prospectBudget}\nNote : ${prospectNote}` : newNotes
     };
 
-    addMockClient(newClient);
+    // Customer creation is intentionally deferred to the write lot.
+    void newClient;
 
     if (canSensitiveWrite && isProspect && prospectRequestType === "Proforma demandée") {
       // Redirect to ReservationNewPage with prospect-proforma param
@@ -666,7 +700,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Clients & Prospects</h2>
-          <p className="text-sm text-slate-500">{mockClients.length} fiches enregistrées</p>
+          <p className="text-sm text-slate-500">{apiClients.length} fiches enregistrées</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -679,14 +713,14 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
               className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" 
             />
           </div>
-          <button onClick={() => { setIsAdding(true); setNewStatus("Prospect"); }} className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-medium transition-colors" title="Prospect : contact à suivre avant réservation.">
-            Nouveau prospect
-          </button>
-          <button onClick={() => { setIsAdding(true); setNewStatus("Client"); }} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors" title="Client : contact pouvant être lié à un dossier, contrat, facture ou paiement.">
-            Nouveau client
-          </button>
+          <span className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm" title="Les écritures seront activées dans le lot Clients/Prospects en écriture.">
+            Lecture seule
+          </span>
         </div>
       </div>
+
+      {isLoading && <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Chargement des fiches clients…</div>}
+      {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center justify-between"><span>{loadError}</span><button className="underline font-semibold" onClick={() => void loadCustomers()}>Réessayer</button></div>}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
@@ -719,13 +753,6 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
               </tr>
             )}
             {filteredClients.map(client => {
-              const clientReservations = mockReservations.filter(r => r.clientId === client.id);
-              const lastRes = clientReservations.length > 0 ? clientReservations[clientReservations.length - 1] : null;
-              
-              const totalAmount = clientReservations.reduce((acc, r) => acc + r.amount, 0);
-              const totalPaid = clientReservations.reduce((acc, r) => acc + (r.paidAmount || 0), 0);
-              const balance = totalAmount - totalPaid;
-
               return (
                 <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-4">
@@ -746,22 +773,17 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
                     </span>
                   </td>
                   <td className="px-4 py-4">
-                    {lastRes ? (
-                      <button onClick={() => onNavigate("reservation-detail", lastRes.id)} className="text-left group">
-                        <div className="text-slate-700 font-medium group-hover:text-indigo-600 group-hover:underline">{lastRes.id}</div>
-                        <div className="text-xs text-slate-500">{lastRes.title}</div>
-                      </button>
+                    {client.reservationCount ? (
+                      <span className="text-slate-700 font-medium">{client.reservationCount} dossier(s)</span>
                     ) : (
                       <span className="text-xs text-slate-400">Aucun dossier</span>
                     )}
                   </td>
                   <td className="px-4 py-4 rounded-r-lg">
-                    {balance > 0 ? (
-                      <div className="text-amber-600 font-medium text-xs">Reste : {balance.toLocaleString('fr-FR')} Ar</div>
-                    ) : client.status === 'Prospect' ? (
+                    {client.status === 'Prospect' ? (
                       <div className="text-blue-600 font-medium text-xs">À relancer</div>
                     ) : (
-                      <div className="text-green-600 font-medium text-xs">À jour</div>
+                      <div className="text-slate-500 font-medium text-xs">Solde non disponible</div>
                     )}
                   </td>
                 </tr>
