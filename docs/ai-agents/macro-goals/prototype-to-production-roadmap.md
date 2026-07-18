@@ -21,6 +21,34 @@ and tests, but must not replace the approved interface.
 - `Non confirmé` means that the required proof was not available; it must not be
   interpreted as either success or failure.
 
+## Execution order and phase closeout
+
+Agents follow this order and must not start a later phase before the preceding phase has
+its required evidence and human acceptance:
+
+1. Phase 1 — authentication, session, and RBAC;
+2. Phase 2 — customers and prospects read-only;
+3. Phase 3 — customers and prospects writes;
+4. Phase 4 — catalog, offers, and inventory;
+5. Phase 5 — reservations and availability;
+6. Phase 6 — documents and templates;
+7. Phase 7 — billing, payments, and cashbox;
+8. Phase 8 — logistics, returns, and incidents;
+9. Phase 9 — audit, administration, and reports;
+10. Phase 10 — removal of production mocks;
+11. Phase 11 — production readiness;
+12. Phase 12 — commercial acceptance.
+
+For every phase, execute its approved medium bundles sequentially. Each bundle retains
+proportional local evidence and mandatory PR/exact-SHA `main` CI. After all bundles are
+merged, run one read-only phase integration checkpoint covering the complete affected
+stacks and journeys, then implement one consolidated corrective bundle for ordinary
+findings. Security, authorization, data-integrity, migration, financial, concurrency,
+CI, and release-blocking findings remain immediate corrective work.
+
+Current next bundle: **Phase 1E-BE — consolidate backend-authoritative roles and
+permissions**. Phase 1E-FE and 1F follow only after its accepted merge evidence.
+
 ## Product target
 
 The program is complete only when the production runtime:
