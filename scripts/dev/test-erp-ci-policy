@@ -6,6 +6,7 @@ classifier="$SCRIPT_DIR/erp-ci-change-policy"
 gate="$SCRIPT_DIR/erp-ci-policy-gate"
 repo_root="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 workflow="$repo_root/.github/workflows/ci.yml"
+worktree_preflight="$SCRIPT_DIR/erp-worktree-preflight"
 tmp_root="$(mktemp -d)"
 trap 'rm -rf "$tmp_root"' EXIT
 
@@ -142,11 +143,25 @@ scope_fixture manifest pyproject.toml fail
 scope_fixture tooling-test scripts/dev/test-erp-logged-run pass
 scope_fixture docs-runbook docs/runbooks/example.md pass agent-docs
 
+preflight_repo="$tmp_root/preflight-agent-docs"
+git init -q -b main "$preflight_repo"
+git -C "$preflight_repo" config user.email ci-policy@example.invalid
+git -C "$preflight_repo" config user.name 'CI Policy Test'
+mkdir -p "$preflight_repo/scripts/dev" "$preflight_repo/docs/runbooks"
+cp "$SCRIPT_DIR/erp-agent-scope-guard" "$preflight_repo/scripts/dev/erp-agent-scope-guard"
+cp "$worktree_preflight" "$preflight_repo/scripts/dev/erp-worktree-preflight"
+git -C "$preflight_repo" add scripts/dev
+git -C "$preflight_repo" commit -qm baseline
+: > "$preflight_repo/docs/runbooks/example.md"
+git -C "$preflight_repo" add docs/runbooks/example.md
+(cd "$preflight_repo" && bash scripts/dev/erp-worktree-preflight agent-docs >/dev/null)
+
 grep -Fq 'name: Classify changes' "$workflow"
 grep -Fq 'name: CI policy gate' "$workflow"
 grep -Fq 'if: always()' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.backend' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.frontend' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.tooling' "$workflow"
+grep -Fq '[backend|frontend|agent-tools|agent-ci|agent-docs]' "$worktree_preflight"
 
 echo "ERP CI policy tests: PASS"
