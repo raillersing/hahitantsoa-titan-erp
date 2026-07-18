@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.identity.models import ApplicationRole, UserRoleAssignment
+from apps.identity.roles import ROLE_GROUP_NAME_BY_ROLE
 from apps.identity.serializers import (
     ApplicationRoleSerializer,
     ApplicationRoleWriteSerializer,
@@ -15,6 +16,7 @@ from apps.identity.serializers import (
     UserRoleAssignmentWriteSerializer,
 )
 from apps.identity.services import (
+    UNAUTHORIZED_PLATFORM_ROLE,
     IdentityServiceError,
     assign_role,
     revoke_role,
@@ -50,6 +52,18 @@ class ApplicationRoleListCreateAPIView(generics.ListCreateAPIView):
             queryset = queryset.filter(is_active=True)
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        reserved_slugs = set(ROLE_GROUP_NAME_BY_ROLE.values())
+        if request.data.get("slug") in reserved_slugs and not request.user.is_staff:
+            return Response(
+                {
+                    "detail": "Only a platform administrator may manage reserved roles.",
+                    "code": UNAUTHORIZED_PLATFORM_ROLE,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().create(request, *args, **kwargs)
+
 
 class ApplicationRoleDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ["get", "put", "patch", "delete", "head", "options"]
@@ -61,8 +75,35 @@ class ApplicationRoleDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             return ApplicationRoleWriteSerializer
         return ApplicationRoleSerializer
 
+    def _platform_mutation_guard(self, request, instance):
+        reserved_slugs = set(ROLE_GROUP_NAME_BY_ROLE.values())
+        requested_slug = request.data.get("slug", instance.slug)
+        if not request.user.is_staff and (
+            instance.is_system_managed
+            or instance.slug in reserved_slugs
+            or requested_slug in reserved_slugs
+        ):
+            return Response(
+                {
+                    "detail": "Only a platform administrator may manage reserved roles.",
+                    "code": UNAUTHORIZED_PLATFORM_ROLE,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        guarded = self._platform_mutation_guard(request, instance)
+        if guarded is not None:
+            return guarded
+        return super().update(request, *args, **kwargs)
+
     def delete(self, request, *args, **kwargs):
         instance = self.get_object()
+        guarded = self._platform_mutation_guard(request, instance)
+        if guarded is not None:
+            return guarded
         if instance.is_system_managed:
             return Response(
                 {"detail": "System-managed roles cannot be deleted."},
@@ -152,6 +193,11 @@ class AssignRoleAPIView(APIView):
                 notes=serializer.validated_data.get("notes", ""),
             )
         except IdentityServiceError as exc:
+            if exc.code == UNAUTHORIZED_PLATFORM_ROLE:
+                return Response(
+                    {"detail": str(exc), "code": exc.code},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             return Response(
                 {"detail": str(exc), "code": exc.code}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -188,9 +234,12 @@ class RevokeRoleAPIView(APIView):
         except IdentityServiceError as exc:
             if exc.code == "role_assignment_not_found":
                 return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
-            return Response(
-                {"detail": str(exc), "code": exc.code}, status=status.HTTP_400_BAD_REQUEST
+            response_status = (
+                status.HTTP_403_FORBIDDEN
+                if exc.code == UNAUTHORIZED_PLATFORM_ROLE
+                else status.HTTP_400_BAD_REQUEST
             )
+            return Response({"detail": str(exc), "code": exc.code}, status=response_status)
 
         return Response(UserRoleAssignmentSerializer(assignment).data, status=status.HTTP_200_OK)
 
@@ -206,7 +255,13 @@ class SyncSystemRolesAPIView(APIView):
         },
     )
     def post(self, request):
-        roles = sync_system_roles(actor=request.user)
+        try:
+            roles = sync_system_roles(actor=request.user)
+        except IdentityServiceError as exc:
+            return Response(
+                {"detail": str(exc), "code": exc.code},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         return Response(
             ApplicationRoleSerializer(roles, many=True).data,
             status=status.HTTP_200_OK,

@@ -4,6 +4,7 @@ from datetime import timedelta
 from threading import Barrier
 
 import pytest
+from django.contrib.auth.models import Group
 from django.db import close_old_connections
 from django.test import Client
 from django.utils import timezone
@@ -19,6 +20,7 @@ from apps.identity.auth_services import (
     login_throttle_keys,
 )
 from apps.identity.models import ApplicationRole, LoginAttemptBucket, UserRoleAssignment
+from apps.identity.roles import IdentityRole
 
 pytestmark = pytest.mark.django_db
 
@@ -75,6 +77,7 @@ def test_session_returns_minimal_authenticated_user_and_sorted_active_roles(
     UserRoleAssignment.objects.create(user=user, role=second_role)
     UserRoleAssignment.objects.create(user=user, role=active_role)
     UserRoleAssignment.objects.create(user=user, role=inactive_role)
+    user.groups.add(Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value))
     csrf_client.force_login(user)
 
     response = csrf_client.get(SESSION_URL)
@@ -87,7 +90,7 @@ def test_session_returns_minimal_authenticated_user_and_sorted_active_roles(
             "username": "session-operator",
             "display_name": "Ada Operator",
             "is_staff": False,
-            "roles": ["commercial", "direction"],
+            "roles": ["commercial", "direction", "identity_admin"],
         },
     }
 

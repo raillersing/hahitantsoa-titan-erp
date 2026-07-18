@@ -39,6 +39,19 @@ class ApplicationRoleWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A role with this slug already exists.")
         return value
 
+    def validate(self, attrs):
+        instance = self.instance
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        if instance is not None and instance.is_system_managed:
+            if not getattr(actor, "is_staff", False):
+                raise serializers.ValidationError(
+                    "Only a platform administrator may update system roles."
+                )
+            if attrs.get("is_active", instance.is_active) is False:
+                raise serializers.ValidationError("System-managed roles cannot be deactivated.")
+        return attrs
+
 
 class UserRoleAssignmentSerializer(serializers.ModelSerializer):
     role = ApplicationRoleSerializer(read_only=True)

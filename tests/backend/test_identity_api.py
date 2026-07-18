@@ -76,6 +76,16 @@ def test_role_list_staff_allowed(staff_authenticated_client):
     assert isinstance(response.json(), list)
 
 
+def test_role_list_delegated_identity_admin_allowed(client):
+    user = User.objects.create_user(username="delegated-role-admin", password="test-pass")
+    user.groups.add(Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value))
+    client.force_login(user)
+
+    response = client.get(IDENTITY_ROLE_LIST_URL)
+
+    assert response.status_code == 200
+
+
 def test_role_list_inactive_staff_forbidden(inactive_staff_authenticated_client):
     response = inactive_staff_authenticated_client.get(IDENTITY_ROLE_LIST_URL)
     assert response.status_code in {401, 403}
@@ -215,6 +225,75 @@ def test_role_partial_update_staff_success(staff_authenticated_client):
     assert response.json()["description"] == "Patched"
 
 
+def test_delegated_identity_admin_cannot_update_system_role(client):
+    admin = User.objects.create_user(username="delegated-role-editor", password="p")
+    admin.groups.add(Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value))
+    role = ApplicationRole.objects.create(
+        name="System role",
+        slug="system-role",
+        is_system_managed=True,
+    )
+    client.force_login(admin)
+
+    response = client.patch(
+        f"{IDENTITY_ROLE_LIST_URL}{role.id}/",
+        {"description": "attempted edit"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    assert "platform administrator" in str(response.json())
+
+
+def test_delegated_identity_admin_cannot_create_reserved_role(client):
+    admin = User.objects.create_user(username="delegated-role-creator", password="p")
+    admin.groups.add(Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value))
+    client.force_login(admin)
+
+    response = client.post(
+        IDENTITY_ROLE_LIST_URL,
+        {"name": "Reserved", "slug": IdentityRole.IDENTITY_ADMIN.value},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "unauthorized_platform_role"
+
+
+def test_delegated_identity_admin_cannot_rename_role_to_reserved_slug(client):
+    admin = User.objects.create_user(username="delegated-role-renamer", password="p")
+    admin.groups.add(Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value))
+    role = ApplicationRole.objects.create(name="Custom", slug="custom")
+    client.force_login(admin)
+
+    response = client.patch(
+        f"{IDENTITY_ROLE_LIST_URL}{role.id}/",
+        {"slug": IdentityRole.IDENTITY_ADMIN.value},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "unauthorized_platform_role"
+
+
+def test_system_role_cannot_be_deactivated_by_staff(staff_authenticated_client):
+    role = ApplicationRole.objects.create(
+        name="Protected system role",
+        slug="protected-system-role",
+        is_system_managed=True,
+    )
+
+    response = staff_authenticated_client.patch(
+        f"{IDENTITY_ROLE_LIST_URL}{role.id}/",
+        {"is_active": False},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    role.refresh_from_db()
+    assert role.is_active is True
+
+
 def test_role_delete_custom_role_success(staff_authenticated_client):
     role = ApplicationRole.objects.create(name="Custom", slug="custom-role")
     url = f"/api/v1/identity/roles/{role.id}/"
@@ -334,6 +413,17 @@ def test_sync_system_roles_staff_creates_roles(staff_authenticated_client):
     assert "reservation_sensitive_operator" in slugs
 
 
+def test_sync_system_roles_delegated_admin_forbidden(client):
+    user = User.objects.create_user(username="delegated-sync-admin", password="p")
+    user.groups.add(Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value))
+    client.force_login(user)
+
+    response = client.post(IDENTITY_SYNC_URL)
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "unauthorized_platform_role"
+
+
 # ---- assign role ----
 
 
@@ -362,6 +452,27 @@ def test_assign_role_staff_success(staff_authenticated_client, sample_role):
     data = response.json()
     assert data["role"]["slug"] == "sample"
     assert data["is_active"] is True
+
+
+def test_delegated_identity_admin_cannot_assign_system_role(client):
+    admin = User.objects.create_user(username="delegated-api-admin", password="p")
+    admin.groups.add(Group.objects.create(name=IdentityRole.IDENTITY_ADMIN.value))
+    target = User.objects.create_user(username="delegated-api-target", password="p")
+    role = ApplicationRole.objects.create(
+        name="Reservation operator",
+        slug=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value,
+        is_system_managed=True,
+    )
+    client.force_login(admin)
+
+    response = client.post(
+        IDENTITY_ASSIGN_URL,
+        {"user_id": str(target.id), "role_id": str(role.id)},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "unauthorized_platform_role"
 
 
 def test_assign_role_duplicate_returns_400(staff_authenticated_client, sample_role):

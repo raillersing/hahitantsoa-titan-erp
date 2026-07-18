@@ -14,6 +14,7 @@ ROLE_ASSIGNMENT_NOT_FOUND = "role_assignment_not_found"
 ROLE_ALREADY_REVOKED = "role_already_revoked"
 ROLE_ALREADY_ASSIGNED = "role_already_assigned"
 ROLE_INACTIVE = "role_inactive"
+UNAUTHORIZED_PLATFORM_ROLE = "unauthorized_platform_role"
 
 User = get_user_model()
 
@@ -32,8 +33,17 @@ def _require_identity_admin(*, actor: object | None) -> None:
         )
 
 
-def sync_system_roles(*, actor: object | None) -> list[ApplicationRole]:
+def _require_platform_identity_admin(*, actor: object | None) -> None:
     _require_identity_admin(actor=actor)
+    if not getattr(actor, "is_staff", False):
+        raise IdentityServiceError(
+            "Only a platform administrator may manage system roles.",
+            code=UNAUTHORIZED_PLATFORM_ROLE,
+        )
+
+
+def sync_system_roles(*, actor: object | None) -> list[ApplicationRole]:
+    _require_platform_identity_admin(actor=actor)
     roles: list[ApplicationRole] = []
     with transaction.atomic():
         for role in IdentityRole:
@@ -73,6 +83,8 @@ def assign_role(
                 "Cannot assign an inactive role.",
                 code=ROLE_INACTIVE,
             )
+        if locked_role.is_system_managed or locked_role.slug in ROLE_GROUP_NAME_BY_ROLE.values():
+            _require_platform_identity_admin(actor=actor)
 
         existing = (
             UserRoleAssignment.objects.filter(
@@ -95,6 +107,8 @@ def assign_role(
                     user=locked_user,
                     role=locked_role,
                     assigned_by=actor if actor else None,
+                    created_by=actor if actor else None,
+                    updated_by=actor if actor else None,
                     notes=notes,
                 )
         except IntegrityError as exc:
@@ -138,12 +152,19 @@ def revoke_role(
                 "Role assignment is already revoked.",
                 code=ROLE_ALREADY_REVOKED,
             )
+        if assignment.role.is_system_managed or assignment.role.slug in (
+            ROLE_GROUP_NAME_BY_ROLE.values()
+        ):
+            _require_platform_identity_admin(actor=actor)
 
         assignment.is_active = False
         assignment.revoked_at = timezone.now()
         if notes:
             assignment.notes = f"{assignment.notes}\nRevoked: {notes}".strip()
-        assignment.save(update_fields=["is_active", "revoked_at", "updated_at", "notes"])
+        assignment.updated_by = actor if actor else None
+        assignment.save(
+            update_fields=["is_active", "revoked_at", "updated_at", "updated_by", "notes"]
+        )
         record_audit_event_on_commit(
             actor=actor,
             action="identity.role_revoked",
