@@ -1,15 +1,28 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CustomerDetailPage from './CustomerDetailPage';
-import { mockReservations } from './mockData';
+import * as api from '../api';
+
+const customer = (id: string, display_name: string, party_type: 'individual' | 'company', lifecycle_status: 'client' | 'prospect' = 'client') => ({
+  id, display_name, party_type, lifecycle_status, email: `${id.toLowerCase()}@example.test`, phone: '', address: '', notes: '',
+  is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null,
+});
+
+beforeEach(() => {
+  vi.spyOn(api, 'getCustomer').mockImplementation(async (id: string) => {
+    if (id === 'CUST-002') return customer(id, 'Rasoa Nomena', 'company');
+    if (id === 'PROS-001') return customer(id, 'Jean Dupont', 'individual', 'prospect');
+    return { ...customer('CUST-001', 'Ando Rakoto', 'individual'), email: 'ando.rakoto@email.mg' };
+  });
+});
 
 describe('CustomerDetailPage', () => {
-  it('1. Affiche un particulier (CUST-001) avec ses sections', () => {
+  it('1. Affiche un particulier (CUST-001) avec ses sections', async () => {
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
     
-    expect(screen.getByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
+    expect(await screen.findByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
     expect(screen.getByText('Particulier')).toBeInTheDocument();
     
     // Check buttons
@@ -20,50 +33,32 @@ describe('CustomerDetailPage', () => {
     expect(screen.queryByText(/Raison sociale/i)).not.toBeInTheDocument();
   });
 
-  it('2. Affiche une entreprise (CUST-002)', () => {
+  it('2. Affiche une entreprise (CUST-002)', async () => {
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage param="CUST-002" onNavigate={mockNavigate} />);
     
-    expect(screen.getByText('Entreprise')).toBeInTheDocument();
+    expect(await screen.findByText('Entreprise')).toBeInTheDocument();
     
     // Check fields
     expect(screen.getAllByText(/Raison sociale/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/NIF \/ STAT/i).length).toBeGreaterThan(0);
   });
 
-  it('3. Affiche un prospect et permet la conversion (PROS-001)', () => {
-    // Add mock proforma so the conversion block appears
-    mockReservations.push({
-      id: "PROF-TEST",
-      clientId: "PROS-001",
-      title: "Test",
-      date: "2026-08-15",
-      amount: 1500000,
-      status: "Proforma",
-      type: "Hahitantsoa"
-    });
-
+  it('3. Affiche un prospect sans simuler une conversion persistée (PROS-001)', async () => {
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage param="PROS-001" onNavigate={mockNavigate} />);
     
-    expect(screen.getByText('Fiche prospect — Jean Dupont')).toBeInTheDocument();
+    expect(await screen.findByText('Fiche prospect — Jean Dupont')).toBeInTheDocument();
     expect(screen.getByText('Prospect')).toBeInTheDocument();
     
-    // Check that the new "Conversion en client" block is there
-    expect(screen.getByText('Conversion en client')).toBeInTheDocument();
-    
-    // Click Confirmer avec acompte
-    const convertBtn = screen.getByText(/Confirmer avec acompte/i);
-    fireEvent.click(convertBtn);
-    
-    // Check that assistant opens
-    expect(screen.getByText('1. Infos légales')).toBeInTheDocument();
+    expect(screen.queryByText('Conversion en client')).not.toBeInTheDocument();
   });
 
-  it('4. Modification du nom (mode local/mock)', () => {
+  it('4. Modification du nom signale que la persistance sera livrée dans le lot écriture', async () => {
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
     
+    expect(await screen.findByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
     const modifierBtns = screen.getAllByText('Modifier');
     fireEvent.click(modifierBtns[0]); // first section
     
@@ -72,16 +67,15 @@ describe('CustomerDetailPage', () => {
     
     fireEvent.click(screen.getByText('Enregistrer (local)'));
     
-    expect(screen.getByText('Modifications enregistrées en local (mock)')).toBeInTheDocument();
-    // the name at the top is also changed
-    expect(screen.getByText('Fiche client — Ando Modifié')).toBeInTheDocument();
+    expect(screen.getByText('La modification sera disponible dans le lot d’écriture.')).toBeInTheDocument();
   });
 
-  it('5. Clic sur retour et nouvelle réservation', () => {
+  it('5. Clic sur retour et nouvelle réservation', async () => {
     const mockNavigate = vi.fn();
     const mockBack = vi.fn();
     render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} onBack={mockBack} canSensitiveWrite />);
     
+    expect(await screen.findByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
     const retourBtn = screen.getByLabelText('Retour');
     fireEvent.click(retourBtn);
     expect(mockBack).toHaveBeenCalled();

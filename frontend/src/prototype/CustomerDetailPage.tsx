@@ -1,7 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AppScope } from "../App";
-import { Client, getClient, mockReservations, updateMockClient, addMockReservation } from "./mockData";
-import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
+import { ApiError, getCustomer } from "../api";
+import type { Customer as ApiCustomer } from "../types";
+type Client = {
+  id: string; initials: string; name: string; email: string; phone: string;
+  type: "Particulier" | "Entreprise"; status: "Client" | "Prospect";
+  colorClass: string; address?: string; notes?: string;
+  idType?: string; idNumber?: string; idIssueDate?: string; idIssuePlace?: string;
+  idDuplicataDate?: string; idDuplicataPlace?: string; birthDate?: string;
+  nif?: string; repFirstName?: string;
+};
+type ReservationSummary = { id: string; title: string; date: string; amount: number; status: string; type: string };
 interface CustomerDetailPageProps {
   onNavigate: (scope: any, param?: string) => void;
   param?: string;
@@ -12,95 +21,58 @@ interface CustomerDetailPageProps {
 
 export default function CustomerDetailPage({ onNavigate, param, onBack, returnContext, canSensitiveWrite = false }: CustomerDetailPageProps) {
   const clientId = param || "CUST-001";
-  const baseClient = getClient(clientId);
-  const [client, setClient] = useState<Client>(baseClient);
+  const emptyClient: Client = { id: clientId, initials: "…", name: "", email: "", phone: "", type: "Particulier", status: "Client", colorClass: "bg-slate-100 text-slate-600" };
+  const [client, setClient] = useState<Client>(emptyClient);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
-  const [showConversionAssistant, setShowConversionAssistant] = useState(false);
-  const reservations = mockReservations.filter(r => r.clientId === client.id);
+  const reservations: ReservationSummary[] = [];
+  const totalBilled = 0;
+  const totalPaid = 0;
+  const totalDue = 0;
 
-  const [draftExists, setDraftExists] = useState(false);
-  const [draftDomain, setDraftDomain] = useState("");
+  const mapApiCustomer = (customer: ApiCustomer): Client => ({
+    id: customer.id,
+    initials: customer.display_name.slice(0, 2).toUpperCase(),
+    name: customer.display_name,
+    email: customer.email,
+    phone: customer.phone,
+    type: customer.party_type === "company" ? "Entreprise" : "Particulier",
+    status: customer.lifecycle_status === "prospect" ? "Prospect" : "Client",
+    colorClass: customer.lifecycle_status === "prospect" ? "bg-blue-100 text-blue-700" : customer.party_type === "company" ? "bg-emerald-100 text-emerald-700" : "bg-indigo-100 text-indigo-700",
+    address: customer.address,
+    notes: customer.notes,
+  });
 
-  React.useEffect(() => {
-    const saved = localStorage.getItem("prototypeReservationDraft");
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.selectedClientId === client.id && data.step >= 2) {
-          setDraftExists(true);
-          setDraftDomain(data.domain || "Non spécifié");
-        }
-      } catch (e) {}
-    }
-  }, [client.id]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsLoading(true);
+    setLoadError(null);
+    void getCustomer(clientId, controller.signal).then((customer) => {
+      setClient(mapApiCustomer(customer));
+    }).catch((error: unknown) => {
+      if ((error as { name?: string }).name === "AbortError") return;
+      if (error instanceof ApiError && error.status === 404) setLoadError("Cette fiche client est introuvable.");
+      else if (error instanceof ApiError && error.status === 403) setLoadError("Vous n’avez pas accès à cette fiche client.");
+      else if (error instanceof ApiError && error.status === 401) setLoadError("Votre session a expiré. Reconnectez-vous puis réessayez.");
+      else setLoadError("Impossible de charger cette fiche client. Vérifiez votre connexion puis réessayez.");
+    }).finally(() => setIsLoading(false));
+    return () => controller.abort();
+  }, [clientId, retryKey]);
 
   const [editFeedback, setEditFeedback] = useState<string | null>(null);
-  
-  const [tasks, setTasks] = useState([
-    { id: 1, type: "Appel", icon: "fa-phone", title: "Appel téléphonique", desc: "Prévu pour relance devis. Le 10 Juillet 2026.", status: "À faire", color: "blue" },
-    { id: 2, type: "Visite", icon: "fa-handshake", title: "Visite terrain", desc: "Repérage domaine. Le 25 Juin 2026.", status: "Fait", color: "slate" }
-  ]);
-  const [taskFeedback, setTaskFeedback] = useState<string | null>(null);
-
-  const handleTaskAction = (action: string, id?: number) => {
-    if (action === "done" && id) {
-      setTasks(tasks.map(t => t.id === id ? { ...t, status: "Fait", color: "slate" } : t));
-      setTaskFeedback("Action marquée comme faite.");
-    } else if (action === "plan") {
-      setTaskFeedback("Nouvelle relance planifiée.");
-    } else if (action === "postpone") {
-      setTaskFeedback("Relance reportée.");
-    }
-    setTimeout(() => setTaskFeedback(null), 3000);
-  };
 
   const handleSave = () => {
-    updateMockClient(client);
     setIsEditing(false);
-    setEditFeedback("Modifications enregistrées en local (mock)");
+    setEditFeedback("La modification sera disponible dans le lot d’écriture.");
     setTimeout(() => setEditFeedback(null), 3000);
   };
 
   const handleCancel = () => {
-    setClient(baseClient);
     setIsEditing(false);
   };
 
-  const handleConvert = () => {
-    // This simple convert is now replaced by the assistant, but we keep it for fallback if needed.
-    const updated = { ...client, status: "Client" as const };
-    setClient(updated);
-    updateMockClient(updated);
-    setEditFeedback("Prospect converti en Client !");
-    setTimeout(() => setEditFeedback(null), 3000);
-  };
-
-  const handleConversionSuccess = (updatedClient: Client, payment: any) => {
-    // Update Client
-    const finalizedClient = { ...updatedClient, status: "Client" as const };
-    setClient(finalizedClient);
-    updateMockClient(finalizedClient);
-    
-    // Create Confirmed Reservation
-    const linkedProforma = reservations.find(r => r.status === "Proforma");
-    if (linkedProforma) {
-      const newRes = {
-        ...linkedProforma,
-        id: linkedProforma.id.replace("PROF-PROS", "RES").replace("PROF", "RES"),
-        status: "Confirmée" as const,
-        paidAmount: payment.amount
-      };
-      addMockReservation(newRes);
-    }
-    
-    setShowConversionAssistant(false);
-    setEditFeedback(`Conversion réussie avec acompte de ${payment.amount.toLocaleString('fr-FR')} Ar`);
-    setTimeout(() => setEditFeedback(null), 5000);
-  };
-
-  const totalBilled = reservations.reduce((acc, r) => acc + r.amount, 0);
-  const totalPaid = reservations.reduce((acc, r) => acc + (r.paidAmount || 0), 0);
-  const totalDue = totalBilled - totalPaid;
 
   let reqType = "Non spécifiée";
   let reqVolet = "Indéfini";
@@ -111,7 +83,14 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
     reqVolet = lines[1]?.split(': ')[1] || reqVolet;
     reqDate = lines[2]?.split(': ')[1] || reqDate;
   }
-  const linkedProforma = reservations.find(r => r.status === "Proforma");
+  const linkedProforma = reservations.find((reservation) => reservation.status === "Proforma");
+
+  if (isLoading) {
+    return <div className="page active max-w-7xl mx-auto"><div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Chargement de la fiche client…</div></div>;
+  }
+  if (loadError) {
+    return <div className="page active max-w-7xl mx-auto"><div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center justify-between"><span>{loadError}</span><button className="underline font-semibold" onClick={() => setRetryKey((value) => value + 1)}>Réessayer</button></div></div>;
+  }
 
   return (
     <div className="page active space-y-6 max-w-7xl mx-auto">
@@ -192,8 +171,8 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <button onClick={() => setShowConversionAssistant(true)} className="w-full px-4 py-2 bg-emerald-600 text-white font-medium text-sm rounded-lg hover:bg-emerald-700 transition-colors">
-                      <i className="fa-solid fa-check-circle mr-2"></i> Confirmer avec acompte
+                    <button disabled className="w-full px-4 py-2 bg-slate-200 text-slate-500 font-medium text-sm rounded-lg cursor-not-allowed">
+                      Conversion disponible après connexion du workflow commercial
                     </button>
                     <button onClick={() => setIsEditing(true)} className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-50 transition-colors">
                       <i className="fa-solid fa-file-contract mr-2"></i> Compléter infos légales
@@ -225,7 +204,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                         <span className="font-bold text-indigo-700">#PROF-MOCK</span>
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Brouillon</span>
                       </div>
-                      <button className="w-full text-xs text-center py-1.5 bg-white border border-slate-200 rounded hover:bg-slate-50 font-medium">Voir proforma mock</button>
+                      <span className="block w-full text-xs text-center py-1.5 text-slate-500">Aucune proforma chargée par l’API</span>
                     </div>
                   </div>
                 ) : null}
@@ -236,7 +215,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                     <div className="mt-1 bg-slate-50 border border-slate-100 rounded-lg p-3">
                       <span className="font-semibold text-slate-700 block mb-2">{client.notes?.includes("Date : ") ? client.notes.split("Date : ")[1].split("\n")[0] || "Juillet 2026" : "Juillet 2026"}</span>
                       <button className="w-full text-xs text-center py-1.5 bg-white border border-slate-200 rounded hover:bg-slate-50 font-medium mb-2">Voir calendrier disponibilité</button>
-                      <button className="w-full text-xs text-center py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded hover:bg-indigo-100 font-bold">Vérifier disponibilité mock</button>
+                      <span className="block w-full text-xs text-center py-1.5 text-slate-500">Vérification disponible dans le module planning</span>
                     </div>
                   </div>
                 ) : null}
@@ -266,7 +245,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 p-6">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Situation financière (Mock)</h3>
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Situation financière</h3>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-slate-500">Total facturé</span>
@@ -531,7 +510,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                       <p className="text-xs text-slate-500 mt-1">{linkedProforma.id} • {linkedProforma.amount.toLocaleString('fr-FR')} Ar • Brouillon</p>
                     </div>
                     <button onClick={() => onNavigate("reservation-detail", linkedProforma.id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors whitespace-nowrap">
-                      Voir proforma mock
+                      Voir proforma
                     </button>
                   </div>
                 )}
@@ -548,9 +527,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                       <button onClick={() => onNavigate("planning")} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg hover:bg-emerald-100 transition-colors whitespace-nowrap">
                         Voir calendrier disponibilité
                       </button>
-                      <button onClick={() => setEditFeedback("Disponibilité vérifiée et validée (mock)")} className="px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors whitespace-nowrap">
-                        Vérifier mock
-                      </button>
+                      <span className="px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-lg whitespace-nowrap">Vérification via le planning</span>
                     </div>
                   </div>
                 )}
@@ -563,7 +540,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                       </h4>
                       <p className="text-xs text-slate-500 mt-1">{reqVolet} • Date souhaitée : {reqDate}</p>
                     </div>
-                    <button onClick={() => setEditFeedback("Agenda visite ouvert (mock)")} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg hover:bg-emerald-100 transition-colors whitespace-nowrap">
+                    <button onClick={() => onNavigate("planning")} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-lg hover:bg-emerald-100 transition-colors whitespace-nowrap">
                       Voir agenda de visite
                     </button>
                   </div>
@@ -576,68 +553,12 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-800">Agenda commercial / Relances</h3>
-              <button onClick={() => handleTaskAction('plan')} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
-                <i className="fa-solid fa-plus mr-1"></i> Planifier une relance
-              </button>
+              <span className="text-xs text-slate-500">Données chargées par le module commercial</span>
             </div>
-            {taskFeedback && (
-              <div className="mb-4 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-medium">{taskFeedback}</div>
-            )}
             <div className="space-y-3">
-              {tasks.length === 0 ? (
-                <div className="text-sm text-slate-500 p-3 bg-slate-50 rounded-lg text-center">Aucune relance planifiée.</div>
-              ) : (
-                tasks.map(task => (
-                  <div key={task.id} className={`flex flex-col sm:flex-row sm:items-start gap-4 p-3 rounded-xl border border-slate-100 ${task.status === 'Fait' ? 'bg-slate-50 opacity-60' : 'bg-white shadow-sm'}`}>
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${task.color === 'blue' ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
-                      <i className={`fa-solid ${task.icon}`}></i>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <h4 className="text-sm font-bold text-slate-800">{task.title}</h4>
-                        <span className={`px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wide ${task.status === 'Fait' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {task.status}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">{task.desc}</p>
-                      
-                      {task.status !== 'Fait' && (
-                        <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
-                          <button onClick={() => handleTaskAction('done', task.id)} className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
-                            <i className="fa-solid fa-check mr-1"></i> Marquer comme fait
-                          </button>
-                          <button onClick={() => handleTaskAction('postpone')} className="text-xs font-medium text-slate-500 hover:text-slate-700">
-                            <i className="fa-solid fa-calendar-day mr-1"></i> Reporter
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
+              <div className="text-sm text-slate-500 p-3 bg-slate-50 rounded-lg text-center">Aucune relance chargée par l’API.</div>
             </div>
           </div>
-
-          {/* Réservation en cours (Draft) */}
-          {draftExists && canSensitiveWrite && (
-            <div className="bg-white rounded-2xl border border-indigo-200 p-6 relative overflow-hidden shadow-sm">
-              <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <i className="fa-solid fa-file-signature text-indigo-500"></i> Réservation en cours
-                  </h3>
-                  <p className="text-sm text-slate-600 mt-1">Un brouillon de réservation ({draftDomain}) a été sauvegardé récemment.</p>
-                </div>
-                <button 
-                  onClick={() => onNavigate("reservation-new", client.id)} 
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors whitespace-nowrap"
-                >
-                  Reprendre le brouillon
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Historique des dossiers */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
@@ -686,14 +607,6 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
         </div>
       </div>
       
-      {showConversionAssistant && linkedProforma && (
-        <ProspectConversionAssistant 
-          client={client}
-          proformaAmount={linkedProforma.amount}
-          onCancel={() => setShowConversionAssistant(false)}
-          onSuccess={handleConversionSuccess}
-        />
-      )}
     </div>
   );
 }
