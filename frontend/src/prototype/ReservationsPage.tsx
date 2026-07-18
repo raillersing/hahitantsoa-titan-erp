@@ -4,11 +4,12 @@ import { mockReservations, mockClients, getClient, formatMoney } from "./mockDat
 
 interface ReservationsPageProps {
   onNavigate: (scope: AppScope, param?: string) => void;
+  canSensitiveWrite?: boolean;
 }
 
 type FilterKey = "all" | "hahitantsoa" | "titan" | "En cours" | "Proforma" | "Confirmée" | "En sortie" | "Terminée";
 
-export default function ReservationsPage({ onNavigate }: ReservationsPageProps) {
+export default function ReservationsPage({ onNavigate, canSensitiveWrite = false }: ReservationsPageProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
 
@@ -46,12 +47,14 @@ export default function ReservationsPage({ onNavigate }: ReservationsPageProps) 
           <h1 className="text-2xl font-bold text-slate-800">Toutes les réservations</h1>
           <p className="text-sm text-slate-500 mt-1">Index consolidé Hahitantsoa + Titan</p>
         </div>
-        <button
-          onClick={() => onNavigate("reservation-new")}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          <i className="fa-solid fa-plus mr-2"></i>Nouvelle réservation
-        </button>
+        {canSensitiveWrite && (
+          <button
+            onClick={() => onNavigate("reservation-new")}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+          >
+            <i className="fa-solid fa-plus mr-2"></i>Nouvelle réservation
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-4 space-y-4">

@@ -7,7 +7,7 @@ import { mockReservations } from './mockData';
 describe('CustomerDetailPage', () => {
   it('1. Affiche un particulier (CUST-001) avec ses sections', () => {
     const mockNavigate = vi.fn();
-    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} />);
+    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
     
     expect(screen.getByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
     expect(screen.getByText('Particulier')).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe('CustomerDetailPage', () => {
 
   it('4. Modification du nom (mode local/mock)', () => {
     const mockNavigate = vi.fn();
-    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} />);
+    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
     
     const modifierBtns = screen.getAllByText('Modifier');
     fireEvent.click(modifierBtns[0]); // first section
@@ -80,7 +80,7 @@ describe('CustomerDetailPage', () => {
   it('5. Clic sur retour et nouvelle réservation', () => {
     const mockNavigate = vi.fn();
     const mockBack = vi.fn();
-    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} onBack={mockBack} />);
+    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} onBack={mockBack} canSensitiveWrite />);
     
     const retourBtn = screen.getByLabelText('Retour');
     fireEvent.click(retourBtn);

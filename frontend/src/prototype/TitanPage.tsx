@@ -3,9 +3,10 @@ import BrandIdentity from "./BrandIdentity";
 
 interface TitanPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  canSensitiveWrite?: boolean;
 }
 
-export default function TitanPage({ onNavigate }: TitanPageProps) {
+export default function TitanPage({ onNavigate, canSensitiveWrite = false }: TitanPageProps) {
   return (
     <div className="page active space-y-6">
       <div className="flex items-center justify-between">
@@ -16,9 +17,11 @@ export default function TitanPage({ onNavigate }: TitanPageProps) {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Location de matériel uniquement — Aucun local ni service</p>
         </div>
-        <button onClick={() => onNavigate("reservation-new", "titan")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          <i className="fa-solid fa-plus mr-2"></i>Nouvelle location
-        </button>
+        {canSensitiveWrite && (
+          <button onClick={() => onNavigate("reservation-new", "titan")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <i className="fa-solid fa-plus mr-2"></i>Nouvelle location
+          </button>
+        )}
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">

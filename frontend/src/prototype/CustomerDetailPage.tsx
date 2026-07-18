@@ -7,9 +7,10 @@ interface CustomerDetailPageProps {
   param?: string;
   onBack?: () => void;
   returnContext?: { from: string; param?: string } | null;
+  canSensitiveWrite?: boolean;
 }
 
-export default function CustomerDetailPage({ onNavigate, param, onBack, returnContext }: CustomerDetailPageProps) {
+export default function CustomerDetailPage({ onNavigate, param, onBack, returnContext, canSensitiveWrite = false }: CustomerDetailPageProps) {
   const clientId = param || "CUST-001";
   const baseClient = getClient(clientId);
   const [client, setClient] = useState<Client>(baseClient);
@@ -158,11 +159,11 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
               <div className="w-full flex justify-center text-xs text-slate-500 italic mb-2">
                 Conversion via Demande commerciale
               </div>
-            ) : (
+            ) : canSensitiveWrite ? (
               <button className="w-full px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 mb-2 transition-colors" onClick={() => onNavigate("reservation-new", client.id)}>
                 <i className="fa-solid fa-plus mr-2"></i> Nouvelle réservation
               </button>
-            )}
+            ) : null}
           </div>
 
           {/* Solde / Demande commerciale */}
@@ -618,7 +619,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
           </div>
 
           {/* Réservation en cours (Draft) */}
-          {draftExists && (
+          {draftExists && canSensitiveWrite && (
             <div className="bg-white rounded-2xl border border-indigo-200 p-6 relative overflow-hidden shadow-sm">
               <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

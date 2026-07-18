@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AppScope } from '../App';
 import AppShell, { resolveBrandScope } from './AppShell';
+import type { FrontendCapabilities } from '../capabilities';
 
 const hahitantsoaScopes: AppScope[] = [
   'hahitantsoa',
@@ -72,6 +73,44 @@ describe('AppShell', () => {
     expect(newResButton).not.toHaveClass('md:inline-flex');
     fireEvent.click(newResButton);
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('2b. masque les surfaces sensibles quand le backend session ne les autorise pas', () => {
+    const capabilities: FrontendCapabilities = {
+      canManageIdentity: false,
+      canViewAudit: false,
+      canSensitiveWrite: false,
+    };
+    render(
+      <AppShell
+        activeScope="dashboard"
+        onNavigate={mockNavigate}
+        user={{ id: "1", username: "operator", display_name: "Operator", is_staff: false, roles: ["commercial"] }}
+        capabilities={capabilities}
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    expect(screen.queryByRole('link', { name: /Administration/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Audit & Sécurité/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nouvelle réservation/i })).not.toBeInTheDocument();
+  });
+
+  it('2c. ne fail-open pas lorsqu’un utilisateur authentifié n’a pas encore de capacités', () => {
+    render(
+      <AppShell
+        activeScope="dashboard"
+        onNavigate={mockNavigate}
+        user={{ id: "1", username: "operator", display_name: "Operator", is_staff: false, roles: [] }}
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    expect(screen.queryByRole('link', { name: /Administration/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Audit & Sécurité/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nouvelle réservation/i })).not.toBeInTheDocument();
   });
 
   it('3. "Planning" reste actif', () => {

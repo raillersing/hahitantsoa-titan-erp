@@ -3,6 +3,7 @@ import type { AppScope } from "../App";
 import type { SessionUser } from "../api";
 import BrandIdentity, { type BrandScope } from "./BrandIdentity";
 import { mockClients } from "./mockData";
+import type { FrontendCapabilities } from "../capabilities";
 
 interface AppShellProps {
   activeScope: AppScope;
@@ -10,6 +11,7 @@ interface AppShellProps {
   onNavigate: (scope: any, param?: string) => void;
   returnContext?: { from: string; param?: string } | null;
   user?: SessionUser;
+  capabilities?: FrontendCapabilities;
   isOnline?: boolean;
   isLoggingOut?: boolean;
   sessionError?: string | null;
@@ -85,6 +87,7 @@ export default function AppShell({
   onNavigate,
   returnContext,
   user,
+  capabilities,
   isOnline = true,
   isLoggingOut = false,
   sessionError = null,
@@ -92,6 +95,10 @@ export default function AppShell({
   children,
 }: AppShellProps) {
   const activeBrand = resolveBrandScope(activeScope, activeParam);
+  const hasAuthenticatedUser = Boolean(user);
+  const canManageIdentity = capabilities?.canManageIdentity ?? !hasAuthenticatedUser;
+  const canViewAudit = capabilities?.canViewAudit ?? !hasAuthenticatedUser;
+  const canSensitiveWrite = capabilities?.canSensitiveWrite ?? !hasAuthenticatedUser;
   const scopeHeading: Record<string, string> = {
     dashboard: "Tableau de bord",
     planning: "Planning",
@@ -416,12 +423,16 @@ export default function AppShell({
           <a href="#reports" onClick={(e) => { e.preventDefault(); onNavigate("reports"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "reports" ? "active" : ""}`}>
             <i className="fas fa-chart-bar w-5 text-center"></i><span>Reporting</span>
           </a>
-          <a href="#admin" onClick={(e) => { e.preventDefault(); onNavigate("admin"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "admin" ? "active" : ""}`}>
-            <i className="fas fa-cogs w-5 text-center"></i><span>Administration</span>
-          </a>
-          <a href="#audit" onClick={(e) => { e.preventDefault(); onNavigate("audit"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "audit" ? "active" : ""}`}>
-            <i className="fas fa-shield-alt w-5 text-center"></i><span>Audit & Sécurité</span>
-          </a>
+          {canManageIdentity && (
+            <a href="#admin" onClick={(e) => { e.preventDefault(); onNavigate("admin"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "admin" ? "active" : ""}`}>
+              <i className="fas fa-cogs w-5 text-center"></i><span>Administration</span>
+            </a>
+          )}
+          {canViewAudit && (
+            <a href="#audit" onClick={(e) => { e.preventDefault(); onNavigate("audit"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "audit" ? "active" : ""}`}>
+              <i className="fas fa-shield-alt w-5 text-center"></i><span>Audit & Sécurité</span>
+            </a>
+          )}
           <a href="#mobile-tablet" onClick={(e) => { e.preventDefault(); onNavigate("mobile-tablet"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "mobile-tablet" ? "active" : ""}`}>
             <i className="fas fa-mobile-alt w-5 text-center"></i><span>Mobile & Tablette</span>
           </a>
@@ -522,15 +533,17 @@ export default function AppShell({
               <i className="fas fa-bell text-lg"></i><span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
             </button>
             <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
-            {activeScope === 'dashboard' ? (
-              <button className="px-3 py-1.5 rounded-full bg-hah-50 dark:bg-hah-900/30 text-hah-600 dark:text-hah-400 font-medium text-sm hover:bg-hah-100 dark:hover:bg-hah-900/50 transition focus-ring" onClick={() => onNavigate("reservation-new")}>
-                <i className="fas fa-plus-circle mr-1"></i> Nouvelle réservation
-              </button>
-            ) : (
-              <button className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-medium text-sm cursor-not-allowed hidden lg:inline-flex" title="Disponible depuis le tableau de bord">
-                <i className="fas fa-plus-circle mr-1"></i> Nouvelle réservation
-              </button>
-            )}
+            {activeScope === 'dashboard'
+              ? canSensitiveWrite && (
+                <button className="px-3 py-1.5 rounded-full bg-hah-50 dark:bg-hah-900/30 text-hah-600 dark:text-hah-400 font-medium text-sm hover:bg-hah-100 dark:hover:bg-hah-900/50 transition focus-ring" onClick={() => onNavigate("reservation-new")}>
+                  <i className="fas fa-plus-circle mr-1"></i> Nouvelle réservation
+                </button>
+              )
+              : canSensitiveWrite && (
+                <button className="px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-medium text-sm cursor-not-allowed hidden lg:inline-flex" title="Disponible depuis le tableau de bord">
+                  <i className="fas fa-plus-circle mr-1"></i> Nouvelle réservation
+                </button>
+              )}
             <button className="px-3 py-1.5 rounded-full bg-tit-50 dark:bg-tit-900/30 text-tit-600 dark:text-tit-400 font-medium text-sm hover:bg-tit-100 dark:hover:bg-tit-900/50 transition focus-ring hidden lg:inline-flex" onClick={() => onNavigate("planning")}>
               <i className="fas fa-calendar-alt mr-1"></i> Planning
             </button>

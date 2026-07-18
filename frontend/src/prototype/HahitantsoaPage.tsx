@@ -3,9 +3,10 @@ import BrandIdentity from "./BrandIdentity";
 
 interface HahitantsoaPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  canSensitiveWrite?: boolean;
 }
 
-export default function HahitantsoaPage({ onNavigate }: HahitantsoaPageProps) {
+export default function HahitantsoaPage({ onNavigate, canSensitiveWrite = false }: HahitantsoaPageProps) {
   return (
     <div className="page active space-y-6">
       <div className="flex items-center justify-between">
@@ -16,9 +17,11 @@ export default function HahitantsoaPage({ onNavigate }: HahitantsoaPageProps) {
           </h1>
           <p className="text-sm text-slate-500 mt-1">Gestion des réservations événementielles avec suivi de workflow</p>
         </div>
-        <button onClick={() => onNavigate("reservation-new", "hahitantsoa")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-          <i className="fa-solid fa-plus mr-2"></i>Nouvelle réservation
-        </button>
+        {canSensitiveWrite && (
+          <button onClick={() => onNavigate("reservation-new", "hahitantsoa")} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <i className="fa-solid fa-plus mr-2"></i>Nouvelle réservation
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100 p-4">
