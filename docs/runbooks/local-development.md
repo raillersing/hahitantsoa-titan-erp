@@ -286,8 +286,8 @@ Le wrapper :
 
 - cree un log horodate dans `logs/terminal/` ;
 - affiche la sortie avec `tee` pendant l'execution ;
-- copie le log dans le presse-papiers Windows si `clip.exe` est disponible ;
-- affiche le chemin du log si `clip.exe` n'est pas disponible ;
+- affiche le chemin du log local a la fin de l'execution ;
+- n'utilise aucun presse-papiers, y compris `clip.exe` ;
 - retourne le code de sortie de la commande executee.
 
 Ne jamais utiliser ce wrapper pour lancer une commande qui affiche `.env`, mots de passe, tokens ou secrets. Les logs sont locaux, destines au developpement, et `logs/` est ignore par Git.
