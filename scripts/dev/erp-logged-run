@@ -52,17 +52,4 @@ echo "LOG SAVED"
 echo "============================================================"
 echo "$LOG_FILE"
 
-echo
-echo "============================================================"
-echo "COPY LOG TO CLIPBOARD"
-echo "============================================================"
-
-if command -v clip.exe >/dev/null 2>&1; then
-  clip.exe < "$LOG_FILE"
-  echo "OK: log copied to Windows clipboard. Paste it into ChatGPT with Ctrl+V."
-else
-  echo "clip.exe not found. Open the log manually:"
-  echo "$LOG_FILE"
-fi
-
 exit "$PIPE_EXIT_CODE"
