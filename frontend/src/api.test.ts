@@ -7,6 +7,8 @@ import {
   checkIdentityWritePermission,
   cancelPayment,
   reconcilePayment,
+  getInventoryItems,
+  getInventoryItem,
   checkAuth,
   login,
   logout,
@@ -417,6 +419,38 @@ describe("payment lifecycle actions", () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       `/api/v1/payments/payment-1/${action}/`,
       expect.objectContaining({ body: "{}" }),
+    );
+  });
+});
+
+describe("inventory API", () => {
+  it("fetches inventory items from /api/v1/inventory/items/", async () => {
+    const items = [{ id: "item-1", name: "Chair", kind: "article" }];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse(items),
+    );
+
+    const result = await getInventoryItems();
+
+    expect(result).toEqual(items);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/v1/inventory/items/",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
+  it("fetches a single inventory item by ID from /api/v1/inventory/items/{id}/", async () => {
+    const item = { id: "item-1", name: "Chair", kind: "article" };
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => mockFetchResponse(item),
+    );
+
+    const result = await getInventoryItem("item-1");
+
+    expect(result).toEqual(item);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/v1/inventory/items/item-1/",
+      expect.objectContaining({ credentials: "include" }),
     );
   });
 });
