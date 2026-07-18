@@ -13,6 +13,15 @@ beforeEach(() => {
   vi.spyOn(api, 'getCustomers').mockResolvedValue([
     { id: 'CUST-001', display_name: 'Ando Rakoto', lifecycle_status: 'client', party_type: 'individual', email: '', phone: '', address: '', notes: '', is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null },
   ]);
+  vi.spyOn(api, 'getCustomer').mockImplementation(async (id: string) => ({
+    id,
+    display_name: id === 'CUST-002' ? 'Rasoa Nomena' : 'Ando Rakoto',
+    lifecycle_status: 'client',
+    party_type: id === 'CUST-002' ? 'company' : 'individual',
+    email: id === 'CUST-002' ? 'rasoa.nomena@entreprise.mg' : 'ando.rakoto@email.mg',
+    phone: '', address: '', notes: '', is_active: true, created_at: '', updated_at: '',
+    is_deleted: false, deleted_at: null, created_by: null, updated_by: null,
+  }));
 });
 
 describe('6F-R9 stabilization', () => {
@@ -66,28 +75,26 @@ describe('6F-R9 stabilization', () => {
     expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-001');
   });
 
-  it('CustomerDetailPage - back button returns to customers, dossier ID navigates, edition works', () => {
+  it('CustomerDetailPage - back button returns to customers and read-only edition state is explicit', async () => {
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage onNavigate={mockNavigate} param="CUST-001" />);
 
+    expect(await screen.findByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Retour/i }));
     expect(mockNavigate).toHaveBeenCalledWith('customers');
 
     mockNavigate.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: /RES-2026-0142/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'RES-2026-0142');
-
     fireEvent.click(screen.getByRole('button', { name: /Modifier/i }));
     expect(screen.getByDisplayValue('ando.rakoto@email.mg')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer \(local\)/i }));
-    expect(screen.getByText(/Modifications enregistrées en local/i)).toBeInTheDocument();
+    expect(screen.getByText(/La modification sera disponible dans le lot d’écriture/i)).toBeInTheDocument();
   });
 
-  it('CustomerDetailPage - enterprise client shows company fields', () => {
+  it('CustomerDetailPage - enterprise client shows company fields', async () => {
     render(<CustomerDetailPage onNavigate={vi.fn()} param="CUST-002" />);
 
-    expect(screen.getAllByText(/Rasoa Nomena/i).length).toBeGreaterThan(0);
+    expect(await screen.findAllByText(/Rasoa Nomena/i)).not.toHaveLength(0);
     expect(screen.getAllByText(/Entreprise/i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getAllByRole('button', { name: /Modifier/i })[0]);
