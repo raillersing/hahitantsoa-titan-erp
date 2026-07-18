@@ -57,6 +57,19 @@ Root dirty-state preflight rule:
 - If root `main` contains unrelated dirty or untracked files, stop and report the exact
   paths before creating or resyncing a task worktree.
 - Do not treat root dirtiness as harmless background noise; it is a workflow hard stop
+
+### Worktree debt prevention
+
+Before creating a task or review worktree, enumerate existing ERP worktrees and
+classify each as `active`, `preserve`, or `obsolete`. Do not create a new copy
+for a retry: reuse the existing lot worktree unless the orchestrator records a
+blocking filesystem or ownership reason. Review agents are non-mutating by
+default, so a review should not create commits or a `review2` branch.
+
+At lot finalization, record the verdict and owner, then remove clean obsolete
+worktrees and local branches. Preserve dirty worktrees, R7B, and unmerged
+security or data-integrity changes. Temporary reports and captures are deleted
+after their evidence is transferred to the durable roadmap or PR record.
   until the operator confirms the intended baseline.
 
 Root `main` hygiene rules:
