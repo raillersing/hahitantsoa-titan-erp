@@ -46,8 +46,9 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase 1F — multi-role backend/frontend/E2E, responsive, console,
-and network acceptance**. Phase 1E-BE and 1E-FE are integrated with exact-SHA evidence.
+Current next bundle: **Phase 1F-B — full-stack multi-role/manual acceptance against the
+real backend, including console and network evidence**. Phase 1F-A automated role
+acceptance is integrated with exact-SHA evidence.
 
 ## Product target
 
@@ -80,8 +81,8 @@ authorization control, and a successful mock notification is not persistence evi
 ## Current program checkpoint
 
 Checkpoint date: 2026-07-18. Current verified baseline:
-`fe07323adee896bf7e54511c4b341c9df9e03f2e`, with exact-SHA `main` CI success in run
-`29638784261`.
+`58b6b90be7563ebb0667c5f84058d08990ba0b63`, with exact-SHA `main` CI success in run
+`29639718831`.
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
@@ -93,7 +94,8 @@ Checkpoint date: 2026-07-18. Current verified baseline:
 | Phase 1D structured route protection | Completed, integrated, and validated by the human | PR `#470`, reviewed head `136b120f1072a8d0bda86d8679a3cec7ee613a04`, merged `main` SHA `db88076aa0ee0c577837aa731d2dd4fdb69a1f1e`, exact-SHA CI run `29527965807` green, and independent FE-B/FE-C/FE-D verdicts `APPROVE`. The approved prototype now uses structured protected hash routing, preserves intended destinations and browser history, and presents an explicit not-found state. Frontend evidence: build green, Vitest 44 files / 445 tests green, and real-backend Playwright 3/3 green. PR CI run `29527836782` was green for frontend, classification, and policy; backend was skipped as expected for the frontend-only scope. |
 | Phase 1E-BE backend role/permission consolidation | Completed and integrated | PR `#480`, reviewed head `531140abbb6be5ea95704e8c50f869e0781422bd`, merged `main` SHA `42f49293ff5a5540a1948fac7a831ed2a1db7246`, exact-SHA CI run `29636383746` green. Delegated identity administration is anti-escalation guarded, system/reserved roles are platform-only and immutable, approved groups are reconciled with active roles, assignment attribution/audit is durable, and negative API/service tests pass. |
 | Phase 1E-FE capability-aware frontend | Completed and integrated | PR `#481`, reviewed head `cf5097771490e43458ed1abfd825f7f29c4e1273`, merged `main` SHA `fe07323adee896bf7e54511c4b341c9df9e03f2e`, exact-SHA CI run `29638784261` green. Navigation, deep-links, reservation creation/preparation actions, and sensitive customer/inventory entry points are derived from the real session capabilities with deny-by-default UI hints; backend authorization remains authoritative. Frontend CI passed with 46 files / 459 tests and production build. |
-| Phase 1 through multi-role acceptance | In progress | `1E-BE` and `1E-FE` are complete. The next bounded bundle is `1F`: multi-role backend/frontend/E2E, responsive, console, and network acceptance. |
+| Phase 1F-A automated role acceptance and runtime hygiene | Completed and integrated | PR `#482`, reviewed head `ee3830b13d2c467cfd3e1b92bac1a343e1e63530`, merged `main` SHA `58b6b90be7563ebb0667c5f84058d08990ba0b63`, exact-SHA CI run `29639718831` green. Playwright covers empty/unknown/identity-admin/reservation-sensitive/staff fixtures, forbidden deep-links, 320/375/1440 widths, console errors, failed/external/unexpected API requests; 18 targeted browser tests passed. |
+| Phase 1 through multi-role acceptance | In progress | `1E-BE`, `1E-FE`, and `1F-A` are complete. The next bounded bundle is `1F-B`: full-stack multi-role/manual acceptance against the real backend, including console/network evidence. |
 | Codex skills reassessment and deduplication | Completed and integrated | PR `#461`, merged `main` SHA `de746e29e907759acb36accf98ddd625669d542a`, exact-SHA CI run `29488633090` green. |
 | Graphify/Ponytail durable-memory policy | Completed and integrated | PR `#462`, merged `main` SHA `31262c948e412343e74c8ee505f12c519607c4b0`, exact-SHA CI run `29489955113` green. |
 | Proportional local-test matrix | Completed and integrated | PR `#463`, merged `main` SHA `a96ea1f3edd174cd9d03e0c594aee62e65247057`, exact-SHA CI run `29491225953` green. |
