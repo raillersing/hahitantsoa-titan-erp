@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-[ "$#" -eq 5 ] || {
-  echo "Usage: scripts/dev/erp-ci-policy-gate <classifier-result> <backend-required> <backend-result> <frontend-required> <frontend-result>"
+[ "$#" -eq 7 ] || {
+  echo "Usage: scripts/dev/erp-ci-policy-gate <classifier-result> <backend-required> <backend-result> <frontend-required> <frontend-result> <tooling-required> <tooling-result>"
   exit 2
 }
 
@@ -11,6 +11,8 @@ backend_required="$2"
 backend_result="$3"
 frontend_required="$4"
 frontend_result="$5"
+tooling_required="$6"
+tooling_result="$7"
 
 [ "$classifier_result" = success ] || {
   echo "ERROR: change classification did not succeed: $classifier_result"
@@ -32,4 +34,5 @@ check_stack() {
 
 check_stack backend "$backend_required" "$backend_result"
 check_stack frontend "$frontend_required" "$frontend_result"
+check_stack tooling "$tooling_required" "$tooling_result"
 echo "CI policy gate: PASS"
