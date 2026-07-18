@@ -15,7 +15,7 @@ Help agents understand when and how to run `erp-agent-scope-guard`, what each pr
 | `frontend` | Denies backend, `tests/backend`, `frontend/dist`, `.env`-like, and secret-looking paths | Path guard is a deny-list; the approved task scope remains authoritative |
 | `agent-tools` | Denies application, GitHub workflow, dependency-manifest, `.env`-like, and secret-looking paths | Only `scripts/dev/`, `compose.agent-ci.yaml`, `docs/audits/`, and `docs/ai-agents/` |
 | `agent-ci` | Denies application, application tests, dependency manifests, `.env`-like, and secret-looking paths | Only the canonical CI workflow, exact CI/finalization helpers, CI governance, and this profile reference |
-| `agent-docs` | Denies application, tests, GitHub workflow, dependency-manifest, `.env`-like, and secret-looking paths | `AGENTS.md`, approved agent/design/application-map docs, `.agents/skills/`, OpenCode/Claude compatibility governance, `compose.agent-ci.yaml`, and ERP-prefixed workflow helpers under `scripts/dev/` |
+| `agent-docs` | Denies application, tests, GitHub workflow, dependency-manifest, `.env`-like, and secret-looking paths | `AGENTS.md`, approved agent/audit/runbook/design/application-map docs, `.agents/skills/`, OpenCode/Claude compatibility governance, `compose.agent-ci.yaml`, and ERP-prefixed workflow helpers under `scripts/dev/` |
 
 ## How to Run
 
