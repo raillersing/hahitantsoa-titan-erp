@@ -52,7 +52,7 @@ describe('TitanStockMovementPanel', () => {
   it('renders the panel heading and action buttons', async () => {
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
     expect(screen.getByTestId('titan-stock-movement-panel')).toBeInTheDocument();
-    expect(screen.getByText('Stock Movements')).toBeInTheDocument();
+    expect(screen.getByText('Mouvements de stock')).toBeInTheDocument();
     expect(screen.getByLabelText('Refresh stock movements')).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByLabelText('Open record movement form')).toBeInTheDocument();
@@ -64,14 +64,14 @@ describe('TitanStockMovementPanel', () => {
       () => new Promise(() => {}),
     );
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
-    expect(screen.getByText('Loading\u2026')).toBeInTheDocument();
+    expect(screen.getByText('Chargement…')).toBeInTheDocument();
   });
 
   it('shows empty state when no movements exist', async () => {
     vi.spyOn(api, 'getStockMovements').mockResolvedValue([]);
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
     await waitFor(() => {
-      expect(screen.getByText(/No stock movements recorded yet/)).toBeInTheDocument();
+      expect(screen.getByText(/Aucun mouvement de stock enregistré/)).toBeInTheDocument();
     });
   });
 
@@ -81,8 +81,8 @@ describe('TitanStockMovementPanel', () => {
     await waitFor(() => {
       expect(screen.getByTestId(`stock-movement-row-${MOCK_MOVEMENT.id}`)).toBeInTheDocument();
     });
-    expect(screen.getByText('Outbound')).toBeInTheDocument();
-    expect(screen.getByText('Outbound Delivery')).toBeInTheDocument();
+    expect(screen.getByText('Sortant')).toBeInTheDocument();
+    expect(screen.getByText('Livraison sortante')).toBeInTheDocument();
     expect(screen.getByText('×10')).toBeInTheDocument();
     expect(screen.getByText('DR-2026-001')).toBeInTheDocument();
   });

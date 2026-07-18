@@ -12,18 +12,18 @@ import type {
 // ─── Type labels ─────────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<InventoryStockMovementType, string> = {
-  outbound_delivery: 'Outbound Delivery',
-  inbound_return: 'Inbound Return',
-  adjustment_in: 'Adjustment In',
-  adjustment_out: 'Adjustment Out',
-  damage: 'Damage',
-  loss: 'Loss',
-  other: 'Other',
+  outbound_delivery: 'Livraison sortante',
+  inbound_return: 'Retour entrant',
+  adjustment_in: 'Ajustement entrant',
+  adjustment_out: 'Ajustement sortant',
+  damage: 'Dommage',
+  loss: 'Perte',
+  other: 'Autre',
 };
 
 const DIRECTION_LABELS: Record<InventoryStockMovementDirection, string> = {
-  inbound: 'Inbound',
-  outbound: 'Outbound',
+  inbound: 'Entrant',
+  outbound: 'Sortant',
 };
 
 // Direction is determined by movement_type for most types.
@@ -139,7 +139,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
   return (
     <div className="titan-stock-panel" data-testid="titan-stock-movement-panel">
       <div className="titan-stock-panel__header">
-        <h3 className="titan-stock-panel__title">Stock Movements</h3>
+        <h3 className="titan-stock-panel__title">Mouvements de stock</h3>
         <div className="titan-stock-panel__actions">
           <button
             className="titan-stock-panel__refresh"
@@ -147,7 +147,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
             disabled={loading}
             aria-label="Refresh stock movements"
           >
-            {loading ? 'Loading…' : 'Refresh'}
+            {loading ? 'Chargement…' : 'Actualiser'}
           </button>
           {canWrite ? (
           <button
@@ -155,10 +155,10 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
             onClick={() => setShowForm((v) => !v)}
             aria-label={showForm ? 'Close record movement form' : 'Open record movement form'}
           >
-            {showForm ? 'Cancel' : 'Record Movement'}
+            {showForm ? 'Annuler' : 'Enregistrer un mouvement'}
           </button>
           ) : (
-            <p className="status">Sign in with write access to record movements.</p>
+            <p className="status">Connectez-vous avec un accès en écriture pour enregistrer des mouvements.</p>
           )}
         </div>
       </div>
@@ -175,14 +175,14 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
         >
           <div className="titan-stock-form__row">
             <label className="titan-stock-form__label">
-              Inventory Item
+              Article d'inventaire
               <select
                 value={inventoryItem}
                 onChange={(e) => setInventoryItem(e.target.value)}
                 disabled={submitting}
                 aria-label="Select inventory item"
               >
-                <option value="">— select item —</option>
+                <option value="">— sélectionner un article —</option>
                 {inventoryItems.map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
@@ -190,7 +190,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
             </label>
 
             <label className="titan-stock-form__label">
-              Movement Type
+              Type de mouvement
               <select
                 value={movementType}
                 onChange={(e) => handleMovementTypeChange(e.target.value as InventoryStockMovementType)}
@@ -212,14 +212,14 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
                   disabled={submitting}
                   aria-label="Movement direction"
                 >
-                  <option value="inbound">Inbound</option>
-                  <option value="outbound">Outbound</option>
+                  <option value="inbound">Entrant</option>
+                  <option value="outbound">Sortant</option>
                 </select>
               </label>
             )}
 
             <label className="titan-stock-form__label">
-              Quantity
+              Quantité
               <input
                 type="number"
                 min="1"
@@ -233,13 +233,13 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
 
           <div className="titan-stock-form__row">
             <label className="titan-stock-form__label titan-stock-form__label--wide">
-              Source / Reference
+              Source / Référence
               <input
                 type="text"
                 value={sourceLabel}
                 onChange={(e) => setSourceLabel(e.target.value)}
                 disabled={submitting}
-                placeholder="e.g. DR-2026-001, supplier ref…"
+                placeholder="ex: DR-2026-001, réf. fournisseur…"
                 aria-label="Source label"
               />
             </label>
@@ -266,14 +266,14 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
             disabled={submitting || !inventoryItem}
             aria-label="Submit stock movement"
           >
-            {submitting ? 'Recording…' : 'Record Movement'}
+            {submitting ? 'Enregistrement…' : 'Enregistrer le mouvement'}
           </button>
         </form>
       )}
 
       <div className="titan-stock-panel__list" role="list" aria-label="Stock movements list">
         {!loading && movements.length === 0 && (
-          <p className="titan-stock-panel__empty">No stock movements recorded yet.</p>
+          <p className="titan-stock-panel__empty">Aucun mouvement de stock enregistré.</p>
         )}
         {movements.map((m) => (
           <div key={m.id} className="titan-stock-row" data-testid={`stock-movement-row-${m.id}`} role="listitem">
