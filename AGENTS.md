@@ -213,6 +213,20 @@ Apply the relevant gates in
 PR CI must be green before merge. `main` CI must be green after merge. Human merge
 control remains mandatory unless a task explicitly authorizes otherwise.
 
+## Phase integration checkpoints
+
+Each implementation lot keeps its proportional local evidence and mandatory PR/main CI;
+those controls must not be deferred to the end of a phase. To avoid duplicating broad
+validation without new evidence, the orchestrator runs one phase integration checkpoint
+only after every approved lot of that phase has been merged and its exact-SHA `main` CI
+is green. The checkpoint validates the complete affected stacks, changed end-to-end
+journeys, role-sensitive behavior, and the applicable responsive or operational flows.
+
+Non-blocking defects found during normal lot work are recorded and consolidated into a
+single corrective bundle after the phase checkpoint. Security, authorization, data loss,
+financial integrity, migration, concurrency, CI, or release-blocking regressions remain
+immediate corrective work and may not wait for phase closeout.
+
 ## Knowledge consultation and durable memory
 
 Before implementation, consult only the material relevant to the approved scope:

@@ -280,6 +280,19 @@ fi
 
 echo "MODE: apply"
 
+repair_target_ownership() {
+  local image="${ERP_WORKTREE_CLEANUP_IMAGE:-alpine:3.20}"
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "WARN: Docker is unavailable; cannot repair generated-file ownership."
+    return 1
+  fi
+
+  echo "INFO: Retrying cleanup after repairing ownership of generated worktree artifacts."
+  docker run --rm --user 0 --volume "$target_path:/work" "$image" \
+    sh -ceu 'chown -R "$1:$2" /work' cleanup "$(id -u)" "$(id -g)"
+}
+
 # ----- Docker cleanup before worktree removal -----
 echo "INFO: Cleaning up Docker Compose project for worktree..."
 if [ -f "$SCRIPT_DIR/erp-docker-agent-cleanup" ]; then
@@ -292,9 +305,11 @@ fi
 
 if [ "$cleanup_mode" = "registered-worktree" ]; then
   if ! git worktree remove "$target_path"; then
-    echo "ERROR: worktree removal failed for '$target_path'"
-    echo "Recovery: confirm no shell or editor still holds the directory, then retry."
-    exit 1
+    if ! repair_target_ownership || ! git worktree remove "$target_path"; then
+      echo "ERROR: worktree removal failed for '$target_path'"
+      echo "Recovery: confirm no shell or editor still holds the directory, then retry."
+      exit 1
+    fi
   fi
 else
   if ! rm -rf -- "$target_path"; then

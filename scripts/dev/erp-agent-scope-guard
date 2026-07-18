@@ -123,7 +123,7 @@ case "$PROFILE" in
     check_blocked '^(package\.json|package-lock\.json|pyproject\.toml|requirements[^/]*\.txt|poetry\.lock|pnpm-lock\.yaml|yarn\.lock)$' "dependency manifests are out of scope"
     check_blocked '(^|/)\.env($|\.|/)|(^|/)\.env[^/]*$' ".env-like files are forbidden"
     check_blocked '(^|/)(id_[^.]+|.*\.(pem|key|p12|pfx|crt|cer|der|kdbx|asc|gpg|ovpn))$' "secret-looking files are forbidden"
-    check_allowed_only '^(AGENTS\.md$|\.github/workflows/ci\.yml$|scripts/dev/erp-(ci-|agent-scope-guard$|worktree-preflight$|worktree-list-validated$|graphify-update$|pr-finalize-from-root$|pr-worktree-finalize$|github-repo-rules-audit$|antigravity-wsl-adapter$)|scripts/dev/test-erp-(ci-policy|logged-run)$|docs/ai-agents/|\.agents/skills/erp-scope-guard-setup/SKILL\.md$)'
+    check_allowed_only '^(AGENTS\.md$|\.github/workflows/ci\.yml$|scripts/dev/erp-(ci-|agent-scope-guard$|worktree-preflight$|worktree-list-validated$|worktree-clean-after-merge$|graphify-update$|pr-finalize-from-root$|pr-worktree-finalize$|github-repo-rules-audit$|antigravity-wsl-adapter$)|scripts/dev/test-erp-(ci-policy|logged-run)$|docs/ai-agents/|\.agents/skills/erp-scope-guard-setup/SKILL\.md$)'
     ;;
   agent-docs)
     check_blocked '^(backend/|backend$|frontend/|frontend$|tests/|tests$|\.github/|\.github$)' "application, test, or GitHub workflow paths are out of scope"
