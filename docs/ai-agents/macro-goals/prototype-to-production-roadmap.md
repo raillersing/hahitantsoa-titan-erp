@@ -46,9 +46,11 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase 1F-B — full-stack multi-role/manual acceptance against the
-real backend, including console and network evidence**. Phase 1F-A automated role
-acceptance is integrated with exact-SHA evidence.
+Current next bundle: **Phase 1F-C — start the official real-backend fixture and execute
+the Phase 1F-B acceptance suite with captured console/network evidence**. Phase 1F-B's
+strict real-backend acceptance suite is integrated with exact-SHA evidence; its local
+runtime execution remains pending because the Django backend fixture was unavailable.
+Phase 1F-A automated role acceptance is also integrated with exact-SHA evidence.
 
 ## Product target
 
@@ -119,7 +121,7 @@ known reusable backend assets and explicitly marks missing or unconfirmed contra
 
 | Module / surface | Mounted route and component | Runtime source at checkpoint | API / persistent model known at checkpoint | Permissions, audit, tests | Visible maturity | Confirmed anomaly or uncertainty | Next bounded action |
 |---|---|---|---|---|---:|---|---|
-| Authentication and session | Approved login UI and prototype shell gated by `AuthProvider`; intended hash destination preserved across login and structured protected navigation; read-only profile mounted from the real session identity | Real Django session API; no authentication bypass or business-auth fallback; authenticated identity is preserved during recoverable network loss and revalidated on recovery | `/api/v1/auth/session/`, `/api/v1/auth/login/`, `/api/v1/auth/logout/`; Django session and CSRF contracts | Backend auth contract tests plus frontend build, 44-file/445-test Vitest suite, real-backend Playwright 3/3, FE-B/FE-C/FE-D approvals, and human UI validation proven through PRs `#466`, `#468`, and `#470`; full RBAC acceptance remains pending | P0 | Login, profile, expiry, network recovery, and structured route protection are connected, but the P1 gate remains incomplete until capability-aware UI, backend-authoritative RBAC, and multi-role denied flows are proven | `1E-BE`, then `1E-FE`–`1F` |
+| Authentication and session | Approved login UI and prototype shell gated by `AuthProvider`; intended hash destination preserved across login and structured protected navigation; read-only profile mounted from the real session identity | Real Django session API; no authentication bypass or business-auth fallback; authenticated identity is preserved during recoverable network loss and revalidated on recovery | `/api/v1/auth/session/`, `/api/v1/auth/login/`, `/api/v1/auth/logout/`; Django session and CSRF contracts | Backend auth contract tests plus frontend build, 44-file/445-test Vitest suite, role-matrix Playwright 18/18, real-backend acceptance suite added in PR #483, FE-B/FE-C/FE-D approvals, and human UI validation proven through PRs `#466`, `#468`, `#470`, `#482`, and `#483`; live fixture execution remains pending | P1 | Capability-aware UI and backend-authoritative role surfaces are covered by merged tests; final P1 evidence still requires executing the suite against the official Django fixture and recording multi-role denied flows | `1F-C` |
 | Dashboard | `#dashboard` → `prototype/DashboardPage` | Mock/static | Aggregates dispersed; consolidated dashboard endpoint `Non confirmé` | Authenticated access/audit/test coverage for displayed totals `Non confirmé` | P0 | Visible indicators do not prove PostgreSQL origin | Reassess after Phases 2–9; target phase for a consolidated read model requires contract decision |
 | Customers and prospects | `#customers`, `#customer/:id` → prototype customer pages | `mockClients`, `mockReservations`, reservation draft in `localStorage` | Customers API / `Customer`; prospect, conversion, history, and visitor contracts missing at checkpoint | Customer endpoint permissions exist; full role/object access and visible-flow tests not proven | P0 | Prototype DTO richer than backend; prospect lifecycle absent | Phases 2–3 |
 | Titan reservations | `#reservation-new`, `#reservation-detail/:id`, `#reservations` → prototype reservation pages | Mock plus business draft in `localStorage` | Reservation draft APIs / `ReservationDraft`, `ReservationLine` | Sensitive confirmation controls and audit exist backend-side; mounted-flow proof absent | P0 | Mock type merges concepts that backend keeps separate; no visible persistence | Phase 5 |
