@@ -105,6 +105,15 @@ backend, frontend, agent-tools, and agent-docs edits in the same task branch.
 - Verify branch, baseline commit, and Git status before editing.
 - Keep the diff limited to explicitly allowed files and behavior.
 - Do not broaden scope without human approval.
+- **Validated commercial UI preservation hard stop:** The approved commercial
+  interface is part of the product contract and must be preserved while wiring
+  real backend data. Agents must not remove, simplify, replace, or materially
+  alter validated commercial screens, fields, actions, filters, or workflows
+  merely because the current API is incomplete. If the real contract cannot
+  support the validated interface, stop and report the gap; do not fall back to
+  mock business data and do not reduce the UI. A UI change may proceed only
+  after explicit written client authorization, or after the client explicitly
+  cancels this rule.
 - Run relevant local checks before push.
 - Review the final diff before commit.
 - Open the PR only when authorized.
@@ -113,6 +122,27 @@ backend, frontend, agent-tools, and agent-docs edits in the same task branch.
 - Confirm CI on `main` after merge.
 - Clean local task and review branches after merge when the human authorizes cleanup.
 - Never merge automatically.
+
+### Worktree and branch lifecycle
+
+- A review agent is report-only by default and must not create a second
+  implementation branch. `review2`, `review3`, and similar retry worktrees are
+  forbidden unless the orchestrator records a concrete external-state reason.
+- One implementation lot may have at most one implementation worktree and one
+  review worktree. Reuse them after a finding; do not clone another copy.
+- A review worktree must be removed when its verdict is recorded, unless it
+  contains unmerged code explicitly classified as `preserve`, with an owner and
+  next decision recorded in the task queue.
+- Before creating a worktree, run an orphan/overlap check. After a lot is
+  merged, abandoned, or blocked, run the cleanup wrapper and report remaining
+  worktrees, branches, and dirty paths.
+- Never delete a dirty worktree, the protected R7B worktree, or a branch with
+  unmerged security/data-integrity work. Such items require explicit
+  classification and an owner before cleanup.
+- Temporary reports, screenshots, capture scripts, logs, and generated output
+  are local evidence. Delete them after handoff when they are not required for
+  a reproducible decision. Keep only durable roadmap/governance records and
+  evidence referenced by an active task or PR.
 
 Every task prompt must state:
 

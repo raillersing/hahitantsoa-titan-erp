@@ -65,6 +65,15 @@ The program is complete only when the production runtime:
 - has tested deployment, monitoring, backup, restore, rollback, and incident procedures;
 - passes multi-role commercial acceptance with the approved responsive interface.
 
+### Approved commercial interface hard stop
+
+The validated commercial interface is a protected product contract. During
+backend integration, agents must preserve its screens, fields, actions, filters,
+and workflows even when the current API is incomplete. An incomplete contract
+must produce a documented integration blocker, not a reduced interface or a
+silent mock fallback. Any material UI change requires explicit written client
+authorization; this rule remains active until the client explicitly cancels it.
+
 ## Module maturity scale
 
 Each module has exactly one evidence-backed state.
