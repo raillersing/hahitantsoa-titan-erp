@@ -80,8 +80,8 @@ authorization control, and a successful mock notification is not persistence evi
 ## Current program checkpoint
 
 Checkpoint date: 2026-07-18. Current verified baseline:
-`9b974771bcc4cd56142e54fd54858ec2a9215bce`, with exact-SHA `main` CI success in run
-`29636668414`.
+`fe07323adee896bf7e54511c4b341c9df9e03f2e`, with exact-SHA `main` CI success in run
+`29638784261`.
 
 | Item | Status | Evidence or limitation |
 |---|---|---|
@@ -92,7 +92,8 @@ Checkpoint date: 2026-07-18. Current verified baseline:
 | Phase 1C session resilience and profile | Completed, integrated, and validated by the human | PR `#468`, reviewed head `8cb6b03e1241a4b10056cc1922091c4056b4960c`, merged `main` SHA `306ab3d14576aacd0f05df47798eaba265799d43`, exact-SHA CI run `29510304381` green, and independent FE-B verdict `APPROVE`. The mounted prototype now exposes the real session user in a read-only profile and handles session expiry, offline/online recovery, and coalesced revalidation without replacing backend data with a mock. Frontend evidence: build green, Vitest 42 files / 436 tests green, and real-backend Playwright 3/3 green. |
 | Phase 1D structured route protection | Completed, integrated, and validated by the human | PR `#470`, reviewed head `136b120f1072a8d0bda86d8679a3cec7ee613a04`, merged `main` SHA `db88076aa0ee0c577837aa731d2dd4fdb69a1f1e`, exact-SHA CI run `29527965807` green, and independent FE-B/FE-C/FE-D verdicts `APPROVE`. The approved prototype now uses structured protected hash routing, preserves intended destinations and browser history, and presents an explicit not-found state. Frontend evidence: build green, Vitest 44 files / 445 tests green, and real-backend Playwright 3/3 green. PR CI run `29527836782` was green for frontend, classification, and policy; backend was skipped as expected for the frontend-only scope. |
 | Phase 1E-BE backend role/permission consolidation | Completed and integrated | PR `#480`, reviewed head `531140abbb6be5ea95704e8c50f869e0781422bd`, merged `main` SHA `42f49293ff5a5540a1948fac7a831ed2a1db7246`, exact-SHA CI run `29636383746` green. Delegated identity administration is anti-escalation guarded, system/reserved roles are platform-only and immutable, approved groups are reconciled with active roles, assignment attribution/audit is durable, and negative API/service tests pass. |
-| Phase 1E through multi-role acceptance | In progress | `1E-BE` is complete. The next bounded bundle is `1E-FE`: capability-aware navigation and actions. Multi-role acceptance remains in `1F`. |
+| Phase 1E-FE capability-aware frontend | Completed and integrated | PR `#481`, reviewed head `cf5097771490e43458ed1abfd825f7f29c4e1273`, merged `main` SHA `fe07323adee896bf7e54511c4b341c9df9e03f2e`, exact-SHA CI run `29638784261` green. Navigation, deep-links, reservation creation/preparation actions, and sensitive customer/inventory entry points are derived from the real session capabilities with deny-by-default UI hints; backend authorization remains authoritative. Frontend CI passed with 46 files / 459 tests and production build. |
+| Phase 1 through multi-role acceptance | In progress | `1E-BE` and `1E-FE` are complete. The next bounded bundle is `1F`: multi-role backend/frontend/E2E, responsive, console, and network acceptance. |
 | Codex skills reassessment and deduplication | Completed and integrated | PR `#461`, merged `main` SHA `de746e29e907759acb36accf98ddd625669d542a`, exact-SHA CI run `29488633090` green. |
 | Graphify/Ponytail durable-memory policy | Completed and integrated | PR `#462`, merged `main` SHA `31262c948e412343e74c8ee505f12c519607c4b0`, exact-SHA CI run `29489955113` green. |
 | Proportional local-test matrix | Completed and integrated | PR `#463`, merged `main` SHA `a96ea1f3edd174cd9d03e0c594aee62e65247057`, exact-SHA CI run `29491225953` green. |
@@ -198,10 +199,10 @@ Required exit evidence:
 - frontend build, Vitest, relevant Playwright, and human visual validation green;
 - PR and exact merged-SHA `main` CI green for every accepted bundle.
 
-Status: in progress. `1A` has local audit evidence; `1B-BE`, `1B-FE`, `1C`, `1D`, and
-`1E-BE` are complete with merged, exact-SHA-green evidence, and the frontend bundles have
-human validation. The authentication/session module remains at P0 because the full P1 gate
-is not yet met. `1E-FE` is the next bounded bundle; `1F` remains pending.
+Status: in progress. `1A` has local audit evidence; `1B-BE`, `1B-FE`, `1C`, `1D`, `1E-BE`,
+and `1E-FE` are complete with merged, exact-SHA-green evidence, and the frontend bundles
+have human validation. The authentication/session module remains at P0 because the full P1
+gate is not yet met. `1F` is the next bounded bundle.
 
 ### Phase 2 — Customers and prospects, read-only
 
