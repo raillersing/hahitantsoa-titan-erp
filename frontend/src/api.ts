@@ -225,6 +225,13 @@ export function getInventoryItems(
   return getAuthenticatedJson("/api/v1/inventory/items/", signal);
 }
 
+export function getInventoryItem(
+  id: string,
+  signal?: AbortSignal,
+): Promise<InventoryItem> {
+  return getAuthenticatedJson(`/api/v1/inventory/items/${id}/`, signal);
+}
+
 export type CashboxSessionQueryParams = {
   operator_id?: string;
   status?: "open" | "closed";
