@@ -67,6 +67,8 @@ import type {
   PaymentActionPayload,
   PaymentCreatePayload,
   PaymentConfirmPayload,
+  HahitantsoaVenue,
+  HahitantsoaService,
 } from "./types";
 
 
@@ -1341,4 +1343,42 @@ export async function logout(signal?: AbortSignal): Promise<void> {
 
 export async function checkAuth(signal?: AbortSignal): Promise<SessionStateResponse> {
   return getSession(signal);
+}
+
+export function getHahitantsoaVenues(signal?: AbortSignal): Promise<HahitantsoaVenue[]> {
+  return getAuthenticatedJson("/api/v1/hahitantsoa/venues/", signal);
+}
+
+export function createHahitantsoaVenue(
+  payload: Partial<HahitantsoaVenue>,
+  signal?: AbortSignal,
+): Promise<HahitantsoaVenue> {
+  return postAuthenticatedJson("/api/v1/hahitantsoa/venues/", payload, signal);
+}
+
+export function updateHahitantsoaVenue(
+  id: string,
+  payload: Partial<HahitantsoaVenue>,
+  signal?: AbortSignal,
+): Promise<HahitantsoaVenue> {
+  return patchAuthenticatedJson(`/api/v1/hahitantsoa/venues/${id}/`, payload, signal);
+}
+
+export function getHahitantsoaServices(signal?: AbortSignal): Promise<HahitantsoaService[]> {
+  return getAuthenticatedJson("/api/v1/hahitantsoa/services/", signal);
+}
+
+export function createHahitantsoaService(
+  payload: Partial<HahitantsoaService>,
+  signal?: AbortSignal,
+): Promise<HahitantsoaService> {
+  return postAuthenticatedJson("/api/v1/hahitantsoa/services/", payload, signal);
+}
+
+export function updateHahitantsoaService(
+  id: string,
+  payload: Partial<HahitantsoaService>,
+  signal?: AbortSignal,
+): Promise<HahitantsoaService> {
+  return patchAuthenticatedJson(`/api/v1/hahitantsoa/services/${id}/`, payload, signal);
 }

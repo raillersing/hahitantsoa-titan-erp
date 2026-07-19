@@ -953,3 +953,24 @@ export type StockMovementCreatePayload = {
   notes?: string;
   effective_at?: string;
 };
+
+export type HahitantsoaVenue = {
+  id: string;
+  name: string;
+  type: string;
+  capacity?: string | number;
+  active: boolean;
+  note?: string;
+  price?: number;
+  usage?: string;
+  volet?: string;
+  isDefault?: boolean;
+};
+
+export type HahitantsoaService = {
+  id: string;
+  name: string;
+  desc: string;
+  price: number;
+  active: boolean;
+};
