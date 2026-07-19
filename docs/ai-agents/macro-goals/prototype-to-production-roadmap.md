@@ -46,7 +46,7 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase 2 — customers and prospects read-only**. Phase 1F-E
+Current next bundle: **Phase 3A — customers and prospects writes**. Phase 1F-E
 consolidated authentication evidence is integrated with exact-SHA evidence and
 human acceptance. Phase 1F-B/C
 strict real-backend session acceptance and Phase 1F-D real admin/operator audit
@@ -112,7 +112,8 @@ Checkpoint date: 2026-07-18. Current verified baseline:
 | Graphify/Ponytail durable-memory policy | Completed and integrated | PR `#462`, merged `main` SHA `31262c948e412343e74c8ee505f12c519607c4b0`, exact-SHA CI run `29489955113` green. |
 | Proportional local-test matrix | Completed and integrated | PR `#463`, merged `main` SHA `a96ea1f3edd174cd9d03e0c594aee62e65247057`, exact-SHA CI run `29491225953` green. |
 | Path/risk-aware CI and Graphify gate hardening | Completed and integrated | PR `#464`, reviewed head `792ed06eb9a9ba417c8087931eec953106c94c5f`, merged `main` SHA `8359c3a1c43126147845ebb9c0cfbc8894971466`, exact-SHA CI run `29493976339` green. |
-| Phases 2–12 | Planned, not started by this roadmap | No phase may be inferred complete from historical panels or backend endpoints alone. |
+| Phase 2 customers/prospects read-only | Completed and integrated | Checkpoint `docs/audits/PHASE2_CUSTOMER_READ_CHECKPOINT.md`; PRs #494/#495/#496 merged with green CI. Focused proof: 3 files / 20 tests and production build green. Writes and history remain later scope. |
+| Phases 3–12 | Planned, not started by this roadmap | No phase may be inferred complete from historical panels or backend endpoints alone. |
 
 The current phase is **Phase 1**. Phase 2 must not start until all Phase 1 exit gates are
 met and validated by the human.
@@ -225,8 +226,9 @@ approved list, detail, search, filter, pagination, and status UX.
 Dependency: Phase 1 complete. Missing prospect, conversion, history, and appointment
 contracts must be approved rather than invented.
 
-Exit evidence: real API reads, all required UI states, read permissions, no silent mock
-fallback, responsive validation, and updated module matrix.
+Exit evidence: real API reads, required loading/error/not-found states, read permissions,
+no silent mock fallback, responsive-preserving prototype, and checkpoint evidence. Writes,
+conversion, history and appointment contracts remain outside this read-only phase.
 
 ### Phase 3 — Customers and prospects, writes
 
