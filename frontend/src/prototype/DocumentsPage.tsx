@@ -5,6 +5,7 @@ import {
   MockCommercialDocumentTemplate,
 } from "./mockData";
 import { DocumentPreview } from "./DocumentPreview";
+import { getDocumentTemplates } from "../api";
 
 const VARIABLE_DICTIONARY = [
   { key: 'client.name', label: 'Nom complet du client', desc: 'Nom complet du client' },
@@ -141,17 +142,55 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
 
 
   useEffect(() => {
-    const saved = localStorage.getItem("mock_templates");
-    if (saved) {
-      try {
-        setTemplates(JSON.parse(saved));
-      } catch (e) {
-        setTemplates(mockDocumentTemplates);
+    let isSubscribed = true;
+    const controller = new AbortController();
+
+    const loadInitialTemplates = () => {
+      const saved = localStorage.getItem("mock_templates");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          return mockDocumentTemplates;
+        }
       }
-    } else {
-      setTemplates(mockDocumentTemplates);
-    }
+      return mockDocumentTemplates;
+    };
+
+    const initial = loadInitialTemplates();
+    setTemplates(initial);
     setIsLoaded(true);
+
+    getDocumentTemplates(controller.signal)
+      .then((apiDefs) => {
+        if (!isSubscribed) return;
+        if (Array.isArray(apiDefs) && apiDefs.length > 0) {
+          const mapped: MockCommercialDocumentTemplate[] = apiDefs.map((def, idx) => ({
+            id: `tmpl-api-${def.key || idx}`,
+            name: def.label || def.key || `Modèle ${idx + 1}`,
+            code: def.key?.toUpperCase() || `TMPL-${idx + 1}`,
+            family: "Documents commerciaux",
+            volet: def.business_scope === "titan" ? "Titan" : def.business_scope === "hahitantsoa" ? "Hahitantsoa" : "Commun",
+            type: def.document_type || "Contrat",
+            description: def.notes || `Modèle ${def.document_type} ${def.business_scope}`,
+            content: "[]",
+            variables: [],
+            version: parseFloat(def.version) || 1,
+            status: def.status === "active" ? "Actif" : "Brouillon",
+            lastModified: new Date().toISOString().split("T")[0],
+            author: "Système",
+          }));
+          setTemplates(mapped);
+        }
+      })
+      .catch(() => {
+        // Keep initial templates on network/offline fallback
+      });
+
+    return () => {
+      isSubscribed = false;
+      controller.abort();
+    };
   }, []);
 
   useEffect(() => () => {

@@ -55,6 +55,9 @@ import type {
   InventoryDamageLossSettlement,
   InventoryReturnOperation,
   DocumentTemplateDefinition,
+  DocumentTemplateCreatePayload,
+  DocumentTemplateVersion,
+  DocumentTemplateVersionCreatePayload,
   DocumentInstance,
   DocumentInstanceCreatePayload,
   DocumentInstancePdfGenerationResult,
@@ -776,6 +779,37 @@ export function getDocumentTemplates(
   signal?: AbortSignal,
 ): Promise<DocumentTemplateDefinition[]> {
   return getAuthenticatedJson("/api/v1/documents/templates/", signal);
+}
+
+export function createDocumentTemplate(
+  payload: DocumentTemplateCreatePayload,
+  signal?: AbortSignal,
+): Promise<DocumentTemplateDefinition> {
+  return postAuthenticatedJson("/api/v1/documents/document-templates/", payload, signal);
+}
+
+export function getDocumentTemplateVersions(
+  templateId?: string,
+  signal?: AbortSignal,
+): Promise<DocumentTemplateVersion[]> {
+  const url = templateId
+    ? `/api/v1/documents/document-template-versions/?template=${encodeURIComponent(templateId)}`
+    : "/api/v1/documents/document-template-versions/";
+  return getAuthenticatedJson(url, signal);
+}
+
+export function createDocumentTemplateVersion(
+  payload: DocumentTemplateVersionCreatePayload,
+  signal?: AbortSignal,
+): Promise<DocumentTemplateVersion> {
+  return postAuthenticatedJson("/api/v1/documents/document-template-versions/", payload, signal);
+}
+
+export function activateDocumentTemplateVersion(
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentTemplateVersion> {
+  return postAuthenticatedJson(`/api/v1/documents/document-template-versions/${id}/activate/`, {}, signal);
 }
 
 export function getReservationDraftDocumentInstances(

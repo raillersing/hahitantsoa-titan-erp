@@ -347,6 +347,40 @@ export type DocumentTemplateDefinition = {
   notes: string;
 };
 
+export type DocumentTemplateCreatePayload = {
+  code: string;
+  name: string;
+  description?: string;
+  family?: string;
+  business_scope: "titan" | "hahitantsoa";
+  document_type: string;
+  status?: "draft" | "active" | "archived";
+};
+
+export type DocumentTemplateVersion = {
+  id: string;
+  template: string;
+  version: string;
+  status: "draft" | "active" | "archived";
+  body_html: string;
+  header_html?: string;
+  footer_html?: string;
+  css?: string;
+  variables_schema?: Record<string, any>;
+  created_at: string;
+};
+
+export type DocumentTemplateVersionCreatePayload = {
+  template: string;
+  version: string;
+  body_html: string;
+  header_html?: string;
+  footer_html?: string;
+  css?: string;
+  variables_schema?: Record<string, any>;
+  status?: "draft" | "active" | "archived";
+};
+
 export type DocumentInstance = {
   id: string;
   reservation_draft: string | null;
