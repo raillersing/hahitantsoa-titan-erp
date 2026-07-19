@@ -74,4 +74,22 @@ describe('CustomersPage', () => {
     fireEvent.click(screen.getByText('Prospects'));
     expect(screen.getByText('Prospect')).toBeInTheDocument();
   });
+
+  it('8. crée un client via l’API et ouvre sa fiche', async () => {
+    const mockNavigate = vi.fn();
+    const created = { ...API_CUSTOMERS[0], id: 'CUST-099', display_name: 'Client Persisté' };
+    vi.spyOn(api, 'createCustomer').mockResolvedValue(created);
+    render(<CustomersPage onNavigate={mockNavigate} canSensitiveWrite />);
+    await screen.findByText('Ando Rakoto');
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Client Persisté' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le client' }));
+    expect(await screen.findByText('Ando Rakoto')).toBeInTheDocument();
+    expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Client Persisté' }));
+    expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-099');
+  });
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { AppScope } from "../App";
-import { ApiError, getCustomer } from "../api";
+import { ApiError, getCustomer, updateCustomer } from "../api";
 import type { Customer as ApiCustomer } from "../types";
 type Client = {
   id: string; initials: string; name: string; email: string; phone: string;
@@ -27,6 +27,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const reservations: ReservationSummary[] = [];
   const totalBilled = 0;
   const totalPaid = 0;
@@ -63,10 +64,28 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
 
   const [editFeedback, setEditFeedback] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    setEditFeedback("La modification sera disponible dans le lot d’écriture.");
-    setTimeout(() => setEditFeedback(null), 3000);
+  const handleSave = async () => {
+    if (!canSensitiveWrite || isSaving) return;
+    setIsSaving(true);
+    setEditFeedback(null);
+    try {
+      const updated = await updateCustomer(client.id, {
+        display_name: client.name.trim(),
+        email: client.email,
+        phone: client.phone,
+        address: client.address,
+        notes: client.notes,
+      });
+      setClient(mapApiCustomer(updated));
+      setIsEditing(false);
+      setEditFeedback("Modifications enregistrées.");
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 403) setEditFeedback("Vous n’êtes pas autorisé à modifier cette fiche.");
+      else if (error instanceof ApiError && error.status === 404) setEditFeedback("Cette fiche client est introuvable.");
+      else setEditFeedback("La modification n’a pas pu être enregistrée. Réessayez.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -317,8 +336,8 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                 {isEditing && (
                   <button onClick={handleCancel} className="text-xs font-semibold text-slate-500 hover:text-slate-700">Annuler</button>
                 )}
-                <button onClick={() => isEditing ? handleSave() : setIsEditing(true)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
-                  {isEditing ? "Enregistrer (local)" : "Modifier"}
+                <button onClick={() => isEditing ? void handleSave() : setIsEditing(true)} disabled={isSaving || (!isEditing && !canSensitiveWrite)} className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:cursor-not-allowed disabled:text-slate-400">
+                  {isSaving ? "Enregistrement…" : isEditing ? "Enregistrer" : canSensitiveWrite ? "Modifier" : "Modification non autorisée"}
                 </button>
               </div>
             </div>
