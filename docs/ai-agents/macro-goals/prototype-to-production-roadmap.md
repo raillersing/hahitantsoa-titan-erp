@@ -46,12 +46,7 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase 3A — customers and prospects writes**. Phase 1F-E
-consolidated authentication evidence is integrated with exact-SHA evidence and
-human acceptance. Phase 1F-B/C
-strict real-backend session acceptance and Phase 1F-D real admin/operator audit
-authorization are integrated with exact-SHA evidence. Phase 1F-A automated role
-acceptance is also integrated with exact-SHA evidence.
+Current next bundle: **Phase Integration Checkpoint Closeout (Phases 6-10)**. Phases 6A/6B (Document Templates & Versioning, PR #500/#502), Phase 7A (Billing & Invoices, PR #503), Phase 9 (Hahitantsoa Venues & Services, PR #503), and Phase 10 (Hahitantsoa Discovery & Concepts) have been fully implemented, integrated, and verified with exact-SHA green `main` CI (`37734bd`).
 
 ## Product target
 
