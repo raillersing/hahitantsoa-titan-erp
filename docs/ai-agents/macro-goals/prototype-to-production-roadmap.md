@@ -46,8 +46,9 @@ stacks and journeys, then implement one consolidated corrective bundle for ordin
 findings. Security, authorization, data-integrity, migration, financial, concurrency,
 CI, and release-blocking findings remain immediate corrective work.
 
-Current next bundle: **Phase 1F-E — consolidate the Phase 1 authentication evidence,
-including full Vitest confirmation and human multi-role acceptance**. Phase 1F-B/C
+Current next bundle: **Phase 2 — customers and prospects read-only**. Phase 1F-E
+consolidated authentication evidence is integrated with exact-SHA evidence and
+human acceptance. Phase 1F-B/C
 strict real-backend session acceptance and Phase 1F-D real admin/operator audit
 authorization are integrated with exact-SHA evidence. Phase 1F-A automated role
 acceptance is also integrated with exact-SHA evidence.
@@ -106,7 +107,7 @@ Checkpoint date: 2026-07-18. Current verified baseline:
 | Phase 1E-BE backend role/permission consolidation | Completed and integrated | PR `#480`, reviewed head `531140abbb6be5ea95704e8c50f869e0781422bd`, merged `main` SHA `42f49293ff5a5540a1948fac7a831ed2a1db7246`, exact-SHA CI run `29636383746` green. Delegated identity administration is anti-escalation guarded, system/reserved roles are platform-only and immutable, approved groups are reconciled with active roles, assignment attribution/audit is durable, and negative API/service tests pass. |
 | Phase 1E-FE capability-aware frontend | Completed and integrated | PR `#481`, reviewed head `cf5097771490e43458ed1abfd825f7f29c4e1273`, merged `main` SHA `fe07323adee896bf7e54511c4b341c9df9e03f2e`, exact-SHA CI run `29638784261` green. Navigation, deep-links, reservation creation/preparation actions, and sensitive customer/inventory entry points are derived from the real session capabilities with deny-by-default UI hints; backend authorization remains authoritative. Frontend CI passed with 46 files / 459 tests and production build. |
 | Phase 1F-A automated role acceptance and runtime hygiene | Completed and integrated | PR `#482`, reviewed head `ee3830b13d2c467cfd3e1b92bac1a343e1e63530`, merged `main` SHA `58b6b90be7563ebb0667c5f84058d08990ba0b63`, exact-SHA CI run `29639718831` green. Playwright covers empty/unknown/identity-admin/reservation-sensitive/staff fixtures, forbidden deep-links, 320/375/1440 widths, console errors, failed/external/unexpected API requests; 18 targeted browser tests passed. |
-| Phase 1 through multi-role acceptance | In progress | `1E-BE`, `1E-FE`, and `1F-A` are complete. The next bounded bundle is `1F-B`: full-stack multi-role/manual acceptance against the real backend, including console/network evidence. |
+| Phase 1 through multi-role acceptance | Completed and integrated | Phase 1F-E checkpoint: `docs/audits/PHASE1F_E_AUTHENTICATION_CHECKPOINT.md`. Main baseline `6943edd1e05170ff386182d5061de8a3256c5735`, main CI `29665879463` green, Vitest 46 files / 461 tests, real-backend Playwright 3/3, and human acceptance recorded on 2026-07-19. |
 | Codex skills reassessment and deduplication | Completed and integrated | PR `#461`, merged `main` SHA `de746e29e907759acb36accf98ddd625669d542a`, exact-SHA CI run `29488633090` green. |
 | Graphify/Ponytail durable-memory policy | Completed and integrated | PR `#462`, merged `main` SHA `31262c948e412343e74c8ee505f12c519607c4b0`, exact-SHA CI run `29489955113` green. |
 | Proportional local-test matrix | Completed and integrated | PR `#463`, merged `main` SHA `a96ea1f3edd174cd9d03e0c594aee62e65247057`, exact-SHA CI run `29491225953` green. |
@@ -130,7 +131,7 @@ known reusable backend assets and explicitly marks missing or unconfirmed contra
 
 | Module / surface | Mounted route and component | Runtime source at checkpoint | API / persistent model known at checkpoint | Permissions, audit, tests | Visible maturity | Confirmed anomaly or uncertainty | Next bounded action |
 |---|---|---|---|---|---:|---|---|
-| Authentication and session | Approved login UI and prototype shell gated by `AuthProvider`; intended hash destination preserved across login and structured protected navigation; read-only profile mounted from the real session identity | Real Django session API; no authentication bypass or business-auth fallback; authenticated identity is preserved during recoverable network loss and revalidated on recovery | `/api/v1/auth/session/`, `/api/v1/auth/login/`, `/api/v1/auth/logout/`; Django session and CSRF contracts | Backend auth contract tests plus frontend build, role-matrix Playwright 18/18, real-backend session acceptance 2/2 in PR #485, real admin/operator audit authorization in PR #487, FE-B/FE-C/FE-D approvals, and human UI validation proven through PRs `#466`, `#468`, `#470`, `#482`, `#483`, `#485`, and `#487`; full Vitest confirmation remains pending | P1 | Real Django session persistence, logout, expiry, console/network behavior, and a backend-authoritative 200-vs-403 audit boundary are proven; remaining gate is complete Vitest evidence and human multi-role acceptance | `1F-E` |
+| Authentication and session | Approved login UI and prototype shell gated by `AuthProvider`; intended hash destination preserved across login and structured protected navigation; read-only profile mounted from the real session identity | Real Django session API; no authentication bypass or business-auth fallback; authenticated identity is preserved during recoverable network loss and revalidated on recovery | `/api/v1/auth/session/`, `/api/v1/auth/login/`, `/api/v1/auth/logout/`; Django session and CSRF contracts | Backend auth contract tests plus frontend build, role-matrix Playwright 18/18, real-backend session acceptance 2/2 in PR #485, real admin/operator audit authorization in PR #487, and Phase 1F-E evidence: Vitest 461/461 and Playwright 3/3 | P1 | Authentication/session exit evidence is complete for the approved scope; business modules remain separate roadmap work | Phase 2 |
 | Dashboard | `#dashboard` → `prototype/DashboardPage` | Mock/static | Aggregates dispersed; consolidated dashboard endpoint `Non confirmé` | Authenticated access/audit/test coverage for displayed totals `Non confirmé` | P0 | Visible indicators do not prove PostgreSQL origin | Reassess after Phases 2–9; target phase for a consolidated read model requires contract decision |
 | Customers and prospects | `#customers`, `#customer/:id` → prototype customer pages | `mockClients`, `mockReservations`, reservation draft in `localStorage` | Customers API / `Customer`; prospect, conversion, history, and visitor contracts missing at checkpoint | Customer endpoint permissions exist; full role/object access and visible-flow tests not proven | P0 | Prototype DTO richer than backend; prospect lifecycle absent | Phases 2–3 |
 | Titan reservations | `#reservation-new`, `#reservation-detail/:id`, `#reservations` → prototype reservation pages | Mock plus business draft in `localStorage` | Reservation draft APIs / `ReservationDraft`, `ReservationLine` | Sensitive confirmation controls and audit exist backend-side; mounted-flow proof absent | P0 | Mock type merges concepts that backend keeps separate; no visible persistence | Phase 5 |
@@ -212,10 +213,9 @@ Required exit evidence:
 - frontend build, Vitest, relevant Playwright, and human visual validation green;
 - PR and exact merged-SHA `main` CI green for every accepted bundle.
 
-Status: in progress. `1A` has local audit evidence; `1B-BE`, `1B-FE`, `1C`, `1D`, `1E-BE`,
-and `1E-FE` are complete with merged, exact-SHA-green evidence, and the frontend bundles
-have human validation. The authentication/session module remains at P0 because the full P1
-gate is not yet met. `1F` is the next bounded bundle.
+Status: completed. `1A` has local audit evidence; `1B-BE`, `1B-FE`, `1C`, `1D`, `1E-BE`,
+`1E-FE`, and `1F-E` are complete with merged, exact-SHA-green evidence and human
+validation. The authentication/session module is now P1 for the approved scope.
 
 ### Phase 2 — Customers and prospects, read-only
 
