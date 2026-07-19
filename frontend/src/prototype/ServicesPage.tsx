@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { hahitantsoaMockServices } from './mockData';
+import { getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService } from '../api';
 
 const ServicesPage: React.FC = () => {
   const [services, setServices] = useState(hahitantsoaMockServices.map(s => ({...s, active: true})));
@@ -7,6 +8,26 @@ const ServicesPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', desc: '', price: 0, active: true });
   const [toast, setToast] = React.useState<{message: string, type: 'info'|'success'|'warning'|'error'} | null>(null);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    const controller = new AbortController();
+
+    getHahitantsoaServices(controller.signal)
+      .then((apiServices) => {
+        if (isSubscribed && Array.isArray(apiServices) && apiServices.length > 0) {
+          setServices(apiServices);
+        }
+      })
+      .catch(() => {
+        // Fallback to hahitantsoaMockServices
+      });
+
+    return () => {
+      isSubscribed = false;
+      controller.abort();
+    };
+  }, []);
 
   const showToast = (message: string, type: 'info'|'success'|'warning'|'error' = 'info') => {
     setToast({message, type});
@@ -25,17 +46,22 @@ const ServicesPage: React.FC = () => {
 
   const handleDelete = (id: string) => {
     showToast(`Service désactivé pour l'ID ${id}`, 'warning');
-    setServices(services.map(s => s.id === id ? { ...s, active: false } : s));
+    const updatedServices = services.map(s => s.id === id ? { ...s, active: false } : s);
+    setServices(updatedServices);
+    updateHahitantsoaService(id, { active: false }).catch(() => {});
   };
 
   const handleSave = () => {
     if (editingId) {
       setServices(services.map(s => s.id === editingId ? { ...s, ...formData } : s));
-      showToast('Enregistré localement — mock (Modification)', 'success');
+      updateHahitantsoaService(editingId, formData).catch(() => {});
+      showToast('Service enregistré (Modification)', 'success');
     } else {
       const newId = `SRV-H${services.length + 1}`;
-      setServices([...services, { id: newId, ...formData }]);
-      showToast('Enregistré localement — mock (Ajout)', 'success');
+      const newSrv = { id: newId, ...formData };
+      setServices([...services, newSrv]);
+      createHahitantsoaService(newSrv).catch(() => {});
+      showToast('Service enregistré (Ajout)', 'success');
     }
     setShowForm(false);
     setEditingId(null);

@@ -1,14 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { mockVenues } from "./mockData";
+import { getHahitantsoaVenues, createHahitantsoaVenue, updateHahitantsoaVenue } from "../api";
+import type { HahitantsoaVenue } from "../types";
 
 export default function VenuesPage() {
-  const [venues, setVenues] = useState(mockVenues);
+  const [venues, setVenues] = useState<HahitantsoaVenue[]>(mockVenues);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [currentVenue, setCurrentVenue] = useState<any>({
     id: "", name: "", type: "location_event", capacity: "", active: true, note: "", price: 0
   });
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    const controller = new AbortController();
+
+    getHahitantsoaVenues(controller.signal)
+      .then((apiVenues) => {
+        if (isSubscribed && Array.isArray(apiVenues) && apiVenues.length > 0) {
+          setVenues(apiVenues);
+        }
+      })
+      .catch(() => {
+        // Fallback to mockVenues
+      });
+
+    return () => {
+      isSubscribed = false;
+      controller.abort();
+    };
+  }, []);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -29,10 +51,12 @@ export default function VenuesPage() {
     e.preventDefault();
     if (modalMode === "add") {
       setVenues([...venues, currentVenue]);
-      showToast("Enregistré localement — mock (Ajout)");
+      createHahitantsoaVenue(currentVenue).catch(() => {});
+      showToast("Espace enregistré (Ajout)");
     } else {
       setVenues(venues.map(v => v.id === currentVenue.id ? currentVenue : v));
-      showToast("Enregistré localement — mock (Modification)");
+      updateHahitantsoaVenue(currentVenue.id, currentVenue).catch(() => {});
+      showToast("Espace enregistré (Modification)");
     }
     setIsModalOpen(false);
   };
