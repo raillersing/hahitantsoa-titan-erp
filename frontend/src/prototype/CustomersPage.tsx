@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { getCustomers } from "../api";
+import { ApiError, createCustomer, getCustomers } from "../api";
 import type { Customer as ApiCustomer } from "../types";
-import { Client } from "./mockData";
+import type { Client } from "./mockData";
 import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 
 interface CustomersPageProps {
@@ -17,8 +17,10 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
   const [filterType, setFilterType] = useState("Tous");
   
   const [isAdding, setIsAdding] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [newType, setNewType] = useState<"Particulier" | "Entreprise">("Particulier");
-  const [newStatus, setNewStatus] = useState<"Prospect" | "Client">("Prospect");
+  const [newStatus, setNewStatus] = useState<"Prospect" | "Client">("Client");
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
@@ -58,7 +60,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
   const [prospectRelanceDate, setProspectRelanceDate] = useState("");
   const [prospectRelanceNote, setProspectRelanceNote] = useState("");
   
-  // Proforma mock state
+  // Legacy form fields retained until the commercial write contracts are connected.
   const [profObjet, setProfObjet] = useState("");
   const [profElements, setProfElements] = useState("");
   const [profAmount, setProfAmount] = useState("");
@@ -122,7 +124,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
       if (!c.reservationCount) return false;
     }
     
-    // À relancer is just mock logic, we'll say prospects are to be re-contacted
+    // Relance remains a derived read-only filter until the agenda contract is connected.
     if (filterType === "À relancer" && c.status !== "Prospect") return false;
 
     return true;
@@ -137,59 +139,36 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
   };
   const goPrevStep = () => setWizardStep(s => s - 1);
 
-  const handleCreate = (e?: React.FormEvent) => {
+  const handleCreate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newName && !newRepName) return;
 
-    const finalName = newType === "Particulier" ? newName : (newName || newRepName);
-    const initials = (finalName || "A").substring(0, 2).toUpperCase();
-    const isProspect = newStatus === "Prospect";
-    const id = `${isProspect ? 'PROS' : 'CUST'}-${Math.floor(100 + Math.random() * 900)}`;
-    
-    const colorClass = isProspect ? "bg-blue-100 text-blue-700" : (newType === "Particulier" ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700");
-
-    const newClient: Client = {
-      id,
-      initials,
-      name: finalName,
-      email: newEmail,
-      phone: newPhone,
-      type: newType,
-      status: newStatus,
-      colorClass,
-      address: newAddress,
-      idNumber: newIdNumber,
-      idType: newIdType,
-      idIssuePlace: newIdIssuePlace,
-      idIssueDate: newIdIssueDate,
-      idDuplicataDate: newIdDuplicataDate,
-      idDuplicataPlace: newIdDuplicataPlace,
-      nif: newNif,
-      stat: newStat,
-      rcs: newRcs,
-      repLastName: newRepName,
-      repRole: newRepRole,
-      civilite: newCivilite,
-      birthDate: newBirthDate,
-      // We can also add prospect specific notes to notes if it's a prospect
-      notes: isProspect ? `Demande : ${prospectRequestType}\nVolet : ${prospectDomain}\nDate : ${prospectDate}\nBudget : ${prospectBudget}\nNote : ${prospectNote}` : newNotes
-    };
-
-    // Customer creation is intentionally deferred to the write lot.
-    void newClient;
-
-    if (canSensitiveWrite && isProspect && prospectRequestType === "Proforma demandée") {
-      // Redirect to ReservationNewPage with prospect-proforma param
-      const path = prospectDomain === "Titan Rental" ? "prospect-proforma-t" : "prospect-proforma-h";
-      setIsAdding(false);
-      onNavigate('reservation-new', `${path}/${id}`);
+    if (newStatus === "Prospect") {
+      setCreateError("La création de prospect sera disponible avec le contrat de conversion de la Phase 3B.");
       return;
     }
 
-    setIsAdding(false);
-    
-    // Optionally open the detail page for the newly created client
-    onNavigate("customer", id);
+    const finalName = newType === "Particulier" ? newName : (newName || newRepName);
+    setIsCreating(true);
+    setCreateError(null);
+    try {
+      const created = await createCustomer({
+        display_name: finalName.trim(),
+        email: newEmail,
+        phone: newPhone,
+        address: newAddress,
+        notes: newNotes,
+      });
+      setIsAdding(false);
+      await loadCustomers();
+      onNavigate("customer", created.id);
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 403) setCreateError("Vous n’êtes pas autorisé à créer un client.");
+      else if (error instanceof ApiError && error.status === 400) setCreateError("Les informations saisies sont invalides. Vérifiez le nom et les coordonnées.");
+      else setCreateError("La création n’a pas pu être enregistrée. Réessayez.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const renderWizard = () => {
@@ -271,6 +250,18 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
           {(isProspect ? getStepType(wizardStep) === 'type' : wizardStep === 1) && (
             <div className="space-y-6">
               <h3 className="text-lg font-bold text-slate-800">Sélectionnez le type</h3>
+              <fieldset>
+                <legend className="block text-sm font-semibold text-slate-700 mb-2">Statut initial</legend>
+                <div className="flex flex-wrap gap-3">
+                  {(["Client", "Prospect"] as const).map((status) => (
+                    <label key={status} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${newStatus === status ? "border-indigo-600 bg-indigo-50" : "border-slate-200"}`}>
+                      <input type="radio" name="customer-status" value={status} checked={newStatus === status} onChange={() => setNewStatus(status)} />
+                      {status}
+                    </label>
+                  ))}
+                </div>
+                {newStatus === "Prospect" && <p className="mt-2 text-xs text-amber-700">Le contrat de création prospect sera activé dans le lot Phase 3B.</p>}
+              </fieldset>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className={`border-2 rounded-xl p-6 cursor-pointer transition-colors ${newType === 'Particulier' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`} onClick={() => setNewType('Particulier')}>
                   <div className="flex items-center gap-3 mb-2">
@@ -462,10 +453,10 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
               <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-4">
                 <div className="text-center">
                   <button type="button" className="px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-lg hover:bg-indigo-100 text-sm">
-                    Vérifier disponibilité mock
+                    Disponibilité via le module réservation
                   </button>
                   {prospectDate && (
-                    <p className="text-xs text-emerald-600 font-bold mt-2">Date demandée : {prospectDate} — disponible en mock.</p>
+                    <p className="text-xs text-slate-500 mt-2">Date demandée : {prospectDate} — vérification disponible dans le module réservation.</p>
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-4">
@@ -552,7 +543,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <input type="checkbox" id="checkProforma" checked={prospectProforma} onChange={e => setProspectProforma(e.target.checked)} className="w-4 h-4 text-indigo-600 rounded" />
-                    <label htmlFor="checkProforma" className="text-sm font-medium text-slate-700">Créer une proforma mock liée à ce prospect</label>
+                    <label htmlFor="checkProforma" className="text-sm font-medium text-slate-700">Préparer une proforma (contrat commercial à venir)</label>
                   </div>
                   <div className="mt-4 bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm text-slate-600">
                     La création de proforma ne convertit pas le prospect en client. Le prospect restera dans l'état "Prospect" jusqu'à confirmation explicite.
@@ -663,7 +654,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
                   </div>
                   <div className="flex justify-between border-b border-slate-200 pb-2">
                     <span className="font-semibold">Actions</span>
-                    <span>{prospectProforma ? 'Proforma mock ' : ''}{prospectDispo ? 'Dispo mock ' : ''}</span>
+                    <span>{prospectProforma ? 'Proforma à préparer ' : ''}{prospectDispo ? 'Disponibilité à vérifier ' : ''}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-semibold">Relance</span>
@@ -681,11 +672,12 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
                 Continuer
               </button>
             ) : (
-              <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm" onClick={() => handleCreate()}>
-                {isProspect && prospectRequestType === 'Proforma demandée' ? "Créer prospect et préparer proforma" : `Créer le ${isProspect ? "prospect" : "client"}`}
+              <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm disabled:opacity-50" onClick={() => void handleCreate()} disabled={isCreating}>
+                {isCreating ? "Enregistrement…" : isProspect ? "Enregistrer le prospect" : "Créer le client"}
               </button>
             )}
           </div>
+          {createError && <div role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{createError}</div>}
         </div>
       </div>
     );
@@ -713,9 +705,15 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
               className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64" 
             />
           </div>
-          <span className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm" title="Les écritures seront activées dans le lot Clients/Prospects en écriture.">
-            Lecture seule
-          </span>
+          {canSensitiveWrite ? (
+            <button className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700" onClick={() => { setCreateError(null); setIsAdding(true); }}>
+              Nouveau client
+            </button>
+          ) : (
+            <span className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm" title="Création réservée aux utilisateurs autorisés.">
+              Lecture seule
+            </span>
+          )}
         </div>
       </div>
 

@@ -15,6 +15,11 @@ beforeEach(() => {
     if (id === 'PROS-001') return customer(id, 'Jean Dupont', 'individual', 'prospect');
     return { ...customer('CUST-001', 'Ando Rakoto', 'individual'), email: 'ando.rakoto@email.mg' };
   });
+  vi.spyOn(api, 'updateCustomer').mockImplementation(async (id, payload) => ({
+    ...customer(id, payload.display_name ?? 'Ando Rakoto', 'individual'),
+    email: payload.email ?? 'ando.rakoto@email.mg',
+    phone: payload.phone ?? '', address: payload.address ?? '', notes: payload.notes ?? '',
+  }));
 });
 
 describe('CustomerDetailPage', () => {
@@ -54,7 +59,7 @@ describe('CustomerDetailPage', () => {
     expect(screen.queryByText('Conversion en client')).not.toBeInTheDocument();
   });
 
-  it('4. Modification du nom signale que la persistance sera livrée dans le lot écriture', async () => {
+  it('4. Modification du nom est persistée via l’API', async () => {
     const mockNavigate = vi.fn();
     render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
     
@@ -65,9 +70,9 @@ describe('CustomerDetailPage', () => {
     const inputs = screen.getAllByDisplayValue('Ando Rakoto');
     fireEvent.change(inputs[0], { target: { value: 'Ando Modifié' } });
     
-    fireEvent.click(screen.getByText('Enregistrer (local)'));
+    fireEvent.click(screen.getByText('Enregistrer'));
     
-    expect(screen.getByText('La modification sera disponible dans le lot d’écriture.')).toBeInTheDocument();
+    expect(await screen.findByText('Modifications enregistrées.')).toBeInTheDocument();
   });
 
   it('5. Clic sur retour et nouvelle réservation', async () => {
