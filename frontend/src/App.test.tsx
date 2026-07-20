@@ -152,16 +152,16 @@ describe("App Prototype", () => {
     expect(window.location.hash).toBe("#reservation-new");
   });
 
-  it("does not call /api/v1/inventory/items on dashboard", () => {
+  it("calls inventory API on dashboard to show stock alerts", () => {
     const fetchSpy = vi.spyOn(window, "fetch");
     window.history.replaceState(null, "", "/#dashboard");
     render(<App />);
     
-    // Check that there is no fetch call containing the inventory API path
+    // DashboardPage now fetches inventory items for stock alerts
     const inventoryCalls = fetchSpy.mock.calls.filter((call: any[]) =>
-      typeof call[0] === 'string' && call[0].includes("/api/v1/inventory/items")
+      typeof call[0] === "string" && call[0].includes("/api/v1/inventory/items")
     );
-    expect(inventoryCalls.length).toBe(0);
+    expect(inventoryCalls.length).toBeGreaterThan(0);
     fetchSpy.mockRestore();
   });
 
