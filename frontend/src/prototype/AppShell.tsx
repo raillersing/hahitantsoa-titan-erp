@@ -2,7 +2,7 @@ import React from "react";
 import type { AppScope } from "../App";
 import type { SessionUser } from "../api";
 import BrandIdentity, { type BrandScope } from "./BrandIdentity";
-import { mockClients } from "./mockData";
+
 import type { FrontendCapabilities } from "../capabilities";
 
 interface AppShellProps {
@@ -239,12 +239,11 @@ export default function AppShell({
       breadcrumbs.push({ label: "Locaux & Dépôts", scope: "venues", param: undefined });
     }
   } else if (activeScope === "customer") {
-    const client = mockClients.find(c => c.id === activeParam);
-    const isProspect = client?.status === "Prospect" || client?.notes?.includes("[PROSPECT]");
-    pageTitle = isProspect ? "Fiche prospect" : "Fiche client";
+    const clientName = activeParam || "Client";
+    pageTitle = "Fiche client";
     breadcrumbs = [
       { label: "Clients & Prospects", scope: "customers", param: undefined },
-      { label: client ? client.name : (activeParam || pageTitle), scope: "customer", param: activeParam }
+      { label: clientName, scope: "customer", param: activeParam }
     ];
   } else if (activeScope === "customers") {
     pageTitle = "Clients & Prospects";
@@ -261,13 +260,8 @@ export default function AppShell({
     pageTitle = "Nouvelle Réservation";
     breadcrumbs = [];
     if (activeParam && (activeParam.startsWith('CUST-') || activeParam.startsWith('PROS-'))) {
-      const client = mockClients.find(c => c.id === activeParam);
       breadcrumbs.push({ label: "Clients & Prospects", scope: "customers", param: undefined });
-      if (client) {
-        breadcrumbs.push({ label: client.name, scope: "customer", param: activeParam });
-      } else {
-        breadcrumbs.push({ label: activeParam, scope: "customer", param: activeParam });
-      }
+      breadcrumbs.push({ label: activeParam, scope: "customer", param: activeParam });
       breadcrumbs.push({ label: "Nouvelle réservation", scope: "reservation-new", param: activeParam });
     } else {
       breadcrumbs = [

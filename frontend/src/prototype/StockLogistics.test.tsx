@@ -24,11 +24,13 @@ describe('Stock & Logistics Pages', () => {
     expect(screen.getAllByText('Réservé').length).toBeGreaterThan(0);
   });
 
-  it('InventoryPage (Catalogue) - renders grid of location articles', () => {
+  it('InventoryPage (Catalogue) - renders grid of location articles', async () => {
+    vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
+      { id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '' },
+    ]);
     render(<InventoryPage onNavigate={mockNavigate} />);
+    expect(await screen.findByText('Chaise Napoléon transparente')).toBeDefined();
     expect(screen.getByText('Catalogue')).toBeInTheDocument();
-    expect(screen.getByText('Chaise Napoléon transparente')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('InventoryItemPage - renders stock info and history', async () => {

@@ -2,14 +2,13 @@ import React from 'react';
 import {
   hahitantsoaDefaultDepositAmount, titanDepositThreshold,
   titanSmallRentalDeposit, titanLargeRentalDepositRate,
-  hahitantsoaBreakagePrices, hahitantsoaBlockedIntervenants,
-  hahitantsoaMockPackages,
+  hahitantsoaBreakagePrices,
   hahitantsoaAnnex2PlanPath,
   hahitantsoaAnnex1Rules,
   hahitantsoaAnnex2Zones,
   formatMoneyRaw,
   safeNumber
-} from './mockData';
+} from '../constants';
 
 type DocumentType = 'proforma' | 'facture' | 'contrat';
 
@@ -422,7 +421,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
                 {hDetails?.rentalType === 'Location nue + logistique' ? '☒' : '☐'} Location nue + logistique<br/>
                 {hDetails?.rentalType === 'Location avec package' ? '☒' : '☐'} Location avec package
                 {hDetails?.rentalType === 'Location avec package' && hDetails?.packageId && (
-                  <span className="font-semibold text-indigo-700 ml-2">({hahitantsoaMockPackages.find(p => p.id === hDetails.packageId)?.name})</span>
+                  <span className="font-semibold text-indigo-700 ml-2">("Pack")</span>
                 )}
               </span></div>
               <div className="flex mt-2"><span className="w-48">Durée :</span><span>
@@ -594,14 +593,14 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
 
           <ContractPage pageNumber={8}>
             <h4 className="text-center font-bold text-[18px] mb-6 underline decoration-2 underline-offset-4">Annexe 4 : Liste des intervenants non autorisés</h4>
-            {hahitantsoaBlockedIntervenants.filter(i => i.active !== false).length === 0 ? (
+            {[].length === 0 ? (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 text-center">
                 Aucun intervenant non autorisé enregistré.
               </div>
             ) : (
               <div className="flex justify-center">
                 <ul className="space-y-3 list-disc pl-5 w-full max-w-md">
-                  {hahitantsoaBlockedIntervenants.filter(i => i.active !== false).map((intervenant, idx) => (
+                  {[].map((intervenant: any, idx) => (
                     <li key={idx} className="text-base font-medium">{intervenant.name}</li>
                   ))}
                 </ul>

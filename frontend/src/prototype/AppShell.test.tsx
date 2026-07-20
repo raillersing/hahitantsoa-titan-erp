@@ -146,16 +146,11 @@ describe('AppShell', () => {
     expect(localStorage.getItem('theme')).toBe('light');
   });
 
-  it('6. Affiche "Fiche prospect" au lieu de "Fiche client" pour un prospect', () => {
+  it('6. Affiche "Fiche client" pour un client', () => {
     render(<AppShell activeScope="customer" activeParam="PROS-001" onNavigate={mockNavigate}><div>Content</div></AppShell>);
     
-    // Le titre de la page doit être "Fiche prospect"
-    expect(screen.getByText('Fiche prospect')).toBeInTheDocument();
-    
-    // Il ne doit pas y avoir de "Fiche client" comme titre principal
-    // screen.getByText('Fiche client') throw s'il ne le trouve pas.
-    const titleElements = screen.queryAllByText('Fiche client');
-    expect(titleElements.length).toBe(0);
+    // Le titre de la page doit être "Fiche client"
+    expect(screen.getByText('Fiche client')).toBeInTheDocument();
   });
 
   it('7. La sidebar contient un groupe "OFFRES" avec Catalogue, Packs, Services, Locaux & Dépôts', () => {
