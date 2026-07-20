@@ -14,6 +14,7 @@ from apps.identity.serializers import (
     RevokeRoleRequestSerializer,
     UserRoleAssignmentSerializer,
     UserRoleAssignmentWriteSerializer,
+    UserSerializer,
 )
 from apps.identity.services import (
     UNAUTHORIZED_PLATFORM_ROLE,
@@ -135,6 +136,28 @@ class UserRoleAssignmentListAPIView(generics.ListAPIView):
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() in ("true", "1"))
+        return queryset
+
+
+class UserListAPIView(generics.ListAPIView):
+    """List all Django users with their role information."""
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasIdentityAdminAccess]
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        User = get_user_model()
+        queryset = User.objects.order_by("username")
+
+        search = self.request.query_params.get("search")
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(username__icontains=search)
+                | Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(email__icontains=search)
+            )
         return queryset
 
 

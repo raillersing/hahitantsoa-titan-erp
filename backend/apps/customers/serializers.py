@@ -51,8 +51,6 @@ class CustomerSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
-            "lifecycle_status",
-            "party_type",
             "created_at",
             "updated_at",
             "is_deleted",

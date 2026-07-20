@@ -31,6 +31,8 @@ export type Customer = {
 
 export type CustomerCreatePayload = {
   display_name: string;
+  lifecycle_status?: "prospect" | "client";
+  party_type?: "individual" | "company";
   email?: string;
   phone?: string;
   address?: string;
@@ -873,6 +875,20 @@ export type CashboxMovementCreatePayload = {
 };
 
 // ---- Identity / Role Management (live backend — /api/v1/identity/) ----
+
+export type User = {
+  id: string;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  is_active: boolean;
+  is_staff: boolean;
+  last_login: string | null;
+  date_joined: string;
+  role_names: string[];
+};
 
 export type ApplicationRole = {
   id: string;

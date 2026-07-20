@@ -1,6 +1,44 @@
 from rest_framework import serializers
 
+from django.contrib.auth import get_user_model
 from apps.identity.models import ApplicationRole, UserRoleAssignment
+
+User = get_user_model()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Serialize Django users for the admin user list."""
+    display_name = serializers.SerializerMethodField()
+    role_names = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "display_name",
+            "is_active",
+            "is_staff",
+            "last_login",
+            "date_joined",
+            "role_names",
+        )
+        read_only_fields = fields
+
+    def get_display_name(self, obj):
+        full = f"{obj.first_name} {obj.last_name}".strip()
+        return full or obj.username
+
+    def get_role_names(self, obj):
+        assignments = UserRoleAssignment.objects.filter(
+            user=obj, is_active=True
+        ).select_related("role")
+        return [a.role.name for a in assignments]
+
+
 
 
 class ApplicationRoleSerializer(serializers.ModelSerializer):

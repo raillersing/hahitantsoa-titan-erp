@@ -42,6 +42,7 @@ import type {
   RoleAssignmentQueryParams,
   RoleQueryParams,
   UserRoleAssignment,
+  User,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftCreatePayload,
   HahitantsoaEventDraftUpdatePayload,
@@ -793,6 +794,19 @@ export function createDocumentTemplate(
   return postAuthenticatedJson("/api/v1/documents/document-templates/", payload, signal);
 }
 
+export function deleteDocumentTemplate(
+  templateId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return unsafeAuthenticatedRequest(`/api/v1/documents/document-templates/${encodeURIComponent(templateId)}/`, {
+    method: "DELETE",
+  }, signal).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Suppression échouée (${response.status})`);
+    }
+  });
+}
+
 export function getDocumentTemplateVersions(
   templateId?: string,
   signal?: AbortSignal,
@@ -1260,6 +1274,23 @@ export async function checkIdentityWritePermission(
   signal?: AbortSignal,
 ): Promise<boolean> {
   return checkEndpointPermission("/api/v1/identity/roles/", "OPTIONS", signal);
+}
+
+export function getUsers(
+  search?: string,
+  signal?: AbortSignal,
+): Promise<User[]> {
+  let url = "/api/v1/identity/users/";
+  if (search) {
+    url += `?search=${encodeURIComponent(search)}`;
+  }
+  return getAuthenticatedJson(url, signal);
+}
+
+export function getApplicationRoles(
+  signal?: AbortSignal,
+): Promise<ApplicationRole[]> {
+  return getRoles(undefined, signal);
 }
 
 function buildAuditQuery(params?: AuditEventQueryParams): string {

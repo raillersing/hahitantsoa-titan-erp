@@ -6,12 +6,13 @@ from .views import (
     AssignRoleAPIView,
     RevokeRoleAPIView,
     SyncSystemRolesAPIView,
+    UserListAPIView,
     UserRoleAssignmentDetailAPIView,
     UserRoleAssignmentListAPIView,
 )
-
 urlpatterns = [
     path("roles/", ApplicationRoleListCreateAPIView.as_view(), name="identity-role-list"),
+    path("users/", UserListAPIView.as_view(), name="identity-user-list"),
     path("roles/<uuid:pk>/", ApplicationRoleDetailAPIView.as_view(), name="identity-role-detail"),
     path(
         "roles/sync-system/",
