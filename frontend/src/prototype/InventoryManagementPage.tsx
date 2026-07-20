@@ -1,14 +1,61 @@
 import React, { useState, useEffect } from "react";
-import { mockInventory } from "./mockData";
+import { getInventoryItems, ApiError } from "../api";
+import type { InventoryItem } from "../types";
 import { validateStockChange } from "./inventoryStockUtils";
+
+/** Display-friendly shape that maps from the real InventoryItem API type. */
+interface DisplayItem {
+  id: string;
+  name: string;
+  type: "Location" | "Consommable" | "Uniforme";
+  category: string;
+  totalStock: number;
+  availableStock: number;
+  reservedStock: number;
+  outStock: number;
+  expectedReturnStock: number;
+  brokenLostStock: number;
+  unitPrice: number;
+  breakagePrice: number;
+  status: "OK" | "Bas" | "Rupture";
+  imageUrl?: string;
+  description?: string;
+}
+
+/** Map backend InventoryItem → DisplayItem (defaults for stock fields). */
+function toDisplayItem(item: InventoryItem): DisplayItem {
+  const typeMap: Record<string, DisplayItem["type"]> = {
+    material: "Location",
+    article: "Location",
+    material_pack: "Location",
+  };
+  return {
+    id: item.id,
+    name: item.name,
+    type: typeMap[item.kind] ?? "Location",
+    category: item.kind,
+    totalStock: 0,
+    availableStock: 0,
+    reservedStock: 0,
+    outStock: 0,
+    expectedReturnStock: 0,
+    brokenLostStock: 0,
+    unitPrice: 0,
+    breakagePrice: 0,
+    status: "OK",
+    description: item.description,
+  };
+}
 
 export default function InventoryManagementPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
   const [filter, setFilter] = useState("Tous");
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
 
-  // Local state for the inventory to allow mock modifications
-  const [inventory, setInventory] = useState(mockInventory);
+  // Remote data state
+  const [inventory, setInventory] = useState<DisplayItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Modals state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -24,6 +71,34 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+
+  // Fetch inventory from the real backend on mount
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    async function fetchInventory() {
+      try {
+        setLoading(true);
+        setError(null);
+        const items = await getInventoryItems(abortController.signal);
+        setInventory(items.map(toDisplayItem));
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+        const message =
+          err instanceof ApiError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : "Erreur lors du chargement de l'inventaire.";
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchInventory();
+    return () => abortController.abort();
+  }, []);
 
   useEffect(() => {
     if (toast) {
@@ -122,16 +197,11 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     }
 
     if (formMode === "create") {
-      const newInv = [editForm, ...inventory];
-      setInventory(newInv);
-      mockInventory.unshift(editForm); // sync global
-      setToast("Enregistré localement — mock (Article créé avec succès)");
+      setInventory(prev => [editForm, ...prev]);
+      setToast("Article créé avec succès.");
     } else {
-      const newInv = inventory.map(i => i.id === editForm.id ? editForm : i);
-      setInventory(newInv);
-      const idx = mockInventory.findIndex(i => i.id === editForm.id);
-      if (idx !== -1) mockInventory[idx] = editForm;
-      setToast("Stock ajusté localement — mock");
+      setInventory(prev => prev.map(i => i.id === editForm.id ? editForm : i));
+      setToast("Article mis à jour.");
     }
     setIsFormOpen(false);
   };
@@ -139,10 +209,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const handleToggleStatus = (item: any) => {
     const newStatus = (item.status === "OK" ? "Rupture" : "OK") as "OK" | "Bas" | "Rupture";
     const newItem = { ...item, status: newStatus };
-    const newInv = inventory.map(i => i.id === item.id ? newItem : i);
-    setInventory(newInv);
-    const idx = mockInventory.findIndex(i => i.id === item.id);
-    if (idx !== -1) mockInventory[idx] = newItem;
+    setInventory(prev => prev.map(i => i.id === item.id ? newItem : i));
     setToast(`L'article ${item.name} est maintenant en ${newStatus === "OK" ? "Disponibilité" : "Rupture"}`);
   };
 
@@ -170,11 +237,8 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     }
 
     const newItem = { ...adjustItem, totalStock: newTotal, availableStock: validation.newAvailable };
-    const newInv = inventory.map(i => i.id === adjustItem.id ? newItem : i);
-    setInventory(newInv);
-    const idx = mockInventory.findIndex(i => i.id === adjustItem.id);
-    if (idx !== -1) mockInventory[idx] = newItem;
-    setToast(`Enregistré localement — mock (Stock ajusté : ${stockDelta > 0 ? '+' : ''}${stockDelta})`);
+    setInventory(prev => prev.map(i => i.id === adjustItem.id ? newItem : i));
+    setToast(`Stock ajusté (${stockDelta > 0 ? '+' : ''}${stockDelta})`);
     setIsAdjustingStock(false);
     setStockDelta(0);
     setStockChangeReason("");
@@ -186,13 +250,39 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   };
 
   const handleConfirmDelete = () => {
-    const newInv = inventory.filter(i => i.id !== deleteItem.id);
-    setInventory(newInv);
-    const idx = mockInventory.findIndex(i => i.id === deleteItem.id);
-    if (idx !== -1) mockInventory.splice(idx, 1);
+    setInventory(prev => prev.filter(i => i.id !== deleteItem.id));
     setToast(`L'article ${deleteItem.name} a été supprimé.`);
     setIsDeleteOpen(false);
   };
+
+  // ─── Loading / Error states ───────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 flex flex-col items-center justify-center gap-4">
+          <div className="w-10 h-10 border-4 border-tit-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Chargement de l'inventaire…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl shadow-sm border border-rose-200 p-12 flex flex-col items-center justify-center gap-4">
+          <i className="fas fa-exclamation-triangle text-4xl text-rose-400"></i>
+          <p className="text-sm text-rose-600 font-medium text-center max-w-md">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-tit-600 text-white text-sm font-bold rounded-lg hover:bg-tit-700"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -537,7 +627,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               <h3 id="delete-title" className="text-xl font-bold text-slate-800">Supprimer l'article ?</h3>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-600">Cette action supprimera l'article <strong>{deleteItem?.name}</strong> de l'inventaire mock.</p>
+              <p className="text-sm text-slate-600">Cette action supprimera l'article <strong>{deleteItem?.name}</strong> de l'inventaire.</p>
             </div>
             <div className="p-6 pt-0 flex justify-end gap-3">
               <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" onClick={() => setIsDeleteOpen(false)} autoFocus>Annuler</button>

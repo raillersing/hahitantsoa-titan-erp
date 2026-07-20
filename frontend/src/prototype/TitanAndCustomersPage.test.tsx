@@ -22,15 +22,19 @@ beforeEach(() => {
     is_deleted: false, deleted_at: null, created_by: null, updated_by: null,
   }));
   vi.spyOn(api, 'getReservationDraft').mockImplementation(async (id: string) => ({
-    id: id || 'test-draft', customer: 'CUST-001', status: 'draft', public_reference: id || '',
+    id: id || 'test-draft', customer_id: 'CUST-001', customer_display_name: 'Test Client',
+    status: 'draft', public_reference: id || '',
     start_at: '2026-08-01T10:00:00Z', end_at: '2026-08-02T10:00:00Z', notes: '', lines: [],
-    created_at: '', updated_at: '', created_by: null, updated_by: null,
-  }));
+    contract_signed_at: null, contract_signed_by_id: null,
+    required_deposit_received_at: null, required_deposit_received_by_id: null,
+    confirmed_at: null, confirmed_by_id: null, cancelled_at: null, cancelled_by_id: null,
+    created_at: '', updated_at: '',
+  } as any));
   vi.spyOn(api, 'getReservationDraftDocumentInstances').mockResolvedValue([]);
-  vi.spyOn(api, 'markReservationDraftContractSigned').mockResolvedValue({});
-  vi.spyOn(api, 'markReservationDraftRequiredDepositReceived').mockResolvedValue({});
-  vi.spyOn(api, 'confirmReservationDraft').mockResolvedValue({});
-  vi.spyOn(api, 'getSession').mockResolvedValue({ authenticated: true, user: null });
+  vi.spyOn(api, 'markReservationDraftContractSigned').mockResolvedValue({ status: 'draft', public_reference: '', reservation_draft: {} as any, blocked_item_count: 0 } as any);
+  vi.spyOn(api, 'markReservationDraftRequiredDepositReceived').mockResolvedValue({ status: 'draft', public_reference: '', reservation_draft: {} as any, blocked_item_count: 0 } as any);
+  vi.spyOn(api, 'confirmReservationDraft').mockResolvedValue({ status: 'draft', public_reference: '', reservation_draft: {} as any, blocked_item_count: 0 } as any);
+  vi.spyOn(api, 'getSession').mockResolvedValue({ authenticated: true, user: { id: '1', username: 'test', display_name: 'Test', is_staff: true, roles: [] } } as any);
   vi.spyOn(api, 'updateCustomer').mockResolvedValue({
     id: 'CUST-001', display_name: 'Ando Rakoto', lifecycle_status: 'client', party_type: 'individual', email: 'ando.rakoto@email.mg', phone: '', address: '', notes: '', is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null,
   });

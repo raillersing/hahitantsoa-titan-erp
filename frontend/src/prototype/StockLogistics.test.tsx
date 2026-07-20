@@ -13,12 +13,15 @@ import * as api from '../api';
 describe('Stock & Logistics Pages', () => {
   const mockNavigate = vi.fn();
 
-  it('InventoryManagementPage - renders KPIs and articles', () => {
+  it('InventoryManagementPage - renders KPIs and articles', async () => {
+    vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
+      { id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '' },
+    ]);
     render(<InventoryManagementPage onNavigate={mockNavigate} />);
+    expect(await screen.findByText('Chaise Napoléon transparente')).toBeDefined();
     expect(screen.getAllByText('Total').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Dispo').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Réservé').length).toBeGreaterThan(0);
-    expect(screen.getByText('Chaise Napoléon transparente')).toBeDefined();
   });
 
   it('InventoryPage (Catalogue) - renders grid of location articles', () => {
@@ -57,9 +60,29 @@ describe('Stock & Logistics Pages', () => {
     });
   });
 
-  it('StockPreparationPage - renders dossiers to prepare', () => {
+  it('StockPreparationPage - renders dossiers to prepare', async () => {
+    vi.spyOn(api, 'getReservationDrafts').mockResolvedValue([
+      {
+        id: 'draft-001', public_reference: 'LOC-2026-0089', status: 'confirmed',
+        customer_id: 'c-01', customer_display_name: 'Ando Rakoto',
+        start_at: '2026-06-14T00:00:00Z', end_at: '2026-06-20T00:00:00Z',
+        notes: '', contract_signed_at: null, contract_signed_by_id: null,
+        required_deposit_received_at: null, required_deposit_received_by_id: null,
+        confirmed_at: '2026-06-10T00:00:00Z', confirmed_by_id: 'u-01',
+        cancelled_at: null, cancelled_by_id: null,
+        lines: [
+          { id: 'l1', inventory_item_id: 'MAT-01', inventory_item_name: 'Chaise Napoléon transparente', inventory_item_kind: 'material', quantity: 50, notes: '' },
+          { id: 'l2', inventory_item_id: 'MAT-02', inventory_item_name: 'Table rectangulaire 8 places', inventory_item_kind: 'material', quantity: 5, notes: '' },
+        ],
+        created_at: '', updated_at: '',
+      },
+    ]);
+    vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
+      { id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '' },
+      { id: 'MAT-02', name: 'Table rectangulaire 8 places', kind: 'material', description: '' },
+    ]);
     render(<StockPreparationPage onNavigate={mockNavigate} />);
-    expect(screen.getByText('LOC-2026-0089')).toBeDefined();
+    expect(await screen.findByText('LOC-2026-0089')).toBeDefined();
   });
 
   describe('LogisticsDispatchPage', () => {
