@@ -1456,3 +1456,46 @@ export function validateImport(
 ): Promise<ImportJob> {
   return postAuthenticatedJson(`/api/v1/import/${id}/validate/`, {}, signal);
 }
+
+// ---- Blacklist (/api/v1/blacklist/) ----
+
+export type BlacklistedIntervenant = {
+  id: string;
+  name: string;
+  note: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function getBlacklistedIntervenants(
+  signal?: AbortSignal,
+): Promise<BlacklistedIntervenant[]> {
+  return getAuthenticatedJson("/api/v1/blacklist/", signal);
+}
+
+export function createBlacklistedIntervenant(
+  payload: { name: string; note?: string },
+  signal?: AbortSignal,
+): Promise<BlacklistedIntervenant> {
+  return postAuthenticatedJson("/api/v1/blacklist/", payload, signal);
+}
+
+export function updateBlacklistedIntervenant(
+  id: string,
+  payload: Partial<{ name: string; note: string; is_active: boolean }>,
+  signal?: AbortSignal,
+): Promise<BlacklistedIntervenant> {
+  return patchAuthenticatedJson(`/api/v1/blacklist/${id}/`, payload, signal);
+}
+
+export function deleteBlacklistedIntervenant(
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return unsafeAuthenticatedRequest(`/api/v1/blacklist/${id}/`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  }, signal).then(() => undefined);
+}
