@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { AppScope } from "../App";
 import { EmptyState } from "../components";
 import { DocumentPreview } from "./DocumentPreview";
-import { getDocumentTemplates } from "../api";
-import { DocumentTemplateDefinition } from "../types";
+import { getDocumentTemplates, createDocumentTemplate, deleteDocumentTemplate } from "../api";
+import { DocumentTemplateDefinition, DocumentTemplateCreatePayload } from "../types";
 
 /** Local template model used by the editor UI */
 interface TemplateModel {
@@ -175,16 +175,11 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
   };
 
 
-  useEffect(() => {
-    let isSubscribed = true;
-    const controller = new AbortController();
-
+  const loadTemplates = (signal?: AbortSignal) => {
     setLoading(true);
     setApiError(null);
-
-    getDocumentTemplates(controller.signal)
+    getDocumentTemplates(signal)
       .then((apiDefs) => {
-        if (!isSubscribed) return;
         if (Array.isArray(apiDefs) && apiDefs.length > 0) {
           const mapped: TemplateModel[] = apiDefs.map((def, idx) =>
             mapDefinitionToTemplate(def, idx)
@@ -195,14 +190,18 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
         }
       })
       .catch((err) => {
-        if (!isSubscribed) return;
         if (err?.name !== 'AbortError') {
           setApiError("Impossible de charger les modèles. Vérifiez votre connexion.");
         }
       })
-      .finally(() => {
-        if (isSubscribed) setLoading(false);
-      });
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let isSubscribed = true;
+    const controller = new AbortController();
+
+    loadTemplates(controller.signal);
 
     return () => {
       isSubscribed = false;
@@ -284,18 +283,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
           <p className="text-sm font-medium text-slate-700 mb-2">{apiError}</p>
           <button
             onClick={() => {
-              setLoading(true);
-              setApiError(null);
-              getDocumentTemplates()
-                .then((apiDefs) => {
-                  if (Array.isArray(apiDefs) && apiDefs.length > 0) {
-                    setTemplates(apiDefs.map((def, idx) => mapDefinitionToTemplate(def, idx)));
-                  } else {
-                    setTemplates([]);
-                  }
-                })
-                .catch(() => setApiError("Impossible de charger les modèles. Vérifiez votre connexion."))
-                .finally(() => setLoading(false));
+              loadTemplates();
             }}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors"
           >
@@ -374,12 +362,31 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
         setDeleteConfirm(null);
         return;
       }
-      const newTemplates = templates.filter(t => t.id !== deleteConfirm);
-      saveTemplates(newTemplates);
-      clearImportedFile();
-      setDeleteConfirm(null);
-      setView('list');
-      showToast("Modèle supprimé.");
+
+      const isApiTemplate = deleteConfirm.startsWith('tmpl-api-');
+      const apiTemplateId = isApiTemplate ? deleteConfirm.replace('tmpl-api-', '') : null;
+
+      if (isApiTemplate && apiTemplateId) {
+        deleteDocumentTemplate(apiTemplateId)
+          .then(() => {
+            setDeleteConfirm(null);
+            setView('list');
+            clearImportedFile();
+            loadTemplates();
+            showToast("Modèle supprimé avec succès.");
+          })
+          .catch(() => {
+            setErrorMsg("Erreur lors de la suppression du modèle côté serveur.");
+            setDeleteConfirm(null);
+          });
+      } else {
+        const newTemplates = templates.filter(t => t.id !== deleteConfirm);
+        saveTemplates(newTemplates);
+        clearImportedFile();
+        setDeleteConfirm(null);
+        setView('list');
+        showToast("Modèle supprimé.");
+      }
     }
   };
 
@@ -408,8 +415,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
       return;
     }
 
-    const newTemplates = [...(templates || [])];
-    const existingIdx = newTemplates.findIndex(t => t.id === currentDoc.id);
+    const isNewTemplate = currentDoc.id?.startsWith('NEW-');
     const finalDoc = {
       ...currentDoc,
       content: JSON.stringify(blocks),
@@ -418,15 +424,54 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
       lastModified: new Date().toISOString().slice(0, 10)
     } as TemplateModel;
 
-    if (existingIdx >= 0) {
-      newTemplates[existingIdx] = finalDoc;
-    } else {
-      newTemplates.push(finalDoc);
-    }
+    if (isNewTemplate && currentDoc.code && currentDoc.name) {
+      const scopeMap: Record<string, "titan" | "hahitantsoa"> = {
+        "Titan": "titan",
+        "Hahitantsoa": "hahitantsoa",
+        "Commun": "titan",
+      };
+      const payload: DocumentTemplateCreatePayload = {
+        code: currentDoc.code,
+        name: currentDoc.name,
+        description: currentDoc.description || "",
+        family: currentDoc.family || "Documents commerciaux",
+        business_scope: scopeMap[currentDoc.volet || "Commun"] || "titan",
+        document_type: currentDoc.type || "Contrat",
+        status: currentDoc.status === 'Actif' ? 'active' : 'draft',
+      };
 
-    saveTemplates(newTemplates);
-    setErrorMsg(null);
-    showToast("Modèle enregistré avec succès.");
+      createDocumentTemplate(payload)
+        .then((createdDef) => {
+          setCurrentDoc({ ...finalDoc, id: `tmpl-api-${createdDef.key}` });
+          setErrorMsg(null);
+          loadTemplates();
+          showToast("Modèle enregistré avec succès.");
+        })
+        .catch(() => {
+          // Fallback to local save if API fails
+          const newTemplates = [...(templates || [])];
+          const existingIdx = newTemplates.findIndex(t => t.id === finalDoc.id);
+          if (existingIdx >= 0) {
+            newTemplates[existingIdx] = finalDoc;
+          } else {
+            newTemplates.push(finalDoc);
+          }
+          saveTemplates(newTemplates);
+          setErrorMsg(null);
+          showToast("Modèle enregistré en local (API indisponible).");
+        });
+    } else {
+      const newTemplates = [...(templates || [])];
+      const existingIdx = newTemplates.findIndex(t => t.id === finalDoc.id);
+      if (existingIdx >= 0) {
+        newTemplates[existingIdx] = finalDoc;
+      } else {
+        newTemplates.push(finalDoc);
+      }
+      saveTemplates(newTemplates);
+      setErrorMsg(null);
+      showToast("Modèle enregistré avec succès.");
+    }
   };
 
   const handleExportJson = () => {

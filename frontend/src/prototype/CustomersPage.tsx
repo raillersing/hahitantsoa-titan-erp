@@ -144,17 +144,14 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
     if (e) e.preventDefault();
     if (!newName && !newRepName) return;
 
-    if (newStatus === "Prospect") {
-      setCreateError("La création de prospect sera disponible avec le contrat de conversion de la Phase 3B.");
-      return;
-    }
-
     const finalName = newType === "Particulier" ? newName : (newName || newRepName);
     setIsCreating(true);
     setCreateError(null);
     try {
       const created = await createCustomer({
         display_name: finalName.trim(),
+        lifecycle_status: newStatus === "Prospect" ? "prospect" : "client",
+        party_type: newType === "Entreprise" ? "company" : "individual",
         email: newEmail,
         phone: newPhone,
         address: newAddress,
@@ -261,7 +258,6 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
                     </label>
                   ))}
                 </div>
-                {newStatus === "Prospect" && <p className="mt-2 text-xs text-amber-700">Le contrat de création prospect sera activé dans le lot Phase 3B.</p>}
               </fieldset>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className={`border-2 rounded-xl p-6 cursor-pointer transition-colors ${newType === 'Particulier' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`} onClick={() => setNewType('Particulier')}>
@@ -707,9 +703,14 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
             />
           </div>
           {canSensitiveWrite ? (
-            <button className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700" onClick={() => { setCreateError(null); setIsAdding(true); }}>
-              Nouveau client
-            </button>
+            <>
+              <button className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700" onClick={() => { setCreateError(null); setNewStatus("Client"); setIsAdding(true); }}>
+                Nouveau client
+              </button>
+              <button className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700" onClick={() => { setCreateError(null); setNewStatus("Prospect"); setIsAdding(true); }}>
+                Nouveau prospect
+              </button>
+            </>
           ) : (
             <span className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-sm" title="Création réservée aux utilisateurs autorisés.">
               Lecture seule

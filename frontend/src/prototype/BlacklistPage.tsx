@@ -3,6 +3,7 @@ import {
   getBlacklistedIntervenants,
   createBlacklistedIntervenant,
   updateBlacklistedIntervenant,
+  deleteBlacklistedIntervenant,
 } from "../api";
 import type { BlacklistedIntervenant } from "../api";
 
@@ -49,6 +50,19 @@ const BlacklistPage: React.FC = () => {
       setFormData({ name: int.name, note: int.note, active: int.is_active });
       setEditingId(id);
       setShowForm(true);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const int = intervenants.find((i) => i.id === id);
+    if (!int) return;
+    if (!window.confirm(`Supprimer "${int.name}" de la liste noire ?`)) return;
+    try {
+      await deleteBlacklistedIntervenant(id);
+      setIntervenants(intervenants.filter((i) => i.id !== id));
+      showToast("Intervenant supprimé de la liste noire", "success");
+    } catch {
+      showToast("Erreur lors de la suppression", "error");
     }
   };
 
@@ -201,6 +215,12 @@ const BlacklistPage: React.FC = () => {
                   onClick={() => handleEdit(int.id)}
                 >
                   Éditer
+                </button>
+                <button
+                  className="text-sm text-slate-500 hover:text-red-600"
+                  onClick={() => handleDelete(int.id)}
+                >
+                  Supprimer
                 </button>
                 <button
                   className="text-sm text-slate-500 hover:text-red-600"
