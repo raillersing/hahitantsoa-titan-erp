@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.notifications.apps.NotificationsConfig",
     "apps.excel_import.apps.ExcelImportConfig",
     "apps.blacklist.apps.BlacklistConfig",
+    "apps.material_package.apps.MaterialPackageConfig",
     "rest_framework",
     "drf_spectacular",
 ]

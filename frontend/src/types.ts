@@ -1008,3 +1008,40 @@ export type ImportJob = {
   target_model: string;
   created_at: string;
 };
+
+// ---- Material Packages ----
+
+export type MaterialPackageLine = {
+  id: string;
+  inventory_item: string;
+  inventory_item_name: string;
+  quantity: number;
+  created_at: string;
+};
+
+export type MaterialPackage = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  is_active: boolean;
+  lines: MaterialPackageLine[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type MaterialPackageCreatePayload = {
+  name: string;
+  description?: string;
+  price?: number;
+  is_active?: boolean;
+  lines?: Array<{ inventory_item: string; quantity: number }>;
+};
+
+export type MaterialPackageUpdatePayload = {
+  name?: string;
+  description?: string;
+  price?: number;
+  is_active?: boolean;
+  lines?: Array<{ inventory_item: string; quantity: number }>;
+};

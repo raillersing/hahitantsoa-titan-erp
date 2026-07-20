@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/v1/notifications/", include("apps.notifications.urls")),
     path("api/v1/import/", include("apps.excel_import.urls")),
     path("api/v1/blacklist/", include("apps.blacklist.urls")),
+    path("api/v1/material-packages/", include("apps.material_package.urls")),
     path("readyz/", readyz, name="readyz"),
     path("metrics/", metrics, name="metrics"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),

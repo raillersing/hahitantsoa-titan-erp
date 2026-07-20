@@ -28,6 +28,9 @@ import type {
   LogisticsEventItemLineCreatePayload,
   LogisticsEventTransitionPayload,
   LogisticsEventUpdatePayload,
+  MaterialPackage,
+  MaterialPackageCreatePayload,
+  MaterialPackageUpdatePayload,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
   ReservationDraftConfirmResult,
@@ -1494,6 +1497,47 @@ export function deleteBlacklistedIntervenant(
   signal?: AbortSignal,
 ): Promise<void> {
   return unsafeAuthenticatedRequest(`/api/v1/blacklist/${id}/`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  }, signal).then(() => undefined);
+}
+
+// ---- Material Packages (/api/v1/material-packages/) ----
+
+export function getMaterialPackages(
+  signal?: AbortSignal,
+): Promise<MaterialPackage[]> {
+  return getAuthenticatedJson("/api/v1/material-packages/", signal);
+}
+
+export function getMaterialPackage(
+  id: string,
+  signal?: AbortSignal,
+): Promise<MaterialPackage> {
+  return getAuthenticatedJson(`/api/v1/material-packages/${id}/`, signal);
+}
+
+export function createMaterialPackage(
+  payload: MaterialPackageCreatePayload,
+  signal?: AbortSignal,
+): Promise<MaterialPackage> {
+  return postAuthenticatedJson("/api/v1/material-packages/", payload, signal);
+}
+
+export function updateMaterialPackage(
+  id: string,
+  payload: MaterialPackageUpdatePayload,
+  signal?: AbortSignal,
+): Promise<MaterialPackage> {
+  return patchAuthenticatedJson(`/api/v1/material-packages/${id}/`, payload, signal);
+}
+
+export function deleteMaterialPackage(
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return unsafeAuthenticatedRequest(`/api/v1/material-packages/${id}/`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: "{}",

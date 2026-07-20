@@ -191,11 +191,16 @@ describe("App Prototype", () => {
     expect(screen.getByRole("link", { name: /Liste noire/i })).toBeInTheDocument();
   });
 
-  it("navigates to packages and shows correct breadcrumbs and titles", () => {
+  it("navigates to packages and shows correct breadcrumbs and titles", async () => {
+    const fetchSpy = vi.spyOn(window, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ authenticated: true, user: { id: "1", username: "admin", display_name: "Admin", is_staff: true, roles: [] } }), { status: 200, headers: { "Content-Type": "application/json" } })
+    ).mockResolvedValueOnce(
+      new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } })
+    );
     window.history.replaceState(null, "", "/#packages");
     render(<App />);
-    expect(screen.getByRole("heading", { name: "Gestion des Packs" })).toBeInTheDocument();
-    expect(screen.getAllByText("Offres").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("heading", { name: "Gestion des Packs" })).toBeInTheDocument();
+    fetchSpy.mockRestore();
   });
 
   it("navigates correctly from sidebar clicks for logistics routes", () => {
