@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
+import { LoadingSpinner } from '../components';
 import { getReservationDrafts, getInventoryItems, getBillingInvoices, getNotifications, ApiError } from "../api";
 import type { ReservationDraft, InventoryItem, BillingInvoice, SystemNotification } from "../types";
 
@@ -139,50 +140,7 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
 
   // Loading skeleton
   if (loading) {
-    return (
-      <div className="page active">
-        <div className="template-extra-actions flex flex-wrap gap-2 mb-6">
-          {canSensitiveWrite && (
-            <button className="px-4 py-2 bg-hah-600 text-white rounded-lg text-sm font-medium opacity-50" disabled>
-              <i className="fas fa-plus mr-2"></i>Nouvelle réservation
-            </button>
-          )}
-          <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium opacity-50" disabled>
-            <i className="fas fa-calendar mr-2"></i>Ouvrir le planning
-          </button>
-          <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium opacity-50" disabled>
-            <i className="fas fa-chart-bar mr-2 text-blue-500"></i>Voir les rapports
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 animate-pulse">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-slate-200"></div>
-                <div className="w-16 h-6 bg-slate-100 rounded-full"></div>
-              </div>
-              <div className="h-8 w-20 bg-slate-200 rounded mb-2"></div>
-              <div className="h-4 w-36 bg-slate-100 rounded"></div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-6">
-            <div className="h-6 w-48 bg-slate-200 rounded mb-6 animate-pulse"></div>
-            <div className="h-64 bg-slate-100 rounded-xl animate-pulse"></div>
-          </div>
-          <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <div className="h-5 w-40 bg-slate-200 rounded mb-4 animate-pulse"></div>
-            <div className="space-y-3">
-              <div className="h-16 bg-slate-100 rounded-xl animate-pulse"></div>
-              <div className="h-16 bg-slate-100 rounded-xl animate-pulse"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Chargement du tableau de bord…" />;
   }
 
   // Error state

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { EmptyState, LoadingSpinner } from "../components";
 import { getInventoryItems } from "../api";
 import type { InventoryItem, InventoryItemKind } from "../types";
 
@@ -95,10 +96,7 @@ export default function InventoryPage({ onNavigate, canSensitiveWrite = false }:
 
       {/* Loading state */}
       {loading && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
-          <i className="fas fa-spinner fa-spin text-4xl text-slate-300 dark:text-slate-600 mb-4"></i>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Chargement du catalogue…</p>
-        </div>
+        <LoadingSpinner size="lg" message="Chargement du catalogue…" />
       )}
 
       {/* Error state */}
@@ -123,10 +121,10 @@ export default function InventoryPage({ onNavigate, canSensitiveWrite = false }:
 
       {/* Empty state */}
       {!loading && !error && filteredData.length === 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
-          <i className="fas fa-search text-4xl text-slate-300 dark:text-slate-600 mb-4"></i>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">Aucun article trouvé dans cette catégorie.</p>
-        </div>
+        <EmptyState
+          message="Aucun article trouvé dans cette catégorie."
+          icon="fa-search"
+        />
       )}
 
       {/* Grid views */}

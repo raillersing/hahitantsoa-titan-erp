@@ -43,6 +43,7 @@ import HRPayrollPage from "./prototype/HRPayrollPage";
 import MobileTabletPage from "./prototype/MobileTabletPage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
 import { capabilitiesForUser } from "./capabilities";
+import ErrorBoundary from "./ErrorBoundary";
 
 export type { AppScope } from "./app-routes";
 
@@ -234,19 +235,21 @@ function App() {
       onLogout={logout}
     >
       <section ref={routeContentRef} tabIndex={-1} className="min-w-0 outline-none" data-testid="route-content">
-        {deniedRoute ? (
-          <section className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm" role="alert">
-            <h1 className="text-xl font-bold">Accès non autorisé</h1>
-            <p className="mt-2">Votre session ne dispose pas de la capacité nécessaire pour ouvrir cette page.</p>
-            <button
-              type="button"
-              className="mt-4 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white"
-              onClick={() => navigate("dashboard")}
-            >
-              Retour au tableau de bord
-            </button>
-          </section>
-        ) : renderKnownRoute(effectiveRoute.scope)}
+        <ErrorBoundary>
+          {deniedRoute ? (
+            <section className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm" role="alert">
+              <h1 className="text-xl font-bold">Accès non autorisé</h1>
+              <p className="mt-2">Votre session ne dispose pas de la capacité nécessaire pour ouvrir cette page.</p>
+              <button
+                type="button"
+                className="mt-4 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white"
+                onClick={() => navigate("dashboard")}
+              >
+                Retour au tableau de bord
+              </button>
+            </section>
+          ) : renderKnownRoute(effectiveRoute.scope)}
+        </ErrorBoundary>
       </section>
     </AppShell>
   );

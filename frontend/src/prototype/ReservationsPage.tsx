@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AppScope } from "../App";
+import { EmptyState, LoadingSpinner } from "../components";
 import { getReservationDrafts } from "../api";
 import type { ReservationDraft } from "../types";
 
@@ -143,10 +144,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
       </div>
 
       {loading && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-          <i className="fa-solid fa-spinner fa-spin text-2xl text-indigo-500 mb-3"></i>
-          <p className="text-sm text-slate-500">Chargement des réservations...</p>
-        </div>
+        <LoadingSpinner message="Chargement des réservations..." />
       )}
 
       {error && (
@@ -202,8 +200,11 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
-                    Aucune réservation ne correspond à votre recherche.
+                  <td colSpan={5} className="px-4 py-8">
+                    <EmptyState
+                      message="Aucune réservation ne correspond à votre recherche."
+                      icon="fa-calendar-xmark"
+                    />
                   </td>
                 </tr>
               )}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { EmptyState, LoadingSpinner } from "../components";
 import { getEmployees, createEmployee, deleteEmployee } from "../api";
 import type { Employee, EmployeeCreatePayload } from "../types";
 
@@ -221,13 +222,13 @@ export default function HRPage({ onNavigate }: HRPageProps) {
           </h3>
         </div>
         {loading ? (
-          <div className="p-12 text-center text-slate-400">
-            <i className="fas fa-spinner fa-spin mr-2"></i>Chargement…
-          </div>
+          <LoadingSpinner message="Chargement…" />
         ) : employees.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
-            <i className="fas fa-user-slash text-3xl mb-3 block"></i>
-            Aucun employé enregistré.
+          <div className="p-12">
+            <EmptyState
+              message="Aucun employé enregistré."
+              icon="fa-user-slash"
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">

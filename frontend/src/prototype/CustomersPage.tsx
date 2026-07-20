@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ApiError, createCustomer, getCustomers } from "../api";
 import type { Customer as ApiCustomer } from "../types";
 import type { Client } from "../types";
+import { EmptyState, LoadingSpinner } from "../components";
 import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 
 interface CustomersPageProps {
@@ -717,7 +718,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
         </div>
       </div>
 
-      {isLoading && <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Chargement des fiches clients…</div>}
+      {isLoading && <LoadingSpinner size="sm" message="Chargement des fiches clients…" />}
       {loadError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center justify-between"><span>{loadError}</span><button className="underline font-semibold" onClick={() => void loadCustomers()}>Réessayer</button></div>}
 
       {/* Filters */}
@@ -747,7 +748,12 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
           <tbody className="divide-y divide-slate-100">
             {filteredClients.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-slate-500">Aucun résultat trouvé.</td>
+                <td colSpan={5} className="py-8">
+                  <EmptyState
+                    message="Aucun résultat trouvé."
+                    icon="fa-users"
+                  />
+                </td>
               </tr>
             )}
             {filteredClients.map(client => {

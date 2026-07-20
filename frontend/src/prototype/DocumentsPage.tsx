@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AppScope } from "../App";
+import { EmptyState } from "../components";
 import { DocumentPreview } from "./DocumentPreview";
 import { getDocumentTemplates } from "../api";
 import { DocumentTemplateDefinition } from "../types";
@@ -553,9 +554,11 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                 <tbody className="divide-y divide-slate-100 text-sm bg-white">
                   {filteredTemplates.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-500">
-                        <i className="fas fa-folder-open text-4xl mb-4 text-slate-300 block"></i>
-                        Aucun modèle ne correspond à votre recherche.
+                      <td colSpan={5} className="py-12">
+                        <EmptyState
+                          message="Aucun modèle ne correspond à votre recherche."
+                          icon="fa-folder-open"
+                        />
                       </td>
                     </tr>
                   ) : (
