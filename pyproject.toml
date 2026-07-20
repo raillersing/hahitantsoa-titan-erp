@@ -12,6 +12,7 @@ dependencies = [
     "djangorestframework>=3.17,<3.18",
     "drf-spectacular>=0.29,<0.30",
     "psycopg[binary]>=3.2,<4",
+    "weasyprint>=63,<64",
 ]
 
 [project.optional-dependencies]

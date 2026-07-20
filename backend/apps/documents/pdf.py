@@ -64,7 +64,13 @@ def get_pdf_generator() -> DocumentPDFGenerator:
 
     class_path = getattr(settings, "DOCUMENT_PDF_GENERATOR_CLASS", None)
     if class_path is None:
-        return MockPDFGenerator()
+        # Auto-detect: prefer WeasyPrint if available, fall back to mock
+        try:
+            from apps.documents.pdf_weasy import WeasyPrintPDFGenerator
+
+            return WeasyPrintPDFGenerator()
+        except ImportError:
+            return MockPDFGenerator()
     try:
         generator_class = import_string(class_path)
         return generator_class()
@@ -73,6 +79,30 @@ def get_pdf_generator() -> DocumentPDFGenerator:
             f"Failed to load PDF generator class '{class_path}': {error}",
             code="pdf_generator_load_failed",
         ) from error
+
+
+class WeasyPrintPDFGenerator(DocumentPDFGenerator):
+    """Production PDF generator using WeasyPrint.
+
+    Requires WeasyPrint and its system dependencies (Cairo, Pango).
+    """
+
+    def generate_pdf(self, html_content: str) -> bytes:
+        try:
+            from weasyprint import HTML
+
+            doc = HTML(string=html_content)
+            return doc.write_pdf()
+        except ImportError as error:
+            raise DocumentPDFGenerationError(
+                "WeasyPrint is not installed. Install it with: pip install weasyprint",
+                code="weasyprint_not_installed",
+            ) from error
+        except Exception as error:
+            raise DocumentPDFGenerationError(
+                f"PDF generation failed: {error}",
+                code="pdf_generation_failed",
+            ) from error
 
 
 def calculate_pdf_checksum(pdf_content: bytes) -> str:

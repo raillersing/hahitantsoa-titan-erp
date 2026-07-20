@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ document_title }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm 15mm 25mm 15mm;
+    }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 11pt;
+      color: #1a1a1a;
+      line-height: 1.5;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #1e293b;
+      padding-bottom: 15px;
+    }
+    .header h1 {
+      font-size: 18pt;
+      color: #1e293b;
+      margin: 0 0 5px 0;
+    }
+    .header .subtitle {
+      font-size: 10pt;
+      color: #64748b;
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .meta-block {
+      width: 48%;
+    }
+    .meta-block h3 {
+      font-size: 9pt;
+      text-transform: uppercase;
+      color: #64748b;
+      margin: 0 0 5px 0;
+      letter-spacing: 0.5px;
+    }
+    .meta-block p {
+      margin: 2px 0;
+      font-size: 10pt;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    thead th {
+      background: #1e293b;
+      color: white;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 9pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    tbody td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 10pt;
+    }
+    tbody tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .amount {
+      text-align: right;
+      font-weight: bold;
+    }
+    .totals {
+      margin-top: 20px;
+      text-align: right;
+    }
+    .totals table {
+      width: 50%;
+      margin-left: auto;
+    }
+    .totals td {
+      padding: 5px 10px;
+    }
+    .totals .total-row td {
+      border-top: 2px solid #1e293b;
+      font-weight: bold;
+      font-size: 12pt;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 8pt;
+      color: #94a3b8;
+      text-align: center;
+    }
+    .notes {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f8fafc;
+      border-left: 3px solid #1e293b;
+      font-size: 9pt;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{ document_title }}</h1>
+    <div class="subtitle">{{ document_subtitle }}</div>
+  </div>
+
+  <div class="meta">
+    <div class="meta-block">
+      <h3>Émetteur</h3>
+      <p><strong>{{ issuer_name }}</strong></p>
+      {% if issuer_address %}<p>{{ issuer_address }}</p>{% endif %}
+      {% if issuer_phone %}<p>{{ issuer_phone }}</p>{% endif %}
+    </div>
+    <div class="meta-block">
+      <h3>Client</h3>
+      <p><strong>{{ customer_name }}</strong></p>
+      {% if customer_address %}<p>{{ customer_address }}</p>{% endif %}
+      {% if customer_phone %}<p>{{ customer_phone }}</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="meta">
+    <div class="meta-block">
+      <h3>Référence</h3>
+      <p><strong>{{ reference }}</strong></p>
+    </div>
+    <div class="meta-block">
+      <h3>Date</h3>
+      <p>{{ document_date }}</p>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Désignation</th>
+        <th>Qté</th>
+        <th class="amount">Prix unitaire</th>
+        <th class="amount">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ line.label }}</td>
+        <td>{{ line.quantity }}</td>
+        <td class="amount">{{ line.unit_priceFormatted }}</td>
+        <td class="amount">{{ line.totalFormatted }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <table>
+      <tr>
+        <td>Sous-total HT</td>
+        <td class="amount">{{ subtotalFormatted }}</td>
+      </tr>
+      {% if tax_rate %}
+      <tr>
+        <td>TVA ({{ tax_rate }}%)</td>
+        <td class="amount">{{ taxAmountFormatted }}</td>
+      </tr>
+      {% endif %}
+      <tr class="total-row">
+        <td>Total TTC</td>
+        <td class="amount">{{ totalFormatted }}</td>
+      </tr>
+    </table>
+  </div>
+
+  {% if notes %}
+  <div class="notes">
+    <strong>Notes :</strong> {{ notes }}
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    {{ footer_text }}
+  </div>
+</body>
+</html>

@@ -7,6 +7,18 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# System dependencies for WeasyPrint (HTML-to-PDF)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libgdk-pixbuf2.0-0 \
+        libcairo2 \
+        libffi-dev \
+        libglib2.0-0 \
+        shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml /app/
 COPY backend/config/ /app/backend/config/
 
