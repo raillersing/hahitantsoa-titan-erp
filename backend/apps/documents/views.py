@@ -361,3 +361,58 @@ class DocumentInstancePDFRetrieveAPIView(APIView):
         response = FileResponse(pdf_file, content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="{instance.template_key}-{id}.pdf"'
         return response
+
+
+class DocumentTemplateCRUDListCreateAPIView(ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        from apps.documents.serializers import DocumentTemplateCRUDSerializer
+
+        return DocumentTemplateCRUDSerializer
+
+    def get_queryset(self):
+        from apps.documents.models import DocumentTemplate
+
+        return DocumentTemplate.objects.all()
+
+
+class DocumentTemplateVersionListCreateAPIView(ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        from apps.documents.serializers import DocumentTemplateVersionSerializer
+
+        return DocumentTemplateVersionSerializer
+
+    def get_queryset(self):
+        from apps.documents.models import DocumentTemplateVersion
+
+        qs = DocumentTemplateVersion.objects.all()
+        template_id = self.request.query_params.get("template")
+        if template_id:
+            qs = qs.filter(template_id=template_id)
+        return qs
+
+
+class DocumentTemplateVersionActivateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, id):
+        from django.shortcuts import get_object_or_404
+
+        from apps.documents.models import DocumentTemplateVersion
+
+        version = get_object_or_404(DocumentTemplateVersion, pk=id)
+        # Deactivate all other versions of the same template
+        DocumentTemplateVersion.objects.filter(template=version.template).exclude(
+            pk=version.pk
+        ).update(status="archived")
+        version.status = "active"
+        version.save(update_fields=["status", "updated_at"])
+        from apps.documents.serializers import DocumentTemplateVersionSerializer
+
+        return Response(DocumentTemplateVersionSerializer(version).data)

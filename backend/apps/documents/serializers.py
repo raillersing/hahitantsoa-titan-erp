@@ -2,7 +2,7 @@ from dataclasses import asdict
 
 from rest_framework import serializers
 
-from apps.documents.models import DocumentInstance
+from apps.documents.models import DocumentInstance, DocumentTemplate, DocumentTemplateVersion
 from apps.documents.registry import DocumentTemplateDefinition
 from apps.documents.services import get_supported_reservation_draft_document_template_keys
 
@@ -134,3 +134,37 @@ class DocumentInstancePDFSerializer(serializers.Serializer):
     pdf_storage_path = serializers.CharField()
     pdf_generated_at = serializers.DateTimeField()
     pdf_content_checksum = serializers.CharField()
+
+
+class DocumentTemplateCRUDSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentTemplate
+        fields = (
+            "id",
+            "code",
+            "name",
+            "description",
+            "family",
+            "business_scope",
+            "document_type",
+            "status",
+        )
+        read_only_fields = ("id",)
+
+
+class DocumentTemplateVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocumentTemplateVersion
+        fields = (
+            "id",
+            "template",
+            "version",
+            "status",
+            "body_html",
+            "header_html",
+            "footer_html",
+            "css",
+            "variables_schema",
+            "created_at",
+        )
+        read_only_fields = ("id", "created_at")

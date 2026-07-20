@@ -3,8 +3,11 @@ from django.urls import path
 from apps.documents.views import (
     DocumentInstancePDFRetrieveAPIView,
     DocumentInstancePrivateArtifactAPIView,
+    DocumentTemplateCRUDListCreateAPIView,
     DocumentTemplateDefinitionAPIView,
     DocumentTemplateRegistryAPIView,
+    DocumentTemplateVersionActivateAPIView,
+    DocumentTemplateVersionListCreateAPIView,
     ReservationDraftDocumentInstanceGenerateAPIView,
     ReservationDraftDocumentInstanceListCreateAPIView,
     ReservationDraftDocumentInstancePDFGenerateAPIView,
@@ -57,5 +60,20 @@ urlpatterns = [
         "instances/<uuid:id>/pdf/",
         DocumentInstancePDFRetrieveAPIView.as_view(),
         name="document-instance-pdf-retrieve",
+    ),
+    path(
+        "document-templates/",
+        DocumentTemplateCRUDListCreateAPIView.as_view(),
+        name="document-template-crud-list",
+    ),
+    path(
+        "document-template-versions/",
+        DocumentTemplateVersionListCreateAPIView.as_view(),
+        name="document-template-version-list",
+    ),
+    path(
+        "document-template-versions/<uuid:id>/activate/",
+        DocumentTemplateVersionActivateAPIView.as_view(),
+        name="document-template-version-activate",
     ),
 ]

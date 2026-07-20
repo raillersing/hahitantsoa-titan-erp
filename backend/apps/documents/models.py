@@ -125,3 +125,77 @@ class DocumentInstance(UUIDModel, TimestampedModel):
 
     def __str__(self) -> str:
         return f"{self.template_key} - {self.reservation_public_reference}"
+
+
+class DocumentTemplateStatus(models.TextChoices):
+    DRAFT = "draft", "draft"
+    ACTIVE = "active", "active"
+    ARCHIVED = "archived", "archived"
+
+
+DOCUMENT_TEMPLATE_STATUS_VALUES = [s.value for s in DocumentTemplateStatus]
+
+
+class DocumentTemplate(UUIDModel, TimestampedModel):
+    code = models.CharField(max_length=128, unique=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    family = models.CharField(max_length=128, blank=True, default="")
+    business_scope = models.CharField(max_length=32)
+    document_type = models.CharField(max_length=128)
+    status = models.CharField(
+        max_length=32,
+        choices=DocumentTemplateStatus.choices,
+        default=DocumentTemplateStatus.DRAFT,
+    )
+
+    class Meta:
+        ordering = ["code", "id"]
+        verbose_name = "Document template"
+        verbose_name_plural = "Document templates"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status__in=DOCUMENT_TEMPLATE_STATUS_VALUES),
+                name="document_template_status_allowed",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.code} ({self.name})"
+
+
+class DocumentTemplateVersion(UUIDModel, TimestampedModel):
+    template = models.ForeignKey(
+        DocumentTemplate,
+        on_delete=models.CASCADE,
+        related_name="versions",
+    )
+    version = models.CharField(max_length=32)
+    status = models.CharField(
+        max_length=32,
+        choices=DocumentTemplateStatus.choices,
+        default=DocumentTemplateStatus.DRAFT,
+    )
+    body_html = models.TextField(blank=True, default="")
+    header_html = models.TextField(blank=True, default="")
+    footer_html = models.TextField(blank=True, default="")
+    css = models.TextField(blank=True, default="")
+    variables_schema = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["template", "version", "id"]
+        verbose_name = "Document template version"
+        verbose_name_plural = "Document template versions"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status__in=DOCUMENT_TEMPLATE_STATUS_VALUES),
+                name="document_template_version_status_allowed",
+            ),
+            models.UniqueConstraint(
+                fields=["template", "version"],
+                name="document_template_version_unique_per_template",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.template.code} v{self.version}"
