@@ -1046,6 +1046,48 @@ export type MaterialPackageUpdatePayload = {
   lines?: Array<{ inventory_item: string; quantity: number }>;
 };
 
+// ---- Procurement ----
+
+export type PurchaseOrderStatus = "pending" | "received" | "cancelled";
+
+export type PurchaseOrder = {
+  id: string;
+  reference: string;
+  supplier_name: string;
+  subject: string;
+  amount: string;
+  status: PurchaseOrderStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PurchaseOrderCreatePayload = {
+  supplier_name: string;
+  subject?: string;
+  amount: string;
+  status?: PurchaseOrderStatus;
+  notes?: string;
+};
+
+export type QuickExpenseCategory = "office" | "transport" | "catering" | "maintenance" | "other";
+
+export type QuickExpense = {
+  id: string;
+  amount: string;
+  category: QuickExpenseCategory;
+  description: string;
+  recorded_by: string;
+  recorded_by_display: string;
+  created_at: string;
+};
+
+export type QuickExpenseCreatePayload = {
+  amount: string;
+  category?: QuickExpenseCategory;
+  description?: string;
+};
+
 // ---- Legacy Client type (from mockData, kept for backward compatibility) ----
 
 export type Client = {
@@ -1080,4 +1122,95 @@ export type Client = {
   reservationCount?: number;
   eventCount?: number;
   documentCount?: number;
+};
+
+// ---- HR & Payroll ----
+
+export type EmployeeStatus = "active" | "on_leave" | "inactive";
+
+export type Employee = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  role: string;
+  status: EmployeeStatus;
+  assignment: string;
+  salary: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EmployeeCreatePayload = {
+  first_name: string;
+  last_name: string;
+  role: string;
+  status?: EmployeeStatus;
+  assignment?: string;
+  salary?: number;
+};
+
+export type EmployeeUpdatePayload = Partial<EmployeeCreatePayload>;
+
+export type PaySlipStatus = "draft" | "validated" | "paid";
+
+export type PaySlip = {
+  id: string;
+  employee: string;
+  employee_name: string;
+  period: string;
+  gross_salary: number;
+  deductions: number;
+  net_salary: number;
+  status: PaySlipStatus;
+  created_at: string;
+};
+
+export type PaySlipCreatePayload = {
+  employee: string;
+  period: string;
+  gross_salary?: number;
+  deductions?: number;
+  net_salary?: number;
+  status?: PaySlipStatus;
+};
+
+export type AdvanceRequestStatus = "pending" | "approved" | "rejected";
+
+export type AdvanceRequest = {
+  id: string;
+  employee: string;
+  employee_name: string;
+  amount: number;
+  reason: string;
+  status: AdvanceRequestStatus;
+  created_at: string;
+};
+
+export type AdvanceRequestCreatePayload = {
+  employee: string;
+  amount: number;
+  reason?: string;
+  status?: AdvanceRequestStatus;
+};
+
+export type LeaveRequestStatus = "pending" | "approved" | "rejected";
+
+export type LeaveRequest = {
+  id: string;
+  employee: string;
+  employee_name: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: LeaveRequestStatus;
+  created_at: string;
+};
+
+export type LeaveRequestCreatePayload = {
+  employee: string;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+  status?: LeaveRequestStatus;
 };

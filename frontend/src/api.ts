@@ -1543,3 +1543,220 @@ export function deleteMaterialPackage(
     body: "{}",
   }, signal).then(() => undefined);
 }
+
+// ---- HR & Payroll (/api/v1/hr/) ----
+
+import type {
+  Employee,
+  EmployeeCreatePayload,
+  PaySlip,
+  PaySlipCreatePayload,
+  AdvanceRequest,
+  AdvanceRequestCreatePayload,
+  LeaveRequest,
+  LeaveRequestCreatePayload,
+} from "./types";
+
+export function getEmployees(
+  params?: { status?: string; role?: string; assignment?: string },
+  signal?: AbortSignal,
+): Promise<Employee[]> {
+  let url = "/api/v1/hr/employees/";
+  if (params) {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set("status", params.status);
+    if (params.role) qs.set("role", params.role);
+    if (params.assignment) qs.set("assignment", params.assignment);
+    const qsStr = qs.toString();
+    if (qsStr) url += `?${qsStr}`;
+  }
+  return getAuthenticatedJson(url, signal);
+}
+
+export function getEmployee(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Employee> {
+  return getAuthenticatedJson(`/api/v1/hr/employees/${id}/`, signal);
+}
+
+export function createEmployee(
+  payload: EmployeeCreatePayload,
+  signal?: AbortSignal,
+): Promise<Employee> {
+  return postAuthenticatedJson("/api/v1/hr/employees/", payload, signal);
+}
+
+export function updateEmployee(
+  id: string,
+  payload: Partial<EmployeeCreatePayload>,
+  signal?: AbortSignal,
+): Promise<Employee> {
+  return patchAuthenticatedJson(`/api/v1/hr/employees/${id}/`, payload, signal);
+}
+
+export async function deleteEmployee(
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await unsafeAuthenticatedRequest(`/api/v1/hr/employees/${id}/`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  }, signal);
+}
+
+export function getPaySlips(
+  params?: { employee?: string; period?: string },
+  signal?: AbortSignal,
+): Promise<PaySlip[]> {
+  let url = "/api/v1/hr/payslips/";
+  if (params) {
+    const qs = new URLSearchParams();
+    if (params.employee) qs.set("employee", params.employee);
+    if (params.period) qs.set("period", params.period);
+    const qsStr = qs.toString();
+    if (qsStr) url += `?${qsStr}`;
+  }
+  return getAuthenticatedJson(url, signal);
+}
+
+export function createPaySlip(
+  payload: PaySlipCreatePayload,
+  signal?: AbortSignal,
+): Promise<PaySlip> {
+  return postAuthenticatedJson("/api/v1/hr/payslips/", payload, signal);
+}
+
+export function getAdvanceRequests(
+  params?: { employee?: string; status?: string },
+  signal?: AbortSignal,
+): Promise<AdvanceRequest[]> {
+  let url = "/api/v1/hr/advances/";
+  if (params) {
+    const qs = new URLSearchParams();
+    if (params.employee) qs.set("employee", params.employee);
+    if (params.status) qs.set("status", params.status);
+    const qsStr = qs.toString();
+    if (qsStr) url += `?${qsStr}`;
+  }
+  return getAuthenticatedJson(url, signal);
+}
+
+export function createAdvanceRequest(
+  payload: AdvanceRequestCreatePayload,
+  signal?: AbortSignal,
+): Promise<AdvanceRequest> {
+  return postAuthenticatedJson("/api/v1/hr/advances/", payload, signal);
+}
+
+export function getLeaveRequests(
+  params?: { employee?: string; status?: string },
+  signal?: AbortSignal,
+): Promise<LeaveRequest[]> {
+  let url = "/api/v1/hr/leaves/";
+  if (params) {
+    const qs = new URLSearchParams();
+    if (params.employee) qs.set("employee", params.employee);
+    if (params.status) qs.set("status", params.status);
+    const qsStr = qs.toString();
+    if (qsStr) url += `?${qsStr}`;
+  }
+  return getAuthenticatedJson(url, signal);
+}
+
+export function createLeaveRequest(
+  payload: LeaveRequestCreatePayload,
+  signal?: AbortSignal,
+): Promise<LeaveRequest> {
+  return postAuthenticatedJson("/api/v1/hr/leaves/", payload, signal);
+}
+
+// ---- Procurement (/api/v1/procurement/) ----
+
+import type {
+  PurchaseOrder,
+  PurchaseOrderCreatePayload,
+  QuickExpense,
+  QuickExpenseCreatePayload,
+} from "./types";
+
+export function getPurchaseOrders(
+  params?: { status?: string },
+  signal?: AbortSignal,
+): Promise<PurchaseOrder[]> {
+  let url = "/api/v1/procurement/purchase-orders/";
+  if (params?.status) {
+    url += `?status=${encodeURIComponent(params.status)}`;
+  }
+  return getAuthenticatedJson(url, signal);
+}
+
+export function getPurchaseOrder(
+  id: string,
+  signal?: AbortSignal,
+): Promise<PurchaseOrder> {
+  return getAuthenticatedJson(`/api/v1/procurement/purchase-orders/${id}/`, signal);
+}
+
+export function createPurchaseOrder(
+  payload: PurchaseOrderCreatePayload,
+  signal?: AbortSignal,
+): Promise<PurchaseOrder> {
+  return postAuthenticatedJson("/api/v1/procurement/purchase-orders/", payload, signal);
+}
+
+export function updatePurchaseOrder(
+  id: string,
+  payload: Partial<PurchaseOrderCreatePayload>,
+  signal?: AbortSignal,
+): Promise<PurchaseOrder> {
+  return patchAuthenticatedJson(`/api/v1/procurement/purchase-orders/${id}/`, payload, signal);
+}
+
+export async function deletePurchaseOrder(
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await unsafeAuthenticatedRequest(`/api/v1/procurement/purchase-orders/${id}/`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  }, signal);
+}
+
+export function getExpenses(
+  params?: { category?: string },
+  signal?: AbortSignal,
+): Promise<QuickExpense[]> {
+  let url = "/api/v1/procurement/expenses/";
+  if (params?.category) {
+    url += `?category=${encodeURIComponent(params.category)}`;
+  }
+  return getAuthenticatedJson(url, signal);
+}
+
+export function getExpense(
+  id: string,
+  signal?: AbortSignal,
+): Promise<QuickExpense> {
+  return getAuthenticatedJson(`/api/v1/procurement/expenses/${id}/`, signal);
+}
+
+export function createExpense(
+  payload: QuickExpenseCreatePayload,
+  signal?: AbortSignal,
+): Promise<QuickExpense> {
+  return postAuthenticatedJson("/api/v1/procurement/expenses/", payload, signal);
+}
+
+export async function deleteExpense(
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await unsafeAuthenticatedRequest(`/api/v1/procurement/expenses/${id}/`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  }, signal);
+}

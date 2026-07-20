@@ -36,7 +36,10 @@ import VenuesPage from "./prototype/VenuesPage";
 import AdminPage from "./prototype/AdminPage";
 import DocumentsPage from "./prototype/DocumentsPage";
 import AgendaVisitorsPage from "./prototype/AgendaVisitorsPage";
+import ProcurementPage from "./prototype/ProcurementPage";
 import ProfilePage from "./prototype/ProfilePage";
+import HRPage from "./prototype/HRPage";
+import HRPayrollPage from "./prototype/HRPayrollPage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
 import { capabilitiesForUser } from "./capabilities";
 
@@ -209,7 +212,8 @@ function App() {
       case "login": return <DashboardPage onNavigate={navigate} />;
       case "notifications": return <NotificationsPage onNavigate={navigate} />;
       case "import-excel": return <ImportExcelPage onNavigate={navigate} />;
-      case "hr-payroll":
+      case "hr": return <HRPage onNavigate={navigate} />;
+      case "hr-payroll": return <HRPayrollPage onNavigate={navigate} />;
       case "purchasing":
       case "mobile-tablet":
         return (

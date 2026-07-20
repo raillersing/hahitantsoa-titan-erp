@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     "apps.excel_import.apps.ExcelImportConfig",
     "apps.blacklist.apps.BlacklistConfig",
     "apps.material_package.apps.MaterialPackageConfig",
+    "apps.hr_payroll.apps.HrPayrollConfig",
+    "apps.procurement.apps.ProcurementConfig",
     "rest_framework",
     "drf_spectacular",
 ]
