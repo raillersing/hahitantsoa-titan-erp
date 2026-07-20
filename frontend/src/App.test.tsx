@@ -165,16 +165,16 @@ describe("App Prototype", () => {
     fetchSpy.mockRestore();
   });
 
-  it("does not call /api/v1/inventory/items on inventory-item", () => {
+  it("calls the inventory API on inventory-item to fetch item detail and movements", () => {
     const fetchSpy = vi.spyOn(window, "fetch");
     window.history.replaceState(null, "", "/#inventory-item/ITEM-001");
     render(<App />);
     
-    // Provide a mocked router to set the hash to inventory-item
+    // The inventory-item page now fetches item detail and stock movements from the backend
     const inventoryCalls = fetchSpy.mock.calls.filter((call: any[]) =>
       typeof call[0] === 'string' && call[0].includes("/api/v1/inventory/items")
     );
-    expect(inventoryCalls.length).toBe(0);
+    expect(inventoryCalls.length).toBeGreaterThanOrEqual(1);
     fetchSpy.mockRestore();
   });
   it("shows all logistics routes in the sidebar", () => {

@@ -1,11 +1,43 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AppScope } from "../App";
-import {
-  mockDocumentTemplates,
-  MockCommercialDocumentTemplate,
-} from "./mockData";
 import { DocumentPreview } from "./DocumentPreview";
 import { getDocumentTemplates } from "../api";
+import { DocumentTemplateDefinition } from "../types";
+
+/** Local template model used by the editor UI */
+interface TemplateModel {
+  id: string;
+  name: string;
+  code: string;
+  family: string;
+  volet: string;
+  type: string;
+  description: string;
+  content: string;
+  variables: string[];
+  version: number;
+  status: string;
+  lastModified: string;
+  author: string;
+}
+
+function mapDefinitionToTemplate(def: DocumentTemplateDefinition, idx: number): TemplateModel {
+  return {
+    id: `tmpl-api-${def.key || idx}`,
+    name: def.label || def.key || `Modèle ${idx + 1}`,
+    code: def.key?.toUpperCase() || `TMPL-${idx + 1}`,
+    family: "Documents commerciaux",
+    volet: def.business_scope === "titan" ? "Titan" : def.business_scope === "hahitantsoa" ? "Hahitantsoa" : "Commun",
+    type: def.document_type || "Contrat",
+    description: def.notes || `Modèle ${def.document_type} ${def.business_scope}`,
+    content: "[]",
+    variables: [],
+    version: parseFloat(def.version) || 1,
+    status: def.status === "active" ? "Actif" : "Brouillon",
+    lastModified: new Date().toISOString().split("T")[0],
+    author: "Système",
+  };
+}
 
 const VARIABLE_DICTIONARY = [
   { key: 'client.name', label: 'Nom complet du client', desc: 'Nom complet du client' },
@@ -67,14 +99,15 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [activeTab, setActiveTab] = useState("templates");
   const [editorTab, setEditorTab] = useState("1. Informations générales");
-  const [templates, setTemplates] = useState<MockCommercialDocumentTemplate[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [templates, setTemplates] = useState<TemplateModel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [voletFilter, setVoletFilter] = useState("Tous");
   const [typeFilter, setTypeFilter] = useState("Tous");
 
-  const [currentDoc, setCurrentDoc] = useState<Partial<MockCommercialDocumentTemplate> | null>(null);
+  const [currentDoc, setCurrentDoc] = useState<Partial<TemplateModel> | null>(null);
   const [blocks, setBlocks] = useState<any[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -145,46 +178,29 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
     let isSubscribed = true;
     const controller = new AbortController();
 
-    const loadInitialTemplates = () => {
-      const saved = localStorage.getItem("mock_templates");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          return mockDocumentTemplates;
-        }
-      }
-      return mockDocumentTemplates;
-    };
-
-    const initial = loadInitialTemplates();
-    setTemplates(initial);
-    setIsLoaded(true);
+    setLoading(true);
+    setApiError(null);
 
     getDocumentTemplates(controller.signal)
       .then((apiDefs) => {
         if (!isSubscribed) return;
         if (Array.isArray(apiDefs) && apiDefs.length > 0) {
-          const mapped: MockCommercialDocumentTemplate[] = apiDefs.map((def, idx) => ({
-            id: `tmpl-api-${def.key || idx}`,
-            name: def.label || def.key || `Modèle ${idx + 1}`,
-            code: def.key?.toUpperCase() || `TMPL-${idx + 1}`,
-            family: "Documents commerciaux",
-            volet: def.business_scope === "titan" ? "Titan" : def.business_scope === "hahitantsoa" ? "Hahitantsoa" : "Commun",
-            type: def.document_type || "Contrat",
-            description: def.notes || `Modèle ${def.document_type} ${def.business_scope}`,
-            content: "[]",
-            variables: [],
-            version: parseFloat(def.version) || 1,
-            status: def.status === "active" ? "Actif" : "Brouillon",
-            lastModified: new Date().toISOString().split("T")[0],
-            author: "Système",
-          }));
+          const mapped: TemplateModel[] = apiDefs.map((def, idx) =>
+            mapDefinitionToTemplate(def, idx)
+          );
           setTemplates(mapped);
+        } else {
+          setTemplates([]);
         }
       })
-      .catch(() => {
-        // Keep initial templates on network/offline fallback
+      .catch((err) => {
+        if (!isSubscribed) return;
+        if (err?.name !== 'AbortError') {
+          setApiError("Impossible de charger les modèles. Vérifiez votre connexion.");
+        }
+      })
+      .finally(() => {
+        if (isSubscribed) setLoading(false);
       });
 
     return () => {
@@ -246,16 +262,56 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
     announce(`${file.name} sélectionné pour un aperçu local.`);
   };
 
-  if (!isLoaded) return null;
+  if (loading) {
+    return (
+      <div className="page active min-w-0 space-y-6 relative pb-10">
+        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+          <i className="fas fa-spinner fa-spin text-3xl mb-4 text-indigo-500"></i>
+          <p className="text-sm font-medium">Chargement des modèles…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (apiError) {
+    return (
+      <div className="page active min-w-0 space-y-6 relative pb-10">
+        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+          <div className="w-14 h-14 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-2xl mb-4 shadow-inner">
+            <i className="fas fa-exclamation-triangle"></i>
+          </div>
+          <p className="text-sm font-medium text-slate-700 mb-2">{apiError}</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              setApiError(null);
+              getDocumentTemplates()
+                .then((apiDefs) => {
+                  if (Array.isArray(apiDefs) && apiDefs.length > 0) {
+                    setTemplates(apiDefs.map((def, idx) => mapDefinitionToTemplate(def, idx)));
+                  } else {
+                    setTemplates([]);
+                  }
+                })
+                .catch(() => setApiError("Impossible de charger les modèles. Vérifiez votre connexion."))
+                .finally(() => setLoading(false));
+            }}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors"
+          >
+            <i className="fas fa-redo mr-2"></i>Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const showToast = (message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
   };
 
-  const saveTemplates = (newTemplates: MockCommercialDocumentTemplate[]) => {
+  const saveTemplates = (newTemplates: TemplateModel[]) => {
     setTemplates(newTemplates);
-    localStorage.setItem("mock_templates", JSON.stringify(newTemplates));
   };
 
   const filteredTemplates = (templates || []).filter(t => {
@@ -283,7 +339,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
     setErrorMsg(null);
   };
 
-  const handleEdit = (t: MockCommercialDocumentTemplate) => {
+  const handleEdit = (t: TemplateModel) => {
     clearImportedFile();
     setCurrentDoc({ ...t });
     setBlocks(normalizeDocumentContent(t.content));
@@ -292,7 +348,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
     setErrorMsg(null);
   };
 
-  const handleDuplicate = (t: MockCommercialDocumentTemplate) => {
+  const handleDuplicate = (t: TemplateModel) => {
     clearImportedFile();
     setCurrentDoc({
       ...t,
@@ -359,7 +415,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
       variables: currentDoc.variables || [],
       author: currentDoc.author || "Admin",
       lastModified: new Date().toISOString().slice(0, 10)
-    } as MockCommercialDocumentTemplate;
+    } as TemplateModel;
 
     if (existingIdx >= 0) {
       newTemplates[existingIdx] = finalDoc;
@@ -781,7 +837,7 @@ export default function DocumentsPage({ onNavigate }: DocumentsPageProps) {
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       value={currentDoc.volet}
                       onChange={e => {
-                        const nextVolet = e.target.value as MockCommercialDocumentTemplate['volet'];
+                        const nextVolet = e.target.value as TemplateModel['volet'];
                         setCurrentDoc({...currentDoc, volet: nextVolet});
                       }}
                     >

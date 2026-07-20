@@ -1,15 +1,114 @@
 import React, { useState, useEffect } from "react";
 import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
-import { 
-  mockClients, Client, hahitantsoaRentalTypes, hahitantsoaDurationOptions, 
-  hahitantsoaEventTypes, hahitantsoaDefaultDepositAmount, 
-  titanDepositThreshold, titanSmallRentalDeposit, titanLargeRentalDepositRate,
-  hahitantsoaMockPackages, mockCatalog, hahitantsoaMockServices,
-  hahitantsoaMockVenuePrice, hahitantsoaMockLogisticsPrice,
-  titanUsageTypes, titanMovementModes, titanDefaultAdvanceRate, titanTransportRequirement,
-  titanBalanceDueDaysBeforePickup, mockVenues, formatDateFr, addMockReservation
-} from "./mockData";
 import { DocumentPreview } from "./DocumentPreview";
+import {
+  getCustomers,
+  getHahitantsoaVenues,
+  getHahitantsoaServices,
+  getReservationAvailableItemPreviews,
+  createReservationDraft,
+  createCustomer,
+} from "../api";
+import type {
+  Customer,
+  HahitantsoaVenue,
+  HahitantsoaService,
+  ReservationAvailableItemPreview,
+  InventoryItemKind,
+} from "../types";
+
+// ---- Inline business constants (formerly from mockData) ----
+const HAHITANTSOA_EVENT_TYPES = [
+  "Mariage", "Baptême", "Anniversaire", "Réception privée", "Séminaire",
+  "Corporate", "Conférence", "Atelier / Formation", "Fête familiale", "Autre"
+];
+const HAHITANTSOA_RENTAL_TYPES = ["Location nue", "Location nue + logistique", "Location avec package"];
+const HAHITANTSOA_DURATION_OPTIONS = [
+  { label: "Fête de jour : Sortie J-J à 20:00", price: 0 },
+  { label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30", price: 0 },
+  { label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30", price: 0 },
+];
+const HAHITANTSOA_DEFAULT_DEPOSIT = 500000;
+const HAHITANTSOA_VENUE_PRICE = 1500000;
+const HAHITANTSOA_LOGISTICS_PRICE = 500000;
+const TITAN_DEPOSIT_THRESHOLD = 200000;
+const TITAN_SMALL_RENTAL_DEPOSIT = 100000;
+const TITAN_LARGE_RENTAL_DEPOSIT_RATE = 0.5;
+const TITAN_DEFAULT_ADVANCE_RATE = 0.25;
+const TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP = 5;
+const TITAN_TRANSPORT_REQUIREMENT = "Un véhicule fourgon est exigé pour le transport des matériels.";
+const TITAN_MOVEMENT_MODES = ["Livraison par Titan", "Prélèvement par le client"];
+
+const MOCK_PACKAGES = [
+  { id: "PACK-1", name: "Package Standard 100 pax", price: 2000000, desc: "Local + 100 chaises + 10 tables", imageUrl: "", active: true, articles: [{id: "MAT-01", qty: 100}, {id: "MAT-02", qty: 10}] },
+  { id: "PACK-2", name: "Package Premium 200 pax", price: 3500000, desc: "Local + 200 chaises chiavari + 20 tables + Sono", imageUrl: "", active: true, articles: [{id: "MAT-05", qty: 200}, {id: "MAT-02", qty: 20}, {id: "MAT-04", qty: 1}] },
+  { id: "PACK-3", name: "Package VIP 300 pax", price: 5000000, desc: "Local + 300 chaises + 30 tables + Sono + Lumières", imageUrl: "", active: true, articles: [{id: "MAT-01", qty: 300}, {id: "MAT-02", qty: 30}, {id: "MAT-04", qty: 1}, {id: "MAT-06", qty: 4}] },
+];
+
+function formatDateFr(dateStr: string | undefined): string {
+  if (!dateStr) return "Date non renseignée";
+  try {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const months = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+    return `${day} ${months[month - 1]} ${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+// ---- Local Client interface (adapted from mockData.Client for API compatibility) ----
+interface Client {
+  id: string;
+  initials: string;
+  name: string;
+  email: string;
+  phone: string;
+  type: "Particulier" | "Entreprise";
+  status: "Prospect" | "Client" | "Inactif";
+  colorClass: string;
+}
+
+function mapCustomerToClient(c: Customer): Client {
+  const partyLabel = c.party_type === "company" ? "Entreprise" : "Particulier";
+  const statusLabel: "Prospect" | "Client" | "Inactif" =
+    c.lifecycle_status === "client" ? "Client" : c.lifecycle_status === "prospect" ? "Prospect" : "Inactif";
+  const colorClass = statusLabel === "Client"
+    ? "bg-emerald-100 text-emerald-700"
+    : statusLabel === "Prospect"
+      ? "bg-indigo-100 text-indigo-700"
+      : "bg-slate-100 text-slate-500";
+  const displayName = c.display_name || "Sans nom";
+  return {
+    id: c.id,
+    initials: displayName.substring(0, 2).toUpperCase(),
+    name: displayName,
+    phone: c.phone || "",
+    email: c.email || "",
+    type: partyLabel,
+    status: statusLabel,
+    colorClass,
+  };
+}
+
+// Map API available item preview to catalog-compatible shape
+interface CatalogItem {
+  id: string;
+  name: string;
+  category: string;
+  available: number;
+  price: number;
+  kind: InventoryItemKind;
+}
+function mapPreviewToCatalogItem(p: ReservationAvailableItemPreview): CatalogItem {
+  return {
+    id: p.inventory_item_id,
+    name: p.inventory_item_name,
+    category: p.inventory_item_kind,
+    available: 999,
+    price: 0,
+    kind: p.inventory_item_kind,
+  };
+}
 
 interface ReservationNewPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -152,6 +251,53 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [calendarMonth, setCalendarMonth] = useState<string>("2026-07");
   const [showVenueSelector, setShowVenueSelector] = useState(false);
 
+  // ---- API-backed data ----
+  const [apiCustomers, setApiCustomers] = useState<Customer[]>([]);
+  const [apiVenues, setApiVenues] = useState<HahitantsoaVenue[]>([]);
+  const [apiServices, setApiServices] = useState<HahitantsoaService[]>([]);
+  const [availableCatalogItems, setAvailableCatalogItems] = useState<CatalogItem[]>([]);
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [loadingVenues, setLoadingVenues] = useState(true);
+  const [loadingServices, setLoadingServices] = useState(true);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [errorClients, setErrorClients] = useState<string | null>(null);
+  const [errorVenues, setErrorVenues] = useState<string | null>(null);
+  const [errorServices, setErrorServices] = useState<string | null>(null);
+  const [errorCatalog, setErrorCatalog] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Derived: mapped clients (API Customer → local Client format)
+  const mockClients: Client[] = apiCustomers.map(mapCustomerToClient);
+  // Derived: mapped venues
+  const mockVenues: HahitantsoaVenue[] = apiVenues;
+  // Derived: mapped catalog items
+  const mockCatalog: CatalogItem[] = availableCatalogItems;
+  // Derived: mapped services (API → local format)
+  const hahitantsoaMockServices: { id: string; name: string; desc: string; price: number; active: boolean }[] =
+    apiServices.map(s => ({ id: s.id, name: s.name, desc: s.desc, price: s.price, active: s.active }));
+
+  // ---- Fetch clients, venues, services on mount ----
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingClients(true);
+    getCustomers()
+      .then(data => { if (!cancelled) { setApiCustomers(data); setErrorClients(null); } })
+      .catch(err => { if (!cancelled) setErrorClients(err?.message || "Erreur de chargement des clients"); })
+      .finally(() => { if (!cancelled) setLoadingClients(false); });
+    setLoadingVenues(true);
+    getHahitantsoaVenues()
+      .then(data => { if (!cancelled) { setApiVenues(data); setErrorVenues(null); } })
+      .catch(err => { if (!cancelled) setErrorVenues(err?.message || "Erreur de chargement des locaux"); })
+      .finally(() => { if (!cancelled) setLoadingVenues(false); });
+    setLoadingServices(true);
+    getHahitantsoaServices()
+      .then(data => { if (!cancelled) { setApiServices(data); setErrorServices(null); } })
+      .catch(err => { if (!cancelled) setErrorServices(err?.message || "Erreur de chargement des services"); })
+      .finally(() => { if (!cancelled) setLoadingServices(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clientSearchStr, setClientSearchStr] = useState<string>("");
@@ -159,13 +305,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   
   const [domain, setDomain] = useState<DomainType>(null);
   
-  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: mockVenues[0]?.name || "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: hahitantsoaMockVenuePrice, logisticsPrice: hahitantsoaMockLogisticsPrice });
+  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_VENUE_PRICE, logisticsPrice: HAHITANTSOA_LOGISTICS_PRICE });
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
     period: "", startDate: "", startTime: "", endDate: "", endTime: "", pickupDate: "", returnDate: "", remarks: "",
     usageType: "Mariage", usageTypeOther: "", 
     destinationName: "", destinationAddress: "", destinationCity: "", destinationLandmark: "", destinationAccessNote: "", destinationContactName: "", destinationContactPhone: "", destinationLat: "", destinationLng: "", 
     movementMode: "Livraison par Titan", deliveryTime: "", returnTime: "", deliveryAddress: "",
-    pickupTime: "", clientReturnTime: "", vehicleType: "", transportPerson: "", advanceRate: titanDefaultAdvanceRate
+    pickupTime: "", clientReturnTime: "", vehicleType: "", transportPerson: "", advanceRate: TITAN_DEFAULT_ADVANCE_RATE
   });
   
   const [deliveryModifiedManually, setDeliveryModifiedManually] = useState(false);
@@ -187,6 +333,37 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [paymentAttachments, setPaymentAttachments] = useState<Attachment[]>([]);
 
   const isProspectProforma = param?.startsWith('prospect-proforma-') || false;
+
+  // ---- Fetch available catalog items when date range is set (for catalog step) ----
+  useEffect(() => {
+    const startAt = domain === 'hahitantsoa'
+      ? (hDetails.startDate && hDetails.startTime ? `${hDetails.startDate}T${hDetails.startTime}:00` : '')
+      : (tDetails.startDate && tDetails.startTime ? `${tDetails.startDate}T${tDetails.startTime}:00` : '');
+    const endAt = domain === 'hahitantsoa'
+      ? (hDetails.endDate && hDetails.endTime ? `${hDetails.endDate}T${hDetails.endTime}:00` : '')
+      : (tDetails.endDate && tDetails.endTime ? `${tDetails.endDate}T${tDetails.endTime}:00` : '');
+
+    if (!startAt || !endAt) return;
+
+    let cancelled = false;
+    setLoadingCatalog(true);
+    setErrorCatalog(null);
+    getReservationAvailableItemPreviews(startAt, endAt)
+      .then(data => {
+        if (!cancelled) {
+          setAvailableCatalogItems(data.map(mapPreviewToCatalogItem));
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setErrorCatalog(err?.message || "Erreur de chargement du catalogue");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCatalog(false);
+      });
+    return () => { cancelled = true; };
+  }, [domain, hDetails.startDate, hDetails.startTime, hDetails.endDate, hDetails.endTime, tDetails.startDate, tDetails.startTime, tDetails.endDate, tDetails.endTime]);
 
   // Init from URL param if needed
   useEffect(() => {
@@ -376,23 +553,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           type: newClient.type, 
           status: "Client",
           colorClass: "bg-slate-100 text-slate-700",
-          civilite: newClient.civilite,
-          firstName: newClient.type === 'Particulier' ? newClient.name.split(' ')[0] : undefined,
-          lastName: newClient.type === 'Particulier' ? newClient.name.split(' ').slice(1).join(' ') : undefined,
-          birthDate: newClient.birthDate,
-          birthPlace: newClient.birthPlace,
-          idType: newClient.idType,
-          idNumber: newClient.idNumber,
-          idIssueDate: newClient.idIssueDate,
-          idIssuePlace: newClient.idIssuePlace,
-          idDuplicataDate: newClient.idDuplicataDate,
-          idDuplicataPlace: newClient.idDuplicataPlace,
-          address: newClient.address,
-          nif: newClient.nif,
-          stat: newClient.stat,
-          rcs: newClient.rcs,
-          repFirstName: newClient.repFirstName,
-          repRole: newClient.repRole
         } 
       : null;
 
@@ -412,7 +572,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   let materialsTotal = 0;
   
   if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package' && hDetails.packageId) {
-    const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+    const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
     if (pkg) {
       packageTotal = pkg.price;
       // Calculate extra cost/discount based on qty diff
@@ -595,6 +755,16 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
              <input type="text" className="w-full border border-slate-300 rounded-lg pl-10 pr-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="Nom, téléphone, email ou ID..." value={clientSearchStr} onChange={(e) => setClientSearchStr(e.target.value)} />
           </div>
           <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-lg bg-slate-50">
+             {loadingClients ? (
+               <div className="p-4 text-center text-sm text-blue-600 flex items-center justify-center gap-2">
+                 <i className="fa-solid fa-spinner fa-spin"></i> Chargement des clients...
+               </div>
+             ) : errorClients ? (
+               <div className="p-4 text-center text-sm text-rose-600 flex items-center justify-center gap-2">
+                 <i className="fa-solid fa-triangle-exclamation"></i> {errorClients}
+               </div>
+             ) : null}
+             {!loadingClients && !errorClients && (<>
              {mockClients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
                 <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => setSelectedClientId(c.id)}>
                    <div>
@@ -610,6 +780,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
              <div className="p-3 text-center text-sm font-medium text-indigo-600 cursor-pointer hover:bg-slate-100 bg-white sticky bottom-0 border-t border-slate-200" onClick={() => setClientMode("new")}>
                 + Créer un nouveau client
              </div>
+             </>)}
           </div>
         </div>
       ) : clientMode === "new" ? (
@@ -733,7 +904,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
       <div className="mt-8 pt-6 border-t border-slate-100">
         <h4 className="text-md font-bold text-slate-800 mb-1">Pièces jointes client</h4>
-        <p className="text-xs text-slate-500 mb-4">Ajoutez CIN, NIF, STAT, RCS ou justificatifs selon le type de client. (Mock/Simulation)</p>
+        <p className="text-xs text-slate-500 mb-4">Ajoutez CIN, NIF, STAT, RCS ou justificatifs selon le type de client.</p>
         <div className="flex flex-wrap items-center gap-3 mb-4">
            <select id="clientCat" className="border border-slate-300 rounded-lg p-2 text-sm bg-white min-w-[150px]">
              <option value="CIN">CIN</option>
@@ -861,7 +1032,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               <label className="block text-sm font-medium text-slate-700 mb-1">Type d'événement</label>
               <select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.eventType} onChange={e => setHDetails({...hDetails, eventType: e.target.value})}>
                 <option value="">Sélectionner un type</option>
-                {hahitantsoaEventTypes.map(et => (
+                {HAHITANTSOA_EVENT_TYPES.map(et => (
                   <option key={et} value={et}>{et}</option>
                 ))}
               </select>
@@ -955,7 +1126,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
             <div className="md:col-span-2">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {hahitantsoaRentalTypes.map(opt => (
+                {HAHITANTSOA_RENTAL_TYPES.map(opt => (
                   <label key={opt} className={`border p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${hDetails.rentalType === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-300 hover:border-indigo-400'}`}>
                     <input type="radio" name="rentalType" value={opt} checked={hDetails.rentalType === opt} onChange={(e) => setHDetails({...hDetails, rentalType: e.target.value})} className="w-4 h-4 text-indigo-600" />
                     <span className="font-medium text-sm">{opt}</span>
@@ -1051,7 +1222,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               <h4 className="font-bold text-slate-800 mb-4">Durée (Option horaire)</h4>
             </div>
             <div className="md:col-span-2 space-y-2">
-              {hahitantsoaDurationOptions.map(opt => (
+              {HAHITANTSOA_DURATION_OPTIONS.map(opt => (
                 <div key={opt.label} className={`border p-3 rounded-lg transition-colors ${hDetails.durationOption === opt.label ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-indigo-400'}`}>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="radio" name="durationOption" value={opt.label} checked={hDetails.durationOption === opt.label} onChange={(e) => {
@@ -1322,7 +1493,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
             <div className="md:col-span-2">
               <div className="flex gap-4">
-                {titanMovementModes.map(mode => (
+                {TITAN_MOVEMENT_MODES.map(mode => (
                   <label key={mode} className={`border p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors flex-1 ${tDetails.movementMode === mode ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-300 hover:border-indigo-400'}`}>
                     <input type="radio" name="movementMode" value={mode} checked={tDetails.movementMode === mode} onChange={(e) => setTDetails({...tDetails, movementMode: e.target.value})} className="w-4 h-4 text-indigo-600" />
                     <span className="font-medium text-sm">{mode}</span>
@@ -1372,7 +1543,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   <div className="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm mb-2 flex items-start gap-2">
                     <i className="fa-solid fa-truck mt-0.5"></i>
                     <div>
-                      <strong>Note obligatoire :</strong> {titanTransportRequirement}
+                      <strong>Note obligatoire :</strong> {TITAN_TRANSPORT_REQUIREMENT}
                     </div>
                   </div>
                 </div>
@@ -1463,7 +1634,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
     const handlePackageSelect = (pkgId: string) => {
       setHDetails({...hDetails, packageId: pkgId});
-      const pkg = hahitantsoaMockPackages.find(p => p.id === pkgId);
+      const pkg = MOCK_PACKAGES.find(p => p.id === pkgId);
       if (pkg) {
         // Only reset if empty or switching package entirely. Let's merge or reset.
         const newMaterials = pkg.articles.map(art => {
@@ -1539,7 +1710,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <div className="mb-6 animate-fade-in">
               <label className="block text-sm font-medium text-slate-700 mb-2">Packages disponibles</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {hahitantsoaMockPackages.filter(p => p.active !== false).map(p => (
+                {MOCK_PACKAGES.filter(p => p.active !== false).map(p => (
                   <div key={p.id} className={`border rounded-xl p-4 cursor-pointer transition-colors ${hDetails.packageId === p.id ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 hover:border-indigo-300'}`} onClick={() => handlePackageSelect(p.id)}>
                     <div className="w-full h-32 bg-slate-200 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
                       {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <i className="fa-solid fa-box-open text-4xl text-slate-400"></i>}
@@ -1563,7 +1734,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(() => {
-                  const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+                  const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
                   if (!pkg) return null;
                   return pkg.articles.map(art => {
                     const catItem = mockCatalog.find(c => c.id === art.id);
@@ -1606,7 +1777,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {mockCatalog.filter(item => {
-                  const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+                  const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
                   return !pkg?.articles.find(a => a.id === item.id);
                 }).map(item => {
                   const selected = selectedMaterials.find(m => m.id === item.id);
@@ -1645,14 +1816,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-700">Total Package (Ajusté) :</span>
               <span className="text-lg font-bold text-indigo-600">{(packageTotal + materialsTotal - selectedMaterials.filter(m => {
-                const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+                const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
                 return !pkg?.articles.find(a => a.id === m.id);
               }).reduce((acc, m) => acc + m.price * m.quantity, 0)).toLocaleString('fr-FR')} Ar</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-700">Total Articles complémentaires :</span>
               <span className="text-lg font-bold text-emerald-600">{selectedMaterials.filter(m => {
-                const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+                const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
                 return !pkg?.articles.find(a => a.id === m.id);
               }).reduce((acc, m) => acc + m.price * m.quantity, 0).toLocaleString('fr-FR')} Ar</span>
             </div>
@@ -1905,14 +2076,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         
         {domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package' && hDetails.packageId && (
           <div className="mb-4 pb-4 border-b border-slate-100">
-            <h5 className="font-bold text-slate-800 text-sm mb-2">Package choisi : {hahitantsoaMockPackages.find(p => p.id === hDetails.packageId)?.name}</h5>
+            <h5 className="font-bold text-slate-800 text-sm mb-2">Package choisi : {MOCK_PACKAGES.find(p => p.id === hDetails.packageId)?.name}</h5>
             
             <h6 className="text-xs font-semibold text-slate-500 uppercase mt-4 mb-2">Articles du package ajustés</h6>
             <div className="overflow-x-auto mb-4">
               <table className="w-full text-sm text-left">
                 <tbody>
                   {selectedMaterials.filter(m => {
-                    const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+                    const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
                     return pkg?.articles.find(a => a.id === m.id);
                   }).map(m => (
                     <tr key={m.id} className="border-b border-slate-50 last:border-0">
@@ -1926,7 +2097,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
             <h6 className="text-xs font-semibold text-slate-500 uppercase mb-2">Articles complémentaires du catalogue</h6>
             {selectedMaterials.filter(m => {
-              const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+              const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
               return !pkg?.articles.find(a => a.id === m.id);
             }).length === 0 ? (
               <p className="text-xs text-slate-400 italic px-4">Aucun article complémentaire.</p>
@@ -1935,7 +2106,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <table className="w-full text-sm text-left">
                   <tbody>
                     {selectedMaterials.filter(m => {
-                      const pkg = hahitantsoaMockPackages.find(p => p.id === hDetails.packageId);
+                      const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
                       return !pkg?.articles.find(a => a.id === m.id);
                     }).map(m => (
                       <tr key={m.id} className="border-b border-slate-50 last:border-0">
@@ -2052,7 +2223,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-orange-50 text-orange-800 p-4 rounded-xl border border-orange-100 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase opacity-70">Caution obligatoire (Dépôt de garantie)</p>
-          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? hahitantsoaDefaultDepositAmount : (totalAmount < titanDepositThreshold ? titanSmallRentalDeposit : totalAmount * titanLargeRentalDepositRate)).toLocaleString('fr-FR')} Ar</p>
+          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? HAHITANTSOA_DEFAULT_DEPOSIT : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
           <p className="text-xs opacity-80 mt-1">À verser en plus du total. Restituée après l'événement en l'absence de casse.</p>
         </div>
         <i className="fa-solid fa-shield-halved text-2xl opacity-50"></i>
@@ -2119,23 +2290,45 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           {isProspectProforma ? (
             <button 
               className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-green-700 transition-colors"
-              onClick={() => { 
-                 const profId = `PROF-PROS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-                 addMockReservation({
-                   id: profId,
-                   clientId: selectedClientId || "NEW",
-                   title: domain === 'hahitantsoa' ? (hDetails.eventTypeOther || hDetails.eventType) : (tDetails.usageTypeOther || tDetails.usageType),
-                   date: domain === 'hahitantsoa' ? hDetails.date : tDetails.period,
-                   amount: totalAmount,
-                   status: "Proforma",
-                   type: domain === 'titan' ? 'Titan' : 'Hahitantsoa'
-                 });
-                 showToastMsg("Proforma prospect créée avec succès et liée à la fiche !", 'success');
-                 clearDraft(false);
-                 onNavigate("customer", selectedClientId); 
+              disabled={submitting}
+              onClick={async () => {
+                 setSubmitting(true);
+                 setSubmitError(null);
+                 try {
+                   const customerId = selectedClientId || "";
+                   const startAt = domain === 'hahitantsoa'
+                     ? (hDetails.startDate && hDetails.startTime ? `${hDetails.startDate}T${hDetails.startTime}:00` : new Date().toISOString())
+                     : (tDetails.startDate && tDetails.startTime ? `${tDetails.startDate}T${tDetails.startTime}:00` : new Date().toISOString());
+                   const endAt = domain === 'hahitantsoa'
+                     ? (hDetails.endDate && hDetails.endTime ? `${hDetails.endDate}T${hDetails.endTime}:00` : new Date().toISOString())
+                     : (tDetails.endDate && tDetails.endTime ? `${tDetails.endDate}T${tDetails.endTime}:00` : new Date().toISOString());
+                   const notes = domain === 'hahitantsoa'
+                     ? `${hDetails.eventTypeOther || hDetails.eventType} - ${hDetails.venue} - ${hDetails.guests} pax`
+                     : `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ''} - ${tDetails.destinationAddress || ''}`;
+                   const lines = selectedMaterials.map(m => ({
+                     inventory_item_id: m.id,
+                     quantity: m.quantity,
+                     notes: m.name,
+                   }));
+                   await createReservationDraft({
+                     customer_id: customerId,
+                     start_at: startAt,
+                     end_at: endAt,
+                     notes,
+                     lines,
+                   });
+                   showToastMsg("Proforma prospect créée avec succès et liée au dossier !", 'success');
+                   clearDraft(false);
+                   onNavigate("customer", selectedClientId); 
+                 } catch (err: any) {
+                   setSubmitError(err?.message || "Erreur lors de la création du draft");
+                   showToastMsg("Erreur lors de la création : " + (err?.message || "inconnue"), 'error');
+                 } finally {
+                   setSubmitting(false);
+                 }
               }}
             >
-              Terminer et lier au prospect
+              {submitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Création...</> : "Terminer et créer le draft"}
             </button>
           ) : (
             <>
@@ -2168,7 +2361,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
     return (
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">Acompte / Paiement (Mock)</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Acompte / Paiement</h3>
         <p className="text-sm text-slate-500 mb-6">Selon les règles A/B, un paiement d'acompte est souvent requis pour valider formellement la réservation en contrat.</p>
         
         <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 mb-6 flex justify-between items-center">
@@ -2177,7 +2370,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <p className="text-xs text-orange-700">À régler lors du solde. Restituée après l'événement s'il n'y a pas de casse. Déduite en cas de dommages (solde restant à la charge du client si dépassement).</p>
           </div>
           <div className="font-bold text-lg text-orange-900 ml-4 whitespace-nowrap">
-            {(domain === 'hahitantsoa' ? hahitantsoaDefaultDepositAmount : (totalAmount < titanDepositThreshold ? titanSmallRentalDeposit : totalAmount * titanLargeRentalDepositRate)).toLocaleString('fr-FR')} Ar
+            {(domain === 'hahitantsoa' ? HAHITANTSOA_DEFAULT_DEPOSIT : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar
           </div>
         </div>
 
@@ -2186,8 +2379,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
              <h4 className="font-bold text-blue-800 text-sm mb-1">Règles Financières Titan</h4>
              <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
                <li>Acompte par défaut : <strong>{tDetails.advanceRate * 100}%</strong></li>
-               <li>Solde dû <strong>{titanBalanceDueDaysBeforePickup} jours</strong> avant le prélèvement/livraison (soit le {new Date(new Date(tDetails.pickupDate || tDetails.startDate).getTime() - (titanBalanceDueDaysBeforePickup * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR')})</li>
-               <li>Dépôt de garantie Titan : <strong>{totalAmount < titanDepositThreshold ? titanSmallRentalDeposit.toLocaleString('fr-FR') : (totalAmount * titanLargeRentalDepositRate).toLocaleString('fr-FR')} Ar</strong></li>
+               <li>Solde dû <strong>{TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP} jours</strong> avant le prélèvement/livraison (soit le {new Date(new Date(tDetails.pickupDate || tDetails.startDate).getTime() - (TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR')})</li>
+               <li>Dépôt de garantie Titan : <strong>{totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT.toLocaleString('fr-FR') : (totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE).toLocaleString('fr-FR')} Ar</strong></li>
              </ul>
           </div>
         )}
@@ -2247,7 +2440,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
         <div className="mt-6 pt-6 border-t border-slate-100">
           <h4 className="text-md font-bold text-slate-800 mb-1">Pièces jointes paiement</h4>
-          <p className="text-xs text-slate-500 mb-4">Preuves de paiement, captures, reçus. (Mock/Simulation)</p>
+          <p className="text-xs text-slate-500 mb-4">Preuves de paiement, captures, reçus.</p>
           <div className="flex flex-wrap items-center gap-3 mb-4">
              <select id="paymentCat" className="border border-slate-300 rounded-lg p-2 text-sm bg-white min-w-[200px]">
                <option value="Justificatif paiement">Justificatif paiement</option>
@@ -2335,14 +2528,46 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         <div className="flex justify-between items-center pt-4 border-t border-slate-100">
           <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour au paiement</button>
           <button 
-            className="px-8 py-3 bg-green-600 text-white rounded-xl font-bold text-md shadow-lg hover:bg-green-700 transition-all hover:-translate-y-1"
-            onClick={() => {
-              const msg = domain === "hahitantsoa" 
-                ? "Dossier Hahitantsoa brouillon créé localement — mock" 
-                : "Dossier Titan brouillon créé localement — mock";
-              showToastMsg(msg, 'success');
-              clearDraft();
-              onNavigate("dashboard");
+            className={`px-8 py-3 bg-green-600 text-white rounded-xl font-bold text-md shadow-lg hover:bg-green-700 transition-all hover:-translate-y-1 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={submitting}
+            onClick={async () => {
+              const customerId = selectedClientId || "";
+              const startAt = domain === 'hahitantsoa'
+                ? (hDetails.startDate && hDetails.startTime ? `${hDetails.startDate}T${hDetails.startTime}:00` : new Date().toISOString())
+                : (tDetails.startDate && tDetails.startTime ? `${tDetails.startDate}T${tDetails.startTime}:00` : new Date().toISOString());
+              const endAt = domain === 'hahitantsoa'
+                ? (hDetails.endDate && hDetails.endTime ? `${hDetails.endDate}T${hDetails.endTime}:00` : new Date().toISOString())
+                : (tDetails.endDate && tDetails.endTime ? `${tDetails.endDate}T${tDetails.endTime}:00` : new Date().toISOString());
+              const notes = domain === "hahitantsoa"
+                ? `${hDetails.eventTypeOther || hDetails.eventType} - ${hDetails.venue} - ${hDetails.guests} pax`
+                : `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ''} - ${tDetails.destinationAddress || ''}`;
+              const lines = selectedMaterials.map(m => ({
+                inventory_item_id: m.id,
+                quantity: m.quantity,
+                notes: m.name,
+              }));
+              try {
+                setSubmitting(true);
+                setSubmitError(null);
+                await createReservationDraft({
+                  customer_id: customerId,
+                  start_at: startAt,
+                  end_at: endAt,
+                  notes,
+                  lines,
+                });
+                const msg = domain === "hahitantsoa"
+                  ? "Dossier Hahitantsoa créé avec succès"
+                  : "Dossier Titan créé avec succès";
+                showToastMsg(msg, 'success');
+                clearDraft();
+                onNavigate("dashboard");
+              } catch (err: any) {
+                setSubmitError(err?.message || "Erreur lors de la création du dossier");
+                showToastMsg("Erreur : " + (err?.message || "inconnue"), 'error');
+              } finally {
+                setSubmitting(false);
+              }
             }}
           >
             <i className="fa-solid fa-signature mr-2"></i> Valider et Clôturer le Dossier
@@ -2454,10 +2679,19 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         ) : (
           <>
             <h2 className="text-2xl font-bold text-slate-800">Assistant de Création</h2>
-            <p className="text-sm text-slate-500">Parcours modulable mocké, strictement séparé Hahitantsoa / Titan.</p>
+            <p className="text-sm text-slate-500">Parcours modulable, strictement séparé Hahitantsoa / Titan.</p>
           </>
         )}
       </div>
+
+      {/* Loading / Error banners for API data */}
+      {loadingClients && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Chargement des clients...</div>}
+      {errorClients && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorClients}</div>}
+      {loadingVenues && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Chargement des locaux...</div>}
+      {errorVenues && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorVenues}</div>}
+      {loadingCatalog && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Vérification de la disponibilité du catalogue...</div>}
+      {errorCatalog && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorCatalog}</div>}
+      {submitError && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> Erreur de soumission : {submitError}</div>}
 
       {step > 0 && renderStepper()}
 

@@ -28,9 +28,13 @@ describe('Stock & Logistics Pages', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
-  it('InventoryItemPage - renders stock info and history', () => {
+  it('InventoryItemPage - renders stock info and history', async () => {
+    vi.spyOn(api, 'getInventoryItem').mockResolvedValue({ id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '' });
+    vi.spyOn(api, 'getStockMovements').mockResolvedValue([
+      { id: 'MOV-001', inventory_item: 'MAT-01', reservation_draft: null, movement_type: 'outbound_delivery', direction: 'outbound', quantity: 40, source_label: 'Livraison client', notes: '', effective_at: '2026-06-10', validated_at: '', validated_by: 'Jean R.', created_at: '2026-06-10', updated_at: '' },
+    ]);
     render(<InventoryItemPage onNavigate={mockNavigate} param="MAT-01" />);
-    expect(screen.getByText('Chaise Napoléon transparente')).toBeDefined();
+    expect(await screen.findByText('Chaise Napoléon transparente')).toBeDefined();
     expect(screen.getAllByText('Stock Total').length).toBeGreaterThan(0);
     expect(screen.getByText('Historique des mouvements')).toBeDefined();
   });

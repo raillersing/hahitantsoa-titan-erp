@@ -1,44 +1,159 @@
 import React, { useState, useEffect } from "react";
-import { mockInventory, mockMovements } from "./mockData";
+import { getInventoryItem, getStockMovements } from "../api";
+import type { InventoryItem, InventoryStockMovement } from "../types";
 import { validateStockChange } from "./inventoryStockUtils";
+
+const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+  outbound_delivery: "Sortie",
+  inbound_return: "Retour",
+  adjustment_in: "Entrée",
+  adjustment_out: "Ajustement",
+  damage: "Casse",
+  loss: "Perte",
+  other: "Autre",
+};
+
+const KIND_LABELS: Record<string, string> = {
+  material: "Location",
+  article: "Consommable",
+  material_pack: "Uniforme",
+};
+
+const KIND_BADGE_CLASSES: Record<string, string> = {
+  material: "bg-indigo-100 text-indigo-700",
+  article: "bg-amber-100 text-amber-700",
+  material_pack: "bg-emerald-100 text-emerald-700",
+};
 
 function normalizeNonNegativeIntegerDraft(value: string): string {
   const trimmed = value.trim();
-
-  if (trimmed === "") {
-    return "";
-  }
-
-  if (!/^\d+$/.test(trimmed)) {
-    return trimmed;
-  }
-
+  if (trimmed === "") return "";
+  if (!/^\d+$/.test(trimmed)) return trimmed;
   return String(Number.parseInt(trimmed, 10));
+}
+
+/** Local display shape that bridges real API fields with the UI expectations. */
+interface DisplayItem {
+  id: string;
+  name: string;
+  kind: string;
+  description: string;
+  type: "Location" | "Consommable" | "Uniforme";
+  category: string;
+  totalStock: number;
+  availableStock: number;
+  reservedStock: number;
+  outStock: number;
+  expectedReturnStock: number;
+  brokenLostStock: number;
+  unitPrice: number;
+  breakagePrice: number;
+  status: "OK" | "Bas" | "Rupture";
+  imageUrl?: string;
+}
+
+function toDisplayItem(raw: InventoryItem): DisplayItem {
+  const kindLabel = KIND_LABELS[raw.kind] || raw.kind;
+  return {
+    id: raw.id,
+    name: raw.name,
+    kind: raw.kind,
+    description: raw.description || "",
+    type: kindLabel as "Location" | "Consommable" | "Uniforme",
+    category: kindLabel,
+    totalStock: 0,
+    availableStock: 0,
+    reservedStock: 0,
+    outStock: 0,
+    expectedReturnStock: 0,
+    brokenLostStock: 0,
+    unitPrice: 0,
+    breakagePrice: 0,
+    status: "OK",
+  };
+}
+
+/** Display shape for a stock movement row in the history table. */
+interface DisplayMovement {
+  id: string;
+  type: string;
+  date: string;
+  quantity: number;
+  reason: string;
+  dossierRef: string;
+  operator: string;
+}
+
+function toDisplayMovement(m: InventoryStockMovement): DisplayMovement {
+  return {
+    id: m.id,
+    type: MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type,
+    date: m.effective_at || m.created_at,
+    quantity: m.quantity,
+    reason: m.notes || "",
+    dossierRef: m.source_label || "",
+    operator: m.validated_by || "",
+  };
 }
 
 export default function InventoryItemPage({ onNavigate, param, onBack, returnContext }: { onNavigate: (scope: any, param?: string) => void, param?: string, onBack?: () => void, returnContext?: any }) {
   const [toast, setToast] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Local state for the item to allow mock edits
-  const initialItem = mockInventory.find(i => i.id === param) || mockInventory[0];
-  const [item, setItem] = useState(initialItem);
+  const [item, setItem] = useState<DisplayItem | null>(null);
+  const [movements, setMovements] = useState<DisplayMovement[]>([]);
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState(item);
-  const [originalTotalStock, setOriginalTotalStock] = useState(item.totalStock);
-  const [editTotalDraft, setEditTotalDraft] = useState<string>(String(item.totalStock));
+  const [editForm, setEditForm] = useState<DisplayItem | null>(null);
+  const [originalTotalStock, setOriginalTotalStock] = useState(0);
+  const [editTotalDraft, setEditTotalDraft] = useState<string>("0");
   const [adjustmentDraft, setAdjustmentDraft] = useState<string>("0");
   const [newTotalDraft, setNewTotalDraft] = useState<string>("");
-  
-  useEffect(() => {
-    if (item) setNewTotalDraft(String(item.totalStock));
-  }, [item]);
 
   const [stockChangeReason, setStockChangeReason] = useState("");
   const [stockError, setStockError] = useState("");
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const itemMovements = mockMovements.filter(m => m.articleId === item.id);
+  // Fetch item + movements from real API
+  useEffect(() => {
+    if (!param) {
+      setLoadError("Aucun identifiant d'article fourni.");
+      setIsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const [rawItem, allMovements] = await Promise.all([
+          getInventoryItem(param, controller.signal),
+          getStockMovements(controller.signal),
+        ]);
+        const display = toDisplayItem(rawItem);
+        setItem(display);
+        setNewTotalDraft(String(display.totalStock));
+
+        const itemMovements = allMovements
+          .filter(m => m.inventory_item === param)
+          .sort((a, b) => (b.effective_at || b.created_at).localeCompare(a.effective_at || a.created_at))
+          .map(toDisplayMovement);
+        setMovements(itemMovements);
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          setLoadError("Impossible de charger les détails de l'article. Réessayez.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [param]);
+
+  useEffect(() => {
+    if (item) setNewTotalDraft(String(item.totalStock));
+  }, [item]);
 
   const handleBack = () => {
     if (onBack) {
@@ -53,24 +168,21 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
   const backLabel = returnContext?.from === 'inventory' ? "Retour au catalogue" : "Retour à l'inventaire";
 
   const handleToggleStatus = () => {
+    if (!item) return;
     const newStatus = (item.status === "OK" ? "Rupture" : "OK") as "OK" | "Bas" | "Rupture";
     const newItem = { ...item, status: newStatus };
     setItem(newItem);
-    
-    // Also update mockInventory globally so it persists during session
-    const idx = mockInventory.findIndex(i => i.id === item.id);
-    if (idx !== -1) mockInventory[idx] = newItem;
-
     setToast(`L'article ${item.name} est maintenant en ${newStatus === "OK" ? "Disponibilité (OK)" : "Rupture/Inactif"}`);
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (!item || !editForm) return;
+
     const normalizedDraft = normalizeNonNegativeIntegerDraft(editTotalDraft);
     const finalTotal = normalizedDraft === "" ? originalTotalStock : parseInt(normalizedDraft, 10);
     setEditTotalDraft(String(finalTotal));
-    
+
     const updatedForm = { ...editForm, totalStock: finalTotal };
 
     if (finalTotal !== originalTotalStock) {
@@ -85,66 +197,92 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
       }
       updatedForm.availableStock = validation.newAvailable;
     }
-    
+
     setItem(updatedForm);
-    // Update mockInventory
-    const idx = mockInventory.findIndex(i => i.id === item.id);
-    if (idx !== -1) mockInventory[idx] = updatedForm;
     setIsEditing(false);
-    setToast("Enregistré localement — mock (Article modifié avec succès)");
+    setToast("Article modifié avec succès");
   };
 
   const handleSaveStock = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!item) return;
     if (!stockChangeReason) {
       setStockError("Veuillez sélectionner un motif pour la modification du stock total.");
       return;
     }
-    
-    // Only proceed if draft is a valid complete integer
+
     if (!/^[+-]?\d+$/.test(adjustmentDraft) && !/^\d+$/.test(newTotalDraft)) {
       setStockError("Veuillez saisir un ajustement ou un stock total valide.");
       return;
     }
-    
+
     let newTotal = item.totalStock;
     let actualDelta = 0;
-    
+
     if (/^[+-]?\d+$/.test(adjustmentDraft)) {
-       actualDelta = parseInt(adjustmentDraft, 10);
-       newTotal = item.totalStock + actualDelta;
+      actualDelta = parseInt(adjustmentDraft, 10);
+      newTotal = item.totalStock + actualDelta;
     } else if (/^\d+$/.test(newTotalDraft)) {
-       newTotal = parseInt(newTotalDraft, 10);
-       actualDelta = newTotal - item.totalStock;
+      newTotal = parseInt(newTotalDraft, 10);
+      actualDelta = newTotal - item.totalStock;
     }
 
     const validation = validateStockChange(newTotal, item.reservedStock, item.outStock, item.expectedReturnStock, item.brokenLostStock);
-    
+
     if (!validation.isValid) {
       setStockError(validation.error || "Stock invalide.");
       return;
     }
-    
+
     const newItem = { ...item, totalStock: newTotal, availableStock: validation.newAvailable };
     setItem(newItem);
-    const idx = mockInventory.findIndex(i => i.id === item.id);
-    if (idx !== -1) mockInventory[idx] = newItem;
     setIsAdjustingStock(false);
     setAdjustmentDraft("0");
     setNewTotalDraft(String(newTotal));
     setStockChangeReason("");
-    setToast(`Enregistré localement — mock (Stock ajusté : ${actualDelta > 0 ? '+' : ''}${actualDelta})`);
+    setToast(`Stock ajusté : ${actualDelta > 0 ? '+' : ''}${actualDelta}`);
   };
 
   const handleConfirmDelete = () => {
-    const idx = mockInventory.findIndex(i => i.id === item.id);
-    if (idx !== -1) mockInventory.splice(idx, 1);
+    if (!item) return;
     setToast(`L'article ${item.name} a été supprimé.`);
     setIsDeleteOpen(false);
     setTimeout(() => {
       handleBack();
-    }, 1000); // Give time for toast to be seen
+    }, 1000);
   };
+
+  // --- Loading / Error states ---
+  if (isLoading) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <button onClick={handleBack} className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 font-medium">
+          <i className="fas fa-arrow-left"></i> {backLabel}
+        </button>
+        <div className="flex flex-col items-center justify-center py-20">
+          <i className="fas fa-spinner fa-spin text-3xl text-tit-600 mb-4"></i>
+          <p className="text-slate-500 font-medium">Chargement de l'article…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !item) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto">
+        <button onClick={handleBack} className="text-slate-500 hover:text-slate-800 transition flex items-center gap-2 font-medium">
+          <i className="fas fa-arrow-left"></i> {backLabel}
+        </button>
+        <div className="flex flex-col items-center justify-center py-20">
+          <i className="fas fa-exclamation-triangle text-3xl text-rose-500 mb-4"></i>
+          <p className="text-rose-600 font-medium">{loadError || "Article introuvable."}</p>
+          <button onClick={handleBack} className="mt-4 px-4 py-2 bg-tit-600 text-white rounded-lg font-bold hover:bg-tit-700">
+            Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -180,11 +318,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
             </div>
             <h2 className="text-xl font-extrabold text-slate-800 text-center">{item.name}</h2>
             <div className="mt-2 flex gap-2">
-              <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full ${
-                item.type === "Location" ? "bg-indigo-100 text-indigo-700" :
-                item.type === "Consommable" ? "bg-amber-100 text-amber-700" :
-                "bg-emerald-100 text-emerald-700"
-              }`}>
+              <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full ${KIND_BADGE_CLASSES[item.kind] || "bg-slate-100 text-slate-700"}`}>
                 {item.type}
               </span>
               <span className="px-2 py-1 text-[10px] font-bold uppercase rounded-full bg-slate-100 text-slate-600">
@@ -192,6 +326,9 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               </span>
             </div>
             <p className="text-slate-500 text-sm mt-2 font-mono">{item.id}</p>
+            {item.description && (
+              <p className="text-slate-400 text-xs mt-1 text-center">{item.description}</p>
+            )}
             
             <div className="mt-6 w-full space-y-3">
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
@@ -241,7 +378,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               <h3 className="font-bold text-slate-800">Historique des mouvements</h3>
             </div>
             <div className="p-0">
-              {itemMovements.length > 0 ? (
+              {movements.length > 0 ? (
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
@@ -254,7 +391,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
                     </tr>
                   </thead>
                   <tbody className="text-sm divide-y divide-slate-100">
-                    {itemMovements.map(m => (
+                    {movements.map(m => (
                       <tr key={m.id} className="hover:bg-slate-50">
                         <td className="p-4 text-slate-600">{m.date}</td>
                         <td className="p-4">
@@ -282,7 +419,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
         </div>
       </div>
 
-      {isEditing && (
+      {isEditing && editForm && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]" role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <div className="p-6 border-b border-slate-200 flex justify-between items-center">
@@ -480,7 +617,7 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
               <h3 id="delete-title" className="text-xl font-bold text-slate-800">Supprimer l'article ?</h3>
             </div>
             <div className="p-6">
-              <p className="text-sm text-slate-600">Cette action supprimera l'article <strong>{item.name}</strong> de l'inventaire mock.</p>
+              <p className="text-sm text-slate-600">Cette action supprimera l'article <strong>{item.name}</strong> de l'inventaire.</p>
             </div>
             <div className="p-6 pt-0 flex justify-end gap-3">
               <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" onClick={() => setIsDeleteOpen(false)} autoFocus>Annuler</button>

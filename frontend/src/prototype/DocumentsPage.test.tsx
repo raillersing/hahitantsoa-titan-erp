@@ -2,35 +2,128 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import DocumentsPage from './DocumentsPage';
+import { DocumentTemplateDefinition } from '../types';
 
-// Mock localStorage
-let mockStorage: Record<string, string> = {};
+// ---------------------------------------------------------------------------
+// API mock
+// ---------------------------------------------------------------------------
+const mockGetDocumentTemplates = vi.fn();
+
+vi.mock('../api', () => ({
+  getDocumentTemplates: (...args: any[]) => mockGetDocumentTemplates(...args),
+}));
+
+// Realistic template definitions that mapDefinitionToTemplate will convert
+// into the TemplateModel rows the tests assert against.
+const MOCK_TEMPLATE_DEFINITIONS: DocumentTemplateDefinition[] = [
+  {
+    key: 'TITAN-CONTRAT',
+    business_scope: 'titan',
+    document_type: 'Contrat',
+    label: 'Contrat Location Titan Standard',
+    version: '2',
+    status: 'active',
+    source_kind: 'upload',
+    source_reference: '',
+    template_path: '',
+    preview_path: '',
+    validated_by_client: true,
+    notes: 'Contrat standard de location Titan',
+  },
+  {
+    key: 'TPL-H1',
+    business_scope: 'hahitantsoa',
+    document_type: 'Avenant',
+    label: 'Avenant Hahitantsoa Standard',
+    version: '1',
+    status: 'active',
+    source_kind: 'upload',
+    source_reference: '',
+    template_path: '',
+    preview_path: '',
+    validated_by_client: false,
+    notes: 'Avenant standard Hahitantsoa',
+  },
+  {
+    key: 'TITAN-MATERIAL-AMENDMENT',
+    business_scope: 'titan',
+    document_type: 'Avenant',
+    label: 'Avenant matériel Titan',
+    version: '1',
+    status: 'draft',
+    source_kind: 'upload',
+    source_reference: '',
+    template_path: '',
+    preview_path: '',
+    validated_by_client: false,
+    notes: 'Avenant matériel pour Titan',
+  },
+  {
+    key: 'TPL-T3',
+    business_scope: 'titan',
+    document_type: 'Contrat',
+    label: 'Bon de livraison Titan',
+    version: '1',
+    status: 'active',
+    source_kind: 'upload',
+    source_reference: '',
+    template_path: '',
+    preview_path: '',
+    validated_by_client: false,
+    notes: '',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Date stub – freeze Date.now() so lastModified / formatted dates are stable
+// ---------------------------------------------------------------------------
+const FIXED_NOW = new Date('2026-07-11T10:00:00Z');
+const OriginalDate = globalThis.Date;
+
 const originalCreateObjectURL = URL.createObjectURL;
 const originalRevokeObjectURL = URL.revokeObjectURL;
-vi.stubGlobal('localStorage', {
-  getItem: (key: string) => key in mockStorage ? mockStorage[key] : null,
-  setItem: (key: string, val: string) => { mockStorage[key] = val; },
-  removeItem: (key: string) => { delete mockStorage[key]; },
-});
 
 describe('DocumentsPage', () => {
   beforeEach(() => {
-    mockStorage = {};
+    // Default: resolve with full list
+    mockGetDocumentTemplates.mockResolvedValue(MOCK_TEMPLATE_DEFINITIONS);
+
+    // Freeze Date so mapDefinitionToTemplate's lastModified and
+    // formatDocumentDate produce deterministic outputs.
+    vi.stubGlobal(
+      'Date',
+      class extends OriginalDate {
+        constructor(...args: any[]) {
+          if (args.length === 0) {
+            super(FIXED_NOW.getTime());
+          } else {
+            // @ts-expect-error – forwarding constructor args
+            super(...args);
+          }
+        }
+        static override now() {
+          return FIXED_NOW.getTime();
+        }
+      } as any,
+    );
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     Object.defineProperty(URL, 'createObjectURL', { configurable: true, writable: true, value: originalCreateObjectURL });
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, writable: true, value: originalRevokeObjectURL });
   });
 
-  it('renders list view and handles navigation by clicking on a row', () => {
+  it('renders list view and handles navigation by clicking on a row', async () => {
     const onNavigate = vi.fn();
     render(<DocumentsPage onNavigate={onNavigate} />);
 
-    expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
     expect(screen.getAllByText('11/07/2026').length).toBeGreaterThan(0);
 
-    // Click on a row (Titan Contrat Standard is TPL-T3 now)
+    // Click on a row
     fireEvent.click(screen.getAllByRole('button', { name: 'Ouvrir le modèle Contrat Location Titan Standard' })[0]);
 
     // Should display breadcrumb
@@ -38,8 +131,12 @@ describe('DocumentsPage', () => {
     expect(screen.getByText(/Contrat Location Titan Standard \/ v2/i)).toBeInTheDocument();
   });
 
-  it('filters correctly and handles spaces in search', () => {
+  it('filters correctly and handles spaces in search', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
 
     const searchInput = screen.getByPlaceholderText(/Rechercher par nom/i);
     fireEvent.change(searchInput, { target: { value: '  titan  ' } });
@@ -48,8 +145,12 @@ describe('DocumentsPage', () => {
     expect(screen.queryByText('Avenant Hahitantsoa Standard')).not.toBeInTheDocument();
   });
 
-  it('allows Avenant for both Hahitantsoa and Titan while filtering Titan venue variables', () => {
+  it('allows Avenant for both Hahitantsoa and Titan while filtering Titan venue variables', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /Nouveau modèle/i }));
 
@@ -69,21 +170,13 @@ describe('DocumentsPage', () => {
     expect(screen.getByText('{{event.usage}}')).toBeInTheDocument();
   });
 
-  it('preserves a valid Titan material amendment when saving', () => {
-    mockStorage.mock_templates = JSON.stringify([{
-      id: 'TITAN-MATERIAL-AMENDMENT',
-      name: 'Avenant matériel Titan',
-      code: 'TITAN-MATERIAL-AMENDMENT',
-      family: 'Documents commerciaux',
-      volet: 'Titan',
-      type: 'Avenant',
-      status: 'Brouillon',
-      version: 1,
-      content: '[]',
-      lastModified: '2026-07-11',
-    }]);
-
+  it('preserves a valid Titan material amendment when saving', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getAllByRole('button', { name: 'Ouvrir le modèle Avenant matériel Titan' })[0]);
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
 
@@ -92,8 +185,13 @@ describe('DocumentsPage', () => {
     expect(screen.getByLabelText('Type de document')).toHaveValue('Avenant');
   });
 
-  it('refuses the Hahitantsoa venue variable in a Titan template', () => {
+  it('refuses the Hahitantsoa venue variable in a Titan template', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Nouveau modèle/i }));
     fireEvent.click(screen.getByRole('tab', { name: '2. Contenu' }));
     fireEvent.click(screen.getByRole('button', { name: '+ Paragraphe' }));
@@ -111,6 +209,11 @@ describe('DocumentsPage', () => {
 
   it('handles guided editor and variables insertion', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Nouveau modèle/i }));
 
     fireEvent.click(screen.getByRole('tab', { name: '2. Contenu' }));
@@ -140,6 +243,11 @@ describe('DocumentsPage', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, writable: true, value: revokeObjectURL });
 
     const { unmount } = render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Importer/i }));
     expect(screen.getByText('Cliquez pour sélectionner un fichier PDF')).toBeInTheDocument();
 
@@ -163,8 +271,13 @@ describe('DocumentsPage', () => {
     unmount();
   });
 
-  it('rejects non-PDF and oversized local imports', () => {
+  it('rejects non-PDF and oversized local imports', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Importer/i }));
     const input = screen.getByLabelText('Sélectionner un PDF');
 
@@ -192,6 +305,11 @@ describe('DocumentsPage', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, writable: true, value: revokeObjectURL });
 
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Importer/i }));
     const file = new File(['pdf'], 'sensitive.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByLabelText('Sélectionner un PDF'), { target: { files: [file] } });
@@ -203,8 +321,13 @@ describe('DocumentsPage', () => {
     expect(screen.queryByText('sensitive.pdf')).not.toBeInTheDocument();
   });
 
-  it('prevents duplicated codes', () => {
+  it('prevents duplicated codes', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /Nouveau modèle/i }));
 
     const nameInput = screen.getByPlaceholderText(/Ex: Contrat de location Standard/i);
@@ -223,8 +346,12 @@ describe('DocumentsPage', () => {
     expect(screen.getByText(/Ce code existe déjà pour un autre modèle/i)).toBeInTheDocument();
   });
 
-  it('prevents multiple active versions', () => {
+  it('prevents multiple active versions', async () => {
     render(<DocumentsPage onNavigate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /Nouveau modèle/i }));
 
@@ -250,6 +377,11 @@ describe('DocumentsPage', () => {
 
   it('handles search correctly with one clear button', async () => {
     render(<DocumentsPage onNavigate={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Documents & Modèles')[0]).toBeInTheDocument();
+    });
+
     const searchInput = await screen.findByRole('searchbox', { name: /Rechercher un modèle/i });
     expect(searchInput).toBeInTheDocument();
 

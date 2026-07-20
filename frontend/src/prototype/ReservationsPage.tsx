@@ -1,44 +1,88 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AppScope } from "../App";
-import { mockReservations, mockClients, getClient, formatMoney } from "./mockData";
+import { getReservationDrafts } from "../api";
+import type { ReservationDraft } from "../types";
 
 interface ReservationsPageProps {
   onNavigate: (scope: AppScope, param?: string) => void;
   canSensitiveWrite?: boolean;
 }
 
-type FilterKey = "all" | "hahitantsoa" | "titan" | "En cours" | "Proforma" | "Confirmée" | "En sortie" | "Terminée";
+type FilterKey = "all" | "draft" | "confirmed" | "cancelled";
 
 export default function ReservationsPage({ onNavigate, canSensitiveWrite = false }: ReservationsPageProps) {
+  const [drafts, setDrafts] = useState<ReservationDraft[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    getReservationDrafts(undefined, controller.signal)
+      .then((data) => {
+        setDrafts(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          setError(err.message || "Erreur lors du chargement des réservations.");
+          setLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, []);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return mockReservations.filter(r => {
-      const client = getClient(r.clientId);
-      const matchesSearch = !q ||
-        r.id.toLowerCase().includes(q) ||
-        client.name.toLowerCase().includes(q) ||
-        r.title.toLowerCase().includes(q) ||
+    return drafts.filter((r) => {
+      const matchesSearch =
+        !q ||
+        r.public_reference.toLowerCase().includes(q) ||
+        r.customer_display_name.toLowerCase().includes(q) ||
         r.status.toLowerCase().includes(q);
       const matchesFilter =
-        filter === "all" ? true :
-        filter === "hahitantsoa" ? r.type === "Hahitantsoa" :
-        filter === "titan" ? r.type === "Titan" :
-        r.status === filter;
+        filter === "all" ? true : r.status === filter;
       return matchesSearch && matchesFilter;
     });
-  }, [search, filter]);
+  }, [search, filter, drafts]);
 
-  const totalReste = useMemo(() =>
-    filtered.reduce((acc, r) => {
-      const amount = typeof r.amount === "number" ? r.amount : 0;
-      const paid = typeof r.paidAmount === "number" ? r.paidAmount : Math.round(amount / 2);
-      return acc + Math.max(0, amount - paid);
-    }, 0),
-    [filtered]
-  );
+  const formatStatusBadge = (status: string) => {
+    switch (status) {
+      case "draft":
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+            Brouillon
+          </span>
+        );
+      case "confirmed":
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+            Confirmée
+          </span>
+        );
+      case "cancelled":
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700">
+            Annulée
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+            {status}
+          </span>
+        );
+    }
+  };
+
+  const formatDateRange = (startAt: string, endAt: string) => {
+    const start = startAt ? new Date(startAt).toLocaleDateString("fr-FR") : "—";
+    const end = endAt ? new Date(endAt).toLocaleDateString("fr-FR") : "—";
+    return `${start} → ${end}`;
+  };
 
   return (
     <div className="page active space-y-6">
@@ -63,23 +107,19 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input
               type="text"
-              placeholder="Rechercher par ID, client, titre, statut..."
+              placeholder="Rechercher par référence, client, statut..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {([
               { key: "all", label: "Tous" },
-              { key: "hahitantsoa", label: "Hahitantsoa" },
-              { key: "titan", label: "Titan" },
-              { key: "En cours", label: "En cours" },
-              { key: "Proforma", label: "Proforma" },
-              { key: "Confirmée", label: "Confirmée" },
-              { key: "En sortie", label: "Sortie" },
-              { key: "Terminée", label: "Terminée" }
-            ] as { key: FilterKey; label: string }[]).map(f => (
+              { key: "draft", label: "Brouillon" },
+              { key: "confirmed", label: "Confirmée" },
+              { key: "cancelled", label: "Annulée" },
+            ] as { key: FilterKey; label: string }[]).map((f) => (
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key)}
@@ -96,82 +136,81 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
         </div>
 
         <div className="flex flex-wrap gap-4 text-sm text-slate-600">
-          <span><strong>{filtered.length}</strong> dossier(s)</span>
-          <span>•</span>
-          <span>Reste à payer total : <strong className="text-rose-600">{formatMoney(totalReste)}</strong></span>
+          <span>
+            <strong>{filtered.length}</strong> dossier(s)
+          </span>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-6 overflow-x-auto">
-        <table className="w-full text-sm min-w-[900px]">
-          <thead>
-            <tr className="text-xs text-slate-500 uppercase bg-slate-50">
-              <th className="px-4 py-3 text-left font-medium rounded-tl-lg">ID</th>
-              <th className="px-4 py-3 text-left font-medium">Module</th>
-              <th className="px-4 py-3 text-left font-medium">Client</th>
-              <th className="px-4 py-3 text-left font-medium">Titre / Objet</th>
-              <th className="px-4 py-3 text-left font-medium">Date / Période</th>
-              <th className="px-4 py-3 text-right font-medium">Total</th>
-              <th className="px-4 py-3 text-right font-medium">Reste</th>
-              <th className="px-4 py-3 text-center font-medium rounded-tr-lg">Statut</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filtered.map(r => {
-              const client = getClient(r.clientId);
-              const amount = typeof r.amount === "number" ? r.amount : 0;
-              const paid = typeof r.paidAmount === "number" ? r.paidAmount : Math.round(amount / 2);
-              const remaining = Math.max(0, amount - paid);
-              return (
+      {loading && (
+        <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
+          <i className="fa-solid fa-spinner fa-spin text-2xl text-indigo-500 mb-3"></i>
+          <p className="text-sm text-slate-500">Chargement des réservations...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-white rounded-2xl border border-rose-200 p-6 text-center">
+          <i className="fa-solid fa-circle-exclamation text-2xl text-rose-500 mb-3"></i>
+          <p className="text-sm text-rose-600 font-medium">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 overflow-x-auto">
+          <table className="w-full text-sm min-w-[800px]">
+            <thead>
+              <tr className="text-xs text-slate-500 uppercase bg-slate-50">
+                <th className="px-4 py-3 text-left font-medium rounded-tl-lg">Référence</th>
+                <th className="px-4 py-3 text-left font-medium">Client</th>
+                <th className="px-4 py-3 text-left font-medium">Date / Période</th>
+                <th className="px-4 py-3 text-left font-medium">Articles</th>
+                <th className="px-4 py-3 text-center font-medium rounded-tr-lg">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
                     <button
                       onClick={() => onNavigate("reservation-detail", r.id)}
                       className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
                     >
-                      {r.id}
+                      {r.public_reference}
                     </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                      r.type === "Hahitantsoa"
-                        ? "bg-hah-100 text-hah-700 dark:bg-hah-900 dark:text-hah-100"
-                        : "bg-tit-100 text-tit-700 dark:bg-tit-900 dark:text-tit-100"
-                    }`}>
-                      {r.type}
-                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => onNavigate("customer", client.id)}
+                      onClick={() => onNavigate("customer", r.customer_id)}
                       className="text-left group"
                     >
-                      <div className="font-medium text-slate-800 group-hover:text-indigo-600 group-hover:underline">{client.name}</div>
-                      <div className="text-xs text-slate-500">{client.email}</div>
+                      <div className="font-medium text-slate-800 group-hover:text-indigo-600 group-hover:underline">
+                        {r.customer_display_name}
+                      </div>
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{r.title}</td>
-                  <td className="px-4 py-3 text-slate-600">{r.date}</td>
-                  <td className="px-4 py-3 text-right font-medium text-slate-800">{formatMoney(amount)}</td>
-                  <td className="px-4 py-3 text-right font-medium text-rose-600">{formatMoney(remaining)}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {formatDateRange(r.start_at, r.end_at)}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {r.lines.length} article(s)
+                  </td>
                   <td className="px-4 py-3 text-center rounded-tr-lg">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
-                      {r.status}
-                    </span>
+                    {formatStatusBadge(r.status)}
                   </td>
                 </tr>
-              );
-            })}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
-                  Aucune réservation ne correspond à votre recherche.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
+                    Aucune réservation ne correspond à votre recherche.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
