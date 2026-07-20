@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ApiError, createCustomer, getCustomers } from "../api";
 import type { Customer as ApiCustomer } from "../types";
-import type { Client } from "./mockData";
+import type { Client } from "../types";
 import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 
 interface CustomersPageProps {

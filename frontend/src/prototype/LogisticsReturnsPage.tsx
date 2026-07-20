@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getReturnOperations } from "../api";
 import type { InventoryReturnOperation, InventoryReturnOperationLine } from "../types";
-import { titanLateReturnPenaltyRate, clampQuantity } from "./mockData";
+import { titanLateReturnPenaltyRate, clampQuantity } from "../utils";
 
 type FilterCategory = "Tous" | "En retard" | "Aujourd'hui" | "À venir";
 

@@ -1045,3 +1045,39 @@ export type MaterialPackageUpdatePayload = {
   is_active?: boolean;
   lines?: Array<{ inventory_item: string; quantity: number }>;
 };
+
+// ---- Legacy Client type (from mockData, kept for backward compatibility) ----
+
+export type Client = {
+  id: string;
+  initials: string;
+  name: string;
+  email: string;
+  phone: string;
+  type: "Particulier" | "Entreprise";
+  status: "Prospect" | "Client" | "Inactif";
+  colorClass: string;
+  civilite?: "Monsieur" | "Madame" | "";
+  firstName?: string;
+  lastName?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  idType?: "CIN" | "Passeport";
+  idNumber?: string;
+  idIssueDate?: string;
+  idIssuePlace?: string;
+  idDuplicataDate?: string;
+  idDuplicataPlace?: string;
+  address?: string;
+  idPhotoUrl?: string;
+  nif?: string;
+  stat?: string;
+  rcs?: string;
+  repFirstName?: string;
+  repLastName?: string;
+  repRole?: string;
+  notes?: string;
+  reservationCount?: number;
+  eventCount?: number;
+  documentCount?: number;
+};

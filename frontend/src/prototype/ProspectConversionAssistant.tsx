@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Client } from "./mockData";
+import type { Client } from "../types";
 
 interface ProspectConversionAssistantProps {
   client: Client;

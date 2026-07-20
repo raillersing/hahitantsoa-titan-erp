@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { getReservationDrafts, getInventoryItems } from "../api";
-import { clampQuantity } from "./mockData";
+import { clampQuantity } from "../utils";
 import type { ReservationDraft, InventoryItem } from "../types";
 
 type PrepItem = {
