@@ -20,6 +20,8 @@ from apps.hahitantsoa.models import (
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
+    HahitantsoaService,
+    HahitantsoaVenue,
 )
 from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
@@ -592,6 +594,51 @@ class HahitantsoaEventDraftDocumentInstanceGenerateAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    def post(self, request, pk, id):
+        from django.http import Http404
+        from django.shortcuts import get_object_or_404
+
+        from apps.documents.pdf import DocumentPDFGenerationError
+        from apps.documents.serializers import DocumentInstancePDFSerializer
+        from apps.documents.services import (
+            generate_document_instance_pdf,
+            get_hahitantsoa_event_draft_document_instance_or_404,
+        )
+
+        event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
+        try:
+            instance = get_hahitantsoa_event_draft_document_instance_or_404(
+                event_draft=event_draft,
+                document_instance_id=id,
+            )
+            instance = generate_document_instance_pdf(
+                document_instance=instance,
+                actor=request.user,
+            )
+        except DocumentInstance.DoesNotExist:
+            raise Http404("Document instance not found.")
+        except DocumentPDFGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = DocumentInstancePDFSerializer(
+            {
+                "id": instance.id,
+                "status": instance.status,
+                "pdf_storage_path": instance.pdf_storage_path,
+                "pdf_generated_at": instance.pdf_generated_at,
+                "pdf_content_checksum": instance.pdf_content_checksum,
+            }
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ["get", "put", "patch", "delete", "head", "options"]
     permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
@@ -651,3 +698,73 @@ class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyA
         instance.deleted_at = deleted_at
         instance.updated_by = self.request.user
         instance.save(update_fields=["is_deleted", "deleted_at", "updated_by", "updated_at"])
+
+
+class HahitantsoaVenueListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "post":
+            from apps.hahitantsoa.serializers import HahitantsoaVenueCreateSerializer
+
+            return HahitantsoaVenueCreateSerializer
+        from apps.hahitantsoa.serializers import HahitantsoaVenueSerializer
+
+        return HahitantsoaVenueSerializer
+
+    def get_queryset(self):
+        return HahitantsoaVenue.objects.all()
+
+
+class HahitantsoaVenueRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
+    http_method_names = ["get", "patch", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    lookup_field = "pk"
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "patch":
+            from apps.hahitantsoa.serializers import HahitantsoaVenueCreateSerializer
+
+            return HahitantsoaVenueCreateSerializer
+        from apps.hahitantsoa.serializers import HahitantsoaVenueSerializer
+
+        return HahitantsoaVenueSerializer
+
+    def get_queryset(self):
+        return HahitantsoaVenue.objects.all()
+
+
+class HahitantsoaServiceListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "post":
+            from apps.hahitantsoa.serializers import HahitantsoaServiceCreateSerializer
+
+            return HahitantsoaServiceCreateSerializer
+        from apps.hahitantsoa.serializers import HahitantsoaServiceSerializer
+
+        return HahitantsoaServiceSerializer
+
+    def get_queryset(self):
+        return HahitantsoaService.objects.all()
+
+
+class HahitantsoaServiceRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
+    http_method_names = ["get", "patch", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    lookup_field = "pk"
+
+    def get_serializer_class(self):
+        if self.request.method.lower() == "patch":
+            from apps.hahitantsoa.serializers import HahitantsoaServiceCreateSerializer
+
+            return HahitantsoaServiceCreateSerializer
+        from apps.hahitantsoa.serializers import HahitantsoaServiceSerializer
+
+        return HahitantsoaServiceSerializer
+
+    def get_queryset(self):
+        return HahitantsoaService.objects.all()

@@ -14,6 +14,8 @@ from apps.hahitantsoa.models import (
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
+    HahitantsoaService,
+    HahitantsoaVenue,
 )
 from apps.hahitantsoa.scope import assert_hahitantsoa_shared_inventory_item_kind
 from apps.hahitantsoa.services import (
@@ -726,6 +728,68 @@ class HahitantsoaEventDraftConfirmationResultSerializer(serializers.Serializer):
                 "event_draft": result.event_draft,
             }
         )
+
+
+class HahitantsoaVenueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HahitantsoaVenue
+        fields = (
+            "id",
+            "name",
+            "type",
+            "capacity",
+            "active",
+            "note",
+            "price",
+            "usage",
+            "volet",
+            "is_default",
+        )
+        read_only_fields = ("id",)
+
+
+class HahitantsoaVenueCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HahitantsoaVenue
+        fields = (
+            "id",
+            "name",
+            "type",
+            "capacity",
+            "active",
+            "note",
+            "price",
+            "usage",
+            "volet",
+            "is_default",
+        )
+        read_only_fields = ("id",)
+
+
+class HahitantsoaServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HahitantsoaService
+        fields = (
+            "id",
+            "name",
+            "desc",
+            "price",
+            "active",
+        )
+        read_only_fields = ("id",)
+
+
+class HahitantsoaServiceCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HahitantsoaService
+        fields = (
+            "id",
+            "name",
+            "desc",
+            "price",
+            "active",
+        )
+        read_only_fields = ("id",)
 
 
 __all__ = [

@@ -279,3 +279,38 @@ class HahitantsoaEventDraftAmendmentRequestLine(
 
     def __str__(self) -> str:
         return f"{self.amendment_request} - {self.inventory_item} x {self.quantity}"
+
+
+class HahitantsoaVenue(UUIDModel, TimestampedModel, AuditableModel):
+    name = models.CharField(max_length=255)
+    type = models.CharField(max_length=128, blank=True, default="")
+    capacity = models.PositiveIntegerField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    note = models.TextField(blank=True, default="")
+    price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    usage = models.CharField(max_length=255, blank=True, default="")
+    volet = models.CharField(max_length=255, blank=True, default="")
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["name", "id"]
+        verbose_name = "Hahitantsoa venue"
+        verbose_name_plural = "Hahitantsoa venues"
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class HahitantsoaService(UUIDModel, TimestampedModel, AuditableModel):
+    name = models.CharField(max_length=255)
+    desc = models.TextField(blank=True, default="")
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        verbose_name = "Hahitantsoa service"
+        verbose_name_plural = "Hahitantsoa services"
+
+    def __str__(self) -> str:
+        return self.name

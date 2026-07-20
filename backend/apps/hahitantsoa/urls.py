@@ -12,11 +12,16 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftConfirmAPIView,
     HahitantsoaEventDraftConfirmationPreflightAPIView,
     HahitantsoaEventDraftDocumentInstanceGenerateAPIView,
+    HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView,
     HahitantsoaEventDraftDocumentInstanceListCreateAPIView,
     HahitantsoaEventDraftDocumentInstanceRetrieveAPIView,
     HahitantsoaEventDraftListCreateAPIView,
     HahitantsoaEventDraftRetrieveUpdateAPIView,
+    HahitantsoaServiceListCreateAPIView,
+    HahitantsoaServiceRetrieveUpdateAPIView,
     HahitantsoaSharedAvailabilityAPIView,
+    HahitantsoaVenueListCreateAPIView,
+    HahitantsoaVenueRetrieveUpdateAPIView,
 )
 
 urlpatterns = [
@@ -105,5 +110,30 @@ urlpatterns = [
         "event-drafts/<uuid:pk>/documents/<uuid:id>/generate/",
         HahitantsoaEventDraftDocumentInstanceGenerateAPIView.as_view(),
         name="hahitantsoa-event-draft-document-generate",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/documents/<uuid:id>/generate-pdf/",
+        HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView.as_view(),
+        name="hahitantsoa-event-draft-document-generate-pdf",
+    ),
+    path(
+        "venues/",
+        HahitantsoaVenueListCreateAPIView.as_view(),
+        name="hahitantsoa-venue-list",
+    ),
+    path(
+        "venues/<uuid:pk>/",
+        HahitantsoaVenueRetrieveUpdateAPIView.as_view(),
+        name="hahitantsoa-venue-detail",
+    ),
+    path(
+        "services/",
+        HahitantsoaServiceListCreateAPIView.as_view(),
+        name="hahitantsoa-service-list",
+    ),
+    path(
+        "services/<uuid:pk>/",
+        HahitantsoaServiceRetrieveUpdateAPIView.as_view(),
+        name="hahitantsoa-service-detail",
     ),
 ]
