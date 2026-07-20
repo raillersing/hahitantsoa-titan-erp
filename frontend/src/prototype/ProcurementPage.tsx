@@ -17,7 +17,7 @@ import {
 } from "../api";
 
 interface ProcurementPageProps {
-  onNavigate: (scope: string, param?: string) => void;
+  onNavigate: (scope: any, param?: string) => void;
 }
 
 const STATUS_LABELS: Record<PurchaseOrderStatus, string> = {

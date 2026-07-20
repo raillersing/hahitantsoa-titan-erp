@@ -40,6 +40,7 @@ import ProcurementPage from "./prototype/ProcurementPage";
 import ProfilePage from "./prototype/ProfilePage";
 import HRPage from "./prototype/HRPage";
 import HRPayrollPage from "./prototype/HRPayrollPage";
+import MobileTabletPage from "./prototype/MobileTabletPage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
 import { capabilitiesForUser } from "./capabilities";
 
@@ -214,16 +215,8 @@ function App() {
       case "import-excel": return <ImportExcelPage onNavigate={navigate} />;
       case "hr": return <HRPage onNavigate={navigate} />;
       case "hr-payroll": return <HRPayrollPage onNavigate={navigate} />;
-      case "purchasing":
-      case "mobile-tablet":
-        return (
-          <div className="flex items-center justify-center p-12">
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Module en développement</h2>
-              <p className="text-slate-500">Cette fonctionnalité sera disponible prochainement.</p>
-            </div>
-          </div>
-        );
+      case "purchasing": return <ProcurementPage onNavigate={navigate} />;
+      case "mobile-tablet": return <MobileTabletPage onNavigate={navigate} />;
     }
   };
 
