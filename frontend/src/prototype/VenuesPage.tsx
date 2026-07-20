@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { mockVenues } from "./mockData";
 import { getHahitantsoaVenues, createHahitantsoaVenue, updateHahitantsoaVenue } from "../api";
 import type { HahitantsoaVenue } from "../types";
 
 export default function VenuesPage() {
-  const [venues, setVenues] = useState<HahitantsoaVenue[]>(mockVenues);
+  const [venues, setVenues] = useState<HahitantsoaVenue[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
   const [currentVenue, setCurrentVenue] = useState<any>({
@@ -18,18 +18,21 @@ export default function VenuesPage() {
 
     getHahitantsoaVenues(controller.signal)
       .then((apiVenues) => {
-        if (isSubscribed && Array.isArray(apiVenues) && apiVenues.length > 0) {
+        if (isSubscribed && Array.isArray(apiVenues)) {
           setVenues(apiVenues);
         }
       })
       .catch(() => {
-        // Fallback to mockVenues
+        if (isSubscribed) setVenues([]);
+      })
+      .finally(() => {
+        if (isSubscribed) setLoading(false);
       });
 
     return () => {
       isSubscribed = false;
       controller.abort();
-    };
+    }
   }, []);
 
   const showToast = (message: string) => {

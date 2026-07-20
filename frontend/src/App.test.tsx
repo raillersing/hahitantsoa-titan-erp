@@ -221,18 +221,15 @@ describe("App Prototype", () => {
     expect(window.location.hash).toBe("#breakage-loss");
   });
 
-  it("does not call /api/v1/inventory/items on logistics routes", () => {
+  it("calls /api/v1/inventory/items on stock-movements route to resolve item names", () => {
     const fetchSpy = vi.spyOn(window, "fetch");
-    window.history.replaceState(null, "", "/#inventory");
-    const { unmount } = render(<App />);
-    unmount();
     window.history.replaceState(null, "", "/#stock-movements");
     render(<App />);
     
     const inventoryCalls = fetchSpy.mock.calls.filter((call: any[]) =>
       typeof call[0] === 'string' && call[0].includes("/api/v1/inventory/items")
     );
-    expect(inventoryCalls.length).toBe(0);
+    expect(inventoryCalls.length).toBeGreaterThan(0);
     fetchSpy.mockRestore();
   });
 

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { hahitantsoaMockServices } from './mockData';
 import { getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService } from '../api';
 
 const ServicesPage: React.FC = () => {
-  const [services, setServices] = useState(hahitantsoaMockServices.map(s => ({...s, active: true})));
+  const [services, setServices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', desc: '', price: 0, active: true });
@@ -15,12 +15,15 @@ const ServicesPage: React.FC = () => {
 
     getHahitantsoaServices(controller.signal)
       .then((apiServices) => {
-        if (isSubscribed && Array.isArray(apiServices) && apiServices.length > 0) {
-          setServices(apiServices);
+        if (isSubscribed && Array.isArray(apiServices)) {
+          setServices(apiServices.map((s: any) => ({...s, active: true})));
         }
       })
       .catch(() => {
-        // Fallback to hahitantsoaMockServices
+        if (isSubscribed) setServices([]);
+      })
+      .finally(() => {
+        if (isSubscribed) setLoading(false);
       });
 
     return () => {

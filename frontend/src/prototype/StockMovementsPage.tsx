@@ -1,7 +1,26 @@
-import React, { useState } from "react";
-import { mockMovements, mockInventory } from "./mockData";
+import React, { useEffect, useState } from "react";
+import { getStockMovements, getInventoryItems } from "../api";
+import type { InventoryStockMovement, InventoryItem } from "../types";
+
+const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+  outbound_delivery: "Sortie",
+  inbound_return: "Retour",
+  adjustment_in: "Entrée",
+  adjustment_out: "Ajustement",
+  damage: "Casse",
+  loss: "Perte",
+  other: "Autre",
+};
+
+function getMovementLabel(m: InventoryStockMovement): string {
+  return MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type;
+}
 
 export default function StockMovementsPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
+  const [movements, setMovements] = useState<InventoryStockMovement[]>([]);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filterType, setFilterType] = useState("Tous");
   const [toast, setToast] = React.useState<{message: string, type: 'info'|'success'|'warning'|'error'} | null>(null);
 
@@ -10,10 +29,63 @@ export default function StockMovementsPage({ onNavigate }: { onNavigate: (scope:
     setTimeout(() => setToast(null), 3000);
   };
 
-  const filteredData = mockMovements.filter(m => {
-    if (filterType !== "Tous" && m.type !== filterType) return false;
-    return true;
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadData = async () => {
+      try {
+        const [movementsData, itemsData] = await Promise.all([
+          getStockMovements(controller.signal),
+          getInventoryItems(controller.signal),
+        ]);
+        setMovements(movementsData);
+        setItems(itemsData);
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          setLoadError("Impossible de charger les mouvements de stock. Réessayez.");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+    return () => controller.abort();
+  }, []);
+
+  const itemsMap = React.useMemo(() => {
+    const map = new Map<string, InventoryItem>();
+    for (const item of items) {
+      map.set(item.id, item);
+    }
+    return map;
+  }, [items]);
+
+  const filteredData = movements.filter(m => {
+    if (filterType === "Tous") return true;
+    if (filterType === "Réservation") return m.reservation_draft != null;
+    return getMovementLabel(m) === filterType;
   });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-slate-500 dark:text-slate-400 text-sm">Chargement des mouvements…</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center">
+        <p className="text-red-600 dark:text-red-400 text-sm">{loadError}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -50,29 +122,30 @@ export default function StockMovementsPage({ onNavigate }: { onNavigate: (scope:
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {filteredData.map(m => {
-                const article = mockInventory.find(a => a.id === m.articleId);
+                const label = getMovementLabel(m);
+                const article = itemsMap.get(m.inventory_item);
                 return (
                   <tr key={m.id} className="hover:bg-slate-50 dark:bg-slate-900/50">
-                    <td className="p-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">{m.date}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">{m.created_at}</td>
                     <td className="p-4">
                       <span className={`px-2 py-1 text-xs font-bold rounded-md ${
-                        m.type === "Entrée" ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400" :
-                        m.type === "Sortie" ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400" :
-                        m.type === "Retour" ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400" :
-                        m.type === "Réservation" ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400" :
+                        label === "Entrée" ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400" :
+                        label === "Sortie" ? "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400" :
+                        label === "Retour" ? "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400" :
+                        label === "Réservation" ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400" :
                         "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                      }`}>{m.type}</span>
+                      }`}>{label}</span>
                     </td>
-                    <td className="p-4 font-bold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-tit-600 dark:text-tit-400" onClick={() => onNavigate("inventory-item", m.articleId)}>
-                      {article ? article.name : m.articleId}
+                    <td className="p-4 font-bold text-slate-800 dark:text-slate-100 cursor-pointer hover:text-tit-600 dark:text-tit-400" onClick={() => onNavigate("inventory-item", m.inventory_item)}>
+                      {article ? article.name : m.inventory_item}
                     </td>
                     <td className="p-4 font-bold text-slate-800 dark:text-slate-100 text-right">{m.quantity}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-400">{m.reason}</td>
-                    <td className="p-4 text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-medium">{m.dossierRef || "-"}</td>
-                    <td className="p-4 text-slate-500 dark:text-slate-400">{m.operator}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">{m.notes || m.source_label}</td>
+                    <td className="p-4 text-tit-600 dark:text-tit-400 hover:underline cursor-pointer font-medium">{m.reservation_draft || "-"}</td>
+                    <td className="p-4 text-slate-500 dark:text-slate-400">{m.validated_by || "-"}</td>
                     <td className="p-4">
                       <button 
-                        className="text-slate-400 hover:text-red-600 dark:text-red-400 px-2" 
+                        className="text-slate-400 hover:text-red-600 dark:text-red-400 px-2"
                         title="Annuler ce mouvement"
                         onClick={() => showToast('Annulation du mouvement ' + m.id, 'info')}
                       >

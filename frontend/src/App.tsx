@@ -5,7 +5,7 @@ import LoginPanel from "./LoginPanel";
 import AppShell from "./prototype/AppShell";
 import DashboardPage from "./prototype/DashboardPage";
 import PlanningPage from "./prototype/PlanningPage";
-import PlaceholderPage from "./prototype/PlaceholderPage";
+
 import NotificationsPage from "./prototype/NotificationsPage";
 import ImportExcelPage from "./prototype/ImportExcelPage";
 import HahitantsoaPage from "./prototype/HahitantsoaPage";
@@ -212,7 +212,14 @@ function App() {
       case "hr-payroll":
       case "purchasing":
       case "mobile-tablet":
-        return <PlaceholderPage title={scope.toUpperCase()} scope={scope} onNavigate={navigate} />;
+        return (
+          <div className="flex items-center justify-center p-12">
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Module en développement</h2>
+              <p className="text-slate-500">Cette fonctionnalité sera disponible prochainement.</p>
+            </div>
+          </div>
+        );
     }
   };
 
