@@ -86,7 +86,7 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
 
 
 class LogisticsEventCreateSerializer(serializers.Serializer):
-    reservation_draft_id = serializers.UUIDField()
+    reservation_draft = serializers.UUIDField()
     event_type = serializers.ChoiceField(choices=LogisticsEventType.choices)
     scheduled_at = serializers.DateTimeField(required=False, allow_null=True)
     address = serializers.CharField(required=False, allow_blank=True)

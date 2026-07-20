@@ -89,7 +89,7 @@ class LogisticsEventCreateAPIView(APIView):
 
         reservation_draft = get_object_or_404(
             ReservationDraft,
-            pk=serializer.validated_data["reservation_draft_id"],
+            pk=serializer.validated_data["reservation_draft"],
         )
 
         try:

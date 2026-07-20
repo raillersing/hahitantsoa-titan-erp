@@ -130,7 +130,7 @@ def test_list_filter_by_status(operator_authenticated_client, reservation_draft)
 
 def test_create_logistics_event(operator_authenticated_client, reservation_draft):
     payload = {
-        "reservation_draft_id": str(reservation_draft.id),
+        "reservation_draft": str(reservation_draft.id),
         "event_type": "handover",
         "scheduled_at": timezone.now().isoformat(),
         "address": "123 Rue de la Paix",

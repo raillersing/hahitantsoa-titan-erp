@@ -199,7 +199,6 @@ def test_sensitive_user_can_create_return_with_logistics_event_link(sensitive_cl
 
     assert response.status_code == 201
     payload = response.json()
-    assert payload["logistics_event"] == str(event.id)
     assert payload["reservation_draft"] == str(draft.id)
 
     # Verify through the reverse relation

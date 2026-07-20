@@ -65,7 +65,6 @@ class InventoryStockMovementSerializer(serializers.ModelSerializer):
             "id",
             "inventory_item",
             "reservation_draft",
-            "document_instance",
             "movement_type",
             "direction",
             "quantity",
@@ -141,7 +140,6 @@ class InventoryReturnOperationSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "reservation_draft",
-            "logistics_event",
             "document_instance",
             "status",
             "notes",

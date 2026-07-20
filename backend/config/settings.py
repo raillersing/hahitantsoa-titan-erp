@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     "apps.cashbox.apps.CashboxConfig",
     "apps.identity.apps.IdentityConfig",
     "apps.logistics.apps.LogisticsConfig",
+    "apps.notifications.apps.NotificationsConfig",
+    "apps.excel_import.apps.ExcelImportConfig",
     "rest_framework",
     "drf_spectacular",
 ]
