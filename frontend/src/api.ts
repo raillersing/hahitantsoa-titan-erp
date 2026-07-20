@@ -1382,3 +1382,77 @@ export function updateHahitantsoaService(
 ): Promise<HahitantsoaService> {
   return patchAuthenticatedJson(`/api/v1/hahitantsoa/services/${id}/`, payload, signal);
 }
+
+// ---- Notifications ----
+
+import type { SystemNotification } from "./types";
+
+export function getNotifications(
+  unreadOnly?: boolean,
+  signal?: AbortSignal,
+): Promise<SystemNotification[]> {
+  const query = unreadOnly ? "?unread_only=true" : "";
+  return getAuthenticatedJson(`/api/v1/notifications/${query}`, signal);
+}
+
+export function markNotificationRead(
+  id: string,
+  isRead: boolean,
+  signal?: AbortSignal,
+): Promise<SystemNotification> {
+  return patchAuthenticatedJson(`/api/v1/notifications/${id}/read/`, { is_read: isRead }, signal);
+}
+
+export function markAllNotificationsRead(
+  signal?: AbortSignal,
+): Promise<{ marked_read: number }> {
+  return postAuthenticatedJson("/api/v1/notifications/mark-all-read/", {}, signal);
+}
+
+// ---- Import Excel ----
+
+import type { ImportJob } from "./types";
+
+export async function uploadImportFile(
+  file: File,
+  targetModel: string = "inventory_item",
+  signal?: AbortSignal,
+): Promise<ImportJob> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("target_model", targetModel);
+
+  const csrfToken = getCsrfToken();
+  const response = await fetch("/api/v1/import/", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "X-CSRFToken": csrfToken,
+    },
+    body: formData,
+    signal,
+  });
+
+  return parseJsonResponse<ImportJob>(response);
+}
+
+export function getImportJobs(
+  signal?: AbortSignal,
+): Promise<ImportJob[]> {
+  return getAuthenticatedJson("/api/v1/import/", signal);
+}
+
+export function updateImportMapping(
+  id: string,
+  columnMapping: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<ImportJob> {
+  return patchAuthenticatedJson(`/api/v1/import/${id}/mapping/`, { column_mapping: columnMapping }, signal);
+}
+
+export function validateImport(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ImportJob> {
+  return postAuthenticatedJson(`/api/v1/import/${id}/validate/`, {}, signal);
+}

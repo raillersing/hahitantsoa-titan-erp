@@ -974,3 +974,37 @@ export type HahitantsoaService = {
   price: number;
   active: boolean;
 };
+
+// ---- Notifications ----
+
+export type NotificationType = 'payment' | 'stock' | 'import' | 'reservation' | 'system';
+
+export type NotificationSeverity = 'info' | 'warning' | 'success' | 'error';
+
+export type SystemNotification = {
+  id: string;
+  notification_type: NotificationType;
+  title: string;
+  message: string;
+  severity: NotificationSeverity;
+  is_read: boolean;
+  link: string;
+  created_at: string;
+};
+
+// ---- Import Excel ----
+
+export type ImportJobStatus = 'uploading' | 'mapping' | 'previewing' | 'validating' | 'importing' | 'completed' | 'failed';
+
+export type ImportJob = {
+  id: string;
+  filename: string;
+  status: ImportJobStatus;
+  column_mapping: Record<string, string>;
+  total_rows: number;
+  valid_rows: number;
+  error_rows: number;
+  error_log: Array<{ row: number; error: string }>;
+  target_model: string;
+  created_at: string;
+};

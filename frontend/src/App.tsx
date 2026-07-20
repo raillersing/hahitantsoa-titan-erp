@@ -6,6 +6,8 @@ import AppShell from "./prototype/AppShell";
 import DashboardPage from "./prototype/DashboardPage";
 import PlanningPage from "./prototype/PlanningPage";
 import PlaceholderPage from "./prototype/PlaceholderPage";
+import NotificationsPage from "./prototype/NotificationsPage";
+import ImportExcelPage from "./prototype/ImportExcelPage";
 import HahitantsoaPage from "./prototype/HahitantsoaPage";
 import TitanPage from "./prototype/TitanPage";
 import CommercialOpsPage from "./prototype/CommercialOpsPage";
@@ -205,10 +207,10 @@ function App() {
       case "agenda-visitors": return <AgendaVisitorsPage onNavigate={navigate} />;
       case "profile": return <ProfilePage user={state.user} />;
       case "login": return <DashboardPage onNavigate={navigate} />;
-      case "import-excel":
+      case "notifications": return <NotificationsPage onNavigate={navigate} />;
+      case "import-excel": return <ImportExcelPage onNavigate={navigate} />;
       case "hr-payroll":
       case "purchasing":
-      case "notifications":
       case "mobile-tablet":
         return <PlaceholderPage title={scope.toUpperCase()} scope={scope} onNavigate={navigate} />;
     }

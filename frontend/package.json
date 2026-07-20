@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@openrouter/sdk": "^0.13.66",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
