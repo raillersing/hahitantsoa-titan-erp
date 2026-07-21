@@ -2,8 +2,8 @@
 
 ## Current State
 
-- `origin/main` HEAD is `7645b9c`.
-- `main` CI is green as verified on 2026-06-26 (run 28271059102).
+- `origin/main` HEAD is `b2339de`.
+- `main` CI is green as verified on 2026-07-21 (run 29844073781).
 - **BACKEND FUNCTIONAL FREEZE** is in effect as of F175A audit (2026-06-24).
 - All backend-only Document A / Document B requirements are implemented, tested, and passing CI.
 - No open backend PRs. No new backend feature bundles shall be started without explicit human authorization.
@@ -46,8 +46,9 @@ Status:
 
 Current frontend posture:
 - the planned FE-B0 through FE-J bundle sequence is complete on `main`
-- the next need is the F180 finalization series (frontend-first, full-application completion)
-- see F180C bundle 3 and F180C1 entries below
+- the F180 finalization series is complete (see below)
+- the F181A audit and corrective PRs are complete (see below)
+- the application is ready for realistic user testing
 
 ### Frontend audit state
 
@@ -196,6 +197,72 @@ Status:
 - Backend gaps: none found (all used existing APIs)
 - Quality: TS clean, build passes, 246 tests pass
 - CI: main green at `7645b9c` (run 28271059102)
+
+### Frontend API integration — Phases 1-10
+
+Goal: Connect all remaining frontend pages to real backend APIs.
+
+Status: **COMPLETE** — all 10 phases merged on 2026-07-18/19.
+
+| Phase | PR | Scope |
+|---|---|---|
+| 4B | #491 | Connect getInventoryItem API + unit tests |
+| 5A | #493 | Validate Titan & Hahitantsoa reservation wizard availability & UI contracts |
+| 5B | #497 | Validate reservation amendment requests & availability preflight |
+| 6B | #502 | Connect document template administration & versioning to DRF |
+| 9 | #503 | Connect Hahitantsoa venues & services to DRF |
+| Checkpoint | #504 | Phase integration checkpoint closeout for Phases 6-10 |
+
+Additional phase-related PRs:
+- #492 — docs: prevent worktree and validated UI governance drift
+- #494 — feat(backend): expose customer lifecycle read contract
+- #495 — feat(frontend): connect validated customer list to API
+- #496 — feat: connect customer detail read flow
+- #498 — docs: close Phase 1 authentication checkpoint
+- #499 — docs: close Phase 2 customer read checkpoint
+- #500 — docs(reports): record phase 60 R7B document templates reconciliation audit
+- #501 — feat: connect customer writes to API
+
+CI: main green at `5d30ecd` after all phases merged.
+
+### F180H — Hotfix CI (pre-existing failures)
+
+Status: **COMPLETE** — merged as PR #508
+
+Scope:
+- Backend: ruff format + lint fixes on 13 files (I001, E501, F401, F541)
+- Backend: removed duplicate 0007 migration in documents app
+- Backend: added missing 0002 migration for procurement QuickExpense validator
+- Backend: fixed customer serializer (lifecycle_status/party_type added to read_only_fields)
+- Frontend: added convertProformaToContract and voidProforma API functions
+- Frontend: added valid_until field to DocumentInstance type
+- Frontend: updated 5 test MOCK fixtures
+
+CI: main green at `ed20511` after merge.
+
+### F181A — UI/UX User Journey Audit + Corrective PRs
+
+Status: **COMPLETE** — audit + 4 corrective PRs merged
+
+Audit report: `docs/audits/F181A_UI_UX_USER_JOURNEY_AUDIT.md`
+- 37 findings classified by severity (0 Critical, 6 High, 17 Medium, 14 Low)
+- Score: ~82% UI/UX quality
+
+Corrective PRs:
+| PR | ID | Scope | CI |
+|---|---|---|---|
+| #506 | F181A-AUDIT | Audit report | ✅ |
+| #507 | F181A-HIGH-1 | i18n FR (~60 messages), annulation reservation, notice prospect, helper UUID, alignement libellés | ✅ |
+| #509 | F181A-MED-1 | Modal CSS (Tailwind→custom), filtres stock, compteurs segments, lien reçu, onNavigate tab | ✅ |
+| #510 | F181A-LOW-1 | Dead code removal, amendment preflight guard, confirm button helper text | ✅ |
+| #511 | F181A-DOC-T-1 | Boutons "Convertir en contrat" et "Annuler le proforma" dans TitanDocumentsPanel | ✅ |
+
+CI: main green at `b2339de` after all PRs merged.
+
+Remaining gaps (documented in audit):
+- F181A-HAH-8/CUST-2: Prospect status tag in notes → needs backend column (post-F175A)
+- F181A-LOG-3/5/6: Logistics HAH, backward transitions → needs business decisions
+- F181A-AVAIL-5: Commercial Ops tab navigation → needs prototype implementation
 
 ### Active workflow improvement bundle
 
