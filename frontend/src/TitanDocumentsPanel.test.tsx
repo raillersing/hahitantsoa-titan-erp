@@ -263,7 +263,7 @@ describe("TitanDocumentsPanel", () => {
     render(<TitanDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toHaveTextContent("Failed to load initial data.");
+      expect(screen.getByRole("alert")).toHaveTextContent("Échec du chargement des données initiales.");
     });
   });
 
@@ -278,7 +278,7 @@ describe("TitanDocumentsPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent(
-        "Failed to load document instances.",
+        "Échec du chargement des instances de document.",
       );
     });
   });

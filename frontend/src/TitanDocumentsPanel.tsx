@@ -74,7 +74,7 @@ function TitanDocumentsPanel() {
           selectedDraftId: draftsData.length > 0 ? draftsData[0].id : "",
         }));
       } catch {
-        setState((prev) => ({ ...prev, error: "Failed to load initial data." }));
+        setState((prev) => ({ ...prev, error: "Échec du chargement des données initiales." }));
       }
     }
     void loadData();
@@ -95,7 +95,7 @@ function TitanDocumentsPanel() {
         }
       } catch {
         if (!cancelled) {
-          setState((prev) => ({ ...prev, error: "Failed to load document instances.", loading: false }));
+          setState((prev) => ({ ...prev, error: "Échec du chargement des instances de document.", loading: false }));
         }
       }
     }
@@ -123,7 +123,7 @@ function TitanDocumentsPanel() {
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "Failed to prepare document instance.",
+        error: err instanceof Error ? err.message : "Échec de la préparation de l'instance de document.",
         loading: false,
       }));
     }
@@ -139,7 +139,7 @@ function TitanDocumentsPanel() {
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "Failed to generate document HTML.",
+        error: err instanceof Error ? err.message : "Échec de la génération du HTML du document.",
         loading: false,
       }));
     }
@@ -155,7 +155,7 @@ function TitanDocumentsPanel() {
     } catch (err) {
       setState((prev) => ({
         ...prev,
-        error: err instanceof Error ? err.message : "Failed to generate PDF artifact.",
+        error: err instanceof Error ? err.message : "Échec de la génération du PDF.",
         loading: false,
       }));
     }

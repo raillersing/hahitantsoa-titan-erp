@@ -425,6 +425,11 @@ function CustomerDetailView({
             >
               Nouvelle réservation
             </button>
+            {isCustomerProspect(customer) ? (
+              <p className="status" role="status" aria-live="polite">
+                Pour créer une réservation, confirmez d'abord ce client en cochant « Client » dans le formulaire de modification.
+              </p>
+            ) : null}
             <button
               type="button"
               className="primary-btn"

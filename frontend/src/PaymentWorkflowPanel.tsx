@@ -292,10 +292,14 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
             id="reservation_draft_id"
             type="text"
             name="reservation_draft"
-            placeholder="Laisser vide pour paiement autonome"
+            placeholder="Coller l'UUID depuis la fiche réservation (laisser vide pour paiement autonome)"
             value={form.reservation_draft ?? ''}
             onChange={handleChange}
+            aria-describedby="reservation_draft_help"
           />
+          <p id="reservation_draft_help" className="payment-form__helper">
+            Réservé à un usage avancé : collez l'identifiant UUID d'un brouillon de réservation pour rattacher ce paiement. Pour un paiement autonome (sans réservation), laissez ce champ vide et renseignez « Libellé source ».
+          </p>
         </div>
 
         <div className="payment-form__field payment-form__field--wide">

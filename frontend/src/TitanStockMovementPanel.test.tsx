@@ -53,9 +53,9 @@ describe('TitanStockMovementPanel', () => {
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
     expect(screen.getByTestId('titan-stock-movement-panel')).toBeInTheDocument();
     expect(screen.getByText('Mouvements de stock')).toBeInTheDocument();
-    expect(screen.getByLabelText('Refresh stock movements')).toBeInTheDocument();
+    expect(screen.getByLabelText('Actualiser les mouvements de stock')).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByLabelText('Open record movement form')).toBeInTheDocument();
+      expect(screen.getByLabelText("Ouvrir le formulaire d'enregistrement")).toBeInTheDocument();
     });
   });
 
@@ -89,12 +89,12 @@ describe('TitanStockMovementPanel', () => {
 
   it('opens and shows the create movement form', async () => {
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
-    await waitFor(() => screen.getByLabelText('Open record movement form'));
-    fireEvent.click(screen.getByLabelText('Open record movement form'));
-    expect(screen.getByLabelText('Record stock movement form')).toBeInTheDocument();
-    expect(screen.getByLabelText('Select inventory item')).toBeInTheDocument();
-    expect(screen.getByLabelText('Movement type')).toBeInTheDocument();
-    expect(screen.getByLabelText('Quantity')).toBeInTheDocument();
+    await waitFor(() => screen.getByLabelText("Ouvrir le formulaire d'enregistrement"));
+    fireEvent.click(screen.getByLabelText("Ouvrir le formulaire d'enregistrement"));
+    expect(screen.getByLabelText("Formulaire d'enregistrement d'un mouvement de stock")).toBeInTheDocument();
+    expect(screen.getByLabelText("Sélectionner un article d'inventaire")).toBeInTheDocument();
+    expect(screen.getByLabelText('Type de mouvement')).toBeInTheDocument();
+    expect(screen.getByLabelText('Quantité')).toBeInTheDocument();
   });
 
   it('submits a new movement and appends it to the list', async () => {
@@ -102,16 +102,16 @@ describe('TitanStockMovementPanel', () => {
     vi.spyOn(api, 'createStockMovement').mockResolvedValue(MOCK_MOVEMENT);
 
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
-    await waitFor(() => screen.getByLabelText('Open record movement form'));
-    fireEvent.click(screen.getByLabelText('Open record movement form'));
+    await waitFor(() => screen.getByLabelText("Ouvrir le formulaire d'enregistrement"));
+    fireEvent.click(screen.getByLabelText("Ouvrir le formulaire d'enregistrement"));
 
-    fireEvent.change(screen.getByLabelText('Select inventory item'), {
+    fireEvent.change(screen.getByLabelText("Sélectionner un article d'inventaire"), {
       target: { value: 'item-0001' },
     });
-    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '10' } });
-    fireEvent.change(screen.getByLabelText('Source label'), { target: { value: 'DR-2026-001' } });
+    fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Référence source'), { target: { value: 'DR-2026-001' } });
 
-    fireEvent.click(screen.getByLabelText('Submit stock movement'));
+    fireEvent.click(screen.getByLabelText('Enregistrer le mouvement de stock'));
 
     await waitFor(() => {
       expect(api.createStockMovement).toHaveBeenCalledWith(
@@ -137,18 +137,18 @@ describe('TitanStockMovementPanel', () => {
     vi.spyOn(api, 'createStockMovement').mockImplementationOnce(() => new Promise(() => {}));
 
     render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
-    await waitFor(() => screen.getByLabelText('Open record movement form'));
-    fireEvent.click(screen.getByLabelText('Open record movement form'));
+    await waitFor(() => screen.getByLabelText("Ouvrir le formulaire d'enregistrement"));
+    fireEvent.click(screen.getByLabelText("Ouvrir le formulaire d'enregistrement"));
 
-    fireEvent.change(screen.getByLabelText('Select inventory item'), {
+    fireEvent.change(screen.getByLabelText("Sélectionner un article d'inventaire"), {
       target: { value: 'item-0001' },
     });
-    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Quantité'), { target: { value: '10' } });
 
-    fireEvent.click(screen.getByLabelText('Submit stock movement'));
+    fireEvent.click(screen.getByLabelText('Enregistrer le mouvement de stock'));
 
-    expect(screen.getByLabelText('Submit stock movement')).toBeDisabled();
-    expect(screen.getByLabelText('Select inventory item')).toBeDisabled();
-    expect(screen.getByLabelText('Quantity')).toBeDisabled();
+    expect(screen.getByLabelText('Enregistrer le mouvement de stock')).toBeDisabled();
+    expect(screen.getByLabelText("Sélectionner un article d'inventaire")).toBeDisabled();
+    expect(screen.getByLabelText('Quantité')).toBeDisabled();
   });
 });
