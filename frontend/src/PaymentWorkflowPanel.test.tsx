@@ -64,6 +64,7 @@ const MOCK_PAYMENT_CONFIRMED = {
     storage_path: '/receipts/doc-0001.html',
     generated_content_size_bytes: 1024,
     notes: '',
+    valid_until: null,
     created_at: '2026-06-01T11:00:00Z',
     updated_at: '2026-06-01T11:00:00Z',
   },

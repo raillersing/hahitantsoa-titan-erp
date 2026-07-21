@@ -113,6 +113,7 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     storage_path: "",
     generated_content_size_bytes: 0,
     notes: "Pre-notes",
+    valid_until: null,
     created_at: "2026-06-01T12:00:00Z",
     updated_at: "2026-06-01T12:00:00Z",
   },

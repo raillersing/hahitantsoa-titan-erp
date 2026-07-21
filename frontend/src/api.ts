@@ -887,6 +887,29 @@ export function generateReservationDraftDocumentInstancePdf(
   );
 }
 
+export function convertProformaToContract(
+  documentInstanceId: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/documents/instances/${documentInstanceId}/convert-to-contract/`,
+    {},
+    signal,
+  );
+}
+
+export function voidProforma(
+  documentInstanceId: string,
+  reason: string = "",
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/documents/instances/${documentInstanceId}/void/`,
+    { reason },
+    signal,
+  );
+}
+
 // ---- Hahitantsoa Event Draft Documents ----
 
 export function getHahitantsoaEventDraftDocumentInstances(
