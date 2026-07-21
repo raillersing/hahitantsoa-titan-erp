@@ -1,7 +1,7 @@
 # FRONTEND_MAP.md — Cartographie du frontend
 
-> **Version:** F178B — 2026-06-25
-> **Etat frontend de reference:** `main` SHA `8cde58a775a44cd92112b9537347ec32c885c47b`
+> **Version:** F181A — 2026-07-21
+> **Etat frontend de reference:** `main` SHA `e0914dc`
 > **Stack:** React 19.2.1, TypeScript 5.9.3 strict, Vite 7.2.7, Vitest 4.0.16
 > **Router:** hash-based scope switching (`window.location.hash`)
 > **Theme:** light / dark / system foundation livree via `ThemeContext.tsx` et `data-theme`
@@ -70,8 +70,11 @@ Etat global:
 
 - le shell prototype-derived FE-B0 / FE-B0R / FE-H / FE-J est merge
 - les bundles FE-C a FE-J sont deja livres
-- les placeholders restants sont volontaires et ne doivent plus etre lus comme
-  “travail oublie” sans verifications F178A/F178B
+- la serie F180 finalization (D1-D7) est complete
+- l'integration API Phases 1-10 (PRs #491-#504) est complete
+- F180H hotfix CI (PR #508) est merge
+- F181A audit + correctifs (PRs #506-#511) sont merges
+- les placeholders restants (Reports, Catalog, Procurement, HR, Help) sont volontaires
 
 ---
 
