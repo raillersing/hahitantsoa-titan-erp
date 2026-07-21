@@ -530,9 +530,7 @@ class DocumentInstanceVoidAPIView(APIView):
     @extend_schema(
         responses={
             200: DocumentInstanceSerializer,
-            400: OpenApiResponse(
-                description="Document is not a proforma or is already voided."
-            ),
+            400: OpenApiResponse(description="Document is not a proforma or is already voided."),
         }
     )
     def post(self, request, id):

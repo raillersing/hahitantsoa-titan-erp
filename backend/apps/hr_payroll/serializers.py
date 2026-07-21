@@ -41,9 +41,7 @@ class EmployeeCreateSerializer(serializers.ModelSerializer):
 
 
 class PaySlipSerializer(serializers.ModelSerializer):
-    employee_name = serializers.CharField(
-        source="employee.full_name", read_only=True
-    )
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
 
     class Meta:
         model = PaySlip
@@ -62,9 +60,7 @@ class PaySlipSerializer(serializers.ModelSerializer):
 
 
 class AdvanceRequestSerializer(serializers.ModelSerializer):
-    employee_name = serializers.CharField(
-        source="employee.full_name", read_only=True
-    )
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
 
     class Meta:
         model = AdvanceRequest
@@ -81,9 +77,7 @@ class AdvanceRequestSerializer(serializers.ModelSerializer):
 
 
 class LeaveRequestSerializer(serializers.ModelSerializer):
-    employee_name = serializers.CharField(
-        source="employee.full_name", read_only=True
-    )
+    employee_name = serializers.CharField(source="employee.full_name", read_only=True)
 
     class Meta:
         model = LeaveRequest

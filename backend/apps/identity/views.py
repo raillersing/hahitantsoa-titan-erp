@@ -141,6 +141,7 @@ class UserRoleAssignmentListAPIView(generics.ListAPIView):
 
 class UserListAPIView(generics.ListAPIView):
     """List all Django users with their role information."""
+
     http_method_names = ["get", "head", "options"]
     permission_classes = [HasIdentityAdminAccess]
     serializer_class = UserSerializer
@@ -152,6 +153,7 @@ class UserListAPIView(generics.ListAPIView):
         search = self.request.query_params.get("search")
         if search:
             from django.db.models import Q
+
             queryset = queryset.filter(
                 Q(username__icontains=search)
                 | Q(first_name__icontains=search)

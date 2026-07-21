@@ -35,9 +35,7 @@ ALL_LIST_URLS = [EMPLOYEE_LIST_URL, PAYSLIP_LIST_URL, ADVANCE_LIST_URL, LEAVE_LI
 @pytest.fixture
 def authenticated_client(client):
     """Return a Django test client force-logged-in as a regular user."""
-    user = User.objects.create_user(
-        username="hr_test_user", password="test-pass", is_active=True
-    )
+    user = User.objects.create_user(username="hr_test_user", password="test-pass", is_active=True)
     client.force_login(user)
     return client
 

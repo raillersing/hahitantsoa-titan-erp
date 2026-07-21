@@ -4,9 +4,7 @@ from apps.material_package.models import MaterialPackage, MaterialPackageLine
 
 
 class MaterialPackageLineSerializer(serializers.ModelSerializer):
-    inventory_item_name = serializers.CharField(
-        source="inventory_item.name", read_only=True
-    )
+    inventory_item_name = serializers.CharField(source="inventory_item.name", read_only=True)
 
     class Meta:
         model = MaterialPackageLine

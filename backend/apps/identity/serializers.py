@@ -1,6 +1,6 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from django.contrib.auth import get_user_model
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 
 User = get_user_model()
@@ -8,6 +8,7 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     """Serialize Django users for the admin user list."""
+
     display_name = serializers.SerializerMethodField()
     role_names = serializers.SerializerMethodField()
 
@@ -33,12 +34,10 @@ class UserSerializer(serializers.ModelSerializer):
         return full or obj.username
 
     def get_role_names(self, obj):
-        assignments = UserRoleAssignment.objects.filter(
-            user=obj, is_active=True
-        ).select_related("role")
+        assignments = UserRoleAssignment.objects.filter(user=obj, is_active=True).select_related(
+            "role"
+        )
         return [a.role.name for a in assignments]
-
-
 
 
 class ApplicationRoleSerializer(serializers.ModelSerializer):
