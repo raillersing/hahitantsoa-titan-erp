@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cancelPayment,
   checkEndpointPermission,
+  getDocumentInstancePdfBlob,
   confirmPayment,
   createPayment,
   getPayments,
@@ -161,6 +162,26 @@ function PaymentRow({
       {payment.receipt_document && (
         <div className="payment-row__receipt-badge" aria-label="Reçu généré">
           Reçu : {payment.receipt_document.status}
+          <button
+            type="button"
+            className="secondary-btn"
+            style={{ marginLeft: 8, fontSize: '0.75rem', padding: '2px 8px' }}
+            onClick={async () => {
+              try {
+                const blob = await getDocumentInstancePdfBlob(payment.receipt_document!.id);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `recu-${payment.id}.html`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch {
+                // silent
+              }
+            }}
+          >
+            Voir le reçu
+          </button>
         </div>
       )}
     </div>
@@ -343,7 +364,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
       <button
         className="payment-form__submit"
         type="submit"
-        disabled={submitting || !form.amount}
+        disabled={submitting || !form.amount || needsSource}
         aria-label="Soumettre le paiement"
       >
         {submitting ? 'Création...' : 'Créer le paiement'}

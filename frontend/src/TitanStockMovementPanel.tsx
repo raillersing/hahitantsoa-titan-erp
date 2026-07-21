@@ -1,6 +1,6 @@
 import './titan-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { checkEndpointPermission, createStockMovement, getStockMovements } from './api';
+import { checkEndpointPermission, createStockMovement, getInventoryItems, getStockMovements } from './api';
 import type {
   InventoryItem,
   InventoryStockMovement,
@@ -40,14 +40,17 @@ const FIXED_DIRECTIONS: Partial<Record<InventoryStockMovementType, InventoryStoc
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type Props = {
-  inventoryItems: InventoryItem[];
+  inventoryItems?: InventoryItem[];
 };
 
-export function TitanStockMovementPanel({ inventoryItems }: Props) {
+export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
   const [movements, setMovements] = useState<InventoryStockMovement[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [internalItems, setInternalItems] = useState<InventoryItem[]>([]);
+
+  const inventoryItems = propItems && propItems.length > 0 ? propItems : internalItems;
 
   // Form state
   const [inventoryItem, setInventoryItem] = useState('');
@@ -59,12 +62,23 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState(false);
+  const [filterType, setFilterType] = useState<string>('');
+  const [filterDirection, setFilterDirection] = useState<string>('');
 
   useEffect(() => {
     const controller = new AbortController();
     checkEndpointPermission("/api/v1/inventory/stock-movements/", "OPTIONS", controller.signal).then(setCanWrite);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (propItems && propItems.length > 0) return;
+    const controller = new AbortController();
+    getInventoryItems(controller.signal)
+      .then((items) => { if (!controller.signal.aborted) setInternalItems(Array.isArray(items) ? items : []); })
+      .catch(() => { /* non-fatal */ });
+    return () => controller.abort();
+  }, [propItems]);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -272,10 +286,39 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
       )}
 
       <div className="titan-stock-panel__list" role="list" aria-label="Liste des mouvements de stock">
+        {!loading && movements.length > 0 && (
+          <div className="titan-stock-panel__filters" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              aria-label="Filtrer par type"
+              style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+            >
+              <option value="">Tous les types</option>
+              {Object.entries(TYPE_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            <select
+              value={filterDirection}
+              onChange={(e) => setFilterDirection(e.target.value)}
+              aria-label="Filtrer par direction"
+              style={{ padding: '4px 8px', fontSize: '0.85rem' }}
+            >
+              <option value="">Toutes les directions</option>
+              {Object.entries(DIRECTION_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {!loading && movements.length === 0 && (
           <p className="titan-stock-panel__empty">Aucun mouvement de stock enregistré.</p>
         )}
-        {movements.map((m) => (
+        {movements
+          .filter((m) => !filterType || m.movement_type === filterType)
+          .filter((m) => !filterDirection || m.direction === filterDirection)
+          .map((m) => (
           <div key={m.id} className="titan-stock-row" data-testid={`stock-movement-row-${m.id}`} role="listitem">
             <span className={`titan-stock-row__dir titan-stock-row__dir--${m.direction}`}>
               {DIRECTION_LABELS[m.direction]}

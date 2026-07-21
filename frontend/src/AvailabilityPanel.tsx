@@ -86,7 +86,7 @@ type DraftRelatedDataState =
 
 type AvailabilityPanelProps = {
   inventoryItems?: InventoryItem[];
-  onNavigate?: (scope: string) => void;
+  onNavigate?: (scope: string, tab?: string) => void;
 };
 
 function toDateTimeLocalValue(date: Date): string {
@@ -1151,7 +1151,7 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
                   <button
                     type="button"
                     className="reservation-summary-card related-link"
-                    onClick={() => onNavigate?.("commercial-ops")}
+                    onClick={() => onNavigate?.("commercial-ops", "documents")}
                     aria-label={`Documents : ${draftRelatedDataState.documents.length} instance(s)`}
                   >
                     <span>Documents</span>
@@ -1161,7 +1161,7 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
                   <button
                     type="button"
                     className="reservation-summary-card related-link"
-                    onClick={() => onNavigate?.("commercial-ops")}
+                    onClick={() => onNavigate?.("commercial-ops", "billing")}
                     aria-label={`Factures : ${draftRelatedDataState.invoices.length} facture(s)`}
                   >
                     <span>Factures</span>
@@ -1171,7 +1171,7 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
                   <button
                     type="button"
                     className="reservation-summary-card related-link"
-                    onClick={() => onNavigate?.("commercial-ops")}
+                    onClick={() => onNavigate?.("commercial-ops", "payments")}
                     aria-label={`Paiements : ${draftRelatedDataState.payments.length} paiement(s)`}
                   >
                     <span>Paiements</span>
@@ -1181,7 +1181,7 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
                   <button
                     type="button"
                     className="reservation-summary-card related-link"
-                    onClick={() => onNavigate?.("commercial-ops")}
+                    onClick={() => onNavigate?.("commercial-ops", "logistics")}
                     aria-label={`Logistique : ${draftRelatedDataState.logistics.length} événement(s)`}
                   >
                     <span>Logistique</span>
