@@ -1,7 +1,7 @@
 # NAVIGATION_TREE_TARGET.md — Arborescence de navigation cible
 
-> **Version:** F178B — 2026-06-25
-> **Etat frontend de reference:** `main` @ `8cde58a775a44cd92112b9537347ec32c885c47b`
+> **Version:** F181A — 2026-07-21
+> **Etat frontend de reference:** `main` @ `e0914dc`
 
 ---
 

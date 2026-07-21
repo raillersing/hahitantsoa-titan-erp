@@ -1,7 +1,7 @@
 # API_AND_DATA_FLOW_MAP.md — Flux API et donnees
 
-> **Version:** F178B — 2026-06-25
-> **Etat frontend de reference:** `main` @ `8cde58a775a44cd92112b9537347ec32c885c47b`
+> **Version:** F181A — 2026-07-21
+> **Etat frontend de reference:** `main` @ `e0914dc`
 
 ---
 
