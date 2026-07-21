@@ -10,6 +10,8 @@ import {
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstancePdf,
+  convertProformaToContract,
+  voidProforma,
 } from "./api";
 import type {
   ReservationDraft,
@@ -161,6 +163,40 @@ function TitanDocumentsPanel() {
     }
   };
 
+  const handleConvertToContract = async (id: string) => {
+    if (!state.canWrite) return;
+    setState((prev) => ({ ...prev, loading: true, error: "" }));
+    try {
+      await convertProformaToContract(id);
+      const data = await getReservationDraftDocumentInstances(state.selectedDraftId!);
+      setState((prev) => ({ ...prev, instances: data, loading: false }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : "Échec de la conversion en contrat.",
+        loading: false,
+      }));
+    }
+  };
+
+  const handleVoidProforma = async (id: string) => {
+    if (!state.canWrite) return;
+    const reason = window.prompt("Raison de l'annulation (optionnel) :");
+    if (reason === null) return;
+    setState((prev) => ({ ...prev, loading: true, error: "" }));
+    try {
+      await voidProforma(id, reason);
+      const data = await getReservationDraftDocumentInstances(state.selectedDraftId!);
+      setState((prev) => ({ ...prev, instances: data, loading: false }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : "Échec de l'annulation du proforma.",
+        loading: false,
+      }));
+    }
+  };
+
   return (
     <div className="titan-documents-panel" data-testid="titan-documents-panel">
       <h4>Documents des brouillons de réservation Titan</h4>
@@ -280,6 +316,31 @@ function TitanDocumentsPanel() {
                           </button>
                         ) : (
                           <span className="permission-note">La génération PDF nécessite un accès en écriture</span>
+                        )}
+                      </div>
+                    )}
+                    {inst.document_type === "proforma" && state.canWrite && (
+                      <div className="instance-actions" style={{ marginTop: "4px" }}>
+                        {inst.status === "generated" && (
+                          <button
+                            type="button"
+                            className="btn-generate"
+                            onClick={() => handleConvertToContract(inst.id)}
+                            disabled={state.loading}
+                          >
+                            Convertir en contrat
+                          </button>
+                        )}
+                        {inst.status !== "voided" && (
+                          <button
+                            type="button"
+                            className="btn-generate btn-generate--secondary"
+                            style={{ marginLeft: "4px" }}
+                            onClick={() => handleVoidProforma(inst.id)}
+                            disabled={state.loading}
+                          >
+                            Annuler le proforma
+                          </button>
                         )}
                       </div>
                     )}
