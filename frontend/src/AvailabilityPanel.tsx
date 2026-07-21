@@ -1101,6 +1101,15 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
                 >
                   Confirmer la réservation
                 </button>
+                {(!draftDetailState.draft.contract_signed_at || !draftDetailState.draft.required_deposit_received_at) && draftLifecycleState.status !== "loading" ? (
+                  <p className="field-help" style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                    {!draftDetailState.draft.contract_signed_at && !draftDetailState.draft.required_deposit_received_at
+                      ? "Marquez le contrat signé et le dépôt reçu pour confirmer."
+                      : !draftDetailState.draft.contract_signed_at
+                        ? "Marquez le contrat signé pour confirmer."
+                        : "Marquez le dépôt reçu pour confirmer."}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className="danger-btn"

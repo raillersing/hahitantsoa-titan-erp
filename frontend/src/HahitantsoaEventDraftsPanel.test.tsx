@@ -998,6 +998,12 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.change(reasonInput, { target: { value: "Reason text" } });
     fireEvent.change(notesInput, { target: { value: "Notes text" } });
 
+    // Check amendment preflight before submitting
+    fireEvent.click(screen.getByRole("button", { name: /Vérifier les prérequis d'avenant/ }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Soumettre la demande d'avenant" })).not.toBeDisabled();
+    });
+
     fireEvent.click(screen.getByRole("button", { name: "Soumettre la demande d'avenant" }));
 
     await waitFor(() => {

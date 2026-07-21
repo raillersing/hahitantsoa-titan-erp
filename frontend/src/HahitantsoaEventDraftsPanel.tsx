@@ -203,7 +203,6 @@ export function HahitantsoaEventDraftsPanel({
 
   // Customers state
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customersLoaded, setCustomersLoaded] = useState(false);
 
   // New Draft Form State
   const initialPeriod = defaultPeriod();
@@ -257,7 +256,6 @@ export function HahitantsoaEventDraftsPanel({
     getCustomers(undefined, controller.signal)
       .then((data) => {
         setCustomers(data);
-        setCustomersLoaded(true);
         if (data.length > 0) {
           setNewCustomerId(data[0].id);
         }
@@ -1576,7 +1574,17 @@ export function HahitantsoaEventDraftsPanel({
                     <span className="field-error-text" role="alert">{fieldErrors.notes.join(", ")}</span>
                   )}
                 </label>
-                <button type="submit" disabled={isDisabled}>
+                <button
+                  type="submit"
+                  disabled={isDisabled || amendmentPreflightState.status !== "loaded" || !amendmentPreflightState.preflight.can_amend}
+                  title={
+                    amendmentPreflightState.status !== "loaded"
+                      ? "Vérifiez les prérequis d'avenant d'abord"
+                      : !amendmentPreflightState.preflight.can_amend
+                        ? "Cet événement n'est pas éligible à un avenant"
+                        : undefined
+                  }
+                >
                   Soumettre la demande d'avenant
                 </button>
               </form>
