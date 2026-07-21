@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
+  cancelReservationDraft,
   checkEndpointPermission,
   confirmReservationDraft,
   createReservationDraft,
@@ -73,7 +74,7 @@ type DraftUpdateState =
 
 type DraftLifecycleState =
   | { status: "idle" }
-  | { status: "loading"; action: "contract" | "deposit" | "confirm" }
+  | { status: "loading"; action: "contract" | "deposit" | "confirm" | "cancel" }
   | { status: "success"; message: string }
   | { status: "error"; message: string };
 
@@ -503,6 +504,41 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
           error instanceof ApiError || error instanceof Error
             ? error.message
             : "Titan reservation could not be confirmed.",
+      });
+    }
+  }
+
+  async function handleCancelDraft() {
+    if (draftDetailState.status !== "loaded") return;
+    const draft = draftDetailState.draft;
+    const reason = window.prompt(
+      "Annuler la réservation Titan ?\nRenseignez un motif (obligatoire).",
+      "",
+    );
+    if (reason === null) return; // annulé par l'opérateur
+    if (!reason.trim()) {
+      setDraftLifecycleState({
+        status: "error",
+        message: "Le motif d'annulation est obligatoire.",
+      });
+      return;
+    }
+
+    setDraftLifecycleState({ status: "loading", action: "cancel" });
+    try {
+      const updated = await cancelReservationDraft(draft.id, { reason: reason.trim() });
+      await applyUpdatedDraft(updated);
+      setDraftLifecycleState({
+        status: "success",
+        message: `Réservation ${updated.public_reference} annulée.`,
+      });
+    } catch (error) {
+      setDraftLifecycleState({
+        status: "error",
+        message:
+          error instanceof ApiError || error instanceof Error
+            ? error.message
+            : "La réservation n'a pas pu être annulée.",
       });
     }
   }
@@ -1065,6 +1101,17 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
                 >
                   Confirmer la réservation
                 </button>
+                <button
+                  type="button"
+                  className="danger-btn"
+                  disabled={
+                    draftLifecycleState.status === "loading" ||
+                    Boolean(draftDetailState.draft.cancelled_at)
+                  }
+                  onClick={() => void handleCancelDraft()}
+                >
+                  Annuler la réservation
+                </button>
               </div>
               </>
             ) : null}
@@ -1075,7 +1122,9 @@ function AvailabilityPanel({ inventoryItems = [], onNavigate }: AvailabilityPane
                   ? "Enregistrement du contrat..."
                   : draftLifecycleState.action === "deposit"
                     ? "Enregistrement du dépôt..."
-                    : "Confirmation de la réservation..."}
+                    : draftLifecycleState.action === "cancel"
+                      ? "Annulation de la réservation..."
+                      : "Confirmation de la réservation..."}
               </p>
             ) : null}
 

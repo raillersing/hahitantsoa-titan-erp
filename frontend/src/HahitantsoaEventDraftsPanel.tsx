@@ -244,7 +244,7 @@ export function HahitantsoaEventDraftsPanel({
       setDraftListState({
         status: "error",
         message:
-          err instanceof Error ? err.message : "Failed to load event drafts.",
+          err instanceof Error ? err.message : "Échec du chargement des brouillons d'événement.",
       });
     }
   };
@@ -263,7 +263,7 @@ export function HahitantsoaEventDraftsPanel({
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
-        console.error("Failed to load customers", err);
+        console.error("Échec du chargement des clients", err);
       });
 
     return () => controller.abort();
@@ -273,17 +273,17 @@ export function HahitantsoaEventDraftsPanel({
     e.preventDefault();
     setFieldErrors({});
     if (!newEventName) {
-      setActionState({ status: "error", message: "Event name is required." });
+      setActionState({ status: "error", message: "Le nom de l'événement est obligatoire." });
       return;
     }
     if (!newCustomerId) {
-      setActionState({ status: "error", message: "Customer is required." });
+      setActionState({ status: "error", message: "Le client est obligatoire." });
       return;
     }
     if (newLineInputs.length === 0) {
       setActionState({
         status: "error",
-        message: "At least one line item is required.",
+        message: "Au moins une ligne d'article est obligatoire.",
       });
       return;
     }
@@ -293,7 +293,7 @@ export function HahitantsoaEventDraftsPanel({
     if (endDate <= startDate) {
       setActionState({
         status: "error",
-        message: "End time must be after start time.",
+        message: "La date de fin doit être postérieure à la date de début.",
       });
       return;
     }
@@ -314,7 +314,7 @@ export function HahitantsoaEventDraftsPanel({
 
       setActionState({
         status: "success",
-        message: `Draft ${newDraft.public_reference} created successfully.`,
+        message: `Brouillon ${newDraft.public_reference} créé avec succès.`,
       });
       setNewEventName("");
       setNewVenueName("");
@@ -329,7 +329,7 @@ export function HahitantsoaEventDraftsPanel({
       }
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to create draft.",
+        message: err instanceof Error ? err.message : "Échec de la création du brouillon.",
       });
     }
   };
@@ -342,7 +342,7 @@ export function HahitantsoaEventDraftsPanel({
       setAmendmentRequests(data);
     } catch (err) {
       setAmendmentRequestsError(
-        err instanceof Error ? err.message : "Failed to load amendment requests."
+        err instanceof Error ? err.message : "Échec du chargement des demandes d'avenant."
       );
     } finally {
       setAmendmentRequestsLoading(false);
@@ -360,7 +360,7 @@ export function HahitantsoaEventDraftsPanel({
       });
       setNewAmendmentReason("");
       setNewAmendmentNotes("");
-      setActionState({ status: "success", message: "Amendment request created successfully." });
+      setActionState({ status: "success", message: "Demande d'avenant créée avec succès." });
       void fetchAmendmentRequests(draftId);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -368,7 +368,7 @@ export function HahitantsoaEventDraftsPanel({
       }
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to create amendment request.",
+        message: err instanceof Error ? err.message : "Échec de la création de la demande d'avenant.",
       });
     }
   };
@@ -385,7 +385,7 @@ export function HahitantsoaEventDraftsPanel({
       setEditingAmendmentId(null);
       setEditingAmendmentReason("");
       setEditingAmendmentNotes("");
-      setActionState({ status: "success", message: "Amendment request updated successfully." });
+      setActionState({ status: "success", message: "Demande d'avenant mise à jour avec succès." });
       void fetchAmendmentRequests(draftId);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -393,7 +393,7 @@ export function HahitantsoaEventDraftsPanel({
       }
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to update amendment request.",
+        message: err instanceof Error ? err.message : "Échec de la mise à jour de la demande d'avenant.",
       });
     }
   };
@@ -407,7 +407,7 @@ export function HahitantsoaEventDraftsPanel({
     const notes = newAmendmentLineNotes[amendmentRequestId] || "";
 
     if (!inventoryItemId) {
-      setActionState({ status: "error", message: "Inventory item is required." });
+      setActionState({ status: "error", message: "L'article d'inventaire est obligatoire." });
       return;
     }
 
@@ -420,7 +420,7 @@ export function HahitantsoaEventDraftsPanel({
       setNewAmendmentLineItemId(curr => ({ ...curr, [amendmentRequestId]: "" }));
       setNewAmendmentLineQuantity(curr => ({ ...curr, [amendmentRequestId]: 1 }));
       setNewAmendmentLineNotes(curr => ({ ...curr, [amendmentRequestId]: "" }));
-      setActionState({ status: "success", message: "Amendment request line added successfully." });
+      setActionState({ status: "success", message: "Ligne de demande d'avenant ajoutée avec succès." });
       void fetchAmendmentRequests(draftId);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -428,7 +428,7 @@ export function HahitantsoaEventDraftsPanel({
       }
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to add amendment request line.",
+        message: err instanceof Error ? err.message : "Échec de l'ajout de la ligne d'avenant.",
       });
     }
   };
@@ -448,7 +448,7 @@ export function HahitantsoaEventDraftsPanel({
       setEditingAmendmentLineItemId("");
       setEditingAmendmentLineQuantity(1);
       setEditingAmendmentLineNotes("");
-      setActionState({ status: "success", message: "Amendment request line updated successfully." });
+      setActionState({ status: "success", message: "Ligne de demande d'avenant mise à jour avec succès." });
       void fetchAmendmentRequests(draftId);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -456,7 +456,7 @@ export function HahitantsoaEventDraftsPanel({
       }
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to update amendment request line.",
+        message: err instanceof Error ? err.message : "Échec de la mise à jour de la ligne d'avenant.",
       });
     }
   };
@@ -467,12 +467,12 @@ export function HahitantsoaEventDraftsPanel({
 
     try {
       await deleteHahitantsoaEventDraftAmendmentRequestLine(draftId, amendmentRequestId, lineId);
-      setActionState({ status: "success", message: "Amendment request line deleted successfully." });
+      setActionState({ status: "success", message: "Ligne de demande d'avenant supprimée avec succès." });
       void fetchAmendmentRequests(draftId);
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to delete amendment request line.",
+        message: err instanceof Error ? err.message : "Échec de la suppression de la ligne d'avenant.",
       });
     }
   };
@@ -494,7 +494,7 @@ export function HahitantsoaEventDraftsPanel({
         ...curr,
         [amendmentRequestId]: {
           status: "error",
-          error: err instanceof Error ? err.message : "Failed to load availability preflight.",
+          error: err instanceof Error ? err.message : "Échec du chargement du préflight de disponibilité.",
         },
       }));
     }
@@ -529,7 +529,7 @@ export function HahitantsoaEventDraftsPanel({
       setDraftDetailState({
         status: "error",
         message:
-          err instanceof Error ? err.message : "Failed to load draft details.",
+          err instanceof Error ? err.message : "Échec du chargement des détails du brouillon.",
       });
     }
   };
@@ -541,13 +541,13 @@ export function HahitantsoaEventDraftsPanel({
     const draftId = draftDetailState.draft.id;
 
     if (!editEventName) {
-      setActionState({ status: "error", message: "Event name is required." });
+      setActionState({ status: "error", message: "Le nom de l'événement est obligatoire." });
       return;
     }
     if (editLines.length === 0) {
       setActionState({
         status: "error",
-        message: "At least one line is required.",
+        message: "Au moins une ligne est obligatoire.",
       });
       return;
     }
@@ -557,7 +557,7 @@ export function HahitantsoaEventDraftsPanel({
     if (endDate <= startDate) {
       setActionState({
         status: "error",
-        message: "End time must be after start time.",
+        message: "La date de fin doit être postérieure à la date de début.",
       });
       return;
     }
@@ -576,7 +576,7 @@ export function HahitantsoaEventDraftsPanel({
       });
 
       setDraftDetailState({ status: "loaded", draft: updated });
-      setActionState({ status: "success", message: "Draft updated." });
+      setActionState({ status: "success", message: "Brouillon mis à jour." });
       fetchDrafts();
       if (availabilityPreviewState.status === "loaded") {
         handleCheckAvailability(draftId);
@@ -593,7 +593,7 @@ export function HahitantsoaEventDraftsPanel({
       }
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to update draft.",
+        message: err instanceof Error ? err.message : "Échec de la mise à jour du brouillon.",
       });
     }
   };
@@ -611,7 +611,7 @@ export function HahitantsoaEventDraftsPanel({
     setActionState({ status: "loading" });
     try {
       await deleteHahitantsoaEventDraft(draftId);
-      setActionState({ status: "success", message: "Draft deleted." });
+      setActionState({ status: "success", message: "Brouillon supprimé." });
       setDraftDetailState({ status: "idle" });
       setAvailabilityPreviewState({ status: "idle" });
       setPreflightState({ status: "idle" });
@@ -623,7 +623,7 @@ export function HahitantsoaEventDraftsPanel({
       }
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to delete draft.",
+        message: err instanceof Error ? err.message : "Échec de la suppression du brouillon.",
       });
     }
   };
@@ -641,7 +641,7 @@ export function HahitantsoaEventDraftsPanel({
         message:
           err instanceof Error
             ? err.message
-            : "Failed to load availability preview.",
+            : "Échec du chargement de l'aperçu de disponibilité.",
       });
     }
   };
@@ -659,7 +659,7 @@ export function HahitantsoaEventDraftsPanel({
         message:
           err instanceof Error
             ? err.message
-            : "Failed to load confirmation preflight.",
+            : "Échec du chargement du préflight de confirmation.",
       });
     }
   };
@@ -677,7 +677,7 @@ export function HahitantsoaEventDraftsPanel({
         message:
           err instanceof Error
             ? err.message
-            : "Failed to load amendment preflight.",
+            : "Échec du chargement du préflight d'avenant.",
       });
     }
   };
@@ -688,7 +688,7 @@ export function HahitantsoaEventDraftsPanel({
       const result = await confirmHahitantsoaEventDraft(draftId);
       setActionState({
         status: "success",
-        message: `Draft ${result.public_reference} confirmed successfully! Blocked items: ${result.blocked_item_count}.`,
+        message: `Brouillon ${result.public_reference} confirmé avec succès. Articles bloqués : ${result.blocked_item_count}.`,
       });
       // Clear panel details and fetch updated drafts list
       setDraftDetailState({ status: "idle" });
@@ -699,7 +699,7 @@ export function HahitantsoaEventDraftsPanel({
     } catch (err) {
       setActionState({
         status: "error",
-        message: err instanceof Error ? err.message : "Failed to confirm draft.",
+        message: err instanceof Error ? err.message : "Échec de la confirmation du brouillon.",
       });
     }
   };
@@ -759,7 +759,7 @@ export function HahitantsoaEventDraftsPanel({
             Gérez les brouillons d'événements Hahitantsoa, vérifiez la disponibilité en cascade et déclenchez les opérations du cycle de vie.
           </p>
           {!canWrite ? (
-            <p className="status">Sign in with write access to create or modify event drafts.</p>
+            <p className="status">Connectez-vous avec un accès en écriture pour créer ou modifier des brouillons d'événement.</p>
           ) : null}
         </div>
       </div>
@@ -820,7 +820,7 @@ export function HahitantsoaEventDraftsPanel({
                       onClick={() => handleViewDetails(draft.id)}
                       disabled={isDisabled}
                     >
-                      Voir et gérer
+                      Voir le détail
                     </button>
                   </li>
                 ))}
@@ -1118,7 +1118,7 @@ export function HahitantsoaEventDraftsPanel({
                       <strong className={line.status === "available" ? "status-available" : "status-unavailable"}>
                         {line.status}
                       </strong>{" "}
-                      ({line.conflict_count} conflicts)
+                      ({line.conflict_count} conflits)
                     </li>
                   ))}
                 </ul>

@@ -519,6 +519,18 @@ export function confirmReservationDraft(
   );
 }
 
+export function cancelReservationDraft(
+  draftId: string,
+  payload: { reason?: string } = {},
+  signal?: AbortSignal,
+): Promise<ReservationDraft> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${draftId}/cancel/`,
+    payload,
+    signal,
+  );
+}
+
 export async function getDocumentArtifactHtml(
   documentInstanceId: string,
   signal?: AbortSignal,

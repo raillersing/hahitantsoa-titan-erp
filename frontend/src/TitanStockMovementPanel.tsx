@@ -78,7 +78,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
       setMovements(Array.isArray(data) ? data : []);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Failed to load stock movements.');
+      setError(err instanceof Error ? err.message : "Échec du chargement des mouvements de stock.");
     } finally {
       setLoading(false);
     }
@@ -101,12 +101,12 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inventoryItem) {
-      setFormError('Select an inventory item.');
+      setFormError("Sélectionnez un article d'inventaire.");
       return;
     }
     const qty = parseInt(quantity, 10);
     if (isNaN(qty) || qty < 1) {
-      setFormError('Quantity must be a positive integer.');
+      setFormError("La quantité doit être un entier positif.");
       return;
     }
     setFormError(null);
@@ -130,7 +130,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
       setSourceLabel('');
       setNotes('');
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to record movement.');
+      setFormError(err instanceof Error ? err.message : "Échec de l'enregistrement du mouvement.");
     } finally {
       setSubmitting(false);
     }
@@ -145,7 +145,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
             className="titan-stock-panel__refresh"
             onClick={loadMovements}
             disabled={loading}
-            aria-label="Refresh stock movements"
+            aria-label="Actualiser les mouvements de stock"
           >
             {loading ? 'Chargement…' : 'Actualiser'}
           </button>
@@ -153,7 +153,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
           <button
             className="titan-stock-panel__toggle"
             onClick={() => setShowForm((v) => !v)}
-            aria-label={showForm ? 'Close record movement form' : 'Open record movement form'}
+            aria-label={showForm ? "Fermer le formulaire d'enregistrement" : "Ouvrir le formulaire d'enregistrement"}
           >
             {showForm ? 'Annuler' : 'Enregistrer un mouvement'}
           </button>
@@ -171,7 +171,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
         <form
           className="titan-stock-form"
           onSubmit={handleSubmit}
-          aria-label="Record stock movement form"
+          aria-label="Formulaire d'enregistrement d'un mouvement de stock"
         >
           <div className="titan-stock-form__row">
             <label className="titan-stock-form__label">
@@ -180,7 +180,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
                 value={inventoryItem}
                 onChange={(e) => setInventoryItem(e.target.value)}
                 disabled={submitting}
-                aria-label="Select inventory item"
+                aria-label="Sélectionner un article d'inventaire"
               >
                 <option value="">— sélectionner un article —</option>
                 {inventoryItems.map((item) => (
@@ -195,7 +195,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
                 value={movementType}
                 onChange={(e) => handleMovementTypeChange(e.target.value as InventoryStockMovementType)}
                 disabled={submitting}
-                aria-label="Movement type"
+                aria-label="Type de mouvement"
               >
                 {(Object.keys(TYPE_LABELS) as InventoryStockMovementType[]).map((type) => (
                   <option key={type} value={type}>{TYPE_LABELS[type]}</option>
@@ -210,7 +210,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
                   value={direction}
                   onChange={(e) => setDirection(e.target.value as InventoryStockMovementDirection)}
                   disabled={submitting}
-                  aria-label="Movement direction"
+                  aria-label="Direction du mouvement"
                 >
                   <option value="inbound">Entrant</option>
                   <option value="outbound">Sortant</option>
@@ -226,7 +226,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 disabled={submitting}
-                aria-label="Quantity"
+                aria-label="Quantité"
               />
             </label>
           </div>
@@ -240,7 +240,7 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
                 onChange={(e) => setSourceLabel(e.target.value)}
                 disabled={submitting}
                 placeholder="ex: DR-2026-001, réf. fournisseur…"
-                aria-label="Source label"
+                aria-label="Référence source"
               />
             </label>
 
@@ -264,14 +264,14 @@ export function TitanStockMovementPanel({ inventoryItems }: Props) {
             type="submit"
             className="titan-stock-form__submit"
             disabled={submitting || !inventoryItem}
-            aria-label="Submit stock movement"
+            aria-label="Enregistrer le mouvement de stock"
           >
             {submitting ? 'Enregistrement…' : 'Enregistrer le mouvement'}
           </button>
         </form>
       )}
 
-      <div className="titan-stock-panel__list" role="list" aria-label="Stock movements list">
+      <div className="titan-stock-panel__list" role="list" aria-label="Liste des mouvements de stock">
         {!loading && movements.length === 0 && (
           <p className="titan-stock-panel__empty">Aucun mouvement de stock enregistré.</p>
         )}

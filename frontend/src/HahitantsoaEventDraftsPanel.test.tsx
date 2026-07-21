@@ -354,7 +354,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Créer le brouillon" }));
 
     await waitFor(() => {
-      expect(screen.getByText(/created successfully/i)).toBeInTheDocument();
+      expect(screen.getByText(/créé avec succès/i)).toBeInTheDocument();
     });
   });
 
@@ -366,7 +366,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -389,7 +389,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -404,7 +404,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Supprimer" }).slice(-1)[0]);
 
     await waitFor(() => {
-      expect(screen.getByText(/draft deleted/i)).toBeInTheDocument();
+      expect(screen.getByText(/brouillon supprimé/i)).toBeInTheDocument();
     });
   });
 
@@ -461,7 +461,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -486,7 +486,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -540,7 +540,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -570,7 +570,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -591,7 +591,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -605,7 +605,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
     fireEvent.click(confirmButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/confirmed successfully!/i)).toBeInTheDocument();
+      expect(screen.getByText(/confirmé avec succès/i)).toBeInTheDocument();
     });
   });
 
@@ -617,7 +617,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -666,7 +666,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -691,7 +691,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -710,7 +710,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -733,7 +733,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -756,7 +756,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -795,7 +795,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       const retryBtn = screen.getByRole("button", { name: "Réessayer" });
@@ -811,7 +811,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -835,7 +835,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -877,7 +877,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     await waitFor(() => {
       expect(screen.getByText("Gérer le brouillon : HED-DEMO-001")).toBeInTheDocument();
@@ -981,7 +981,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     // Verify existing amendment request lists correctly
     await waitFor(() => {
@@ -1032,7 +1032,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
       expect(screen.getByText("HED-DEMO-001")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("Voir et gérer"));
+    fireEvent.click(screen.getByText("Voir le détail"));
 
     // Verify existing amendment request lines rendering
     await waitFor(() => {
