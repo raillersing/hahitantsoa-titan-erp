@@ -1,8 +1,10 @@
 from django.urls import path
 
 from apps.documents.views import (
+    DocumentInstanceConvertToContractAPIView,
     DocumentInstancePDFRetrieveAPIView,
     DocumentInstancePrivateArtifactAPIView,
+    DocumentInstanceVoidAPIView,
     DocumentTemplateCRUDListCreateAPIView,
     DocumentTemplateDefinitionAPIView,
     DocumentTemplateRegistryAPIView,
@@ -75,5 +77,15 @@ urlpatterns = [
         "document-template-versions/<uuid:id>/activate/",
         DocumentTemplateVersionActivateAPIView.as_view(),
         name="document-template-version-activate",
+    ),
+    path(
+        "instances/<uuid:id>/convert-to-contract/",
+        DocumentInstanceConvertToContractAPIView.as_view(),
+        name="document-instance-convert-to-contract",
+    ),
+    path(
+        "instances/<uuid:id>/void/",
+        DocumentInstanceVoidAPIView.as_view(),
+        name="document-instance-void",
     ),
 ]

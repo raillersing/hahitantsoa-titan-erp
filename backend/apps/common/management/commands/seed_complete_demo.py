@@ -325,6 +325,7 @@ class Command(BaseCommand):
                 "business_scope": "titan",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=1),
+                "valid_until": now + timedelta(days=30),
             },
         )
 
@@ -367,6 +368,7 @@ class Command(BaseCommand):
                 "business_scope": "hahitantsoa",
                 "status": "issued",
                 "prepared_at": now - timedelta(days=10),
+                "valid_until": now + timedelta(days=30),
             },
         )
 

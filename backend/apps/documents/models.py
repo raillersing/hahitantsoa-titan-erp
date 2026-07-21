@@ -86,6 +86,7 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     pdf_storage_path = models.CharField(max_length=512, null=True, blank=True)
     pdf_generated_at = models.DateTimeField(null=True, blank=True)
     pdf_content_checksum = models.CharField(max_length=128, null=True, blank=True)
+    valid_until = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
     class Meta:

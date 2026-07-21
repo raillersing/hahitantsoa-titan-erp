@@ -9,8 +9,10 @@ import {
   markReservationDraftContractSigned,
   markReservationDraftRequiredDepositReceived,
   confirmReservationDraft,
+  convertProformaToContract,
+  voidProforma,
 } from "../api";
-import type { ReservationDraft, Customer } from "../types";
+import type { ReservationDraft, Customer, DocumentInstance } from "../types";
 
 /* ── inline helpers (formerly from mockData) ──────────────────────── */
 
@@ -100,6 +102,7 @@ export default function ReservationDetailPage({
   /* ── data state ───────────────────────────────────────────────── */
   const [draft, setDraft] = useState<ReservationDraft | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [documentInstances, setDocumentInstances] = useState<DocumentInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -130,6 +133,14 @@ export default function ReservationDetailPage({
           } catch {
             // Non-fatal: customer fetch failed
           }
+        }
+
+        // Fetch document instances (proforma, contract, etc.)
+        try {
+          const instances = await getReservationDraftDocumentInstances(d.id);
+          if (!cancelled) setDocumentInstances(instances);
+        } catch {
+          // Non-fatal: document instances fetch failed
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -245,6 +256,53 @@ export default function ReservationDetailPage({
     setTimeout(() => {
       onNavigate("reservation-detail", draftId);
     }, 1500);
+  };
+
+  /* ── proforma action handlers ────────────────────────────────── */
+  const proformaInstance = documentInstances.find(
+    (di) =>
+      di.template_key.startsWith("PROFORMA") &&
+      di.status !== "voided",
+  );
+
+  const handleConvertToContract = async () => {
+    if (!proformaInstance) return;
+    setActionLoading("convert-contract");
+    try {
+      const result = await convertProformaToContract(proformaInstance.id);
+      setDocumentInstances((prev) =>
+        prev.map((di) => (di.id === result.id ? result : di)),
+      );
+      showToast("Proforma converti en contrat avec succès.", "success");
+    } catch (err: any) {
+      showToast(
+        err?.message || "Erreur lors de la conversion en contrat.",
+        "error",
+      );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleVoidProforma = async () => {
+    if (!proformaInstance) return;
+    const reason = window.prompt("Raison de l'annulation du proforma (optionnel) :");
+    if (reason === null) return; // User cancelled the prompt
+    setActionLoading("void-proforma");
+    try {
+      const result = await voidProforma(proformaInstance.id, reason);
+      setDocumentInstances((prev) =>
+        prev.map((di) => (di.id === result.id ? result : di)),
+      );
+      showToast("Proforma annulé avec succès.", "success");
+    } catch (err: any) {
+      showToast(
+        err?.message || "Erreur lors de l'annulation du proforma.",
+        "error",
+      );
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   /* ── derived data ─────────────────────────────────────────────── */
@@ -836,25 +894,105 @@ export default function ReservationDetailPage({
                   Documents du dossier
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    onClick={() => setPreviewDoc("proforma")}
-                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
-                        <i className="fa-solid fa-file-invoice"></i>
+                  <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 text-left">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
+                          <i className="fa-solid fa-file-invoice"></i>
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">
+                            Proforma
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {proformaInstance
+                              ? `Généré le ${formatDateFr(proformaInstance.prepared_at || proformaInstance.created_at)}`
+                              : "Aucun proforma disponible"}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          Proforma
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Généré le {formatDateFr(reservationDate)}
-                        </p>
-                      </div>
+                      <button
+                        onClick={() => setPreviewDoc("proforma")}
+                        className="text-slate-400 hover:text-indigo-600 transition-colors"
+                        title="Aperçu du proforma"
+                      >
+                        <i className="fa-solid fa-eye"></i>
+                      </button>
                     </div>
-                    <i className="fa-solid fa-eye text-slate-400 hover:text-indigo-600"></i>
-                  </button>
+
+                    {/* Validity status badge */}
+                    {proformaInstance && (
+                      <div className="mb-3">
+                        {proformaInstance.status === "voided" ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-600">
+                            <i className="fa-solid fa-ban"></i>
+                            Annulé
+                          </span>
+                        ) : proformaInstance.valid_until ? (
+                          (() => {
+                            const isExpired = new Date(proformaInstance.valid_until!) < new Date();
+                            return (
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                                    isExpired
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-emerald-100 text-emerald-700"
+                                  }`}
+                                >
+                                  <i className={`fa-solid ${isExpired ? "fa-clock" : "fa-check-circle"}`}></i>
+                                  {isExpired ? "Expiré" : "Valide"}
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                  Valide jusqu'au {formatDateFr(proformaInstance.valid_until)}
+                                </span>
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                            <i className="fa-solid fa-info-circle"></i>
+                            Pas de date d'expiration
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Convert / Void buttons */}
+                    {proformaInstance && proformaInstance.status !== "voided" && (
+                      <div className="flex gap-2 pt-2 border-t border-slate-200">
+                        <button
+                          onClick={handleConvertToContract}
+                          disabled={
+                            actionLoading === "convert-contract" ||
+                            (proformaInstance.valid_until
+                              ? new Date(proformaInstance.valid_until) < new Date()
+                              : false)
+                          }
+                          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                        >
+                          {actionLoading === "convert-contract" ? (
+                            <i className="fa-solid fa-spinner fa-spin"></i>
+                          ) : (
+                            <i className="fa-solid fa-file-contract"></i>
+                          )}
+                          Convertir en contrat
+                        </button>
+                        <button
+                          onClick={handleVoidProforma}
+                          disabled={actionLoading === "void-proforma"}
+                          className="px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-sm hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                        >
+                          {actionLoading === "void-proforma" ? (
+                            <i className="fa-solid fa-spinner fa-spin"></i>
+                          ) : (
+                            <i className="fa-solid fa-ban"></i>
+                          )}
+                          Annuler le proforma
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={() => setPreviewDoc("contrat")}
                     className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
