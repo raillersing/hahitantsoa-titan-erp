@@ -63,6 +63,7 @@ const MOCK_PAYMENT_CONFIRMED = {
     content_checksum: 'abc123',
     storage_path: '/receipts/doc-0001.html',
     generated_content_size_bytes: 1024,
+    valid_until: null,
     notes: '',
     created_at: '2026-06-01T11:00:00Z',
     updated_at: '2026-06-01T11:00:00Z',

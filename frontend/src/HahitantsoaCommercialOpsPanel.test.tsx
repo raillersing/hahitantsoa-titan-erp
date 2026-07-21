@@ -112,6 +112,7 @@ const MOCK_INSTANCES: DocumentInstance[] = [
     content_checksum: "",
     storage_path: "",
     generated_content_size_bytes: 0,
+    valid_until: null,
     notes: "Pre-notes",
     created_at: "2026-06-01T12:00:00Z",
     updated_at: "2026-06-01T12:00:00Z",

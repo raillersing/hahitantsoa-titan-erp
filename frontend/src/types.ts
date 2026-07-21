@@ -418,6 +418,7 @@ export type DocumentInstance = {
   pdf_storage_path?: string | null;
   pdf_generated_at?: string | null;
   pdf_content_checksum?: string | null;
+  valid_until: string | null;
   notes: string;
   created_at: string;
   updated_at: string;
