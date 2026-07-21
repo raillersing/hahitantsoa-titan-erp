@@ -10,6 +10,8 @@ import {
   markReservationDraftRequiredDepositReceived,
   confirmReservationDraft,
   convertProformaToContract,
+  createReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstance,
   voidProforma,
 } from "../api";
 import type { ReservationDraft, Customer, DocumentInstance } from "../types";
@@ -265,6 +267,27 @@ export default function ReservationDetailPage({
       di.status !== "voided",
   );
 
+  const handleGenerateProforma = async () => {
+    if (!draftId) return;
+    setActionLoading("generate-proforma");
+    try {
+      // Determine template key based on scope
+      const templateKey = draft?.start_at ? "PROFORMA-TITAN" : "PROFORMA-HAH";
+      const instance = await createReservationDraftDocumentInstance(draftId, {
+        template_key: templateKey,
+      });
+      await generateReservationDraftDocumentInstance(draftId, instance.id);
+      // Refresh document list
+      const docs = await getReservationDraftDocumentInstances(draftId);
+      setDocumentInstances(docs);
+      showToast("Proforma généré avec succès.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de la génération du proforma.", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleConvertToContract = async () => {
     if (!proformaInstance) return;
     setActionLoading("convert-contract");
@@ -355,7 +378,7 @@ export default function ReservationDetailPage({
         price: 0,
       })) || [];
 
-  const isProspectProforma = false; // No longer applicable with draft IDs
+  const isProspectProforma = customer?.lifecycle_status === "prospect";
 
   const reservationDate = draft?.start_at || "";
   const eventDate = draft?.end_at || "";
@@ -464,6 +487,17 @@ export default function ReservationDetailPage({
             <p className="text-slate-500 italic text-sm">
               Cette proforma ne crée aucun paiement, contrat, facture ou
               réservation confirmée.
+            <button
+              onClick={handleGenerateProforma}
+              disabled={actionLoading === "generate-proforma"}
+              className="mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-sm font-bold shadow-sm transition-colors"
+            >
+              {actionLoading === "generate-proforma" ? (
+                <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Génération...</>
+              ) : (
+                <><i className="fa-solid fa-file-invoice mr-2"></i>Générer le proforma</>
+              )}
+            </button>
             </p>
           </div>
 
