@@ -477,6 +477,35 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("✓ 2 événements logistique créés"))
 
+        # ── 10b. Stock inventaire ──────────────────────────────────────────
+        from apps.inventory.models import InventoryStockMovement
+
+        stock_data = [
+            ("Chaise Napoléon transparente", 200),
+            ("Table rectangulaire 8 places", 30),
+            ("Tente 5x5m", 8),
+            ("Sono complète + Micro", 5),
+            ("Chaise chiavari dorée", 250),
+            ("Lumières d'ambiance LED", 15),
+            ("Nappe blanche 3m", 50),
+            ("Couvert argenté", 300),
+            ("Serviette blanche", 500),
+            ("Badge intervenant", 200),
+        ]
+
+        for item_name, qty in stock_data:
+            item = items[item_name]
+            InventoryStockMovement.objects.get_or_create(
+                inventory_item=item,
+                movement_type="adjustment_in",
+                direction="inbound",
+                quantity=qty,
+                source_label="Stock initial",
+                defaults={"notes": "Stock initial"}
+            )
+
+        self.stdout.write(self.style.SUCCESS(f"✓ {len(stock_data)} mouvements de stock créés"))
+
         # ── 11. Caisse ───────────────────────────────────────────────────
         from apps.cashbox.models import CashboxSession, CashboxMovement
 
