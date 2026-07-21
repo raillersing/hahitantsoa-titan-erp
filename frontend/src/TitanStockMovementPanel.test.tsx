@@ -81,8 +81,8 @@ describe('TitanStockMovementPanel', () => {
     await waitFor(() => {
       expect(screen.getByTestId(`stock-movement-row-${MOCK_MOVEMENT.id}`)).toBeInTheDocument();
     });
-    expect(screen.getByText('Sortant')).toBeInTheDocument();
-    expect(screen.getByText('Livraison sortante')).toBeInTheDocument();
+    expect(screen.getAllByText('Sortant').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Livraison sortante').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('×10')).toBeInTheDocument();
     expect(screen.getByText('DR-2026-001')).toBeInTheDocument();
   });

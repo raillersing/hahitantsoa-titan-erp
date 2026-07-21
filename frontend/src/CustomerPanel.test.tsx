@@ -446,21 +446,21 @@ describe("CustomerPanel", () => {
       expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText("Prospects"));
+    fireEvent.click(screen.getByText(/Prospects/));
 
     await waitFor(() => {
       expect(screen.getByText("Bob Rajaonarison")).toBeTruthy();
     });
     expect(screen.queryByText("Alice Dupont")).toBeNull();
 
-    fireEvent.click(screen.getByText("Clients confirmés"));
+    fireEvent.click(screen.getByText(/Clients confirmés/));
 
     await waitFor(() => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();
     });
     expect(screen.queryByText("Bob Rajaonarison")).toBeNull();
 
-    fireEvent.click(screen.getByText("Tous"));
+    fireEvent.click(screen.getByText(/Tous/));
 
     await waitFor(() => {
       expect(screen.getByText("Alice Dupont")).toBeTruthy();

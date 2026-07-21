@@ -153,9 +153,15 @@ function CustomerListView({
       </div>
 
       <div className="customer-segments" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-        <button type="button" className={`segment-btn ${segment === 'all' ? 'active' : ''}`} onClick={() => onSegmentChange('all')}>Tous</button>
-        <button type="button" className={`segment-btn ${segment === 'clients' ? 'active' : ''}`} onClick={() => onSegmentChange('clients')}>Clients confirmés</button>
-        <button type="button" className={`segment-btn ${segment === 'prospects' ? 'active' : ''}`} onClick={() => onSegmentChange('prospects')}>Prospects</button>
+        <button type="button" className={`segment-btn ${segment === 'all' ? 'active' : ''}`} onClick={() => onSegmentChange('all')}>
+          Tous {customersState.status === 'loaded' ? `(${customersState.customers.length})` : ''}
+        </button>
+        <button type="button" className={`segment-btn ${segment === 'clients' ? 'active' : ''}`} onClick={() => onSegmentChange('clients')}>
+          Clients confirmés {customersState.status === 'loaded' ? `(${customersState.customers.filter(c => !isCustomerProspect(c)).length})` : ''}
+        </button>
+        <button type="button" className={`segment-btn ${segment === 'prospects' ? 'active' : ''}`} onClick={() => onSegmentChange('prospects')}>
+          Prospects {customersState.status === 'loaded' ? `(${customersState.customers.filter(c => isCustomerProspect(c)).length})` : ''}
+        </button>
       </div>
 
       <form className="customer-search-form" onSubmit={onSearchSubmit}>
