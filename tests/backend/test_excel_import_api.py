@@ -1,7 +1,5 @@
 """Backend tests for apps.excel_import API endpoints."""
 
-import io
-
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile

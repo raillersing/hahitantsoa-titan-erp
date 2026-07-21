@@ -10,7 +10,6 @@ from apps.hr_payroll.serializers import (
     PaySlipSerializer,
 )
 
-
 # ── Employee ────────────────────────────────────────────────────────────────
 
 
@@ -98,9 +97,7 @@ class AdvanceRequestListCreateAPIView(generics.ListCreateAPIView):
         return qs.order_by("-created_at")
 
 
-class AdvanceRequestRetrieveUpdateDestroyAPIView(
-    generics.RetrieveUpdateDestroyAPIView
-):
+class AdvanceRequestRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = AdvanceRequestSerializer
     lookup_field = "pk"
@@ -129,9 +126,7 @@ class LeaveRequestListCreateAPIView(generics.ListCreateAPIView):
         return qs.order_by("-created_at")
 
 
-class LeaveRequestRetrieveUpdateDestroyAPIView(
-    generics.RetrieveUpdateDestroyAPIView
-):
+class LeaveRequestRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = LeaveRequestSerializer
     lookup_field = "pk"

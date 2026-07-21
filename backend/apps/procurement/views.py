@@ -1,15 +1,12 @@
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
 
 from .models import PurchaseOrder, QuickExpense
 from .serializers import (
     PurchaseOrderCreateSerializer,
     PurchaseOrderSerializer,
-    PurchaseOrderUpdateSerializer,
     QuickExpenseCreateSerializer,
     QuickExpenseSerializer,
 )
@@ -28,7 +25,10 @@ class PurchaseOrderListCreateAPIView(generics.ListCreateAPIView):
 
     @extend_schema(
         request=PurchaseOrderCreateSerializer,
-        responses={201: PurchaseOrderSerializer, 400: OpenApiResponse(description="Invalid payload.")},
+        responses={
+            201: PurchaseOrderSerializer,
+            400: OpenApiResponse(description="Invalid payload."),
+        },
     )
     def post(self, request, *args, **kwargs):
         serializer = PurchaseOrderCreateSerializer(data=request.data)
@@ -38,7 +38,9 @@ class PurchaseOrderListCreateAPIView(generics.ListCreateAPIView):
             created_by=request.user,
             updated_by=request.user,
         )
-        return Response(PurchaseOrderSerializer(purchase_order).data, status=status.HTTP_201_CREATED)
+        return Response(
+            PurchaseOrderSerializer(purchase_order).data, status=status.HTTP_201_CREATED
+        )
 
 
 class PurchaseOrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
@@ -63,7 +65,10 @@ class QuickExpenseListCreateAPIView(generics.ListCreateAPIView):
 
     @extend_schema(
         request=QuickExpenseCreateSerializer,
-        responses={201: QuickExpenseSerializer, 400: OpenApiResponse(description="Invalid payload.")},
+        responses={
+            201: QuickExpenseSerializer,
+            400: OpenApiResponse(description="Invalid payload."),
+        },
     )
     def post(self, request, *args, **kwargs):
         serializer = QuickExpenseCreateSerializer(data=request.data)

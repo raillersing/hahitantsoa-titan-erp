@@ -18,6 +18,7 @@ Usage:
   python manage.py seed_complete_demo  (si DEBUG=True)
 """
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -25,11 +26,12 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from datetime import timedelta
-
 
 class Command(BaseCommand):
-    help = "Seed complète : clients, inventaire, documents, réservations, facturation, logistique, caisse."
+    help = (
+        "Seed complète : clients, inventaire, documents, "
+        "réservations, facturation, logistique, caisse."
+    )
 
     def handle(self, *args, **options):
         if not settings.DEBUG:
@@ -42,7 +44,12 @@ class Command(BaseCommand):
         # ── 1. Utilisateurs ──────────────────────────────────────────────
         admin, _ = User.objects.get_or_create(
             username="admin",
-            defaults={"is_staff": True, "is_superuser": True, "first_name": "Admin", "last_name": "ERP"},
+            defaults={
+                "is_staff": True,
+                "is_superuser": True,
+                "first_name": "Admin",
+                "last_name": "ERP",
+            },
         )
         admin.set_password("admin")
         admin.save()
@@ -67,20 +74,62 @@ class Command(BaseCommand):
         from apps.customers.models import Customer
 
         clients_data = [
-            {"display_name": "Rakoto Ando", "lifecycle_status": "client", "party_type": "individual",
-             "email": "ando.rakoto@email.mg", "phone": "+261 34 12 345 67", "address": "Lot 12B, Analakely"},
-            {"display_name": "Rasoa Nomena", "lifecycle_status": "client", "party_type": "company",
-             "email": "rasoa.nomena@entreprise.mg", "phone": "+261 33 98 765 43", "address": "Zone industrielle, Andohatopena"},
-            {"display_name": "Société TechMada", "lifecycle_status": "client", "party_type": "company",
-             "email": "contact@techmada.mg", "phone": "+261 20 22 334 45", "address": "Antananarivo 101"},
-            {"display_name": "Mme Rasoanirina", "lifecycle_status": "client", "party_type": "individual",
-             "email": "rasoanirina@gmail.com", "phone": "+261 34 55 667 78", "address": "Antsirabe"},
-            {"display_name": "SARL Moraingy Events", "lifecycle_status": "client", "party_type": "company",
-             "email": "contact@moraingy.mg", "phone": "+261 32 11 223 34", "address": "Toamasina"},
-            {"display_name": "Rakotomalala Fidy", "lifecycle_status": "prospect", "party_type": "individual",
-             "email": "fidy.rakotomalala@email.mg", "phone": "+261 34 77 889 90", "address": "Fianarantsoa"},
-            {"display_name": "ETS Ravinala", "lifecycle_status": "prospect", "party_type": "company",
-             "email": "info@ravinala.mg", "phone": "+261 20 44 556 67", "address": "Mahajanga"},
+            {
+                "display_name": "Rakoto Ando",
+                "lifecycle_status": "client",
+                "party_type": "individual",
+                "email": "ando.rakoto@email.mg",
+                "phone": "+261 34 12 345 67",
+                "address": "Lot 12B, Analakely",
+            },
+            {
+                "display_name": "Rasoa Nomena",
+                "lifecycle_status": "client",
+                "party_type": "company",
+                "email": "rasoa.nomena@entreprise.mg",
+                "phone": "+261 33 98 765 43",
+                "address": "Zone industrielle, Andohatopena",
+            },
+            {
+                "display_name": "Société TechMada",
+                "lifecycle_status": "client",
+                "party_type": "company",
+                "email": "contact@techmada.mg",
+                "phone": "+261 20 22 334 45",
+                "address": "Antananarivo 101",
+            },
+            {
+                "display_name": "Mme Rasoanirina",
+                "lifecycle_status": "client",
+                "party_type": "individual",
+                "email": "rasoanirina@gmail.com",
+                "phone": "+261 34 55 667 78",
+                "address": "Antsirabe",
+            },
+            {
+                "display_name": "SARL Moraingy Events",
+                "lifecycle_status": "client",
+                "party_type": "company",
+                "email": "contact@moraingy.mg",
+                "phone": "+261 32 11 223 34",
+                "address": "Toamasina",
+            },
+            {
+                "display_name": "Rakotomalala Fidy",
+                "lifecycle_status": "prospect",
+                "party_type": "individual",
+                "email": "fidy.rakotomalala@email.mg",
+                "phone": "+261 34 77 889 90",
+                "address": "Fianarantsoa",
+            },
+            {
+                "display_name": "ETS Ravinala",
+                "lifecycle_status": "prospect",
+                "party_type": "company",
+                "email": "info@ravinala.mg",
+                "phone": "+261 20 44 556 67",
+                "address": "Mahajanga",
+            },
         ]
 
         customers = {}
@@ -97,7 +146,11 @@ class Command(BaseCommand):
         from apps.inventory.models import InventoryItem
 
         items_data = [
-            ("Chaise Napoléon transparente", "material", "Chaise pliable transparente pour événements"),
+            (
+                "Chaise Napoléon transparente",
+                "material",
+                "Chaise pliable transparente pour événements",
+            ),
             ("Table rectangulaire 8 places", "material", "Table rectangulaire blanche 180cm"),
             ("Tente 5x5m", "material", "Tente structurée blanche 25m²"),
             ("Sono complète + Micro", "material", "Système sonore 2000W avec 2 micros"),
@@ -136,20 +189,32 @@ class Command(BaseCommand):
         for code, name, scope, doc_type in templates_data:
             tmpl, _ = DocumentTemplate.objects.update_or_create(
                 code=code,
-                defaults={"name": name, "business_scope": scope, "document_type": doc_type, "status": "active"},
+                defaults={
+                    "name": name,
+                    "business_scope": scope,
+                    "document_type": doc_type,
+                    "status": "active",
+                },
             )
             DocumentTemplateVersion.objects.get_or_create(
                 template=tmpl,
                 version="1.0",
-                defaults={"status": "active", "body_html": f"<h1>{name}</h1><p>Contenu du template {name}</p>"},
+                defaults={
+                    "status": "active",
+                    "body_html": f"<h1>{name}</h1><p>Contenu du template {name}</p>",
+                },
             )
             templates[code] = tmpl
 
         self.stdout.write(self.style.SUCCESS(f"✓ {len(templates_data)} templates documents créés"))
 
         # ── 5. Événements Hahitantsoa ─────────────────────────────────────
-        from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
-        from apps.hahitantsoa.models import HahitantsoaVenue, HahitantsoaService
+        from apps.hahitantsoa.models import (
+            HahitantsoaEventDraft,
+            HahitantsoaEventDraftLine,
+            HahitantsoaService,
+            HahitantsoaVenue,
+        )
 
         # Venues
         venues_data = [
@@ -158,7 +223,9 @@ class Command(BaseCommand):
         ]
         venues = {}
         for name, note in venues_data:
-            v, _ = HahitantsoaVenue.objects.update_or_create(name=name, defaults={"note": note, "capacity": 200, "type": "Domaine"})
+            v, _ = HahitantsoaVenue.objects.update_or_create(
+                name=name, defaults={"note": note, "capacity": 200, "type": "Domaine"}
+            )
             venues[name] = v
 
         # Services
@@ -168,7 +235,9 @@ class Command(BaseCommand):
         ]
         services = {}
         for name, desc in services_data:
-            s, _ = HahitantsoaService.objects.update_or_create(name=name, defaults={"desc": desc, "price": Decimal("500000")})
+            s, _ = HahitantsoaService.objects.update_or_create(
+                name=name, defaults={"desc": desc, "price": Decimal("500000")}
+            )
             services[name] = s
 
         # Événements
@@ -189,11 +258,13 @@ class Command(BaseCommand):
             },
         )
         HahitantsoaEventDraftLine.objects.get_or_create(
-            event_draft=event1, inventory_item=items["Chaise Napoléon transparente"],
+            event_draft=event1,
+            inventory_item=items["Chaise Napoléon transparente"],
             defaults={"quantity": 150, "notes": "Chaises pour le mariage"},
         )
         HahitantsoaEventDraftLine.objects.get_or_create(
-            event_draft=event1, inventory_item=items["Table rectangulaire 8 places"],
+            event_draft=event1,
+            inventory_item=items["Table rectangulaire 8 places"],
             defaults={"quantity": 15, "notes": "Tables pour le mariage"},
         )
 
@@ -210,7 +281,8 @@ class Command(BaseCommand):
             },
         )
         HahitantsoaEventDraftLine.objects.get_or_create(
-            event_draft=event2, inventory_item=items["Chaise chiavari dorée"],
+            event_draft=event2,
+            inventory_item=items["Chaise chiavari dorée"],
             defaults={"quantity": 80, "notes": "Chaises pour le séminaire"},
         )
 
@@ -231,11 +303,13 @@ class Command(BaseCommand):
             },
         )
         ReservationDraftLine.objects.get_or_create(
-            reservation_draft=rd1, inventory_item=items["Chaise Napoléon transparente"],
+            reservation_draft=rd1,
+            inventory_item=items["Chaise Napoléon transparente"],
             defaults={"quantity": 100},
         )
         ReservationDraftLine.objects.get_or_create(
-            reservation_draft=rd1, inventory_item=items["Table rectangulaire 8 places"],
+            reservation_draft=rd1,
+            inventory_item=items["Table rectangulaire 8 places"],
             defaults={"quantity": 10},
         )
 
@@ -253,11 +327,13 @@ class Command(BaseCommand):
             },
         )
         ReservationDraftLine.objects.get_or_create(
-            reservation_draft=rd2, inventory_item=items["Sono complète + Micro"],
+            reservation_draft=rd2,
+            inventory_item=items["Sono complète + Micro"],
             defaults={"quantity": 2},
         )
         ReservationDraftLine.objects.get_or_create(
-            reservation_draft=rd2, inventory_item=items["Chaise chiavari dorée"],
+            reservation_draft=rd2,
+            inventory_item=items["Chaise chiavari dorée"],
             defaults={"quantity": 50},
         )
 
@@ -279,11 +355,13 @@ class Command(BaseCommand):
             },
         )
         ReservationDraftLine.objects.get_or_create(
-            reservation_draft=rd3, inventory_item=items["Tente 5x5m"],
+            reservation_draft=rd3,
+            inventory_item=items["Tente 5x5m"],
             defaults={"quantity": 2},
         )
         ReservationDraftLine.objects.get_or_create(
-            reservation_draft=rd3, inventory_item=items["Lumières d'ambiance LED"],
+            reservation_draft=rd3,
+            inventory_item=items["Lumières d'ambiance LED"],
             defaults={"quantity": 4},
         )
 
@@ -305,7 +383,8 @@ class Command(BaseCommand):
             },
         )
         ReservationDraftLine.objects.get_or_create(
-            reservation_draft=rd4, inventory_item=items["Chaise Napoléon transparente"],
+            reservation_draft=rd4,
+            inventory_item=items["Chaise Napoléon transparente"],
             defaults={"quantity": 200},
         )
 
@@ -372,7 +451,9 @@ class Command(BaseCommand):
             },
         )
 
-        self.stdout.write(self.style.SUCCESS("✓ 4 documents créés (2 proformas, 1 contrat, 1 facture)"))
+        self.stdout.write(
+            self.style.SUCCESS("✓ 4 documents créés (2 proformas, 1 contrat, 1 facture)")
+        )
 
         # ── 8. Facturation ────────────────────────────────────────────────
         from apps.billing.models import BillingInvoice
@@ -452,11 +533,13 @@ class Command(BaseCommand):
             },
         )
         LogisticsEventItemLine.objects.get_or_create(
-            logistics_event=evt1, inventory_item=items["Tente 5x5m"],
+            logistics_event=evt1,
+            inventory_item=items["Tente 5x5m"],
             defaults={"quantity": 2},
         )
         LogisticsEventItemLine.objects.get_or_create(
-            logistics_event=evt1, inventory_item=items["Lumières d'ambiance LED"],
+            logistics_event=evt1,
+            inventory_item=items["Lumières d'ambiance LED"],
             defaults={"quantity": 4},
         )
 
@@ -471,7 +554,8 @@ class Command(BaseCommand):
             },
         )
         LogisticsEventItemLine.objects.get_or_create(
-            logistics_event=evt2, inventory_item=items["Chaise Napoléon transparente"],
+            logistics_event=evt2,
+            inventory_item=items["Chaise Napoléon transparente"],
             defaults={"quantity": 200},
         )
 
@@ -501,13 +585,13 @@ class Command(BaseCommand):
                 direction="inbound",
                 quantity=qty,
                 source_label="Stock initial",
-                defaults={"notes": "Stock initial"}
+                defaults={"notes": "Stock initial"},
             )
 
         self.stdout.write(self.style.SUCCESS(f"✓ {len(stock_data)} mouvements de stock créés"))
 
         # ── 11. Caisse ───────────────────────────────────────────────────
-        from apps.cashbox.models import CashboxSession, CashboxMovement
+        from apps.cashbox.models import CashboxMovement, CashboxSession
 
         session, _ = CashboxSession.objects.update_or_create(
             operator=gérant,
@@ -538,7 +622,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("═" * 60))
         self.stdout.write(self.style.SUCCESS("SEED COMPLET TERMINÉ"))
         self.stdout.write(self.style.SUCCESS("═" * 60))
-        self.stdout.write(f"  Utilisateurs  : admin/admin, gerant/gerant123, accueil/accueil123")
+        self.stdout.write("  Utilisateurs  : admin/admin, gerant/gerant123, accueil/accueil123")
         self.stdout.write(f"  Clients       : {Customer.objects.count()}")
         self.stdout.write(f"  Inventaire    : {InventoryItem.objects.count()} articles")
         self.stdout.write(f"  Templates     : {DocumentTemplate.objects.count()} templates")

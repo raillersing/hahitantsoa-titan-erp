@@ -6,17 +6,12 @@ They complement the per-domain negative tests with a centralized audit view.
 
 from __future__ import annotations
 
-import uuid
-
+import pytest
 from django.contrib.auth.models import User
 from django.test import Client
-from django.urls import reverse
-
-import pytest
 
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 from apps.identity.roles import IdentityRole
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -116,9 +111,7 @@ class TestWriteEndpointsRejectRegularUser:
             ("POST", "/api/v1/identity/roles/"),
         ],
     )
-    def test_regular_user_gets_403_or_401(
-        self, regular_user: User, method: str, path: str
-    ):
+    def test_regular_user_gets_403_or_401(self, regular_user: User, method: str, path: str):
         client = Client()
         client.login(username=regular_user.username, password="test-pass")
         response = client.generic(method, path)
@@ -153,15 +146,11 @@ class TestOperatorAccess:
             "/api/v1/audit/events/",
         ],
     )
-    def test_operator_can_read_reservation_sensitive(
-        self, operator_user: User, path: str
-    ):
+    def test_operator_can_read_reservation_sensitive(self, operator_user: User, path: str):
         client = Client()
         client.login(username=operator_user.username, password="test-pass")
         response = client.get(path)
-        assert response.status_code == 200, (
-            f"Operator denied on {path}: {response.status_code}"
-        )
+        assert response.status_code == 200, f"Operator denied on {path}: {response.status_code}"
 
     @pytest.mark.parametrize(
         "method,path",
@@ -170,15 +159,11 @@ class TestOperatorAccess:
             ("POST", "/api/v1/identity/roles/"),
         ],
     )
-    def test_operator_denied_on_identity(
-        self, operator_user: User, method: str, path: str
-    ):
+    def test_operator_denied_on_identity(self, operator_user: User, method: str, path: str):
         client = Client()
         client.login(username=operator_user.username, password="test-pass")
         response = client.generic(method, path)
-        assert response.status_code == 403, (
-            f"Operator should be denied on {method} {path}"
-        )
+        assert response.status_code == 403, f"Operator should be denied on {method} {path}"
 
 
 # ---------------------------------------------------------------------------
@@ -196,9 +181,7 @@ class TestIdentityAdminAccess:
             ("POST", "/api/v1/identity/roles/"),
         ],
     )
-    def test_admin_can_manage_identity(
-        self, admin_role_user: User, method: str, path: str
-    ):
+    def test_admin_can_manage_identity(self, admin_role_user: User, method: str, path: str):
         client = Client()
         client.login(username=admin_role_user.username, password="test-pass")
         response = client.generic(method, path)
@@ -229,9 +212,7 @@ class TestStaffBypass:
         client = Client()
         client.login(username=staff_user.username, password="test-pass")
         response = client.get(path)
-        assert response.status_code == 200, (
-            f"Staff denied on {path}: {response.status_code}"
-        )
+        assert response.status_code == 200, f"Staff denied on {path}: {response.status_code}"
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +265,4 @@ class TestUnauthenticatedDenied:
     def test_anonymous_denied(self, path: str):
         client = Client()
         response = client.get(path)
-        assert response.status_code == 403, (
-            f"Anonymous allowed on {path}: {response.status_code}"
-        )
+        assert response.status_code == 403, f"Anonymous allowed on {path}: {response.status_code}"

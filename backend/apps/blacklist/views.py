@@ -13,9 +13,7 @@ class BlacklistedIntervenantListCreateAPIView(generics.ListCreateAPIView):
         return BlacklistedIntervenant.objects.filter(is_active=True).order_by("name")
 
 
-class BlacklistedIntervenantRetrieveUpdateDestroyAPIView(
-    generics.RetrieveUpdateDestroyAPIView
-):
+class BlacklistedIntervenantRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BlacklistedIntervenantSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = "pk"

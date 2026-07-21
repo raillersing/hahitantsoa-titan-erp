@@ -10,6 +10,7 @@ from .views import (
     UserRoleAssignmentDetailAPIView,
     UserRoleAssignmentListAPIView,
 )
+
 urlpatterns = [
     path("roles/", ApplicationRoleListCreateAPIView.as_view(), name="identity-role-list"),
     path("users/", UserListAPIView.as_view(), name="identity-user-list"),
