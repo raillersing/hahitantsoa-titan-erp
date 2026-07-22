@@ -49,6 +49,51 @@ export type CustomerUpdatePayload = {
   is_active?: boolean;
 };
 
+export type VisitReason = "simple_visit" | "prospect" | "other";
+export type VisitStatus = "scheduled" | "completed" | "cancelled";
+
+export type VisitResponsible = {
+  id: string;
+  display_name: string;
+};
+
+export type VisitAppointment = {
+  id: string;
+  customer_id: string;
+  customer_display_name: string;
+  reason: VisitReason;
+  scheduled_at: string;
+  responsible_id: string;
+  responsible_username: string;
+  location: string;
+  notes: string;
+  status: VisitStatus;
+  reminder_at: string | null;
+  reminder_sent_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type VisitAppointmentPayload = {
+  customer_id: string;
+  reason: VisitReason;
+  scheduled_at: string;
+  responsible_id: string;
+  location?: string;
+  notes?: string;
+  reminder_at?: string | null;
+};
+
+export type VisitAppointmentQueryParams = {
+  customer_id?: string;
+  responsible_id?: string;
+  status?: VisitStatus;
+  scheduled_after?: string;
+  scheduled_before?: string;
+};
+
 export type HahitantsoaDiscoveryConcept =
   | "event"
   | "venue"

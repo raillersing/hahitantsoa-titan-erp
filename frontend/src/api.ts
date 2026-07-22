@@ -73,6 +73,10 @@ import type {
   PaymentConfirmPayload,
   HahitantsoaVenue,
   HahitantsoaService,
+  VisitAppointment,
+  VisitAppointmentPayload,
+  VisitAppointmentQueryParams,
+  VisitResponsible,
 } from "./types";
 
 
@@ -335,6 +339,40 @@ export function getCustomers(
     if (qsStr) url += `?${qsStr}`;
   }
   return getAuthenticatedJson(url, signal);
+}
+
+export function getVisitAppointments(
+  params?: VisitAppointmentQueryParams,
+  signal?: AbortSignal,
+): Promise<VisitAppointment[]> {
+  return getAuthenticatedJson(`/api/v1/visits/appointments/${buildQuery(params)}`, signal);
+}
+
+export function getVisitResponsibles(signal?: AbortSignal): Promise<VisitResponsible[]> {
+  return getAuthenticatedJson("/api/v1/visits/responsibles/", signal);
+}
+
+export function createVisitAppointment(
+  payload: VisitAppointmentPayload,
+  signal?: AbortSignal,
+): Promise<VisitAppointment> {
+  return postAuthenticatedJson("/api/v1/visits/appointments/", payload, signal);
+}
+
+export function updateVisitAppointment(
+  id: string,
+  payload: Partial<VisitAppointmentPayload>,
+  signal?: AbortSignal,
+): Promise<VisitAppointment> {
+  return patchAuthenticatedJson(`/api/v1/visits/appointments/${id}/`, payload, signal);
+}
+
+export function completeVisitAppointment(id: string, signal?: AbortSignal): Promise<VisitAppointment> {
+  return postAuthenticatedJson(`/api/v1/visits/appointments/${id}/complete/`, {}, signal);
+}
+
+export function cancelVisitAppointment(id: string, signal?: AbortSignal): Promise<VisitAppointment> {
+  return postAuthenticatedJson(`/api/v1/visits/appointments/${id}/cancel/`, {}, signal);
 }
 
 export function getCustomer(
