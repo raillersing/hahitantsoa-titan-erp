@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
@@ -23,6 +24,10 @@ from apps.reservations.models import ReservationDraft
 
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
 HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
+CONTRACT_TEMPLATE_KEY_BY_PROFORMA_SCOPE = {
+    "hahitantsoa": HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
+    "titan": "titan.material_contract.v1",
+}
 SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "titan.proforma.v1",
     "titan.delivery_note.v1",
@@ -35,6 +40,145 @@ SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (HAHITANTSOA_CONTRACT
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"
 )
+
+
+class ProformaActionError(ValueError):
+    """Raised when a proforma cannot be converted or voided safely."""
+
+
+def _get_locked_document_instance(*, document_instance_id) -> DocumentInstance:
+    instance = (
+        DocumentInstance.objects.select_for_update()
+        .select_related("reservation_draft", "hahitantsoa_event_draft")
+        .filter(id=document_instance_id)
+        .first()
+    )
+    if instance is None:
+        raise DocumentInstance.DoesNotExist
+    return instance
+
+
+def _get_contract_template_key_for_proforma(*, instance: DocumentInstance) -> str:
+    from apps.documents.registry import get_document_template_definition
+
+    template = get_document_template_definition(instance.template_key)
+    if (
+        template is None
+        or template.document_type != "proforma"
+        or template.business_scope != instance.business_scope
+        or instance.document_type != "proforma"
+    ):
+        raise ProformaActionError("Only registered proforma documents can use this action.")
+
+    contract_template_key = CONTRACT_TEMPLATE_KEY_BY_PROFORMA_SCOPE.get(template.business_scope)
+    if contract_template_key is None:
+        raise ProformaActionError("This proforma business scope has no contract template.")
+    return contract_template_key
+
+
+def _validate_convertible_proforma(*, instance: DocumentInstance) -> str:
+    contract_template_key = _get_contract_template_key_for_proforma(instance=instance)
+    if instance.status == DocumentInstanceStatus.VOIDED:
+        raise ProformaActionError("Cannot convert a voided proforma to a contract.")
+    if instance.valid_until is not None and instance.valid_until < timezone.now():
+        raise ProformaActionError("This proforma has expired and cannot be converted.")
+    if instance.reservation_draft_id is None and instance.hahitantsoa_event_draft_id is None:
+        raise ProformaActionError("A proforma must be linked to a draft before conversion.")
+    return contract_template_key
+
+
+def _converted_contract_for_proforma(
+    *,
+    instance: DocumentInstance,
+    contract_template_key: str,
+) -> DocumentInstance | None:
+    conversion_note = f"Converted from proforma {instance.id}"
+    source_filter = (
+        Q(reservation_draft_id=instance.reservation_draft_id)
+        if instance.reservation_draft_id is not None
+        else Q(hahitantsoa_event_draft_id=instance.hahitantsoa_event_draft_id)
+    )
+    return (
+        DocumentInstance.objects.filter(
+            source_filter,
+            template_key=contract_template_key,
+            notes=conversion_note,
+        )
+        .order_by("created_at", "id")
+        .first()
+    )
+
+
+@transaction.atomic
+def prepare_contract_from_proforma(
+    *,
+    document_instance_id,
+    actor: object | None,
+) -> tuple[DocumentInstance, bool]:
+    """Prepare the scope-correct contract for a proforma without confirmation."""
+
+    instance = _get_locked_document_instance(document_instance_id=document_instance_id)
+    contract_template_key = _validate_convertible_proforma(instance=instance)
+    existing_contract = _converted_contract_for_proforma(
+        instance=instance,
+        contract_template_key=contract_template_key,
+    )
+    if existing_contract is not None:
+        return existing_contract, False
+
+    conversion_note = f"Converted from proforma {instance.id}"
+    # ponytail: locking the source row serializes repeated conversions without a schema change.
+    if instance.reservation_draft_id is not None:
+        contract = create_document_instance_from_reservation_draft(
+            reservation_draft=instance.reservation_draft,
+            template_key=contract_template_key,
+            actor=actor,
+            notes=conversion_note,
+        )
+    else:
+        contract = create_document_instance_from_hahitantsoa_event_draft(
+            event_draft=instance.hahitantsoa_event_draft,
+            template_key=contract_template_key,
+            actor=actor,
+            notes=conversion_note,
+        )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.proforma_converted_to_contract",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={
+            "source_instance_id": str(instance.id),
+            "new_instance_id": str(contract.id),
+            "contract_template_key": contract_template_key,
+        },
+    )
+    return contract, True
+
+
+@transaction.atomic
+def void_proforma(
+    *, document_instance_id, actor: object | None, reason: str = ""
+) -> DocumentInstance:
+    instance = _get_locked_document_instance(document_instance_id=document_instance_id)
+    _get_contract_template_key_for_proforma(instance=instance)
+    if instance.status == DocumentInstanceStatus.VOIDED:
+        raise ProformaActionError("This proforma is already voided.")
+
+    instance.status = DocumentInstanceStatus.VOIDED
+    instance.voided_at = timezone.now()
+    instance.voided_by = actor
+    instance.void_reason = reason
+    instance.save(update_fields=["status", "voided_at", "voided_by", "void_reason", "updated_at"])
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.proforma_voided",
+        target_type="document_instance",
+        target_id=str(instance.id),
+        metadata={"template_key": instance.template_key, "reason": instance.void_reason},
+    )
+    return instance
 
 
 def get_supported_reservation_draft_document_template_keys() -> tuple[str, ...]:
