@@ -16,6 +16,7 @@ ROLE_ALREADY_ASSIGNED = "role_already_assigned"
 ROLE_INACTIVE = "role_inactive"
 UNAUTHORIZED_PLATFORM_ROLE = "unauthorized_platform_role"
 COMPANY_ROLE_NAME_CONFLICT = "company_role_name_conflict"
+COMPANY_ROLE_DEFINITION_CONFLICT = "company_role_definition_conflict"
 
 User = get_user_model()
 
@@ -83,7 +84,7 @@ def sync_company_role_catalog() -> list[ApplicationRole]:
                     f"Company role name is already used by another slug: {definition['name']}.",
                     code=COMPANY_ROLE_NAME_CONFLICT,
                 )
-            role_obj, _ = ApplicationRole.objects.get_or_create(
+            role_obj, created = ApplicationRole.objects.get_or_create(
                 slug=role.value,
                 defaults={
                     **definition,
@@ -91,6 +92,16 @@ def sync_company_role_catalog() -> list[ApplicationRole]:
                     "is_active": True,
                 },
             )
+            if not created and (
+                role_obj.name != definition["name"]
+                or role_obj.description != definition["description"]
+                or role_obj.is_system_managed
+                or not role_obj.is_active
+            ):
+                raise IdentityServiceError(
+                    f"Company role slug has a conflicting definition: {role.value}.",
+                    code=COMPANY_ROLE_DEFINITION_CONFLICT,
+                )
             roles.append(role_obj)
     return roles
 

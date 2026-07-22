@@ -12,6 +12,7 @@ from apps.identity.authorization import is_identity_admin_actor, is_reservation_
 from apps.identity.models import ApplicationRole, UserRoleAssignment
 from apps.identity.roles import COMPANY_ROLE_CATALOG, CompanyRole, IdentityRole
 from apps.identity.services import (
+    COMPANY_ROLE_DEFINITION_CONFLICT,
     COMPANY_ROLE_NAME_CONFLICT,
     IdentityServiceError,
     assign_role,
@@ -133,6 +134,25 @@ def test_sync_company_role_catalog_rejects_an_existing_name_with_another_slug():
 
     assert exc_info.value.code == COMPANY_ROLE_NAME_CONFLICT
     assert not ApplicationRole.objects.filter(slug=CompanyRole.MANAGER).exists()
+
+
+def test_sync_company_role_catalog_rejects_conflicting_slug_without_mutation_or_partial_seed():
+    conflicting_role = ApplicationRole.objects.create(
+        name="Legacy manager",
+        slug=CompanyRole.MANAGER,
+        description="Legacy definition",
+        is_system_managed=False,
+        is_active=True,
+    )
+
+    with pytest.raises(IdentityServiceError) as exc_info:
+        sync_company_role_catalog()
+
+    assert exc_info.value.code == COMPANY_ROLE_DEFINITION_CONFLICT
+    conflicting_role.refresh_from_db()
+    assert conflicting_role.name == "Legacy manager"
+    assert conflicting_role.description == "Legacy definition"
+    assert not ApplicationRole.objects.filter(slug=CompanyRole.OWNER_MANAGER).exists()
 
 
 def test_company_roles_allow_multiple_assignments_and_do_not_elevate_privileges(
