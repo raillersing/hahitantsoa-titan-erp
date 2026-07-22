@@ -209,6 +209,11 @@ async function postAuthenticatedJson<T>(
   return parseJsonResponse<T>(response);
 }
 
+async function postAuthenticated<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await unsafeAuthenticatedRequest(url, { method: "POST" }, signal);
+  return parseJsonResponse<T>(response);
+}
+
 async function patchAuthenticatedJson<T>(
   url: string,
   payload: object,
@@ -368,11 +373,11 @@ export function updateVisitAppointment(
 }
 
 export function completeVisitAppointment(id: string, signal?: AbortSignal): Promise<VisitAppointment> {
-  return postAuthenticatedJson(`/api/v1/visits/appointments/${id}/complete/`, {}, signal);
+  return postAuthenticated(`/api/v1/visits/appointments/${id}/complete/`, signal);
 }
 
 export function cancelVisitAppointment(id: string, signal?: AbortSignal): Promise<VisitAppointment> {
-  return postAuthenticatedJson(`/api/v1/visits/appointments/${id}/cancel/`, {}, signal);
+  return postAuthenticated(`/api/v1/visits/appointments/${id}/cancel/`, signal);
 }
 
 export function getCustomer(

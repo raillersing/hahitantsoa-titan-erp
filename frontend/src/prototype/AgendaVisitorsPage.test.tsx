@@ -22,8 +22,10 @@ describe("AgendaVisitorsPage", () => {
     mockLoad();
     vi.spyOn(api, "completeVisitAppointment").mockResolvedValue({ ...visit, status: "completed", completed_at: "2026-07-23T10:00:00Z" });
     render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
-    expect(await screen.findByText("Rasoa")).toBeInTheDocument();
+    expect((await screen.findAllByText("Rasoa")).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Terminer" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Confirmer la finalisation");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
     expect(await screen.findByText("Terminée")).toBeInTheDocument();
   });
 
@@ -41,5 +43,70 @@ describe("AgendaVisitorsPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Indisponible");
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
     await waitFor(() => expect(screen.getByText("Aucune visite")).toBeInTheDocument());
+  });
+
+  it("preserves the commercial visitor register from real customer data", async () => {
+    mockLoad();
+    render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
+    expect(await screen.findByText("Registre des visites, réunions commerciales et prestataires.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clients" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prospects" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prestataires" })).toBeInTheDocument();
+    expect(screen.getByText("Dernière activité")).toBeInTheDocument();
+  });
+
+  it("asks for explicit confirmation before completing a visit", async () => {
+    mockLoad();
+    const complete = vi.spyOn(api, "completeVisitAppointment").mockResolvedValue({ ...visit, status: "completed", completed_at: "2026-07-23T10:00:00Z" });
+    render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
+    await screen.findAllByText("Rasoa");
+    fireEvent.click(screen.getByRole("button", { name: "Terminer" }));
+    expect(complete).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Confirmer la finalisation");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmer" }));
+    await waitFor(() => expect(complete).toHaveBeenCalledWith("visit-1"));
+  });
+
+  it("omits the existing reminder from an edit unless it is explicitly changed", async () => {
+    mockLoad();
+    const update = vi.spyOn(api, "updateVisitAppointment").mockResolvedValue(visit);
+    render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
+    await screen.findAllByText("Rasoa");
+    fireEvent.click(screen.getByRole("button", { name: "Modifier" }));
+    fireEvent.change(screen.getByLabelText(/Date et heure/), { target: { value: "2026-07-24T10:00" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer" }));
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    expect(update.mock.calls[0][1]).not.toHaveProperty("reminder_at");
+  });
+
+  it("keeps the commercial filters usable when a customer has no last activity", async () => {
+    mockLoad();
+    render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
+    await screen.findAllByText("Rasoa");
+    fireEvent.click(screen.getByRole("button", { name: "Aujourd'hui" }));
+    expect(screen.getByText("Aucun visiteur")).toBeInTheDocument();
+  });
+
+  it("closes the destructive confirmation with Escape and restores its trigger focus", async () => {
+    mockLoad();
+    render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
+    await screen.findAllByText("Rasoa");
+    const complete = screen.getByRole("button", { name: "Terminer" });
+    fireEvent.click(complete);
+    const confirmation = screen.getByRole("alertdialog");
+    fireEvent.keyDown(confirmation, { key: "Escape" });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(complete).toHaveFocus();
+  });
+
+  it("traps Shift+Tab from the confirmation dialog initial focus", async () => {
+    mockLoad();
+    render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
+    await screen.findAllByText("Rasoa");
+    fireEvent.click(screen.getByRole("button", { name: "Terminer" }));
+    const confirmation = screen.getByRole("alertdialog");
+    await waitFor(() => expect(confirmation).toHaveFocus());
+    fireEvent.keyDown(confirmation, { key: "Tab", shiftKey: true });
+    expect(screen.getByRole("button", { name: "Confirmer" })).toHaveFocus();
   });
 });

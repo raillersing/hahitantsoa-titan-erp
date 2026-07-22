@@ -333,7 +333,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
                 <th className="text-left px-4 py-3 rounded-l-lg">Jour</th>
                 <th className="text-left px-4 py-3">Événement</th>
                 <th className="text-left px-4 py-3">Client</th>
-                <th className="text-left px-4 py-3">Durée</th>
+                <th className="text-left px-4 py-3">Période</th>
                 <th className="text-left px-4 py-3">Ressources</th>
                 <th className="text-left px-4 py-3 rounded-r-lg">Statut</th>
               </tr>
@@ -355,32 +355,23 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
                       </td>
                     ) : null}
                     <td className="px-4 py-4">
-                      <button
-                          onClick={() => item.kind !== "visit" && handleEventClick(item.id)}
-                        className="text-left group"
-                      >
-                        <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">
-                          {item.title}
+                      {item.kind === "visit" ? (
+                        <div className="text-left">
+                          <div className="font-medium text-slate-900">{item.title}</div>
+                          {item.subtitle ? <div className="text-xs text-slate-500">{item.subtitle}</div> : null}
+                          <span className="inline-block mt-1 rounded bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">Visite</span>
                         </div>
-                        {item.subtitle ? (
-                          <div className="text-xs text-slate-500">{item.subtitle}</div>
-                        ) : null}
-                        <span
-                          className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
-                            item.kind === "hahitantsoa"
-                              ? "bg-rose-50 text-rose-600"
-                              : item.kind === "visit"
-                                ? "bg-violet-50 text-violet-700"
-                                : "bg-blue-50 text-blue-600"
-                          }`}
-                        >
-                          {item.kind === "hahitantsoa" ? "Hahitantsoa" : item.kind === "visit" ? "Visite" : "Titan"}
-                        </span>
-                      </button>
+                      ) : (
+                        <button onClick={() => handleEventClick(item.id)} className="group text-left">
+                          <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">{item.title}</div>
+                          {item.subtitle ? <div className="text-xs text-slate-500">{item.subtitle}</div> : null}
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${item.kind === "hahitantsoa" ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>{item.kind === "hahitantsoa" ? "Hahitantsoa" : "Titan"}</span>
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-slate-700">{item.customerName}</td>
                     <td className="px-4 py-4 text-slate-600">
-                      {formatDuration(item.startAt, item.endAt)}
+                      {item.kind === "visit" ? formatTime(item.startAt) : formatDuration(item.startAt, item.endAt)}
                     </td>
                     <td className="px-4 py-4 text-slate-600">
                       {item.kind === "visit" ? "—" : `${item.resourceCount} article(s)`}
