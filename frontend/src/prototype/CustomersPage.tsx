@@ -446,6 +446,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
               <MockAvailabilityCalendar 
                 selectedDate={prospectDate} 
                 onDateSelect={setProspectDate}
+                showAvailabilityPreview
               />
               <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-4">
                 <div className="text-center">
