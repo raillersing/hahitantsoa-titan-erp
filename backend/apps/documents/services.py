@@ -47,12 +47,10 @@ class ProformaActionError(ValueError):
 
 
 def _get_locked_document_instance(*, document_instance_id) -> DocumentInstance:
-    instance = (
-        DocumentInstance.objects.select_for_update()
-        .select_related("reservation_draft", "hahitantsoa_event_draft")
-        .filter(id=document_instance_id)
-        .first()
-    )
+    # The draft links are nullable: select_related() would create outer joins that
+    # PostgreSQL correctly refuses to lock. The source document row is the
+    # idempotency boundary, so lock only that row and load its link lazily.
+    instance = DocumentInstance.objects.select_for_update().filter(id=document_instance_id).first()
     if instance is None:
         raise DocumentInstance.DoesNotExist
     return instance
