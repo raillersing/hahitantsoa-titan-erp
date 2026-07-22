@@ -123,6 +123,31 @@ def test_sync_company_role_catalog_command_is_idempotent():
     )
 
 
+def test_sync_company_role_catalog_audits_created_roles_with_explicit_system_actor(
+    django_capture_on_commit_callbacks,
+):
+    with django_capture_on_commit_callbacks(execute=True):
+        roles = sync_company_role_catalog()
+
+    events = AuditEvent.objects.filter(action="identity.company_role_catalog_created")
+    assert events.count() == len(roles)
+    assert {event.target_id for event in events} == {str(role.id) for role in roles}
+    assert all(event.actor is None for event in events)
+    assert {event.metadata["system_actor"] for event in events} == {"sync_company_role_catalog"}
+    assert {event.metadata["role_slug"] for event in events} == {role.slug for role in roles}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sync_company_role_catalog_does_not_persist_roles_or_audit_after_rollback():
+    with pytest.raises(RuntimeError, match="rollback"):
+        with transaction.atomic():
+            sync_company_role_catalog()
+            raise RuntimeError("rollback")
+
+    assert not ApplicationRole.objects.filter(slug__in=COMPANY_ROLE_CATALOG).exists()
+    assert not AuditEvent.objects.filter(action="identity.company_role_catalog_created").exists()
+
+
 def test_sync_company_role_catalog_rejects_an_existing_name_with_another_slug():
     ApplicationRole.objects.create(
         name=COMPANY_ROLE_CATALOG[CompanyRole.MANAGER]["name"],
@@ -134,6 +159,29 @@ def test_sync_company_role_catalog_rejects_an_existing_name_with_another_slug():
 
     assert exc_info.value.code == COMPANY_ROLE_NAME_CONFLICT
     assert not ApplicationRole.objects.filter(slug=CompanyRole.MANAGER).exists()
+
+
+def test_sync_company_role_catalog_translates_name_integrity_error_without_partial_seed(
+    monkeypatch,
+):
+    original_get_or_create = ApplicationRole.objects.get_or_create
+    calls = 0
+
+    def collide_on_second_creation(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise IntegrityError("application_role_name_key")
+        return original_get_or_create(*args, **kwargs)
+
+    monkeypatch.setattr(ApplicationRole.objects, "get_or_create", collide_on_second_creation)
+
+    with pytest.raises(IdentityServiceError) as exc_info:
+        sync_company_role_catalog()
+
+    assert exc_info.value.code == COMPANY_ROLE_NAME_CONFLICT
+    assert not ApplicationRole.objects.filter(slug__in=COMPANY_ROLE_CATALOG).exists()
+    assert not AuditEvent.objects.filter(action="identity.company_role_catalog_created").exists()
 
 
 def test_sync_company_role_catalog_rejects_conflicting_slug_without_mutation_or_partial_seed():
