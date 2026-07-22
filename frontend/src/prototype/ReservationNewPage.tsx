@@ -7,6 +7,13 @@ import {
   getHahitantsoaServices,
   getReservationAvailableItemPreviews,
   createReservationDraft,
+  createReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstancePdf,
+  createHahitantsoaEventDraft,
+  createHahitantsoaEventDraftDocumentInstance,
+  generateHahitantsoaEventDraftDocumentInstance,
+  generateHahitantsoaEventDraftDocumentInstancePdf,
   createCustomer,
 } from "../api";
 import type {
@@ -266,6 +273,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [errorCatalog, setErrorCatalog] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [issuedProspectProformaId, setIssuedProspectProformaId] = useState<string | null>(null);
 
   // Derived: mapped clients (API Customer → local Client format)
   const mockClients: Client[] = apiCustomers.map(mapCustomerToClient);
@@ -637,6 +645,63 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (idx === 8) return "Paiement";
     if (idx === 9) return "Contrat";
     return "";
+  };
+
+  const issueProspectProforma = async () => {
+    if (!domain || !selectedClientId) {
+      throw new Error("Sélectionnez un client et un volet avant d’émettre le proforma.");
+    }
+    if (!Number.isInteger(proformaValidity) || proformaValidity < 1) {
+      throw new Error("La durée de validité doit être d’au moins un jour.");
+    }
+
+    const isHahitantsoa = domain === "hahitantsoa";
+    const details = isHahitantsoa ? hDetails : tDetails;
+    if (!details.startDate || !details.startTime || !details.endDate || !details.endTime) {
+      throw new Error("Renseignez les dates et heures de début et de fin avant d’émettre le proforma.");
+    }
+
+    const startAt = `${details.startDate}T${details.startTime}:00`;
+    const endAt = `${details.endDate}T${details.endTime}:00`;
+    const lines = selectedMaterials.map((material) => ({
+      inventory_item_id: material.id,
+      quantity: material.quantity,
+      notes: material.name,
+    }));
+    const documentPayload = {
+      template_key: isHahitantsoa ? "hahitantsoa.proforma.v1" : "titan.proforma.v1",
+      proforma_validity_days: proformaValidity,
+    };
+
+    if (isHahitantsoa) {
+      const eventDraft = await createHahitantsoaEventDraft({
+        customer_id: selectedClientId,
+        event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
+        venue_name: hDetails.venue || undefined,
+        location_details: hDetails.venue || undefined,
+        service_notes: selectedServices.map((service) => service.name).join(", ") || undefined,
+        start_at: startAt,
+        end_at: endAt,
+        notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
+        lines,
+      });
+      const document = await createHahitantsoaEventDraftDocumentInstance(eventDraft.id, documentPayload);
+      await generateHahitantsoaEventDraftDocumentInstance(eventDraft.id, document.id);
+      await generateHahitantsoaEventDraftDocumentInstancePdf(eventDraft.id, document.id);
+      return document.id;
+    }
+
+    const reservationDraft = await createReservationDraft({
+      customer_id: selectedClientId,
+      start_at: startAt,
+      end_at: endAt,
+      notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
+      lines,
+    });
+    const document = await createReservationDraftDocumentInstance(reservationDraft.id, documentPayload);
+    await generateReservationDraftDocumentInstance(reservationDraft.id, document.id);
+    await generateReservationDraftDocumentInstancePdf(reservationDraft.id, document.id);
+    return document.id;
   };
 
   const renderStepper = () => {
@@ -2277,6 +2342,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               type="number" 
               className="w-16 border border-slate-300 rounded p-1 text-center text-sm" 
               value={proformaValidity}
+              disabled={Boolean(issuedProspectProformaId)}
               onChange={e => setProformaValidity(parseInt(e.target.value || "0", 10))}
             />
             <span className="text-slate-600">jours</span>
@@ -2284,51 +2350,44 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         </div>
       </div>
 
+      {isProspectProforma && issuedProspectProformaId && (
+        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status" aria-live="polite">
+          <p className="font-bold">Proforma émise avec succès</p>
+          <p>Le PDF a été généré et la validité de {proformaValidity} jours est maintenant fixée.</p>
+          <button
+            className="mt-3 rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800"
+            onClick={() => onNavigate("customer", selectedClientId)}
+          >
+            Voir le dossier client
+          </button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mt-8 pt-4 border-t border-slate-100">
         <button className="px-4 py-2 text-indigo-600 hover:text-indigo-800 font-medium text-sm" onClick={() => jumpTo(4)}>Modifier lignes</button>
         <div className="flex gap-4">
           {isProspectProforma ? (
             <button 
               className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-green-700 transition-colors"
-              disabled={submitting}
+              disabled={submitting || Boolean(issuedProspectProformaId)}
               onClick={async () => {
                  setSubmitting(true);
                  setSubmitError(null);
                  try {
-                   const customerId = selectedClientId || "";
-                   const startAt = domain === 'hahitantsoa'
-                     ? (hDetails.startDate && hDetails.startTime ? `${hDetails.startDate}T${hDetails.startTime}:00` : new Date().toISOString())
-                     : (tDetails.startDate && tDetails.startTime ? `${tDetails.startDate}T${tDetails.startTime}:00` : new Date().toISOString());
-                   const endAt = domain === 'hahitantsoa'
-                     ? (hDetails.endDate && hDetails.endTime ? `${hDetails.endDate}T${hDetails.endTime}:00` : new Date().toISOString())
-                     : (tDetails.endDate && tDetails.endTime ? `${tDetails.endDate}T${tDetails.endTime}:00` : new Date().toISOString());
-                   const notes = domain === 'hahitantsoa'
-                     ? `${hDetails.eventTypeOther || hDetails.eventType} - ${hDetails.venue} - ${hDetails.guests} pax`
-                     : `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ''} - ${tDetails.destinationAddress || ''}`;
-                   const lines = selectedMaterials.map(m => ({
-                     inventory_item_id: m.id,
-                     quantity: m.quantity,
-                     notes: m.name,
-                   }));
-                   await createReservationDraft({
-                     customer_id: customerId,
-                     start_at: startAt,
-                     end_at: endAt,
-                     notes,
-                     lines,
-                   });
-                   showToastMsg("Proforma prospect créée avec succès et liée au dossier !", 'success');
+                   const documentId = await issueProspectProforma();
+                   setIssuedProspectProformaId(documentId);
                    clearDraft(false);
-                   onNavigate("customer", selectedClientId); 
-                 } catch (err: any) {
-                   setSubmitError(err?.message || "Erreur lors de la création du draft");
-                   showToastMsg("Erreur lors de la création : " + (err?.message || "inconnue"), 'error');
+                   showToastMsg("Proforma prospect émise et PDF généré.", 'success');
+                 } catch (err: unknown) {
+                   const message = err instanceof Error ? err.message : "Erreur lors de l’émission du proforma";
+                   setSubmitError(message);
+                   showToastMsg(`Erreur lors de l’émission : ${message}`, 'error');
                  } finally {
                    setSubmitting(false);
                  }
               }}
             >
-              {submitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Création...</> : "Terminer et créer le draft"}
+              {submitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Émission...</> : issuedProspectProformaId ? "Proforma émise" : "Émettre le proforma"}
             </button>
           ) : (
             <>
@@ -2638,7 +2697,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
 
   // Si on est sur #reservation-new/CUST-XXX mais que le client n'existe pas
-  if (param && param.startsWith('CUST-') && !mockClients.find(c => c.id === param)) {
+  if (param && param.startsWith('CUST-') && !loadingClients && !mockClients.find(c => c.id === param)) {
     return (
       <div className="page active max-w-2xl mx-auto mt-12 text-center">
         <div className="bg-white rounded-2xl border border-slate-100 p-10 shadow-sm animate-fade-in">

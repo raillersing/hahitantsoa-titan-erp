@@ -427,6 +427,7 @@ export type DocumentInstance = {
 export type DocumentInstanceCreatePayload = {
   template_key: string;
   notes?: string;
+  proforma_validity_days?: number;
 };
 
 export type DocumentInstancePdfGenerationResult = {
