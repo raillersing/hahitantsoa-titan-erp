@@ -8,8 +8,13 @@ from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess
 
-from .models import Customer
-from .serializers import CustomerSerializer
+from .models import Customer, DesiredDateWaitlistEntry, DesiredDateWaitlistStatus
+from .serializers import CustomerSerializer, DesiredDateWaitlistEntrySerializer
+from .services import (
+    DesiredDateWaitlistLifecycleError,
+    create_desired_date_waitlist_entry,
+    transition_desired_date_waitlist_entry,
+)
 
 
 def active_customers():
@@ -144,3 +149,85 @@ class CustomerSoftDeleteAPIView(APIView):
             {"detail": "Customer soft-deleted."},
             status=status.HTTP_200_OK,
         )
+
+
+class DesiredDateWaitlistListCreateAPIView(generics.ListCreateAPIView):
+    serializer_class = DesiredDateWaitlistEntrySerializer
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated()]
+        return [HasReservationSensitiveAccess()]
+
+    def get_customer(self):
+        customer = active_customers().filter(pk=self.kwargs["customer_pk"]).first()
+        if customer is None:
+            raise Http404("Customer not found.")
+        return customer
+
+    def get_queryset(self):
+        return DesiredDateWaitlistEntry.objects.filter(customer=self.get_customer()).select_related(
+            "customer", "responsible"
+        )
+
+    def perform_create(self, serializer):
+        serializer.instance = create_desired_date_waitlist_entry(
+            customer=self.get_customer(),
+            values=serializer.validated_data,
+            actor=self.request.user,
+        )
+
+
+class DesiredDateWaitlistRetrieveAPIView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = DesiredDateWaitlistEntrySerializer
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        customer = active_customers().filter(pk=self.kwargs["customer_pk"]).first()
+        if customer is None:
+            raise Http404("Customer not found.")
+        return DesiredDateWaitlistEntry.objects.filter(customer=customer).select_related(
+            "customer", "responsible"
+        )
+
+
+class DesiredDateWaitlistTransitionAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+    target_status = ""
+
+    def post(self, request, customer_pk, pk):
+        customer = active_customers().filter(pk=customer_pk).first()
+        if customer is None:
+            raise Http404("Customer not found.")
+        entry = DesiredDateWaitlistEntry.objects.filter(customer=customer, pk=pk).first()
+        if entry is None:
+            raise Http404("Desired-date waitlist entry not found.")
+        try:
+            transitioned = transition_desired_date_waitlist_entry(
+                entry=entry,
+                target_status=self.target_status,
+                actor=request.user,
+            )
+        except DesiredDateWaitlistLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(DesiredDateWaitlistEntrySerializer(transitioned).data)
+
+
+class DesiredDateWaitlistContactAPIView(DesiredDateWaitlistTransitionAPIView):
+    target_status = DesiredDateWaitlistStatus.CONTACTED
+
+
+class DesiredDateWaitlistConvertAPIView(DesiredDateWaitlistTransitionAPIView):
+    target_status = DesiredDateWaitlistStatus.CONVERTED
+
+
+class DesiredDateWaitlistLoseAPIView(DesiredDateWaitlistTransitionAPIView):
+    target_status = DesiredDateWaitlistStatus.LOST
+
+
+class DesiredDateWaitlistCancelAPIView(DesiredDateWaitlistTransitionAPIView):
+    target_status = DesiredDateWaitlistStatus.CANCELLED

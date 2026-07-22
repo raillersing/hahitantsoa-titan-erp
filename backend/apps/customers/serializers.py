@@ -1,6 +1,13 @@
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from apps.customers.models import Customer, CustomerLifecycleStatus, CustomerPartyType
+from apps.customers.models import (
+    Customer,
+    CustomerLifecycleStatus,
+    CustomerPartyType,
+    DesiredDateWaitlistEntry,
+)
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -73,3 +80,65 @@ class CustomerSerializer(serializers.ModelSerializer):
             "created_by",
             "updated_by",
         )
+
+
+class DesiredDateWaitlistEntrySerializer(serializers.ModelSerializer):
+    customer_id = serializers.UUIDField(read_only=True)
+    responsible_id = serializers.PrimaryKeyRelatedField(
+        source="responsible",
+        queryset=get_user_model().objects.filter(is_active=True, is_staff=True),
+    )
+    preferred_dates = serializers.ListField(
+        child=serializers.DateField(),
+        min_length=1,
+        max_length=3,
+        required=False,
+        allow_empty=True,
+        write_only=True,
+    )
+    displayed_preferred_dates = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = DesiredDateWaitlistEntry
+        fields = (
+            "id",
+            "customer_id",
+            "business_scope",
+            "preferred_dates",
+            "displayed_preferred_dates",
+            "flexible_start",
+            "flexible_end",
+            "interest_kind",
+            "quantity",
+            "responsible_id",
+            "status",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "status", "created_at", "updated_at")
+
+    def get_displayed_preferred_dates(self, obj) -> list[str]:
+        return [
+            value.isoformat()
+            for value in (obj.preferred_date_1, obj.preferred_date_2, obj.preferred_date_3)
+            if value is not None
+        ]
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation["preferred_dates"] = representation.pop("displayed_preferred_dates")
+        return representation
+
+    def validate(self, attrs):
+        preferred_dates = attrs.pop("preferred_dates", [])
+        for index in range(3):
+            attrs[f"preferred_date_{index + 1}"] = (
+                preferred_dates[index] if index < len(preferred_dates) else None
+            )
+        candidate = DesiredDateWaitlistEntry(**attrs)
+        try:
+            candidate.clean()
+        except DjangoValidationError as error:
+            messages = error.error_dict if hasattr(error, "error_dict") else error.messages
+            raise serializers.ValidationError(messages) from error
+        return attrs
