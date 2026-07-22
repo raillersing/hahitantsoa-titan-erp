@@ -69,15 +69,11 @@ def test_visit_responsibles_list_is_authenticated_and_minimal(client, django_use
     response = client.get(RESPONSIBLES_URL)
 
     assert response.status_code == 200
-    assert response.json() == [
-        {"id": str(active_staff.id), "display_name": "Rina Rakoto"}
-    ]
+    assert response.json() == [{"id": str(active_staff.id), "display_name": "Rina Rakoto"}]
 
 
 def test_authenticated_non_staff_can_read_but_cannot_create_visit(client, django_user_model):
-    user = django_user_model.objects.create_user(
-        username="visit-reader", password="test-password"
-    )
+    user = django_user_model.objects.create_user(username="visit-reader", password="test-password")
     client.force_login(user)
     customer = _customer()
     staff = django_user_model.objects.create_user(
@@ -114,9 +110,7 @@ def test_staff_creates_visit_with_default_location_and_reminder(
     ).exists()
 
 
-def test_create_rejects_inactive_or_non_staff_responsible(
-    staff_client, django_user_model
-):
+def test_create_rejects_inactive_or_non_staff_responsible(staff_client, django_user_model):
     client, _ = staff_client
     customer = _customer()
     non_staff = django_user_model.objects.create_user(
@@ -230,9 +224,7 @@ def test_staff_can_complete_or_cancel_once_and_cannot_update_terminal_visit(
         )
     assert complete.status_code == 200
     assert complete.json()["status"] == "completed"
-    duplicate = client.post(
-        f"{LIST_URL}{created['id']}/complete/", content_type="application/json"
-    )
+    duplicate = client.post(f"{LIST_URL}{created['id']}/complete/", content_type="application/json")
     assert duplicate.status_code == 400
     late_update = client.patch(
         f"{LIST_URL}{created['id']}/",
@@ -247,9 +239,7 @@ def test_staff_can_complete_or_cancel_once_and_cannot_update_terminal_visit(
     second = client.post(
         LIST_URL, _payload(customer, responsible), content_type="application/json"
     ).json()
-    cancel = client.post(
-        f"{LIST_URL}{second['id']}/cancel/", content_type="application/json"
-    )
+    cancel = client.post(f"{LIST_URL}{second['id']}/cancel/", content_type="application/json")
     assert cancel.status_code == 200
     assert cancel.json()["status"] == "cancelled"
 

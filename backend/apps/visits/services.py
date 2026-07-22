@@ -11,9 +11,7 @@ class VisitLifecycleError(ValueError):
     code = "visit_lifecycle_error"
 
 
-def _apply_values(
-    *, visit: VisitAppointment, values: dict, actor: object
-) -> VisitAppointment:
+def _apply_values(*, visit: VisitAppointment, values: dict, actor: object) -> VisitAppointment:
     scheduled_at_was_updated = "scheduled_at" in values
     reminder_was_provided = "reminder_at" in values
     for field, value in values.items():
@@ -87,9 +85,7 @@ def _transition_visit(
         return locked_visit
 
 
-def complete_visit_appointment(
-    *, visit: VisitAppointment, actor: object
-) -> VisitAppointment:
+def complete_visit_appointment(*, visit: VisitAppointment, actor: object) -> VisitAppointment:
     return _transition_visit(
         visit=visit,
         target_status=VisitStatus.COMPLETED,
