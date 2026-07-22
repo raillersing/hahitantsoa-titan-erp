@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -21,6 +23,24 @@ def active_visit_appointments():
     return VisitAppointment.objects.select_related("customer", "responsible").order_by(
         "scheduled_at", "created_at"
     )
+
+
+def _parse_aware_filter_datetime(*, raw_value: str, parameter_name: str):
+    """Parse ISO query datetimes despite query-string '+' decoding to a space."""
+    prefix, separator, possible_offset = raw_value.rpartition(" ")
+    if (
+        separator
+        and len(possible_offset) == 5
+        and possible_offset[2] == ":"
+        and possible_offset.replace(":", "").isdigit()
+    ):
+        raw_value = f"{prefix}+{possible_offset}"
+    parsed_value = parse_datetime(raw_value)
+    if parsed_value is None or timezone.is_naive(parsed_value):
+        from rest_framework.exceptions import ValidationError
+
+        raise ValidationError({parameter_name: "Use a timezone-aware ISO 8601 datetime."})
+    return parsed_value
 
 
 class VisitAppointmentListCreateAPIView(generics.ListCreateAPIView):
@@ -49,9 +69,19 @@ class VisitAppointmentListCreateAPIView(generics.ListCreateAPIView):
             if value := self.request.query_params.get(field):
                 qs = qs.filter(**{field: value})
         if value := self.request.query_params.get("scheduled_after"):
-            qs = qs.filter(scheduled_at__gte=value)
+            qs = qs.filter(
+                scheduled_at__gte=_parse_aware_filter_datetime(
+                    raw_value=value,
+                    parameter_name="scheduled_after",
+                )
+            )
         if value := self.request.query_params.get("scheduled_before"):
-            qs = qs.filter(scheduled_at__lte=value)
+            qs = qs.filter(
+                scheduled_at__lte=_parse_aware_filter_datetime(
+                    raw_value=value,
+                    parameter_name="scheduled_before",
+                )
+            )
         return qs
 
     def perform_create(self, serializer):
@@ -91,6 +121,15 @@ class VisitAppointmentRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
             values=serializer.validated_data,
             actor=self.request.user,
         )
+
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except VisitLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class VisitAppointmentTransitionAPIView(APIView):
