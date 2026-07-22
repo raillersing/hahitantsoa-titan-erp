@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/v1/identity/", include("apps.identity.urls")),
     path("api/v1/audit/", include("apps.audit.urls")),
     path("api/v1/logistics/", include("apps.logistics.urls")),
+    path("api/v1/visits/", include("apps.visits.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
     path("api/v1/import/", include("apps.excel_import.urls")),
     path("api/v1/blacklist/", include("apps.blacklist.urls")),
