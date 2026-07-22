@@ -104,6 +104,14 @@ def _convert_url(instance_id) -> str:
     return f"/api/v1/documents/instances/{instance_id}/convert-to-contract/"
 
 
+def _mark_issued(instance: DocumentInstance) -> None:
+    issued_at = timezone.now()
+    instance.status = DocumentInstanceStatus.ISSUED
+    instance.issued_at = issued_at
+    instance.valid_until = issued_at + timedelta(days=15)
+    instance.save(update_fields=["status", "issued_at", "valid_until", "updated_at"])
+
+
 def _void_url(instance_id) -> str:
     return f"/api/v1/documents/instances/{instance_id}/void/"
 
@@ -151,6 +159,7 @@ def test_sensitive_actor_converts_registered_proforma_without_confirming_source(
 ) -> None:
     client, actor = sensitive_client
     proforma, source_draft = factory(actor=actor)
+    _mark_issued(proforma)
     source_status = source_draft.status
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -178,6 +187,7 @@ def test_group_mapped_sensitive_actor_can_convert_proforma(client, django_user_m
     actor.groups.add(Group.objects.create(name=IdentityRole.RESERVATION_SENSITIVE_OPERATOR.value))
     client.force_login(actor)
     proforma, _ = _titan_proforma(actor=actor)
+    _mark_issued(proforma)
 
     response = client.post(_convert_url(proforma.id), data={}, content_type="application/json")
 
@@ -187,6 +197,7 @@ def test_group_mapped_sensitive_actor_can_convert_proforma(client, django_user_m
 def test_repeat_conversion_is_idempotent(sensitive_client) -> None:
     client, actor = sensitive_client
     proforma, source_draft = _titan_proforma(actor=actor)
+    _mark_issued(proforma)
 
     first = client.post(_convert_url(proforma.id), data={}, content_type="application/json")
     second = client.post(_convert_url(proforma.id), data={}, content_type="application/json")
@@ -208,6 +219,7 @@ def test_repeat_conversion_is_idempotent(sensitive_client) -> None:
 def test_conversion_rejects_expired_or_voided_proforma(sensitive_client, state) -> None:
     client, actor = sensitive_client
     proforma, _ = _titan_proforma(actor=actor)
+    _mark_issued(proforma)
     if state == "expired":
         proforma.valid_until = timezone.now() - timedelta(seconds=1)
         proforma.save(update_fields=["valid_until", "updated_at"])
@@ -223,6 +235,16 @@ def test_conversion_rejects_expired_or_voided_proforma(sensitive_client, state) 
     assert (
         DocumentInstance.objects.filter(notes=f"Converted from proforma {proforma.id}").count() == 0
     )
+
+
+def test_conversion_rejects_unissued_proforma(sensitive_client) -> None:
+    client, actor = sensitive_client
+    proforma, _ = _titan_proforma(actor=actor)
+
+    response = client.post(_convert_url(proforma.id), data={}, content_type="application/json")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "proforma_not_issued"
 
 
 def test_void_proforma_uses_semantic_registry_and_records_actor(
@@ -256,6 +278,7 @@ def test_conversion_rolls_back_contract_when_conversion_audit_cannot_be_schedule
 ) -> None:
     _, actor = sensitive_client
     proforma, source_draft = _titan_proforma(actor=actor)
+    _mark_issued(proforma)
     original_record_audit_event_on_commit = document_services.record_audit_event_on_commit
 
     def fail_conversion_audit(**kwargs):

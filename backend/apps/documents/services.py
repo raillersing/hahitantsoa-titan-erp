@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -23,6 +25,7 @@ from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
+DEFAULT_PROFORMA_VALIDITY_DAYS = 15
 HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
 CONTRACT_TEMPLATE_KEY_BY_PROFORMA_SCOPE = {
     "hahitantsoa": HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
@@ -45,6 +48,10 @@ UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
 class ProformaActionError(ValueError):
     """Raised when a proforma cannot be converted or voided safely."""
 
+    def __init__(self, message: str, *, code: str) -> None:
+        super().__init__(message)
+        self.code = code
+
 
 def _get_locked_document_instance(*, document_instance_id) -> DocumentInstance:
     # The draft links are nullable: select_related() would create outer joins that
@@ -66,22 +73,40 @@ def _get_contract_template_key_for_proforma(*, instance: DocumentInstance) -> st
         or template.business_scope != instance.business_scope
         or instance.document_type != "proforma"
     ):
-        raise ProformaActionError("Only registered proforma documents can use this action.")
+        raise ProformaActionError(
+            "Only registered proforma documents can use this action.",
+            code="invalid_proforma_document",
+        )
 
     contract_template_key = CONTRACT_TEMPLATE_KEY_BY_PROFORMA_SCOPE.get(template.business_scope)
     if contract_template_key is None:
-        raise ProformaActionError("This proforma business scope has no contract template.")
+        raise ProformaActionError(
+            "This proforma business scope has no contract template.",
+            code="proforma_contract_template_missing",
+        )
     return contract_template_key
 
 
 def _validate_convertible_proforma(*, instance: DocumentInstance) -> str:
     contract_template_key = _get_contract_template_key_for_proforma(instance=instance)
     if instance.status == DocumentInstanceStatus.VOIDED:
-        raise ProformaActionError("Cannot convert a voided proforma to a contract.")
+        raise ProformaActionError(
+            "Cannot convert a voided proforma to a contract.", code="proforma_voided"
+        )
+    if instance.issued_at is None or instance.valid_until is None:
+        raise ProformaActionError(
+            "A proforma must be issued as a final PDF before conversion.",
+            code="proforma_not_issued",
+        )
     if instance.valid_until is not None and instance.valid_until < timezone.now():
-        raise ProformaActionError("This proforma has expired and cannot be converted.")
+        raise ProformaActionError(
+            "This proforma has expired and cannot be converted.", code="proforma_expired"
+        )
     if instance.reservation_draft_id is None and instance.hahitantsoa_event_draft_id is None:
-        raise ProformaActionError("A proforma must be linked to a draft before conversion.")
+        raise ProformaActionError(
+            "A proforma must be linked to a draft before conversion.",
+            code="proforma_draft_missing",
+        )
     return contract_template_key
 
 
@@ -162,7 +187,9 @@ def void_proforma(
     instance = _get_locked_document_instance(document_instance_id=document_instance_id)
     _get_contract_template_key_for_proforma(instance=instance)
     if instance.status == DocumentInstanceStatus.VOIDED:
-        raise ProformaActionError("This proforma is already voided.")
+        raise ProformaActionError(
+            "This proforma is already voided.", code="proforma_already_voided"
+        )
 
     instance.status = DocumentInstanceStatus.VOIDED
     instance.voided_at = timezone.now()
@@ -304,6 +331,7 @@ def commercial_document_context_to_document_instance_kwargs(
     context: CommercialDocumentContext,
     actor_id: object | None,
     notes: str,
+    proforma_validity_days: int | None = None,
 ) -> dict[str, object]:
     return {
         "reservation_draft": reservation_draft,
@@ -329,6 +357,9 @@ def commercial_document_context_to_document_instance_kwargs(
         "status": "prepared",
         "prepared_at": timezone.now(),
         "prepared_by_id": actor_id,
+        "proforma_validity_days": (
+            proforma_validity_days if context.template.document_type == "proforma" else None
+        ),
         "notes": notes,
     }
 
@@ -384,12 +415,26 @@ def create_document_instance_from_reservation_draft(
     template_key: str,
     actor: object | None = None,
     notes: str = "",
+    proforma_validity_days: int | None = None,
 ) -> DocumentInstance:
     context = build_reservation_draft_commercial_document_context(
         reservation_draft=reservation_draft,
         template_key=template_key,
     )
     validate_supported_reservation_draft_document_template_key(template_key)
+    if context.template.document_type == "proforma":
+        if proforma_validity_days is None:
+            proforma_validity_days = DEFAULT_PROFORMA_VALIDITY_DAYS
+        elif not 1 <= proforma_validity_days <= 365:
+            raise CommercialDocumentContextError(
+                "Proforma validity must be between 1 and 365 calendar days.",
+                code="invalid_proforma_validity_days",
+            )
+    elif proforma_validity_days is not None:
+        raise CommercialDocumentContextError(
+            "Proforma validity can only be set for proforma documents.",
+            code="proforma_validity_not_applicable",
+        )
     actor_id = getattr(actor, "pk", None)
 
     instance = DocumentInstance.objects.create(
@@ -398,6 +443,7 @@ def create_document_instance_from_reservation_draft(
             context=context,
             actor_id=actor_id,
             notes=notes,
+            proforma_validity_days=proforma_validity_days,
         )
     )
     record_audit_event_on_commit(
@@ -537,26 +583,38 @@ def generate_document_instance_pdf(
     from django.core.files.base import ContentFile
     from django.core.files.storage import default_storage
 
-    if document_instance.status != DocumentInstanceStatus.GENERATED:
+    locked_instance = _get_locked_document_instance(document_instance_id=document_instance.id)
+
+    if (
+        locked_instance.document_type == "proforma"
+        and locked_instance.issued_at is not None
+        and locked_instance.valid_until is not None
+        and locked_instance.pdf_storage_path
+        and locked_instance.pdf_generated_at is not None
+        and locked_instance.pdf_content_checksum
+    ):
+        return locked_instance
+
+    if locked_instance.status != DocumentInstanceStatus.GENERATED:
         raise DocumentPDFGenerationError(
-            f"Cannot generate PDF from document status: {document_instance.status}",
+            f"Cannot generate PDF from document status: {locked_instance.status}",
             code="invalid_document_status_for_pdf_generation",
         )
 
-    if not document_instance.storage_path:
+    if not locked_instance.storage_path:
         raise DocumentPDFGenerationError(
             "Document instance has no stored HTML artifact.",
             code="document_html_artifact_missing",
         )
 
     # Read existing HTML content from storage
-    if not default_storage.exists(document_instance.storage_path):
+    if not default_storage.exists(locked_instance.storage_path):
         raise DocumentPDFGenerationError(
             "Stored HTML artifact does not exist.",
             code="document_html_artifact_not_found",
         )
 
-    html_content = default_storage.open(document_instance.storage_path).read().decode("utf-8")
+    html_content = default_storage.open(locked_instance.storage_path).read().decode("utf-8")
     if not html_content or not html_content.strip():
         raise DocumentPDFGenerationError(
             "Stored HTML content is empty.",
@@ -573,7 +631,7 @@ def generate_document_instance_pdf(
         )
 
     checksum = calculate_pdf_checksum(pdf_bytes)
-    pdf_path = build_pdf_artifact_storage_path(document_instance, checksum)
+    pdf_path = build_pdf_artifact_storage_path(locked_instance, checksum)
 
     # Validate path safety before saving
     if ".." in pdf_path or pdf_path.startswith("/"):
@@ -584,27 +642,29 @@ def generate_document_instance_pdf(
 
     default_storage.save(pdf_path, ContentFile(pdf_bytes))
 
-    document_instance.pdf_storage_path = pdf_path
-    document_instance.pdf_generated_at = timezone.now()
-    document_instance.pdf_content_checksum = checksum
-    document_instance.save(
-        update_fields=[
-            "pdf_storage_path",
-            "pdf_generated_at",
-            "pdf_content_checksum",
-            "updated_at",
-        ]
-    )
+    issued_at = timezone.now()
+    locked_instance.pdf_storage_path = pdf_path
+    locked_instance.pdf_generated_at = issued_at
+    locked_instance.pdf_content_checksum = checksum
+    update_fields = ["pdf_storage_path", "pdf_generated_at", "pdf_content_checksum", "updated_at"]
+    if locked_instance.document_type == "proforma":
+        validity_days = locked_instance.proforma_validity_days or DEFAULT_PROFORMA_VALIDITY_DAYS
+        locked_instance.proforma_validity_days = validity_days
+        locked_instance.issued_at = issued_at
+        locked_instance.valid_until = issued_at + timedelta(days=validity_days)
+        locked_instance.status = DocumentInstanceStatus.ISSUED
+        update_fields.extend(["proforma_validity_days", "issued_at", "valid_until", "status"])
+    locked_instance.save(update_fields=update_fields)
 
     record_audit_event_on_commit(
         actor=actor,
         action="document.instance_pdf_generated",
         target_type="document_instance",
-        target_id=str(document_instance.id),
+        target_id=str(locked_instance.id),
         metadata={
-            "template_key": document_instance.template_key,
+            "template_key": locked_instance.template_key,
             "pdf_storage_path": pdf_path,
             "pdf_content_checksum": checksum,
         },
     )
-    return document_instance
+    return locked_instance

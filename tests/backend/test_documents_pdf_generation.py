@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 from django.utils import timezone
 
@@ -11,7 +13,10 @@ from apps.documents.pdf import (
     calculate_pdf_checksum,
     get_pdf_generator,
 )
-from apps.documents.services import generate_document_instance_pdf
+from apps.documents.services import (
+    DEFAULT_PROFORMA_VALIDITY_DAYS,
+    generate_document_instance_pdf,
+)
 
 
 @pytest.fixture
@@ -64,6 +69,30 @@ class TestGetPDFGenerator:
 
 
 class TestGenerateDocumentInstancePDFService:
+    @pytest.mark.django_db
+    def test_unissued_existing_proforma_has_no_fictional_issue_dates(self) -> None:
+        instance = DocumentInstance.objects.create(
+            template_key="titan.proforma.v1",
+            template_version="1",
+            template_label="Legacy",
+            business_scope="titan",
+            document_type="proforma",
+            template_status="active",
+            template_source_kind="generated_from_brand_style",
+            template_source_reference="ref",
+            template_path="documents/titan_proforma.html",
+            template_preview_path="",
+            reservation_public_reference="T-LEGACY",
+            reservation_status="draft",
+            customer_display_name="Customer",
+            status=DocumentInstanceStatus.GENERATED,
+            prepared_at=timezone.now(),
+        )
+
+        assert instance.issued_at is None
+        assert instance.valid_until is None
+        assert instance.proforma_validity_days is None
+
     def test_generates_pdf_and_updates_model(self, sensitive_client, django_user_model) -> None:
         from django.core.files.base import ContentFile
         from django.core.files.storage import default_storage
@@ -103,6 +132,47 @@ class TestGenerateDocumentInstancePDFService:
         assert result.pdf_content_checksum is not None
         assert len(result.pdf_content_checksum) == 64
         assert default_storage.exists(result.pdf_storage_path)
+        assert result.status == DocumentInstanceStatus.ISSUED
+        assert result.proforma_validity_days == DEFAULT_PROFORMA_VALIDITY_DAYS
+        assert result.issued_at is not None
+        assert result.valid_until == result.issued_at + timedelta(
+            days=DEFAULT_PROFORMA_VALIDITY_DAYS
+        )
+
+    def test_repeated_proforma_pdf_issuance_is_idempotent(self, django_user_model) -> None:
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        instance = DocumentInstance.objects.create(
+            template_key="titan.proforma.v1",
+            template_version="1",
+            template_label="Test",
+            business_scope="titan",
+            document_type="proforma",
+            template_status="active",
+            template_source_kind="generated_from_brand_style",
+            template_source_reference="ref",
+            template_path="documents/titan_proforma.html",
+            template_preview_path="",
+            reservation_public_reference="T-REPEAT",
+            reservation_status="draft",
+            customer_display_name="Customer",
+            status=DocumentInstanceStatus.GENERATED,
+            prepared_at=timezone.now(),
+            storage_path="documents/test/repeat.html",
+            content_checksum="abc",
+            generated_content_size_bytes=100,
+            proforma_validity_days=7,
+        )
+        default_storage.save(instance.storage_path, ContentFile(b"<html>Test</html>"))
+
+        first = generate_document_instance_pdf(document_instance=instance)
+        second = generate_document_instance_pdf(document_instance=instance)
+
+        assert second.id == first.id
+        assert second.issued_at == first.issued_at
+        assert second.valid_until == first.valid_until
+        assert second.pdf_storage_path == first.pdf_storage_path
 
     def test_fails_for_non_generated_status(self, django_user_model) -> None:
         user = django_user_model.objects.create_user(
