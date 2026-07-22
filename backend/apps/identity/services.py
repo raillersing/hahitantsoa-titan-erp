@@ -7,7 +7,7 @@ from django.utils import timezone
 from apps.audit.services import record_audit_event_on_commit
 from apps.identity.authorization import is_identity_admin_actor
 from apps.identity.models import ApplicationRole, UserRoleAssignment
-from apps.identity.roles import ROLE_GROUP_NAME_BY_ROLE, IdentityRole
+from apps.identity.roles import COMPANY_ROLE_CATALOG, ROLE_GROUP_NAME_BY_ROLE, IdentityRole
 
 UNAUTHORIZED_ROLE_ASSIGNMENT = "unauthorized_role_assignment"
 ROLE_ASSIGNMENT_NOT_FOUND = "role_assignment_not_found"
@@ -15,6 +15,7 @@ ROLE_ALREADY_REVOKED = "role_already_revoked"
 ROLE_ALREADY_ASSIGNED = "role_already_assigned"
 ROLE_INACTIVE = "role_inactive"
 UNAUTHORIZED_PLATFORM_ROLE = "unauthorized_platform_role"
+COMPANY_ROLE_NAME_CONFLICT = "company_role_name_conflict"
 
 User = get_user_model()
 
@@ -54,6 +55,39 @@ def sync_system_roles(*, actor: object | None) -> list[ApplicationRole]:
                     "name": group_name,
                     "description": f"System-managed role for {role.value}.",
                     "is_system_managed": True,
+                    "is_active": True,
+                },
+            )
+            roles.append(role_obj)
+    return roles
+
+
+def sync_company_role_catalog() -> list[ApplicationRole]:
+    """Create missing operational roles without changing existing records.
+
+    The catalogue deliberately uses regular application roles.  It is not a
+    platform capability registry and therefore does not affect endpoint
+    permissions; identity administrators can assign and revoke these roles
+    through the existing assignment lifecycle.
+    """
+
+    roles: list[ApplicationRole] = []
+    with transaction.atomic():
+        for role, definition in COMPANY_ROLE_CATALOG.items():
+            if (
+                ApplicationRole.objects.filter(name=definition["name"])
+                .exclude(slug=role.value)
+                .exists()
+            ):
+                raise IdentityServiceError(
+                    f"Company role name is already used by another slug: {definition['name']}.",
+                    code=COMPANY_ROLE_NAME_CONFLICT,
+                )
+            role_obj, _ = ApplicationRole.objects.get_or_create(
+                slug=role.value,
+                defaults={
+                    **definition,
+                    "is_system_managed": False,
                     "is_active": True,
                 },
             )

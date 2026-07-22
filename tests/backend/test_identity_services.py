@@ -4,15 +4,19 @@ from threading import Barrier
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.db import IntegrityError, close_old_connections, transaction
 
 from apps.audit.models import AuditEvent
+from apps.identity.authorization import is_identity_admin_actor, is_reservation_sensitive_actor
 from apps.identity.models import ApplicationRole, UserRoleAssignment
-from apps.identity.roles import IdentityRole
+from apps.identity.roles import COMPANY_ROLE_CATALOG, CompanyRole, IdentityRole
 from apps.identity.services import (
+    COMPANY_ROLE_NAME_CONFLICT,
     IdentityServiceError,
     assign_role,
     revoke_role,
+    sync_company_role_catalog,
     sync_system_roles,
 )
 
@@ -90,6 +94,76 @@ def test_sync_system_roles_creates_records(admin_user):
     assert len(roles) >= 1
     slugs = {r.slug for r in roles}
     assert "reservation_sensitive_operator" in slugs
+
+
+def test_sync_company_role_catalog_creates_each_operational_role_idempotently():
+    first = sync_company_role_catalog()
+    first_ids = {role.slug: role.id for role in first}
+
+    second = sync_company_role_catalog()
+
+    assert set(first_ids) == {role.value for role in CompanyRole}
+    assert {role.slug: role.id for role in second} == first_ids
+    assert ApplicationRole.objects.filter(slug__in=first_ids).count() == len(COMPANY_ROLE_CATALOG)
+    assert all(role.is_system_managed is False for role in first)
+
+
+def test_sync_company_role_catalog_command_is_idempotent():
+    call_command("sync_company_role_catalog")
+    catalog_slugs = [role.value for role in CompanyRole]
+    first_ids = dict(
+        ApplicationRole.objects.filter(slug__in=catalog_slugs).values_list("slug", "id")
+    )
+
+    call_command("sync_company_role_catalog")
+
+    assert first_ids == dict(
+        ApplicationRole.objects.filter(slug__in=catalog_slugs).values_list("slug", "id")
+    )
+
+
+def test_sync_company_role_catalog_rejects_an_existing_name_with_another_slug():
+    ApplicationRole.objects.create(
+        name=COMPANY_ROLE_CATALOG[CompanyRole.MANAGER]["name"],
+        slug="existing-manager-role",
+    )
+
+    with pytest.raises(IdentityServiceError) as exc_info:
+        sync_company_role_catalog()
+
+    assert exc_info.value.code == COMPANY_ROLE_NAME_CONFLICT
+    assert not ApplicationRole.objects.filter(slug=CompanyRole.MANAGER).exists()
+
+
+def test_company_roles_allow_multiple_assignments_and_do_not_elevate_privileges(
+    admin_user,
+    regular_user,
+):
+    roles_by_slug = {role.slug: role for role in sync_company_role_catalog()}
+    manager_assignment = assign_role(
+        actor=admin_user,
+        user=regular_user,
+        role=roles_by_slug[CompanyRole.MANAGER],
+    )
+    accountant_assignment = assign_role(
+        actor=admin_user,
+        user=regular_user,
+        role=roles_by_slug[CompanyRole.ACCOUNTANT],
+    )
+
+    assert manager_assignment.is_active is True
+    assert accountant_assignment.is_active is True
+    assert is_identity_admin_actor(actor=regular_user) is False
+    assert is_reservation_sensitive_actor(actor=regular_user) is False
+
+    revoked = revoke_role(
+        actor=admin_user,
+        assignment_id=manager_assignment.id,
+        notes="Role change",
+    )
+
+    assert revoked.is_active is False
+    assert UserRoleAssignment.objects.get(pk=accountant_assignment.pk).is_active is True
 
 
 def test_assign_role_requires_admin(regular_user, sample_role):
