@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.utils import timezone
 
 from apps.audit.models import AuditEvent
@@ -110,6 +110,13 @@ def test_journal_entries_are_positive_append_only_and_audited(
         entry.save()
     with pytest.raises(ValidationError, match="immutable"):
         entry.delete()
+
+    with pytest.raises(DatabaseError, match="immutable"):
+        with transaction.atomic():
+            FinancialJournalEntry.objects.filter(pk=entry.pk).update(notes="queryset mutation")
+    with pytest.raises(DatabaseError, match="immutable"):
+        with transaction.atomic():
+            FinancialJournalEntry.objects.filter(pk=entry.pk).delete()
 
     with pytest.raises(IntegrityError):
         with transaction.atomic():
