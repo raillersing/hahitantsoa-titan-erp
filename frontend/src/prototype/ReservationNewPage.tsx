@@ -125,6 +125,13 @@ interface ReservationNewPageProps {
 type PathType = "client_first" | "domain_first" | null;
 type DomainType = "hahitantsoa" | "titan" | null;
 
+type ProspectProformaEmission = {
+  domain: Exclude<DomainType, null>;
+  draftId?: string;
+  documentId?: string;
+  htmlGenerated: boolean;
+};
+
 interface NewClientData {
   name: string;
   phone: string;
@@ -274,6 +281,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [issuedProspectProformaId, setIssuedProspectProformaId] = useState<string | null>(null);
+  const [prospectProformaEmission, setProspectProformaEmission] = useState<ProspectProformaEmission | null>(null);
 
   // Derived: mapped clients (API Customer → local Client format)
   const mockClients: Client[] = apiCustomers.map(mapCustomerToClient);
@@ -673,35 +681,71 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       proforma_validity_days: proformaValidity,
     };
 
-    if (isHahitantsoa) {
-      const eventDraft = await createHahitantsoaEventDraft({
-        customer_id: selectedClientId,
-        event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
-        venue_name: hDetails.venue || undefined,
-        location_details: hDetails.venue || undefined,
-        service_notes: selectedServices.map((service) => service.name).join(", ") || undefined,
-        start_at: startAt,
-        end_at: endAt,
-        notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
-        lines,
-      });
-      const document = await createHahitantsoaEventDraftDocumentInstance(eventDraft.id, documentPayload);
-      await generateHahitantsoaEventDraftDocumentInstance(eventDraft.id, document.id);
-      await generateHahitantsoaEventDraftDocumentInstancePdf(eventDraft.id, document.id);
-      return document.id;
+    let emission: ProspectProformaEmission = prospectProformaEmission?.domain === domain
+      ? prospectProformaEmission
+      : { domain, htmlGenerated: false };
+
+    if (!emission.draftId) {
+      if (isHahitantsoa) {
+        const eventDraft = await createHahitantsoaEventDraft({
+          customer_id: selectedClientId,
+          event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
+          venue_name: hDetails.venue || undefined,
+          location_details: hDetails.venue || undefined,
+          service_notes: selectedServices.map((service) => service.name).join(", ") || undefined,
+          start_at: startAt,
+          end_at: endAt,
+          notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
+          lines,
+        });
+        emission = { ...emission, draftId: eventDraft.id };
+      } else {
+        const reservationDraft = await createReservationDraft({
+          customer_id: selectedClientId,
+          start_at: startAt,
+          end_at: endAt,
+          notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
+          lines,
+        });
+        emission = { ...emission, draftId: reservationDraft.id };
+      }
+      setProspectProformaEmission(emission);
     }
 
-    const reservationDraft = await createReservationDraft({
-      customer_id: selectedClientId,
-      start_at: startAt,
-      end_at: endAt,
-      notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
-      lines,
-    });
-    const document = await createReservationDraftDocumentInstance(reservationDraft.id, documentPayload);
-    await generateReservationDraftDocumentInstance(reservationDraft.id, document.id);
-    await generateReservationDraftDocumentInstancePdf(reservationDraft.id, document.id);
-    return document.id;
+    if (!emission.draftId) {
+      throw new Error("Le brouillon du proforma n’a pas pu être identifié.");
+    }
+    const draftId = emission.draftId;
+
+    if (!emission.documentId) {
+      const document = isHahitantsoa
+        ? await createHahitantsoaEventDraftDocumentInstance(draftId, documentPayload)
+        : await createReservationDraftDocumentInstance(draftId, documentPayload);
+      emission = { ...emission, documentId: document.id };
+      setProspectProformaEmission(emission);
+    }
+
+    if (!emission.documentId) {
+      throw new Error("Le document proforma n’a pas pu être identifié.");
+    }
+    const documentId = emission.documentId;
+
+    if (!emission.htmlGenerated) {
+      if (isHahitantsoa) {
+        await generateHahitantsoaEventDraftDocumentInstance(draftId, documentId);
+      } else {
+        await generateReservationDraftDocumentInstance(draftId, documentId);
+      }
+      emission = { ...emission, htmlGenerated: true };
+      setProspectProformaEmission(emission);
+    }
+
+    if (isHahitantsoa) {
+      await generateHahitantsoaEventDraftDocumentInstancePdf(draftId, documentId);
+    } else {
+      await generateReservationDraftDocumentInstancePdf(draftId, documentId);
+    }
+    return documentId;
   };
 
   const renderStepper = () => {
@@ -2750,7 +2794,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       {errorVenues && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorVenues}</div>}
       {loadingCatalog && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Vérification de la disponibilité du catalogue...</div>}
       {errorCatalog && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorCatalog}</div>}
-      {submitError && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> Erreur de soumission : {submitError}</div>}
+      {submitError && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2" role="alert" aria-live="assertive"><i className="fa-solid fa-triangle-exclamation"></i> Erreur de soumission : {submitError}</div>}
 
       {step > 0 && renderStepper()}
 
