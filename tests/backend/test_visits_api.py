@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 
 import pytest
-from django.test import override_settings
 from django.utils import timezone
 
 from apps.audit.models import AuditEvent
@@ -213,11 +213,11 @@ def test_default_reminder_is_within_business_hours(scheduled_at, expected_remind
     assert default_visit_reminder_at(scheduled_at=scheduled_at) == expected_reminder_at
 
 
-@override_settings(TIME_ZONE="Africa/Antananarivo")
 def test_default_reminder_uses_configured_business_timezone():
-    reminder_at = default_visit_reminder_at(
-        scheduled_at=datetime.fromisoformat("2026-08-21T03:30:00+00:00")
-    )
+    with timezone.override(datetime_timezone(timedelta(hours=3))):
+        reminder_at = default_visit_reminder_at(
+            scheduled_at=datetime.fromisoformat("2026-08-21T03:30:00+00:00")
+        )
 
     assert reminder_at == datetime.fromisoformat("2026-08-20T08:00:00+03:00")
 
