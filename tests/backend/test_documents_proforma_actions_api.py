@@ -278,6 +278,7 @@ def test_conversion_rolls_back_contract_when_conversion_audit_cannot_be_schedule
 ) -> None:
     _, actor = sensitive_client
     proforma, source_draft = _titan_proforma(actor=actor)
+    _mark_issued(proforma)
     original_record_audit_event_on_commit = document_services.record_audit_event_on_commit
 
     def fail_conversion_audit(**kwargs):
