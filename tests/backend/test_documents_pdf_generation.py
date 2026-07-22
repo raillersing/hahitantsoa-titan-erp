@@ -69,6 +69,7 @@ class TestGetPDFGenerator:
 
 
 class TestGenerateDocumentInstancePDFService:
+    @pytest.mark.django_db
     def test_unissued_existing_proforma_has_no_fictional_issue_dates(self) -> None:
         instance = DocumentInstance.objects.create(
             template_key="titan.proforma.v1",
