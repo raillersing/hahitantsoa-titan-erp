@@ -522,6 +522,7 @@ class HahitantsoaEventDraftDocumentInstanceListCreateAPIView(generics.ListCreate
             template_key=serializer.validated_data["template_key"],
             actor=request.user,
             notes=serializer.validated_data.get("notes", ""),
+            proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
         )
         return Response(
             HahitantsoaEventDraftDocumentInstanceSerializer(instance).data,

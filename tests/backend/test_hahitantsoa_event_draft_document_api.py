@@ -1,6 +1,7 @@
 import sys
 from datetime import timedelta
 
+import django.core.files.storage as storage_module
 import pytest
 from django.core.files.storage import FileSystemStorage
 from django.test import Client
@@ -19,6 +20,7 @@ pytestmark = pytest.mark.django_db
 def isolated_document_storage(tmp_path, monkeypatch):
     storage = FileSystemStorage(location=str(tmp_path))
     monkeypatch.setattr(runtime_module, "default_storage", storage)
+    monkeypatch.setattr(storage_module, "default_storage", storage)
     monkeypatch.setattr(sys.modules[__name__], "FileSystemStorage", FileSystemStorage)
     return storage
 
@@ -80,6 +82,12 @@ def _document_generate_url(event_draft_id, document_id) -> str:
     return f"/api/v1/hahitantsoa/event-drafts/{event_draft_id}/documents/{document_id}/generate/"
 
 
+def _document_generate_pdf_url(event_draft_id, document_id) -> str:
+    return (
+        f"/api/v1/hahitantsoa/event-drafts/{event_draft_id}/documents/{document_id}/generate-pdf/"
+    )
+
+
 def test_hahitantsoa_event_draft_document_list_create_and_generate(authenticated_client) -> None:
     draft = _event_draft(user=authenticated_client.test_user)
 
@@ -113,6 +121,81 @@ def test_hahitantsoa_event_draft_document_list_create_and_generate(authenticated
     generated_payload = generate_response.json()
     assert generated_payload["status"] == DocumentInstanceStatus.GENERATED
     assert generated_payload["storage_path"].endswith(".html")
+
+
+def test_hahitantsoa_proforma_uses_configured_validity_from_first_pdf_issuance(
+    authenticated_client,
+) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+
+    create_response = authenticated_client.post(
+        _documents_url(draft.id),
+        data={"template_key": "hahitantsoa.proforma.v1", "proforma_validity_days": 30},
+        content_type="application/json",
+    )
+
+    assert create_response.status_code == 201
+    created_payload = create_response.json()
+    assert created_payload["template_key"] == "hahitantsoa.proforma.v1"
+    assert created_payload["proforma_validity_days"] == 30
+    assert created_payload["issued_at"] is None
+    assert created_payload["valid_until"] is None
+
+    html_response = authenticated_client.post(
+        _document_generate_url(draft.id, created_payload["id"])
+    )
+    assert html_response.status_code == 200
+
+    pdf_response = authenticated_client.post(
+        _document_generate_pdf_url(draft.id, created_payload["id"])
+    )
+    assert pdf_response.status_code == 200
+    assert pdf_response.json()["status"] == DocumentInstanceStatus.ISSUED
+
+    detail_response = authenticated_client.get(
+        _document_detail_url(draft.id, created_payload["id"])
+    )
+    assert detail_response.status_code == 200
+    issued_payload = detail_response.json()
+    assert issued_payload["proforma_validity_days"] == 30
+    assert issued_payload["issued_at"] is not None
+    assert issued_payload["valid_until"] is not None
+
+
+def test_hahitantsoa_proforma_defaults_to_fifteen_days_before_issuance(
+    authenticated_client,
+) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+
+    response = authenticated_client.post(
+        _documents_url(draft.id),
+        data={"template_key": "hahitantsoa.proforma.v1"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["proforma_validity_days"] == 15
+    assert response.json()["issued_at"] is None
+    assert response.json()["valid_until"] is None
+
+
+def test_hahitantsoa_proforma_pdf_rejects_missing_generated_html(
+    authenticated_client,
+) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+    create_response = authenticated_client.post(
+        _documents_url(draft.id),
+        data={"template_key": "hahitantsoa.proforma.v1"},
+        content_type="application/json",
+    )
+
+    response = authenticated_client.post(
+        _document_generate_pdf_url(draft.id, create_response.json()["id"])
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_document_status_for_pdf_generation"
+    assert "status" in response.json()["detail"]
 
 
 def test_hahitantsoa_event_draft_document_access_is_owner_scoped(

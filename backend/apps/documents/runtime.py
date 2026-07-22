@@ -154,11 +154,14 @@ def generate_document_instance_html(
         # Build context for excess receivable invoice
         context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
         template_path = "documents/shared_damage_loss_excess_invoice.html"
-    elif document_instance.template_key == "hahitantsoa.contract.v1":
+    elif document_instance.template_key in {
+        "hahitantsoa.proforma.v1",
+        "hahitantsoa.contract.v1",
+    }:
         if document_instance.hahitantsoa_event_draft is None:
             raise DocumentRuntimeGenerationError(
-                "Hahitantsoa contract document is not linked to an event draft source.",
-                code="hahitantsoa_contract_event_draft_not_found",
+                "Hahitantsoa document is not linked to an event draft source.",
+                code="hahitantsoa_event_draft_not_found",
             )
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_contract.html"

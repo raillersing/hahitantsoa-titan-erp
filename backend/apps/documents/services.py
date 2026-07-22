@@ -25,6 +25,7 @@ from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
+HAHITANTSOA_PROFORMA_TEMPLATE_KEY = "hahitantsoa.proforma.v1"
 DEFAULT_PROFORMA_VALIDITY_DAYS = 15
 HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
 CONTRACT_TEMPLATE_KEY_BY_PROFORMA_SCOPE = {
@@ -39,7 +40,10 @@ SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "titan.invoice.v1",
     "shared.return_note.v1",
 )
-SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (HAHITANTSOA_CONTRACT_TEMPLATE_KEY,)
+SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
+    HAHITANTSOA_PROFORMA_TEMPLATE_KEY,
+    HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
+)
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"
 )
@@ -370,6 +374,7 @@ def hahitantsoa_event_draft_document_instance_kwargs(
     template_key: str,
     actor_id: object | None,
     notes: str,
+    proforma_validity_days: int | None = None,
 ) -> dict[str, object]:
     from apps.documents.registry import get_document_template_definition
 
@@ -404,6 +409,9 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         "status": "prepared",
         "prepared_at": timezone.now(),
         "prepared_by_id": actor_id,
+        "proforma_validity_days": (
+            proforma_validity_days if template_definition.document_type == "proforma" else None
+        ),
         "notes": notes,
     }
 
@@ -478,8 +486,22 @@ def create_document_instance_from_hahitantsoa_event_draft(
     template_key: str,
     actor: object | None = None,
     notes: str = "",
+    proforma_validity_days: int | None = None,
 ) -> DocumentInstance:
     validate_supported_hahitantsoa_event_draft_document_template_key(template_key)
+    if template_key == HAHITANTSOA_PROFORMA_TEMPLATE_KEY:
+        if proforma_validity_days is None:
+            proforma_validity_days = DEFAULT_PROFORMA_VALIDITY_DAYS
+        elif not 1 <= proforma_validity_days <= 365:
+            raise CommercialDocumentContextError(
+                "Proforma validity must be between 1 and 365 calendar days.",
+                code="invalid_proforma_validity_days",
+            )
+    elif proforma_validity_days is not None:
+        raise CommercialDocumentContextError(
+            "Proforma validity can only be set for proforma documents.",
+            code="proforma_validity_not_applicable",
+        )
     actor_id = getattr(actor, "pk", None)
     instance = DocumentInstance.objects.create(
         **hahitantsoa_event_draft_document_instance_kwargs(
@@ -487,6 +509,7 @@ def create_document_instance_from_hahitantsoa_event_draft(
             template_key=template_key,
             actor_id=actor_id,
             notes=notes,
+            proforma_validity_days=proforma_validity_days,
         )
     )
     record_audit_event_on_commit(
