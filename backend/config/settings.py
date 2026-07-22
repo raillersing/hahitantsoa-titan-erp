@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.finance.apps.FinanceConfig",
     "apps.identity.apps.IdentityConfig",
     "apps.logistics.apps.LogisticsConfig",
+    "apps.visits.apps.VisitsConfig",
     "apps.notifications.apps.NotificationsConfig",
     "apps.excel_import.apps.ExcelImportConfig",
     "apps.blacklist.apps.BlacklistConfig",
