@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.visits.models import VisitAppointment
+from apps.visits.services import default_visit_reminder_at
 
 pytestmark = pytest.mark.django_db
 
@@ -103,7 +105,7 @@ def test_staff_creates_visit_with_default_location_and_reminder(
     payload = response.json()
     visit = VisitAppointment.objects.get(pk=payload["id"])
     assert payload["location"] == "Local de l'entreprise"
-    assert visit.reminder_at == visit.scheduled_at - timedelta(hours=24)
+    assert visit.reminder_at == default_visit_reminder_at(scheduled_at=visit.scheduled_at)
     assert visit.created_by == actor
     assert AuditEvent.objects.filter(
         action="visit.appointment_created", target_id=str(visit.id)
@@ -174,8 +176,8 @@ def test_updating_scheduled_at_recalculates_default_reminder_unless_explicit(
     )
 
     assert response.status_code == 200
-    assert datetime.fromisoformat(response.json()["reminder_at"]) == rescheduled_at - timedelta(
-        hours=24
+    assert datetime.fromisoformat(response.json()["reminder_at"]) == default_visit_reminder_at(
+        scheduled_at=rescheduled_at
     )
     explicit_reminder_at = rescheduled_at - timedelta(hours=6)
     explicit = client.patch(
@@ -188,6 +190,57 @@ def test_updating_scheduled_at_recalculates_default_reminder_unless_explicit(
     )
     assert explicit.status_code == 200
     assert datetime.fromisoformat(explicit.json()["reminder_at"]) == explicit_reminder_at
+
+
+@pytest.mark.parametrize(
+    ("scheduled_at", "expected_reminder_at"),
+    (
+        (
+            datetime.fromisoformat("2026-08-21T06:30:00+00:00"),
+            datetime.fromisoformat("2026-08-20T08:00:00+00:00"),
+        ),
+        (
+            datetime.fromisoformat("2026-08-21T18:00:00+00:00"),
+            datetime.fromisoformat("2026-08-20T18:00:00+00:00"),
+        ),
+        (
+            datetime.fromisoformat("2026-08-21T19:15:00+00:00"),
+            datetime.fromisoformat("2026-08-20T18:00:00+00:00"),
+        ),
+    ),
+)
+def test_default_reminder_is_within_business_hours(scheduled_at, expected_reminder_at):
+    assert default_visit_reminder_at(scheduled_at=scheduled_at) == expected_reminder_at
+
+
+@override_settings(TIME_ZONE="Africa/Antananarivo")
+def test_default_reminder_uses_configured_business_timezone():
+    reminder_at = default_visit_reminder_at(
+        scheduled_at=datetime.fromisoformat("2026-08-21T03:30:00+00:00")
+    )
+
+    assert reminder_at == datetime.fromisoformat("2026-08-20T08:00:00+03:00")
+
+
+def test_explicit_reminder_is_preserved_outside_business_hours(staff_client, django_user_model):
+    client, _ = staff_client
+    responsible = django_user_model.objects.create_user(
+        username="explicit-reminder-responsible", password="test-password", is_staff=True
+    )
+    explicit_reminder_at = datetime.fromisoformat("2026-08-20T03:00:00+00:00")
+    response = client.post(
+        LIST_URL,
+        _payload(
+            _customer(),
+            responsible,
+            scheduled_at="2026-08-21T09:00:00+00:00",
+            reminder_at=explicit_reminder_at.isoformat(),
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert datetime.fromisoformat(response.json()["reminder_at"]) == explicit_reminder_at
 
 
 def test_visit_transition_openapi_contract_is_explicit(client):

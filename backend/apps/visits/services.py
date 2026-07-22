@@ -11,15 +11,32 @@ class VisitLifecycleError(ValueError):
     code = "visit_lifecycle_error"
 
 
+def default_visit_reminder_at(*, scheduled_at):
+    """Return the J-24 reminder adjusted to the nearest business-hour boundary."""
+    reminder_at = scheduled_at - timedelta(hours=24)
+    if timezone.is_naive(reminder_at):
+        reminder_at = timezone.make_aware(reminder_at, timezone.get_current_timezone())
+
+    local_reminder_at = timezone.localtime(reminder_at)
+    if local_reminder_at.hour < 8:
+        return local_reminder_at.replace(hour=8, minute=0, second=0, microsecond=0)
+    if local_reminder_at.hour > 18 or (
+        local_reminder_at.hour == 18
+        and (local_reminder_at.minute or local_reminder_at.second or local_reminder_at.microsecond)
+    ):
+        return local_reminder_at.replace(hour=18, minute=0, second=0, microsecond=0)
+    return reminder_at
+
+
 def _apply_values(*, visit: VisitAppointment, values: dict, actor: object) -> VisitAppointment:
     scheduled_at_was_updated = "scheduled_at" in values
     reminder_was_provided = "reminder_at" in values
     for field, value in values.items():
         setattr(visit, field, value)
     if scheduled_at_was_updated and not reminder_was_provided:
-        visit.reminder_at = visit.scheduled_at - timedelta(hours=24)
+        visit.reminder_at = default_visit_reminder_at(scheduled_at=visit.scheduled_at)
     elif visit.reminder_at is None and not reminder_was_provided:
-        visit.reminder_at = visit.scheduled_at - timedelta(hours=24)
+        visit.reminder_at = default_visit_reminder_at(scheduled_at=visit.scheduled_at)
     visit.updated_by = actor
     visit.full_clean()
     visit.save()
@@ -30,7 +47,7 @@ def _apply_values(*, visit: VisitAppointment, values: dict, actor: object) -> Vi
 def create_visit_appointment(*, values: dict, actor: object) -> VisitAppointment:
     visit = VisitAppointment(created_by=actor, updated_by=actor, **values)
     if visit.reminder_at is None:
-        visit.reminder_at = visit.scheduled_at - timedelta(hours=24)
+        visit.reminder_at = default_visit_reminder_at(scheduled_at=visit.scheduled_at)
     visit.full_clean()
     visit.save()
     record_audit_event_on_commit(
