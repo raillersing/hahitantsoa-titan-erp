@@ -10,6 +10,7 @@ from apps.visits.models import VisitAppointment
 pytestmark = pytest.mark.django_db
 
 LIST_URL = "/api/v1/visits/appointments/"
+RESPONSIBLES_URL = "/api/v1/visits/responsibles/"
 
 
 @pytest.fixture
@@ -40,6 +41,37 @@ def _payload(customer, responsible, **overrides):
 
 def test_unauthenticated_user_cannot_list_visits(client):
     assert client.get(LIST_URL).status_code in {401, 403}
+
+
+def test_visit_responsibles_list_is_authenticated_and_minimal(client, django_user_model):
+    active_staff = django_user_model.objects.create_user(
+        username="available-responsible",
+        password="test-password",
+        is_staff=True,
+        first_name="Rina",
+        last_name="Rakoto",
+    )
+    django_user_model.objects.create_user(
+        username="inactive-responsible-list",
+        password="test-password",
+        is_staff=True,
+        is_active=False,
+    )
+    django_user_model.objects.create_user(
+        username="non-staff-responsible-list", password="test-password"
+    )
+
+    assert client.get(RESPONSIBLES_URL).status_code in {401, 403}
+    reader = django_user_model.objects.create_user(
+        username="visit-responsible-reader", password="test-password"
+    )
+    client.force_login(reader)
+    response = client.get(RESPONSIBLES_URL)
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {"id": str(active_staff.id), "display_name": "Rina Rakoto"}
+    ]
 
 
 def test_authenticated_non_staff_can_read_but_cannot_create_visit(client, django_user_model):

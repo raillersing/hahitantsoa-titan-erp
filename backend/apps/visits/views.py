@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.visits.models import VisitAppointment
 from apps.visits.permissions import IsAuthenticatedVisitReadBoundary
-from apps.visits.serializers import VisitAppointmentSerializer
+from apps.visits.serializers import VisitAppointmentSerializer, VisitResponsibleSerializer
 from apps.visits.services import (
     VisitLifecycleError,
     cancel_visit_appointment,
@@ -59,6 +59,18 @@ class VisitAppointmentListCreateAPIView(generics.ListCreateAPIView):
             values=serializer.validated_data,
             actor=self.request.user,
         )
+
+
+class VisitResponsibleListAPIView(generics.ListAPIView):
+    """Visit-scoped eligible staff list; avoids broad identity-directory exposure."""
+
+    permission_classes = [IsAuthenticatedVisitReadBoundary]
+    serializer_class = VisitResponsibleSerializer
+
+    def get_queryset(self):
+        from django.contrib.auth import get_user_model
+
+        return get_user_model().objects.filter(is_active=True, is_staff=True).order_by("username")
 
 
 class VisitAppointmentRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):

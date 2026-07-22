@@ -48,3 +48,13 @@ class VisitAppointmentSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+
+class VisitResponsibleSerializer(serializers.Serializer):
+    """Minimal safe representation for selecting a visit responsible."""
+
+    id = serializers.UUIDField(read_only=True)
+    display_name = serializers.SerializerMethodField()
+
+    def get_display_name(self, user) -> str:
+        return user.get_full_name() or user.get_username()

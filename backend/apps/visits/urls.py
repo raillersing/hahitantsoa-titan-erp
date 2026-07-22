@@ -5,9 +5,15 @@ from apps.visits.views import (
     VisitAppointmentCompleteAPIView,
     VisitAppointmentListCreateAPIView,
     VisitAppointmentRetrieveUpdateAPIView,
+    VisitResponsibleListAPIView,
 )
 
 urlpatterns = [
+    path(
+        "responsibles/",
+        VisitResponsibleListAPIView.as_view(),
+        name="visit-responsible-list",
+    ),
     path(
         "appointments/", VisitAppointmentListCreateAPIView.as_view(), name="visit-appointment-list"
     ),
