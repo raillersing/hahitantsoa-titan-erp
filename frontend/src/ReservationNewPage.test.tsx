@@ -8,6 +8,13 @@ import {
   getHahitantsoaServices,
   getReservationAvailableItemPreviews,
   createReservationDraft,
+  createReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstancePdf,
+  createHahitantsoaEventDraft,
+  createHahitantsoaEventDraftDocumentInstance,
+  generateHahitantsoaEventDraftDocumentInstance,
+  generateHahitantsoaEventDraftDocumentInstancePdf,
   createCustomer,
 } from './api';
 
@@ -127,6 +134,13 @@ vi.mock('./api', () => ({
   getHahitantsoaServices: vi.fn(),
   getReservationAvailableItemPreviews: vi.fn(),
   createReservationDraft: vi.fn(),
+  createReservationDraftDocumentInstance: vi.fn(),
+  generateReservationDraftDocumentInstance: vi.fn(),
+  generateReservationDraftDocumentInstancePdf: vi.fn(),
+  createHahitantsoaEventDraft: vi.fn(),
+  createHahitantsoaEventDraftDocumentInstance: vi.fn(),
+  generateHahitantsoaEventDraftDocumentInstance: vi.fn(),
+  generateHahitantsoaEventDraftDocumentInstancePdf: vi.fn(),
   createCustomer: vi.fn(),
 }));
 
@@ -145,6 +159,13 @@ describe('ReservationNewPage', () => {
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
     vi.mocked(getReservationAvailableItemPreviews).mockResolvedValue(mockCatalogData as any);
     vi.mocked(createReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);
+    vi.mocked(createReservationDraftDocumentInstance).mockResolvedValue({ id: 'DOC-T-001' } as any);
+    vi.mocked(generateReservationDraftDocumentInstance).mockResolvedValue({ id: 'DOC-T-001' } as any);
+    vi.mocked(generateReservationDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-T-001' } as any);
+    vi.mocked(createHahitantsoaEventDraft).mockResolvedValue({ id: 'EVENT-001', status: 'draft' } as any);
+    vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
+    vi.mocked(generateHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
+    vi.mocked(generateHahitantsoaEventDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(createCustomer).mockResolvedValue({ id: 'CUST-NEW', display_name: 'New Client' } as any);
   });
 
@@ -639,5 +660,95 @@ describe('ReservationNewPage', () => {
     const btnRetour = screen.getAllByText(/Retour à la fiche Ando Rakoto/)[0];
     fireEvent.click(btnRetour);
     expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-001');
+  });
+
+  it('15. émet le proforma prospect Titan après création du brouillon et du PDF', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-t/CUST-001" />);
+
+    await screen.findByText('Détails Location (Titan)');
+    const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+    fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
+    fireEvent.change(timeInputs[1], { target: { value: '20:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Aller au catalogue/i }));
+    await screen.findAllByPlaceholderText('0');
+    fireEvent.click(screen.getByRole('button', { name: /Aller à la Livraison/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: /Émettre le proforma/i }));
+
+    await waitFor(() => {
+      expect(createReservationDraftDocumentInstance).toHaveBeenCalledWith('DRAFT-001', {
+        template_key: 'titan.proforma.v1',
+        proforma_validity_days: 30,
+      });
+      expect(generateReservationDraftDocumentInstance).toHaveBeenCalledWith('DRAFT-001', 'DOC-T-001');
+      expect(generateReservationDraftDocumentInstancePdf).toHaveBeenCalledWith('DRAFT-001', 'DOC-T-001');
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Proforma émise avec succès');
+  });
+
+  it('16. émet le proforma prospect Hahitantsoa sur un EventDraft', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-h/CUST-001" />);
+
+    await screen.findByText('Détails Événement (Hahitantsoa)');
+    const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+    fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
+    fireEvent.change(timeInputs[1], { target: { value: '08:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Émettre le proforma/i }));
+
+    await waitFor(() => {
+      expect(createHahitantsoaEventDraftDocumentInstance).toHaveBeenCalledWith('EVENT-001', {
+        template_key: 'hahitantsoa.proforma.v1',
+        proforma_validity_days: 15,
+      });
+      expect(generateHahitantsoaEventDraftDocumentInstance).toHaveBeenCalledWith('EVENT-001', 'DOC-H-001');
+      expect(generateHahitantsoaEventDraftDocumentInstancePdf).toHaveBeenCalledWith('EVENT-001', 'DOC-H-001');
+    });
+  });
+
+  it('17. reprend une émission prospect Titan après un échec PDF sans créer de doublon', async () => {
+    vi.mocked(createReservationDraft).mockClear();
+    vi.mocked(createReservationDraftDocumentInstance).mockClear();
+    vi.mocked(generateReservationDraftDocumentInstance).mockClear();
+    vi.mocked(generateReservationDraftDocumentInstancePdf).mockClear();
+    vi.mocked(generateReservationDraftDocumentInstancePdf)
+      .mockRejectedValueOnce(new Error('Le PDF ne peut pas être généré'))
+      .mockResolvedValueOnce({ id: 'DOC-T-001' } as any);
+    render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-t/CUST-001" />);
+
+    await screen.findByText('Détails Location (Titan)');
+    const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+    fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
+    fireEvent.change(timeInputs[1], { target: { value: '20:00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Aller au catalogue/i }));
+    await screen.findAllByPlaceholderText('0');
+    fireEvent.click(screen.getByRole('button', { name: /Aller à la Livraison/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Émettre le proforma/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Le PDF ne peut pas être généré');
+    fireEvent.click(screen.getByRole('button', { name: /Émettre le proforma/i }));
+
+    await waitFor(() => {
+      expect(createReservationDraft).toHaveBeenCalledTimes(1);
+      expect(createReservationDraftDocumentInstance).toHaveBeenCalledTimes(1);
+      expect(generateReservationDraftDocumentInstance).toHaveBeenCalledTimes(1);
+      expect(generateReservationDraftDocumentInstancePdf).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByRole('status')).toHaveTextContent('Proforma émise avec succès');
   });
 });
