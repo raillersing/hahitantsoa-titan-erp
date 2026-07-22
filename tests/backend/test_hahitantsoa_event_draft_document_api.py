@@ -1,6 +1,7 @@
 import sys
 from datetime import timedelta
 
+import django.core.files.storage as storage_module
 import pytest
 from django.core.files.storage import FileSystemStorage
 from django.test import Client
@@ -19,6 +20,7 @@ pytestmark = pytest.mark.django_db
 def isolated_document_storage(tmp_path, monkeypatch):
     storage = FileSystemStorage(location=str(tmp_path))
     monkeypatch.setattr(runtime_module, "default_storage", storage)
+    monkeypatch.setattr(storage_module, "default_storage", storage)
     monkeypatch.setattr(sys.modules[__name__], "FileSystemStorage", FileSystemStorage)
     return storage
 
@@ -175,6 +177,25 @@ def test_hahitantsoa_proforma_defaults_to_fifteen_days_before_issuance(
     assert response.json()["proforma_validity_days"] == 15
     assert response.json()["issued_at"] is None
     assert response.json()["valid_until"] is None
+
+
+def test_hahitantsoa_proforma_pdf_rejects_missing_generated_html(
+    authenticated_client,
+) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+    create_response = authenticated_client.post(
+        _documents_url(draft.id),
+        data={"template_key": "hahitantsoa.proforma.v1"},
+        content_type="application/json",
+    )
+
+    response = authenticated_client.post(
+        _document_generate_pdf_url(draft.id, create_response.json()["id"])
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_document_status_for_pdf_generation"
+    assert "status" in response.json()["detail"]
 
 
 def test_hahitantsoa_event_draft_document_access_is_owner_scoped(
