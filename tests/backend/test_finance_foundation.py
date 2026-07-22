@@ -2,13 +2,18 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import DatabaseError, IntegrityError, transaction
+from django.core.management import call_command
+from django.db import DatabaseError, IntegrityError, connection, transaction
 from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.finance.models import (
+    FIXED_FINANCIAL_CATEGORY_DEFINITIONS,
     FinanceAccountKind,
     FinanceBusinessScope,
+    FinanceCurrency,
+    FinancialCategory,
+    FinancialCategoryKind,
     FinancialJournalDirection,
     FinancialJournalEntry,
 )
@@ -16,7 +21,10 @@ from apps.finance.services import (
     configure_finance_account,
     create_finance_account,
     record_financial_journal_entry,
+    seed_fixed_financial_categories,
 )
+from apps.identity.models import ApplicationRole, UserRoleAssignment
+from apps.identity.roles import CompanyRole
 
 pytestmark = pytest.mark.django_db
 
@@ -27,6 +35,118 @@ def _actor(django_user_model, username="finance-operator"):
         password="test-pass",
         is_staff=True,
     )
+
+
+def _manager(django_user_model, username="finance-manager"):
+    manager = django_user_model.objects.create_user(username=username, password="test-pass")
+    role = ApplicationRole.objects.create(name="Finance manager", slug=CompanyRole.MANAGER)
+    UserRoleAssignment.objects.create(user=manager, role=role)
+    return manager
+
+
+def test_fixed_financial_categories_are_idempotent_and_manager_managed(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    manager = _manager(django_user_model)
+    denied_actor = _actor(django_user_model, "finance-sensitive-operator")
+
+    with pytest.raises(PermissionError, match="manager"):
+        seed_fixed_financial_categories(actor=denied_actor)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        first_seed = seed_fixed_financial_categories(actor=manager)
+        second_seed = seed_fixed_financial_categories(actor=manager)
+
+    assert {category.code for category in first_seed} == {
+        "income.rental",
+        "income.service_sale",
+        "income.deposit",
+        "income.invoice_settlement",
+        "income.other",
+        "expense.purchase",
+        "expense.supplier",
+        "expense.transport_delivery",
+        "expense.fuel",
+        "expense.salary_labor",
+        "expense.maintenance",
+        "expense.rent_charges",
+        "expense.bank_mobile_money_fees",
+        "expense.reimbursement",
+        "expense.other",
+        "transfer.cash_bank",
+        "transfer.cash_mobile_money",
+        "transfer.bank_mobile_money",
+        "transfer.titan_hahitantsoa",
+    }
+    assert len(first_seed) == len(second_seed) == FinancialCategory.objects.count() == 19
+    assert FinancialCategory.objects.filter(kind=FinancialCategoryKind.TRANSFER).count() == 4
+
+
+@pytest.mark.django_db(transaction=True)
+def test_flush_rehydrates_the_exact_fixed_financial_category_catalog() -> None:
+    expected_categories = set(FIXED_FINANCIAL_CATEGORY_DEFINITIONS)
+
+    actual_categories = set(FinancialCategory.objects.values_list("code", "label", "kind"))
+    assert actual_categories == expected_categories
+    assert FinancialCategory.objects.filter(code="transfer.cash_bank").exists()
+
+    call_command("flush", interactive=False, verbosity=0)
+
+    actual_categories = set(FinancialCategory.objects.values_list("code", "label", "kind"))
+    assert actual_categories == expected_categories
+    assert FinancialCategory.objects.filter(code="transfer.cash_bank").exists()
+
+
+def test_fixed_financial_categories_reject_direct_orm_creation_and_sql_mutation() -> None:
+    category = FinancialCategory.objects.get(code="income.rental")
+
+    with pytest.raises(DatabaseError, match="Fixed financial categories"):
+        with transaction.atomic():
+            FinancialCategory.objects.create(
+                code="income.arbitrary",
+                label="Recettes arbitraires",
+                kind=FinancialCategoryKind.INCOME,
+            )
+
+    for field, value in (
+        ("code", "income.changed"),
+        ("label", "Recettes modifiées"),
+        ("kind", FinancialCategoryKind.EXPENSE),
+    ):
+        with pytest.raises(DatabaseError, match="Fixed financial categories"):
+            with transaction.atomic():
+                FinancialCategory.objects.filter(pk=category.pk).update(**{field: value})
+        with pytest.raises(DatabaseError, match="Fixed financial categories"):
+            with transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f"UPDATE finance_financialcategory SET {field} = %s WHERE id = %s",
+                        [value, category.id],
+                    )
+
+    with pytest.raises(DatabaseError, match="Fixed financial categories"):
+        with transaction.atomic():
+            FinancialCategory.objects.filter(pk=category.pk).delete()
+    with pytest.raises(DatabaseError, match="Fixed financial categories"):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("DELETE FROM finance_financialcategory WHERE id = %s", [category.id])
+
+
+def test_finance_accounts_are_mga_only(django_user_model) -> None:
+    actor = _actor(django_user_model)
+    account = create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.TITAN,
+        code="MGA-CASH-01",
+        label="Caisse MGA",
+        kind=FinanceAccountKind.CASH,
+    )
+
+    assert account.currency == FinanceCurrency.MGA
+    account.currency = "EUR"
+    with pytest.raises(ValidationError, match="MGA"):
+        account.full_clean()
 
 
 def test_accounts_are_configurable_per_business_scope_and_audited(
