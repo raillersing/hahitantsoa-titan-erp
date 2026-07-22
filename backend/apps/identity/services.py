@@ -17,6 +17,7 @@ ROLE_INACTIVE = "role_inactive"
 UNAUTHORIZED_PLATFORM_ROLE = "unauthorized_platform_role"
 COMPANY_ROLE_NAME_CONFLICT = "company_role_name_conflict"
 COMPANY_ROLE_DEFINITION_CONFLICT = "company_role_definition_conflict"
+COMPANY_ROLE_CATALOG_SYSTEM_ACTOR = "sync_company_role_catalog"
 
 User = get_user_model()
 
@@ -69,7 +70,9 @@ def sync_company_role_catalog() -> list[ApplicationRole]:
     The catalogue deliberately uses regular application roles.  It is not a
     platform capability registry and therefore does not affect endpoint
     permissions; identity administrators can assign and revoke these roles
-    through the existing assignment lifecycle.
+    through the existing assignment lifecycle.  Catalog seeding has no human
+    actor, so audit events intentionally use ``actor=None`` and identify the
+    system executor through the ``system_actor`` metadata field.
     """
 
     roles: list[ApplicationRole] = []
@@ -84,14 +87,21 @@ def sync_company_role_catalog() -> list[ApplicationRole]:
                     f"Company role name is already used by another slug: {definition['name']}.",
                     code=COMPANY_ROLE_NAME_CONFLICT,
                 )
-            role_obj, created = ApplicationRole.objects.get_or_create(
-                slug=role.value,
-                defaults={
-                    **definition,
-                    "is_system_managed": False,
-                    "is_active": True,
-                },
-            )
+            try:
+                with transaction.atomic():
+                    role_obj, created = ApplicationRole.objects.get_or_create(
+                        slug=role.value,
+                        defaults={
+                            **definition,
+                            "is_system_managed": False,
+                            "is_active": True,
+                        },
+                    )
+            except IntegrityError as exc:
+                raise IdentityServiceError(
+                    f"Company role name is already used by another slug: {definition['name']}.",
+                    code=COMPANY_ROLE_NAME_CONFLICT,
+                ) from exc
             if not created and (
                 role_obj.name != definition["name"]
                 or role_obj.description != definition["description"]
@@ -101,6 +111,17 @@ def sync_company_role_catalog() -> list[ApplicationRole]:
                 raise IdentityServiceError(
                     f"Company role slug has a conflicting definition: {role.value}.",
                     code=COMPANY_ROLE_DEFINITION_CONFLICT,
+                )
+            if created:
+                record_audit_event_on_commit(
+                    actor=None,
+                    action="identity.company_role_catalog_created",
+                    target_type="application_role",
+                    target_id=str(role_obj.id),
+                    metadata={
+                        "system_actor": COMPANY_ROLE_CATALOG_SYSTEM_ACTOR,
+                        "role_slug": role_obj.slug,
+                    },
                 )
             roles.append(role_obj)
     return roles
