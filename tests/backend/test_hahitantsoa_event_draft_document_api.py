@@ -81,7 +81,9 @@ def _document_generate_url(event_draft_id, document_id) -> str:
 
 
 def _document_generate_pdf_url(event_draft_id, document_id) -> str:
-    return f"/api/v1/hahitantsoa/event-drafts/{event_draft_id}/documents/{document_id}/generate-pdf/"
+    return (
+        f"/api/v1/hahitantsoa/event-drafts/{event_draft_id}/documents/{document_id}/generate-pdf/"
+    )
 
 
 def test_hahitantsoa_event_draft_document_list_create_and_generate(authenticated_client) -> None:
