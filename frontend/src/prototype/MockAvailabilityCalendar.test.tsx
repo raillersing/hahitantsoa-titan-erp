@@ -79,4 +79,36 @@ describe("MockAvailabilityCalendar", () => {
     await waitFor(() => expect(screen.getByText(/Disponibilité non vérifiée/)).toBeInTheDocument());
     expect(screen.queryByText(/ressource\(s\) Titan disponible/)).not.toBeInTheDocument();
   });
+
+  it("retries the same selected day after an availability failure", async () => {
+    const today = new Date();
+    const selectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const nextDay = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate() + 1)).toISOString().slice(0, 10);
+    let requestCount = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      requestCount += 1;
+      if (requestCount <= 2) {
+        return Promise.resolve(new Response(JSON.stringify({ detail: "Indisponible" }), { status: 500 }));
+      }
+      if (String(input).includes("available-item-previews")) {
+        return Promise.resolve(jsonResponse([]));
+      }
+      return Promise.resolve(jsonResponse({
+        start_at: `${selectedDate}T00:00:00.000Z`,
+        end_at: `${nextDay}T00:00:00.000Z`,
+        available_item_count: 0,
+        available_preview_count: 0,
+        available_item_kinds: [],
+      }));
+    });
+
+    render(<MockAvailabilityCalendar selectedDate={selectedDate} showAvailabilityPreview />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Réessayer" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+
+    await waitFor(() => expect(screen.getByText("Aucune ressource Titan disponible sur cette journée.")).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(String(fetchMock.mock.calls[2][0])).toContain(encodeURIComponent(`${selectedDate}T00:00:00.000Z`));
+  });
 });

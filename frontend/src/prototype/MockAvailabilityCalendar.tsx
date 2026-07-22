@@ -64,6 +64,7 @@ export function MockAvailabilityCalendar({
   const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
   const [availability, setAvailability] = useState<AvailabilityState>({ status: "idle" });
+  const [retryAttempt, setRetryAttempt] = useState(0);
 
   useEffect(() => {
     if (!showAvailabilityPreview || !selectedDate) {
@@ -93,7 +94,7 @@ export function MockAvailabilityCalendar({
     return () => {
       active = false;
     };
-  }, [selectedDate, showAvailabilityPreview]);
+  }, [retryAttempt, selectedDate, showAvailabilityPreview]);
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -185,7 +186,18 @@ export function MockAvailabilityCalendar({
       {showAvailabilityPreview && selectedDate && (
         <div aria-live="polite" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
           {availability.status === "loading" && <p>Vérification de la disponibilité réelle…</p>}
-          {availability.status === "error" && <p className="text-rose-700">Disponibilité non vérifiée : {availability.message}</p>}
+          {availability.status === "error" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-rose-700">Disponibilité non vérifiée : {availability.message}</p>
+              <button
+                type="button"
+                onClick={() => setRetryAttempt((attempt) => attempt + 1)}
+                className="min-h-10 rounded border border-rose-200 bg-white px-3 py-1 text-sm font-medium text-rose-700 hover:bg-rose-50"
+              >
+                Réessayer
+              </button>
+            </div>
+          )}
           {availability.status === "loaded" && (
             availability.summary.available_item_count > 0 ? (
               <div>
