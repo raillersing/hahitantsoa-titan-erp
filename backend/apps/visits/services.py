@@ -14,9 +14,13 @@ class VisitLifecycleError(ValueError):
 def _apply_values(
     *, visit: VisitAppointment, values: dict, actor: object
 ) -> VisitAppointment:
+    scheduled_at_was_updated = "scheduled_at" in values
+    reminder_was_provided = "reminder_at" in values
     for field, value in values.items():
         setattr(visit, field, value)
-    if visit.reminder_at is None:
+    if scheduled_at_was_updated and not reminder_was_provided:
+        visit.reminder_at = visit.scheduled_at - timedelta(hours=24)
+    elif visit.reminder_at is None and not reminder_was_provided:
         visit.reminder_at = visit.scheduled_at - timedelta(hours=24)
     visit.updated_by = actor
     visit.full_clean()
@@ -86,8 +90,16 @@ def _transition_visit(
 def complete_visit_appointment(
     *, visit: VisitAppointment, actor: object
 ) -> VisitAppointment:
-    return _transition_visit(visit=visit, target_status=VisitStatus.COMPLETED, actor=actor)
+    return _transition_visit(
+        visit=visit,
+        target_status=VisitStatus.COMPLETED,
+        actor=actor,
+    )
 
 
 def cancel_visit_appointment(*, visit: VisitAppointment, actor: object) -> VisitAppointment:
-    return _transition_visit(visit=visit, target_status=VisitStatus.CANCELLED, actor=actor)
+    return _transition_visit(
+        visit=visit,
+        target_status=VisitStatus.CANCELLED,
+        actor=actor,
+    )

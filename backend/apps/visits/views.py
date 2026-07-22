@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -112,6 +112,30 @@ class VisitAppointmentTransitionAPIView(APIView):
 class VisitAppointmentCompleteAPIView(VisitAppointmentTransitionAPIView):
     transition_service = staticmethod(complete_visit_appointment)
 
+    @extend_schema(
+        request=None,
+        responses={
+            200: VisitAppointmentSerializer,
+            400: OpenApiResponse(description="Visit is not scheduled."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Visit appointment not found."),
+        },
+    )
+    def post(self, request, pk):
+        return super().post(request, pk)
+
 
 class VisitAppointmentCancelAPIView(VisitAppointmentTransitionAPIView):
     transition_service = staticmethod(cancel_visit_appointment)
+
+    @extend_schema(
+        request=None,
+        responses={
+            200: VisitAppointmentSerializer,
+            400: OpenApiResponse(description="Visit is not scheduled."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Visit appointment not found."),
+        },
+    )
+    def post(self, request, pk):
+        return super().post(request, pk)

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from django.utils import timezone
@@ -156,6 +156,60 @@ def test_list_filters_visits_by_customer_responsible_status_and_date(
     )
     assert filtered.status_code == 200
     assert [entry["id"] for entry in filtered.json()] == [str(visit.id)]
+
+
+def test_updating_scheduled_at_recalculates_default_reminder_unless_explicit(
+    staff_client, django_user_model
+):
+    client, _ = staff_client
+    responsible = django_user_model.objects.create_user(
+        username="reschedule-responsible", password="test-password", is_staff=True
+    )
+    created = client.post(
+        LIST_URL,
+        _payload(_customer(), responsible),
+        content_type="application/json",
+    ).json()
+    initial_scheduled_at = datetime.fromisoformat(created["scheduled_at"])
+    rescheduled_at = initial_scheduled_at + timedelta(days=3)
+
+    response = client.patch(
+        f"{LIST_URL}{created['id']}/",
+        {"scheduled_at": rescheduled_at.isoformat()},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert datetime.fromisoformat(response.json()["reminder_at"]) == rescheduled_at - timedelta(
+        hours=24
+    )
+    explicit_reminder_at = rescheduled_at - timedelta(hours=6)
+    explicit = client.patch(
+        f"{LIST_URL}{created['id']}/",
+        {
+            "scheduled_at": (rescheduled_at + timedelta(days=1)).isoformat(),
+            "reminder_at": explicit_reminder_at.isoformat(),
+        },
+        content_type="application/json",
+    )
+    assert explicit.status_code == 200
+    assert datetime.fromisoformat(explicit.json()["reminder_at"]) == explicit_reminder_at
+
+
+def test_visit_transition_openapi_contract_is_explicit(client):
+    response = client.get("/api/schema/?format=json")
+
+    assert response.status_code == 200
+    paths = response.json()["paths"]
+    for path in (
+        "/api/v1/visits/appointments/{id}/complete/",
+        "/api/v1/visits/appointments/{id}/cancel/",
+    ):
+        responses = paths[path]["post"]["responses"]
+        assert set(("200", "400", "403", "404")).issubset(responses)
+        assert responses["200"]["content"]["application/json"]["schema"]["$ref"].endswith(
+            "/VisitAppointment"
+        )
 
 
 def test_staff_can_complete_or_cancel_once_and_cannot_update_terminal_visit(
