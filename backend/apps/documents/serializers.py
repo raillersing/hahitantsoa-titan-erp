@@ -106,6 +106,9 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "pdf_storage_path",
             "pdf_generated_at",
             "pdf_content_checksum",
+            "proforma_validity_days",
+            "issued_at",
+            "valid_until",
             "notes",
             "created_at",
             "updated_at",
@@ -118,6 +121,7 @@ class DocumentInstanceCreateSerializer(serializers.Serializer):
         choices=tuple(get_supported_reservation_draft_document_template_keys())
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    proforma_validity_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
 
 
 class DocumentInstanceGenerateSerializer(serializers.Serializer):
@@ -134,6 +138,8 @@ class DocumentInstancePDFSerializer(serializers.Serializer):
     pdf_storage_path = serializers.CharField()
     pdf_generated_at = serializers.DateTimeField()
     pdf_content_checksum = serializers.CharField()
+    issued_at = serializers.DateTimeField(required=False, allow_null=True)
+    valid_until = serializers.DateTimeField(required=False, allow_null=True)
 
 
 class DocumentTemplateCRUDSerializer(serializers.ModelSerializer):

@@ -144,6 +144,9 @@ def test_sensitive_staff_can_create_and_list_reservation_draft_document_instance
     assert created_payload["reservation_draft"] == str(draft.id)
     assert created_payload["template_key"] == "titan.proforma.v1"
     assert created_payload["status"] == DocumentInstanceStatus.PREPARED
+    assert created_payload["proforma_validity_days"] == 15
+    assert created_payload["issued_at"] is None
+    assert created_payload["valid_until"] is None
     assert created_payload["notes"] == "Prepared for review"
     assert created_payload["content_checksum"] is None
     assert created_payload["storage_path"] is None
@@ -160,6 +163,33 @@ def test_sensitive_staff_can_create_and_list_reservation_draft_document_instance
     assert audit_event is not None
     assert audit_event.actor_id == sensitive_user.id
     assert audit_event.target_id == created_payload["id"]
+
+
+def test_sensitive_staff_can_set_proforma_validity_before_issuance(sensitive_client) -> None:
+    draft = _draft_with_line()
+
+    response = sensitive_client.post(
+        _list_url(draft.id),
+        data={"template_key": "titan.proforma.v1", "proforma_validity_days": 30},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["proforma_validity_days"] == 30
+    assert response.json()["issued_at"] is None
+
+
+def test_proforma_validity_must_be_positive_and_bounded(sensitive_client) -> None:
+    draft = _draft_with_line()
+
+    response = sensitive_client.post(
+        _list_url(draft.id),
+        data={"template_key": "titan.proforma.v1", "proforma_validity_days": 0},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "proforma_validity_days" in response.json()
 
 
 def test_group_mapped_sensitive_actor_can_create_document_instance(

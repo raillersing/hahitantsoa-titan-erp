@@ -215,6 +215,7 @@ class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
                 template_key=serializer.validated_data["template_key"],
                 actor=request.user,
                 notes=serializer.validated_data.get("notes", ""),
+                proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
             )
         except CommercialDocumentContextError as error:
             return Response(
@@ -333,6 +334,8 @@ class ReservationDraftDocumentInstancePDFGenerateAPIView(APIView):
                 "pdf_storage_path": instance.pdf_storage_path,
                 "pdf_generated_at": instance.pdf_generated_at,
                 "pdf_content_checksum": instance.pdf_content_checksum,
+                "issued_at": instance.issued_at,
+                "valid_until": instance.valid_until,
             }
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -445,7 +448,9 @@ class DocumentInstanceConvertToContractAPIView(APIView):
         except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
         except ProformaActionError as error:
-            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": str(error), "code": error.code}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response(
             DocumentInstanceSerializer(contract).data,
@@ -475,6 +480,8 @@ class DocumentInstanceVoidAPIView(APIView):
         except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
         except ProformaActionError as error:
-            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": str(error), "code": error.code}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)
