@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.payments.apps.PaymentsConfig",
     "apps.billing.apps.BillingConfig",
     "apps.cashbox.apps.CashboxConfig",
+    "apps.finance.apps.FinanceConfig",
     "apps.identity.apps.IdentityConfig",
     "apps.logistics.apps.LogisticsConfig",
     "apps.notifications.apps.NotificationsConfig",
