@@ -14,11 +14,84 @@ class FinanceBusinessScope(models.TextChoices):
     TITAN = "titan", "Titan"
 
 
+class FinanceCurrency(models.TextChoices):
+    MGA = "MGA", "Malagasy ariary"
+
+
 class FinanceAccountKind(models.TextChoices):
     CASH = "cash", "Cash"
     BANK = "bank", "Bank"
     MOBILE_MONEY = "mobile_money", "Mobile money"
     CHEQUE = "cheque", "Cheque"
+
+
+class FinancialCategoryKind(models.TextChoices):
+    INCOME = "income", "Income"
+    EXPENSE = "expense", "Expense"
+    TRANSFER = "transfer", "Transfer"
+
+
+FIXED_FINANCIAL_CATEGORY_DEFINITIONS = (
+    ("income.rental", "Recettes location", FinancialCategoryKind.INCOME),
+    ("income.service_sale", "Recettes prestation-vente", FinancialCategoryKind.INCOME),
+    ("income.deposit", "Recettes acompte", FinancialCategoryKind.INCOME),
+    ("income.invoice_settlement", "Recettes règlement facture", FinancialCategoryKind.INCOME),
+    ("income.other", "Recettes autre", FinancialCategoryKind.INCOME),
+    ("expense.purchase", "Dépenses achat", FinancialCategoryKind.EXPENSE),
+    ("expense.supplier", "Dépenses fournisseur", FinancialCategoryKind.EXPENSE),
+    ("expense.transport_delivery", "Dépenses transport-livraison", FinancialCategoryKind.EXPENSE),
+    ("expense.fuel", "Dépenses carburant", FinancialCategoryKind.EXPENSE),
+    ("expense.salary_labor", "Dépenses salaire-main-d’œuvre", FinancialCategoryKind.EXPENSE),
+    ("expense.maintenance", "Dépenses maintenance", FinancialCategoryKind.EXPENSE),
+    ("expense.rent_charges", "Dépenses loyer-charges", FinancialCategoryKind.EXPENSE),
+    (
+        "expense.bank_mobile_money_fees",
+        "Dépenses frais bancaire-mobile money",
+        FinancialCategoryKind.EXPENSE,
+    ),
+    ("expense.reimbursement", "Dépenses remboursement", FinancialCategoryKind.EXPENSE),
+    ("expense.other", "Dépenses autre", FinancialCategoryKind.EXPENSE),
+    ("transfer.cash_bank", "Transfert caisse↔banque", FinancialCategoryKind.TRANSFER),
+    (
+        "transfer.cash_mobile_money",
+        "Transfert caisse↔mobile money",
+        FinancialCategoryKind.TRANSFER,
+    ),
+    (
+        "transfer.bank_mobile_money",
+        "Transfert banque↔mobile money",
+        FinancialCategoryKind.TRANSFER,
+    ),
+    (
+        "transfer.titan_hahitantsoa",
+        "Transfert Titan↔Hahitantsoa",
+        FinancialCategoryKind.TRANSFER,
+    ),
+)
+
+
+class FinancialCategory(UUIDModel, TimestampedModel):
+    """System-managed financial category from the fixed F2-1 catalog."""
+
+    code = models.CharField(max_length=96, unique=True)
+    label = models.CharField(max_length=255)
+    kind = models.CharField(max_length=16, choices=FinancialCategoryKind.choices)
+
+    class Meta:
+        ordering = ["kind", "code", "id"]
+
+    def clean(self) -> None:
+        definition_by_code = {
+            code: (label, kind) for code, label, kind in FIXED_FINANCIAL_CATEGORY_DEFINITIONS
+        }
+        expected = definition_by_code.get(self.code)
+        if expected is None:
+            raise ValidationError(
+                {"code": "Financial categories are limited to the fixed catalog."}
+            )
+        expected_label, expected_kind = expected
+        if self.label != expected_label or self.kind != expected_kind:
+            raise ValidationError("Financial category attributes must match the fixed catalog.")
 
 
 class FinancialJournalDirection(models.TextChoices):
@@ -30,6 +103,11 @@ class FinanceAccount(UUIDModel, TimestampedModel):
     """A configurable account, deliberately scoped to one business unit."""
 
     business_scope = models.CharField(max_length=32, choices=FinanceBusinessScope.choices)
+    currency = models.CharField(
+        max_length=3,
+        choices=FinanceCurrency.choices,
+        default=FinanceCurrency.MGA,
+    )
     code = models.CharField(max_length=64)
     label = models.CharField(max_length=255)
     kind = models.CharField(max_length=32, choices=FinanceAccountKind.choices)
@@ -52,6 +130,10 @@ class FinanceAccount(UUIDModel, TimestampedModel):
     class Meta:
         ordering = ["business_scope", "code", "id"]
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(currency=FinanceCurrency.MGA),
+                name="finance_account_currency_mga_only",
+            ),
             models.UniqueConstraint(
                 fields=["business_scope", "code"],
                 name="finance_account_scope_code_unique",
@@ -59,6 +141,8 @@ class FinanceAccount(UUIDModel, TimestampedModel):
         ]
 
     def clean(self) -> None:
+        if self.currency != FinanceCurrency.MGA:
+            raise ValidationError({"currency": "Finance accounts are MGA-only."})
         if not (self.code or "").strip():
             raise ValidationError({"code": "Finance account code is required."})
         if not (self.label or "").strip():
@@ -73,11 +157,19 @@ class FinancialJournalEntry(UUIDModel, TimestampedModel):
         on_delete=models.PROTECT,
         related_name="journal_entries",
     )
+    category = models.ForeignKey(
+        FinancialCategory,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="journal_entries",
+    )
     direction = models.CharField(max_length=16, choices=FinancialJournalDirection.choices)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     occurred_at = models.DateTimeField()
     source_label = models.CharField(max_length=255, blank=True)
     transfer_reference = models.UUIDField(null=True, blank=True, db_index=True)
+    reverses_transfer_reference = models.UUIDField(null=True, blank=True, db_index=True)
     payment = models.ForeignKey(
         "payments.Payment",
         null=True,
@@ -174,6 +266,23 @@ class FinancialJournalEntry(UUIDModel, TimestampedModel):
                 ),
                 name="financial_journal_entry_single_source",
             ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(reverses_transfer_reference__isnull=True)
+                    | models.Q(transfer_reference__isnull=False)
+                ),
+                name="financial_journal_entry_reversal_requires_transfer",
+            ),
+            models.UniqueConstraint(
+                fields=["transfer_reference", "direction"],
+                condition=models.Q(transfer_reference__isnull=False),
+                name="financial_journal_entry_transfer_pair_direction_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["reverses_transfer_reference", "direction"],
+                condition=models.Q(reverses_transfer_reference__isnull=False),
+                name="financial_journal_entry_counter_pair_direction_unique",
+            ),
         ]
 
     def clean(self) -> None:
@@ -199,6 +308,21 @@ class FinancialJournalEntry(UUIDModel, TimestampedModel):
             raise ValidationError(
                 {"source_label": "Standalone journal entries require a source label."}
             )
+        if self.reverses_transfer_reference and not self.transfer_reference:
+            raise ValidationError("Counter-transfer entries require a transfer reference.")
+        if self.category_id:
+            if self.transfer_reference and self.category.kind != FinancialCategoryKind.TRANSFER:
+                raise ValidationError("Transfers require a transfer financial category.")
+            if (
+                self.category.kind == FinancialCategoryKind.INCOME
+                and self.direction != FinancialJournalDirection.INFLOW
+            ):
+                raise ValidationError("Income categories require an inflow journal entry.")
+            if (
+                self.category.kind == FinancialCategoryKind.EXPENSE
+                and self.direction != FinancialJournalDirection.OUTFLOW
+            ):
+                raise ValidationError("Expense categories require an outflow journal entry.")
         if (
             self.account_id
             and self.reservation_draft_id
