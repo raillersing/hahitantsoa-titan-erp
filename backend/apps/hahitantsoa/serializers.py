@@ -234,7 +234,10 @@ class HahitantsoaEventDraftConfirmationPreflightSerializer(serializers.Serialize
 
 class HahitantsoaEventDraftDocumentInstanceCreateSerializer(DocumentInstanceCreateSerializer):
     template_key = serializers.ChoiceField(
-        choices=(("hahitantsoa.contract.v1", "hahitantsoa.contract.v1"),)
+        choices=(
+            ("hahitantsoa.proforma.v1", "hahitantsoa.proforma.v1"),
+            ("hahitantsoa.contract.v1", "hahitantsoa.contract.v1"),
+        )
     )
 
 
