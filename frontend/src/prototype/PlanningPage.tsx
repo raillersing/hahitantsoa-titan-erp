@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { getReservationDrafts, getHahitantsoaEventDrafts } from "../api";
+import { getReservationDrafts, getHahitantsoaEventDrafts, getVisitAppointments } from "../api";
 import type {
   ReservationDraft,
   HahitantsoaEventDraft,
+  VisitAppointment,
 } from "../types";
 
 interface PlanningPageProps {
@@ -12,10 +13,10 @@ interface PlanningPageProps {
 
 type PlanningItem = {
   id: string;
-  kind: "titan" | "hahitantsoa";
+  kind: "titan" | "hahitantsoa" | "visit";
   dayIndex: number;
   startAt: Date;
-  endAt: Date;
+  endAt: Date | null;
   title: string;
   subtitle: string;
   customerName: string;
@@ -28,7 +29,7 @@ type ItemsState =
   | { status: "loaded"; items: PlanningItem[] }
   | { status: "error"; message: string };
 
-type FilterKind = "all" | "titan" | "hahitantsoa";
+type FilterKind = "all" | "titan" | "hahitantsoa" | "visit";
 
 const DAY_LABELS = [
   "Lundi",
@@ -70,7 +71,8 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatDuration(start: Date, end: Date): string {
+function formatDuration(start: Date, end: Date | null): string {
+  if (!end) return "Sans durée";
   const ms = end.getTime() - start.getTime();
   if (ms < 0) return "-";
   const hours = Math.floor(ms / 3600000);
@@ -111,6 +113,18 @@ function getDayIndex(date: Date, monday: Date): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
+function visitPlanningStatus(status: VisitAppointment["status"]): string {
+  if (status === "completed") return "Terminée";
+  if (status === "cancelled") return "Annulée";
+  return "Planifiée";
+}
+
+function formatReason(reason: VisitAppointment["reason"]): string {
+  if (reason === "prospect") return "Visite prospect";
+  if (reason === "other") return "Autre visite";
+  return "Simple visite";
+}
+
 export default function PlanningPage({ onNavigate }: PlanningPageProps) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [filterKind, setFilterKind] = useState<FilterKind>("all");
@@ -124,11 +138,17 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
   const loadItems = useCallback(() => {
     setItemsState({ status: "loading" });
 
+    const sundayExclusive = new Date(monday);
+    sundayExclusive.setDate(sundayExclusive.getDate() + 7);
     Promise.all([
       getReservationDrafts(),
       getHahitantsoaEventDrafts(),
+      getVisitAppointments({
+        scheduled_after: monday.toISOString(),
+        scheduled_before: sundayExclusive.toISOString(),
+      }),
     ])
-      .then(([reservationDrafts, eventDrafts]) => {
+      .then(([reservationDrafts, eventDrafts, visits]) => {
         const items: PlanningItem[] = [];
 
         for (const draft of reservationDrafts) {
@@ -164,6 +184,24 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
             customerName: draft.customer_display_name,
             resourceCount: draft.lines.length,
             status: hahitantsoaPlanningStatus(draft.status),
+          });
+        }
+
+        for (const visit of visits) {
+          const startAt = new Date(visit.scheduled_at);
+          const dayIndex = getDayIndex(startAt, monday);
+          if (dayIndex < 0 || dayIndex > 6) continue;
+          items.push({
+            id: visit.id,
+            kind: "visit",
+            dayIndex,
+            startAt,
+            endAt: null,
+            title: formatReason(visit.reason),
+            subtitle: visit.location,
+            customerName: visit.customer_display_name,
+            resourceCount: 0,
+            status: visitPlanningStatus(visit.status),
           });
         }
 
@@ -206,6 +244,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
     { kind: "all", label: "Tous", active: "bg-indigo-100 text-indigo-700", inactive: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
     { kind: "titan", label: "Titan", active: "bg-indigo-100 text-indigo-700", inactive: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
     { kind: "hahitantsoa", label: "Hahitantsoa", active: "bg-indigo-100 text-indigo-700", inactive: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
+    { kind: "visit", label: "Visites", active: "bg-indigo-100 text-indigo-700", inactive: "bg-slate-100 text-slate-600 hover:bg-slate-200" },
   ];
 
   return (
@@ -249,6 +288,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           >
             {chip.kind === "titan" && <i className="fa-solid fa-truck mr-1"></i>}
             {chip.kind === "hahitantsoa" && <i className="fa-solid fa-building mr-1"></i>}
+            {chip.kind === "visit" && <i className="fa-solid fa-user-clock mr-1"></i>}
             {chip.label}
           </button>
         ))}
@@ -293,7 +333,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
                 <th className="text-left px-4 py-3 rounded-l-lg">Jour</th>
                 <th className="text-left px-4 py-3">Événement</th>
                 <th className="text-left px-4 py-3">Client</th>
-                <th className="text-left px-4 py-3">Durée</th>
+                <th className="text-left px-4 py-3">Période</th>
                 <th className="text-left px-4 py-3">Ressources</th>
                 <th className="text-left px-4 py-3 rounded-r-lg">Statut</th>
               </tr>
@@ -309,39 +349,32 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
                         <div className="font-semibold text-slate-900">
                           {dayLabel} {formatDayDate(monday, dayIndex)}
                         </div>
-                        <div className="text-xs text-slate-500">
-                          {formatTime(item.startAt)} — {formatTime(item.endAt)}
+                          <div className="text-xs text-slate-500">
+                          {formatTime(item.startAt)}{item.endAt ? ` — ${formatTime(item.endAt)}` : ""}
                         </div>
                       </td>
                     ) : null}
                     <td className="px-4 py-4">
-                      <button
-                        onClick={() => handleEventClick(item.id)}
-                        className="text-left group"
-                      >
-                        <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">
-                          {item.title}
+                      {item.kind === "visit" ? (
+                        <div className="text-left">
+                          <div className="font-medium text-slate-900">{item.title}</div>
+                          {item.subtitle ? <div className="text-xs text-slate-500">{item.subtitle}</div> : null}
+                          <span className="inline-block mt-1 rounded bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">Visite</span>
                         </div>
-                        {item.subtitle ? (
-                          <div className="text-xs text-slate-500">{item.subtitle}</div>
-                        ) : null}
-                        <span
-                          className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
-                            item.kind === "hahitantsoa"
-                              ? "bg-rose-50 text-rose-600"
-                              : "bg-blue-50 text-blue-600"
-                          }`}
-                        >
-                          {item.kind === "hahitantsoa" ? "Hahitantsoa" : "Titan"}
-                        </span>
-                      </button>
+                      ) : (
+                        <button onClick={() => handleEventClick(item.id)} className="group text-left">
+                          <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">{item.title}</div>
+                          {item.subtitle ? <div className="text-xs text-slate-500">{item.subtitle}</div> : null}
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${item.kind === "hahitantsoa" ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>{item.kind === "hahitantsoa" ? "Hahitantsoa" : "Titan"}</span>
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-slate-700">{item.customerName}</td>
                     <td className="px-4 py-4 text-slate-600">
-                      {formatDuration(item.startAt, item.endAt)}
+                      {item.kind === "visit" ? formatTime(item.startAt) : formatDuration(item.startAt, item.endAt)}
                     </td>
                     <td className="px-4 py-4 text-slate-600">
-                      {item.resourceCount} article(s)
+                      {item.kind === "visit" ? "—" : `${item.resourceCount} article(s)`}
                     </td>
                     <td className="px-4 py-4">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusBadgeClasses(item.status)}`}>
