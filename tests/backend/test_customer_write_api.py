@@ -75,6 +75,52 @@ def test_create_staff_success(staff_authenticated_client):
     assert Customer.objects.filter(display_name="Acme Corp").exists()
 
 
+def test_create_prospect_company_preserves_initial_classification(staff_authenticated_client):
+    response = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL,
+        {
+            "display_name": "Prospect Entreprise",
+            "lifecycle_status": "prospect",
+            "party_type": "company",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["lifecycle_status"] == "prospect"
+    assert response.json()["party_type"] == "company"
+    customer = Customer.objects.get(display_name="Prospect Entreprise")
+    assert customer.lifecycle_status == "prospect"
+    assert customer.party_type == "company"
+
+
+def test_create_uses_existing_classification_defaults(staff_authenticated_client):
+    response = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL,
+        {"display_name": "Client Particulier"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["lifecycle_status"] == "client"
+    assert response.json()["party_type"] == "individual"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (("lifecycle_status", "lead"), ("party_type", "association")),
+)
+def test_create_rejects_invalid_initial_classification(staff_authenticated_client, field, value):
+    response = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL,
+        {"display_name": "Invalid classification", field: value},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert field in response.json()
+
+
 def test_create_operator_success(operator_authenticated_client):
     payload = {"display_name": "Beta Ltd"}
     response = operator_authenticated_client.post(

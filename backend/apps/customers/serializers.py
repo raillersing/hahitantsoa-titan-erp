@@ -1,9 +1,17 @@
 from rest_framework import serializers
 
-from apps.customers.models import Customer
+from apps.customers.models import Customer, CustomerLifecycleStatus, CustomerPartyType
 
 
 class CustomerSerializer(serializers.ModelSerializer):
+    lifecycle_status = serializers.ChoiceField(
+        choices=CustomerLifecycleStatus.choices,
+        required=False,
+    )
+    party_type = serializers.ChoiceField(
+        choices=CustomerPartyType.choices,
+        required=False,
+    )
     reservation_count = serializers.SerializerMethodField()
     event_count = serializers.SerializerMethodField()
     document_count = serializers.SerializerMethodField()
@@ -25,6 +33,13 @@ class CustomerSerializer(serializers.ModelSerializer):
             getattr(obj, "last_document_at", None),
         )
         return max((value for value in values if value is not None), default=None)
+
+    def get_fields(self):
+        fields = super().get_fields()
+        if self.instance is not None:
+            fields["lifecycle_status"].read_only = True
+            fields["party_type"].read_only = True
+        return fields
 
     class Meta:
         model = Customer
@@ -51,8 +66,6 @@ class CustomerSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
-            "lifecycle_status",
-            "party_type",
             "created_at",
             "updated_at",
             "is_deleted",
