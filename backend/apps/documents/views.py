@@ -28,11 +28,14 @@ from apps.documents.serializers import (
     TitanProformaDraftPreviewSerializer,
 )
 from apps.documents.services import (
+    ProformaActionError,
     create_document_instance_from_reservation_draft,
     generate_document_instance_pdf,
     generate_reservation_draft_document_instance_html,
     get_reservation_draft_document_instance_or_404,
     get_titan_proforma_draft_preview_payload_service,
+    prepare_contract_from_proforma,
+    void_proforma,
 )
 from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.reservations.models import ReservationDraft
@@ -422,10 +425,11 @@ class DocumentInstanceConvertToContractAPIView(APIView):
     """Convert a proforma into a contract document instance."""
 
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         responses={
+            200: DocumentInstanceSerializer,
             201: DocumentInstanceSerializer,
             400: OpenApiResponse(
                 description="Document is not a proforma, is expired, or already voided."
@@ -433,99 +437,27 @@ class DocumentInstanceConvertToContractAPIView(APIView):
         }
     )
     def post(self, request, id):
-        from django.utils import timezone
-
-        from apps.documents.models import DocumentInstanceStatus
-        from apps.reservations.models import ReservationDraftStatus
-
-        instance = get_document_instance_by_id(document_instance_id=id)
-        if instance is None:
+        try:
+            contract, created = prepare_contract_from_proforma(
+                document_instance_id=id,
+                actor=request.user,
+            )
+        except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
+        except ProformaActionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify the document is a proforma
-        if not instance.template_key.startswith("PROFORMA"):
-            return Response(
-                {"detail": "Only proforma documents can be converted to contracts."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Verify it's not voided
-        if instance.status == DocumentInstanceStatus.VOIDED:
-            return Response(
-                {"detail": "Cannot convert a voided proforma to a contract."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Verify it's not expired
-        if instance.valid_until is not None and instance.valid_until < timezone.now():
-            return Response(
-                {"detail": "This proforma has expired and cannot be converted."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Determine the contract template key (replace PROFORMA prefix with CONTRAT-)
-        contract_template_key = instance.template_key.replace("PROFORMA", "CONTRAT", 1)
-
-        # Copy data to a new DocumentInstance as a contract
-        new_instance = DocumentInstance.objects.create(
-            reservation_draft=instance.reservation_draft,
-            hahitantsoa_event_draft=instance.hahitantsoa_event_draft,
-            customer=instance.customer,
-            template_key=contract_template_key,
-            template_version=instance.template_version,
-            template_label=instance.template_label.replace("Proforma", "Contrat", 1),
-            business_scope=instance.business_scope,
-            document_type=instance.document_type,
-            template_status=instance.template_status,
-            template_source_kind=instance.template_source_kind,
-            template_source_reference=instance.template_source_reference,
-            template_path=instance.template_path,
-            template_preview_path=instance.template_preview_path,
-            template_validated_by_client=instance.template_validated_by_client,
-            template_notes=instance.template_notes,
-            reservation_public_reference=instance.reservation_public_reference,
-            reservation_status=instance.reservation_status,
-            customer_display_name=instance.customer_display_name,
-            customer_email=instance.customer_email,
-            customer_phone=instance.customer_phone,
-            customer_address=instance.customer_address,
-            status=DocumentInstanceStatus.PREPARED,
-            prepared_by=request.user,
-            notes=f"Converted from proforma {instance.id}",
+        return Response(
+            DocumentInstanceSerializer(contract).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
-
-        # Update the reservation draft status if it is still in a draft state
-        if (
-            instance.reservation_draft is not None
-            and instance.reservation_draft.status == ReservationDraftStatus.DRAFT
-        ):
-            instance.reservation_draft.status = ReservationDraftStatus.CONFIRMED
-            instance.reservation_draft.save(update_fields=["status", "updated_at"])
-
-        # Record audit event
-        from apps.audit.services import record_audit_event_on_commit
-
-        record_audit_event_on_commit(
-            actor=request.user,
-            action="document.proforma_converted_to_contract",
-            target_type="document_instance",
-            target_id=str(instance.id),
-            metadata={
-                "source_instance_id": str(instance.id),
-                "new_instance_id": str(new_instance.id),
-                "contract_template_key": contract_template_key,
-            },
-        )
-
-        serializer = DocumentInstanceSerializer(new_instance)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class DocumentInstanceVoidAPIView(APIView):
     """Void a proforma document instance."""
 
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasReservationSensitiveAccess]
 
     @extend_schema(
         responses={
@@ -534,56 +466,15 @@ class DocumentInstanceVoidAPIView(APIView):
         }
     )
     def post(self, request, id):
-        from django.utils import timezone
-
-        from apps.documents.models import DocumentInstanceStatus
-
-        instance = get_document_instance_by_id(document_instance_id=id)
-        if instance is None:
+        try:
+            instance = void_proforma(
+                document_instance_id=id,
+                actor=request.user,
+                reason=request.data.get("reason", ""),
+            )
+        except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
+        except ProformaActionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify the document is a proforma
-        if not instance.template_key.startswith("PROFORMA"):
-            return Response(
-                {"detail": "Only proforma documents can be voided through this endpoint."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Verify it's not already voided
-        if instance.status == DocumentInstanceStatus.VOIDED:
-            return Response(
-                {"detail": "This proforma is already voided."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Void the proforma
-        instance.status = DocumentInstanceStatus.VOIDED
-        instance.voided_at = timezone.now()
-        instance.voided_by = request.user
-        instance.void_reason = request.data.get("reason", "")
-        instance.save(
-            update_fields=[
-                "status",
-                "voided_at",
-                "voided_by",
-                "void_reason",
-                "updated_at",
-            ]
-        )
-
-        # Record audit event
-        from apps.audit.services import record_audit_event_on_commit
-
-        record_audit_event_on_commit(
-            actor=request.user,
-            action="document.proforma_voided",
-            target_type="document_instance",
-            target_id=str(instance.id),
-            metadata={
-                "template_key": instance.template_key,
-                "reason": instance.void_reason,
-            },
-        )
-
-        serializer = DocumentInstanceSerializer(instance)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)
