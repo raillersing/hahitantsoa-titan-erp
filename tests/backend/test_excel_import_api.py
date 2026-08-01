@@ -6,6 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 
 from apps.excel_import.models import ImportJob
+from apps.inventory.models import InventoryItem
 
 pytestmark = pytest.mark.django_db
 
@@ -35,8 +36,10 @@ def import_job(user):
         created_by=user,
         filename="sample.csv",
         status="mapping",
+        target_model="inventory_item",
         total_rows=10,
         column_mapping={"Name": "name", "Price": "price"},
+        source_rows=[{"Name": "Imported chair", "Price": "100"}],
     )
 
 
@@ -79,8 +82,11 @@ def test_create_import_job(authenticated_client):
     )
     assert response.status_code == 201
     data = response.json()
-    # DRF create() returns the upload serializer data, not the created instance
+    # The upload response must be the persisted ImportJob contract consumed by
+    # the mapping screen.
     assert data["target_model"] == "inventory_item"
+    assert data["status"] == "mapping"
+    assert data["column_mapping"] == {"Name": "", "Price": "", "Quantity": ""}
     # Verify the job was actually created in the database
     job = ImportJob.objects.latest("created_at")
     assert job.filename == VALID_CSV_FILENAME
@@ -115,6 +121,19 @@ def test_create_import_job_missing_file(authenticated_client):
     assert response.status_code == 400
 
 
+def test_create_import_job_rejects_csv_without_headers(authenticated_client):
+    response = authenticated_client.post(
+        IMPORT_JOB_LIST_URL,
+        data={
+            "file": _make_csv_upload(content="", filename="empty.csv"),
+            "target_model": "inventory_item",
+        },
+        format="multipart",
+    )
+    assert response.status_code == 400
+    assert "file" in response.json()
+
+
 # --- Validate import job (authenticated) ---
 
 
@@ -124,11 +143,39 @@ def test_validate_import_job(authenticated_client, import_job):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "completed"
-    assert data["valid_rows"] == import_job.total_rows
+    assert data["valid_rows"] == 1
 
     import_job.refresh_from_db()
     assert import_job.status == "completed"
-    assert import_job.valid_rows == import_job.total_rows
+    assert import_job.valid_rows == 1
+
+
+def test_mapping_and_validation_import_inventory_items(authenticated_client):
+    response = authenticated_client.post(
+        IMPORT_JOB_LIST_URL,
+        data={
+            "file": _make_csv_upload(
+                content="name,kind,description\nImported lamp,material,LED lamp\n"
+            ),
+            "target_model": "inventory_item",
+        },
+        format="multipart",
+    )
+    job_id = response.json()["id"]
+    mapping_response = authenticated_client.patch(
+        f"{IMPORT_JOB_LIST_URL}{job_id}/mapping/",
+        data={"column_mapping": {"name": "name", "kind": "kind", "description": "description"}},
+        content_type="application/json",
+    )
+    assert mapping_response.status_code == 200
+    validate_response = authenticated_client.post(
+        f"{IMPORT_JOB_LIST_URL}{job_id}/validate/",
+        content_type="application/json",
+    )
+    assert validate_response.status_code == 200
+    assert validate_response.json()["status"] == "completed"
+    assert validate_response.json()["valid_rows"] == 1
+    assert InventoryItem.objects.filter(name="Imported lamp", is_active=True, is_deleted=False).exists()
 
 
 def test_validate_import_job_404(authenticated_client):

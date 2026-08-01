@@ -45,7 +45,15 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
       setError(null);
       const result = await uploadImportFile(file);
       setJob(result);
-      setMappingEdits(result.column_mapping);
+      const supportedFields = new Set(MAPPING_FIELDS.map((field) => field.value));
+      setMappingEdits(
+        Object.fromEntries(
+          Object.keys(result.column_mapping ?? {}).map((column) => [
+            column,
+            supportedFields.has(column) ? column : "",
+          ]),
+        ),
+      );
       setStep(1);
     } catch (err: any) {
       setError(err.message || "Erreur d'upload");
@@ -156,7 +164,7 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {Object.keys(job.column_mapping).map((col) => {
+                {Object.keys(job.column_mapping ?? {}).map((col) => {
                   const mapped = mappingEdits[col] && mappingEdits[col] !== "";
                   return (
                     <tr key={col} className="hover:bg-slate-50">
@@ -199,7 +207,7 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {Object.keys(job.column_mapping).slice(0, 5).map((col) => (
+                {Object.keys(job.column_mapping ?? {}).slice(0, 5).map((col) => (
                   <tr key={col} className="hover:bg-slate-50">
                     <td className="px-3 py-2.5 font-mono text-xs text-slate-600">{col}</td>
                     <td className="px-3 py-2.5 text-slate-500 text-xs">—</td>
@@ -322,9 +330,15 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
               <p className="text-xs text-slate-500">Erreurs</p>
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full mb-6">
-            <i className="fas fa-check-circle"></i> Import terminé avec succès
-          </div>
+          {job.status === "completed" ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full mb-6">
+              <i className="fas fa-check-circle"></i> Import terminé avec succès
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full mb-6">
+              <i className="fas fa-circle-exclamation"></i> Import terminé avec des erreurs
+            </div>
+          )}
           <div className="flex gap-2">
             <button onClick={() => onNavigate("inventory")} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors text-sm">
               <i className="fa-solid fa-boxes-stacked mr-2"></i>Voir l'inventaire
