@@ -285,12 +285,12 @@ class ImportJobValidateAPIView(APIView):
                         "code": _mapped_value(row, mapping, "code"),
                         "section": _mapped_value(row, mapping, "section"),
                         "unit": _mapped_value(row, mapping, "unit"),
-                    "storage_location": _mapped_value(row, mapping, "storage_location"),
-                    "reported_inventory_quantity": _required_quantity(
-                        _mapped_value(row, mapping, "reported_inventory_quantity"),
-                        field="Reported inventory quantity",
-                    ),
-                    "initial_stock": _required_quantity(
+                        "storage_location": _mapped_value(row, mapping, "storage_location"),
+                        "reported_inventory_quantity": _required_quantity(
+                            _mapped_value(row, mapping, "reported_inventory_quantity"),
+                            field="Reported inventory quantity",
+                        ),
+                        "initial_stock": _required_quantity(
                             _mapped_value(row, mapping, "initial_stock"), field="Initial stock"
                         ),
                         "reported_damaged_quantity": _required_quantity(
