@@ -121,6 +121,36 @@ class PaymentConfirmSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
 
 
+class ReconciliationCsvPreviewSerializer(serializers.Serializer):
+    account_id = serializers.UUIDField()
+    csv_content = serializers.CharField(trim_whitespace=False, max_length=2_000_000)
+
+
+class ReconciliationAllocationSerializer(serializers.Serializer):
+    line_id = serializers.UUIDField()
+    payment_id = serializers.UUIDField()
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    fee_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        default=Decimal("0.00"),
+    )
+    variance_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        default=Decimal("0.00"),
+    )
+    variance_decision = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+
+class ReconciliationCommitSerializer(serializers.Serializer):
+    idempotency_key = serializers.CharField(max_length=128)
+    allocations = ReconciliationAllocationSerializer(many=True, allow_empty=False)
+
+
 class RefundPaymentCreateSerializer(serializers.Serializer):
     refund_obligation_id = serializers.UUIDField(required=True)
     notes = serializers.CharField(required=False, allow_blank=True)

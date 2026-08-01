@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import csv
+import hashlib
+import io
+from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from django.conf import settings
@@ -22,7 +27,19 @@ from apps.payments.gateway import (
     PaymentGatewayError,
     get_payment_gateway_adapter,
 )
-from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
+from apps.finance.models import FinanceAccount, FinanceAccountKind, FinancialJournalDirection
+from apps.finance.services import record_financial_journal_entry
+from apps.payments.models import (
+    Payment,
+    PaymentKind,
+    PaymentMethod,
+    PaymentReconciliationAllocation,
+    PaymentReconciliationImport,
+    PaymentReconciliationImportStatus,
+    PaymentReconciliationLine,
+    PaymentReconciliationLineStatus,
+    PaymentStatus,
+)
 
 PAYMENT_RECEIPT_TEMPLATE_KEY = "shared.payment_receipt.v1"
 PAYMENT_REFUND_RECEIPT_TEMPLATE_KEY = "shared.payment_refund_receipt.v1"
@@ -43,6 +60,13 @@ PAYMENT_REFUND_TEMPLATE_NOT_FOUND = "payment_refund_template_not_found"
 REFUND_OBLIGATION_NOT_FOUND = "refund_obligation_not_found"
 REFUND_OBLIGATION_NOT_PENDING = "refund_obligation_not_pending"
 GATEWAY_SANDBOX_DISABLED = "gateway_sandbox_disabled"
+INVALID_RECONCILIATION = "invalid_payment_reconciliation"
+
+
+class PaymentReconciliationError(ValueError):
+    def __init__(self, message: str, *, code: str = INVALID_RECONCILIATION) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -691,3 +715,281 @@ def process_gateway_callback(
         )
 
     return GatewayCallbackResult(payment=payment, callback_result=callback_result)
+
+
+def _require_reconciliation_account(account: FinanceAccount) -> None:
+    if account.kind not in {FinanceAccountKind.BANK, FinanceAccountKind.MOBILE_MONEY}:
+        raise PaymentReconciliationError("Reconciliation requires a bank or mobile-money account.")
+    if not account.is_active:
+        raise PaymentReconciliationError("Reconciliation requires an active finance account.")
+
+
+def _line_fingerprint(
+    *, account_id, transaction_date: date, amount: Decimal, reference: str
+) -> str:
+    normalized = "|".join(
+        (str(account_id), transaction_date.isoformat(), f"{amount:.2f}", reference.strip().upper())
+    )
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+@transaction.atomic
+def stage_reconciliation_csv(
+    *, account: FinanceAccount, actor, csv_content: str
+) -> PaymentReconciliationImport:
+    """Validate CSV fully before persisting a private, reviewable staged import."""
+    locked_account = FinanceAccount.objects.select_for_update().get(pk=account.pk)
+    _require_reconciliation_account(locked_account)
+    content_fingerprint = hashlib.sha256(csv_content.encode("utf-8")).hexdigest()
+    existing = PaymentReconciliationImport.objects.filter(
+        account=locked_account, content_fingerprint=content_fingerprint
+    ).first()
+    if existing is not None:
+        return existing
+    try:
+        rows = list(csv.DictReader(io.StringIO(csv_content)))
+    except csv.Error as exc:
+        raise PaymentReconciliationError("CSV statement could not be parsed.") from exc
+    required_columns = {"transaction_date", "amount", "reference", "description"}
+    if not rows or not required_columns.issubset(set(rows[0])):
+        raise PaymentReconciliationError(
+            "CSV requires transaction_date, amount, reference and description columns."
+        )
+    normalized_rows: list[dict[str, object]] = []
+    fingerprints: set[str] = set()
+    for row in rows:
+        try:
+            transaction_date = date.fromisoformat((row.get("transaction_date") or "").strip())
+            amount = Decimal((row.get("amount") or "").strip()).quantize(Decimal("0.01"))
+        except Exception as exc:
+            raise PaymentReconciliationError("CSV contains an invalid date or amount.") from exc
+        reference = (row.get("reference") or "").strip()
+        if amount <= 0 or not reference:
+            raise PaymentReconciliationError(
+                "CSV lines require a positive amount and external reference."
+            )
+        fingerprint = _line_fingerprint(
+            account_id=locked_account.id,
+            transaction_date=transaction_date,
+            amount=amount,
+            reference=reference,
+        )
+        if (
+            fingerprint in fingerprints
+            or PaymentReconciliationLine.objects.filter(
+                account=locked_account, fingerprint=fingerprint
+            ).exists()
+        ):
+            raise PaymentReconciliationError("CSV contains a duplicate external statement line.")
+        fingerprints.add(fingerprint)
+        normalized_rows.append(
+            {
+                "transaction_date": transaction_date,
+                "amount": amount,
+                "external_reference": reference,
+                "description": (row.get("description") or "").strip(),
+                "raw_data": {key: value or "" for key, value in row.items()},
+                "fingerprint": fingerprint,
+            }
+        )
+    reconciliation_import = PaymentReconciliationImport.objects.create(
+        account=locked_account, content_fingerprint=content_fingerprint, created_by=actor
+    )
+    PaymentReconciliationLine.objects.bulk_create(
+        [
+            PaymentReconciliationLine(
+                reconciliation_import=reconciliation_import, account=locked_account, **row
+            )
+            for row in normalized_rows
+        ]
+    )
+    record_audit_event_on_commit(
+        actor=actor,
+        action="payment.reconciliation_import_staged",
+        target_type="payment_reconciliation_import",
+        target_id=str(reconciliation_import.id),
+        metadata={"account_id": str(locked_account.id), "line_count": len(normalized_rows)},
+    )
+    return reconciliation_import
+
+
+@transaction.atomic
+def commit_reconciliation_import(
+    *,
+    reconciliation_import: PaymentReconciliationImport,
+    actor,
+    idempotency_key: str,
+    allocations: list[dict],
+) -> PaymentReconciliationImport:
+    """Commit explicit allocations under deterministic locks; validated lines are append-only."""
+    if not idempotency_key.strip():
+        raise PaymentReconciliationError("An idempotency key is required to commit reconciliation.")
+    locked_import = PaymentReconciliationImport.objects.select_for_update().get(
+        pk=reconciliation_import.pk
+    )
+    if locked_import.status == PaymentReconciliationImportStatus.COMMITTED:
+        if locked_import.idempotency_key == idempotency_key:
+            return locked_import
+        raise PaymentReconciliationError("A committed reconciliation import cannot be changed.")
+    same_key = (
+        PaymentReconciliationImport.objects.select_for_update()
+        .filter(idempotency_key=idempotency_key)
+        .first()
+    )
+    if same_key is not None and same_key.pk != locked_import.pk:
+        raise PaymentReconciliationError(
+            "Idempotency key belongs to another reconciliation import."
+        )
+    locked_account = FinanceAccount.objects.select_for_update().get(pk=locked_import.account_id)
+    _require_reconciliation_account(locked_account)
+    lines = list(
+        PaymentReconciliationLine.objects.select_for_update()
+        .filter(reconciliation_import=locked_import)
+        .order_by("id")
+    )
+    line_by_id = {line.id: line for line in lines}
+    by_line: dict[object, list[dict]] = defaultdict(list)
+    payment_ids: set[object] = set()
+    for allocation in allocations:
+        line_id = allocation.get("line_id")
+        payment_id = allocation.get("payment_id")
+        if line_id not in line_by_id or payment_id is None:
+            raise PaymentReconciliationError(
+                "Allocations must reference staged lines and payments."
+            )
+        by_line[line_id].append(allocation)
+        payment_ids.add(payment_id)
+    if set(by_line) != set(line_by_id):
+        raise PaymentReconciliationError(
+            "Every staged statement line requires an explicit allocation decision."
+        )
+    payments = {
+        payment.id: payment
+        for payment in Payment.objects.select_for_update().filter(pk__in=payment_ids).order_by("id")
+    }
+    if len(payments) != len(payment_ids):
+        raise PaymentReconciliationError("Allocated payment no longer exists.")
+    actor_id = getattr(actor, "pk", None)
+    allocated_payment_ids: set[object] = set()
+    for line in lines:
+        if line.status != PaymentReconciliationLineStatus.STAGED:
+            raise PaymentReconciliationError("Only staged statement lines may be committed.")
+        line_allocations = by_line[line.id]
+        seen_payment_ids: set[object] = set()
+        allocated_total = Decimal("0.00")
+        fee_amount = Decimal(str(line_allocations[0].get("fee_amount", "0.00"))).quantize(
+            Decimal("0.01")
+        )
+        variance_amount = Decimal(str(line_allocations[0].get("variance_amount", "0.00"))).quantize(
+            Decimal("0.01")
+        )
+        variance_decision = str(line_allocations[0].get("variance_decision", "")).strip()
+        if fee_amount < 0 or (variance_amount != 0 and not variance_decision):
+            raise PaymentReconciliationError(
+                "Fees must be non-negative and variances require an explicit decision."
+            )
+        for allocation in line_allocations:
+            payment_id = allocation["payment_id"]
+            if payment_id in seen_payment_ids or payment_id in allocated_payment_ids:
+                raise PaymentReconciliationError(
+                    "A payment can be allocated only once per reconciliation import."
+                )
+            seen_payment_ids.add(payment_id)
+            allocated_payment_ids.add(payment_id)
+            payment = payments[payment_id]
+            amount = Decimal(str(allocation["amount"])).quantize(Decimal("0.01"))
+            if (
+                amount <= 0
+                or payment.payment_status != PaymentStatus.CONFIRMED
+                or payment.payment_method
+                not in {PaymentMethod.BANK_TRANSFER, PaymentMethod.MOBILE_MONEY}
+            ):
+                raise PaymentReconciliationError(
+                    "Only confirmed bank-transfer or mobile-money payments may be allocated."
+                )
+            if amount != payment.amount:
+                raise PaymentReconciliationError(
+                    "A payment must be fully allocated before it can be reconciled."
+                )
+            allocated_total += amount
+            PaymentReconciliationAllocation.objects.create(
+                statement_line=line, payment=payment, amount=amount
+            )
+        if line.amount != allocated_total - fee_amount + variance_amount:
+            raise PaymentReconciliationError(
+                "Statement amount does not match allocations, fee and variance decision."
+            )
+        line.fee_amount, line.variance_amount, line.variance_decision = (
+            fee_amount,
+            variance_amount,
+            variance_decision,
+        )
+        line.status, line.committed_at, line.committed_by_id = (
+            PaymentReconciliationLineStatus.RECONCILED,
+            timezone.now(),
+            actor_id,
+        )
+        line.save(
+            update_fields=[
+                "fee_amount",
+                "variance_amount",
+                "variance_decision",
+                "status",
+                "committed_at",
+                "committed_by",
+                "updated_at",
+            ]
+        )
+        if fee_amount:
+            record_financial_journal_entry(
+                account=locked_account,
+                direction=FinancialJournalDirection.OUTFLOW,
+                amount=fee_amount,
+                occurred_at=timezone.now(),
+                actor=actor,
+                source_label="Bank/mobile-money reconciliation fee",
+                notes=f"Statement line {line.external_reference}",
+            )
+        record_audit_event_on_commit(
+            actor=actor,
+            action="payment.reconciliation_line_committed",
+            target_type="payment_reconciliation_line",
+            target_id=str(line.id),
+            metadata={
+                "fee_amount": str(fee_amount),
+                "variance_amount": str(variance_amount),
+                "variance_decision": variance_decision,
+            },
+        )
+    for payment in payments.values():
+        payment.payment_status, payment.updated_by_id = PaymentStatus.RECONCILED, actor_id
+        payment.full_clean()
+        payment.save(update_fields=["payment_status", "updated_by", "updated_at"])
+        record_audit_event_on_commit(
+            actor=actor,
+            action="payment.reconciled",
+            target_type="payment",
+            target_id=str(payment.id),
+            metadata={"source": "statement_reconciliation", "amount": str(payment.amount)},
+        )
+    (
+        locked_import.status,
+        locked_import.idempotency_key,
+        locked_import.committed_at,
+        locked_import.committed_by_id,
+    ) = PaymentReconciliationImportStatus.COMMITTED, idempotency_key, timezone.now(), actor_id
+    locked_import.save(
+        update_fields=["status", "idempotency_key", "committed_at", "committed_by", "updated_at"]
+    )
+    record_audit_event_on_commit(
+        actor=actor,
+        action="payment.reconciliation_import_committed",
+        target_type="payment_reconciliation_import",
+        target_id=str(locked_import.id),
+        metadata={
+            "account_id": str(locked_account.id),
+            "line_count": len(lines),
+            "idempotency_key": idempotency_key,
+        },
+    )
+    return locked_import
