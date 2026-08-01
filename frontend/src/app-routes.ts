@@ -4,7 +4,7 @@ export const APP_SCOPES = [
   "reservation-detail", "reservations", "customer", "login", "packages", "services",
   "blacklist-intervenants", "inventory", "inventory-management", "inventory-item",
   "stock-movements", "stock-preparation", "logistics-dispatch", "logistics-returns",
-  "breakage-loss", "venues", "agenda-visitors", "import-excel", "documents",
+  "breakage-loss", "venues", "agenda-visitors", "desired-dates", "import-excel", "documents",
   "hr-payroll", "hr", "purchasing", "procurement", "notifications", "admin", "mobile-tablet", "profile",
 ] as const;
 

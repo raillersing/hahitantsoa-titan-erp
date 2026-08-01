@@ -36,6 +36,7 @@ import VenuesPage from "./prototype/VenuesPage";
 import AdminPage from "./prototype/AdminPage";
 import DocumentsPage from "./prototype/DocumentsPage";
 import AgendaVisitorsPage from "./prototype/AgendaVisitorsPage";
+import DesiredDatesPage from "./prototype/DesiredDatesPage";
 import ProcurementPage from "./prototype/ProcurementPage";
 import ProfilePage from "./prototype/ProfilePage";
 import HRPage from "./prototype/HRPage";
@@ -210,6 +211,7 @@ function App() {
       case "admin": return <AdminPage onNavigate={navigate} />;
       case "documents": return <DocumentsPage onNavigate={navigate} />;
       case "agenda-visitors": return <AgendaVisitorsPage onNavigate={navigate} />;
+      case "desired-dates": return <DesiredDatesPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} currentUserId={state.user.id} />;
       case "profile": return <ProfilePage user={state.user} />;
       case "login": return <DashboardPage onNavigate={navigate} />;
       case "notifications": return <NotificationsPage onNavigate={navigate} />;
