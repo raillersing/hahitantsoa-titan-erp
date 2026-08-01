@@ -21,7 +21,15 @@ const MAPPING_FIELDS = [
   { value: "code", label: "Code article (code)" },
   { value: "kind", label: "Type produit (kind)" },
   { value: "description", label: "Description" },
-  { value: "quantity", label: "Stock disponible (quantity)" },
+  { value: "section", label: "Section / catégorie" },
+  { value: "unit", label: "Unité" },
+  { value: "storage_location", label: "Emplacement" },
+  { value: "reported_inventory_quantity", label: "Stock inventorié déclaré" },
+  { value: "initial_stock", label: "Stock disponible initial" },
+  { value: "reported_damaged_quantity", label: "Casses déclarées" },
+  { value: "purchase_price", label: "Prix d'achat" },
+  { value: "rental_price", label: "Prix de location" },
+  { value: "breakage_price", label: "Prix de casse" },
 ];
 
 export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
@@ -45,12 +53,11 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
       setError(null);
       const result = await uploadImportFile(file);
       setJob(result);
-      const supportedFields = new Set(MAPPING_FIELDS.map((field) => field.value));
       setMappingEdits(
         Object.fromEntries(
           Object.keys(result.column_mapping ?? {}).map((column) => [
             column,
-            supportedFields.has(column) ? column : "",
+            result.column_mapping?.[column] ?? "",
           ]),
         ),
       );
@@ -136,14 +143,14 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
             <i className="fa-solid fa-cloud-arrow-up text-indigo-500 text-3xl"></i>
           </div>
           <h3 className="text-lg font-semibold text-slate-800 mb-2">Sélectionner un fichier</h3>
-          <p className="text-sm text-slate-500 mb-6">Formats acceptés : CSV (UTF-8)</p>
-          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleUpload} />
+          <p className="text-sm text-slate-500 mb-6">Formats acceptés : XLSX ou CSV UTF-8. Les en-têtes français du modèle inventaire sont reconnus automatiquement.</p>
+          <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt" className="hidden" onChange={handleUpload} />
           <button
             onClick={() => fileRef.current?.click()}
             disabled={loading}
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
           >
-            {loading ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement...</> : <><i className="fa-solid fa-file-import mr-2"></i>Choisir un fichier CSV</>}
+            {loading ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement...</> : <><i className="fa-solid fa-file-import mr-2"></i>Choisir un fichier XLSX ou CSV</>}
           </button>
         </div>
       )}

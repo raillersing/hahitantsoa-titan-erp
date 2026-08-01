@@ -107,6 +107,14 @@ class InventoryItem(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel
     name = models.CharField(max_length=255)
     kind = models.CharField(max_length=32, choices=INVENTORY_ITEM_KIND_CHOICES)
     description = models.TextField(blank=True)
+    code = models.CharField(max_length=128, blank=True)
+    section = models.CharField(max_length=255, blank=True)
+    unit = models.CharField(max_length=32, blank=True)
+    purchase_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    rental_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    breakage_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    reported_inventory_quantity = models.PositiveIntegerField(default=0)
+    reported_damaged_quantity = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -129,6 +137,18 @@ class InventoryItem(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel
             ) from error
 
         self.kind = item_kind.value
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class InventoryStorageLocation(UUIDModel, TimestampedModel, AuditableModel):
+    name = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Inventory storage location"
+        verbose_name_plural = "Inventory storage locations"
 
     def __str__(self) -> str:
         return self.name
@@ -181,6 +201,13 @@ class InventoryAvailability(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
 class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
     inventory_item = models.ForeignKey(
         InventoryItem,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
+    storage_location = models.ForeignKey(
+        InventoryStorageLocation,
+        null=True,
+        blank=True,
         on_delete=models.PROTECT,
         related_name="stock_movements",
     )
