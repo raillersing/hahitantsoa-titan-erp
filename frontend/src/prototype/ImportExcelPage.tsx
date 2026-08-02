@@ -21,7 +21,15 @@ const MAPPING_FIELDS = [
   { value: "code", label: "Code article (code)" },
   { value: "kind", label: "Type produit (kind)" },
   { value: "description", label: "Description" },
-  { value: "quantity", label: "Stock disponible (quantity)" },
+  { value: "section", label: "Section / catégorie" },
+  { value: "unit", label: "Unité" },
+  { value: "storage_location", label: "Emplacement" },
+  { value: "reported_inventory_quantity", label: "Stock inventorié déclaré" },
+  { value: "initial_stock", label: "Stock disponible initial" },
+  { value: "reported_damaged_quantity", label: "Casses déclarées" },
+  { value: "purchase_price", label: "Prix d'achat" },
+  { value: "rental_price", label: "Prix de location" },
+  { value: "breakage_price", label: "Prix de casse" },
 ];
 
 export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
@@ -45,7 +53,14 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
       setError(null);
       const result = await uploadImportFile(file);
       setJob(result);
-      setMappingEdits(result.column_mapping);
+      setMappingEdits(
+        Object.fromEntries(
+          Object.keys(result.column_mapping ?? {}).map((column) => [
+            column,
+            result.column_mapping?.[column] ?? "",
+          ]),
+        ),
+      );
       setStep(1);
     } catch (err: any) {
       setError(err.message || "Erreur d'upload");
@@ -128,14 +143,14 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
             <i className="fa-solid fa-cloud-arrow-up text-indigo-500 text-3xl"></i>
           </div>
           <h3 className="text-lg font-semibold text-slate-800 mb-2">Sélectionner un fichier</h3>
-          <p className="text-sm text-slate-500 mb-6">Formats acceptés : CSV (UTF-8)</p>
-          <input ref={fileRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleUpload} />
+          <p className="text-sm text-slate-500 mb-6">Formats acceptés : XLSX ou CSV UTF-8. Les en-têtes français du modèle inventaire sont reconnus automatiquement.</p>
+          <input ref={fileRef} type="file" accept=".xlsx,.csv,.txt" className="hidden" onChange={handleUpload} />
           <button
             onClick={() => fileRef.current?.click()}
             disabled={loading}
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
           >
-            {loading ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement...</> : <><i className="fa-solid fa-file-import mr-2"></i>Choisir un fichier CSV</>}
+            {loading ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Chargement...</> : <><i className="fa-solid fa-file-import mr-2"></i>Choisir un fichier XLSX ou CSV</>}
           </button>
         </div>
       )}
@@ -156,7 +171,7 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {Object.keys(job.column_mapping).map((col) => {
+                {Object.keys(job.column_mapping ?? {}).map((col) => {
                   const mapped = mappingEdits[col] && mappingEdits[col] !== "";
                   return (
                     <tr key={col} className="hover:bg-slate-50">
@@ -199,7 +214,7 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {Object.keys(job.column_mapping).slice(0, 5).map((col) => (
+                {Object.keys(job.column_mapping ?? {}).slice(0, 5).map((col) => (
                   <tr key={col} className="hover:bg-slate-50">
                     <td className="px-3 py-2.5 font-mono text-xs text-slate-600">{col}</td>
                     <td className="px-3 py-2.5 text-slate-500 text-xs">—</td>
@@ -322,9 +337,15 @@ export default function ImportExcelPage({ onNavigate }: ImportExcelPageProps) {
               <p className="text-xs text-slate-500">Erreurs</p>
             </div>
           </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full mb-6">
-            <i className="fas fa-check-circle"></i> Import terminé avec succès
-          </div>
+          {job.status === "completed" ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full mb-6">
+              <i className="fas fa-check-circle"></i> Import terminé avec succès
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full mb-6">
+              <i className="fas fa-circle-exclamation"></i> Import terminé avec des erreurs
+            </div>
+          )}
           <div className="flex gap-2">
             <button onClick={() => onNavigate("inventory")} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors text-sm">
               <i className="fa-solid fa-boxes-stacked mr-2"></i>Voir l'inventaire

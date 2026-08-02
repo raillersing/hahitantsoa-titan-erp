@@ -29,6 +29,7 @@ class ImportJob(UUIDModel, TimestampedModel):
         default=ImportJobStatus.UPLOADING,
     )
     column_mapping = models.JSONField(default=dict, blank=True)
+    source_rows = models.JSONField(default=list, blank=True)
     total_rows = models.PositiveIntegerField(default=0)
     valid_rows = models.PositiveIntegerField(default=0)
     error_rows = models.PositiveIntegerField(default=0)
