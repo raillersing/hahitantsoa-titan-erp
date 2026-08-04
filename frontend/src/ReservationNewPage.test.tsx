@@ -382,7 +382,7 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByText('Valider et Clôturer le Dossier'));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('dashboard');
+      expect(mockNavigate).toHaveBeenCalledWith('titan');
     });
     expect(createReservationDraft).toHaveBeenCalledWith(expect.objectContaining({
       customer_id: 'CUST-001',

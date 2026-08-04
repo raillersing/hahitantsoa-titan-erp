@@ -103,14 +103,20 @@ interface Client {
   colorClass: string;
   address: string;
   civilite?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  idType?: string;
   idNumber?: string;
   idIssueDate?: string;
   idIssuePlace?: string;
+  idDuplicataDate?: string;
+  idDuplicataPlace?: string;
   nif?: string;
   stat?: string;
   rcs?: string;
   repFirstName?: string;
   repRole?: string;
+  notes?: string;
 }
 
 function mapCustomerToClient(c: Customer): Client {
@@ -134,14 +140,20 @@ function mapCustomerToClient(c: Customer): Client {
     colorClass,
     address: c.address || "",
     civilite: c.civilite || "",
+    birthDate: c.birth_date || "",
+    birthPlace: c.birth_place || "",
+    idType: c.id_type || "",
     idNumber: c.id_number || "",
     idIssueDate: c.id_issue_date || "",
     idIssuePlace: c.id_issue_place || "",
+    idDuplicataDate: c.id_duplicata_date || "",
+    idDuplicataPlace: c.id_duplicata_place || "",
     nif: c.nif || "",
     stat: c.stat || "",
     rcs: c.rcs || "",
     repFirstName: c.representative_name || "",
     repRole: c.representative_role || "",
+    notes: c.notes || "",
   };
 }
 
@@ -553,7 +565,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const saveDraft = () => {
     const draft = {
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
-      hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments,
+      hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, paymentAttachments,
       discountValue, discountIsPercentage
     };
     localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
@@ -563,7 +575,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (step >= 2 && (selectedClientId || newClient.name)) {
       saveDraft();
     }
-  }, [step, path, hDetails, tDetails, selectedMaterials, selectedServices, payment, clientAttachments]);
+  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, paymentAttachments, discountValue, discountIsPercentage]);
 
   const restoreDraft = () => {
     const saved = localStorage.getItem("prototypeReservationDraft");
@@ -579,7 +591,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         endTime: data.tDetails?.endTime || "22:00",
       });
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
-      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment); setClientAttachments(data.clientAttachments || []);
+      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment); setClientAttachments(data.clientAttachments || []); setPaymentAttachments(data.paymentAttachments || []);
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true);
       setShowDraftPrompt(false);
     }
@@ -626,14 +638,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           colorClass: "bg-slate-100 text-slate-700",
           address: newClient.address || "",
           civilite: newClient.civilite || "",
+          birthDate: newClient.birthDate || "",
+          birthPlace: newClient.birthPlace || "",
+          idType: newClient.idType || "",
           idNumber: newClient.idNumber || "",
           idIssueDate: newClient.idIssueDate || "",
           idIssuePlace: newClient.idIssuePlace || "",
+          idDuplicataDate: newClient.idDuplicataDate || "",
+          idDuplicataPlace: newClient.idDuplicataPlace || "",
           nif: newClient.nif || "",
           stat: newClient.stat || "",
           rcs: newClient.rcs || "",
           repFirstName: newClient.repFirstName || "",
           repRole: newClient.repRole || "",
+          notes: newClient.notes || "",
         } 
       : null;
 
@@ -1153,7 +1171,21 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
           )}
         </div>
-      ) : null}
+          ) : null}
+
+      {clientMode === "new" && (
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="new-client-notes">Notes client</label>
+          <textarea
+            id="new-client-notes"
+            className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
+            rows={3}
+            value={newClient.notes}
+            onChange={e => setNewClient({...newClient, notes: e.target.value})}
+            placeholder="Informations utiles concernant le client"
+          />
+        </div>
+      )}
 
       <div className="mt-8 pt-6 border-t border-slate-100">
         <h4 className="text-md font-bold text-slate-800 mb-1">Pièces jointes client</h4>
@@ -2889,8 +2921,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   ? "Contrat Hahitantsoa généré avec succès"
                   : "Contrat Titan généré avec succès";
                 showToastMsg(msg, 'success');
-                clearDraft();
-                onNavigate("dashboard");
+                clearDraft(false);
+                onNavigate(domain === "hahitantsoa" ? "hahitantsoa" : "titan");
               } catch (err: any) {
                 setSubmitError(err?.message || "Erreur lors de la création du dossier");
                 showToastMsg("Erreur : " + (err?.message || "inconnue"), 'error');
