@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from apps.common.models import TimestampedModel, UUIDModel
+from apps.common.models import AuditableModel, SoftDeleteModel, TimestampedModel, UUIDModel
 from apps.customers.models import Customer
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
@@ -16,6 +16,100 @@ class DocumentInstanceStatus(models.TextChoices):
 
 
 DOCUMENT_INSTANCE_STATUS_VALUES = [status.value for status in DocumentInstanceStatus]
+
+
+class UploadedAttachmentCategory(models.TextChoices):
+    CIN = "CIN", "CIN"
+    NIF = "NIF", "NIF"
+    STAT = "STAT", "STAT"
+    RCS = "RCS", "RCS"
+    LOGO = "Logo", "Logo"
+    EMAIL = "Pièce jointe email", "Pièce jointe email"
+    PAYMENT_PROOF = "Justificatif paiement", "Justificatif paiement"
+    PAYMENT_RECEIPT = "Reçu", "Reçu"
+    PAYMENT_MOBILE = "Capture Mobile Money", "Capture Mobile Money"
+    PAYMENT_CHEQUE = "Copie chèque", "Copie chèque"
+    PAYMENT_TRANSFER = "Bordereau virement", "Bordereau virement"
+    PAYMENT_CARD = "Preuve carte bancaire", "Preuve carte bancaire"
+    OTHER = "Autre", "Autre"
+
+
+def uploaded_attachment_path(instance, filename: str) -> str:
+    return f"private_attachments/{instance.id}/{filename}"
+
+
+class UploadedAttachment(UUIDModel, TimestampedModel, AuditableModel, SoftDeleteModel):
+    customer = models.ForeignKey(
+        Customer,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="uploaded_attachments",
+    )
+    reservation_draft = models.ForeignKey(
+        ReservationDraft,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="uploaded_attachments",
+    )
+    hahitantsoa_event_draft = models.ForeignKey(
+        HahitantsoaEventDraft,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="uploaded_attachments",
+    )
+    category = models.CharField(
+        max_length=64,
+        choices=UploadedAttachmentCategory.choices,
+    )
+    file = models.FileField(upload_to=uploaded_attachment_path)
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=128)
+    size_bytes = models.PositiveBigIntegerField()
+    sha256 = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+        verbose_name = "Uploaded attachment"
+        verbose_name_plural = "Uploaded attachments"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(customer__isnull=False)
+                    | models.Q(reservation_draft__isnull=False)
+                    | models.Q(hahitantsoa_event_draft__isnull=False)
+                ),
+                name="uploaded_attachment_has_owner",
+            ),
+            models.CheckConstraint(
+                condition=~(
+                    models.Q(reservation_draft__isnull=False)
+                    & models.Q(hahitantsoa_event_draft__isnull=False)
+                ),
+                name="uploaded_attachment_single_reservation_scope",
+            ),
+        ]
+
+    def clean(self) -> None:
+        from django.core.exceptions import ValidationError
+
+        if self.reservation_draft_id and self.customer_id:
+            if self.reservation_draft.customer_id != self.customer_id:
+                raise ValidationError("Attachment customer must match reservation customer.")
+        if self.hahitantsoa_event_draft_id and self.customer_id:
+            if self.hahitantsoa_event_draft.customer_id != self.customer_id:
+                raise ValidationError("Attachment customer must match event customer.")
+        if self.category.startswith("Justificatif") or self.category in {
+            UploadedAttachmentCategory.PAYMENT_RECEIPT,
+            UploadedAttachmentCategory.PAYMENT_MOBILE,
+            UploadedAttachmentCategory.PAYMENT_CHEQUE,
+            UploadedAttachmentCategory.PAYMENT_TRANSFER,
+            UploadedAttachmentCategory.PAYMENT_CARD,
+        }:
+            if not self.reservation_draft_id and not self.hahitantsoa_event_draft_id:
+                raise ValidationError("Payment attachments require a reservation scope.")
 
 
 class DocumentInstance(UUIDModel, TimestampedModel):

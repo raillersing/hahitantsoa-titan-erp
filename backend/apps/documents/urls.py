@@ -15,9 +15,27 @@ from apps.documents.views import (
     ReservationDraftDocumentInstancePDFGenerateAPIView,
     ReservationDraftDocumentInstanceRetrieveAPIView,
     TitanProformaDraftPreviewAPIView,
+    UploadedAttachmentDetailAPIView,
+    UploadedAttachmentDownloadAPIView,
+    UploadedAttachmentListCreateAPIView,
 )
 
 urlpatterns = [
+    path(
+        "attachments/",
+        UploadedAttachmentListCreateAPIView.as_view(),
+        name="uploaded-attachment-list-create",
+    ),
+    path(
+        "attachments/<uuid:id>/",
+        UploadedAttachmentDetailAPIView.as_view(),
+        name="uploaded-attachment-detail",
+    ),
+    path(
+        "attachments/<uuid:id>/download/",
+        UploadedAttachmentDownloadAPIView.as_view(),
+        name="uploaded-attachment-download",
+    ),
     path(
         "templates/",
         DocumentTemplateRegistryAPIView.as_view(),

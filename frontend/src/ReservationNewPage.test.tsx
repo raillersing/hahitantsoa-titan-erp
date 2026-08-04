@@ -18,6 +18,7 @@ import {
   generateHahitantsoaEventDraftDocumentInstancePdf,
   convertProformaToContract,
   createCustomer,
+  uploadAttachment,
 } from './api';
 
 // ---- Shared mock data ----
@@ -166,6 +167,7 @@ vi.mock('./api', () => ({
   generateHahitantsoaEventDraftDocumentInstancePdf: vi.fn(),
   convertProformaToContract: vi.fn(),
   createCustomer: vi.fn(),
+  uploadAttachment: vi.fn(),
 }));
 
 describe('ReservationNewPage', () => {
@@ -193,6 +195,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(generateHahitantsoaEventDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(convertProformaToContract).mockResolvedValue({ id: 'CONTRACT-001', reservation_public_reference: 'RES-001' } as any);
     vi.mocked(createCustomer).mockResolvedValue({ id: 'CUST-NEW', display_name: 'New Client' } as any);
+    vi.mocked(uploadAttachment).mockResolvedValue({ id: 'ATT-001' } as any);
   });
 
   afterEach(() => {

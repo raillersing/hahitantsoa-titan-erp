@@ -551,6 +551,19 @@ export type DocumentInstanceCreatePayload = {
   proforma_validity_days?: number;
 };
 
+export type UploadedAttachment = {
+  id: string;
+  customer_id: string | null;
+  reservation_draft_id: string | null;
+  hahitantsoa_event_draft_id: string | null;
+  category: string;
+  original_name: string;
+  content_type: string;
+  size_bytes: number;
+  sha256: string;
+  created_at: string;
+};
+
 export type DocumentInstancePdfGenerationResult = {
   id: string;
   status: string;

@@ -18,6 +18,7 @@ import {
   generateHahitantsoaEventDraftDocumentInstancePdf,
   convertProformaToContract,
   createCustomer,
+  uploadAttachment,
 } from "../api";
 import type {
   Customer,
@@ -296,6 +297,8 @@ interface Attachment {
   id: string;
   name: string;
   category: string;
+  file?: File;
+  uploadedId?: string;
 }
 
 interface SelectedMaterial {
@@ -565,7 +568,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const saveDraft = () => {
     const draft = {
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
-      hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, paymentAttachments,
+      hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment,
+      clientAttachments: clientAttachments.map(({ file: _file, ...attachment }) => attachment),
+      paymentAttachments: paymentAttachments.map(({ file: _file, ...attachment }) => attachment),
       discountValue, discountIsPercentage
     };
     localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
@@ -615,7 +620,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const addAttachment = (type: 'client' | 'payment', category: string, fileList: FileList | null) => {
     if (!fileList || !fileList.length) return;
-    const newAtt: Attachment = { id: Math.random().toString(36).substring(7), name: fileList[0].name, category };
+    const newAtt: Attachment = { id: Math.random().toString(36).substring(7), name: fileList[0].name, category, file: fileList[0] };
     if (type === 'client') setClientAttachments([...clientAttachments, newAtt]);
     else setPaymentAttachments([...paymentAttachments, newAtt]);
   };
@@ -773,6 +778,33 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     return customer.id;
   };
 
+  const uploadPendingAttachments = async (scope: {
+    customerId: string;
+    reservationDraftId?: string;
+    hahitantsoaEventDraftId?: string;
+  }) => {
+    const pending = [
+      ...clientAttachments.map(attachment => ({ attachment, target: "client" as const })),
+      ...paymentAttachments.map(attachment => ({ attachment, target: "payment" as const })),
+    ].filter(({ attachment }) => !attachment.uploadedId);
+
+    for (const { attachment, target } of pending) {
+      if (!attachment.file) {
+        throw new Error(`Sélectionnez à nouveau le fichier « ${attachment.name} » pour continuer.`);
+      }
+      const uploaded = await uploadAttachment(attachment.file, attachment.category, {
+        customerId: scope.customerId,
+        reservationDraftId: scope.reservationDraftId,
+        hahitantsoaEventDraftId: scope.hahitantsoaEventDraftId,
+      });
+      const update = (current: Attachment[]) => current.map(item => (
+        item.id === attachment.id ? { ...item, uploadedId: uploaded.id, file: undefined } : item
+      ));
+      if (target === "client") setClientAttachments(update);
+      else setPaymentAttachments(update);
+    }
+  };
+
   const issueProspectProforma = async (): Promise<{ documentId: string; draftId: string }> => {
     if (!domain) {
       throw new Error("Sélectionnez un client et un volet avant d’émettre le proforma.");
@@ -835,6 +867,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       throw new Error("Le brouillon du proforma n’a pas pu être identifié.");
     }
     const draftId = emission.draftId;
+
+    await uploadPendingAttachments({
+      customerId,
+      ...(isHahitantsoa
+        ? { hahitantsoaEventDraftId: draftId }
+        : { reservationDraftId: draftId }),
+    });
 
     if (!emission.documentId) {
       const document = isHahitantsoa
@@ -1230,7 +1269,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <ul className="space-y-2">
             {clientAttachments.map(att => (
               <li key={att.id} className="flex justify-between items-center bg-slate-50 px-4 py-2 rounded-lg text-sm border border-slate-100">
-                <span><span className="font-semibold text-slate-700">{att.category} :</span> <span className="text-slate-600">{att.name}</span></span>
+                <span><span className="font-semibold text-slate-700">{att.category} :</span> <span className="text-slate-600">{att.name}</span> <span className={att.uploadedId ? "text-emerald-600" : "text-amber-600"}>{att.uploadedId ? "(enregistrée)" : "(à téléverser)"}</span></span>
                 <button className="text-red-400 hover:text-red-600" onClick={() => removeAttachment('client', att.id)} title="Supprimer">
                   <i className="fa-solid fa-trash"></i>
                 </button>
@@ -2853,7 +2892,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <ul className="space-y-2">
               {paymentAttachments.map(att => (
                 <li key={att.id} className="flex justify-between items-center bg-slate-50 px-4 py-2 rounded-lg text-sm border border-slate-100">
-                  <span><span className="font-semibold text-slate-700">{att.category} :</span> <span className="text-slate-600">{att.name}</span></span>
+                  <span><span className="font-semibold text-slate-700">{att.category} :</span> <span className="text-slate-600">{att.name}</span> <span className={att.uploadedId ? "text-emerald-600" : "text-amber-600"}>{att.uploadedId ? "(enregistrée)" : "(à téléverser)"}</span></span>
                   <button className="text-red-400 hover:text-red-600" onClick={() => removeAttachment('payment', att.id)} title="Supprimer">
                     <i className="fa-solid fa-trash"></i>
                   </button>
