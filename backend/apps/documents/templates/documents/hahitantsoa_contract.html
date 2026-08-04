@@ -3,23 +3,39 @@
 <head>
     <meta charset="utf-8">
     <title>{{ context.template.label }}</title>
+    <style>
+        @page { size: A4; margin: 18mm 16mm; }
+        body { font-family: Arial, sans-serif; color: #172033; font-size: 10.5pt; line-height: 1.45; }
+        h1 { margin: 0 0 10mm; padding-bottom: 4mm; border-bottom: 2px solid #172033; font-size: 19pt; }
+        h2 { margin: 9mm 0 3mm; font-size: 13pt; color: #334155; }
+        p { margin: 2.5mm 0; }
+        ul { margin: 2mm 0 0; padding-left: 7mm; }
+        .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 8mm; padding: 5mm; border: 1px solid #cbd5e1; background: #f8fafc; }
+        .meta p { margin: 0; }
+        .meta-label { color: #64748b; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; }
+        .signature-space { height: 28mm; }
+    </style>
 </head>
 <body>
     <h1>{{ context.template.label }}</h1>
-    <p>Reference: {{ context.event_draft.public_reference }}</p>
-    <p>Event: {{ context.event_draft.event_name }}</p>
-    <p>Customer: {{ context.event_draft.customer_display_name }}</p>
-    <p>Customer ID: {{ context.event_draft.customer_id }}</p>
-    <p>Email: {{ context.event_draft.customer_email }}</p>
-    <p>Phone: {{ context.event_draft.customer_phone }}</p>
-    <p>Address: {{ context.event_draft.customer_address }}</p>
-    <p>Identity: {{ context.event_draft.customer_id_type }} {{ context.event_draft.customer_id_number }}</p>
-    <p>Identity issued: {{ context.event_draft.customer_id_issue_date }} at {{ context.event_draft.customer_id_issue_place }}</p>
-    <p>Company identifiers: NIF {{ context.event_draft.customer_nif }}, STAT {{ context.event_draft.customer_stat }}, RCS {{ context.event_draft.customer_rcs }}</p>
-    <p>Representative: {{ context.event_draft.customer_representative_name }} ({{ context.event_draft.customer_representative_role }})</p>
-    <p>Window: {{ context.event_draft.start_at }} to {{ context.event_draft.end_at }}</p>
-    <p>Venue: {{ context.event_draft.venue_name }}</p>
-    <p>Location: {{ context.event_draft.location_details }}</p>
+    <div class="meta">
+        <p><span class="meta-label">Référence</span><br>{{ context.event_draft.public_reference }}</p>
+        <p><span class="meta-label">Événement</span><br>{{ context.event_draft.event_name }}</p>
+        <p><span class="meta-label">Type</span><br>{{ context.event_draft.event_type }}</p>
+        <p><span class="meta-label">Client</span><br>{{ context.event_draft.customer_display_name }}</p>
+        <p><span class="meta-label">Identifiant client</span><br>{{ context.event_draft.customer_id }}</p>
+        <p><span class="meta-label">Contact</span><br>{{ context.event_draft.customer_email }} · {{ context.event_draft.customer_phone }}</p>
+        <p><span class="meta-label">Adresse</span><br>{{ context.event_draft.customer_address }}</p>
+        <p><span class="meta-label">Identité</span><br>{{ context.event_draft.customer_id_type }} {{ context.event_draft.customer_id_number }}</p>
+        <p><span class="meta-label">Pièce délivrée</span><br>{{ context.event_draft.customer_id_issue_date }} · {{ context.event_draft.customer_id_issue_place }}</p>
+        <p><span class="meta-label">Période</span><br>{{ context.event_draft.start_at }} → {{ context.event_draft.end_at }}</p>
+        <p><span class="meta-label">Lieu</span><br>{{ context.event_draft.venue_name }}</p>
+        <p><span class="meta-label">Détails du lieu</span><br>{{ context.event_draft.location_details }}</p>
+    </div>
+
+    <h2>Informations de la société cliente</h2>
+    <p>NIF {{ context.event_draft.customer_nif }}, STAT {{ context.event_draft.customer_stat }}, RCS {{ context.event_draft.customer_rcs }}</p>
+    <p>Représentant : {{ context.event_draft.customer_representative_name }} ({{ context.event_draft.customer_representative_role }})</p>
 
     <h2>Items</h2>
     <ul>
@@ -31,7 +47,9 @@
     {% endfor %}
     </ul>
 
-    <p>Service notes: {{ context.event_draft.service_notes }}</p>
-    <p>Notes: {{ context.event_draft.notes }}</p>
+    <p><strong>Notes de service :</strong> {{ context.event_draft.service_notes }}</p>
+    <p><strong>Notes :</strong> {{ context.event_draft.notes }}</p>
+    <div class="signature-space"></div>
+    <p>Signature du client : ________________________________</p>
 </body>
 </html>

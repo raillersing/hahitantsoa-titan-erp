@@ -19,6 +19,13 @@ class HahitantsoaEventDraftStatus(models.TextChoices):
 HAHITANTSOA_EVENT_DRAFT_STATUS_VALUES = [status.value for status in HahitantsoaEventDraftStatus]
 
 
+class HahitantsoaEventType(models.TextChoices):
+    WEDDING = "wedding", "Mariage"
+    ENGAGEMENT = "engagement", "Fiançailles"
+    CIVIL_WEDDING = "civil_wedding", "Mariage civil"
+    OTHER = "other", "Autre"
+
+
 class HahitantsoaEventDraftAmendmentRequestStatus(models.TextChoices):
     DRAFT = "draft", "draft"
 
@@ -73,6 +80,11 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
         related_name="+",
     )
     event_name = models.CharField(max_length=255)
+    event_type = models.CharField(
+        max_length=32,
+        choices=HahitantsoaEventType.choices,
+        default=HahitantsoaEventType.OTHER,
+    )
     venue_name = models.CharField(max_length=255, blank=True)
     location_details = models.TextField(blank=True)
     service_notes = models.TextField(blank=True)

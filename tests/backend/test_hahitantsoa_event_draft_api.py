@@ -107,6 +107,7 @@ def _payload(customer: Customer, item: InventoryItem) -> dict:
     return {
         "customer_id": str(customer.id),
         "event_name": "Corporate gala",
+        "event_type": "engagement",
         "venue_name": "City venue",
         "location_details": "Main room",
         "service_notes": "DJ and lights",
@@ -216,6 +217,7 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert payload["customer_display_name"] == customer.display_name
     assert payload["public_reference"].startswith("HED-")
     assert payload["event_name"] == "Corporate gala"
+    assert payload["event_type"] == "engagement"
     assert payload["lines"][0]["inventory_item_id"] == str(item.id)
     assert payload["lines"][0]["inventory_item_kind"] == "article"
     assert payload["prerequisite_status"] == _missing_prerequisite_status()

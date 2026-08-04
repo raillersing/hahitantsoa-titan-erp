@@ -124,6 +124,7 @@ def test_generate_hahitantsoa_contract_document_instance_html_success(
     assert "Contrat Hahitantsoa" in result.html_content
     assert draft.public_reference in result.html_content
     assert draft.event_name in result.html_content
+    assert draft.event_type in result.html_content
     with isolated_document_storage.open(instance.storage_path, "rb") as f:
         assert f.read() == result.html_content.encode("utf-8")
 

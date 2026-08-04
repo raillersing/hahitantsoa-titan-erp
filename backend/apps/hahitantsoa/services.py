@@ -784,6 +784,7 @@ def confirm_hahitantsoa_event_draft(
         )
         from apps.documents.services import (
             create_document_instance_from_hahitantsoa_event_draft,
+            generate_document_instance_pdf,
             generate_hahitantsoa_event_draft_document_instance_html,
         )
 
@@ -808,6 +809,8 @@ def confirm_hahitantsoa_event_draft(
                 document_instance_id=discharge.id,
                 actor=actor,
             )
+        if discharge.pdf_storage_path is None:
+            generate_document_instance_pdf(document_instance=discharge, actor=actor)
         _schedule_confirmation_success_audit(
             event_draft=confirmed_event_draft,
             actor=actor,
