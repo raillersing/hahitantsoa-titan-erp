@@ -128,7 +128,9 @@ def test_generate_hahitantsoa_contract_document_instance_html_success(
         assert f.read() == result.html_content.encode("utf-8")
 
 
-def test_hahitantsoa_contract_contains_customer_identity_snapshot(isolated_document_storage) -> None:
+def test_hahitantsoa_contract_contains_customer_identity_snapshot(
+    isolated_document_storage,
+) -> None:
     draft = _hahitantsoa_event_draft_with_line()
     draft.customer.address = "Lot 12 Tana"
     draft.customer.id_type = "CIN"

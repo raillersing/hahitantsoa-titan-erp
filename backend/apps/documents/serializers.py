@@ -15,6 +15,7 @@ from apps.documents.models import (
 )
 from apps.documents.registry import DocumentTemplateDefinition
 from apps.documents.services import get_supported_reservation_draft_document_template_keys
+from apps.finance.models import FinanceBankProfile
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
@@ -120,6 +121,14 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "customer_rcs",
             "customer_representative_name",
             "customer_representative_role",
+            "bank_profile",
+            "bank_name",
+            "bank_branch",
+            "bank_account_holder",
+            "bank_account_number",
+            "bank_rib",
+            "bank_iban",
+            "bank_swift_bic",
             "status",
             "prepared_at",
             "prepared_by",
@@ -295,6 +304,11 @@ class DocumentInstanceCreateSerializer(serializers.Serializer):
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
     proforma_validity_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
+    bank_profile = serializers.PrimaryKeyRelatedField(
+        queryset=FinanceBankProfile.objects.select_related("account"),
+        required=False,
+        allow_null=True,
+    )
 
 
 class DocumentInstanceGenerateSerializer(serializers.Serializer):

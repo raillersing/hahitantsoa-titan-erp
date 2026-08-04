@@ -152,7 +152,7 @@ class UploadedAttachmentDownloadAPIView(APIView):
         )
         try:
             attachment.file.open("rb")
-        except (FileNotFoundError, ValueError):
+        except FileNotFoundError, ValueError:
             raise Http404("Attachment file not found.")
         response = FileResponse(
             attachment.file,
@@ -162,8 +162,7 @@ class UploadedAttachmentDownloadAPIView(APIView):
 
         encoded_name = quote(attachment.original_name)
         response["Content-Disposition"] = (
-            'attachment; filename="attachment"; '
-            f"filename*=UTF-8''{encoded_name}"
+            f"attachment; filename=\"attachment\"; filename*=UTF-8''{encoded_name}"
         )
         return response
 
@@ -332,6 +331,7 @@ class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
                 actor=request.user,
                 notes=serializer.validated_data.get("notes", ""),
                 proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
+                bank_profile=serializer.validated_data.get("bank_profile"),
             )
         except CommercialDocumentContextError as error:
             return Response(

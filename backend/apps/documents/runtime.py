@@ -223,6 +223,14 @@ def generate_document_instance_html(
             )
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_liability_release.html"
+    elif document_instance.template_key == "hahitantsoa.delivery_note.v1":
+        if document_instance.hahitantsoa_event_draft is None:
+            raise DocumentRuntimeGenerationError(
+                "Hahitantsoa delivery note is not linked to an event draft source.",
+                code="hahitantsoa_event_draft_not_found",
+            )
+        context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
+        template_path = "documents/hahitantsoa_delivery_note.html"
     else:
         context = _reservation_document_context(document_instance=document_instance)
         template_path = context.template.template_path
@@ -235,8 +243,19 @@ def generate_document_instance_html(
         template_path = "documents/titan_delivery_note.html"
     elif document_instance.template_key == "shared.return_note.v1":
         template_path = "documents/shared_return_note.html"
+    elif document_instance.template_key == "shared.preparation_sheet.v1":
+        template_path = "documents/preparation_sheet.html"
 
-    html_content = render_to_string(template_path, {"context": context})
+    bank = {
+        "name": document_instance.bank_name,
+        "branch": document_instance.bank_branch,
+        "account_holder": document_instance.bank_account_holder,
+        "account_number": document_instance.bank_account_number,
+        "rib": document_instance.bank_rib,
+        "iban": document_instance.bank_iban,
+        "swift_bic": document_instance.bank_swift_bic,
+    }
+    html_content = render_to_string(template_path, {"context": context, "bank": bank})
 
     if not html_content or not html_content.strip():
         raise DocumentRuntimeGenerationError(

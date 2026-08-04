@@ -237,6 +237,7 @@ class HahitantsoaEventDraftDocumentInstanceCreateSerializer(DocumentInstanceCrea
         choices=(
             ("hahitantsoa.proforma.v1", "hahitantsoa.proforma.v1"),
             ("hahitantsoa.contract.v1", "hahitantsoa.contract.v1"),
+            ("hahitantsoa.delivery_note.v1", "hahitantsoa.delivery_note.v1"),
         )
     )
 

@@ -5,10 +5,14 @@ from django.utils import timezone
 
 from apps.customers.models import Customer
 from apps.documents.commercial import CommercialDocumentContextError
+from apps.documents.models import DocumentInstance
 from apps.documents.services import (
+    create_document_instance_from_reservation_draft,
     get_reservation_draft_commercial_document_context_service,
     get_titan_proforma_draft_preview_payload_service,
 )
+from apps.finance.models import FinanceAccountKind, FinanceBusinessScope
+from apps.finance.services import create_finance_account, create_finance_bank_profile
 from apps.inventory.models import InventoryItem
 from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
@@ -134,3 +138,39 @@ def test_get_titan_proforma_draft_preview_payload_service_rejects_missing_draft(
         get_titan_proforma_draft_preview_payload_service(
             reservation_draft_id="00000000-0000-0000-0000-000000000000",
         )
+
+
+def test_document_preparation_snapshots_the_default_bank(django_user_model) -> None:
+    actor = django_user_model.objects.create_user(
+        username="document-bank", password="test-pass", is_staff=True
+    )
+    account = create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.TITAN,
+        code="BANK-DOC-01",
+        label="Banque documentaire",
+        kind=FinanceAccountKind.BANK,
+    )
+    profile = create_finance_bank_profile(
+        account=account,
+        actor=actor,
+        bank_name="Banque documentaire",
+        account_holder="Titan ERP",
+        rib="RIB-ORIGINAL",
+        is_default_for_documents=True,
+    )
+    document = create_document_instance_from_reservation_draft(
+        reservation_draft=_draft(),
+        template_key="titan.proforma.v1",
+        actor=actor,
+    )
+
+    assert document.bank_profile_id == profile.id
+    assert document.bank_name == "Banque documentaire"
+    assert document.bank_rib == "RIB-ORIGINAL"
+
+    profile.rib = "RIB-MODIFIE"
+    profile.save(update_fields=["rib"])
+    document.refresh_from_db()
+    assert document.bank_rib == "RIB-ORIGINAL"
+    assert DocumentInstance.objects.filter(pk=document.pk).exists()

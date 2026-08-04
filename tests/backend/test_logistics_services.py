@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from django.utils import timezone
 
 from apps.customers.models import Customer
-from apps.inventory.models import InventoryItem
+from apps.inventory.models import InventoryItem, InventoryStockMovement, InventoryStockMovementType
 from apps.logistics.models import (
     LogisticsEvent,
     LogisticsEventItemLine,
@@ -17,6 +17,7 @@ from apps.logistics.services import (
     add_item_line_to_logistics_event,
     complete_handover_passation,
     create_logistics_event,
+    default_logistics_scheduled_at,
     remove_item_line_from_logistics_event,
     transition_logistics_event_status,
     update_logistics_event,
@@ -150,6 +151,94 @@ def test_create_preparation_event_success():
     )
     assert event.event_type == LogisticsEventType.PREPARATION
     assert event.status == LogisticsEventStatus.PLANNED
+
+
+def test_create_event_defaults_to_previous_working_day():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_default_date", password="p", is_staff=True)
+    customer = Customer.objects.create(display_name="Client Monday")
+    monday = timezone.make_aware(datetime(2026, 8, 10, 10, 0))
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=monday,
+        end_at=monday + timedelta(hours=4),
+    )
+
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+    )
+
+    assert event.scheduled_at.date().isoformat() == "2026-08-08"
+    assert event.scheduled_at == default_logistics_scheduled_at(reservation_start_at=monday)
+
+
+def test_dispatch_creates_one_outbound_movement_and_updates_stock():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_dispatch", password="p", is_staff=True)
+    draft = _reservation_draft()
+    item = InventoryItem.objects.create(
+        name="Chaise",
+        kind="material",
+        reported_inventory_quantity=5,
+    )
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.DELIVERY,
+    )
+    add_item_line_to_logistics_event(actor=actor, event=event, inventory_item=item, quantity=2)
+
+    event = transition_logistics_event_status(
+        actor=actor,
+        event=event,
+        new_status=LogisticsEventStatus.DISPATCHED,
+    )
+
+    movement = InventoryStockMovement.objects.get(
+        source_label=f"logistics_event:{event.id}",
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+    )
+    assert event.status == LogisticsEventStatus.DISPATCHED
+    assert movement.quantity == 2
+    assert movement.reservation_draft_id == draft.id
+
+
+def test_dispatch_rejects_insufficient_stock_without_status_change():
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_no_stock", password="p", is_staff=True)
+    draft = _reservation_draft()
+    item = InventoryItem.objects.create(
+        name="Table",
+        kind="material",
+        reported_inventory_quantity=1,
+    )
+    event = create_logistics_event(
+        actor=actor,
+        reservation_draft=draft,
+        event_type=LogisticsEventType.HANDOVER,
+    )
+    add_item_line_to_logistics_event(actor=actor, event=event, inventory_item=item, quantity=2)
+
+    with pytest.raises(LogisticsServiceError, match="Stock insuffisant"):
+        transition_logistics_event_status(
+            actor=actor,
+            event=event,
+            new_status=LogisticsEventStatus.DISPATCHED,
+        )
+
+    event.refresh_from_db()
+    assert event.status == LogisticsEventStatus.PLANNED
+    assert not InventoryStockMovement.objects.filter(
+        source_label=f"logistics_event:{event.id}"
+    ).exists()
 
 
 def test_create_handover_event_success():

@@ -149,6 +149,47 @@ class FinanceAccount(UUIDModel, TimestampedModel):
             raise ValidationError({"label": "Finance account label is required."})
 
 
+class FinanceBankProfile(UUIDModel, TimestampedModel):
+    """Document-facing bank details attached to one scoped bank account.
+
+    Bank details are configuration, not journal history.  Documents copy the
+    values into their own snapshot when prepared so later bank changes cannot
+    rewrite an already-issued document.
+    """
+
+    account = models.OneToOneField(
+        FinanceAccount,
+        on_delete=models.PROTECT,
+        related_name="bank_profile",
+    )
+    bank_name = models.CharField(max_length=255)
+    branch = models.CharField(max_length=255, blank=True)
+    account_holder = models.CharField(max_length=255)
+    account_number = models.CharField(max_length=128, blank=True)
+    rib = models.CharField(max_length=128, blank=True)
+    iban = models.CharField(max_length=128, blank=True)
+    swift_bic = models.CharField(max_length=32, blank=True)
+    is_default_for_documents = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["account__business_scope", "bank_name", "id"]
+
+    def clean(self) -> None:
+        if self.account_id and self.account.kind != FinanceAccountKind.BANK:
+            raise ValidationError({"account": "A bank profile requires a bank account."})
+        if not (self.bank_name or "").strip():
+            raise ValidationError({"bank_name": "Bank name is required."})
+        if not (self.account_holder or "").strip():
+            raise ValidationError({"account_holder": "Account holder is required."})
+        if not any(
+            (value or "").strip()
+            for value in (self.account_number, self.rib, self.iban, self.swift_bic)
+        ):
+            raise ValidationError(
+                "At least one bank identifier (account number, RIB, IBAN or BIC) is required."
+            )
+
+
 class FinancialJournalEntry(UUIDModel, TimestampedModel):
     """Append-only operational ledger line; corrections are new counter-entries."""
 

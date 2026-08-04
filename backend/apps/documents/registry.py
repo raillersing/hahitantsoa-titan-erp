@@ -240,6 +240,23 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         notes=DRAFT_PLACEHOLDER_NOTE,
     ),
     DocumentTemplateDefinition(
+        key="shared.preparation_sheet.v1",
+        business_scope="shared",
+        document_type="preparation_sheet",
+        label="Bon de préparation interne",
+        version="v1",
+        status="generated_draft_template",
+        source_kind="generated_from_brand_style",
+        source_reference="docs/references/source/templates/checking passation.docx",
+        template_path="backend/apps/documents/templates/documents/preparation_sheet.html",
+        preview_path="backend/apps/documents/templates_documents/shared/bon_preparation/v1/preview.pdf",
+        validated_by_client=False,
+        notes=(
+            "Document interne staff : articles et quantités uniquement, sans prix ni données "
+            "financières. Runtime PDF generation is not implemented in F98."
+        ),
+    ),
+    DocumentTemplateDefinition(
         key="shared.internal_release_note.v1",
         business_scope="shared",
         document_type="internal_release_note",

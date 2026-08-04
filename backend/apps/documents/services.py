@@ -21,6 +21,8 @@ from apps.documents.pdf import (
 )
 from apps.documents.runtime import generate_document_instance_html
 from apps.documents.selectors import get_document_instance_by_id
+from apps.finance.models import FinanceBankProfile
+from apps.finance.services import get_default_finance_bank_profile
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
@@ -39,11 +41,13 @@ SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "titan.material_amendment.v1",
     "titan.invoice.v1",
     "shared.return_note.v1",
+    "shared.preparation_sheet.v1",
 )
 SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     HAHITANTSOA_PROFORMA_TEMPLATE_KEY,
     HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
     "hahitantsoa.liability_release.v1",
+    "hahitantsoa.delivery_note.v1",
 )
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"
@@ -337,7 +341,19 @@ def commercial_document_context_to_document_instance_kwargs(
     actor_id: object | None,
     notes: str,
     proforma_validity_days: int | None = None,
+    bank_profile: FinanceBankProfile | None = None,
 ) -> dict[str, object]:
+    bank_profile = bank_profile or get_default_finance_bank_profile(
+        business_scope=context.template.business_scope
+    )
+    if (
+        bank_profile is not None
+        and bank_profile.account.business_scope != context.template.business_scope
+    ):
+        raise CommercialDocumentContextError(
+            "The selected bank does not belong to the document business scope.",
+            code="bank_scope_mismatch",
+        )
     return {
         "reservation_draft": reservation_draft,
         "customer": reservation_draft.customer,
@@ -373,6 +389,14 @@ def commercial_document_context_to_document_instance_kwargs(
         "customer_rcs": context.reservation_draft.customer.rcs,
         "customer_representative_name": context.reservation_draft.customer.representative_name,
         "customer_representative_role": context.reservation_draft.customer.representative_role,
+        "bank_profile": bank_profile,
+        "bank_name": bank_profile.bank_name if bank_profile else "",
+        "bank_branch": bank_profile.branch if bank_profile else "",
+        "bank_account_holder": bank_profile.account_holder if bank_profile else "",
+        "bank_account_number": bank_profile.account_number if bank_profile else "",
+        "bank_rib": bank_profile.rib if bank_profile else "",
+        "bank_iban": bank_profile.iban if bank_profile else "",
+        "bank_swift_bic": bank_profile.swift_bic if bank_profile else "",
         "status": "prepared",
         "prepared_at": timezone.now(),
         "prepared_by_id": actor_id,
@@ -390,6 +414,7 @@ def hahitantsoa_event_draft_document_instance_kwargs(
     actor_id: object | None,
     notes: str,
     proforma_validity_days: int | None = None,
+    bank_profile: FinanceBankProfile | None = None,
 ) -> dict[str, object]:
     from apps.documents.registry import get_document_template_definition
 
@@ -398,6 +423,17 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         raise CommercialDocumentContextError(
             f"Unknown commercial document template key: {template_key}",
             code="unknown_commercial_document_template_key",
+        )
+    bank_profile = bank_profile or get_default_finance_bank_profile(
+        business_scope=template_definition.business_scope
+    )
+    if (
+        bank_profile is not None
+        and bank_profile.account.business_scope != template_definition.business_scope
+    ):
+        raise CommercialDocumentContextError(
+            "The selected bank does not belong to the document business scope.",
+            code="bank_scope_mismatch",
         )
 
     return {
@@ -435,6 +471,14 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         "customer_rcs": event_draft.customer.rcs,
         "customer_representative_name": event_draft.customer.representative_name,
         "customer_representative_role": event_draft.customer.representative_role,
+        "bank_profile": bank_profile,
+        "bank_name": bank_profile.bank_name if bank_profile else "",
+        "bank_branch": bank_profile.branch if bank_profile else "",
+        "bank_account_holder": bank_profile.account_holder if bank_profile else "",
+        "bank_account_number": bank_profile.account_number if bank_profile else "",
+        "bank_rib": bank_profile.rib if bank_profile else "",
+        "bank_iban": bank_profile.iban if bank_profile else "",
+        "bank_swift_bic": bank_profile.swift_bic if bank_profile else "",
         "status": "prepared",
         "prepared_at": timezone.now(),
         "prepared_by_id": actor_id,
@@ -453,6 +497,7 @@ def create_document_instance_from_reservation_draft(
     actor: object | None = None,
     notes: str = "",
     proforma_validity_days: int | None = None,
+    bank_profile: FinanceBankProfile | None = None,
 ) -> DocumentInstance:
     context = build_reservation_draft_commercial_document_context(
         reservation_draft=reservation_draft,
@@ -481,6 +526,7 @@ def create_document_instance_from_reservation_draft(
             actor_id=actor_id,
             notes=notes,
             proforma_validity_days=proforma_validity_days,
+            bank_profile=bank_profile,
         )
     )
     record_audit_event_on_commit(
@@ -516,6 +562,7 @@ def create_document_instance_from_hahitantsoa_event_draft(
     actor: object | None = None,
     notes: str = "",
     proforma_validity_days: int | None = None,
+    bank_profile: FinanceBankProfile | None = None,
 ) -> DocumentInstance:
     validate_supported_hahitantsoa_event_draft_document_template_key(template_key)
     if template_key == HAHITANTSOA_PROFORMA_TEMPLATE_KEY:
@@ -539,6 +586,7 @@ def create_document_instance_from_hahitantsoa_event_draft(
             actor_id=actor_id,
             notes=notes,
             proforma_validity_days=proforma_validity_days,
+            bank_profile=bank_profile,
         )
     )
     record_audit_event_on_commit(

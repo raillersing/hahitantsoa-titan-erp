@@ -177,6 +177,20 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     customer_rcs = models.CharField(max_length=128, blank=True)
     customer_representative_name = models.CharField(max_length=255, blank=True)
     customer_representative_role = models.CharField(max_length=255, blank=True)
+    bank_profile = models.ForeignKey(
+        "finance.FinanceBankProfile",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="document_instances",
+    )
+    bank_name = models.CharField(max_length=255, blank=True)
+    bank_branch = models.CharField(max_length=255, blank=True)
+    bank_account_holder = models.CharField(max_length=255, blank=True)
+    bank_account_number = models.CharField(max_length=128, blank=True)
+    bank_rib = models.CharField(max_length=128, blank=True)
+    bank_iban = models.CharField(max_length=128, blank=True)
+    bank_swift_bic = models.CharField(max_length=32, blank=True)
     status = models.CharField(
         max_length=32,
         choices=DocumentInstanceStatus.choices,

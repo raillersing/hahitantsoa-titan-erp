@@ -10,6 +10,7 @@ from apps.audit.models import AuditEvent
 from apps.finance.models import (
     FIXED_FINANCIAL_CATEGORY_DEFINITIONS,
     FinanceAccountKind,
+    FinanceBankProfile,
     FinanceBusinessScope,
     FinanceCurrency,
     FinancialCategory,
@@ -19,7 +20,9 @@ from apps.finance.models import (
 )
 from apps.finance.services import (
     configure_finance_account,
+    configure_finance_bank_profile,
     create_finance_account,
+    create_finance_bank_profile,
     record_financial_journal_entry,
     seed_fixed_financial_categories,
 )
@@ -194,6 +197,81 @@ def test_finance_account_code_is_unique_inside_scope(django_user_model) -> None:
             code="BANK-01",
             label="Autre banque Titan",
             kind=FinanceAccountKind.BANK,
+        )
+
+
+def test_bank_profiles_are_scoped_defaulted_and_audited(
+    django_user_model, django_capture_on_commit_callbacks
+) -> None:
+    actor = _actor(django_user_model, "bank-manager")
+    first_account = create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.TITAN,
+        code="BANK-01",
+        label="Banque Titan 1",
+        kind=FinanceAccountKind.BANK,
+    )
+    second_account = create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.TITAN,
+        code="BANK-02",
+        label="Banque Titan 2",
+        kind=FinanceAccountKind.BANK,
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        first = create_finance_bank_profile(
+            account=first_account,
+            actor=actor,
+            bank_name="Banque A",
+            account_holder="Titan ERP",
+            rib="RIB-A",
+            is_default_for_documents=True,
+        )
+        second = create_finance_bank_profile(
+            account=second_account,
+            actor=actor,
+            bank_name="Banque B",
+            account_holder="Titan ERP",
+            iban="IBAN-B",
+            is_default_for_documents=True,
+        )
+
+    first.refresh_from_db()
+    assert not first.is_default_for_documents
+    assert second.is_default_for_documents
+    assert (
+        FinanceBankProfile.objects.filter(
+            account__business_scope=FinanceBusinessScope.TITAN,
+            is_default_for_documents=True,
+        ).count()
+        == 1
+    )
+    assert AuditEvent.objects.filter(
+        action="finance.bank_profile_created", target_id=str(second.id)
+    ).exists()
+
+    configure_finance_bank_profile(profile=second, actor=actor, is_default_for_documents=False)
+    assert not FinanceBankProfile.objects.get(pk=second.pk).is_default_for_documents
+
+
+def test_bank_profile_rejects_non_bank_account(django_user_model) -> None:
+    actor = _actor(django_user_model, "bank-invalid")
+    account = create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.HAHITANTSOA,
+        code="CASH-01",
+        label="Caisse",
+        kind=FinanceAccountKind.CASH,
+    )
+
+    with pytest.raises(ValueError, match="bank finance account"):
+        create_finance_bank_profile(
+            account=account,
+            actor=actor,
+            bank_name="Banque",
+            account_holder="Hahitantsoa",
+            rib="RIB",
         )
 
 
