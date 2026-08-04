@@ -556,7 +556,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               if (rows.length === 0) {
                 return (
                   <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
-                    Prix de casse non renseigné.
+                    Aucun matériel n’étant inclus dans cette commande, aucune grille de casse matériel ne s’applique. Les éventuelles dégradations des locaux, espaces verts ou équipements mis à disposition seront évaluées selon les dégâts constatés et facturées selon le coût réel des réparations ou du remplacement.
                   </div>
                 );
               }

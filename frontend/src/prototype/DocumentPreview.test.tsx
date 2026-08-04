@@ -72,7 +72,7 @@ describe('DocumentPreview', () => {
     expect(screen.getByText(/Annexe 2 : Plan de masse et évacuation incendie/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 3 : Prix de casse/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 4 : Liste des intervenants non autorisés/)).toBeInTheDocument();
-    expect(screen.getByText('Prix de casse non renseigné.')).toBeInTheDocument();
+    expect(screen.getByText(/Aucun matériel n’étant inclus dans cette commande/)).toBeInTheDocument();
     expect(screen.queryByText('Table')).not.toBeInTheDocument();
     expect(screen.queryByText('Chaise')).not.toBeInTheDocument();
   });
