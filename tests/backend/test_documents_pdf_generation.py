@@ -3,12 +3,14 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.pdf import (
     DocumentPDFGenerationError,
     MockPDFGenerator,
+    WeasyPrintPDFGenerator,
     build_pdf_artifact_storage_path,
     calculate_pdf_checksum,
     get_pdf_generator,
@@ -66,6 +68,11 @@ class TestGetPDFGenerator:
     def test_default_returns_mock(self) -> None:
         gen = get_pdf_generator()
         assert isinstance(gen, MockPDFGenerator)
+
+    @override_settings(DOCUMENT_PDF_GENERATOR_CLASS="apps.documents.pdf.WeasyPrintPDFGenerator")
+    def test_explicit_runtime_configuration_uses_weasyprint_generator(self) -> None:
+        gen = get_pdf_generator()
+        assert isinstance(gen, WeasyPrintPDFGenerator)
 
 
 class TestGenerateDocumentInstancePDFService:
