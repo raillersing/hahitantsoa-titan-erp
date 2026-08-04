@@ -73,6 +73,7 @@ def test_create_staff_success(staff_authenticated_client):
     assert response.status_code == 201
     data = response.json()
     assert data["display_name"] == "Acme Corp"
+    assert data["public_reference"].startswith("CLI-")
     assert data["email"] == "acme@example.com"
     assert Customer.objects.filter(display_name="Acme Corp").exists()
 

@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -18,6 +20,10 @@ class CustomerLifecycleStatus(models.TextChoices):
 class CustomerPartyType(models.TextChoices):
     INDIVIDUAL = "individual", "Particulier"
     COMPANY = "company", "Entreprise"
+
+
+def generate_customer_public_reference() -> str:
+    return f"CLI-{uuid.uuid4().hex[:12].upper()}"
 
 
 class DesiredDateWaitlistBusinessScope(models.TextChoices):
@@ -41,6 +47,13 @@ class DesiredDateWaitlistStatus(models.TextChoices):
 
 
 class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
+    public_reference = models.CharField(
+        max_length=24,
+        unique=True,
+        db_index=True,
+        default=generate_customer_public_reference,
+        editable=False,
+    )
     display_name = models.CharField(max_length=255)
     lifecycle_status = models.CharField(
         max_length=16,

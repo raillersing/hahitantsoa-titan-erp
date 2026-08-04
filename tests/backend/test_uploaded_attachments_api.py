@@ -74,6 +74,8 @@ def test_sensitive_user_can_upload_and_download_private_attachment(
     attachment = UploadedAttachment.objects.get(pk=payload["id"])
     assert payload["original_name"] == "cin.pdf"
     assert payload["content_type"] == "application/pdf"
+    assert payload["customer_reference"] == customer.public_reference
+    assert f"customers/{customer.public_reference}/attachments/" in attachment.file.name
     assert payload["size_bytes"] == attachment.size_bytes
     assert payload["sha256"] == attachment.sha256
     assert "file" not in payload

@@ -27,6 +27,7 @@ export type InventoryItem = {
 
 export type Customer = {
   id: string;
+  public_reference?: string;
   display_name: string;
   lifecycle_status?: "prospect" | "client";
   party_type?: "individual" | "company";
@@ -554,6 +555,7 @@ export type DocumentInstanceCreatePayload = {
 export type UploadedAttachment = {
   id: string;
   customer_id: string | null;
+  customer_reference?: string | null;
   reservation_draft_id: string | null;
   hahitantsoa_event_draft_id: string | null;
   category: string;

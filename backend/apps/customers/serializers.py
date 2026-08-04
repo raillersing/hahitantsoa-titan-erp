@@ -52,6 +52,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = (
             "id",
+            "public_reference",
             "display_name",
             "lifecycle_status",
             "party_type",
@@ -87,6 +88,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "public_reference",
             "created_at",
             "updated_at",
             "is_deleted",

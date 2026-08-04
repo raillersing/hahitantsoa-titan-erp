@@ -11,7 +11,7 @@ import {
 } from "../api";
 import type { Customer as ApiCustomer, UploadedAttachment } from "../types";
 type Client = {
-  id: string; initials: string; name: string; email: string; phone: string;
+  id: string; reference?: string; initials: string; name: string; email: string; phone: string;
   type: "Particulier" | "Entreprise"; status: "Client" | "Prospect";
   colorClass: string; address?: string; notes?: string;
   idType?: string; idNumber?: string; idIssueDate?: string; idIssuePlace?: string;
@@ -19,6 +19,7 @@ type Client = {
   nif?: string; stat?: string; rcs?: string; repFirstName?: string; repRole?: string;
 };
 type ReservationSummary = { id: string; title: string; date: string; amount: number; status: string; type: string };
+type PendingAttachment = { id: string; file: File; category: string };
 interface CustomerDetailPageProps {
   onNavigate: (scope: any, param?: string) => void;
   param?: string;
@@ -41,6 +42,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
   const [attachmentCategory, setAttachmentCategory] = useState("CIN");
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [attachmentActionError, setAttachmentActionError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
   const reservations: ReservationSummary[] = [];
@@ -50,6 +52,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
 
   const mapApiCustomer = (customer: ApiCustomer): Client => ({
     id: customer.id,
+    reference: customer.public_reference,
     initials: customer.display_name.slice(0, 2).toUpperCase(),
     name: customer.display_name,
     email: customer.email,
@@ -142,17 +145,30 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
     setIsEditing(false);
   };
 
-  const handleAttachmentSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleAttachmentSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    if (!file || !canSensitiveWrite || uploadingAttachment) return;
+    if (!files.length || !canSensitiveWrite || uploadingAttachment) return;
+    setAttachmentActionError(null);
+    setPendingAttachments((current) => [
+      ...current,
+      ...files.map((file) => ({ id: crypto.randomUUID(), file, category: attachmentCategory })),
+    ]);
+  };
+
+  const handleSaveAttachments = async () => {
+    if (!canSensitiveWrite || uploadingAttachment || pendingAttachments.length === 0) return;
     setUploadingAttachment(true);
     setAttachmentActionError(null);
+    const uploaded: UploadedAttachment[] = [];
     try {
-      const uploaded = await uploadAttachment(file, attachmentCategory, { customerId: clientId });
-      setAttachments((current) => [uploaded, ...current]);
+      for (const pending of pendingAttachments) {
+        uploaded.push(await uploadAttachment(pending.file, pending.category, { customerId: clientId }));
+      }
+      setAttachments((current) => [...uploaded.reverse(), ...current]);
+      setPendingAttachments([]);
     } catch (error: unknown) {
-      setAttachmentActionError(error instanceof ApiError ? error.message : "La pièce jointe n’a pas pu être enregistrée.");
+      setAttachmentActionError(error instanceof ApiError ? error.message : "Une ou plusieurs pièces jointes n’ont pas pu être enregistrées. Vérifiez la liste et réessayez.");
     } finally {
       setUploadingAttachment(false);
     }
@@ -380,7 +396,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Pièces jointes</h3>
-                <p className="mt-1 text-xs text-slate-500">Documents associés à cette fiche client.</p>
+                <p className="mt-1 text-xs text-slate-500">Documents associés à cette fiche client. Enregistrement automatique dans le dossier {client.reference || "du client"}.</p>
               </div>
               <div className="flex flex-wrap items-end gap-2">
                 <div>
@@ -405,6 +421,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                   ref={attachmentInputRef}
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                  multiple
                   onChange={handleAttachmentSelected}
                   className="sr-only"
                   aria-label="Sélectionner une pièce jointe"
@@ -421,6 +438,24 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
               </div>
             </div>
             <p className="mb-3 text-xs text-slate-500">Formats acceptés : PDF, JPG, PNG ou WEBP · 10 Mo maximum.</p>
+            {pendingAttachments.length > 0 && (
+              <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3" aria-live="polite">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-indigo-900">{pendingAttachments.length} pièce(s) sélectionnée(s), non encore enregistrée(s)</p>
+                  <button type="button" onClick={() => void handleSaveAttachments()} disabled={uploadingAttachment} className="min-h-11 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-wait disabled:bg-slate-400">
+                    {uploadingAttachment ? "Enregistrement…" : "Enregistrer les pièces jointes"}
+                  </button>
+                </div>
+                <ul className="mt-2 space-y-1">
+                  {pendingAttachments.map((pending) => (
+                    <li key={pending.id} className="flex items-center justify-between gap-2 text-xs text-indigo-800">
+                      <span className="truncate" title={pending.file.name}>{pending.file.name} · {pending.category}</span>
+                      <button type="button" className="min-h-11 px-2 font-semibold underline" onClick={() => setPendingAttachments((current) => current.filter((item) => item.id !== pending.id))}>Retirer</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {uploadingAttachment && <p className="mb-3 text-xs text-indigo-600" role="status" aria-live="polite">Téléversement en cours…</p>}
             {(attachmentsError || attachmentActionError) && (
               <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">

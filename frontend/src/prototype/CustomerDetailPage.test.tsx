@@ -5,7 +5,7 @@ import CustomerDetailPage from './CustomerDetailPage';
 import * as api from '../api';
 
 const customer = (id: string, display_name: string, party_type: 'individual' | 'company', lifecycle_status: 'client' | 'prospect' = 'client') => ({
-  id, display_name, party_type, lifecycle_status, email: `${id.toLowerCase()}@example.test`, phone: '', address: '', notes: '',
+  id, public_reference: `CLI-${id}`, display_name, party_type, lifecycle_status, email: `${id.toLowerCase()}@example.test`, phone: '', address: '', notes: '',
   is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null,
 });
 
@@ -22,7 +22,7 @@ beforeEach(() => {
   }));
   vi.spyOn(api, 'getCustomerAttachments').mockResolvedValue([]);
   vi.spyOn(api, 'uploadAttachment').mockResolvedValue({
-    id: 'ATT-001', customer_id: 'CUST-001', reservation_draft_id: null,
+    id: 'ATT-001', customer_id: 'CUST-001', customer_reference: 'CLI-CUST-001', reservation_draft_id: null,
     hahitantsoa_event_draft_id: null, category: 'CIN', original_name: 'cin.pdf',
     content_type: 'application/pdf', size_bytes: 24, sha256: 'hash', created_at: '',
   });
@@ -101,6 +101,9 @@ describe('CustomerDetailPage', () => {
 
     const file = new File(['%PDF-1.7'], 'cin.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByLabelText('Sélectionner une pièce jointe'), { target: { files: [file] } });
+    expect(await screen.findByText(/1 pièce\(s\) sélectionnée/)).toBeInTheDocument();
+    expect(api.uploadAttachment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Enregistrer les pièces jointes'));
     await waitFor(() => expect(api.uploadAttachment).toHaveBeenCalledWith(
       file,
       'CIN',

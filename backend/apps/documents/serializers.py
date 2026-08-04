@@ -165,6 +165,7 @@ def _attachment_signature_matches(suffix: str, header: bytes) -> bool:
 
 
 class UploadedAttachmentSerializer(serializers.ModelSerializer):
+    customer_reference = serializers.CharField(source="customer.public_reference", read_only=True)
     customer_id = serializers.PrimaryKeyRelatedField(
         source="customer",
         queryset=Customer.objects.filter(is_active=True, is_deleted=False),
@@ -190,6 +191,7 @@ class UploadedAttachmentSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "customer_id",
+            "customer_reference",
             "reservation_draft_id",
             "hahitantsoa_event_draft_id",
             "category",

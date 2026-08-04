@@ -36,7 +36,16 @@ class UploadedAttachmentCategory(models.TextChoices):
 
 
 def uploaded_attachment_path(instance, filename: str) -> str:
-    return f"private_attachments/{instance.id}/{filename}"
+    if instance.customer_id:
+        owner_reference = instance.customer.public_reference
+        owner_folder = f"customers/{owner_reference}"
+    elif instance.reservation_draft_id:
+        owner_folder = f"reservations/{instance.reservation_draft.public_reference}"
+    elif instance.hahitantsoa_event_draft_id:
+        owner_folder = f"events/{instance.hahitantsoa_event_draft.public_reference}"
+    else:
+        owner_folder = "unassigned"
+    return f"private_attachments/{owner_folder}/attachments/{instance.id}/{filename}"
 
 
 class UploadedAttachment(UUIDModel, TimestampedModel, AuditableModel, SoftDeleteModel):
@@ -65,7 +74,7 @@ class UploadedAttachment(UUIDModel, TimestampedModel, AuditableModel, SoftDelete
         max_length=64,
         choices=UploadedAttachmentCategory.choices,
     )
-    file = models.FileField(upload_to=uploaded_attachment_path)
+    file = models.FileField(upload_to=uploaded_attachment_path, max_length=512)
     original_name = models.CharField(max_length=255)
     content_type = models.CharField(max_length=128)
     size_bytes = models.PositiveBigIntegerField()
