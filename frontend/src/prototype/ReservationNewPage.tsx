@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 import { DocumentPreview } from "./DocumentPreview";
 import {
@@ -1845,6 +1845,37 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   const [catalogSubStep, setCatalogSubStep] = useState(1);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogCategory, setCatalogCategory] = useState("all");
+  const [catalogSelection, setCatalogSelection] = useState<"all" | "available" | "selected">("all");
+  const catalogListRef = useRef<HTMLDivElement>(null);
+  const catalogActionRef = useRef<HTMLDivElement>(null);
+
+  const catalogCategories = Array.from(new Set(mockCatalog.map(item => item.category))).sort((a, b) => a.localeCompare(b));
+  const filteredCatalog = mockCatalog.filter(item => {
+    const normalizedSearch = catalogSearch.trim().toLocaleLowerCase();
+    const matchesSearch = !normalizedSearch
+      || item.name.toLocaleLowerCase().includes(normalizedSearch)
+      || item.category.toLocaleLowerCase().includes(normalizedSearch)
+      || item.id.toLocaleLowerCase().includes(normalizedSearch);
+    const matchesCategory = catalogCategory === "all" || item.category === catalogCategory;
+    const isSelected = selectedMaterials.some(material => material.id === item.id && material.quantity > 0);
+    const matchesSelection = catalogSelection === "all"
+      || (catalogSelection === "available" && item.available > 0)
+      || (catalogSelection === "selected" && isSelected);
+    return matchesSearch && matchesCategory && matchesSelection;
+  });
+
+  const resetCatalogFilters = () => {
+    setCatalogSearch("");
+    setCatalogCategory("all");
+    setCatalogSelection("all");
+  };
+
+  const scrollCatalogToAction = () => {
+    catalogListRef.current?.scrollTo({ top: catalogListRef.current.scrollHeight, behavior: "smooth" });
+    catalogActionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  };
 
   const [quantityFeedback, setQuantityFeedback] = useState<string | null>(null);
 
@@ -1893,6 +1924,50 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         setSelectedMaterials([]);
       }
     };
+
+    const renderCatalogToolbar = () => (
+      <div className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+          <div>
+            <label htmlFor="volet-catalog-search" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Rechercher un article
+            </label>
+            <div className="relative">
+              <i className="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true"></i>
+              <input id="volet-catalog-search" type="search" value={catalogSearch} onChange={event => setCatalogSearch(event.target.value)} placeholder="Nom, code ou catégorie" className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="volet-catalog-category" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Catégorie</label>
+            <select id="volet-catalog-category" value={catalogCategory} onChange={event => setCatalogCategory(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option value="all">Toutes les catégories</option>
+              {catalogCategories.map(category => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="volet-catalog-selection" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">Afficher</label>
+            <select id="volet-catalog-selection" value={catalogSelection} onChange={event => setCatalogSelection(event.target.value as typeof catalogSelection)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option value="all">Tous les articles</option>
+              <option value="available">Disponibles uniquement</option>
+              <option value="selected">Articles sélectionnés</option>
+            </select>
+          </div>
+          <button type="button" onClick={resetCatalogFilters} className="min-h-[44px] rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">Réinitialiser</button>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500" aria-live="polite">
+          <span>{filteredCatalog.length} article{filteredCatalog.length > 1 ? "s" : ""} affiché{filteredCatalog.length > 1 ? "s" : ""}</span>
+          {(catalogSearch || catalogCategory !== "all" || catalogSelection !== "all") && <button type="button" onClick={resetCatalogFilters} className="font-semibold text-indigo-600 hover:underline">Effacer les filtres</button>}
+        </div>
+      </div>
+    );
+
+    const renderCatalogEmptyState = () => (
+      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-600">
+        <i className="fa-solid fa-filter-circle-xmark mb-3 text-2xl text-slate-400" aria-hidden="true"></i>
+        <p className="font-semibold">Aucun article ne correspond aux filtres.</p>
+        <button type="button" onClick={resetCatalogFilters} className="mt-2 font-semibold text-indigo-600 hover:underline">Réinitialiser les filtres</button>
+      </div>
+    );
 
     if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package') {
       return (
@@ -2017,8 +2092,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <h4 className="font-bold text-slate-800 mb-1">Articles complémentaires</h4>
                 <p className="text-sm text-slate-600">Ajoutez des articles hors package depuis le catalogue complet.</p>
               </div>
+              {renderCatalogToolbar()}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockCatalog.filter(item => {
+                {filteredCatalog.filter(item => {
                   const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
                   return !pkg?.articles.find(a => a.id === item.id);
                 }).map(item => {
@@ -2051,6 +2127,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   );
                 })}
               </div>
+              {filteredCatalog.filter(item => {
+                const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
+                return !pkg?.articles.find(a => a.id === item.id);
+              }).length === 0 && renderCatalogEmptyState()}
             </div>
           )}
 
@@ -2088,6 +2168,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
         <h3 className="text-lg font-bold text-slate-800 mb-2">Catalogue Matériels</h3>
         <p className="text-sm text-slate-500 mb-6">Sélectionnez les articles souhaités.</p>
+        {renderCatalogToolbar()}
         
         {quantityFeedback && (
           <div className="mb-4 p-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
@@ -2096,8 +2177,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {mockCatalog.map(item => {
+        <div className="relative">
+          <div ref={catalogListRef} className="max-h-[min(55vh,520px)] overflow-y-auto scroll-smooth pr-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {filteredCatalog.map(item => {
               const selected = selectedMaterials.find(m => m.id === item.id);
               const currentQty = selected ? selected.quantity : 0;
               return (
@@ -2129,14 +2212,28 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 </div>
               );
             })}
+            </div>
+            {filteredCatalog.length === 0 && renderCatalogEmptyState()}
           </div>
+          {filteredCatalog.length > 0 && (
+            <button
+              type="button"
+              onClick={scrollCatalogToAction}
+              className="absolute bottom-3 right-4 z-10 flex min-h-[44px] items-center gap-2 rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-slate-700"
+              aria-label="Faire défiler jusqu'à l'action suivante"
+            >
+              <i className="fa-solid fa-arrow-down" aria-hidden="true"></i>
+              Aller à l’action suivante
+            </button>
+          )}
+        </div>
 
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
           <span className="font-semibold text-slate-700">Total Matériels sélectionnés :</span>
           <span className="text-xl font-bold text-indigo-600">{materialsTotal.toLocaleString('fr-FR')} Ar</span>
         </div>
 
-        <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
+        <div ref={catalogActionRef} className="sticky bottom-0 z-10 flex justify-between mt-8 pt-4 border-t border-slate-100 bg-white/95 pb-1 backdrop-blur">
           <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
           <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>{domain === 'hahitantsoa' ? 'Aller aux Services' : 'Aller à la Livraison'}</button>
         </div>

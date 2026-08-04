@@ -443,6 +443,11 @@ describe('ReservationNewPage', () => {
       const inputs = screen.getAllByPlaceholderText('0');
       expect(inputs.length).toBeGreaterThan(0);
     });
+    fireEvent.change(screen.getByLabelText('Rechercher un article'), { target: { value: 'Chaise' } });
+    expect(screen.getByText('Chaise Napoléon transparente')).toBeInTheDocument();
+    expect(screen.queryByText('Table rectangulaire')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Faire défiler jusqu'à l'action suivante/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser' }));
     const inputs = screen.getAllByPlaceholderText('0');
     fireEvent.change(inputs[0], { target: { value: '5' } }); // Chaise
 
