@@ -13,6 +13,7 @@ from apps.inventory.models import (
     InventoryReturnOperation,
     InventoryReturnOperationLine,
     InventoryStockMovement,
+    InventoryStockMovementType,
 )
 from apps.inventory.scope import assert_titan_allowed_item_kind
 from apps.logistics.models import LogisticsEvent
@@ -21,6 +22,54 @@ from apps.reservations.models import ReservationDraft
 
 class InventoryItemSerializer(serializers.ModelSerializer):
     kind = serializers.CharField(max_length=32)
+    stock_summary = serializers.SerializerMethodField()
+
+    def get_stock_summary(self, obj):
+        movements = list(obj.stock_movements.all()) if not obj._state.adding else []
+        initial_movements = [
+            movement
+            for movement in movements
+            if movement.source_label == "Initial inventory import"
+        ]
+        if initial_movements:
+            baseline = sum(movement.quantity for movement in initial_movements)
+            operational_movements = [
+                movement for movement in movements if movement not in initial_movements
+            ]
+        else:
+            baseline = obj.reported_inventory_quantity
+            operational_movements = movements
+
+        current_stock = max(
+            baseline + sum(movement.signed_quantity for movement in operational_movements),
+            0,
+        )
+        outbound = sum(
+            movement.quantity
+            for movement in operational_movements
+            if movement.movement_type == InventoryStockMovementType.OUTBOUND_DELIVERY
+        )
+        returns = sum(
+            movement.quantity
+            for movement in operational_movements
+            if movement.movement_type == InventoryStockMovementType.INBOUND_RETURN
+        )
+        damaged_lost = sum(
+            movement.quantity
+            for movement in operational_movements
+            if movement.movement_type
+            in {InventoryStockMovementType.DAMAGE, InventoryStockMovementType.LOSS}
+        )
+        return {
+            "reported_inventory_quantity": obj.reported_inventory_quantity,
+            "reported_damaged_quantity": obj.reported_damaged_quantity,
+            "current_stock": current_stock,
+            "available_stock": max(current_stock - obj.reported_damaged_quantity, 0),
+            "reserved_stock": 0,
+            "out_stock": outbound,
+            "return_stock": returns,
+            "damaged_lost_stock": damaged_lost,
+        }
 
     class Meta:
         model = InventoryItem
@@ -29,6 +78,15 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             "name",
             "kind",
             "description",
+            "code",
+            "section",
+            "unit",
+            "purchase_price",
+            "rental_price",
+            "breakage_price",
+            "reported_inventory_quantity",
+            "reported_damaged_quantity",
+            "stock_summary",
             "is_active",
             "created_at",
             "updated_at",

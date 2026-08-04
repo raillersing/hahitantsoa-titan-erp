@@ -523,6 +523,7 @@ class HahitantsoaEventDraftDocumentInstanceListCreateAPIView(generics.ListCreate
             actor=request.user,
             notes=serializer.validated_data.get("notes", ""),
             proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
+            bank_profile=serializer.validated_data.get("bank_profile"),
         )
         return Response(
             HahitantsoaEventDraftDocumentInstanceSerializer(instance).data,

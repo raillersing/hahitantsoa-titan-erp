@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Bon de livraison Hahitantsoa</title>
+  <style>
+    @page { size: A4; margin: 14mm; }
+    body { color: #17202a; font-family: Arial, sans-serif; font-size: 10pt; }
+    h1, h2 { color: #1d4d6b; }
+    h1 { font-size: 19pt; margin: 0; }
+    h2 { border-bottom: 1px solid #9aa6b2; font-size: 12pt; margin: 18px 0 7px; padding-bottom: 3px; }
+    .meta { border: 1px solid #9aa6b2; margin: 12px 0; padding: 9px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #9aa6b2; padding: 5px; }
+    th { background: #eaf1f5; text-align: left; }
+    .check { text-align: center; width: 38px; }
+    .small { font-size: 8.5pt; }
+    .signature { display: inline-block; min-width: 42%; margin-top: 28px; }
+  </style>
+</head>
+<body>
+  <h1>Bon de livraison — Hahitantsoa</h1>
+  <div class="meta">
+    <div><strong>Référence :</strong> {{ context.event_draft.public_reference }}</div>
+    <div><strong>Client :</strong> {{ context.event_draft.customer_display_name }}</div>
+    <div><strong>Lieu :</strong> {{ context.event_draft.venue_name }} {{ context.event_draft.location_details }}</div>
+    <div><strong>Évènement :</strong> {{ context.event_draft.event_name }}</div>
+  </div>
+  <h2>Articles livrés</h2>
+  <table><thead><tr><th>Article</th><th>Type</th><th>Quantité</th><th>Observations</th></tr></thead><tbody>
+    {% for line in context.event_draft.lines %}<tr><td>{{ line.inventory_item_name }}</td><td>{{ line.inventory_item_kind }}</td><td>{{ line.quantity }}</td><td>{{ line.notes }}</td></tr>
+    {% empty %}<tr><td colspan="4">Aucun article commandé.</td></tr>{% endfor %}
+  </tbody></table>
+  <h2>Checklist de passation manuelle</h2>
+  <table class="small">
+    <thead><tr><th class="check">OK</th><th>Zone / élément</th><th>Observation</th></tr></thead>
+    <tbody>
+      <tr><td class="check">☐</td><td>Cuisine — prises, interrupteurs, évier, réfrigérateur, congélateur</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Cuisine — poubelles, bassin extérieur, balais, serpillères, raclette, pelle</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Porte / serrure et toilettes prestataires</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Groupe — niveau de carburant : ______ %</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Salle — vitrage et prises</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Jardin — prises</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Toilettes invités — lavabos, prises, cuvettes, urinoirs, portes / serrures</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Petit salon — fauteuils, tapis, table, miroir, penderie, rideaux, volet, prise, interrupteur, porte / serrure</td><td></td></tr>
+      <tr><td class="check">☐</td><td>Salle d’eau mariés — lavabo, cuvette, serviettes, interrupteur, prise, douche, porte / serrure</td><td></td></tr>
+    </tbody>
+  </table>
+  <div class="signature"><strong>Remis par :</strong><br><br>Signature : ____________________</div>
+  <div class="signature"><strong>Reçu par :</strong><br><br>Signature : ____________________</div>
+</body>
+</html>

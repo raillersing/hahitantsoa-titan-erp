@@ -73,6 +73,20 @@ class CommercialDocumentCustomerContext:
     email: str
     phone: str
     address: str
+    civilite: str
+    birth_date: object | None
+    birth_place: str
+    id_type: str
+    id_number: str
+    id_issue_date: object | None
+    id_issue_place: str
+    id_duplicata_date: object | None
+    id_duplicata_place: str
+    nif: str
+    stat: str
+    rcs: str
+    representative_name: str
+    representative_role: str
 
 
 @dataclass(frozen=True)
@@ -148,6 +162,20 @@ def _build_customer_context(
         email=customer.email or "",
         phone=customer.phone or "",
         address=customer.address or "",
+        civilite=customer.civilite or "",
+        birth_date=customer.birth_date,
+        birth_place=customer.birth_place or "",
+        id_type=customer.id_type or "",
+        id_number=customer.id_number or "",
+        id_issue_date=customer.id_issue_date,
+        id_issue_place=customer.id_issue_place or "",
+        id_duplicata_date=customer.id_duplicata_date,
+        id_duplicata_place=customer.id_duplicata_place or "",
+        nif=customer.nif or "",
+        stat=customer.stat or "",
+        rcs=customer.rcs or "",
+        representative_name=customer.representative_name or "",
+        representative_role=customer.representative_role or "",
     )
 
 

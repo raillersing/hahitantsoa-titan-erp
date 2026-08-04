@@ -3,11 +3,11 @@ import BrandIdentity from "./BrandIdentity";
 import { LoadingSpinner, EmptyState } from "../components";
 import {
   getHahitantsoaDiscoveryItems,
-  getReservationDrafts,
+  getHahitantsoaEventDrafts,
 } from "../api";
 import type {
   HahitantsoaDiscoveryItem,
-  ReservationDraft,
+  HahitantsoaEventDraft,
 } from "../types";
 
 interface HahitantsoaPageProps {
@@ -15,13 +15,12 @@ interface HahitantsoaPageProps {
   canSensitiveWrite?: boolean;
 }
 
-type FilterKey = "all" | "draft" | "confirmed" | "cancelled";
+type FilterKey = "all" | "draft" | "confirmed";
 
 const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "Toutes" },
   { key: "draft", label: "En attente" },
   { key: "confirmed", label: "Confirmées" },
-  { key: "cancelled", label: "Annulées" },
 ];
 
 function formatStatusBadge(status: string) {
@@ -88,7 +87,7 @@ export default function HahitantsoaPage({
   onNavigate,
   canSensitiveWrite = false,
 }: HahitantsoaPageProps) {
-  const [drafts, setDrafts] = useState<ReservationDraft[]>([]);
+  const [drafts, setDrafts] = useState<HahitantsoaEventDraft[]>([]);
   const [discoveryItems, setDiscoveryItems] = useState<
     HahitantsoaDiscoveryItem[]
   >([]);
@@ -105,7 +104,7 @@ export default function HahitantsoaPage({
       setError(null);
       try {
         const [draftsData, discoveryData] = await Promise.all([
-          getReservationDrafts(undefined, controller.signal),
+          getHahitantsoaEventDrafts(undefined, controller.signal),
           getHahitantsoaDiscoveryItems(controller.signal),
         ]);
         if (!controller.signal.aborted) {
@@ -286,9 +285,7 @@ export default function HahitantsoaPage({
                   >
                     <td className="px-4 py-3">
                       <button
-                        onClick={() =>
-                          onNavigate("reservation-detail", r.id)
-                        }
+                        onClick={() => onNavigate("customer", r.customer_id)}
                         className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
                       >
                         {r.public_reference}
@@ -328,9 +325,7 @@ export default function HahitantsoaPage({
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
-                        onClick={() =>
-                          onNavigate("reservation-detail", r.id)
-                        }
+                        onClick={() => onNavigate("customer", r.customer_id)}
                         className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
                       >
                         <i className="fa-solid fa-eye text-[10px]"></i>

@@ -15,6 +15,7 @@ interface DisplayItem {
   outStock: number;
   expectedReturnStock: number;
   brokenLostStock: number;
+  purchasePrice: number;
   unitPrice: number;
   breakagePrice: number;
   status: "OK" | "Bas" | "Rupture";
@@ -22,26 +23,55 @@ interface DisplayItem {
   description?: string;
 }
 
-/** Map backend InventoryItem → DisplayItem (defaults for stock fields). */
+type InventoryColumn =
+  | "photo" | "type" | "category" | "purchase_price" | "rental_price"
+  | "breakage_price" | "total" | "available" | "reserved" | "out"
+  | "return" | "damaged" | "status";
+
+const INVENTORY_COLUMN_OPTIONS: Array<{ key: InventoryColumn; label: string }> = [
+  { key: "photo", label: "Photo" },
+  { key: "type", label: "Type" },
+  { key: "category", label: "Catégorie" },
+  { key: "purchase_price", label: "Prix d'achat" },
+  { key: "rental_price", label: "Prix de location" },
+  { key: "breakage_price", label: "Prix de casse" },
+  { key: "total", label: "Stock actuel" },
+  { key: "available", label: "Disponible" },
+  { key: "reserved", label: "Réservé" },
+  { key: "out", label: "Sorti" },
+  { key: "return", label: "Retour" },
+  { key: "damaged", label: "Casse/perte" },
+  { key: "status", label: "Statut" },
+];
+
+const DEFAULT_VISIBLE_COLUMNS: InventoryColumn[] = INVENTORY_COLUMN_OPTIONS.map(({ key }) => key);
+const INVENTORY_COLUMNS_STORAGE_KEY = "titan.inventory.visible-columns.v1";
+
+/** Map backend InventoryItem → DisplayItem using the imported inventory metadata. */
 function toDisplayItem(item: InventoryItem): DisplayItem {
   const typeMap: Record<string, DisplayItem["type"]> = {
     material: "Location",
     article: "Location",
     material_pack: "Location",
   };
+  const stock = item.stock_summary;
+  const reportedStock = stock?.reported_inventory_quantity ?? item.reported_inventory_quantity ?? 0;
+  const totalStock = stock?.current_stock ?? reportedStock;
+  const brokenLostStock = stock?.damaged_lost_stock ?? item.reported_damaged_quantity ?? 0;
   return {
     id: item.id,
     name: item.name,
     type: typeMap[item.kind] ?? "Location",
-    category: item.kind,
-    totalStock: 0,
-    availableStock: 0,
-    reservedStock: 0,
-    outStock: 0,
-    expectedReturnStock: 0,
-    brokenLostStock: 0,
-    unitPrice: 0,
-    breakagePrice: 0,
+    category: item.section || item.kind,
+    totalStock,
+    availableStock: stock?.available_stock ?? Math.max(totalStock - brokenLostStock, 0),
+    reservedStock: stock?.reserved_stock ?? 0,
+    outStock: stock?.out_stock ?? 0,
+    expectedReturnStock: stock?.return_stock ?? 0,
+    brokenLostStock,
+    purchasePrice: Number(item.purchase_price ?? 0),
+    unitPrice: Number(item.rental_price ?? 0),
+    breakagePrice: Number(item.breakage_price ?? 0),
     status: "OK",
     description: item.description,
   };
@@ -51,6 +81,30 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const [filter, setFilter] = useState("Tous");
   const [searchQuery, setSearchQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<InventoryColumn[]>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(INVENTORY_COLUMNS_STORAGE_KEY) || "null");
+      return Array.isArray(saved) ? saved : DEFAULT_VISIBLE_COLUMNS;
+    } catch {
+      return DEFAULT_VISIBLE_COLUMNS;
+    }
+  });
+
+  const isColumnVisible = (column: InventoryColumn) => visibleColumns.includes(column);
+  const toggleColumn = (column: InventoryColumn) => {
+    setVisibleColumns((current) => {
+      const next = current.includes(column)
+        ? current.filter((value) => value !== column)
+        : [...current, column];
+      localStorage.setItem(INVENTORY_COLUMNS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const resetColumns = () => {
+    setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+    localStorage.setItem(INVENTORY_COLUMNS_STORAGE_KEY, JSON.stringify(DEFAULT_VISIBLE_COLUMNS));
+  };
 
   // Remote data state
   const [inventory, setInventory] = useState<DisplayItem[]>([]);
@@ -156,6 +210,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       category: "",
       imageUrl: "",
       unitPrice: 0,
+      purchasePrice: 0,
       breakagePrice: 0,
       totalStock: 0,
       availableStock: 0,
@@ -352,40 +407,66 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               )}
             </div>
           </div>
-          <button onClick={handleOpenCreate} className="px-4 py-2 bg-tit-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-tit-700 whitespace-nowrap ml-4">
-            <i className="fas fa-plus mr-2"></i>Nouvel Article
-          </button>
+          <div className="relative ml-4 flex gap-2">
+            <button type="button" onClick={() => setColumnsOpen((open) => !open)} className="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 whitespace-nowrap">
+              <i className="fas fa-table-columns mr-2"></i>Colonnes
+            </button>
+            <button onClick={handleOpenCreate} className="px-4 py-2 bg-tit-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-tit-700 whitespace-nowrap">
+              <i className="fas fa-plus mr-2"></i>Nouvel Article
+            </button>
+            {columnsOpen && (
+              <div className="absolute right-0 top-12 z-20 w-64 rounded-xl border border-slate-200 bg-white p-4 shadow-xl" role="dialog" aria-label="Colonnes visibles">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-bold text-slate-800">Colonnes visibles</p>
+                  <button type="button" onClick={resetColumns} className="text-xs font-semibold text-tit-600 hover:underline">Réinitialiser</button>
+                </div>
+                <div className="space-y-2">
+                  {INVENTORY_COLUMN_OPTIONS.map((column) => (
+                    <label key={column.key} className="flex items-center gap-2 text-sm text-slate-700">
+                      <input type="checkbox" checked={isColumnVisible(column.key)} onChange={() => toggleColumn(column.key)} />
+                      {column.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-3 text-[11px] text-slate-500">Article et Actions restent toujours visibles.</p>
+              </div>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                <th className="p-4 font-bold border-b border-slate-200">Photo</th>
+                {isColumnVisible("photo") && <th className="p-4 font-bold border-b border-slate-200">Photo</th>}
                 <th className="p-4 font-bold border-b border-slate-200">Article</th>
-                <th className="p-4 font-bold border-b border-slate-200">Type</th>
-                <th className="p-4 font-bold border-b border-slate-200">Catégorie</th>
-                <th className="p-4 font-bold border-b border-slate-200 text-right">Total</th>
-                <th className="p-4 font-bold border-b border-slate-200 text-right">Dispo</th>
-                <th className="p-4 font-bold border-b border-slate-200 text-right">Réservé</th>
-                <th className="p-4 font-bold border-b border-slate-200 text-right">Sorti</th>
-                <th className="p-4 font-bold border-b border-slate-200 text-right">Retour</th>
-                <th className="p-4 font-bold border-b border-slate-200 text-center">Statut</th>
+                {isColumnVisible("type") && <th className="p-4 font-bold border-b border-slate-200">Type</th>}
+                {isColumnVisible("category") && <th className="p-4 font-bold border-b border-slate-200">Catégorie</th>}
+                {isColumnVisible("purchase_price") && <th className="p-4 font-bold border-b border-slate-200 text-right">Prix achat</th>}
+                {isColumnVisible("rental_price") && <th className="p-4 font-bold border-b border-slate-200 text-right">Prix location</th>}
+                {isColumnVisible("breakage_price") && <th className="p-4 font-bold border-b border-slate-200 text-right">Prix casse</th>}
+                {isColumnVisible("total") && <th className="p-4 font-bold border-b border-slate-200 text-right">Stock actuel</th>}
+                {isColumnVisible("available") && <th className="p-4 font-bold border-b border-slate-200 text-right">Dispo</th>}
+                {isColumnVisible("reserved") && <th className="p-4 font-bold border-b border-slate-200 text-right">Réservé</th>}
+                {isColumnVisible("out") && <th className="p-4 font-bold border-b border-slate-200 text-right">Sorti</th>}
+                {isColumnVisible("return") && <th className="p-4 font-bold border-b border-slate-200 text-right">Retour</th>}
+                {isColumnVisible("damaged") && <th className="p-4 font-bold border-b border-slate-200 text-right">Casse/perte</th>}
+                {isColumnVisible("status") && <th className="p-4 font-bold border-b border-slate-200 text-center">Statut</th>}
                 <th className="p-4 font-bold border-b border-slate-200 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
               {filteredData.map(item => (
                 <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4">
+                  {isColumnVisible("photo") && <td className="p-4">
                     <div className="w-10 h-10 bg-slate-200 rounded overflow-hidden flex items-center justify-center">
                       {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" /> : <i className="fas fa-image text-slate-400"></i>}
                     </div>
-                  </td>
+                  </td>}
                   <td className="p-4 font-bold text-slate-800 cursor-pointer" onClick={() => onNavigate("inventory-item", item.id)}>
                     {item.name}
                     <div className="text-xs text-slate-500 font-normal">{item.id}</div>
                   </td>
-                  <td className="p-4">
+                  {isColumnVisible("type") && <td className="p-4">
                     <span className={`px-2 py-1 text-[10px] font-bold uppercase rounded-full ${
                       item.type === "Location" ? "bg-indigo-100 text-indigo-700" :
                       item.type === "Consommable" ? "bg-amber-100 text-amber-700" :
@@ -393,14 +474,18 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                     }`}>
                       {item.type}
                     </span>
-                  </td>
-                  <td className="p-4 text-slate-600">{item.category}</td>
-                  <td className="p-4 text-slate-800 font-medium text-right">{item.totalStock}</td>
-                  <td className="p-4 text-emerald-600 font-bold text-right">{item.availableStock}</td>
-                  <td className="p-4 text-blue-600 font-medium text-right">{item.reservedStock}</td>
-                  <td className="p-4 text-purple-600 font-medium text-right">{item.outStock}</td>
-                  <td className="p-4 text-amber-600 font-medium text-right">{item.expectedReturnStock}</td>
-                  <td className="p-4 text-center">
+                  </td>}
+                  {isColumnVisible("category") && <td className="p-4 text-slate-600">{item.category}</td>}
+                  {isColumnVisible("purchase_price") && <td className="p-4 text-slate-800 text-right">{item.purchasePrice.toLocaleString()} Ar</td>}
+                  {isColumnVisible("rental_price") && <td className="p-4 text-slate-800 text-right">{item.unitPrice.toLocaleString()} Ar</td>}
+                  {isColumnVisible("breakage_price") && <td className="p-4 text-slate-800 text-right">{item.breakagePrice.toLocaleString()} Ar</td>}
+                  {isColumnVisible("total") && <td className="p-4 text-slate-800 font-medium text-right">{item.totalStock}</td>}
+                  {isColumnVisible("available") && <td className="p-4 text-emerald-600 font-bold text-right">{item.availableStock}</td>}
+                  {isColumnVisible("reserved") && <td className="p-4 text-blue-600 font-medium text-right">{item.reservedStock}</td>}
+                  {isColumnVisible("out") && <td className="p-4 text-purple-600 font-medium text-right">{item.outStock}</td>}
+                  {isColumnVisible("return") && <td className="p-4 text-amber-600 font-medium text-right">{item.expectedReturnStock}</td>}
+                  {isColumnVisible("damaged") && <td className="p-4 text-red-600 font-medium text-right">{item.brokenLostStock}</td>}
+                  {isColumnVisible("status") && <td className="p-4 text-center">
                     {item.status === "OK" ? (
                       <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">OK</span>
                     ) : item.status === "Bas" ? (
@@ -408,7 +493,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                     ) : (
                       <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">Rupture</span>
                     )}
-                  </td>
+                  </td>}
                   <td className="p-4 text-right whitespace-nowrap">
                     <button className="text-slate-400 hover:text-tit-600 px-1.5" onClick={() => onNavigate("inventory-item", item.id)} aria-label={`Détail ${item.name}`} title="Détail">
                       <i className="fas fa-eye" aria-hidden="true"></i>
@@ -430,7 +515,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               ))}
               {filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-slate-500">Aucun article trouvé.</td>
+                  <td colSpan={visibleColumns.length + 2} className="p-8 text-center text-slate-500">Aucun article trouvé.</td>
                 </tr>
               )}
             </tbody>

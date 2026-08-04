@@ -9,6 +9,14 @@
     <p>Reference: {{ context.event_draft.public_reference }}</p>
     <p>Event: {{ context.event_draft.event_name }}</p>
     <p>Customer: {{ context.event_draft.customer_display_name }}</p>
+    <p>Customer ID: {{ context.event_draft.customer_id }}</p>
+    <p>Email: {{ context.event_draft.customer_email }}</p>
+    <p>Phone: {{ context.event_draft.customer_phone }}</p>
+    <p>Address: {{ context.event_draft.customer_address }}</p>
+    <p>Identity: {{ context.event_draft.customer_id_type }} {{ context.event_draft.customer_id_number }}</p>
+    <p>Identity issued: {{ context.event_draft.customer_id_issue_date }} at {{ context.event_draft.customer_id_issue_place }}</p>
+    <p>Company identifiers: NIF {{ context.event_draft.customer_nif }}, STAT {{ context.event_draft.customer_stat }}, RCS {{ context.event_draft.customer_rcs }}</p>
+    <p>Representative: {{ context.event_draft.customer_representative_name }} ({{ context.event_draft.customer_representative_role }})</p>
     <p>Window: {{ context.event_draft.start_at }} to {{ context.event_draft.end_at }}</p>
     <p>Venue: {{ context.event_draft.venue_name }}</p>
     <p>Location: {{ context.event_draft.location_details }}</p>

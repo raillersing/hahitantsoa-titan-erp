@@ -228,6 +228,25 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert line.updated_by is None
 
 
+def test_authenticated_user_can_create_hahitantsoa_event_draft_without_inventory_lines(
+    authenticated_client,
+) -> None:
+    customer = _customer()
+    payload = _payload(customer, _item())
+    payload["lines"] = []
+
+    response = authenticated_client.post(
+        EVENT_DRAFT_LIST_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["lines"] == []
+    assert HahitantsoaEventDraft.objects.count() == 1
+    assert HahitantsoaEventDraftLine.objects.count() == 0
+
+
 def test_authenticated_user_can_read_event_draft_list_and_detail(authenticated_client) -> None:
     start_at, end_at = _period()
     user = authenticated_client.test_user

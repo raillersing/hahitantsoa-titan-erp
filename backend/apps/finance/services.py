@@ -16,11 +16,123 @@ from .models import (
     FIXED_FINANCIAL_CATEGORY_DEFINITIONS,
     FinanceAccount,
     FinanceAccountKind,
+    FinanceBankProfile,
     FinancialCategory,
     FinancialCategoryKind,
     FinancialJournalDirection,
     FinancialJournalEntry,
 )
+
+
+def _validate_bank_profile_scope(*, bank_profile: FinanceBankProfile, business_scope: str) -> None:
+    if bank_profile.account.business_scope != business_scope:
+        raise ValueError("The selected bank belongs to another business scope.")
+    if not bank_profile.account.is_active:
+        raise ValueError("The selected bank account is inactive.")
+
+
+def _set_default_bank_profile(*, profile: FinanceBankProfile) -> None:
+    FinanceBankProfile.objects.filter(
+        account__business_scope=profile.account.business_scope,
+        is_default_for_documents=True,
+    ).exclude(pk=profile.pk).update(is_default_for_documents=False)
+
+
+@transaction.atomic
+def create_finance_bank_profile(
+    *,
+    account: FinanceAccount,
+    actor,
+    bank_name: str,
+    account_holder: str,
+    branch: str = "",
+    account_number: str = "",
+    rib: str = "",
+    iban: str = "",
+    swift_bic: str = "",
+    is_default_for_documents: bool = False,
+) -> FinanceBankProfile:
+    require_reservation_sensitive_actor(actor=actor)
+    locked_account = FinanceAccount.objects.select_for_update().get(pk=account.pk)
+    if locked_account.kind != FinanceAccountKind.BANK:
+        raise ValueError("A bank profile requires a bank finance account.")
+    profile = FinanceBankProfile(
+        account=locked_account,
+        bank_name=bank_name,
+        account_holder=account_holder,
+        branch=branch,
+        account_number=account_number,
+        rib=rib,
+        iban=iban,
+        swift_bic=swift_bic,
+        is_default_for_documents=is_default_for_documents,
+    )
+    profile.full_clean()
+    profile.save()
+    if profile.is_default_for_documents:
+        _set_default_bank_profile(profile=profile)
+    record_audit_event_on_commit(
+        actor=actor,
+        action="finance.bank_profile_created",
+        target_type="finance_bank_profile",
+        target_id=str(profile.id),
+        metadata={
+            "business_scope": locked_account.business_scope,
+            "default": profile.is_default_for_documents,
+        },
+    )
+    return profile
+
+
+@transaction.atomic
+def configure_finance_bank_profile(
+    *, profile: FinanceBankProfile, actor, is_default_for_documents: bool | None = None, **fields
+) -> FinanceBankProfile:
+    require_reservation_sensitive_actor(actor=actor)
+    locked = (
+        FinanceBankProfile.objects.select_for_update().select_related("account").get(pk=profile.pk)
+    )
+    allowed = {
+        "bank_name",
+        "branch",
+        "account_holder",
+        "account_number",
+        "rib",
+        "iban",
+        "swift_bic",
+    }
+    for field, value in fields.items():
+        if field not in allowed:
+            raise ValueError(f"Unsupported bank profile field: {field}")
+        setattr(locked, field, value)
+    if is_default_for_documents is not None:
+        locked.is_default_for_documents = is_default_for_documents
+    locked.full_clean()
+    locked.save()
+    if locked.is_default_for_documents:
+        _set_default_bank_profile(profile=locked)
+    record_audit_event_on_commit(
+        actor=actor,
+        action="finance.bank_profile_configured",
+        target_type="finance_bank_profile",
+        target_id=str(locked.id),
+        metadata={"default": locked.is_default_for_documents},
+    )
+    return locked
+
+
+def get_default_finance_bank_profile(*, business_scope: str) -> FinanceBankProfile | None:
+    return (
+        FinanceBankProfile.objects.select_related("account")
+        .filter(
+            account__business_scope=business_scope,
+            account__kind=FinanceAccountKind.BANK,
+            account__is_active=True,
+            is_default_for_documents=True,
+        )
+        .first()
+    )
+
 
 FINANCIAL_CATEGORY_MANAGER_PERMISSION_DENIED_MESSAGE = (
     "Actor is not allowed to manage fixed financial categories; manager access is required."

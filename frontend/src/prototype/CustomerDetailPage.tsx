@@ -1,16 +1,30 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AppScope } from "../App";
-import { ApiError, getCustomer, updateCustomer } from "../api";
-import type { Customer as ApiCustomer } from "../types";
+import {
+  ApiError,
+  deleteAttachment,
+  downloadAttachment,
+  getCustomer,
+  getCustomerAttachments,
+  updateCustomer,
+  uploadAttachment,
+} from "../api";
+import type { Customer as ApiCustomer, UploadedAttachment } from "../types";
 type Client = {
-  id: string; initials: string; name: string; email: string; phone: string;
+  id: string; reference?: string; initials: string; name: string; email: string; phone: string;
   type: "Particulier" | "Entreprise"; status: "Client" | "Prospect";
   colorClass: string; address?: string; notes?: string;
   idType?: string; idNumber?: string; idIssueDate?: string; idIssuePlace?: string;
   idDuplicataDate?: string; idDuplicataPlace?: string; birthDate?: string;
-  nif?: string; repFirstName?: string;
+  nif?: string; stat?: string; rcs?: string; repFirstName?: string; repRole?: string;
 };
 type ReservationSummary = { id: string; title: string; date: string; amount: number; status: string; type: string };
+type PendingAttachment = { id: string; file: File; category: string };
+type AttachmentPreview = {
+  attachment: UploadedAttachment;
+  url: string | null;
+  kind: "image" | "pdf" | "unsupported";
+};
 interface CustomerDetailPageProps {
   onNavigate: (scope: any, param?: string) => void;
   param?: string;
@@ -28,6 +42,20 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   const [retryKey, setRetryKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(true);
+  const [attachmentsError, setAttachmentsError] = useState<string | null>(null);
+  const [attachmentCategory, setAttachmentCategory] = useState("CIN");
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [attachmentActionError, setAttachmentActionError] = useState<string | null>(null);
+  const [previewingAttachmentId, setPreviewingAttachmentId] = useState<string | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<AttachmentPreview | null>(null);
+  const [attachmentPreviewError, setAttachmentPreviewError] = useState<string | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const attachmentPreviewCloseRef = useRef<HTMLButtonElement>(null);
+  const attachmentPreviewTriggerRef = useRef<HTMLButtonElement>(null);
+  const attachmentPreviewRequestRef = useRef<AbortController | null>(null);
   const reservations: ReservationSummary[] = [];
   const totalBilled = 0;
   const totalPaid = 0;
@@ -35,6 +63,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
 
   const mapApiCustomer = (customer: ApiCustomer): Client => ({
     id: customer.id,
+    reference: customer.public_reference,
     initials: customer.display_name.slice(0, 2).toUpperCase(),
     name: customer.display_name,
     email: customer.email,
@@ -43,6 +72,18 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
     status: customer.lifecycle_status === "prospect" ? "Prospect" : "Client",
     colorClass: customer.lifecycle_status === "prospect" ? "bg-blue-100 text-blue-700" : customer.party_type === "company" ? "bg-emerald-100 text-emerald-700" : "bg-indigo-100 text-indigo-700",
     address: customer.address,
+    idType: customer.id_type,
+    idNumber: customer.id_number,
+    idIssueDate: customer.id_issue_date || "",
+    idIssuePlace: customer.id_issue_place,
+    idDuplicataDate: customer.id_duplicata_date || "",
+    idDuplicataPlace: customer.id_duplicata_place,
+    birthDate: customer.birth_date || "",
+    nif: customer.nif,
+    stat: customer.stat,
+    rcs: customer.rcs,
+    repFirstName: customer.representative_name,
+    repRole: customer.representative_role,
     notes: customer.notes,
   });
 
@@ -62,6 +103,23 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
     return () => controller.abort();
   }, [clientId, retryKey]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setAttachmentsLoading(true);
+    setAttachmentsError(null);
+    void getCustomerAttachments(clientId, controller.signal).then(setAttachments).catch((error: unknown) => {
+      if ((error as { name?: string }).name === "AbortError") return;
+      setAttachmentsError("Impossible de charger les pièces jointes. Réessayez.");
+    }).finally(() => setAttachmentsLoading(false));
+    return () => controller.abort();
+  }, [clientId, retryKey]);
+
+  useEffect(() => {
+    if (previewingAttachmentId || attachmentPreview || attachmentPreviewError) {
+      attachmentPreviewCloseRef.current?.focus();
+    }
+  }, [previewingAttachmentId, attachmentPreview, attachmentPreviewError]);
+
   const [editFeedback, setEditFeedback] = useState<string | null>(null);
 
   const handleSave = async () => {
@@ -74,6 +132,18 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
         email: client.email,
         phone: client.phone,
         address: client.address,
+        id_type: client.idType,
+        id_number: client.idNumber,
+        id_issue_date: client.idIssueDate || null,
+        id_issue_place: client.idIssuePlace,
+        id_duplicata_date: client.idDuplicataDate || null,
+        id_duplicata_place: client.idDuplicataPlace,
+        birth_date: client.birthDate || null,
+        nif: client.nif,
+        stat: client.stat,
+        rcs: client.rcs,
+        representative_name: client.repFirstName,
+        representative_role: client.repRole,
         notes: client.notes,
       });
       setClient(mapApiCustomer(updated));
@@ -90,6 +160,106 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
 
   const handleCancel = () => {
     setIsEditing(false);
+  };
+
+  const handleAttachmentSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (!files.length || !canSensitiveWrite || uploadingAttachment) return;
+    setAttachmentActionError(null);
+    setPendingAttachments((current) => [
+      ...current,
+      ...files.map((file) => ({ id: crypto.randomUUID(), file, category: attachmentCategory })),
+    ]);
+  };
+
+  const handleSaveAttachments = async () => {
+    if (!canSensitiveWrite || uploadingAttachment || pendingAttachments.length === 0) return;
+    setUploadingAttachment(true);
+    setAttachmentActionError(null);
+    const uploaded: UploadedAttachment[] = [];
+    try {
+      for (const pending of pendingAttachments) {
+        uploaded.push(await uploadAttachment(pending.file, pending.category, { customerId: clientId }));
+      }
+      setAttachments((current) => [...uploaded.reverse(), ...current]);
+      setPendingAttachments([]);
+    } catch (error: unknown) {
+      setAttachmentActionError(error instanceof ApiError ? error.message : "Une ou plusieurs pièces jointes n’ont pas pu être enregistrées. Vérifiez la liste et réessayez.");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
+  const handleAttachmentDownload = async (attachment: UploadedAttachment) => {
+    setAttachmentActionError(null);
+    try {
+      const blob = await downloadAttachment(attachment.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.original_name;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      setAttachmentActionError(error instanceof ApiError ? error.message : "Le téléchargement a échoué.");
+    }
+  };
+
+  const closeAttachmentPreview = () => {
+    attachmentPreviewRequestRef.current?.abort();
+    attachmentPreviewRequestRef.current = null;
+    if (attachmentPreview?.url) URL.revokeObjectURL(attachmentPreview.url);
+    setPreviewingAttachmentId(null);
+    setAttachmentPreview(null);
+    setAttachmentPreviewError(null);
+    attachmentPreviewTriggerRef.current?.focus();
+  };
+
+  const handleAttachmentPreview = async (
+    attachment: UploadedAttachment,
+    trigger: HTMLButtonElement,
+  ) => {
+    attachmentPreviewRequestRef.current?.abort();
+    if (attachmentPreview?.url) URL.revokeObjectURL(attachmentPreview.url);
+    const controller = new AbortController();
+    attachmentPreviewRequestRef.current = controller;
+    attachmentPreviewTriggerRef.current = trigger;
+    setPreviewingAttachmentId(attachment.id);
+    setAttachmentPreview({ attachment, url: null, kind: "unsupported" });
+    setAttachmentPreviewError(null);
+    try {
+      const blob = await downloadAttachment(attachment.id, controller.signal);
+      if (controller.signal.aborted) return;
+      const contentType = (blob.type || attachment.content_type).toLowerCase();
+      const kind = contentType === "application/pdf"
+        ? "pdf"
+        : contentType.startsWith("image/")
+          ? "image"
+          : "unsupported";
+      const url = kind === "unsupported" ? null : URL.createObjectURL(blob);
+      setAttachmentPreview({ attachment, url, kind });
+    } catch (error: unknown) {
+      if ((error as { name?: string }).name === "AbortError") return;
+      setAttachmentPreviewError(error instanceof ApiError ? error.message : "L’aperçu n’a pas pu être chargé.");
+    } finally {
+      if (attachmentPreviewRequestRef.current === controller) {
+        attachmentPreviewRequestRef.current = null;
+        setPreviewingAttachmentId(null);
+      }
+    }
+  };
+
+  const handleAttachmentDelete = async (attachment: UploadedAttachment) => {
+    if (!canSensitiveWrite) return;
+    if (!window.confirm(`Supprimer la pièce jointe « ${attachment.original_name} » ?`)) return;
+    setAttachmentActionError(null);
+    try {
+      await deleteAttachment(attachment.id);
+      setAttachments((current) => current.filter((item) => item.id !== attachment.id));
+    } catch (error: unknown) {
+      setAttachmentActionError(error instanceof ApiError ? error.message : "La suppression a échoué.");
+    }
   };
 
 
@@ -282,48 +452,111 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             </div>
           )}
 
-          {/* Pièces jointes (Client uniquement) */}
-          {client.status !== 'Prospect' && (
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4 flex justify-between items-center">
-                Pièces jointes 
-                <button className="text-indigo-600 hover:text-indigo-800 text-xs"><i className="fa-solid fa-plus"></i></button>
-              </h3>
-              <ul className="space-y-3">
-                {client.type === "Particulier" ? (
-                  <>
-                    <li className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                        <i className="fa-solid fa-id-card text-slate-400"></i> CIN / Passeport
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-semibold">Présent</span>
-                    </li>
-                    <li className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                        <i className="fa-solid fa-file-invoice text-slate-400"></i> Justificatif domicile
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-semibold">Manquant</span>
-                    </li>
-                  </>
-                ) : (
-                  <>
-                    <li className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                        <i className="fa-solid fa-file-contract text-slate-400"></i> NIF / STAT / RCS
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-semibold">Présent</span>
-                    </li>
-                    <li className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
-                      <div className="flex items-center gap-2 text-sm text-slate-700 font-medium">
-                        <i className="fa-solid fa-image text-slate-400"></i> Logo entreprise
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-slate-200 text-slate-600 rounded-md font-semibold">Non requis</span>
-                    </li>
-                  </>
-                )}
-              </ul>
+          {/* Pièces jointes client/prospect */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-6">
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Pièces jointes</h3>
+                <p className="mt-1 text-xs text-slate-500">Documents associés à cette fiche client. Enregistrement automatique dans le dossier {client.reference || "du client"}.</p>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label htmlFor="customer-attachment-category" className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Type de document</label>
+                <select
+                  id="customer-attachment-category"
+                  value={attachmentCategory}
+                  onChange={(event) => setAttachmentCategory(event.target.value)}
+                  disabled={!canSensitiveWrite || uploadingAttachment}
+                  className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs"
+                >
+                  <option value="CIN">CIN / Passeport</option>
+                  <option value="Justificatif domicile">Justificatif domicile</option>
+                  <option value="NIF">NIF</option>
+                  <option value="STAT">STAT</option>
+                  <option value="RCS">RCS</option>
+                  <option value="Logo">Logo</option>
+                  <option value="Autre">Autre</option>
+                </select>
+                </div>
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={handleAttachmentSelected}
+                  className="sr-only"
+                  aria-label="Sélectionner une pièce jointe"
+                />
+                <button
+                  type="button"
+                  onClick={() => attachmentInputRef.current?.click()}
+                  disabled={!canSensitiveWrite || uploadingAttachment}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  <i className="fa-solid fa-plus" aria-hidden="true"></i>
+                  Ajouter
+                </button>
+              </div>
             </div>
-          )}
+            <p className="mb-3 text-xs text-slate-500">Formats acceptés : PDF, JPG, PNG ou WEBP · 10 Mo maximum.</p>
+            {pendingAttachments.length > 0 && (
+              <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 p-3" aria-live="polite">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-indigo-900">{pendingAttachments.length} pièce(s) sélectionnée(s), non encore enregistrée(s)</p>
+                  <button type="button" onClick={() => void handleSaveAttachments()} disabled={uploadingAttachment} className="min-h-11 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-wait disabled:bg-slate-400">
+                    {uploadingAttachment ? "Enregistrement…" : "Enregistrer les pièces jointes"}
+                  </button>
+                </div>
+                <ul className="mt-2 space-y-1">
+                  {pendingAttachments.map((pending) => (
+                    <li key={pending.id} className="flex items-center justify-between gap-2 text-xs text-indigo-800">
+                      <span className="truncate" title={pending.file.name}>{pending.file.name} · {pending.category}</span>
+                      <button type="button" className="min-h-11 px-2 font-semibold underline" onClick={() => setPendingAttachments((current) => current.filter((item) => item.id !== pending.id))}>Retirer</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {uploadingAttachment && <p className="mb-3 text-xs text-indigo-600" role="status" aria-live="polite">Téléversement en cours…</p>}
+            {(attachmentsError || attachmentActionError) && (
+              <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+                {attachmentsError || attachmentActionError}
+                {attachmentsError && <button type="button" className="ml-2 font-semibold underline" onClick={() => setRetryKey((value) => value + 1)}>Réessayer</button>}
+              </div>
+            )}
+            {attachmentsLoading ? (
+              <p className="text-sm text-slate-500">Chargement des pièces jointes…</p>
+            ) : attachments.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+                <p className="text-sm font-medium text-slate-700">Aucune pièce jointe enregistrée</p>
+                <p className="mt-1 text-xs text-slate-500">Choisissez un type de document puis cliquez sur « Ajouter ».</p>
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {attachments.map((attachment) => (
+                  <li key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        className="block max-w-full truncate text-left text-sm font-medium text-indigo-700 hover:underline disabled:cursor-wait disabled:text-slate-500"
+                        title={`Afficher un aperçu de ${attachment.original_name}`}
+                        aria-label={`Afficher un aperçu de ${attachment.original_name}`}
+                        aria-busy={previewingAttachmentId === attachment.id}
+                        onClick={(event) => void handleAttachmentPreview(attachment, event.currentTarget)}
+                      >
+                        {attachment.original_name}
+                      </button>
+                      <p className="text-xs text-slate-500"><span className="font-medium text-slate-700">{attachment.category}</span> · {Math.ceil(attachment.size_bytes / 1024)} Ko</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button type="button" className="min-h-11 rounded-lg px-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 hover:underline" onClick={() => void handleAttachmentDownload(attachment)}>Télécharger le fichier</button>
+                      {canSensitiveWrite && <button type="button" className="min-h-11 rounded-lg px-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:underline" onClick={() => void handleAttachmentDelete(attachment)}>Supprimer</button>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Colonne de droite : Coordonnées, Historique, Agenda */}
@@ -467,11 +700,27 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NIF / STAT</label>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">NIF</label>
                     {isEditing ? (
-                      <input type="text" value={client.nif || ""} onChange={e => setClient({ ...client, nif: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Numéros fiscaux" />
+                      <input type="text" value={client.nif || ""} onChange={e => setClient({ ...client, nif: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.nif || "Non renseigné"}</div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">STAT</label>
+                    {isEditing ? (
+                      <input type="text" value={client.stat || ""} onChange={e => setClient({ ...client, stat: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    ) : (
+                      <div className="text-sm text-slate-800 font-medium">{client.stat || "Non renseigné"}</div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">RCS</label>
+                    {isEditing ? (
+                      <input type="text" value={client.rcs || ""} onChange={e => setClient({ ...client, rcs: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    ) : (
+                      <div className="text-sm text-slate-800 font-medium">{client.rcs || "Non renseigné"}</div>
                     )}
                   </div>
                   <div>
@@ -480,6 +729,14 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                       <input type="text" value={client.repFirstName || ""} onChange={e => setClient({ ...client, repFirstName: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Nom du représentant" />
                     ) : (
                       <div className="text-sm text-slate-800 font-medium">{client.repFirstName || "Non renseigné"}</div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Fonction représentant</label>
+                    {isEditing ? (
+                      <input type="text" value={client.repRole || ""} onChange={e => setClient({ ...client, repRole: e.target.value })} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    ) : (
+                      <div className="text-sm text-slate-800 font-medium">{client.repRole || "Non renseignée"}</div>
                     )}
                   </div>
                 </>
@@ -625,6 +882,59 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
           </div>
         </div>
       </div>
+
+      {(previewingAttachmentId || attachmentPreview || attachmentPreviewError) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="customer-attachment-preview-title"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") closeAttachmentPreview();
+          }}
+        >
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+              <div className="min-w-0">
+                <h2 id="customer-attachment-preview-title" className="truncate text-base font-bold text-slate-800">
+                  Aperçu de {attachmentPreview?.attachment.original_name || "la pièce jointe"}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">Le fichier reste protégé et n’est pas rendu public.</p>
+              </div>
+              <button
+                ref={attachmentPreviewCloseRef}
+                type="button"
+                className="min-h-11 min-w-11 rounded-lg px-3 text-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                aria-label="Fermer l’aperçu"
+                onClick={closeAttachmentPreview}
+              >
+                ×
+              </button>
+            </div>
+            <div className="min-h-64 overflow-auto bg-slate-100 p-4">
+              {previewingAttachmentId ? (
+                <p className="flex min-h-56 items-center justify-center text-sm text-slate-600" role="status" aria-live="polite">
+                  Chargement de l’aperçu…
+                </p>
+              ) : attachmentPreviewError ? (
+                <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center">
+                  <p className="text-sm text-red-700" role="alert">{attachmentPreviewError}</p>
+                  {attachmentPreview && <button type="button" className="min-h-11 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700" onClick={() => void handleAttachmentDownload(attachmentPreview.attachment)}>Télécharger le fichier</button>}
+                </div>
+              ) : attachmentPreview?.kind === "image" && attachmentPreview.url ? (
+                <img src={attachmentPreview.url} alt={`Aperçu de ${attachmentPreview.attachment.original_name}`} className="mx-auto max-h-[65vh] max-w-full rounded-lg object-contain shadow-sm" />
+              ) : attachmentPreview?.kind === "pdf" && attachmentPreview.url ? (
+                <iframe src={attachmentPreview.url} title={`Aperçu de ${attachmentPreview.attachment.original_name}`} className="h-[65vh] min-h-[32rem] w-full rounded-lg bg-white" />
+              ) : (
+                <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center">
+                  <p className="text-sm text-slate-700">L’aperçu n’est pas disponible pour ce format.</p>
+                  {attachmentPreview && <button type="button" className="min-h-11 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700" onClick={() => void handleAttachmentDownload(attachmentPreview.attachment)}>Télécharger le fichier</button>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   );

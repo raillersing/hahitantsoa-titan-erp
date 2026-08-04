@@ -8,6 +8,11 @@
     <h1>{{ context.template.label }}</h1>
     <p>Reference: {{ context.reservation_draft.public_reference }}</p>
     <p>Customer: {{ context.reservation_draft.customer.display_name }}</p>
+    <p>Customer ID: {{ context.reservation_draft.customer.customer_id }}</p>
+    <p>Email: {{ context.reservation_draft.customer.email }}</p>
+    <p>Phone: {{ context.reservation_draft.customer.phone }}</p>
+    <p>Address: {{ context.reservation_draft.customer.address }}</p>
+    <p>Identity: {{ context.reservation_draft.customer.id_type }} {{ context.reservation_draft.customer.id_number }}</p>
     <p>Window: {{ context.reservation_draft.start_at }} to {{ context.reservation_draft.end_at }}</p>
 
     <h2>Reserved Items</h2>

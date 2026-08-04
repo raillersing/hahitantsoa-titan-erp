@@ -1,14 +1,18 @@
-from django.http import Http404
+from django.db import transaction
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, OpenApiTypes, extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.services import record_audit_event_on_commit
 from apps.documents.commercial import CommercialDocumentContextError
-from apps.documents.models import DocumentInstance
+from apps.documents.models import DocumentInstance, UploadedAttachment
 from apps.documents.pdf import DocumentPDFGenerationError
 from apps.documents.registry import (
     get_document_template_definition,
@@ -26,6 +30,7 @@ from apps.documents.serializers import (
     DocumentInstanceSerializer,
     DocumentTemplateDefinitionSerializer,
     TitanProformaDraftPreviewSerializer,
+    UploadedAttachmentSerializer,
 )
 from apps.documents.services import (
     ProformaActionError,
@@ -50,6 +55,116 @@ def runtime_document_scope_flags() -> dict[str, bool]:
         "invoice_created": False,
         "contract_created": False,
     }
+
+
+class UploadedAttachmentListCreateAPIView(APIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        queryset = UploadedAttachment.objects.filter(is_deleted=False)
+        customer_id = self.request.query_params.get("customer_id")
+        reservation_draft_id = self.request.query_params.get("reservation_draft_id")
+        event_draft_id = self.request.query_params.get("hahitantsoa_event_draft_id")
+        filters = [value for value in (customer_id, reservation_draft_id, event_draft_id) if value]
+        if len(filters) != 1:
+            return queryset.none()
+        if customer_id:
+            return queryset.filter(customer_id=customer_id)
+        if reservation_draft_id:
+            return queryset.filter(reservation_draft_id=reservation_draft_id)
+        return queryset.filter(hahitantsoa_event_draft_id=event_draft_id)
+
+    @extend_schema(responses=UploadedAttachmentSerializer(many=True))
+    def get(self, request):
+        return Response(UploadedAttachmentSerializer(self.get_queryset(), many=True).data)
+
+    @extend_schema(
+        request=UploadedAttachmentSerializer,
+        responses={201: UploadedAttachmentSerializer},
+    )
+    def post(self, request):
+        serializer = UploadedAttachmentSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            attachment = serializer.save()
+            record_audit_event_on_commit(
+                actor=request.user,
+                action="documents.attachment_uploaded",
+                target_type="uploaded_attachment",
+                target_id=str(attachment.id),
+                metadata={
+                    "category": attachment.category,
+                    "content_type": attachment.content_type,
+                    "size_bytes": attachment.size_bytes,
+                },
+            )
+        return Response(
+            UploadedAttachmentSerializer(attachment).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class UploadedAttachmentDetailAPIView(APIView):
+    http_method_names = ["delete", "get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def get_object(self):
+        return get_object_or_404(
+            UploadedAttachment.objects.filter(is_deleted=False),
+            pk=self.kwargs["id"],
+        )
+
+    @extend_schema(responses=UploadedAttachmentSerializer)
+    def get(self, request, id):
+        attachment = self.get_object()
+        return Response(UploadedAttachmentSerializer(attachment).data)
+
+    def delete(self, request, id):
+        attachment = self.get_object()
+        attachment.is_deleted = True
+        attachment.deleted_at = timezone.now()
+        attachment.updated_by = request.user
+        with transaction.atomic():
+            attachment.save(update_fields=["is_deleted", "deleted_at", "updated_by", "updated_at"])
+            record_audit_event_on_commit(
+                actor=request.user,
+                action="documents.attachment_deleted",
+                target_type="uploaded_attachment",
+                target_id=str(attachment.id),
+                metadata={"category": attachment.category},
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UploadedAttachmentDownloadAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def get(self, request, id):
+        attachment = get_object_or_404(
+            UploadedAttachment.objects.filter(is_deleted=False),
+            pk=id,
+        )
+        try:
+            attachment.file.open("rb")
+        except FileNotFoundError, ValueError:
+            raise Http404("Attachment file not found.")
+        response = FileResponse(
+            attachment.file,
+            content_type=attachment.content_type,
+        )
+        from urllib.parse import quote
+
+        encoded_name = quote(attachment.original_name)
+        response["Content-Disposition"] = (
+            f"attachment; filename=\"attachment\"; filename*=UTF-8''{encoded_name}"
+        )
+        return response
 
 
 class DocumentTemplateRegistryAPIView(APIView):
@@ -216,6 +331,7 @@ class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
                 actor=request.user,
                 notes=serializer.validated_data.get("notes", ""),
                 proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
+                bank_profile=serializer.validated_data.get("bank_profile"),
             )
         except CommercialDocumentContextError as error:
             return Response(

@@ -195,9 +195,7 @@ export default function PackageBuilderPage() {
     if (!editingDraft) return 0;
     return editingDraft.lines.reduce((acc, line) => {
       const catItem = catalog.find((c) => c.id === line.inventory_item);
-      // Catalog items don't have price from API, so estimate is 0
-      // This can be extended when inventory items carry pricing info
-      return acc;
+      return acc + Number(catItem?.rental_price ?? 0) * line.quantity;
     }, 0);
   };
 

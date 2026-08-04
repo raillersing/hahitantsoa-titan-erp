@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -18,6 +20,10 @@ class CustomerLifecycleStatus(models.TextChoices):
 class CustomerPartyType(models.TextChoices):
     INDIVIDUAL = "individual", "Particulier"
     COMPANY = "company", "Entreprise"
+
+
+def generate_customer_public_reference() -> str:
+    return f"CLI-{uuid.uuid4().hex[:12].upper()}"
 
 
 class DesiredDateWaitlistBusinessScope(models.TextChoices):
@@ -41,6 +47,13 @@ class DesiredDateWaitlistStatus(models.TextChoices):
 
 
 class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
+    public_reference = models.CharField(
+        max_length=24,
+        unique=True,
+        db_index=True,
+        default=generate_customer_public_reference,
+        editable=False,
+    )
     display_name = models.CharField(max_length=255)
     lifecycle_status = models.CharField(
         max_length=16,
@@ -55,6 +68,20 @@ class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=64, blank=True)
     address = models.TextField(blank=True)
+    civilite = models.CharField(max_length=16, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    birth_place = models.CharField(max_length=255, blank=True)
+    id_type = models.CharField(max_length=32, blank=True)
+    id_number = models.CharField(max_length=128, blank=True)
+    id_issue_date = models.DateField(null=True, blank=True)
+    id_issue_place = models.CharField(max_length=255, blank=True)
+    id_duplicata_date = models.DateField(null=True, blank=True)
+    id_duplicata_place = models.CharField(max_length=255, blank=True)
+    nif = models.CharField(max_length=128, blank=True)
+    stat = models.CharField(max_length=128, blank=True)
+    rcs = models.CharField(max_length=128, blank=True)
+    representative_name = models.CharField(max_length=255, blank=True)
+    representative_role = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
 

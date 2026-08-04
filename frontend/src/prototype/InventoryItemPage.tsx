@@ -40,6 +40,8 @@ interface DisplayItem {
   description: string;
   type: "Location" | "Consommable" | "Uniforme";
   category: string;
+  purchasePrice: number;
+  reportedStock: number;
   totalStock: number;
   availableStock: number;
   reservedStock: number;
@@ -54,21 +56,25 @@ interface DisplayItem {
 
 function toDisplayItem(raw: InventoryItem): DisplayItem {
   const kindLabel = KIND_LABELS[raw.kind] || raw.kind;
+  const stock = raw.stock_summary;
+  const reportedStock = stock?.reported_inventory_quantity ?? raw.reported_inventory_quantity ?? 0;
   return {
     id: raw.id,
     name: raw.name,
     kind: raw.kind,
     description: raw.description || "",
     type: kindLabel as "Location" | "Consommable" | "Uniforme",
-    category: kindLabel,
-    totalStock: 0,
-    availableStock: 0,
-    reservedStock: 0,
-    outStock: 0,
-    expectedReturnStock: 0,
-    brokenLostStock: 0,
-    unitPrice: 0,
-    breakagePrice: 0,
+    category: raw.section || kindLabel,
+    purchasePrice: Number(raw.purchase_price ?? 0),
+    reportedStock,
+    totalStock: stock?.current_stock ?? reportedStock,
+    availableStock: stock?.available_stock ?? Math.max(reportedStock - (raw.reported_damaged_quantity ?? 0), 0),
+    reservedStock: stock?.reserved_stock ?? 0,
+    outStock: stock?.out_stock ?? 0,
+    expectedReturnStock: stock?.return_stock ?? 0,
+    brokenLostStock: stock?.damaged_lost_stock ?? raw.reported_damaged_quantity ?? 0,
+    unitPrice: Number(raw.rental_price ?? 0),
+    breakagePrice: Number(raw.breakage_price ?? 0),
     status: "OK",
   };
 }
@@ -332,12 +338,20 @@ export default function InventoryItemPage({ onNavigate, param, onBack, returnCon
             
             <div className="mt-6 w-full space-y-3">
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                <span className="text-slate-500 text-sm">Prix unitaire</span>
+                <span className="text-slate-500 text-sm">Prix d'achat</span>
+                <span className="font-bold text-slate-800">{item.purchasePrice.toLocaleString()} Ar</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="text-slate-500 text-sm">Prix de location</span>
                 <span className="font-bold text-slate-800">{item.unitPrice.toLocaleString()} Ar</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-100">
                 <span className="text-slate-500 text-sm">Prix casse</span>
                 <span className="font-bold text-slate-800">{item.breakagePrice.toLocaleString()} Ar</span>
+              </div>
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="text-slate-500 text-sm">Stock inventorié</span>
+                <span className="font-bold text-slate-800">{item.reportedStock}</span>
               </div>
               <div className="flex justify-between items-center py-2">
                 <span className="text-slate-500 text-sm">Statut</span>
