@@ -14,6 +14,7 @@ import {
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
+  convertProformaToContract,
   createCustomer,
 } from "../api";
 import type {
@@ -73,6 +74,16 @@ interface Client {
   type: "Particulier" | "Entreprise";
   status: "Prospect" | "Client" | "Inactif";
   colorClass: string;
+  address: string;
+  civilite?: string;
+  idNumber?: string;
+  idIssueDate?: string;
+  idIssuePlace?: string;
+  nif?: string;
+  stat?: string;
+  rcs?: string;
+  repFirstName?: string;
+  repRole?: string;
 }
 
 function mapCustomerToClient(c: Customer): Client {
@@ -94,6 +105,16 @@ function mapCustomerToClient(c: Customer): Client {
     type: partyLabel,
     status: statusLabel,
     colorClass,
+    address: c.address || "",
+    civilite: c.civilite || "",
+    idNumber: c.id_number || "",
+    idIssueDate: c.id_issue_date || "",
+    idIssuePlace: c.id_issue_place || "",
+    nif: c.nif || "",
+    stat: c.stat || "",
+    rcs: c.rcs || "",
+    repFirstName: c.representative_name || "",
+    repRole: c.representative_role || "",
   };
 }
 
@@ -282,6 +303,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [issuedProspectProformaId, setIssuedProspectProformaId] = useState<string | null>(null);
   const [prospectProformaEmission, setProspectProformaEmission] = useState<ProspectProformaEmission | null>(null);
+  const [documentReference, setDocumentReference] = useState("");
 
   // Derived: mapped clients (API Customer → local Client format)
   const mockClients: Client[] = apiCustomers.map(mapCustomerToClient);
@@ -569,6 +591,16 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           type: newClient.type, 
           status: "Client",
           colorClass: "bg-slate-100 text-slate-700",
+          address: newClient.address || "",
+          civilite: newClient.civilite || "",
+          idNumber: newClient.idNumber || "",
+          idIssueDate: newClient.idIssueDate || "",
+          idIssuePlace: newClient.idIssuePlace || "",
+          nif: newClient.nif || "",
+          stat: newClient.stat || "",
+          rcs: newClient.rcs || "",
+          repFirstName: newClient.repFirstName || "",
+          repRole: newClient.repRole || "",
         } 
       : null;
 
@@ -655,10 +687,46 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     return "";
   };
 
-  const issueProspectProforma = async () => {
-    if (!domain || !selectedClientId) {
+  const ensureCustomerId = async (): Promise<string> => {
+    if (clientMode === "existing" && selectedClientId) return selectedClientId;
+    if (clientMode !== "new" || !newClient.name.trim()) {
+      throw new Error("Sélectionnez un client enregistré ou renseignez le nouveau client.");
+    }
+
+    const customer = await createCustomer({
+      display_name: newClient.name.trim(),
+      lifecycle_status: "client",
+      party_type: newClient.type === "Entreprise" ? "company" : "individual",
+      email: newClient.email.trim(),
+      phone: newClient.phone.trim(),
+      address: newClient.address?.trim() || "",
+      notes: newClient.notes.trim(),
+      civilite: newClient.civilite || "",
+      birth_date: newClient.birthDate || undefined,
+      birth_place: newClient.birthPlace || "",
+      id_type: newClient.idType || "",
+      id_number: newClient.idNumber || "",
+      id_issue_date: newClient.idIssueDate || undefined,
+      id_issue_place: newClient.idIssuePlace || "",
+      id_duplicata_date: newClient.idDuplicataDate || undefined,
+      id_duplicata_place: newClient.idDuplicataPlace || "",
+      nif: newClient.nif || "",
+      stat: newClient.stat || "",
+      rcs: newClient.rcs || "",
+      representative_name: newClient.repFirstName || "",
+      representative_role: newClient.repRole || "",
+    });
+    setApiCustomers((current) => [...current, customer]);
+    setSelectedClientId(customer.id);
+    setClientMode("existing");
+    return customer.id;
+  };
+
+  const issueProspectProforma = async (): Promise<{ documentId: string; draftId: string }> => {
+    if (!domain) {
       throw new Error("Sélectionnez un client et un volet avant d’émettre le proforma.");
     }
+    const customerId = await ensureCustomerId();
     if (!Number.isInteger(proformaValidity) || proformaValidity < 1) {
       throw new Error("La durée de validité doit être d’au moins un jour.");
     }
@@ -688,7 +756,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (!emission.draftId) {
       if (isHahitantsoa) {
         const eventDraft = await createHahitantsoaEventDraft({
-          customer_id: selectedClientId,
+          customer_id: customerId,
           event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
@@ -701,7 +769,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         emission = { ...emission, draftId: eventDraft.id };
       } else {
         const reservationDraft = await createReservationDraft({
-          customer_id: selectedClientId,
+          customer_id: customerId,
           start_at: startAt,
           end_at: endAt,
           notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
@@ -722,6 +790,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         ? await createHahitantsoaEventDraftDocumentInstance(draftId, documentPayload)
         : await createReservationDraftDocumentInstance(draftId, documentPayload);
       emission = { ...emission, documentId: document.id };
+      setDocumentReference(document.reservation_public_reference || draftId);
       setProspectProformaEmission(emission);
     }
 
@@ -745,7 +814,35 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     } else {
       await generateReservationDraftDocumentInstancePdf(draftId, documentId);
     }
-    return documentId;
+    return { documentId, draftId };
+  };
+
+  const ensureContractGenerated = async () => {
+    let emission = prospectProformaEmission;
+    let proformaDocumentId = emission?.documentId;
+    if (!emission?.draftId || !proformaDocumentId) {
+      const created = await issueProspectProforma();
+      proformaDocumentId = created.documentId;
+      emission = {
+        domain: domain as Exclude<DomainType, null>,
+        draftId: created.draftId,
+        documentId: created.documentId,
+        htmlGenerated: true,
+      };
+    }
+    if (!emission?.draftId || !proformaDocumentId) {
+      throw new Error("Le brouillon et le proforma sont requis avant de générer le contrat.");
+    }
+    const contract = await convertProformaToContract(proformaDocumentId);
+    setDocumentReference(contract.reservation_public_reference || emission.draftId);
+    if (domain === "hahitantsoa") {
+      await generateHahitantsoaEventDraftDocumentInstance(emission.draftId, contract.id);
+      await generateHahitantsoaEventDraftDocumentInstancePdf(emission.draftId, contract.id);
+    } else {
+      await generateReservationDraftDocumentInstance(emission.draftId, contract.id);
+      await generateReservationDraftDocumentInstancePdf(emission.draftId, contract.id);
+    }
+    return contract;
   };
 
   const renderStepper = () => {
@@ -2357,7 +2454,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
          ) : (
             <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Valide</span>
          )}
-         <span className="text-sm text-slate-500">Réf : PROF-2026-9042</span>
+         <span className="text-sm text-slate-500">Réf : {documentReference || "Brouillon en préparation"}</span>
          <span className="text-sm text-slate-500">Émise le : {new Date().toLocaleDateString('fr-FR')}</span>
       </div>
       
@@ -2366,7 +2463,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         domain={domain as 'titan' | 'hahitantsoa'}
         client={activeClient}
         date={new Date().toLocaleDateString('fr-FR')}
-        refNumber="PROF-2026-9042"
+          refNumber={documentReference || "Brouillon en préparation"}
         eventDate={domain === 'hahitantsoa' ? hDetails.date : tDetails.period}
         materials={selectedMaterials}
         services={selectedServices}
@@ -2418,8 +2515,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                  setSubmitting(true);
                  setSubmitError(null);
                  try {
-                   const documentId = await issueProspectProforma();
-                   setIssuedProspectProformaId(documentId);
+                   const issued = await issueProspectProforma();
+                   setIssuedProspectProformaId(issued.documentId);
                    clearDraft(false);
                    showToastMsg("Proforma prospect émise et PDF généré.", 'success');
                  } catch (err: unknown) {
@@ -2447,7 +2544,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </button>
               <button 
                 className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-indigo-700 transition-colors"
-                onClick={() => { setProformaGenerated(true); goNext(); }}
+                disabled={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  setSubmitError(null);
+                  try {
+                    await issueProspectProforma();
+                    setProformaGenerated(true);
+                    goNext();
+                  } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : "Erreur lors de la préparation du proforma";
+                    setSubmitError(message);
+                    showToastMsg(`Erreur lors de la préparation : ${message}`, "error");
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
               >
                 Passer au paiement
               </button>
@@ -2613,7 +2725,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           domain={domain as 'titan' | 'hahitantsoa'}
           client={activeClient}
           date={new Date().toLocaleDateString('fr-FR')}
-          refNumber="CTR-2026-9042"
+          refNumber={documentReference || "Brouillon en préparation"}
           eventDate={domain === 'hahitantsoa' ? hDetails.date : tDetails.period}
           materials={selectedMaterials}
           services={selectedServices}
@@ -2634,34 +2746,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             className={`px-8 py-3 bg-green-600 text-white rounded-xl font-bold text-md shadow-lg hover:bg-green-700 transition-all hover:-translate-y-1 ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={submitting}
             onClick={async () => {
-              const customerId = selectedClientId || "";
-              const startAt = domain === 'hahitantsoa'
-                ? (hDetails.startDate && hDetails.startTime ? `${hDetails.startDate}T${hDetails.startTime}:00` : new Date().toISOString())
-                : (tDetails.startDate && tDetails.startTime ? `${tDetails.startDate}T${tDetails.startTime}:00` : new Date().toISOString());
-              const endAt = domain === 'hahitantsoa'
-                ? (hDetails.endDate && hDetails.endTime ? `${hDetails.endDate}T${hDetails.endTime}:00` : new Date().toISOString())
-                : (tDetails.endDate && tDetails.endTime ? `${tDetails.endDate}T${tDetails.endTime}:00` : new Date().toISOString());
-              const notes = domain === "hahitantsoa"
-                ? `${hDetails.eventTypeOther || hDetails.eventType} - ${hDetails.venue} - ${hDetails.guests} pax`
-                : `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ''} - ${tDetails.destinationAddress || ''}`;
-              const lines = selectedMaterials.map(m => ({
-                inventory_item_id: m.id,
-                quantity: m.quantity,
-                notes: m.name,
-              }));
               try {
                 setSubmitting(true);
                 setSubmitError(null);
-                await createReservationDraft({
-                  customer_id: customerId,
-                  start_at: startAt,
-                  end_at: endAt,
-                  notes,
-                  lines,
-                });
+                await ensureContractGenerated();
                 const msg = domain === "hahitantsoa"
-                  ? "Dossier Hahitantsoa créé avec succès"
-                  : "Dossier Titan créé avec succès";
+                  ? "Contrat Hahitantsoa généré avec succès"
+                  : "Contrat Titan généré avec succès";
                 showToastMsg(msg, 'success');
                 clearDraft();
                 onNavigate("dashboard");

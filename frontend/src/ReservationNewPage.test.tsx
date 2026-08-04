@@ -15,6 +15,7 @@ import {
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
+  convertProformaToContract,
   createCustomer,
 } from './api';
 
@@ -141,6 +142,7 @@ vi.mock('./api', () => ({
   createHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstancePdf: vi.fn(),
+  convertProformaToContract: vi.fn(),
   createCustomer: vi.fn(),
 }));
 
@@ -166,6 +168,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-H-001' } as any);
+    vi.mocked(convertProformaToContract).mockResolvedValue({ id: 'CONTRACT-001', reservation_public_reference: 'RES-001' } as any);
     vi.mocked(createCustomer).mockResolvedValue({ id: 'CUST-NEW', display_name: 'New Client' } as any);
   });
 
@@ -309,6 +312,16 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Aller au catalogue')).toBeInTheDocument();
     });
+    const contractDateInputs = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'date');
+    const contractTimeInputs = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'time');
+    if (contractDateInputs.length >= 2) {
+      fireEvent.change(contractDateInputs[0], { target: { value: '2026-08-01' } });
+      fireEvent.change(contractDateInputs[1], { target: { value: '2026-08-02' } });
+    }
+    if (contractTimeInputs.length >= 2) {
+      fireEvent.change(contractTimeInputs[0], { target: { value: '08:00' } });
+      fireEvent.change(contractTimeInputs[1], { target: { value: '20:00' } });
+    }
     fireEvent.click(screen.getByText('Aller au catalogue'));
 
     await waitFor(() => {
@@ -348,6 +361,12 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('dashboard');
     });
+    expect(createReservationDraft).toHaveBeenCalledWith(expect.objectContaining({
+      customer_id: 'CUST-001',
+      start_at: '2026-08-01T08:00:00',
+      end_at: '2026-08-02T20:00:00',
+    }));
+    expect(convertProformaToContract).toHaveBeenCalledWith('DOC-T-001');
   });
 
   it('6. la catégorie Photo a été retirée', async () => {
