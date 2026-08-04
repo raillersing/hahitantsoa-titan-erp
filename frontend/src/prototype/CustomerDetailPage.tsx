@@ -20,6 +20,11 @@ type Client = {
 };
 type ReservationSummary = { id: string; title: string; date: string; amount: number; status: string; type: string };
 type PendingAttachment = { id: string; file: File; category: string };
+type AttachmentPreview = {
+  attachment: UploadedAttachment;
+  url: string | null;
+  kind: "image" | "pdf" | "unsupported";
+};
 interface CustomerDetailPageProps {
   onNavigate: (scope: any, param?: string) => void;
   param?: string;
@@ -44,7 +49,13 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [attachmentActionError, setAttachmentActionError] = useState<string | null>(null);
+  const [previewingAttachmentId, setPreviewingAttachmentId] = useState<string | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<AttachmentPreview | null>(null);
+  const [attachmentPreviewError, setAttachmentPreviewError] = useState<string | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const attachmentPreviewCloseRef = useRef<HTMLButtonElement>(null);
+  const attachmentPreviewTriggerRef = useRef<HTMLButtonElement>(null);
+  const attachmentPreviewRequestRef = useRef<AbortController | null>(null);
   const reservations: ReservationSummary[] = [];
   const totalBilled = 0;
   const totalPaid = 0;
@@ -102,6 +113,12 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
     }).finally(() => setAttachmentsLoading(false));
     return () => controller.abort();
   }, [clientId, retryKey]);
+
+  useEffect(() => {
+    if (previewingAttachmentId || attachmentPreview || attachmentPreviewError) {
+      attachmentPreviewCloseRef.current?.focus();
+    }
+  }, [previewingAttachmentId, attachmentPreview, attachmentPreviewError]);
 
   const [editFeedback, setEditFeedback] = useState<string | null>(null);
 
@@ -186,6 +203,50 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
       URL.revokeObjectURL(url);
     } catch (error: unknown) {
       setAttachmentActionError(error instanceof ApiError ? error.message : "Le téléchargement a échoué.");
+    }
+  };
+
+  const closeAttachmentPreview = () => {
+    attachmentPreviewRequestRef.current?.abort();
+    attachmentPreviewRequestRef.current = null;
+    if (attachmentPreview?.url) URL.revokeObjectURL(attachmentPreview.url);
+    setPreviewingAttachmentId(null);
+    setAttachmentPreview(null);
+    setAttachmentPreviewError(null);
+    attachmentPreviewTriggerRef.current?.focus();
+  };
+
+  const handleAttachmentPreview = async (
+    attachment: UploadedAttachment,
+    trigger: HTMLButtonElement,
+  ) => {
+    attachmentPreviewRequestRef.current?.abort();
+    if (attachmentPreview?.url) URL.revokeObjectURL(attachmentPreview.url);
+    const controller = new AbortController();
+    attachmentPreviewRequestRef.current = controller;
+    attachmentPreviewTriggerRef.current = trigger;
+    setPreviewingAttachmentId(attachment.id);
+    setAttachmentPreview({ attachment, url: null, kind: "unsupported" });
+    setAttachmentPreviewError(null);
+    try {
+      const blob = await downloadAttachment(attachment.id, controller.signal);
+      if (controller.signal.aborted) return;
+      const contentType = (blob.type || attachment.content_type).toLowerCase();
+      const kind = contentType === "application/pdf"
+        ? "pdf"
+        : contentType.startsWith("image/")
+          ? "image"
+          : "unsupported";
+      const url = kind === "unsupported" ? null : URL.createObjectURL(blob);
+      setAttachmentPreview({ attachment, url, kind });
+    } catch (error: unknown) {
+      if ((error as { name?: string }).name === "AbortError") return;
+      setAttachmentPreviewError(error instanceof ApiError ? error.message : "L’aperçu n’a pas pu être chargé.");
+    } finally {
+      if (attachmentPreviewRequestRef.current === controller) {
+        attachmentPreviewRequestRef.current = null;
+        setPreviewingAttachmentId(null);
+      }
     }
   };
 
@@ -475,7 +536,16 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                 {attachments.map((attachment) => (
                   <li key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <div className="min-w-0">
-                      <p className="truncate text-sm text-slate-700 font-medium" title={attachment.original_name}>{attachment.original_name}</p>
+                      <button
+                        type="button"
+                        className="block max-w-full truncate text-left text-sm font-medium text-indigo-700 hover:underline disabled:cursor-wait disabled:text-slate-500"
+                        title={`Afficher un aperçu de ${attachment.original_name}`}
+                        aria-label={`Afficher un aperçu de ${attachment.original_name}`}
+                        aria-busy={previewingAttachmentId === attachment.id}
+                        onClick={(event) => void handleAttachmentPreview(attachment, event.currentTarget)}
+                      >
+                        {attachment.original_name}
+                      </button>
                       <p className="text-xs text-slate-500"><span className="font-medium text-slate-700">{attachment.category}</span> · {Math.ceil(attachment.size_bytes / 1024)} Ko</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
@@ -812,6 +882,59 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
           </div>
         </div>
       </div>
+
+      {(previewingAttachmentId || attachmentPreview || attachmentPreviewError) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="customer-attachment-preview-title"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") closeAttachmentPreview();
+          }}
+        >
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+              <div className="min-w-0">
+                <h2 id="customer-attachment-preview-title" className="truncate text-base font-bold text-slate-800">
+                  Aperçu de {attachmentPreview?.attachment.original_name || "la pièce jointe"}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">Le fichier reste protégé et n’est pas rendu public.</p>
+              </div>
+              <button
+                ref={attachmentPreviewCloseRef}
+                type="button"
+                className="min-h-11 min-w-11 rounded-lg px-3 text-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                aria-label="Fermer l’aperçu"
+                onClick={closeAttachmentPreview}
+              >
+                ×
+              </button>
+            </div>
+            <div className="min-h-64 overflow-auto bg-slate-100 p-4">
+              {previewingAttachmentId ? (
+                <p className="flex min-h-56 items-center justify-center text-sm text-slate-600" role="status" aria-live="polite">
+                  Chargement de l’aperçu…
+                </p>
+              ) : attachmentPreviewError ? (
+                <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center">
+                  <p className="text-sm text-red-700" role="alert">{attachmentPreviewError}</p>
+                  {attachmentPreview && <button type="button" className="min-h-11 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700" onClick={() => void handleAttachmentDownload(attachmentPreview.attachment)}>Télécharger le fichier</button>}
+                </div>
+              ) : attachmentPreview?.kind === "image" && attachmentPreview.url ? (
+                <img src={attachmentPreview.url} alt={`Aperçu de ${attachmentPreview.attachment.original_name}`} className="mx-auto max-h-[65vh] max-w-full rounded-lg object-contain shadow-sm" />
+              ) : attachmentPreview?.kind === "pdf" && attachmentPreview.url ? (
+                <iframe src={attachmentPreview.url} title={`Aperçu de ${attachmentPreview.attachment.original_name}`} className="h-[65vh] min-h-[32rem] w-full rounded-lg bg-white" />
+              ) : (
+                <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center">
+                  <p className="text-sm text-slate-700">L’aperçu n’est pas disponible pour ce format.</p>
+                  {attachmentPreview && <button type="button" className="min-h-11 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700" onClick={() => void handleAttachmentDownload(attachmentPreview.attachment)}>Télécharger le fichier</button>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   );

@@ -26,6 +26,7 @@ beforeEach(() => {
     hahitantsoa_event_draft_id: null, category: 'CIN', original_name: 'cin.pdf',
     content_type: 'application/pdf', size_bytes: 24, sha256: 'hash', created_at: '',
   });
+  vi.spyOn(api, 'downloadAttachment').mockResolvedValue(new Blob(['%PDF-1.7'], { type: 'application/pdf' }));
 });
 
 describe('CustomerDetailPage', () => {
@@ -112,7 +113,41 @@ describe('CustomerDetailPage', () => {
     expect(await screen.findByText('cin.pdf')).toBeInTheDocument();
   });
 
-  it('6. Clic sur retour et nouvelle réservation', async () => {
+  it('6. Ouvre l’aperçu PDF d’une pièce jointe au clic et le ferme au clavier', async () => {
+    const mockNavigate = vi.fn();
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const createObjectURL = vi.fn().mockReturnValue('blob:attachment-preview');
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL });
+
+    try {
+      vi.spyOn(api, 'getCustomerAttachments').mockResolvedValue([{
+        id: 'ATT-001', customer_id: 'CUST-001', customer_reference: 'CLI-CUST-001', reservation_draft_id: null,
+        hahitantsoa_event_draft_id: null, category: 'CIN', original_name: 'cin.pdf',
+        content_type: 'application/pdf', size_bytes: 24, sha256: 'hash', created_at: '',
+      }]);
+      render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
+
+      const previewButton = await screen.findByRole('button', { name: 'Afficher un aperçu de cin.pdf' });
+      fireEvent.click(previewButton);
+
+      expect(await screen.findByTitle('Aperçu de cin.pdf')).toBeInTheDocument();
+      expect(api.downloadAttachment).toHaveBeenCalledWith('ATT-001', expect.any(AbortSignal));
+      expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:attachment-preview');
+    } finally {
+      vi.restoreAllMocks();
+      Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: originalCreateObjectURL });
+      Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: originalRevokeObjectURL });
+    }
+  });
+
+  it('7. Clic sur retour et nouvelle réservation', async () => {
     const mockNavigate = vi.fn();
     const mockBack = vi.fn();
     render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} onBack={mockBack} canSensitiveWrite />);
