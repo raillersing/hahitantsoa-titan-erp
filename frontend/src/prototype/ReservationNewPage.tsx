@@ -2216,15 +2216,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             {filteredCatalog.length === 0 && renderCatalogEmptyState()}
           </div>
           {filteredCatalog.length > 0 && (
-            <button
-              type="button"
-              onClick={scrollCatalogToAction}
-              className="absolute bottom-3 right-4 z-10 flex min-h-[44px] items-center gap-2 rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-slate-700"
-              aria-label="Faire défiler jusqu'à l'action suivante"
-            >
-              <i className="fa-solid fa-arrow-down" aria-hidden="true"></i>
-              Aller à l’action suivante
-            </button>
+            <div className="mt-2 flex justify-end border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={scrollCatalogToAction}
+                className="flex min-h-[44px] items-center gap-2 rounded-full bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700"
+                aria-label="Faire défiler jusqu'à l'action suivante"
+              >
+                <i className="fa-solid fa-arrow-down" aria-hidden="true"></i>
+                Aller à l’action suivante
+              </button>
+            </div>
           )}
         </div>
 
