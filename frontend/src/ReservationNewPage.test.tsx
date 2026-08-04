@@ -631,9 +631,9 @@ describe('ReservationNewPage', () => {
       fireEvent.change(dateInputs12[0], { target: { value: '2026-08-01' } });
       fireEvent.change(dateInputs12[1], { target: { value: '2026-08-02' } });
     }
-    if (timeInputs12.length >= 2) {
-      fireEvent.change(timeInputs12[0], { target: { value: '08:00' } });
-      fireEvent.change(timeInputs12[1], { target: { value: '20:00' } });
+    if (timeInputs12.length >= 1) {
+      expect(screen.getByDisplayValue('08:00')).toHaveValue('08:00');
+      fireEvent.change(timeInputs12[0], { target: { value: '20:00' } });
     }
     fireEvent.click(screen.getByText(/Aller au catalogue/i));
 
@@ -718,8 +718,8 @@ describe('ReservationNewPage', () => {
     const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+    expect(screen.getByDisplayValue('08:00')).toHaveValue('08:00');
     fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
-    fireEvent.change(timeInputs[1], { target: { value: '08:00' } });
     fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));

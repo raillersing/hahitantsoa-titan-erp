@@ -343,7 +343,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   
   const [domain, setDomain] = useState<DomainType>(null);
   
-  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_VENUE_PRICE, logisticsPrice: HAHITANTSOA_LOGISTICS_PRICE });
+  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_VENUE_PRICE, logisticsPrice: HAHITANTSOA_LOGISTICS_PRICE });
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
     period: "", startDate: "", startTime: "", endDate: "", endTime: "", pickupDate: "", returnDate: "", remarks: "",
     usageType: "Mariage", usageTypeOther: "", 
