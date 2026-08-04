@@ -175,6 +175,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
 
   const handleAttachmentDelete = async (attachment: UploadedAttachment) => {
     if (!canSensitiveWrite) return;
+    if (!window.confirm(`Supprimer la pièce jointe « ${attachment.original_name} » ?`)) return;
     setAttachmentActionError(null);
     try {
       await deleteAttachment(attachment.id);
@@ -376,10 +377,14 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
 
           {/* Pièces jointes client/prospect */}
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Pièces jointes</h3>
-              <div className="flex items-center gap-2">
-                <label htmlFor="customer-attachment-category" className="sr-only">Catégorie</label>
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Pièces jointes</h3>
+                <p className="mt-1 text-xs text-slate-500">Documents associés à cette fiche client.</p>
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label htmlFor="customer-attachment-category" className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Type de document</label>
                 <select
                   id="customer-attachment-category"
                   value={attachmentCategory}
@@ -395,6 +400,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                   <option value="Logo">Logo</option>
                   <option value="Autre">Autre</option>
                 </select>
+                </div>
                 <input
                   ref={attachmentInputRef}
                   type="file"
@@ -407,14 +413,15 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                   type="button"
                   onClick={() => attachmentInputRef.current?.click()}
                   disabled={!canSensitiveWrite || uploadingAttachment}
-                  className="text-indigo-600 hover:text-indigo-800 text-xs disabled:text-slate-400"
-                  aria-label="Ajouter une pièce jointe"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
-                  <i className="fa-solid fa-plus"></i>
+                  <i className="fa-solid fa-plus" aria-hidden="true"></i>
+                  Ajouter
                 </button>
               </div>
             </div>
-            {uploadingAttachment && <p className="mb-3 text-xs text-indigo-600" role="status">Téléversement en cours…</p>}
+            <p className="mb-3 text-xs text-slate-500">Formats acceptés : PDF, JPG, PNG ou WEBP · 10 Mo maximum.</p>
+            {uploadingAttachment && <p className="mb-3 text-xs text-indigo-600" role="status" aria-live="polite">Téléversement en cours…</p>}
             {(attachmentsError || attachmentActionError) && (
               <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
                 {attachmentsError || attachmentActionError}
@@ -424,18 +431,21 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             {attachmentsLoading ? (
               <p className="text-sm text-slate-500">Chargement des pièces jointes…</p>
             ) : attachments.length === 0 ? (
-              <p className="text-sm text-slate-500">Aucune pièce jointe enregistrée.</p>
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+                <p className="text-sm font-medium text-slate-700">Aucune pièce jointe enregistrée</p>
+                <p className="mt-1 text-xs text-slate-500">Choisissez un type de document puis cliquez sur « Ajouter ».</p>
+              </div>
             ) : (
               <ul className="space-y-2">
                 {attachments.map((attachment) => (
                   <li key={attachment.id} className="flex items-center justify-between gap-3 p-2 rounded-lg bg-slate-50 border border-slate-100">
                     <div className="min-w-0">
-                      <p className="truncate text-sm text-slate-700 font-medium">{attachment.original_name}</p>
-                      <p className="text-xs text-slate-500">{attachment.category} · {Math.ceil(attachment.size_bytes / 1024)} Ko</p>
+                      <p className="truncate text-sm text-slate-700 font-medium" title={attachment.original_name}>{attachment.original_name}</p>
+                      <p className="text-xs text-slate-500"><span className="font-medium text-slate-700">{attachment.category}</span> · {Math.ceil(attachment.size_bytes / 1024)} Ko</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <button type="button" className="text-xs text-indigo-600 hover:underline" onClick={() => void handleAttachmentDownload(attachment)}>Télécharger</button>
-                      {canSensitiveWrite && <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => void handleAttachmentDelete(attachment)}>Supprimer</button>}
+                      <button type="button" className="min-h-11 rounded-lg px-2 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 hover:underline" onClick={() => void handleAttachmentDownload(attachment)}>Télécharger le fichier</button>
+                      {canSensitiveWrite && <button type="button" className="min-h-11 rounded-lg px-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:underline" onClick={() => void handleAttachmentDelete(attachment)}>Supprimer</button>}
                     </div>
                   </li>
                 ))}
