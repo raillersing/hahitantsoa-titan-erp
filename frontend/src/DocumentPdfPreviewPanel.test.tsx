@@ -39,6 +39,22 @@ describe("DocumentPdfPreviewPanel", () => {
     expect(iframe).toHaveAttribute("src", "blob:pdf-preview");
   });
 
+  it("loads the selected instance without asking for its identifier again", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(pdfResponse());
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:selected-pdf");
+
+    render(<DocumentPdfPreviewPanel documentInstanceId="inst-selected" />);
+
+    expect(screen.queryByLabelText("Document instance ID")).not.toBeInTheDocument();
+    expect(await screen.findByTitle("Document PDF preview inst-selected")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/documents/instances/inst-selected/pdf/",
+      expect.objectContaining({ credentials: "include" }),
+    );
+  });
+
   it("shows a not found error for a missing PDF artifact", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(pdfResponse(new Blob(), 404));
 

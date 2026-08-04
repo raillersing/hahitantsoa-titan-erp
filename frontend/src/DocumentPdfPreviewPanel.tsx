@@ -2,15 +2,54 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { getDocumentInstancePdfBlob } from "./api";
 
+type DocumentPdfPreviewPanelProps = {
+  documentInstanceId?: string;
+};
+
 type PdfPreviewState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "loaded"; objectUrl: string; documentInstanceId: string }
   | { status: "error"; message: string };
 
-function DocumentPdfPreviewPanel() {
+function DocumentPdfPreviewPanel({
+  documentInstanceId: linkedDocumentInstanceId,
+}: DocumentPdfPreviewPanelProps) {
   const [documentInstanceId, setDocumentInstanceId] = useState("");
   const [previewState, setPreviewState] = useState<PdfPreviewState>({ status: "idle" });
+
+  useEffect(() => {
+    const normalizedDocumentInstanceId = linkedDocumentInstanceId?.trim();
+    if (!normalizedDocumentInstanceId) return;
+
+    let cancelled = false;
+    setPreviewState({ status: "loading" });
+    void getDocumentInstancePdfBlob(normalizedDocumentInstanceId)
+      .then((blob) => {
+        if (!cancelled) {
+          setPreviewState({
+            status: "loaded",
+            objectUrl: URL.createObjectURL(blob),
+            documentInstanceId: normalizedDocumentInstanceId,
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setPreviewState({
+            status: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "The requested PDF artifact could not be loaded.",
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedDocumentInstanceId]);
 
   useEffect(() => {
     return () => {
@@ -66,25 +105,31 @@ function DocumentPdfPreviewPanel() {
         </div>
       </div>
 
-      <form className="artifact-preview-form" onSubmit={handleSubmit}>
-        <label>
-          Document instance ID
-          <input
-            name="document_instance_id"
-            type="text"
-            autoComplete="off"
-            spellCheck={false}
-            value={documentInstanceId}
-            onChange={(event) => {
-              setDocumentInstanceId(event.target.value);
-              setPreviewState({ status: "idle" });
-            }}
-          />
-        </label>
-        <button type="submit" disabled={previewState.status === "loading"}>
-          Load PDF preview
-        </button>
-      </form>
+      {linkedDocumentInstanceId ? (
+        <p className="ops-preview-note" role="status">
+          Aperçu chargé depuis l’instance sélectionnée : {linkedDocumentInstanceId}
+        </p>
+      ) : (
+        <form className="artifact-preview-form" onSubmit={handleSubmit}>
+          <label>
+            Document instance ID
+            <input
+              name="document_instance_id"
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={documentInstanceId}
+              onChange={(event) => {
+                setDocumentInstanceId(event.target.value);
+                setPreviewState({ status: "idle" });
+              }}
+            />
+          </label>
+          <button type="submit" disabled={previewState.status === "loading"}>
+            Load PDF preview
+          </button>
+        </form>
+      )}
 
       {previewState.status === "loading" ? (
         <div className="notice loading-notice artifact-preview-status" role="status">

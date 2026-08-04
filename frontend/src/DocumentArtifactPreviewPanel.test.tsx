@@ -81,6 +81,21 @@ describe("DocumentArtifactPreviewPanel", () => {
     expect(screen.queryByText(/storage_path/i)).not.toBeInTheDocument();
   });
 
+  it("loads the selected instance without asking for its identifier again", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(htmlResponse("<html><body>Selected</body></html>"));
+
+    render(<DocumentArtifactPreviewPanel documentInstanceId="inst-selected" />);
+
+    expect(screen.queryByLabelText("Document instance ID")).not.toBeInTheDocument();
+    expect(await screen.findByTitle("Document artifact preview inst-selected")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/documents/instances/inst-selected/artifact/",
+      { credentials: "include", signal: undefined },
+    );
+  });
+
   it.each([401, 403])(
     "shows an access error for HTTP %s responses",
     async (statusCode) => {

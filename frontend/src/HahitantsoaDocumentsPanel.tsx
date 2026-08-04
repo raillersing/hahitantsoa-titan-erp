@@ -27,6 +27,8 @@ type HahitantsoaDocumentsState = {
   loading: boolean;
   error: string;
   canWrite: boolean;
+  previewArtifactId: string;
+  previewPdfId: string;
 };
 
 function HahitantsoaDocumentsPanel() {
@@ -40,6 +42,8 @@ function HahitantsoaDocumentsPanel() {
     loading: false,
     error: "",
     canWrite: false,
+    previewArtifactId: "",
+    previewPdfId: "",
   });
 
   useEffect(() => {
@@ -258,8 +262,24 @@ function HahitantsoaDocumentsPanel() {
                     {inst.status === "generated" && (
                       <div className="generated-tag-stack">
                         <span className="generated-tag">HTML prêt (ID : {inst.id})</span>
+                        <button
+                          type="button"
+                          className="btn-generate btn-generate--secondary"
+                          onClick={() => setState((prev) => ({ ...prev, previewArtifactId: inst.id }))}
+                        >
+                          Aperçu HTML
+                        </button>
                         {inst.pdf_storage_path ? (
-                          <span className="generated-tag generated-tag--pdf">PDF prêt</span>
+                          <>
+                            <span className="generated-tag generated-tag--pdf">PDF prêt</span>
+                            <button
+                              type="button"
+                              className="btn-generate btn-generate--secondary"
+                              onClick={() => setState((prev) => ({ ...prev, previewPdfId: inst.id }))}
+                            >
+                              Aperçu PDF
+                            </button>
+                          </>
                         ) : state.canWrite ? (
                           <button
                             type="button"
@@ -283,10 +303,10 @@ function HahitantsoaDocumentsPanel() {
       )}
 
       <div className="artifact-preview-wrapper" style={{ marginTop: "24px" }}>
-        <DocumentArtifactPreviewPanel />
+        <DocumentArtifactPreviewPanel documentInstanceId={state.previewArtifactId} />
       </div>
       <div className="artifact-preview-wrapper" style={{ marginTop: "24px" }}>
-        <DocumentPdfPreviewPanel />
+        <DocumentPdfPreviewPanel documentInstanceId={state.previewPdfId} />
       </div>
     </div>
   );

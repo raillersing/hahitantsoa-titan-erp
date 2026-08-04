@@ -341,6 +341,29 @@ describe("TitanDocumentsPanel", () => {
     });
   });
 
+  it("opens the private HTML preview from the generated instance row", async () => {
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValue(MOCK_DRAFTS);
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES);
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue(MOCK_INSTANCES);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("<html><body>Preview</body></html>", {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }),
+    );
+
+    render(<TitanDocumentsPanel />);
+
+    const generatedInstance = await screen.findByTestId("titan-instance-inst-2");
+    fireEvent.click(within(generatedInstance).getByRole("button", { name: "Aperçu HTML" }));
+
+    expect(await screen.findByTitle("Document artifact preview inst-2")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/documents/instances/inst-2/artifact/",
+      { credentials: "include", signal: undefined },
+    );
+  });
+
   it("generates a PDF artifact from a generated document instance", async () => {
     vi.spyOn(api, "getReservationDrafts").mockResolvedValue(MOCK_DRAFTS);
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue(MOCK_TEMPLATES);
