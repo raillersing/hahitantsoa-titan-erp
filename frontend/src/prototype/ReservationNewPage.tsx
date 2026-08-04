@@ -5,6 +5,7 @@ import {
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
+  getInventoryItems,
   getReservationAvailableItemPreviews,
   createReservationDraft,
   createReservationDraftDocumentInstance,
@@ -23,6 +24,7 @@ import type {
   HahitantsoaVenue,
   HahitantsoaService,
   ReservationAvailableItemPreview,
+  InventoryItem,
   InventoryItemKind,
 } from "../types";
 
@@ -152,14 +154,18 @@ interface CatalogItem {
   price: number;
   kind: InventoryItemKind;
 }
-function mapPreviewToCatalogItem(p: ReservationAvailableItemPreview): CatalogItem {
+function mapPreviewToCatalogItem(
+  p: ReservationAvailableItemPreview,
+  inventoryItem?: InventoryItem,
+): CatalogItem {
+  const stock = inventoryItem?.stock_summary;
   return {
     id: p.inventory_item_id,
-    name: p.inventory_item_name,
-    category: p.inventory_item_kind,
-    available: 999,
-    price: 0,
-    kind: p.inventory_item_kind,
+    name: inventoryItem?.name || p.inventory_item_name,
+    category: inventoryItem?.section || inventoryItem?.kind || p.inventory_item_kind,
+    available: stock?.available_stock ?? inventoryItem?.reported_inventory_quantity ?? 0,
+    price: Number(inventoryItem?.rental_price ?? 0),
+    kind: inventoryItem?.kind || p.inventory_item_kind,
   };
 }
 
@@ -411,10 +417,19 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     let cancelled = false;
     setLoadingCatalog(true);
     setErrorCatalog(null);
-    getReservationAvailableItemPreviews(startAt, endAt)
-      .then(data => {
+    Promise.all([
+      getReservationAvailableItemPreviews(startAt, endAt),
+      getInventoryItems(),
+    ])
+      .then(([previews, inventoryItems]) => {
         if (!cancelled) {
-          setAvailableCatalogItems(data.map(mapPreviewToCatalogItem));
+          const inventoryById = new Map(inventoryItems.map(item => [item.id, item]));
+          setAvailableCatalogItems(
+            previews.map(preview => mapPreviewToCatalogItem(
+              preview,
+              inventoryById.get(preview.inventory_item_id),
+            )),
+          );
         }
       })
       .catch(err => {

@@ -6,6 +6,7 @@ import {
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
+  getInventoryItems,
   getReservationAvailableItemPreviews,
   createReservationDraft,
   createReservationDraftDocumentInstance,
@@ -128,11 +129,32 @@ const mockCatalogData = [
   },
 ];
 
+const mockInventoryData = mockCatalogData.map((item, index) => ({
+  id: item.inventory_item_id,
+  name: item.inventory_item_name,
+  kind: item.inventory_item_kind,
+  description: '',
+  section: index % 2 === 0 ? 'Mobilier' : 'Technique',
+  rental_price: String((index + 1) * 10000),
+  reported_inventory_quantity: 100,
+  stock_summary: {
+    reported_inventory_quantity: 100,
+    reported_damaged_quantity: 0,
+    current_stock: 100,
+    available_stock: 100,
+    reserved_stock: 0,
+    out_stock: 0,
+    return_stock: 0,
+    damaged_lost_stock: 0,
+  },
+}));
+
 // ---- Mock API ----
 vi.mock('./api', () => ({
   getCustomers: vi.fn(),
   getHahitantsoaVenues: vi.fn(),
   getHahitantsoaServices: vi.fn(),
+  getInventoryItems: vi.fn(),
   getReservationAvailableItemPreviews: vi.fn(),
   createReservationDraft: vi.fn(),
   createReservationDraftDocumentInstance: vi.fn(),
@@ -159,6 +181,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(getCustomers).mockResolvedValue(mockCustomersData as any);
     vi.mocked(getHahitantsoaVenues).mockResolvedValue(mockVenuesData as any);
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
+    vi.mocked(getInventoryItems).mockResolvedValue(mockInventoryData as any);
     vi.mocked(getReservationAvailableItemPreviews).mockResolvedValue(mockCatalogData as any);
     vi.mocked(createReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);
     vi.mocked(createReservationDraftDocumentInstance).mockResolvedValue({ id: 'DOC-T-001' } as any);
@@ -589,13 +612,13 @@ describe('ReservationNewPage', () => {
     const inputs = await screen.findAllByPlaceholderText('0');
     expect(inputs[0]).toHaveAttribute('type', 'number');
     expect(inputs[0]).toHaveAttribute('min', '0');
-    // mapPreviewToCatalogItem hardcodes available: 999
-    expect(inputs[0]).toHaveAttribute('max', '999');
+    // The volet catalogue uses the inventory stock summary.
+    expect(inputs[0]).toHaveAttribute('max', '100');
 
-    // Type > max (mapPreviewToCatalogItem hardcodes available: 999)
+    // Type a quantity above the inventory maximum.
     fireEvent.change(inputs[0], { target: { value: '1500' } });
-    expect(inputs[0]).toHaveValue(999);
-    expect(screen.getByText('Maximum disponible : 999')).toBeInTheDocument();
+    expect(inputs[0]).toHaveValue(100);
+    expect(screen.getByText('Maximum disponible : 100')).toBeInTheDocument();
 
     // Type < 0
     fireEvent.change(inputs[0], { target: { value: '-10' } });
@@ -647,10 +670,10 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByText('Ajuster package'));
 
     const inputs = screen.getAllByPlaceholderText('0'); // articles inside package
-    // mapPreviewToCatalogItem hardcodes available: 999
+    // The package editor uses the same inventory maximum.
     fireEvent.change(inputs[0], { target: { value: '1500' } });
-    expect(inputs[0]).toHaveValue(999);
-    expect(screen.getByText('Maximum disponible : 999')).toBeInTheDocument();
+    expect(inputs[0]).toHaveValue(100);
+    expect(screen.getByText('Maximum disponible : 100')).toBeInTheDocument();
   });
 
   it('13. Affiche l\'écran de neutralisation pour quote/CUST-001', async () => {
