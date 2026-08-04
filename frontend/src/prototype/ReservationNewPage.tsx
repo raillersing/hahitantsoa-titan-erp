@@ -370,7 +370,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   
   const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_VENUE_PRICE, logisticsPrice: HAHITANTSOA_LOGISTICS_PRICE });
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
-    period: "", startDate: "", startTime: "", endDate: "", endTime: "", pickupDate: "", returnDate: "", remarks: "",
+    period: "", startDate: "", startTime: "08:00", endDate: "", endTime: "22:00", pickupDate: "", returnDate: "", remarks: "",
     usageType: "Mariage", usageTypeOther: "", 
     destinationName: "", destinationAddress: "", destinationCity: "", destinationLandmark: "", destinationAccessNote: "", destinationContactName: "", destinationContactPhone: "", destinationLat: "", destinationLng: "", 
     movementMode: "Livraison par Titan", deliveryTime: "", returnTime: "", deliveryAddress: "",
@@ -556,7 +556,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       const data = JSON.parse(saved);
       setPath(data.path); setStep(data.step); setMaxReachedStep(data.maxReachedStep);
       setClientMode(data.clientMode); setSelectedClientId(data.selectedClientId); setNewClient(data.newClient);
-      setDomain(data.domain); setHDetails(data.hDetails); setTDetails(data.tDetails);
+      setDomain(data.domain);
+      setHDetails(data.hDetails);
+      setTDetails({
+        ...data.tDetails,
+        startTime: data.tDetails?.startTime || "08:00",
+        endTime: data.tDetails?.endTime || "22:00",
+      });
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
       setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment); setClientAttachments(data.clientAttachments || []);
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true);

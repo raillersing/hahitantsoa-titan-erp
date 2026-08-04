@@ -364,7 +364,7 @@ describe('ReservationNewPage', () => {
     expect(createReservationDraft).toHaveBeenCalledWith(expect.objectContaining({
       customer_id: 'CUST-001',
       start_at: '2026-08-01T08:00:00Z',
-      end_at: '2026-08-02T20:00:00Z',
+      end_at: '2026-08-02T22:00:00Z',
     }));
     expect(convertProformaToContract).toHaveBeenCalledWith('DOC-T-001');
   });
@@ -686,7 +686,7 @@ describe('ReservationNewPage', () => {
 
     await screen.findByText('Détails Location (Titan)');
     const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
-    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    const timeInputs = [screen.getByDisplayValue('08:00'), screen.getByDisplayValue('22:00')];
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
     fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
@@ -747,7 +747,7 @@ describe('ReservationNewPage', () => {
 
     await screen.findByText('Détails Location (Titan)');
     const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
-    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    const timeInputs = [screen.getByDisplayValue('08:00'), screen.getByDisplayValue('22:00')];
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
     fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
