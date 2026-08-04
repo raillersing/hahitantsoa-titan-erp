@@ -72,6 +72,25 @@ describe('DocumentPreview', () => {
     expect(screen.getByText(/Annexe 2 : Plan de masse et évacuation incendie/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 3 : Prix de casse/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 4 : Liste des intervenants non autorisés/)).toBeInTheDocument();
+    expect(screen.getByText('Prix de casse non renseigné.')).toBeInTheDocument();
+    expect(screen.queryByText('Table')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chaise')).not.toBeInTheDocument();
+  });
+
+  it('limite l’annexe 3 aux matériels commandés', () => {
+    render(
+      <DocumentPreview
+        type="contrat"
+        domain="hahitantsoa"
+        client={clientMock}
+        date="01/01/2026"
+        refNumber="TEST-CTR-LINES"
+        materials={[{ id: 'table-1', name: 'Table', quantity: 2 }]}
+      />
+    );
+
+    expect(screen.getByText('Table')).toBeInTheDocument();
+    expect(screen.queryByText('Chaise')).not.toBeInTheDocument();
   });
 
   it('renders Titan Article 2 with correct geography, usage type and venue name', () => {

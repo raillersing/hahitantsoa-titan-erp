@@ -545,15 +545,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               const uniqueMaterials = Array.from(new Set(materials.map(m => m.name || m.designation).filter(Boolean)))
                 .map(name => materials.find(m => (m.name || m.designation) === name)!);
 
-              const rows = uniqueMaterials.length === 0
-                ? hahitantsoaBreakagePrices.map(bp => ({
-                    name: bp.item,
-                    qty: 0,
-                    unitPrice: bp.price,
-                    total: 0,
-                    source: 'catalogue'
-                  }))
-                : uniqueMaterials.map(m => {
+              const rows = uniqueMaterials.map(m => {
                     const itemName = m.name || m.designation || "Article";
                     const bp = hahitantsoaBreakagePrices.find(p => p.item.toLowerCase() === itemName.toLowerCase());
                     const unit = bp ? bp.price : 0;
