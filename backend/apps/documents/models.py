@@ -58,6 +58,20 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     customer_email = models.EmailField(blank=True)
     customer_phone = models.CharField(max_length=64, blank=True)
     customer_address = models.TextField(blank=True)
+    customer_civilite = models.CharField(max_length=16, blank=True)
+    customer_birth_date = models.DateField(null=True, blank=True)
+    customer_birth_place = models.CharField(max_length=255, blank=True)
+    customer_id_type = models.CharField(max_length=32, blank=True)
+    customer_id_number = models.CharField(max_length=128, blank=True)
+    customer_id_issue_date = models.DateField(null=True, blank=True)
+    customer_id_issue_place = models.CharField(max_length=255, blank=True)
+    customer_id_duplicata_date = models.DateField(null=True, blank=True)
+    customer_id_duplicata_place = models.CharField(max_length=255, blank=True)
+    customer_nif = models.CharField(max_length=128, blank=True)
+    customer_stat = models.CharField(max_length=128, blank=True)
+    customer_rcs = models.CharField(max_length=128, blank=True)
+    customer_representative_name = models.CharField(max_length=255, blank=True)
+    customer_representative_role = models.CharField(max_length=255, blank=True)
     status = models.CharField(
         max_length=32,
         choices=DocumentInstanceStatus.choices,

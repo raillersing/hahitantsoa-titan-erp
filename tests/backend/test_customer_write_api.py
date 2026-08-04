@@ -75,6 +75,28 @@ def test_create_staff_success(staff_authenticated_client):
     assert Customer.objects.filter(display_name="Acme Corp").exists()
 
 
+def test_create_preserves_contract_identity_fields(staff_authenticated_client):
+    response = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL,
+        {
+            "display_name": "Jean Contrat",
+            "civilite": "Monsieur",
+            "address": "Lot 12 Tana",
+            "id_type": "CIN",
+            "id_number": "101010101010",
+            "id_issue_date": "2024-01-15",
+            "id_issue_place": "Antananarivo",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["id_type"] == "CIN"
+    assert data["id_number"] == "101010101010"
+    assert data["id_issue_place"] == "Antananarivo"
+
+
 def test_create_prospect_company_preserves_initial_classification(staff_authenticated_client):
     response = staff_authenticated_client.post(
         CUSTOMER_CREATE_URL,
