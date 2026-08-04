@@ -363,8 +363,8 @@ describe('ReservationNewPage', () => {
     });
     expect(createReservationDraft).toHaveBeenCalledWith(expect.objectContaining({
       customer_id: 'CUST-001',
-      start_at: '2026-08-01T08:00:00',
-      end_at: '2026-08-02T20:00:00',
+      start_at: '2026-08-01T08:00:00Z',
+      end_at: '2026-08-02T20:00:00Z',
     }));
     expect(convertProformaToContract).toHaveBeenCalledWith('DOC-T-001');
   });

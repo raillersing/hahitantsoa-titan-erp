@@ -64,6 +64,13 @@ function formatDateFr(dateStr: string | undefined): string {
   }
 }
 
+function toTimezoneAwareIso(date: string, time: string): string {
+  // The backend requires an aware datetime. The form stores the entered wall-clock
+  // value, and the application contract treats it as UTC until a timezone selector
+  // is introduced.
+  return `${date}T${time}:00Z`;
+}
+
 // ---- Local Client interface (adapted from mockData.Client for API compatibility) ----
 interface Client {
   id: string;
@@ -375,11 +382,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   // ---- Fetch available catalog items when date range is set (for catalog step) ----
   useEffect(() => {
     const startAt = domain === 'hahitantsoa'
-      ? (hDetails.startDate && hDetails.startTime ? `${hDetails.startDate}T${hDetails.startTime}:00` : '')
-      : (tDetails.startDate && tDetails.startTime ? `${tDetails.startDate}T${tDetails.startTime}:00` : '');
+      ? (hDetails.startDate && hDetails.startTime ? toTimezoneAwareIso(hDetails.startDate, hDetails.startTime) : '')
+      : (tDetails.startDate && tDetails.startTime ? toTimezoneAwareIso(tDetails.startDate, tDetails.startTime) : '');
     const endAt = domain === 'hahitantsoa'
-      ? (hDetails.endDate && hDetails.endTime ? `${hDetails.endDate}T${hDetails.endTime}:00` : '')
-      : (tDetails.endDate && tDetails.endTime ? `${tDetails.endDate}T${tDetails.endTime}:00` : '');
+      ? (hDetails.endDate && hDetails.endTime ? toTimezoneAwareIso(hDetails.endDate, hDetails.endTime) : '')
+      : (tDetails.endDate && tDetails.endTime ? toTimezoneAwareIso(tDetails.endDate, tDetails.endTime) : '');
 
     if (!startAt || !endAt) return;
 
@@ -737,8 +744,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       throw new Error("Renseignez les dates et heures de début et de fin avant d’émettre le proforma.");
     }
 
-    const startAt = `${details.startDate}T${details.startTime}:00`;
-    const endAt = `${details.endDate}T${details.endTime}:00`;
+    const startAt = toTimezoneAwareIso(details.startDate, details.startTime);
+    const endAt = toTimezoneAwareIso(details.endDate, details.endTime);
     const lines = selectedMaterials.map((material) => ({
       inventory_item_id: material.id,
       quantity: material.quantity,
