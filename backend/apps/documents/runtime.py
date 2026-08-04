@@ -215,6 +215,14 @@ def generate_document_instance_html(
             )
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_contract.html"
+    elif document_instance.template_key == "hahitantsoa.liability_release.v1":
+        if document_instance.hahitantsoa_event_draft is None:
+            raise DocumentRuntimeGenerationError(
+                "Hahitantsoa discharge document is not linked to an event draft source.",
+                code="hahitantsoa_event_draft_not_found",
+            )
+        context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
+        template_path = "documents/hahitantsoa_liability_release.html"
     else:
         context = _reservation_document_context(document_instance=document_instance)
         template_path = context.template.template_path

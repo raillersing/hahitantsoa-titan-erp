@@ -12,6 +12,7 @@ import {
   generateReservationDraftDocumentInstancePdf,
   createHahitantsoaEventDraft,
   createHahitantsoaEventDraftDocumentInstance,
+  getHahitantsoaEventDraftDocumentInstances,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
   convertProformaToContract,
@@ -27,7 +28,7 @@ import type {
 
 // ---- Inline business constants (formerly from mockData) ----
 const HAHITANTSOA_EVENT_TYPES = [
-  "Mariage", "Baptême", "Anniversaire", "Réception privée", "Séminaire",
+  "Fiançailles", "Mariage civil", "Mariage", "Baptême", "Anniversaire", "Réception privée", "Séminaire",
   "Corporate", "Conférence", "Atelier / Formation", "Fête familiale", "Autre"
 ];
 const HAHITANTSOA_RENTAL_TYPES = ["Location nue", "Location nue + logistique", "Location avec package"];
@@ -69,6 +70,23 @@ function toTimezoneAwareIso(date: string, time: string): string {
   // value, and the application contract treats it as UTC until a timezone selector
   // is introduced.
   return `${date}T${time}:00Z`;
+}
+
+function formatIsoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function titanOpenDay(date: Date, direction: -1 | 1): Date {
+  const result = new Date(date);
+  if (result.getDay() === 0) result.setDate(result.getDate() + direction);
+  return result;
+}
+
+function titanMovementDate(date: string, offset: -1 | 1): string {
+  const result = new Date(`${date}T12:00:00Z`);
+  result.setUTCDate(result.getUTCDate() + offset);
+  const openDay = titanOpenDay(result, offset);
+  return formatIsoDate(openDay);
 }
 
 // ---- Local Client interface (adapted from mockData.Client for API compatibility) ----
@@ -464,53 +482,40 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [discountIsPercentage, setDiscountIsPercentage] = useState<boolean>(true);
 
   useEffect(() => {
-    if (domain === 'titan' && tDetails.startDate && tDetails.startTime && tDetails.endDate && tDetails.endTime) {
+    if (domain === 'titan' && tDetails.startDate && tDetails.endDate) {
       try {
-        const [startYear, startMonth, startDay] = tDetails.startDate.split('-').map(Number);
-        const [startHour, startMinute] = tDetails.startTime.split(':').map(Number);
-        const startDateTime = new Date(startYear, startMonth - 1, startDay, startHour, startMinute, 0, 0);
-        startDateTime.setHours(startDateTime.getHours() - 2);
-        
-        const suggDeliveryDate = `${startDateTime.getFullYear()}-${String(startDateTime.getMonth() + 1).padStart(2, '0')}-${String(startDateTime.getDate()).padStart(2, '0')}`;
-        const suggDeliveryTime = `${String(startDateTime.getHours()).padStart(2, '0')}:${String(startDateTime.getMinutes()).padStart(2, '0')}`;
-
-        const [endYear, endMonth, endDay] = tDetails.endDate.split('-').map(Number);
-        const [endHour, endMinute] = tDetails.endTime.split(':').map(Number);
-        const endDateTime = new Date(endYear, endMonth - 1, endDay, endHour, endMinute, 0, 0);
-        endDateTime.setHours(endDateTime.getHours() + 2);
-        
-        const suggReturnDate = `${endDateTime.getFullYear()}-${String(endDateTime.getMonth() + 1).padStart(2, '0')}-${String(endDateTime.getDate()).padStart(2, '0')}`;
-        const suggReturnTime = `${String(endDateTime.getHours()).padStart(2, '0')}:${String(endDateTime.getMinutes()).padStart(2, '0')}`;
+        const suggDeliveryDate = titanMovementDate(tDetails.startDate, -1);
+        const suggReturnDate = titanMovementDate(tDetails.endDate, 1);
         
         let changed = false;
         const newDetails = { ...tDetails };
         
         if (!deliveryModifiedManually) {
-          if (newDetails.pickupDate !== suggDeliveryDate || newDetails.deliveryTime !== suggDeliveryTime || newDetails.pickupTime !== suggDeliveryTime) {
+          if (newDetails.pickupDate !== suggDeliveryDate) {
             newDetails.pickupDate = suggDeliveryDate;
-            newDetails.deliveryTime = suggDeliveryTime;
-            newDetails.pickupTime = suggDeliveryTime;
+            newDetails.deliveryTime = "";
+            newDetails.pickupTime = "";
             changed = true;
           }
-        } else if (lastCalculatedDelivery.date !== suggDeliveryDate || lastCalculatedDelivery.time !== suggDeliveryTime) {
+        } else if (lastCalculatedDelivery.date !== suggDeliveryDate) {
           setShowResuggest(true);
         }
         
         if (!returnModifiedManually) {
-          if (newDetails.returnDate !== suggReturnDate || newDetails.returnTime !== suggReturnTime) {
+          if (newDetails.returnDate !== suggReturnDate) {
             newDetails.returnDate = suggReturnDate;
-            newDetails.returnTime = suggReturnTime;
+            newDetails.returnTime = "";
             changed = true;
           }
-        } else if (lastCalculatedReturn.date !== suggReturnDate || lastCalculatedReturn.time !== suggReturnTime) {
+        } else if (lastCalculatedReturn.date !== suggReturnDate) {
           setShowResuggest(true);
         }
 
-        if (lastCalculatedDelivery.date !== suggDeliveryDate || lastCalculatedDelivery.time !== suggDeliveryTime) {
-          setLastCalculatedDelivery({ date: suggDeliveryDate, time: suggDeliveryTime });
+        if (lastCalculatedDelivery.date !== suggDeliveryDate) {
+          setLastCalculatedDelivery({ date: suggDeliveryDate, time: "" });
         }
-        if (lastCalculatedReturn.date !== suggReturnDate || lastCalculatedReturn.time !== suggReturnTime) {
-          setLastCalculatedReturn({ date: suggReturnDate, time: suggReturnTime });
+        if (lastCalculatedReturn.date !== suggReturnDate) {
+          setLastCalculatedReturn({ date: suggReturnDate, time: "" });
         }
         
         if (changed) {
@@ -520,7 +525,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         // ignore invalid dates
       }
     }
-  }, [tDetails.startDate, tDetails.startTime, tDetails.endDate, tDetails.endTime, domain]);
+  }, [tDetails.startDate, tDetails.endDate, domain]);
 
   const applySuggestions = () => {
     setDeliveryModifiedManually(false);
@@ -845,6 +850,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (domain === "hahitantsoa") {
       await generateHahitantsoaEventDraftDocumentInstance(emission.draftId, contract.id);
       await generateHahitantsoaEventDraftDocumentInstancePdf(emission.draftId, contract.id);
+      const documents = await getHahitantsoaEventDraftDocumentInstances(emission.draftId);
+      let discharge = documents.find((document) => document.template_key === "hahitantsoa.liability_release.v1");
+      if (!discharge) {
+        discharge = await createHahitantsoaEventDraftDocumentInstance(emission.draftId, {
+          template_key: "hahitantsoa.liability_release.v1",
+          notes: "Décharge générée avec le contrat.",
+        });
+      }
+      if (discharge.status === "prepared") {
+        await generateHahitantsoaEventDraftDocumentInstance(emission.draftId, discharge.id);
+      }
+      if (!discharge.pdf_storage_path) {
+        await generateHahitantsoaEventDraftDocumentInstancePdf(emission.draftId, discharge.id);
+      }
     } else {
       await generateReservationDraftDocumentInstance(emission.draftId, contract.id);
       await generateReservationDraftDocumentInstancePdf(emission.draftId, contract.id);
@@ -1727,23 +1746,18 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Date et Heure Livraison prévue 
-                    {!deliveryModifiedManually && tDetails.pickupDate && tDetails.deliveryTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                    Livraison prévue (J-1, jour ouvré)
+                    {!deliveryModifiedManually && tDetails.pickupDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, pickupDate: e.target.value})}} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.deliveryTime || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, deliveryTime: e.target.value})}} />
-                  </div>
+                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} readOnly />
+                  <p className="text-xs text-slate-500 mt-1">Aucune heure n’est demandée pour les manœuvres Titan.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Date et Heure Récupération prévue
-                    {!returnModifiedManually && tDetails.returnDate && tDetails.returnTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                    Récupération prévue (J+1, jour ouvré)
+                    {!returnModifiedManually && tDetails.returnDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnDate: e.target.value})}} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.returnTime || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnTime: e.target.value})}} />
-                  </div>
+                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} readOnly />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Adresse livraison (si différente de la destination)</label>
@@ -1770,23 +1784,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 )}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Date et Heure Prélèvement prévue
-                    {!deliveryModifiedManually && tDetails.pickupDate && tDetails.pickupTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                    Prélèvement prévu (J-1, jour ouvré)
+                    {!deliveryModifiedManually && tDetails.pickupDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, pickupDate: e.target.value})}} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.pickupTime || ''} onChange={e => {setDeliveryModifiedManually(true); setTDetails({...tDetails, pickupTime: e.target.value})}} />
-                  </div>
+                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} readOnly />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Date et Heure Retour prévue
-                    {!returnModifiedManually && tDetails.returnDate && tDetails.returnTime && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Suggestion automatique</span>}
+                    Retour prévu (J+1, jour ouvré)
+                    {!returnModifiedManually && tDetails.returnDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <div className="flex gap-2">
-                    <input type="date" className="w-2/3 border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnDate: e.target.value})}} />
-                    <input type="time" className="w-1/3 border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.returnTime || ''} onChange={e => {setReturnModifiedManually(true); setTDetails({...tDetails, returnTime: e.target.value})}} />
-                  </div>
+                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} readOnly />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Type de véhicule prévu</label>
@@ -2265,13 +2273,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="text-xs">
                   {tDetails.movementMode === 'Livraison par Titan' ? (
                     <>
-                      <p>Livraison prévue : {tDetails.pickupDate} à {tDetails.deliveryTime}</p>
-                      <p>Récupération prévue : {tDetails.returnDate} à {tDetails.returnTime}</p>
+                      <p>Livraison prévue : {tDetails.pickupDate} (J-1, jour ouvré)</p>
+                      <p>Récupération prévue : {tDetails.returnDate} (J+1, jour ouvré)</p>
                     </>
                   ) : (
                     <>
-                      <p>Prélèvement prévu : {tDetails.pickupDate} à {tDetails.deliveryTime || tDetails.pickupTime}</p>
-                      <p>Restitution prévue : {tDetails.returnDate} à {tDetails.returnTime || tDetails.clientReturnTime}</p>
+                      <p>Prélèvement prévu : {tDetails.pickupDate} (J-1, jour ouvré)</p>
+                      <p>Restitution prévue : {tDetails.returnDate} (J+1, jour ouvré)</p>
                     </>
                   )}
                 </div>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Décharge de responsabilité civile</title>
+  <style>
+    @page { size: A4; margin: 22mm 18mm; }
+    body { font-family: Arial, sans-serif; color: #172033; font-size: 12pt; line-height: 1.5; }
+    h1 { text-align: center; font-size: 19pt; margin: 20mm 0 12mm; }
+    .meta { border: 1px solid #ccd3df; padding: 10px 12px; margin: 8mm 0; }
+    .signature { display: flex; justify-content: space-between; margin-top: 24mm; }
+    .signature div { width: 42%; border-top: 1px solid #172033; padding-top: 6px; }
+  </style>
+</head>
+<body>
+  <h1>DÉCHARGE DE RESPONSABILITÉ CIVILE</h1>
+  <p>Je soussigné(e), <strong>{{ context.event_draft.customer_display_name }}</strong>,</p>
+  <div class="meta">
+    <div><strong>Référence :</strong> {{ context.event_draft.public_reference }}</div>
+    <div><strong>Événement :</strong> {{ context.event_draft.event_name }}</div>
+    <div><strong>Lieu :</strong> {{ context.event_draft.venue_name|default:"Non renseigné" }}</div>
+    <div><strong>Période :</strong> {{ context.event_draft.start_at|date:"d/m/Y H:i" }} au {{ context.event_draft.end_at|date:"d/m/Y H:i" }}</div>
+    <div><strong>Adresse du client :</strong> {{ context.event_draft.customer_address|default:"Non renseignée" }}</div>
+    <div><strong>Pièce d’identité :</strong> {{ context.event_draft.customer_id_type }} {{ context.event_draft.customer_id_number }}</div>
+  </div>
+  <p>reconnais avoir pris connaissance des conditions de mise à disposition des locaux, espaces, équipements et matériels liés à mon événement. Je m’engage à les utiliser conformément à leur destination et à signaler immédiatement tout incident ou dommage.</p>
+  <p>Je reconnais être responsable des dommages causés par moi-même, mes invités, mes prestataires ou toute personne placée sous ma responsabilité, et accepter l’évaluation et la facturation des réparations nécessaires selon les dégâts constatés.</p>
+  <p>La présente décharge est établie en document séparé du contrat et lui est associée pour la réservation indiquée ci-dessus.</p>
+  <p>Fait à ____________________, le ____ / ____ / ______</p>
+  <div class="signature">
+    <div>Signature du client précédée de la mention « Lu et approuvé »</div>
+    <div>Pour Hahitantsoa</div>
+  </div>
+</body>
+</html>
