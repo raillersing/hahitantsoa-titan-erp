@@ -5,6 +5,24 @@ export type InventoryItem = {
   name: string;
   kind: InventoryItemKind;
   description: string;
+  code?: string;
+  section?: string;
+  unit?: string;
+  purchase_price?: string | null;
+  rental_price?: string | null;
+  breakage_price?: string | null;
+  reported_inventory_quantity?: number;
+  reported_damaged_quantity?: number;
+  stock_summary?: {
+    reported_inventory_quantity: number;
+    reported_damaged_quantity: number;
+    current_stock: number;
+    available_stock: number;
+    reserved_stock: number;
+    out_stock: number;
+    return_stock: number;
+    damaged_lost_stock: number;
+  };
 };
 
 export type Customer = {
