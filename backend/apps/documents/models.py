@@ -20,6 +20,7 @@ DOCUMENT_INSTANCE_STATUS_VALUES = [status.value for status in DocumentInstanceSt
 
 class UploadedAttachmentCategory(models.TextChoices):
     CIN = "CIN", "CIN"
+    ADDRESS_PROOF = "Justificatif domicile", "Justificatif domicile"
     NIF = "NIF", "NIF"
     STAT = "STAT", "STAT"
     RCS = "RCS", "RCS"
@@ -101,7 +102,8 @@ class UploadedAttachment(UUIDModel, TimestampedModel, AuditableModel, SoftDelete
         if self.hahitantsoa_event_draft_id and self.customer_id:
             if self.hahitantsoa_event_draft.customer_id != self.customer_id:
                 raise ValidationError("Attachment customer must match event customer.")
-        if self.category.startswith("Justificatif") or self.category in {
+        if self.category in {
+            UploadedAttachmentCategory.PAYMENT_PROOF,
             UploadedAttachmentCategory.PAYMENT_RECEIPT,
             UploadedAttachmentCategory.PAYMENT_MOBILE,
             UploadedAttachmentCategory.PAYMENT_CHEQUE,

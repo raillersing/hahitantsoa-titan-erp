@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CustomerDetailPage from './CustomerDetailPage';
 import * as api from '../api';
@@ -20,6 +20,12 @@ beforeEach(() => {
     email: payload.email ?? 'ando.rakoto@email.mg',
     phone: payload.phone ?? '', address: payload.address ?? '', notes: payload.notes ?? '',
   }));
+  vi.spyOn(api, 'getCustomerAttachments').mockResolvedValue([]);
+  vi.spyOn(api, 'uploadAttachment').mockResolvedValue({
+    id: 'ATT-001', customer_id: 'CUST-001', reservation_draft_id: null,
+    hahitantsoa_event_draft_id: null, category: 'CIN', original_name: 'cin.pdf',
+    content_type: 'application/pdf', size_bytes: 24, sha256: 'hash', created_at: '',
+  });
 });
 
 describe('CustomerDetailPage', () => {
@@ -46,7 +52,7 @@ describe('CustomerDetailPage', () => {
     
     // Check fields
     expect(screen.getAllByText(/Raison sociale/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/NIF \/ STAT/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^NIF$/i).length).toBeGreaterThan(0);
   });
 
   it('3. Affiche un prospect sans simuler une conversion persistée (PROS-001)', async () => {
@@ -73,9 +79,37 @@ describe('CustomerDetailPage', () => {
     fireEvent.click(screen.getByText('Enregistrer'));
     
     expect(await screen.findByText('Modifications enregistrées.')).toBeInTheDocument();
+    expect(api.updateCustomer).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      display_name: 'Ando Modifié',
+      id_issue_date: null,
+      birth_date: null,
+    }));
   });
 
-  it('5. Clic sur retour et nouvelle réservation', async () => {
+  it('5. Persiste les champs d’identité et permet d’ajouter une pièce jointe', async () => {
+    const mockNavigate = vi.fn();
+    render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} canSensitiveWrite />);
+
+    expect(await screen.findByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Modifier'));
+    fireEvent.change(screen.getByPlaceholderText('Numéro'), { target: { value: '101010101010' } });
+    fireEvent.click(screen.getByText('Enregistrer'));
+    await waitFor(() => expect(api.updateCustomer).toHaveBeenCalledWith(
+      'CUST-001',
+      expect.objectContaining({ id_number: '101010101010' }),
+    ));
+
+    const file = new File(['%PDF-1.7'], 'cin.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Sélectionner une pièce jointe'), { target: { files: [file] } });
+    await waitFor(() => expect(api.uploadAttachment).toHaveBeenCalledWith(
+      file,
+      'CIN',
+      { customerId: 'CUST-001' },
+    ));
+    expect(await screen.findByText('cin.pdf')).toBeInTheDocument();
+  });
+
+  it('6. Clic sur retour et nouvelle réservation', async () => {
     const mockNavigate = vi.fn();
     const mockBack = vi.fn();
     render(<CustomerDetailPage param="CUST-001" onNavigate={mockNavigate} onBack={mockBack} canSensitiveWrite />);

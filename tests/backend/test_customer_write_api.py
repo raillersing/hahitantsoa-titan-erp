@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -187,6 +189,39 @@ def test_update_staff_success(staff_authenticated_client):
     assert data["display_name"] == "New Name"
     customer.refresh_from_db()
     assert customer.display_name == "New Name"
+
+
+def test_update_staff_persists_contract_identity_and_company_fields(staff_authenticated_client):
+    customer = Customer.objects.create(display_name="Client à compléter")
+    url = f"/api/v1/customers/{customer.id}/update/"
+    payload = {
+        "display_name": "Client complet",
+        "email": "client@example.test",
+        "phone": "+261340000000",
+        "address": "Lot ABC 123",
+        "id_type": "CIN",
+        "id_number": "101010101010",
+        "id_issue_date": "2024-02-03",
+        "id_issue_place": "Antananarivo",
+        "id_duplicata_date": "2025-03-04",
+        "id_duplicata_place": "Fianarantsoa",
+        "birth_date": "1990-01-02",
+        "nif": "NIF-001",
+        "stat": "STAT-002",
+        "rcs": "RCS-003",
+        "representative_name": "Jean Responsable",
+        "representative_role": "Gérant",
+        "notes": "Informations vérifiées",
+    }
+
+    response = staff_authenticated_client.post(url, payload, content_type="application/json")
+
+    assert response.status_code == 200
+    customer.refresh_from_db()
+    for field, value in payload.items():
+        actual = getattr(customer, field)
+        assert actual == (date.fromisoformat(value) if field.endswith("date") else value)
+    assert response.json()["id_number"] == "101010101010"
 
 
 def test_update_does_not_transition_lifecycle_or_party_type(staff_authenticated_client):

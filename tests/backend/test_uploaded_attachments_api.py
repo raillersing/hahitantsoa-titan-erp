@@ -118,3 +118,28 @@ def test_payment_attachment_requires_reservation_scope(sensitive_client, custome
 
     assert response.status_code == 400
     assert "category" in response.json()
+
+
+def test_customer_attachment_can_be_uploaded_listed_and_soft_deleted(
+    sensitive_client, customer, tmp_path, settings
+):
+    settings.MEDIA_ROOT = tmp_path
+    response = sensitive_client.post(
+        ATTACHMENTS_URL,
+        {
+            "customer_id": str(customer.id),
+            "category": "Justificatif domicile",
+            "file": _pdf_file("domicile.pdf"),
+        },
+    )
+
+    assert response.status_code == 201
+    attachment_id = response.json()["id"]
+    listed = sensitive_client.get(f"{ATTACHMENTS_URL}?customer_id={customer.id}")
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [attachment_id]
+
+    deleted = sensitive_client.delete(f"{ATTACHMENTS_URL}{attachment_id}/")
+    assert deleted.status_code == 204
+    assert sensitive_client.get(f"{ATTACHMENTS_URL}?customer_id={customer.id}").json() == []
+    assert UploadedAttachment.objects.get(pk=attachment_id).is_deleted is True

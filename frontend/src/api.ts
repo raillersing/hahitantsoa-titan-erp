@@ -928,6 +928,32 @@ export function uploadAttachment(
   return postAuthenticatedMultipart<UploadedAttachment>("/api/v1/documents/attachments/", formData, signal);
 }
 
+export function getCustomerAttachments(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<UploadedAttachment[]> {
+  return getAuthenticatedJson(
+    `/api/v1/documents/attachments/?customer_id=${encodeURIComponent(customerId)}`,
+    signal,
+  );
+}
+
+export async function downloadAttachment(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await fetch(`/api/v1/documents/attachments/${id}/download/`, {
+    credentials: "include",
+    signal,
+  });
+  if (!response.ok) {
+    requestSessionRevalidation(response.status);
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+  return response.blob();
+}
+
 export function deleteAttachment(id: string, signal?: AbortSignal): Promise<void> {
   return unsafeAuthenticatedRequest(`/api/v1/documents/attachments/${id}/`, {
     method: "DELETE",
