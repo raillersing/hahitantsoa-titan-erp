@@ -48,7 +48,7 @@ class InventoryItemListAPIView(generics.ListAPIView):
     serializer_class = InventoryItemSerializer
 
     def get_queryset(self):
-        qs = active_inventory_items()
+        qs = active_inventory_items().prefetch_related("stock_movements")
         name_param = self.request.query_params.get("name")
         if name_param:
             qs = qs.filter(name__icontains=name_param)
@@ -67,7 +67,7 @@ class InventoryItemRetrieveAPIView(generics.RetrieveAPIView):
     lookup_field = "pk"
 
     def get_queryset(self):
-        return active_inventory_items()
+        return active_inventory_items().prefetch_related("stock_movements")
 
 
 class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):

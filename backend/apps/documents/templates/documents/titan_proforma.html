@@ -12,6 +12,10 @@
 
     <h2>Customer</h2>
     <p>Name: {{ context.reservation_draft.customer.display_name }}</p>
+    <p>Customer ID: {{ context.reservation_draft.customer.customer_id }}</p>
+    <p>Email: {{ context.reservation_draft.customer.email }}</p>
+    <p>Phone: {{ context.reservation_draft.customer.phone }}</p>
+    <p>Address: {{ context.reservation_draft.customer.address }}</p>
 
     <h2>Reservation</h2>
     <p>Reference: {{ context.reservation_draft.public_reference }}</p>

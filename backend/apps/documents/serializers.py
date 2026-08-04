@@ -1,10 +1,22 @@
+import hashlib
 from dataclasses import asdict
+from pathlib import Path
 
+from django.utils.text import get_valid_filename
 from rest_framework import serializers
 
-from apps.documents.models import DocumentInstance, DocumentTemplate, DocumentTemplateVersion
+from apps.customers.models import Customer
+from apps.documents.models import (
+    DocumentInstance,
+    DocumentTemplate,
+    DocumentTemplateVersion,
+    UploadedAttachment,
+    UploadedAttachmentCategory,
+)
 from apps.documents.registry import DocumentTemplateDefinition
 from apps.documents.services import get_supported_reservation_draft_document_template_keys
+from apps.hahitantsoa.models import HahitantsoaEventDraft
+from apps.reservations.models import ReservationDraft
 
 
 class DocumentTemplateDefinitionSerializer(serializers.Serializer):
@@ -94,6 +106,20 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "customer_email",
             "customer_phone",
             "customer_address",
+            "customer_civilite",
+            "customer_birth_date",
+            "customer_birth_place",
+            "customer_id_type",
+            "customer_id_number",
+            "customer_id_issue_date",
+            "customer_id_issue_place",
+            "customer_id_duplicata_date",
+            "customer_id_duplicata_place",
+            "customer_nif",
+            "customer_stat",
+            "customer_rcs",
+            "customer_representative_name",
+            "customer_representative_role",
             "status",
             "prepared_at",
             "prepared_by",
@@ -114,6 +140,153 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "updated_at",
         )
         read_only_fields = fields
+
+
+MAX_UPLOADED_ATTACHMENT_BYTES = 10 * 1024 * 1024
+ALLOWED_ATTACHMENT_TYPES = {
+    ".pdf": "application/pdf",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+
+
+def _attachment_signature_matches(suffix: str, header: bytes) -> bool:
+    if suffix == ".pdf":
+        return header.startswith(b"%PDF-")
+    if suffix in {".jpg", ".jpeg"}:
+        return header.startswith(b"\xff\xd8\xff")
+    if suffix == ".png":
+        return header.startswith(b"\x89PNG\r\n\x1a\n")
+    if suffix == ".webp":
+        return header.startswith(b"RIFF") and header[8:12] == b"WEBP"
+    return False
+
+
+class UploadedAttachmentSerializer(serializers.ModelSerializer):
+    customer_reference = serializers.CharField(source="customer.public_reference", read_only=True)
+    customer_id = serializers.PrimaryKeyRelatedField(
+        source="customer",
+        queryset=Customer.objects.filter(is_active=True, is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    reservation_draft_id = serializers.PrimaryKeyRelatedField(
+        source="reservation_draft",
+        queryset=ReservationDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    hahitantsoa_event_draft_id = serializers.PrimaryKeyRelatedField(
+        source="hahitantsoa_event_draft",
+        queryset=HahitantsoaEventDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    file = serializers.FileField(write_only=True)
+
+    class Meta:
+        model = UploadedAttachment
+        fields = (
+            "id",
+            "customer_id",
+            "customer_reference",
+            "reservation_draft_id",
+            "hahitantsoa_event_draft_id",
+            "category",
+            "file",
+            "original_name",
+            "content_type",
+            "size_bytes",
+            "sha256",
+            "created_at",
+        )
+        read_only_fields = (
+            "id",
+            "original_name",
+            "content_type",
+            "size_bytes",
+            "sha256",
+            "created_at",
+        )
+
+    def validate(self, attrs):
+        customer = attrs.get("customer")
+        reservation_draft = attrs.get("reservation_draft")
+        event_draft = attrs.get("hahitantsoa_event_draft")
+        uploaded_file = attrs.get("file")
+
+        if not customer and not reservation_draft and not event_draft:
+            raise serializers.ValidationError(
+                "Rattachez la pièce jointe à un client ou à une réservation."
+            )
+        if reservation_draft and event_draft:
+            raise serializers.ValidationError(
+                "Une pièce jointe ne peut être rattachée qu'à un seul volet."
+            )
+        if reservation_draft and customer and reservation_draft.customer_id != customer.id:
+            raise serializers.ValidationError(
+                {"customer_id": "Le client ne correspond pas à la réservation."}
+            )
+        if event_draft and customer and event_draft.customer_id != customer.id:
+            raise serializers.ValidationError(
+                {"customer_id": "Le client ne correspond pas à l'événement."}
+            )
+
+        category = attrs.get("category")
+        payment_categories = {
+            UploadedAttachmentCategory.PAYMENT_PROOF,
+            UploadedAttachmentCategory.PAYMENT_RECEIPT,
+            UploadedAttachmentCategory.PAYMENT_MOBILE,
+            UploadedAttachmentCategory.PAYMENT_CHEQUE,
+            UploadedAttachmentCategory.PAYMENT_TRANSFER,
+            UploadedAttachmentCategory.PAYMENT_CARD,
+        }
+        if category in payment_categories and not (reservation_draft or event_draft):
+            raise serializers.ValidationError(
+                {"category": "Une preuve de paiement doit être liée à une réservation."}
+            )
+
+        if uploaded_file is None:
+            raise serializers.ValidationError({"file": "Le fichier est obligatoire."})
+        suffix = Path(uploaded_file.name).suffix.casefold()
+        expected_type = ALLOWED_ATTACHMENT_TYPES.get(suffix)
+        if expected_type is None:
+            raise serializers.ValidationError(
+                {"file": "Format refusé. Utilisez PDF, JPG, PNG ou WEBP."}
+            )
+        if uploaded_file.size > MAX_UPLOADED_ATTACHMENT_BYTES:
+            raise serializers.ValidationError(
+                {"file": "La pièce jointe ne doit pas dépasser 10 Mo."}
+            )
+        if uploaded_file.content_type != expected_type:
+            raise serializers.ValidationError(
+                {"file": "Le type MIME du fichier ne correspond pas à son extension."}
+            )
+        header = uploaded_file.read(16)
+        uploaded_file.seek(0)
+        if not _attachment_signature_matches(suffix, header):
+            raise serializers.ValidationError({"file": "Le contenu du fichier est invalide."})
+        return attrs
+
+    def create(self, validated_data):
+        uploaded_file = validated_data.pop("file")
+        digest = hashlib.sha256()
+        for chunk in uploaded_file.chunks():
+            digest.update(chunk)
+        uploaded_file.seek(0)
+        safe_name = get_valid_filename(Path(uploaded_file.name).name)[:255] or "attachment"
+        return UploadedAttachment.objects.create(
+            file=uploaded_file,
+            original_name=safe_name,
+            content_type=uploaded_file.content_type,
+            size_bytes=uploaded_file.size,
+            sha256=digest.hexdigest(),
+            created_by=self.context["request"].user,
+            updated_by=self.context["request"].user,
+            **validated_data,
+        )
 
 
 class DocumentInstanceCreateSerializer(serializers.Serializer):

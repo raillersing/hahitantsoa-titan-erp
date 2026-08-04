@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -31,6 +31,38 @@ class DocumentGenerationResult:
     content_checksum: str
 
 
+def _reservation_document_context(*, document_instance: DocumentInstance):
+    context = build_reservation_draft_commercial_document_context(
+        reservation_draft=document_instance.reservation_draft,
+        template_key=document_instance.template_key,
+    )
+    customer = replace(
+        context.reservation_draft.customer,
+        display_name=document_instance.customer_display_name,
+        email=document_instance.customer_email,
+        phone=document_instance.customer_phone,
+        address=document_instance.customer_address,
+        civilite=document_instance.customer_civilite,
+        birth_date=document_instance.customer_birth_date,
+        birth_place=document_instance.customer_birth_place,
+        id_type=document_instance.customer_id_type,
+        id_number=document_instance.customer_id_number,
+        id_issue_date=document_instance.customer_id_issue_date,
+        id_issue_place=document_instance.customer_id_issue_place,
+        id_duplicata_date=document_instance.customer_id_duplicata_date,
+        id_duplicata_place=document_instance.customer_id_duplicata_place,
+        nif=document_instance.customer_nif,
+        stat=document_instance.customer_stat,
+        rcs=document_instance.customer_rcs,
+        representative_name=document_instance.customer_representative_name,
+        representative_role=document_instance.customer_representative_role,
+    )
+    return replace(
+        context,
+        reservation_draft=replace(context.reservation_draft, customer=customer),
+    )
+
+
 def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
@@ -46,6 +78,7 @@ def _build_hahitantsoa_contract_runtime_context(
             "key": document_instance.template_key,
         },
         "event_draft": {
+            "customer_id": document_instance.customer_id,
             "public_reference": linked_event_draft.public_reference,
             "event_name": linked_event_draft.event_name,
             "venue_name": linked_event_draft.venue_name,
@@ -55,6 +88,23 @@ def _build_hahitantsoa_contract_runtime_context(
             "end_at": linked_event_draft.end_at,
             "notes": linked_event_draft.notes,
             "customer_display_name": linked_event_draft.customer.display_name,
+            "customer_email": document_instance.customer_email,
+            "customer_phone": document_instance.customer_phone,
+            "customer_address": document_instance.customer_address,
+            "customer_civilite": document_instance.customer_civilite,
+            "customer_birth_date": document_instance.customer_birth_date,
+            "customer_birth_place": document_instance.customer_birth_place,
+            "customer_id_type": document_instance.customer_id_type,
+            "customer_id_number": document_instance.customer_id_number,
+            "customer_id_issue_date": document_instance.customer_id_issue_date,
+            "customer_id_issue_place": document_instance.customer_id_issue_place,
+            "customer_id_duplicata_date": document_instance.customer_id_duplicata_date,
+            "customer_id_duplicata_place": document_instance.customer_id_duplicata_place,
+            "customer_nif": document_instance.customer_nif,
+            "customer_stat": document_instance.customer_stat,
+            "customer_rcs": document_instance.customer_rcs,
+            "customer_representative_name": document_instance.customer_representative_name,
+            "customer_representative_role": document_instance.customer_representative_role,
             "lines": tuple(
                 {
                     "inventory_item_name": line.inventory_item.name,
@@ -165,11 +215,16 @@ def generate_document_instance_html(
             )
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_contract.html"
+    elif document_instance.template_key == "hahitantsoa.liability_release.v1":
+        if document_instance.hahitantsoa_event_draft is None:
+            raise DocumentRuntimeGenerationError(
+                "Hahitantsoa discharge document is not linked to an event draft source.",
+                code="hahitantsoa_event_draft_not_found",
+            )
+        context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
+        template_path = "documents/hahitantsoa_liability_release.html"
     else:
-        context = build_reservation_draft_commercial_document_context(
-            reservation_draft=document_instance.reservation_draft,
-            template_key=document_instance.template_key,
-        )
+        context = _reservation_document_context(document_instance=document_instance)
         template_path = context.template.template_path
 
     if document_instance.template_key == "titan.proforma.v1":

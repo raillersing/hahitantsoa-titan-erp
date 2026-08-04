@@ -65,6 +65,7 @@ import type {
   DocumentInstance,
   DocumentInstanceCreatePayload,
   DocumentInstancePdfGenerationResult,
+  UploadedAttachment,
   AuditEvent,
   AuditEventQueryParams,
   Payment,
@@ -211,6 +212,18 @@ async function postAuthenticatedJson<T>(
 
 async function postAuthenticated<T>(url: string, signal?: AbortSignal): Promise<T> {
   const response = await unsafeAuthenticatedRequest(url, { method: "POST" }, signal);
+  return parseJsonResponse<T>(response);
+}
+
+async function postAuthenticatedMultipart<T>(
+  url: string,
+  body: FormData,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await unsafeAuthenticatedRequest(url, {
+    method: "POST",
+    body,
+  }, signal);
   return parseJsonResponse<T>(response);
 }
 
@@ -894,6 +907,59 @@ export function getReservationDraftDocumentInstances(
     `/api/v1/documents/reservation-drafts/${reservationDraftId}/instances/`,
     signal,
   );
+}
+
+export function uploadAttachment(
+  file: File,
+  category: string,
+  scope: {
+    customerId?: string;
+    reservationDraftId?: string;
+    hahitantsoaEventDraftId?: string;
+  },
+  signal?: AbortSignal,
+): Promise<UploadedAttachment> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("category", category);
+  if (scope.customerId) formData.append("customer_id", scope.customerId);
+  if (scope.reservationDraftId) formData.append("reservation_draft_id", scope.reservationDraftId);
+  if (scope.hahitantsoaEventDraftId) formData.append("hahitantsoa_event_draft_id", scope.hahitantsoaEventDraftId);
+  return postAuthenticatedMultipart<UploadedAttachment>("/api/v1/documents/attachments/", formData, signal);
+}
+
+export function getCustomerAttachments(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<UploadedAttachment[]> {
+  return getAuthenticatedJson(
+    `/api/v1/documents/attachments/?customer_id=${encodeURIComponent(customerId)}`,
+    signal,
+  );
+}
+
+export async function downloadAttachment(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const response = await fetch(`/api/v1/documents/attachments/${id}/download/`, {
+    credentials: "include",
+    signal,
+  });
+  if (!response.ok) {
+    requestSessionRevalidation(response.status);
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+  return response.blob();
+}
+
+export function deleteAttachment(id: string, signal?: AbortSignal): Promise<void> {
+  return unsafeAuthenticatedRequest(`/api/v1/documents/attachments/${id}/`, {
+    method: "DELETE",
+  }, signal).then(response => {
+    if (!response.ok) return parseJsonResponse<void>(response);
+  });
 }
 
 export function createReservationDraftDocumentInstance(

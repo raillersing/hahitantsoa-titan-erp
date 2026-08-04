@@ -117,13 +117,15 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="liability_release",
         label="Decharge de responsabilite Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/Document_B_Presentation_Metier_Evenementiel_v3.4.pdf",
+        status="validated_source_template",
+        source_kind="source_pdf",
+        source_reference=(
+            "docs/references/source/templates/Décharge de responsabilité civila_v1.pdf"
+        ),
         template_path="backend/apps/documents/templates_documents/hahitantsoa/decharge_responsabilite/v1/template.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/decharge_responsabilite/v1/preview.pdf",
-        validated_by_client=False,
-        notes=DRAFT_PLACEHOLDER_NOTE,
+        validated_by_client=True,
+        notes="Document séparé généré automatiquement avec le contrat lors de la confirmation.",
     ),
     DocumentTemplateDefinition(
         key="titan.delivery_note.v1",

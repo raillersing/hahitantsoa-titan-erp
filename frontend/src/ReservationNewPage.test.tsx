@@ -6,6 +6,7 @@ import {
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
+  getInventoryItems,
   getReservationAvailableItemPreviews,
   createReservationDraft,
   createReservationDraftDocumentInstance,
@@ -15,7 +16,9 @@ import {
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
+  convertProformaToContract,
   createCustomer,
+  uploadAttachment,
 } from './api';
 
 // ---- Shared mock data ----
@@ -127,11 +130,32 @@ const mockCatalogData = [
   },
 ];
 
+const mockInventoryData = mockCatalogData.map((item, index) => ({
+  id: item.inventory_item_id,
+  name: item.inventory_item_name,
+  kind: item.inventory_item_kind,
+  description: '',
+  section: index % 2 === 0 ? 'Mobilier' : 'Technique',
+  rental_price: String((index + 1) * 10000),
+  reported_inventory_quantity: 100,
+  stock_summary: {
+    reported_inventory_quantity: 100,
+    reported_damaged_quantity: 0,
+    current_stock: 100,
+    available_stock: 100,
+    reserved_stock: 0,
+    out_stock: 0,
+    return_stock: 0,
+    damaged_lost_stock: 0,
+  },
+}));
+
 // ---- Mock API ----
 vi.mock('./api', () => ({
   getCustomers: vi.fn(),
   getHahitantsoaVenues: vi.fn(),
   getHahitantsoaServices: vi.fn(),
+  getInventoryItems: vi.fn(),
   getReservationAvailableItemPreviews: vi.fn(),
   createReservationDraft: vi.fn(),
   createReservationDraftDocumentInstance: vi.fn(),
@@ -141,7 +165,9 @@ vi.mock('./api', () => ({
   createHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstancePdf: vi.fn(),
+  convertProformaToContract: vi.fn(),
   createCustomer: vi.fn(),
+  uploadAttachment: vi.fn(),
 }));
 
 describe('ReservationNewPage', () => {
@@ -157,6 +183,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(getCustomers).mockResolvedValue(mockCustomersData as any);
     vi.mocked(getHahitantsoaVenues).mockResolvedValue(mockVenuesData as any);
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
+    vi.mocked(getInventoryItems).mockResolvedValue(mockInventoryData as any);
     vi.mocked(getReservationAvailableItemPreviews).mockResolvedValue(mockCatalogData as any);
     vi.mocked(createReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);
     vi.mocked(createReservationDraftDocumentInstance).mockResolvedValue({ id: 'DOC-T-001' } as any);
@@ -166,7 +193,9 @@ describe('ReservationNewPage', () => {
     vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-H-001' } as any);
+    vi.mocked(convertProformaToContract).mockResolvedValue({ id: 'CONTRACT-001', reservation_public_reference: 'RES-001' } as any);
     vi.mocked(createCustomer).mockResolvedValue({ id: 'CUST-NEW', display_name: 'New Client' } as any);
+    vi.mocked(uploadAttachment).mockResolvedValue({ id: 'ATT-001' } as any);
   });
 
   afterEach(() => {
@@ -309,6 +338,16 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Aller au catalogue')).toBeInTheDocument();
     });
+    const contractDateInputs = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'date');
+    const contractTimeInputs = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'time');
+    if (contractDateInputs.length >= 2) {
+      fireEvent.change(contractDateInputs[0], { target: { value: '2026-08-01' } });
+      fireEvent.change(contractDateInputs[1], { target: { value: '2026-08-02' } });
+    }
+    if (contractTimeInputs.length >= 2) {
+      fireEvent.change(contractTimeInputs[0], { target: { value: '08:00' } });
+      fireEvent.change(contractTimeInputs[1], { target: { value: '20:00' } });
+    }
     fireEvent.click(screen.getByText('Aller au catalogue'));
 
     await waitFor(() => {
@@ -346,8 +385,14 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByText('Valider et Clôturer le Dossier'));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('dashboard');
+      expect(mockNavigate).toHaveBeenCalledWith('titan');
     });
+    expect(createReservationDraft).toHaveBeenCalledWith(expect.objectContaining({
+      customer_id: 'CUST-001',
+      start_at: '2026-08-01T08:00:00Z',
+      end_at: '2026-08-02T22:00:00Z',
+    }));
+    expect(convertProformaToContract).toHaveBeenCalledWith('DOC-T-001');
   });
 
   it('6. la catégorie Photo a été retirée', async () => {
@@ -401,6 +446,11 @@ describe('ReservationNewPage', () => {
       const inputs = screen.getAllByPlaceholderText('0');
       expect(inputs.length).toBeGreaterThan(0);
     });
+    fireEvent.change(screen.getByLabelText('Rechercher un article'), { target: { value: 'Chaise' } });
+    expect(screen.getByText('Chaise Napoléon transparente')).toBeInTheDocument();
+    expect(screen.queryByText('Table rectangulaire')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Faire défiler jusqu'à l'action suivante/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Réinitialiser' }));
     const inputs = screen.getAllByPlaceholderText('0');
     fireEvent.change(inputs[0], { target: { value: '5' } }); // Chaise
 
@@ -570,13 +620,13 @@ describe('ReservationNewPage', () => {
     const inputs = await screen.findAllByPlaceholderText('0');
     expect(inputs[0]).toHaveAttribute('type', 'number');
     expect(inputs[0]).toHaveAttribute('min', '0');
-    // mapPreviewToCatalogItem hardcodes available: 999
-    expect(inputs[0]).toHaveAttribute('max', '999');
+    // The volet catalogue uses the inventory stock summary.
+    expect(inputs[0]).toHaveAttribute('max', '100');
 
-    // Type > max (mapPreviewToCatalogItem hardcodes available: 999)
+    // Type a quantity above the inventory maximum.
     fireEvent.change(inputs[0], { target: { value: '1500' } });
-    expect(inputs[0]).toHaveValue(999);
-    expect(screen.getByText('Maximum disponible : 999')).toBeInTheDocument();
+    expect(inputs[0]).toHaveValue(100);
+    expect(screen.getByText('Maximum disponible : 100')).toBeInTheDocument();
 
     // Type < 0
     fireEvent.change(inputs[0], { target: { value: '-10' } });
@@ -612,9 +662,9 @@ describe('ReservationNewPage', () => {
       fireEvent.change(dateInputs12[0], { target: { value: '2026-08-01' } });
       fireEvent.change(dateInputs12[1], { target: { value: '2026-08-02' } });
     }
-    if (timeInputs12.length >= 2) {
-      fireEvent.change(timeInputs12[0], { target: { value: '08:00' } });
-      fireEvent.change(timeInputs12[1], { target: { value: '20:00' } });
+    if (timeInputs12.length >= 1) {
+      expect(screen.getByDisplayValue('08:00')).toHaveValue('08:00');
+      fireEvent.change(timeInputs12[0], { target: { value: '20:00' } });
     }
     fireEvent.click(screen.getByText(/Aller au catalogue/i));
 
@@ -628,10 +678,10 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByText('Ajuster package'));
 
     const inputs = screen.getAllByPlaceholderText('0'); // articles inside package
-    // mapPreviewToCatalogItem hardcodes available: 999
+    // The package editor uses the same inventory maximum.
     fireEvent.change(inputs[0], { target: { value: '1500' } });
-    expect(inputs[0]).toHaveValue(999);
-    expect(screen.getByText('Maximum disponible : 999')).toBeInTheDocument();
+    expect(inputs[0]).toHaveValue(100);
+    expect(screen.getByText('Maximum disponible : 100')).toBeInTheDocument();
   });
 
   it('13. Affiche l\'écran de neutralisation pour quote/CUST-001', async () => {
@@ -667,7 +717,7 @@ describe('ReservationNewPage', () => {
 
     await screen.findByText('Détails Location (Titan)');
     const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
-    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    const timeInputs = [screen.getByDisplayValue('08:00'), screen.getByDisplayValue('22:00')];
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
     fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
@@ -699,8 +749,8 @@ describe('ReservationNewPage', () => {
     const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+    expect(screen.getByDisplayValue('08:00')).toHaveValue('08:00');
     fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
-    fireEvent.change(timeInputs[1], { target: { value: '08:00' } });
     fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));
@@ -728,7 +778,7 @@ describe('ReservationNewPage', () => {
 
     await screen.findByText('Détails Location (Titan)');
     const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
-    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    const timeInputs = [screen.getByDisplayValue('08:00'), screen.getByDisplayValue('22:00')];
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
     fireEvent.change(timeInputs[0], { target: { value: '08:00' } });

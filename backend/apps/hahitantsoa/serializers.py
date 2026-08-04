@@ -607,9 +607,6 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         should_validate_lines = self.instance is None or "lines" in attrs
         if should_validate_lines:
             lines = attrs.get("lines") or []
-            if not lines:
-                raise serializers.ValidationError({"lines": "At least one line is required."})
-
             inventory_item_ids = [line["inventory_item"].id for line in lines]
             if len(inventory_item_ids) != len(set(inventory_item_ids)):
                 raise serializers.ValidationError(

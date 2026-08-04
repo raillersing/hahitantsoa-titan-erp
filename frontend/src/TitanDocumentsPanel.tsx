@@ -201,7 +201,7 @@ function TitanDocumentsPanel() {
     <div className="titan-documents-panel" data-testid="titan-documents-panel">
       <h4>Documents des brouillons de réservation Titan</h4>
       <p className="section-helper">
-        Gérez les instances de documents pour les brouillons de réservation Titan (proformas, contrats, bons de livraison).
+        Gérez les instances de documents pour les brouillons de réservation Titan. Les avenants Titan sont disponibles dans la liste des modèles.
       </p>
 
       {state.error && (

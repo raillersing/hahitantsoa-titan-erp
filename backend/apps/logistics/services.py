@@ -34,6 +34,14 @@ class LogisticsServiceError(ValueError):
         self.code = code
 
 
+def _validate_operational_schedule(*, scheduled_at: timezone.datetime | None) -> None:
+    if scheduled_at is not None and timezone.localtime(scheduled_at).weekday() == 6:
+        raise LogisticsServiceError(
+            "Les manœuvres Titan ne peuvent pas être planifiées le dimanche.",
+            code="sunday_logistics_closed",
+        )
+
+
 def _require_logistics_actor(*, actor: object | None) -> None:
     if not is_reservation_sensitive_actor(actor=actor):
         raise LogisticsServiceError(
@@ -74,6 +82,7 @@ def create_logistics_event(
     signature_required: bool = False,
 ) -> LogisticsEvent:
     _require_logistics_actor(actor=actor)
+    _validate_operational_schedule(scheduled_at=scheduled_at)
 
     event = LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
@@ -103,6 +112,7 @@ def update_logistics_event(
     signature_required: bool | None = None,
 ) -> LogisticsEvent:
     _require_logistics_actor(actor=actor)
+    _validate_operational_schedule(scheduled_at=scheduled_at)
 
     if event.status in {LogisticsEventStatus.COMPLETED, LogisticsEventStatus.CANCELLED}:
         raise LogisticsServiceError(

@@ -363,7 +363,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <p className="mb-6 uppercase">IL A ETE CONVENU CE QUI SUIT :</p>
 
             <h5 className="font-bold underline mb-4">Article 1 : Objet du contrat</h5>
-            <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, un lieu de réception situé au Lot P93M Sud Ambohipo Alasora Antananarivo comprenant :</p>
+            <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, situé à {hDetails?.venue || 'l’adresse renseignée dans la commande'} comprenant :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
               <li>Une salle de réception de 600 m2 ;</li>
               <li>Huit toilettes attenantes ;</li>
@@ -413,6 +413,12 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
 
             <h5 className="font-bold underline mb-4">Article 4 : Tarifs</h5>
             <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {formatMoneyRaw(safeTotal)} Ariary TTC.</p>
+            <ul className="list-disc pl-10 mb-4 space-y-1">
+              <li>Location du domaine : {formatMoneyRaw(hDetails?.venuePrice)} Ariary</li>
+              {hDetails?.rentalType === 'Location nue + logistique' && <li>Logistique : {formatMoneyRaw(hDetails?.logisticsPrice)} Ariary</li>}
+              {services.map((service) => <li key={service.id || service.name}>{service.name} : {formatMoneyRaw(service.price)} Ariary</li>)}
+              {materials.map((material) => <li key={material.id || material.name}>{material.quantity} × {material.name}</li>)}
+            </ul>
             <div className="pl-10 mb-4 flex flex-col gap-2">
               <div className="flex"><span className="w-48">N° Proforma :</span><span>{refNumber}</span></div>
               <div className="flex"><span className="w-48">Nombre de convives :</span><span>{hDetails?.guests || '200'}</span></div>
@@ -435,8 +441,8 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <h5 className="font-bold underline mb-4">Article 5 : Modalités de paiement</h5>
             <p className="mb-2">La présente location est consentie et acceptée moyennant le versement d’un acompte de :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
-              <li>1 000 000,00 Ariary dans le cas d’une location nue ;</li>
-              <li>1 500 000,00 Ariary dans le cas d’une location nue avec logistique.</li>
+              <li>Acompte prévu dans la commande : {formatMoneyRaw(paidAmount)} Ariary.</li>
+              <li>Solde restant selon la commande : {formatMoneyRaw(remaining)} Ariary.</li>
             </ul>
             <p className="mb-2">Celui-ci devra être réglé le jour de la réservation de la salle, soit à la signature par le Client du présent contrat. Le client s’engage à verser le solde du montant de la location en deux tranches :</p>
             <ul className="list-disc pl-10 mb-6 space-y-1">
@@ -539,15 +545,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               const uniqueMaterials = Array.from(new Set(materials.map(m => m.name || m.designation).filter(Boolean)))
                 .map(name => materials.find(m => (m.name || m.designation) === name)!);
 
-              const rows = uniqueMaterials.length === 0
-                ? hahitantsoaBreakagePrices.map(bp => ({
-                    name: bp.item,
-                    qty: 0,
-                    unitPrice: bp.price,
-                    total: 0,
-                    source: 'catalogue'
-                  }))
-                : uniqueMaterials.map(m => {
+              const rows = uniqueMaterials.map(m => {
                     const itemName = m.name || m.designation || "Article";
                     const bp = hahitantsoaBreakagePrices.find(p => p.item.toLowerCase() === itemName.toLowerCase());
                     const unit = bp ? bp.price : 0;
@@ -558,7 +556,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               if (rows.length === 0) {
                 return (
                   <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
-                    Prix de casse non renseigné.
+                    Aucun matériel n’étant inclus dans cette commande, aucune grille de casse matériel ne s’applique. Les éventuelles dégradations des locaux, espaces verts ou équipements mis à disposition seront évaluées selon les dégâts constatés et facturées selon le coût réel des réparations ou du remplacement.
                   </div>
                 );
               }

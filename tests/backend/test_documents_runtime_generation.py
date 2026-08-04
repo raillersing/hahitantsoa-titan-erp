@@ -128,6 +128,25 @@ def test_generate_hahitantsoa_contract_document_instance_html_success(
         assert f.read() == result.html_content.encode("utf-8")
 
 
+def test_hahitantsoa_contract_contains_customer_identity_snapshot(isolated_document_storage) -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    draft.customer.address = "Lot 12 Tana"
+    draft.customer.id_type = "CIN"
+    draft.customer.id_number = "101010101010"
+    draft.customer.id_issue_place = "Antananarivo"
+    draft.customer.save(update_fields=["address", "id_type", "id_number", "id_issue_place"])
+
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+    result = generate_document_instance_html(document_instance=instance)
+
+    assert "Lot 12 Tana" in result.html_content
+    assert "101010101010" in result.html_content
+    assert "Antananarivo" in result.html_content
+
+
 def test_generate_document_instance_html_invalid_status() -> None:
     draft = _draft_with_line()
     instance = create_document_instance_from_reservation_draft(
@@ -158,6 +177,23 @@ def test_generate_document_instance_html_no_reservation_mutation() -> None:
 
     draft.refresh_from_db()
     assert draft.updated_at == before_updated_at
+
+
+def test_titan_document_uses_customer_snapshot_after_customer_changes() -> None:
+    draft = _draft_with_line()
+    draft.customer.address = "Adresse au moment de la commande"
+    draft.customer.save(update_fields=["address"])
+    instance = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.material_contract.v1",
+    )
+
+    draft.customer.address = "Adresse modifiée ensuite"
+    draft.customer.save(update_fields=["address"])
+    result = generate_document_instance_html(document_instance=instance)
+
+    assert "Adresse au moment de la commande" in result.html_content
+    assert "Adresse modifiée ensuite" not in result.html_content
 
 
 def test_calculate_document_html_checksum_returns_sha256_hex_digest() -> None:

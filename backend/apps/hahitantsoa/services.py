@@ -782,6 +782,32 @@ def confirm_hahitantsoa_event_draft(
             event_draft=locked_event_draft,
             actor=actor,
         )
+        from apps.documents.services import (
+            create_document_instance_from_hahitantsoa_event_draft,
+            generate_hahitantsoa_event_draft_document_instance_html,
+        )
+
+        discharge = (
+            DocumentInstance.objects.filter(
+                hahitantsoa_event_draft=confirmed_event_draft,
+                template_key="hahitantsoa.liability_release.v1",
+            )
+            .order_by("created_at", "id")
+            .first()
+        )
+        if discharge is None:
+            discharge = create_document_instance_from_hahitantsoa_event_draft(
+                event_draft=confirmed_event_draft,
+                template_key="hahitantsoa.liability_release.v1",
+                actor=actor,
+                notes="Décharge générée automatiquement lors de la confirmation.",
+            )
+        if discharge.status == DocumentInstanceStatus.PREPARED:
+            generate_hahitantsoa_event_draft_document_instance_html(
+                event_draft=confirmed_event_draft,
+                document_instance_id=discharge.id,
+                actor=actor,
+            )
         _schedule_confirmation_success_audit(
             event_draft=confirmed_event_draft,
             actor=actor,
