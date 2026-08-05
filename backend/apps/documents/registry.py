@@ -257,6 +257,23 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         ),
     ),
     DocumentTemplateDefinition(
+        key="hahitantsoa.preparation_sheet.v1",
+        business_scope="hahitantsoa",
+        document_type="preparation_sheet",
+        label="Checking de passation Hahitantsoa",
+        version="v1",
+        status="generated_draft_template",
+        source_kind="generated_from_brand_style",
+        source_reference="docs/references/source/templates/checking passation.docx",
+        template_path="backend/apps/documents/templates_documents/hahitantsoa/checking_passation/v1/template.html",
+        preview_path="backend/apps/documents/templates_documents/hahitantsoa/checking_passation/v1/preview.pdf",
+        validated_by_client=False,
+        notes=(
+            "Checklist interne à compléter par le staff pour chaque événement Hahitantsoa; "
+            "aucun prix ni donnée financière."
+        ),
+    ),
+    DocumentTemplateDefinition(
         key="shared.internal_release_note.v1",
         business_scope="shared",
         document_type="internal_release_note",

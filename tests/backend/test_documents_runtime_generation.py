@@ -129,6 +129,21 @@ def test_generate_hahitantsoa_contract_document_instance_html_success(
         assert f.read() == result.html_content.encode("utf-8")
 
 
+def test_generate_hahitantsoa_checking_passation_html_success() -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.preparation_sheet.v1",
+    )
+
+    result = generate_document_instance_html(document_instance=instance)
+
+    assert "Checking de passation" in result.html_content
+    assert draft.public_reference in result.html_content
+    assert draft.lines.get().inventory_item.name in result.html_content
+    assert "Aucun prix" not in result.html_content
+
+
 def test_hahitantsoa_contract_contains_customer_identity_snapshot(
     isolated_document_storage,
 ) -> None:

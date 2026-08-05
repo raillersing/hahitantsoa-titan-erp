@@ -137,6 +137,14 @@ def test_hahitantsoa_confirmation_succeeds_persists_state_blocks_and_audit(
     assert discharge.status == "generated"
     assert discharge.storage_path
     assert discharge.pdf_storage_path
+
+    checklist = DocumentInstance.objects.get(
+        hahitantsoa_event_draft=draft,
+        template_key="hahitantsoa.preparation_sheet.v1",
+    )
+    assert checklist.status == "generated"
+    assert checklist.storage_path
+    assert checklist.pdf_storage_path
     assert audit_event.metadata["blocked_item_count"] == 1
 
 

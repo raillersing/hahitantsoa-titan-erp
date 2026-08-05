@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Checking de passation Hahitantsoa</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { color: #17202a; font-family: Arial, sans-serif; font-size: 10.5pt; }
+    h1 { color: #1d4d6b; font-size: 19pt; margin-bottom: 4px; }
+    .internal { color: #7a271a; font-size: 9pt; font-weight: bold; text-transform: uppercase; }
+    .meta { border-bottom: 1px solid #9aa6b2; margin: 14px 0; padding-bottom: 10px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #9aa6b2; padding: 7px; text-align: left; }
+    th { background: #eaf1f5; }
+    .qty, .check { text-align: center; }
+    .qty { width: 70px; }
+    .check { width: 75px; }
+    .note { margin-top: 22px; border: 1px solid #9aa6b2; height: 72px; padding: 8px; }
+    .signatures { display: flex; justify-content: space-between; margin-top: 26mm; }
+    .signature { width: 42%; border-top: 1px solid #17202a; padding-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="internal">Document interne — réservé au staff</div>
+  <h1>Checking de passation</h1>
+  <div class="meta">
+    <div><strong>Référence :</strong> {{ context.event_draft.public_reference }}</div>
+    <div><strong>Client :</strong> {{ context.event_draft.customer_display_name }}</div>
+    <div><strong>Événement :</strong> {{ context.event_draft.event_name }}{% if context.event_draft.event_type %} — {{ context.event_draft.event_type }}{% endif %}</div>
+    <div><strong>Location :</strong> {{ context.event_draft.start_at|date:"d/m/Y H:i" }} – {{ context.event_draft.end_at|date:"d/m/Y H:i" }}</div>
+  </div>
+  <table>
+    <thead><tr><th>Article à vérifier</th><th class="qty">Quantité</th><th class="check">Vérifié</th><th>Observations</th></tr></thead>
+    <tbody>
+      {% for line in context.event_draft.lines %}
+      <tr><td>{{ line.inventory_item_name }}</td><td class="qty">{{ line.quantity }}</td><td class="check">☐</td><td>{{ line.notes }}</td></tr>
+      {% empty %}<tr><td colspan="4">Aucun article commandé.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <div class="note"><strong>Observations de passation :</strong></div>
+  <div class="signatures">
+    <div class="signature">Préparé / vérifié par le staff</div>
+    <div class="signature">Remis au client</div>
+  </div>
+</body>
+</html>

@@ -48,6 +48,7 @@ SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
     "hahitantsoa.liability_release.v1",
     "hahitantsoa.delivery_note.v1",
+    "hahitantsoa.preparation_sheet.v1",
 )
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"
