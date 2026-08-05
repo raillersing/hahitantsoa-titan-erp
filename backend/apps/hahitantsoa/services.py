@@ -811,6 +811,30 @@ def confirm_hahitantsoa_event_draft(
             )
         if discharge.pdf_storage_path is None:
             generate_document_instance_pdf(document_instance=discharge, actor=actor)
+
+        checklist = (
+            DocumentInstance.objects.filter(
+                hahitantsoa_event_draft=confirmed_event_draft,
+                template_key="hahitantsoa.preparation_sheet.v1",
+            )
+            .order_by("created_at", "id")
+            .first()
+        )
+        if checklist is None:
+            checklist = create_document_instance_from_hahitantsoa_event_draft(
+                event_draft=confirmed_event_draft,
+                template_key="hahitantsoa.preparation_sheet.v1",
+                actor=actor,
+                notes="Checking de passation généré automatiquement lors de la confirmation.",
+            )
+        if checklist.status == DocumentInstanceStatus.PREPARED:
+            generate_hahitantsoa_event_draft_document_instance_html(
+                event_draft=confirmed_event_draft,
+                document_instance_id=checklist.id,
+                actor=actor,
+            )
+        if checklist.pdf_storage_path is None:
+            generate_document_instance_pdf(document_instance=checklist, actor=actor)
         _schedule_confirmation_success_audit(
             event_draft=confirmed_event_draft,
             actor=actor,
