@@ -94,6 +94,10 @@ REDIS_HOST = get_env("REDIS_HOST", "redis")
 REDIS_PORT = int(get_env("REDIS_PORT", "6379"))
 REDIS_PASSWORD = get_env("REDIS_PASSWORD")
 
+# The application runtime may opt into real PDF rendering explicitly. Tests
+# leave this unset and continue using the deterministic mock generator.
+DOCUMENT_PDF_GENERATOR_CLASS = get_env("DOCUMENT_PDF_GENERATOR_CLASS", "") or None
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
