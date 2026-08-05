@@ -18,6 +18,9 @@ import type {
   Customer,
   CustomerCreatePayload,
   CustomerUpdatePayload,
+  DesiredDateWaitlistCreatePayload,
+  DesiredDateWaitlistEntry,
+  DesiredDateWaitlistTransition,
   HahitantsoaDiscoveryResponse,
   InventoryItem,
   LogisticsEvent,
@@ -434,6 +437,49 @@ export async function deleteCustomer(
     const parsed = await parseErrorResponse(response);
     throw new ApiError(parsed.message, response.status, parsed.errors);
   }
+}
+
+export function getDesiredDateWaitlistEntries(
+  customerId: string,
+  signal?: AbortSignal,
+): Promise<DesiredDateWaitlistEntry[]> {
+  return getAuthenticatedJson(`/api/v1/customers/${encodeURIComponent(customerId)}/desired-dates/`, signal);
+}
+
+export function getDesiredDateWaitlistEntry(
+  customerId: string,
+  entryId: string,
+  signal?: AbortSignal,
+): Promise<DesiredDateWaitlistEntry> {
+  return getAuthenticatedJson(
+    `/api/v1/customers/${encodeURIComponent(customerId)}/desired-dates/${encodeURIComponent(entryId)}/`,
+    signal,
+  );
+}
+
+export function createDesiredDateWaitlistEntry(
+  customerId: string,
+  payload: DesiredDateWaitlistCreatePayload,
+  signal?: AbortSignal,
+): Promise<DesiredDateWaitlistEntry> {
+  return postAuthenticatedJson(
+    `/api/v1/customers/${encodeURIComponent(customerId)}/desired-dates/`,
+    payload,
+    signal,
+  );
+}
+
+export function transitionDesiredDateWaitlistEntry(
+  customerId: string,
+  entryId: string,
+  transition: DesiredDateWaitlistTransition,
+  signal?: AbortSignal,
+): Promise<DesiredDateWaitlistEntry> {
+  return postAuthenticatedJson(
+    `/api/v1/customers/${encodeURIComponent(customerId)}/desired-dates/${encodeURIComponent(entryId)}/${transition}/`,
+    {},
+    signal,
+  );
 }
 
 export async function checkEndpointPermission(

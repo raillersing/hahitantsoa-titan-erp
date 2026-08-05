@@ -110,6 +110,36 @@ export type CustomerUpdatePayload = {
   is_active?: boolean;
 };
 
+export type DesiredDateBusinessScope = "titan" | "hahitantsoa";
+export type DesiredDateInterestKind = "material" | "material_pack" | "local" | "service";
+export type DesiredDateWaitlistStatus = "new" | "contacted" | "converted" | "lost" | "cancelled";
+export type DesiredDateWaitlistTransition = "contact" | "convert" | "lose" | "cancel";
+
+export type DesiredDateWaitlistEntry = {
+  id: string;
+  customer_id: string;
+  business_scope: DesiredDateBusinessScope;
+  preferred_dates: string[];
+  flexible_start: string | null;
+  flexible_end: string | null;
+  interest_kind: DesiredDateInterestKind;
+  quantity: number;
+  responsible_id: string;
+  status: DesiredDateWaitlistStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DesiredDateWaitlistCreatePayload = {
+  business_scope: DesiredDateBusinessScope;
+  preferred_dates?: string[];
+  flexible_start?: string;
+  flexible_end?: string;
+  interest_kind: DesiredDateInterestKind;
+  quantity: number;
+  responsible_id: string;
+};
+
 export type VisitReason = "simple_visit" | "prospect" | "other";
 export type VisitStatus = "scheduled" | "completed" | "cancelled";
 

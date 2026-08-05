@@ -13,6 +13,9 @@ import {
   login,
   logout,
   SESSION_REVALIDATION_EVENT,
+  createDesiredDateWaitlistEntry,
+  getDesiredDateWaitlistEntries,
+  transitionDesiredDateWaitlistEntry,
 } from "./api";
 import type { ApplicationRole, UserRoleAssignment } from "./types";
 
@@ -452,5 +455,66 @@ describe("inventory API", () => {
       "/api/v1/inventory/items/item-1/",
       expect.objectContaining({ credentials: "include" }),
     );
+  });
+});
+
+describe("desired-date waitlist API", () => {
+  const customerId = "customer-1";
+  const entryId = "entry-1";
+  const entry = {
+    id: entryId,
+    customer_id: customerId,
+    business_scope: "titan",
+    preferred_dates: ["2026-08-01"],
+    flexible_start: null,
+    flexible_end: null,
+    interest_kind: "material",
+    quantity: 2,
+    responsible_id: "staff-1",
+    status: "new",
+    created_at: "2026-07-23T00:00:00Z",
+    updated_at: "2026-07-23T00:00:00Z",
+  } as const;
+
+  it("uses the customer-scoped endpoints for reading, creating, and lifecycle transitions", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => mockFetchResponse([entry]))
+      .mockImplementationOnce(() => mockFetchResponse(entry, 201))
+      .mockImplementationOnce(() => mockFetchResponse({ ...entry, status: "contacted" }));
+    const controller = new AbortController();
+
+    await expect(getDesiredDateWaitlistEntries(customerId, controller.signal)).resolves.toEqual([entry]);
+    await expect(createDesiredDateWaitlistEntry(customerId, {
+      business_scope: "titan",
+      preferred_dates: ["2026-08-01"],
+      interest_kind: "material",
+      quantity: 2,
+      responsible_id: "staff-1",
+    }, controller.signal)).resolves.toEqual(entry);
+    await expect(transitionDesiredDateWaitlistEntry(customerId, entryId, "contact", controller.signal))
+      .resolves.toEqual({ ...entry, status: "contacted" });
+
+    expect(fetchSpy.mock.calls[0]).toEqual([
+      "/api/v1/customers/customer-1/desired-dates/",
+      expect.objectContaining({ credentials: "include", signal: controller.signal }),
+    ]);
+    expect(fetchSpy.mock.calls[1][0]).toBe("/api/v1/customers/customer-1/desired-dates/");
+    expect(fetchSpy.mock.calls[1][1]).toEqual(expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        business_scope: "titan",
+        preferred_dates: ["2026-08-01"],
+        interest_kind: "material",
+        quantity: 2,
+        responsible_id: "staff-1",
+      }),
+      signal: controller.signal,
+    }));
+    expect(fetchSpy.mock.calls[2][0]).toBe("/api/v1/customers/customer-1/desired-dates/entry-1/contact/");
+    expect(fetchSpy.mock.calls[2][1]).toEqual(expect.objectContaining({
+      method: "POST",
+      body: "{}",
+      signal: controller.signal,
+    }));
   });
 });

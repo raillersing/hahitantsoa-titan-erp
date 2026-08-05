@@ -21,6 +21,11 @@ describe("hash routes", () => {
     expect(parseHash(hash)).toEqual({ kind: "known", scope: "customer", param: "client été/001" });
   });
 
+  it("recognizes the additive desired-dates commercial route", () => {
+    expect(parseHash("#desired-dates")).toEqual({ kind: "known", scope: "desired-dates" });
+    expect(formatHash("desired-dates")).toBe("#desired-dates");
+  });
+
   it("does not crash on malformed parameter encoding", () => {
     expect(parseHash("#customer/%E0%A4%A")).toEqual({
       kind: "known",

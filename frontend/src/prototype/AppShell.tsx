@@ -49,6 +49,7 @@ const brandScopeByAppScope = {
   "breakage-loss": "titan",
   venues: "hahitantsoa",
   "agenda-visitors": "hahitantsoa",
+  "desired-dates": "ergon",
   "import-excel": "titan",
   documents: "ergon",
   "hr-payroll": "ergon",
@@ -105,6 +106,7 @@ export default function AppShell({
     dashboard: "Tableau de bord",
     planning: "Planning",
     customers: "Clients & Prospects",
+    "desired-dates": "Dates souhaitées",
     hahitantsoa: "Hahitantsoa",
     titan: "Titan",
     reservations: "Toutes les réservations",
@@ -332,6 +334,9 @@ export default function AppShell({
           </a>
           <a href="#agenda-visitors" onClick={(e) => { e.preventDefault(); onNavigate("agenda-visitors"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "agenda-visitors" ? "active" : ""}`}>
             <i className="fas fa-user-clock w-5 text-center"></i><span>Agenda visiteurs</span>
+          </a>
+          <a href="#desired-dates" onClick={(e) => { e.preventDefault(); onNavigate("desired-dates"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "desired-dates" ? "active" : ""}`}>
+            <i className="fas fa-calendar-plus w-5 text-center"></i><span>Dates souhaitées</span>
           </a>
 
           {/* RÉSERVATIONS */}
