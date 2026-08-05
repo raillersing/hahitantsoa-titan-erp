@@ -7,9 +7,11 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.finance.models import FinanceAccount
 from apps.identity.permissions import HasReservationSensitiveAccess
 
 from .gateway import PaymentGatewayError
+from .models import PaymentReconciliationImport
 from .permissions import IsAuthenticatedPaymentBoundary
 from .serializers import (
     GatewayPaymentCallbackSerializer,
@@ -17,20 +19,24 @@ from .serializers import (
     PaymentConfirmSerializer,
     PaymentCreateSerializer,
     PaymentSerializer,
+    ReconciliationCommitSerializer,
+    ReconciliationCsvPreviewSerializer,
     RefundPaymentConfirmSerializer,
     RefundPaymentCreateSerializer,
 )
 from .services import (
     PaymentLifecycleError,
+    PaymentReconciliationError,
     active_payments,
     cancel_payment,
+    commit_reconciliation_import,
     confirm_payment,
     confirm_refund_payment,
     create_payment,
     create_refund_payment,
     initiate_mobile_money_payment,
     process_gateway_callback,
-    reconcile_payment,
+    stage_reconciliation_csv,
 )
 
 
@@ -190,6 +196,61 @@ class PaymentCancelAPIView(APIView):
         return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
 
 
+class PaymentReconciliationCsvPreviewAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def post(self, request):
+        serializer = ReconciliationCsvPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        account = FinanceAccount.objects.filter(id=serializer.validated_data["account_id"]).first()
+        if account is None:
+            raise Http404("Finance account not found.")
+        try:
+            reconciliation_import = stage_reconciliation_csv(
+                account=account,
+                actor=request.user,
+                csv_content=serializer.validated_data["csv_content"],
+            )
+        except PaymentReconciliationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(
+            {
+                "id": str(reconciliation_import.id),
+                "status": reconciliation_import.status,
+                "line_count": reconciliation_import.lines.count(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PaymentReconciliationImportCommitAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def post(self, request, id):
+        serializer = ReconciliationCommitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        reconciliation_import = PaymentReconciliationImport.objects.filter(id=id).first()
+        if reconciliation_import is None:
+            raise Http404("Reconciliation import not found.")
+        try:
+            committed = commit_reconciliation_import(
+                reconciliation_import=reconciliation_import,
+                actor=request.user,
+                **serializer.validated_data,
+            )
+        except PaymentReconciliationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(
+            {"id": str(committed.id), "status": committed.status}, status=status.HTTP_200_OK
+        )
+
+
 class PaymentReconcileAPIView(APIView):
     http_method_names = ["post", "head", "options"]
     permission_classes = [HasReservationSensitiveAccess]
@@ -203,23 +264,16 @@ class PaymentReconcileAPIView(APIView):
         },
     )
     def post(self, request, id):
-        payment = active_payments().filter(id=id).first()
-        if payment is None:
-            raise Http404("Payment not found.")
-
-        try:
-            payment = reconcile_payment(
-                payment=payment,
-                actor=request.user,
-                notes=request.data.get("notes"),
-            )
-        except PaymentLifecycleError as error:
-            return Response(
-                {"detail": str(error), "code": error.code},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        return Response(PaymentSerializer(payment).data, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "detail": (
+                    "Direct reconciliation is disabled; commit an external statement "
+                    "reconciliation import."
+                ),
+                "code": "reconciliation_evidence_required",
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
 
 
 class RefundPaymentCreateAPIView(APIView):

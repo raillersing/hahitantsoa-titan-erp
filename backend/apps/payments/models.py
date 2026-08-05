@@ -41,6 +41,16 @@ class PaymentStatus(models.TextChoices):
     RECONCILED = "reconciled", "reconciled"
 
 
+class PaymentReconciliationImportStatus(models.TextChoices):
+    STAGED = "staged", "Staged"
+    COMMITTED = "committed", "Committed"
+
+
+class PaymentReconciliationLineStatus(models.TextChoices):
+    STAGED = "staged", "Staged"
+    RECONCILED = "reconciled", "Reconciled"
+
+
 CONFIRMED_PAYMENT_STATUS_VALUES = (
     PaymentStatus.CONFIRMED,
     PaymentStatus.RECONCILED,
@@ -279,3 +289,113 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
 
     def __str__(self) -> str:
         return f"{self.payment_kind} {self.amount} ({self.payment_status})"
+
+
+class PaymentReconciliationImport(UUIDModel, TimestampedModel):
+    """A private staged statement import; raw CSV is never persisted as a public artifact."""
+
+    account = models.ForeignKey(
+        "finance.FinanceAccount",
+        on_delete=models.PROTECT,
+        related_name="payment_reconciliation_imports",
+    )
+    content_fingerprint = models.CharField(max_length=64)
+    status = models.CharField(
+        max_length=16,
+        choices=PaymentReconciliationImportStatus.choices,
+        default=PaymentReconciliationImportStatus.STAGED,
+    )
+    idempotency_key = models.CharField(max_length=128, blank=True)
+    committed_at = models.DateTimeField(null=True, blank=True)
+    committed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "content_fingerprint"],
+                name="payment_reconciliation_import_fingerprint_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["idempotency_key"],
+                condition=~models.Q(idempotency_key=""),
+                name="payment_reconciliation_import_commit_key_unique",
+            ),
+        ]
+
+
+class PaymentReconciliationLine(UUIDModel, TimestampedModel):
+    """Normalized external bank or mobile-money statement line."""
+
+    reconciliation_import = models.ForeignKey(
+        PaymentReconciliationImport,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="lines",
+    )
+    account = models.ForeignKey(
+        "finance.FinanceAccount",
+        on_delete=models.PROTECT,
+        related_name="payment_reconciliation_lines",
+    )
+    transaction_date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    external_reference = models.CharField(max_length=255)
+    description = models.CharField(max_length=500, blank=True)
+    raw_data = models.JSONField(default=dict)
+    fingerprint = models.CharField(max_length=64)
+    status = models.CharField(
+        max_length=16,
+        choices=PaymentReconciliationLineStatus.choices,
+        default=PaymentReconciliationLineStatus.STAGED,
+    )
+    fee_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    variance_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    variance_decision = models.CharField(max_length=500, blank=True)
+    committed_at = models.DateTimeField(null=True, blank=True)
+    committed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=Decimal("0.00")),
+                name="payment_reconciliation_line_amount_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(fee_amount__gte=Decimal("0.00")),
+                name="payment_reconciliation_line_fee_non_negative",
+            ),
+            models.UniqueConstraint(
+                fields=["account", "fingerprint"],
+                name="payment_reconciliation_line_fingerprint_unique",
+            ),
+        ]
+
+
+class PaymentReconciliationAllocation(UUIDModel, TimestampedModel):
+    statement_line = models.ForeignKey(
+        PaymentReconciliationLine, on_delete=models.PROTECT, related_name="allocations"
+    )
+    payment = models.ForeignKey(
+        Payment, on_delete=models.PROTECT, related_name="reconciliation_allocations"
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(amount__gt=Decimal("0.00")),
+                name="payment_reconciliation_allocation_amount_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["statement_line", "payment"],
+                name="payment_reconciliation_line_payment_unique",
+            ),
+        ]

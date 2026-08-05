@@ -7,12 +7,24 @@ from apps.payments.views import (
     PaymentConfirmAPIView,
     PaymentListCreateAPIView,
     PaymentReconcileAPIView,
+    PaymentReconciliationCsvPreviewAPIView,
+    PaymentReconciliationImportCommitAPIView,
     PaymentRetrieveAPIView,
     RefundPaymentConfirmAPIView,
     RefundPaymentCreateAPIView,
 )
 
 urlpatterns = [
+    path(
+        "reconciliation/imports/csv/",
+        PaymentReconciliationCsvPreviewAPIView.as_view(),
+        name="payment-reconciliation-csv-preview",
+    ),
+    path(
+        "reconciliation/imports/<uuid:id>/commit/",
+        PaymentReconciliationImportCommitAPIView.as_view(),
+        name="payment-reconciliation-import-commit",
+    ),
     path("", PaymentListCreateAPIView.as_view(), name="payment-list"),
     path("<uuid:id>/", PaymentRetrieveAPIView.as_view(), name="payment-detail"),
     path("<uuid:id>/confirm/", PaymentConfirmAPIView.as_view(), name="payment-confirm"),

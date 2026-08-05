@@ -179,36 +179,38 @@ def test_cancel_payment_returns_404_for_unknown_payment(sensitive_client):
     assert response.status_code == 404
 
 
-def test_reconcile_payment_from_confirmed(sensitive_client, confirmed_payment):
+def test_reconcile_payment_requires_external_statement_evidence(
+    sensitive_client, confirmed_payment
+):
     response = sensitive_client.post(
         PAYMENT_LIST_URL + str(confirmed_payment.id) + "/reconcile/",
         data={"notes": "Reconciled by accountant"},
         content_type="application/json",
     )
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["payment_status"] == PaymentStatus.RECONCILED
-    assert payload["notes"] == "Reconciled by accountant"
+    assert response.status_code == 409
+    assert response.json()["code"] == "reconciliation_evidence_required"
 
 
-def test_reconcile_payment_fails_from_pending(sensitive_client, pending_payment):
+def test_reconcile_payment_fails_without_external_statement_evidence(
+    sensitive_client, pending_payment
+):
     response = sensitive_client.post(
         PAYMENT_LIST_URL + str(pending_payment.id) + "/reconcile/",
         data={},
         content_type="application/json",
     )
-    assert response.status_code == 400
-    payload = response.json()
-    assert payload["code"] == "invalid_payment_reconcile_state"
+    assert response.status_code == 409
+    assert response.json()["code"] == "reconciliation_evidence_required"
 
 
-def test_reconcile_payment_returns_404_for_unknown_payment(sensitive_client):
+def test_reconcile_payment_does_not_disclose_unknown_payment(sensitive_client):
     response = sensitive_client.post(
         "/api/v1/payments/00000000-0000-0000-0000-000000000000/reconcile/",
         data={},
         content_type="application/json",
     )
-    assert response.status_code == 404
+    assert response.status_code == 409
+    assert response.json()["code"] == "reconciliation_evidence_required"
 
 
 def test_payment_list_filter_by_status(authenticated_client, authenticated_user):
