@@ -9,9 +9,9 @@ from rest_framework.views import APIView
 
 from apps.finance.models import FinanceAccount
 from apps.identity.permissions import HasReservationSensitiveAccess
-from .models import PaymentReconciliationImport
 
 from .gateway import PaymentGatewayError
+from .models import PaymentReconciliationImport
 from .permissions import IsAuthenticatedPaymentBoundary
 from .serializers import (
     GatewayPaymentCallbackSerializer,
@@ -36,7 +36,6 @@ from .services import (
     create_refund_payment,
     initiate_mobile_money_payment,
     process_gateway_callback,
-    reconcile_payment,
     stage_reconciliation_csv,
 )
 
@@ -267,7 +266,10 @@ class PaymentReconcileAPIView(APIView):
     def post(self, request, id):
         return Response(
             {
-                "detail": "Direct reconciliation is disabled; commit an external statement reconciliation import.",
+                "detail": (
+                    "Direct reconciliation is disabled; commit an external statement "
+                    "reconciliation import."
+                ),
                 "code": "reconciliation_evidence_required",
             },
             status=status.HTTP_409_CONFLICT,

@@ -17,6 +17,8 @@ from apps.billing.models import BillingRefundObligationStatus
 from apps.documents.models import DocumentInstance
 from apps.documents.registry import get_document_template_definition
 from apps.documents.runtime import generate_document_instance_html
+from apps.finance.models import FinanceAccount, FinanceAccountKind, FinancialJournalDirection
+from apps.finance.services import record_financial_journal_entry
 from apps.inventory.models import (
     InventoryCautionRefundObligation,
     InventoryCautionRefundObligationStatus,
@@ -27,8 +29,6 @@ from apps.payments.gateway import (
     PaymentGatewayError,
     get_payment_gateway_adapter,
 )
-from apps.finance.models import FinanceAccount, FinanceAccountKind, FinancialJournalDirection
-from apps.finance.services import record_financial_journal_entry
 from apps.payments.models import (
     Payment,
     PaymentKind,
