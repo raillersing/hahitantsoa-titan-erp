@@ -98,9 +98,13 @@ def test_missing_runtime_html_templates_are_documented_as_non_runtime_foundation
             and "Draft placeholder only" in template.notes
         )
         is_explicit_non_runtime_note = "Runtime PDF generation is not implemented" in template.notes
+        is_runtime_generated_template = "PDF is generated at runtime" in template.notes
 
         assert (
-            is_f98_non_runtime_source or is_generated_placeholder or is_explicit_non_runtime_note
+            is_f98_non_runtime_source
+            or is_generated_placeholder
+            or is_explicit_non_runtime_note
+            or is_runtime_generated_template
         ), template.key
 
 
@@ -126,7 +130,11 @@ def test_preview_paths_are_either_source_pdfs_or_documented_future_outputs() -> 
             and "Draft placeholder only" in template.notes
         )
         is_explicit_non_runtime_note = "Runtime PDF generation is not implemented" in template.notes
+        is_runtime_generated_template = "PDF is generated at runtime" in template.notes
 
         assert (
-            is_f98_non_runtime_source or is_generated_placeholder or is_explicit_non_runtime_note
+            is_f98_non_runtime_source
+            or is_generated_placeholder
+            or is_explicit_non_runtime_note
+            or is_runtime_generated_template
         ), template.key

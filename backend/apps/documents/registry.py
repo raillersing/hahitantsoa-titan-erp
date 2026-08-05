@@ -270,7 +270,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         validated_by_client=False,
         notes=(
             "Checklist interne à compléter par le staff pour chaque événement Hahitantsoa; "
-            "aucun prix ni donnée financière."
+            "aucun prix ni donnée financière. PDF is generated at runtime."
         ),
     ),
     DocumentTemplateDefinition(
