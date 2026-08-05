@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.documents.models import DocumentInstance
 from apps.documents.services import create_document_instance_from_hahitantsoa_event_draft
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.hahitantsoa.services import (
@@ -128,6 +129,14 @@ def test_hahitantsoa_confirmation_succeeds_persists_state_blocks_and_audit(
 
     audit_event = AuditEvent.objects.filter(action="hahitantsoa.event_draft.confirmed").get()
     assert audit_event.target_id == str(draft.id)
+
+    discharge = DocumentInstance.objects.get(
+        hahitantsoa_event_draft=draft,
+        template_key="hahitantsoa.liability_release.v1",
+    )
+    assert discharge.status == "generated"
+    assert discharge.storage_path
+    assert discharge.pdf_storage_path
     assert audit_event.metadata["blocked_item_count"] == 1
 
 

@@ -18,6 +18,7 @@
   <div class="meta">
     <div><strong>Référence :</strong> {{ context.event_draft.public_reference }}</div>
     <div><strong>Événement :</strong> {{ context.event_draft.event_name }}</div>
+    <div><strong>Type d’événement :</strong> {{ context.event_draft.event_type }}</div>
     <div><strong>Lieu :</strong> {{ context.event_draft.venue_name|default:"Non renseigné" }}</div>
     <div><strong>Période :</strong> {{ context.event_draft.start_at|date:"d/m/Y H:i" }} au {{ context.event_draft.end_at|date:"d/m/Y H:i" }}</div>
     <div><strong>Adresse du client :</strong> {{ context.event_draft.customer_address|default:"Non renseignée" }}</div>

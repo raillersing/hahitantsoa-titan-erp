@@ -64,8 +64,24 @@ def test_hahitantsoa_event_draft_can_be_persisted_with_shared_inventory_lines() 
 
     persisted = HahitantsoaEventDraft.objects.get(pk=draft.pk)
     assert persisted.status == "draft"
+    assert persisted.event_type == "other"
     assert persisted.public_reference.startswith("HED-")
     assert persisted.lines.count() == 1
+
+
+def test_hahitantsoa_event_draft_accepts_civil_wedding_event_type() -> None:
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Civil ceremony",
+        event_type="civil_wedding",
+        start_at=start_at,
+        end_at=end_at,
+    )
+
+    draft.full_clean()
+
+    assert draft.event_type == "civil_wedding"
 
 
 def test_hahitantsoa_event_draft_rejects_inactive_customer() -> None:

@@ -577,6 +577,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "customer_id",
             "customer_display_name",
             "event_name",
+            "event_type",
             "venue_name",
             "location_details",
             "service_notes",
