@@ -280,6 +280,7 @@ export type HahitantsoaEventDraftLineInput = {
 export type HahitantsoaEventDraftCreatePayload = {
   customer_id: string;
   event_name: string;
+  event_type?: HahitantsoaEventType;
   venue_name?: string;
   location_details?: string;
   service_notes?: string;
@@ -292,6 +293,7 @@ export type HahitantsoaEventDraftCreatePayload = {
 export type HahitantsoaEventDraftUpdatePayload = {
   customer_id?: string;
   event_name?: string;
+  event_type?: HahitantsoaEventType;
   venue_name?: string;
   location_details?: string;
   service_notes?: string;
@@ -317,6 +319,7 @@ export type HahitantsoaEventDraft = {
   customer_id: string;
   customer_display_name: string;
   event_name: string;
+  event_type?: HahitantsoaEventType;
   venue_name: string;
   location_details: string;
   service_notes: string;
@@ -327,6 +330,8 @@ export type HahitantsoaEventDraft = {
   created_at: string;
   updated_at: string;
 };
+
+export type HahitantsoaEventType = "wedding" | "engagement" | "civil_wedding" | "other";
 
 export type HahitantsoaEventDraftAvailabilityLinePreview = {
   event_draft_line_id: string;

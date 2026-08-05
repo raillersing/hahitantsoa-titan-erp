@@ -337,7 +337,7 @@ describe("HahitantsoaEventDraftsPanel", () => {
   });
 
   it("creates a new draft successfully", async () => {
-    mockHahitantsoaFetch();
+    const fetchMock = mockHahitantsoaFetch();
     render(<HahitantsoaEventDraftsPanel inventoryItems={INVENTORY_ITEMS} />);
 
     await waitFor(() => {
@@ -346,6 +346,9 @@ describe("HahitantsoaEventDraftsPanel", () => {
 
     const eventNameInput = screen.getByLabelText("Nom de l'événement");
     fireEvent.change(eventNameInput, { target: { value: "New Party" } });
+    fireEvent.change(screen.getByLabelText("Type d'événement"), {
+      target: { value: "engagement" },
+    });
 
     // Add a line
     fireEvent.click(screen.getByText("Ajouter une ligne"));
@@ -356,6 +359,12 @@ describe("HahitantsoaEventDraftsPanel", () => {
     await waitFor(() => {
       expect(screen.getByText(/créé avec succès/i)).toBeInTheDocument();
     });
+
+    const createCall = fetchMock.mock.calls.find(
+      ([url, init]) => String(url) === "/api/v1/hahitantsoa/event-drafts/" && init?.method === "POST",
+    );
+    expect(createCall).toBeDefined();
+    expect(JSON.parse(createCall?.[1]?.body as string).event_type).toBe("engagement");
   });
 
   it("views draft details and checks cascading availability", async () => {
@@ -1075,5 +1084,4 @@ describe("HahitantsoaEventDraftsPanel", () => {
     });
   });
 });
-
 

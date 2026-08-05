@@ -33,6 +33,7 @@ import type {
   HahitantsoaEventDraftAmendmentRequest,
   HahitantsoaEventDraftAmendmentRequestLine,
   HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
+  HahitantsoaEventType,
 } from "./types";
 
 type DraftListState =
@@ -100,6 +101,13 @@ const AMENDMENT_BLOCKER_LABELS: Record<string, string> = {
   active_availability_conflict: "Conflit de disponibilité d'inventaire actif.",
   missing_signed_contract: "Marqueur de contrat signé manquant.",
   missing_required_deposit: "Marqueur de dépôt requis manquant.",
+};
+
+const EVENT_TYPE_LABELS: Record<HahitantsoaEventType, string> = {
+  wedding: "Mariage",
+  engagement: "Fiançailles",
+  civil_wedding: "Mariage civil",
+  other: "Autre",
 };
 
 function formatBlockerLabel(blocker: string): string {
@@ -207,6 +215,7 @@ export function HahitantsoaEventDraftsPanel({
   // New Draft Form State
   const initialPeriod = defaultPeriod();
   const [newEventName, setNewEventName] = useState(prefillEventName);
+  const [newEventType, setNewEventType] = useState<HahitantsoaEventType>("other");
   const [newCustomerId, setNewCustomerId] = useState("");
   const [newVenueName, setNewVenueName] = useState(prefillVenueName);
   const [newLocationDetails, setNewLocationDetails] = useState("");
@@ -227,6 +236,7 @@ export function HahitantsoaEventDraftsPanel({
 
   // Update State
   const [editEventName, setEditEventName] = useState("");
+  const [editEventType, setEditEventType] = useState<HahitantsoaEventType>("other");
   const [editVenueName, setEditVenueName] = useState("");
   const [editLocationDetails, setEditLocationDetails] = useState("");
   const [editServiceNotes, setEditServiceNotes] = useState("");
@@ -301,6 +311,7 @@ export function HahitantsoaEventDraftsPanel({
     try {
       const newDraft = await createHahitantsoaEventDraft({
         event_name: newEventName,
+        event_type: newEventType,
         customer_id: newCustomerId,
         venue_name: newVenueName,
         location_details: newLocationDetails,
@@ -316,6 +327,7 @@ export function HahitantsoaEventDraftsPanel({
         message: `Brouillon ${newDraft.public_reference} créé avec succès.`,
       });
       setNewEventName("");
+      setNewEventType("other");
       setNewVenueName("");
       setNewLocationDetails("");
       setNewServiceNotes("");
@@ -510,6 +522,7 @@ export function HahitantsoaEventDraftsPanel({
       const draft = await getHahitantsoaEventDraft(draftId);
       setDraftDetailState({ status: "loaded", draft });
       setEditEventName(draft.event_name);
+      setEditEventType(draft.event_type ?? "other");
       setEditVenueName(draft.venue_name);
       setEditLocationDetails(draft.location_details);
       setEditServiceNotes(draft.service_notes);
@@ -565,6 +578,7 @@ export function HahitantsoaEventDraftsPanel({
     try {
       const updated = await updateHahitantsoaEventDraft(draftId, {
         event_name: editEventName,
+        event_type: editEventType,
         venue_name: editVenueName,
         location_details: editLocationDetails,
         service_notes: editServiceNotes,
@@ -806,6 +820,8 @@ export function HahitantsoaEventDraftsPanel({
                       <strong>{draft.public_reference}</strong> -{" "}
                       {draft.event_name}
                       <br />
+                      <span>Type : {EVENT_TYPE_LABELS[draft.event_type ?? "other"]}</span>
+                      <br />
                       <span>{draft.customer_display_name}</span>
                       <br />
                       <span>
@@ -842,6 +858,10 @@ export function HahitantsoaEventDraftsPanel({
             <article className="reservation-summary-card">
               <span>Client</span>
               <strong>{draftDetailState.draft.customer_display_name}</strong>
+            </article>
+            <article className="reservation-summary-card">
+              <span>Type d'événement</span>
+              <strong>{EVENT_TYPE_LABELS[draftDetailState.draft.event_type ?? "other"]}</strong>
             </article>
             <article className="reservation-summary-card">
               <span>Période</span>
@@ -888,6 +908,18 @@ export function HahitantsoaEventDraftsPanel({
               {fieldErrors.event_name && (
                 <span className="field-error-text" role="alert">{fieldErrors.event_name.join(", ")}</span>
               )}
+            </label>
+            <label>
+              Type d'événement
+              <select
+                value={editEventType}
+                onChange={(e) => setEditEventType(e.target.value as HahitantsoaEventType)}
+                disabled={formDisabled}
+              >
+                {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
             </label>
             <label>
               Lieu
@@ -1614,6 +1646,18 @@ export function HahitantsoaEventDraftsPanel({
             {fieldErrors.event_name && (
               <span className="field-error-text" role="alert">{fieldErrors.event_name.join(", ")}</span>
             )}
+          </label>
+          <label>
+            Type d'événement
+            <select
+              value={newEventType}
+              onChange={(e) => setNewEventType(e.target.value as HahitantsoaEventType)}
+              disabled={isDisabled}
+            >
+              {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
           </label>
           <label>
             Client
