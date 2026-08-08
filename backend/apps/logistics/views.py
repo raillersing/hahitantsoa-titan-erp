@@ -18,6 +18,7 @@ from apps.logistics.serializers import (
     LogisticsEventItemLineCreateSerializer,
     LogisticsEventItemLineSerializer,
     LogisticsEventSerializer,
+    LogisticsEventSignatureUpdateSerializer,
     LogisticsEventStatusTransitionSerializer,
     LogisticsEventUpdateSerializer,
 )
@@ -30,6 +31,7 @@ from apps.logistics.services import (
     remove_item_line_from_logistics_event,
     transition_logistics_event_status,
     update_logistics_event,
+    update_logistics_event_signature,
 )
 from apps.reservations.models import ReservationDraft
 
@@ -320,3 +322,48 @@ class LogisticsEventCompletePassationAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class LogisticsEventSignatureUpdateAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=LogisticsEventSignatureUpdateSerializer,
+        responses={
+            200: LogisticsEventSerializer,
+            400: OpenApiResponse(description="Invalid signature state."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Not found."),
+        },
+    )
+    def post(self, request, id):
+        event = active_logistics_events().filter(pk=id).first()
+        if event is None:
+            raise Http404("Logistics event not found.")
+
+        serializer = LogisticsEventSignatureUpdateSerializer(
+            data=request.data,
+            context={"signed_document_file": request.data.get("signed_document_file", "")},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            event = update_logistics_event_signature(
+                actor=request.user,
+                event=event,
+                signature_status=serializer.validated_data["signature_status"],
+                signed_by_client_name=serializer.validated_data.get(
+                    "signed_by_client_name", ""
+                ),
+                signature_exception_reason=serializer.validated_data.get(
+                    "signature_exception_reason", ""
+                ),
+                signed_document_file=request.data.get("signed_document_file", ""),
+            )
+        except LogisticsServiceError as exc:
+            return Response(
+                {"detail": str(exc), "code": exc.code}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(LogisticsEventSerializer(event).data, status=status.HTTP_200_OK)

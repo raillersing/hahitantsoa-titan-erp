@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 UNAUTHORIZED_LOGISTICS_WRITE = "unauthorized_logistics_write"
 INVALID_STATUS_TRANSITION = "invalid_status_transition"
 LOGISTICS_EVENT_NOT_FOUND = "logistics_event_not_found"
-PASSATION_NOT_ALLOWED = "passation_not_allowed"
+PASSATION_NOT_ALLOWED = "PASSATION_NOT_ALLOWED"
 DELIVERY_NOTE_TEMPLATE_KEY = "titan.delivery_note.v1"
 ITEM_LINE_NOT_FOUND = "item_line_not_found"
 LEGACY_UNBOUNDED_STOCK = 2**31 - 1
@@ -433,3 +433,73 @@ def create_delivery_note_from_handover_event(
         actor=actor,
         notes=document_notes,
     )
+
+
+@transaction.atomic
+def update_logistics_event_signature(
+    *,
+    actor: object | None,
+    event: LogisticsEvent,
+    signature_status: str,
+    signed_by_client_name: str = "",
+    signature_exception_reason: str = "",
+    signed_document_file: str = "",
+) -> LogisticsEvent:
+    _require_logistics_actor(actor=actor)
+
+    event = LogisticsEvent.objects.select_for_update().get(pk=event.pk)
+
+    if event.event_type != LogisticsEventType.HANDOVER:
+        raise LogisticsServiceError(
+            "Signature update is only allowed for handover events.",
+            code=PASSATION_NOT_ALLOWED,
+        )
+
+    if event.status != LogisticsEventStatus.COMPLETED:
+        raise LogisticsServiceError(
+            "Signature update is only allowed for completed events.",
+            code=PASSATION_NOT_ALLOWED,
+        )
+
+    if not event.signature_required:
+        raise LogisticsServiceError(
+            "Signature update requires signature_required to be set.",
+            code=PASSATION_NOT_ALLOWED,
+        )
+
+    event.signature_status = signature_status
+    event.signed_by_client_name = signed_by_client_name
+    event.signature_exception_reason = signature_exception_reason
+    if signed_document_file:
+        event.signed_document_file = signed_document_file
+    event.signed_by = actor
+    event.signed_at = timezone.now()
+    event.updated_by = actor
+    event.save(
+        update_fields=[
+            "signature_status",
+            "signed_by_client_name",
+            "signature_exception_reason",
+            "signed_document_file",
+            "signed_by",
+            "signed_at",
+            "updated_at",
+            "updated_by",
+        ]
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="logistics.handover_signature_updated",
+        target_type="logistics_event",
+        target_id=str(event.id),
+        metadata={
+            "signature_status": signature_status,
+            "signed_by_client_name": signed_by_client_name,
+            "signature_exception_reason": signature_exception_reason,
+            "signed_document_file": signed_document_file,
+            "signed_at": event.signed_at.isoformat() if event.signed_at else None,
+        },
+    )
+
+    return event

@@ -14,6 +14,7 @@ import {
   removeLogisticsEventItemLine,
   transitionLogisticsEvent,
 } from "./api";
+import HandoverSignaturePanel from "./HandoverSignaturePanel";
 import type { InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft } from "./types";
 
 const STATUS_LABELS: Record<LogisticsEvent["status"], string> = {
@@ -624,6 +625,8 @@ export function LogisticsDeliveryPanel() {
                     <p className="ops-preview-note">{passationState.error}</p>
                   ) : null}
                 </section>
+
+                <HandoverSignaturePanel event={selectedEvent} canWrite={canWrite} onUpdate={replaceEvent} />
 
                 <div className="ops-line-actions">
                   {confirmAction?.type === "transition" ? (

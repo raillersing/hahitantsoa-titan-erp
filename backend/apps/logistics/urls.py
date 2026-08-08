@@ -8,6 +8,7 @@ from .views import (
     LogisticsEventItemLineRemoveAPIView,
     LogisticsEventListAPIView,
     LogisticsEventRetrieveAPIView,
+    LogisticsEventSignatureUpdateAPIView,
     LogisticsEventTransitionAPIView,
     LogisticsEventUpdateAPIView,
 )
@@ -53,5 +54,10 @@ urlpatterns = [
         "events/<uuid:id>/complete-passation/",
         LogisticsEventCompletePassationAPIView.as_view(),
         name="logistics-event-complete-passation",
+    ),
+    path(
+        "events/<uuid:id>/signature/",
+        LogisticsEventSignatureUpdateAPIView.as_view(),
+        name="logistics-event-signature-update",
     ),
 ]

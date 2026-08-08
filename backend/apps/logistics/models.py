@@ -21,6 +21,12 @@ class LogisticsEventStatus(models.TextChoices):
     CANCELLED = "cancelled", "cancelled"
 
 
+class HandoverSignatureStatus(models.TextChoices):
+    PENDING = "pending", "En attente de signature"
+    RECEIVED = "received", "Document signé reçu"
+    EXCEPTION = "exception", "Signature exceptionnellement non obtenue"
+
+
 class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
     reservation_draft = models.ForeignKey(
         "reservations.ReservationDraft",
@@ -45,6 +51,16 @@ class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
     # Passation signature tracking (INV-011)
     signature_required = models.BooleanField(default=False)
     signature_received = models.BooleanField(default=False)
+    signature_status = models.CharField(
+        max_length=32,
+        choices=HandoverSignatureStatus.choices,
+        default=HandoverSignatureStatus.PENDING,
+        blank=True,
+    )
+    signature_exception_reason = models.TextField(blank=True)
+    signed_document_file = models.CharField(max_length=2048, blank=True)
+    signed_document_hash = models.CharField(max_length=128, blank=True)
+    signed_by_client_name = models.CharField(max_length=255, blank=True)
     signed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -76,6 +92,30 @@ class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
             raise ValidationError("Signed_at requires a signed_by user.")
         if self.signature_received and self.event_type != LogisticsEventType.HANDOVER:
             raise ValidationError("Signature tracking is only valid for handover events.")
+        if (
+            self.signature_status == HandoverSignatureStatus.EXCEPTION
+            and not self.signature_exception_reason
+        ):
+            raise ValidationError(
+                "Signature exception status requires a reason."
+            )
+        if (
+            self.signature_status == HandoverSignatureStatus.RECEIVED
+            and not self.signed_document_file
+            and not self.signed_by
+        ):
+            raise ValidationError(
+                "Signature received requires either a signed document "
+                "file or a signed_by user."
+            )
+        if (
+            self.signature_status != HandoverSignatureStatus.EXCEPTION
+            and self.signature_exception_reason
+        ):
+            raise ValidationError(
+                "Signature exception reason is only allowed when "
+                "status is 'exception'."
+            )
 
 
 class LogisticsEventItemLine(UUIDModel, TimestampedModel, AuditableModel):

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.logistics.models import (
+    HandoverSignatureStatus,
     LogisticsEvent,
     LogisticsEventItemLine,
     LogisticsEventStatus,
@@ -63,6 +64,11 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
             "notes",
             "signature_required",
             "signature_received",
+            "signature_status",
+            "signature_exception_reason",
+            "signed_document_file",
+            "signed_document_hash",
+            "signed_by_client_name",
             "signed_by",
             "signed_at",
             "item_lines",
@@ -80,6 +86,11 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
             "status",
             "executed_at",
             "signature_received",
+            "signature_status",
+            "signature_exception_reason",
+            "signed_document_file",
+            "signed_document_hash",
+            "signed_by_client_name",
             "signed_by",
             "signed_at",
         )
@@ -114,3 +125,38 @@ class LogisticsEventStatusTransitionSerializer(serializers.Serializer):
 class LogisticsEventCompletePassationSerializer(serializers.Serializer):
     signed_at = serializers.DateTimeField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class LogisticsEventSignatureUpdateSerializer(serializers.Serializer):
+    signature_status = serializers.ChoiceField(
+        choices=HandoverSignatureStatus.choices,
+        required=True,
+    )
+    signed_by_client_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+    )
+    signature_exception_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        status_value = attrs.get("signature_status")
+        if status_value == HandoverSignatureStatus.RECEIVED:
+            file_provided = bool(self.context.get("signed_document_file"))
+            if not file_provided and not attrs.get("signed_by_client_name"):
+                raise serializers.ValidationError(
+                    "signed_by_client_name is required when signature_status is "
+                    "'received' and no signed_document_file is provided."
+                )
+        if (
+            status_value == HandoverSignatureStatus.EXCEPTION
+            and not attrs.get("signature_exception_reason")
+        ):
+            raise serializers.ValidationError(
+                "signature_exception_reason is required when "
+                "signature_status is 'exception'."
+            )
+        return attrs
