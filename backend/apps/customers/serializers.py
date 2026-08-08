@@ -75,6 +75,15 @@ class CustomerSerializer(serializers.ModelSerializer):
             "representative_role",
             "notes",
             "is_active",
+            "prospect_request_type",
+            "prospect_interest_domain",
+            "prospect_requested_date",
+            "prospect_budget",
+            "prospect_next_follow_up",
+            "prospect_status",
+            "prospect_status_changed_at",
+            "prospect_status_reason",
+            "prospect_follow_up_owner",
             "created_at",
             "updated_at",
             "is_deleted",
@@ -158,3 +167,11 @@ class DesiredDateWaitlistEntrySerializer(serializers.ModelSerializer):
             messages = error.error_dict if hasattr(error, "error_dict") else error.messages
             raise serializers.ValidationError(messages) from error
         return attrs
+
+
+class CommercialTimelineEventSerializer(serializers.Serializer):
+    date = serializers.CharField(read_only=True)
+    type = serializers.CharField(read_only=True)
+    title = serializers.CharField(read_only=True)
+    description = serializers.CharField(read_only=True)
+    metadata = serializers.DictField(read_only=True)

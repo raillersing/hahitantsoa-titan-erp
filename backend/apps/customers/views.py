@@ -1,20 +1,49 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Count, Max, Q
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import generics, status
+from rest_framework import generics, serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess
 
-from .models import Customer, DesiredDateWaitlistEntry, DesiredDateWaitlistStatus
-from .serializers import CustomerSerializer, DesiredDateWaitlistEntrySerializer
+from .models import Customer, DesiredDateWaitlistEntry, DesiredDateWaitlistStatus, ProspectStatus
+from .serializers import (
+    CommercialTimelineEventSerializer,
+    CustomerSerializer,
+    DesiredDateWaitlistEntrySerializer,
+)
 from .services import (
+    CustomerConversionError,
     DesiredDateWaitlistLifecycleError,
+    ProspectTransitionError,
+    convert_prospect_to_client,
     create_desired_date_waitlist_entry,
     transition_desired_date_waitlist_entry,
 )
+
+
+class CustomerCommercialTimelineAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={
+            200: CommercialTimelineEventSerializer(many=True),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Not found."),
+        },
+    )
+    def get(self, request, pk):
+        customer = active_customers().filter(pk=pk).first()
+        if customer is None:
+            raise Http404("Customer not found.")
+        from apps.common.commercial_timeline import get_commercial_timeline
+        timeline = get_commercial_timeline(customer.id)
+        serializer = CommercialTimelineEventSerializer(timeline, many=True)
+        return Response(serializer.data)
 
 
 def active_customers():
@@ -231,3 +260,92 @@ class DesiredDateWaitlistLoseAPIView(DesiredDateWaitlistTransitionAPIView):
 
 class DesiredDateWaitlistCancelAPIView(DesiredDateWaitlistTransitionAPIView):
     target_status = DesiredDateWaitlistStatus.CANCELLED
+
+
+class CustomerConvertAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        responses={
+            200: CustomerSerializer,
+            400: OpenApiResponse(description="Customer is not a prospect."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Not found."),
+        },
+    )
+    def post(self, request, pk):
+        customer = active_customers().filter(pk=pk).first()
+        if customer is None:
+            raise Http404("Customer not found.")
+        try:
+            converted = convert_prospect_to_client(customer=customer, actor=request.user)
+        except CustomerConversionError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(CustomerSerializer(converted).data, status=status.HTTP_200_OK)
+
+
+class ProspectStatusTransitionPayloadSerializer(serializers.Serializer):
+    prospect_status = serializers.ChoiceField(
+        choices=ProspectStatus.choices,
+        required=True,
+    )
+    reason = serializers.CharField(required=False, allow_blank=True)
+    next_follow_up = serializers.DateField(required=False, allow_null=True)
+    follow_up_owner_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ProspectStatusTransitionAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=ProspectStatusTransitionPayloadSerializer,
+        responses={
+            200: CustomerSerializer,
+            400: OpenApiResponse(description="Invalid transition or missing reason."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Not found."),
+        },
+    )
+    def post(self, request, pk):
+        customer = active_customers().filter(pk=pk).first()
+        if customer is None:
+            raise Http404("Customer not found.")
+
+        payload = ProspectStatusTransitionPayloadSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        target_status = payload.validated_data["prospect_status"]
+        reason = payload.validated_data.get("reason", "")
+        next_follow_up = payload.validated_data.get("next_follow_up")
+        follow_up_owner_id = payload.validated_data.get("follow_up_owner_id")
+
+        follow_up_owner = None
+        if follow_up_owner_id:
+            User = get_user_model()
+            follow_up_owner = User.objects.filter(pk=follow_up_owner_id).first()
+
+        try:
+            from .services import transition_prospect_status
+
+            transitioned = transition_prospect_status(
+                customer=customer,
+                target_status=target_status,
+                actor=request.user,
+                reason=reason,
+                follow_up_owner=follow_up_owner,
+            )
+            if next_follow_up is not None:
+                transitioned.prospect_next_follow_up = next_follow_up
+                transitioned.save(update_fields=["prospect_next_follow_up", "updated_at"])
+        except ProspectTransitionError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(CustomerSerializer(transitioned).data, status=status.HTTP_200_OK)

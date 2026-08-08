@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    CustomerCommercialTimelineAPIView,
+    CustomerConvertAPIView,
     CustomerCreateAPIView,
     CustomerListAPIView,
     CustomerRetrieveAPIView,
@@ -12,6 +14,7 @@ from .views import (
     DesiredDateWaitlistListCreateAPIView,
     DesiredDateWaitlistLoseAPIView,
     DesiredDateWaitlistRetrieveAPIView,
+    ProspectStatusTransitionAPIView,
 )
 
 urlpatterns = [
@@ -27,6 +30,16 @@ urlpatterns = [
         "customers/<uuid:pk>/delete/",
         CustomerSoftDeleteAPIView.as_view(),
         name="customer-soft-delete",
+    ),
+    path(
+        "customers/<uuid:pk>/convert/",
+        CustomerConvertAPIView.as_view(),
+        name="customer-convert",
+    ),
+    path(
+        "customers/<uuid:pk>/prospect-status/",
+        ProspectStatusTransitionAPIView.as_view(),
+        name="customer-prospect-status-transition",
     ),
     path(
         "customers/<uuid:customer_pk>/desired-dates/",
@@ -57,5 +70,10 @@ urlpatterns = [
         "customers/<uuid:customer_pk>/desired-dates/<uuid:pk>/cancel/",
         DesiredDateWaitlistCancelAPIView.as_view(),
         name="desired-date-waitlist-cancel",
+    ),
+    path(
+        "customers/<uuid:pk>/timeline/",
+        CustomerCommercialTimelineAPIView.as_view(),
+        name="customer-commercial-timeline",
     ),
 ]

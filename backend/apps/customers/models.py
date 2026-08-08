@@ -17,6 +17,18 @@ class CustomerLifecycleStatus(models.TextChoices):
     CLIENT = "client", "Client"
 
 
+class ProspectStatus(models.TextChoices):
+    NEW = "new", "Nouveau"
+    CONTACT_ATTEMPTED = "contact_attempted", "Tentative de contact"
+    CONTACTED = "contacted", "Contacté"
+    QUALIFIED = "qualified", "Qualifié"
+    PROFORMA_SENT = "proforma_sent", "Proforma envoyée"
+    TO_RECALL = "to_recall", "À relancer"
+    CONVERTED = "converted", "Converti en client"
+    DISQUALIFIED = "disqualified", "Non qualifié"
+    LOST = "lost", "Perdu"
+
+
 class CustomerPartyType(models.TextChoices):
     INDIVIDUAL = "individual", "Particulier"
     COMPANY = "company", "Entreprise"
@@ -84,6 +96,28 @@ class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
     representative_role = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    # Commercial request metadata (prospect enrichment)
+    prospect_request_type = models.CharField(max_length=64, blank=True)
+    prospect_interest_domain = models.CharField(max_length=64, blank=True)
+    prospect_requested_date = models.DateField(null=True, blank=True)
+    prospect_budget = models.CharField(max_length=64, blank=True)
+    prospect_next_follow_up = models.DateField(null=True, blank=True)
+    # Prospect operational pipeline status (Lot 1.1)
+    prospect_status = models.CharField(
+        max_length=32,
+        choices=ProspectStatus.choices,
+        default=ProspectStatus.NEW,
+        blank=True,
+    )
+    prospect_status_changed_at = models.DateTimeField(null=True, blank=True)
+    prospect_status_reason = models.TextField(blank=True)
+    prospect_follow_up_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
 
     class Meta:
         ordering = ["display_name"]
