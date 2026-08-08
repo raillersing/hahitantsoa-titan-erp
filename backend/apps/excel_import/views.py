@@ -149,28 +149,27 @@ def _automatic_mapping(headers: list[str]) -> dict[str, str]:
 
 def _required_decimal(value: object, *, field: str) -> Decimal | None:
     text = str(value or "").strip().replace("\u00a0", "").replace(" ", "").replace(",", ".")
-    if not text:
+    text = re.sub(r"[^\d.-]", "", text)
+    if not text or text == "-":
         return None
     try:
         amount = Decimal(text)
-    except InvalidOperation as error:
-        raise ValueError(f"{field} must be a number.") from error
+    except InvalidOperation:
+        return None
     if amount < 0:
-        raise ValueError(f"{field} cannot be negative.")
+        return None
     return amount
 
 
 def _required_quantity(value: object, *, field: str) -> int:
-    text = str(value or "").strip()
+    text = str(value or "").strip().replace("\u00a0", "").replace(" ", "").replace(",", ".")
+    text = re.sub(r"[^\d]", "", text)
     if not text:
         return 0
     try:
-        quantity = Decimal(text.replace("\u00a0", "").replace(" ", "").replace(",", "."))
-    except InvalidOperation as error:
-        raise ValueError(f"{field} must be a whole number.") from error
-    if quantity < 0 or quantity != quantity.to_integral_value():
-        raise ValueError(f"{field} must be a non-negative whole number.")
-    return int(quantity)
+        return int(text)
+    except ValueError:
+        return 0
 
 
 def _mapped_value(row: dict, mapping: dict, field: str, default: str = "") -> str:
@@ -270,13 +269,26 @@ class ImportJobValidateAPIView(APIView):
             )
 
         mapped_targets = set(mapping.values())
+        if "reported_inventory_quantity" in mapped_targets and "initial_stock" not in mapped_targets:
+            mapped_targets.add("initial_stock")
+
         errors, prepared_rows = [], []
         for row_number, row in enumerate(job.source_rows or [], start=2):
             try:
                 name = _mapped_value(row, mapping, "name")
                 if not name:
-                    raise ValueError("The name is required.")
+                    continue
                 kind = _mapped_value(row, mapping, "kind", "material") or "material"
+                reported_qty = _required_quantity(
+                    _mapped_value(row, mapping, "reported_inventory_quantity"),
+                    field="Reported inventory quantity",
+                )
+                initial_qty = _required_quantity(
+                    _mapped_value(row, mapping, "initial_stock"), field="Initial stock"
+                )
+                if initial_qty == 0 and reported_qty > 0:
+                    initial_qty = reported_qty
+
                 prepared_rows.append(
                     {
                         "name": name,
@@ -286,13 +298,8 @@ class ImportJobValidateAPIView(APIView):
                         "section": _mapped_value(row, mapping, "section"),
                         "unit": _mapped_value(row, mapping, "unit"),
                         "storage_location": _mapped_value(row, mapping, "storage_location"),
-                        "reported_inventory_quantity": _required_quantity(
-                            _mapped_value(row, mapping, "reported_inventory_quantity"),
-                            field="Reported inventory quantity",
-                        ),
-                        "initial_stock": _required_quantity(
-                            _mapped_value(row, mapping, "initial_stock"), field="Initial stock"
-                        ),
+                        "reported_inventory_quantity": reported_qty,
+                        "initial_stock": initial_qty,
                         "reported_damaged_quantity": _required_quantity(
                             _mapped_value(row, mapping, "reported_damaged_quantity"),
                             field="Damaged quantity",
@@ -311,7 +318,7 @@ class ImportJobValidateAPIView(APIView):
             except ValueError as error:
                 errors.append({"row": row_number, "error": str(error)})
 
-        if not errors:
+        if prepared_rows:
             try:
                 with transaction.atomic():
                     for payload in prepared_rows:
@@ -326,11 +333,6 @@ class ImportJobValidateAPIView(APIView):
                             item is not None
                             and InventoryStockMovement.objects.filter(inventory_item=item).exists()
                         )
-                        if existing_stock and payload["initial_stock"]:
-                            raise ValueError(
-                                f"Item '{payload['name']}' already has stock movements; "
-                                "use a stock adjustment."
-                            )
                         location = None
                         if payload["storage_location"]:
                             location, _ = InventoryStorageLocation.objects.get_or_create(
@@ -356,7 +358,7 @@ class ImportJobValidateAPIView(APIView):
                             item.updated_by = request.user
                         item.full_clean()
                         item.save()
-                        if payload["initial_stock"]:
+                        if payload["initial_stock"] and not existing_stock:
                             InventoryStockMovement.objects.create(
                                 inventory_item=item,
                                 storage_location=location,
@@ -371,7 +373,7 @@ class ImportJobValidateAPIView(APIView):
                             )
             except ValueError as error:
                 errors.append({"row": None, "error": str(error)})
-        job.status = "completed" if not errors else "failed"
+        job.status = "completed" if not errors else ("partially_completed" if prepared_rows else "failed")
         job.valid_rows = len(prepared_rows)
         job.error_rows = len(errors)
         job.error_log = errors
