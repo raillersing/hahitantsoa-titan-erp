@@ -14,6 +14,10 @@ CASHBOX_SUPERVISOR_PERMISSION_DENIED_MESSAGE = (
     "Actor is not allowed to validate or reopen a cashbox; explicit "
     "cashbox supervisor capability is required."
 )
+LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE = (
+    "Actor is not allowed to perform a logistics override; explicit "
+    "logistics_override capability is required."
+)
 
 
 def is_authenticated_active_actor(*, actor: object | None) -> bool:
@@ -78,9 +82,18 @@ def require_reservation_sensitive_actor(*, actor: object | None) -> None:
 
 
 def is_cashbox_supervisor_actor(*, actor: object | None) -> bool:
-    return actor_has_identity_role(actor=actor, role=IdentityRole.CASHBOX_SUPERVISOR)
+    return actor_has_application_role(actor=actor, role_slug=IdentityRole.CASHBOX_SUPERVISOR.value)
 
 
 def require_cashbox_supervisor_actor(*, actor: object | None) -> None:
     if not is_cashbox_supervisor_actor(actor=actor):
         raise PermissionError(CASHBOX_SUPERVISOR_PERMISSION_DENIED_MESSAGE)
+
+
+def is_logistics_override_actor(*, actor: object | None) -> bool:
+    return actor_has_application_role(actor=actor, role_slug="logistics_override")
+
+
+def require_logistics_override_actor(*, actor: object | None) -> None:
+    if not is_logistics_override_actor(actor=actor):
+        raise PermissionError(LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE)

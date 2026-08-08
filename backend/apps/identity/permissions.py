@@ -3,8 +3,10 @@ from __future__ import annotations
 from rest_framework.permissions import BasePermission
 
 from apps.identity.authorization import (
+    LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE,
     RESERVATION_SENSITIVE_PERMISSION_DENIED_MESSAGE,
     is_identity_admin_actor,
+    is_logistics_override_actor,
     is_reservation_sensitive_actor,
 )
 
@@ -23,3 +25,10 @@ class HasReservationSensitiveAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_reservation_sensitive_actor(actor=request.user)
+
+
+class HasLogisticsOverrideAccess(BasePermission):
+    message = LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE
+
+    def has_permission(self, request, view) -> bool:
+        return is_logistics_override_actor(actor=request.user)
