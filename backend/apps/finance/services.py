@@ -53,7 +53,13 @@ def create_finance_bank_profile(
     is_default_for_documents: bool = False,
 ) -> FinanceBankProfile:
     require_reservation_sensitive_actor(actor=actor)
-    locked_account = FinanceAccount.objects.select_for_update().get(pk=account.pk)
+    account_scope = FinanceAccount.objects.only("business_scope").get(pk=account.pk).business_scope
+    locked_accounts = list(
+        FinanceAccount.objects.select_for_update()
+        .filter(business_scope=account_scope)
+        .order_by("id")
+    )
+    locked_account = next(item for item in locked_accounts if item.pk == account.pk)
     if locked_account.kind != FinanceAccountKind.BANK:
         raise ValueError("A bank profile requires a bank finance account.")
     profile = FinanceBankProfile(
@@ -85,10 +91,44 @@ def create_finance_bank_profile(
 
 
 @transaction.atomic
+def create_finance_bank_profile_with_account(
+    *,
+    actor,
+    business_scope: str,
+    account_code: str,
+    account_label: str,
+    **profile_fields,
+) -> FinanceBankProfile:
+    account = create_finance_account(
+        actor=actor,
+        business_scope=business_scope,
+        code=account_code,
+        label=account_label,
+        kind=FinanceAccountKind.BANK,
+    )
+    return create_finance_bank_profile(
+        account=account,
+        actor=actor,
+        **profile_fields,
+    )
+
+
+@transaction.atomic
 def configure_finance_bank_profile(
     *, profile: FinanceBankProfile, actor, is_default_for_documents: bool | None = None, **fields
 ) -> FinanceBankProfile:
     require_reservation_sensitive_actor(actor=actor)
+    account_scope = (
+        FinanceBankProfile.objects.select_related("account")
+        .only("account__business_scope")
+        .get(pk=profile.pk)
+        .account.business_scope
+    )
+    list(
+        FinanceAccount.objects.select_for_update()
+        .filter(business_scope=account_scope)
+        .order_by("id")
+    )
     locked = (
         FinanceBankProfile.objects.select_for_update().select_related("account").get(pk=profile.pk)
     )
