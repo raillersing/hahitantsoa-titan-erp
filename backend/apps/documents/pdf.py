@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -90,8 +91,18 @@ class WeasyPrintPDFGenerator(DocumentPDFGenerator):
     def generate_pdf(self, html_content: str) -> bytes:
         try:
             from weasyprint import HTML
+            from django.conf import settings
 
-            doc = HTML(string=html_content)
+            # The HTML artifact is served through the application, while
+            # WeasyPrint renders without an HTTP request context. Resolve the
+            # document brand assets explicitly for the PDF renderer so logos
+            # remain part of the printable artifact.
+            brand_dir = Path(settings.BASE_DIR) / "apps" / "documents" / "static" / "brand"
+            pdf_html = html_content.replace(
+                'src="/brand/',
+                f'src="{brand_dir.as_uri()}/',
+            )
+            doc = HTML(string=pdf_html)
             return doc.write_pdf()
         except ImportError as error:
             raise DocumentPDFGenerationError(

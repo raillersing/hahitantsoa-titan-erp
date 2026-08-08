@@ -57,6 +57,9 @@ const mockGetReservationDraftDocumentInstances = vi.fn();
 const mockMarkReservationDraftContractSigned = vi.fn();
 const mockMarkReservationDraftRequiredDepositReceived = vi.fn();
 const mockConfirmReservationDraft = vi.fn();
+const mockGetPayments = vi.fn();
+const mockCreatePayment = vi.fn();
+const mockConfirmPayment = vi.fn();
 
 vi.mock('../api', () => ({
   getReservationDraft: (...args: any[]) => mockGetReservationDraft(...args),
@@ -65,6 +68,9 @@ vi.mock('../api', () => ({
   markReservationDraftContractSigned: (...args: any[]) => mockMarkReservationDraftContractSigned(...args),
   markReservationDraftRequiredDepositReceived: (...args: any[]) => mockMarkReservationDraftRequiredDepositReceived(...args),
   confirmReservationDraft: (...args: any[]) => mockConfirmReservationDraft(...args),
+  getPayments: (...args: any[]) => mockGetPayments(...args),
+  createPayment: (...args: any[]) => mockCreatePayment(...args),
+  confirmPayment: (...args: any[]) => mockConfirmPayment(...args),
 }));
 
 /* ── helper: wait for the draft page to load ────────────────────── */
@@ -82,6 +88,9 @@ describe('ReservationDetailPage', () => {
     mockGetReservationDraft.mockResolvedValue(MOCK_DRAFT);
     mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
     mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockCreatePayment.mockResolvedValue({ id: 'payment-deposit-1' });
+    mockConfirmPayment.mockResolvedValue({ id: 'payment-deposit-1', payment_status: 'confirmed' });
     mockMarkReservationDraftContractSigned.mockResolvedValue({
       status: 'draft',
       public_reference: 'LOC-2026-0089',
@@ -173,29 +182,32 @@ describe('ReservationDetailPage', () => {
     // Initially: only "Marquer contrat signé" should appear
     const contractBtn = screen.getByRole('button', { name: /Marquer contrat signé/i });
     expect(contractBtn).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Marquer acompte reçu/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Enregistrer et confirmer l'acompte/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Confirmer la réservation/i })).not.toBeInTheDocument();
 
     // Click contract signed
     fireEvent.click(contractBtn);
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Marquer acompte reçu/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Enregistrer et confirmer l'acompte/i })).toBeInTheDocument();
     });
     expect(mockMarkReservationDraftContractSigned).toHaveBeenCalledWith('draft-loc-089');
 
     // Click deposit received
-    fireEvent.click(screen.getByRole('button', { name: /Marquer acompte reçu/i }));
+    fireEvent.change(screen.getByLabelText(/Montant de l'acompte/i), { target: { value: '250000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer et confirmer l'acompte/i }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Confirmer la réservation/i })).toBeInTheDocument();
     });
     expect(mockMarkReservationDraftRequiredDepositReceived).toHaveBeenCalledWith('draft-loc-089');
+    expect(mockCreatePayment).toHaveBeenCalledWith(expect.objectContaining({ amount: '250000.00' }));
+    expect(mockConfirmPayment).toHaveBeenCalledWith('payment-deposit-1', {});
 
     // Click confirm
     fireEvent.click(screen.getByRole('button', { name: /Confirmer la réservation/i }));
     await waitFor(() => {
       // After confirmation, status is 'confirmed', no more action buttons
       expect(screen.queryByRole('button', { name: /Marquer contrat signé/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Marquer acompte reçu/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Enregistrer et confirmer l'acompte/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Confirmer la réservation/i })).not.toBeInTheDocument();
     });
     expect(mockConfirmReservationDraft).toHaveBeenCalledWith('draft-loc-089');

@@ -652,6 +652,7 @@ export type Payment = {
 
 export type PaymentCreatePayload = {
   reservation_draft?: string | null;
+  hahitantsoa_event_draft?: string | null;
   payment_kind: PaymentCreateKind;
   payment_method: PaymentMethod;
   payment_status?: PaymentStatus;

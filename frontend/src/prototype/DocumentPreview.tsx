@@ -12,7 +12,7 @@ import {
 
 type DocumentType = 'proforma' | 'facture' | 'contrat';
 
-interface DocumentProps {
+export interface DocumentPreviewProps {
   type?: DocumentType | string;
   domain?: 'titan' | 'hahitantsoa' | string;
   client?: any;
@@ -32,9 +32,44 @@ interface DocumentProps {
   template?: any;
   blocks?: any[];
   isGuided?: boolean;
+  /** Show variable tokens at their rendered positions for template inspection. */
+  showVariables?: boolean;
 }
 
-export const DocumentPreview: React.FC<DocumentProps> = ({
+function VariableValue({
+  token,
+  value,
+  show,
+}: {
+  token: string;
+  value: React.ReactNode;
+  show: boolean;
+}) {
+  if (!show) return <>{value}</>;
+  return (
+    <mark
+      data-document-variable={token}
+      className="rounded bg-amber-100 px-1 text-amber-900 outline outline-1 outline-amber-300"
+      title={`Variable ${token}`}
+    >
+      {`{{${token}}}`}
+    </mark>
+  );
+}
+
+function VariableText({ text, show }: { text: string; show: boolean }) {
+  if (!show) return <>{text}</>;
+  const parts = text.split(/(\{\{[^}]+\}\})/g);
+  return <>{parts.map((part, index) => part.startsWith("{{") && part.endsWith("}}") ? (
+    <mark key={`${part}-${index}`} data-document-variable={part.slice(2, -2).trim()} className="rounded bg-amber-100 px-1 text-amber-900 outline outline-1 outline-amber-300">{part}</mark>
+  ) : part)}</>;
+}
+
+function highlightTemplateVariables(html: string) {
+  return html.replace(/\{\{\s*[^}]+\s*\}\}/g, token => `<mark class="rounded bg-amber-100 px-1 text-amber-900 outline outline-1 outline-amber-300">${token}</mark>`);
+}
+
+export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   type = 'proforma',
   domain = 'titan',
   client,
@@ -53,7 +88,8 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
   tDetails = {},
   template,
   blocks,
-  isGuided
+  isGuided,
+  showVariables = false,
 }) => {
   if (template) {
     const volet = template.volet === 'Hahitantsoa'
@@ -97,8 +133,8 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
         {isGuided && blocks ? (
           <div className="space-y-4">
             {blocks.map((b: any) => {
-              if (b.type === "Titre") return <h2 key={b.id} className="text-xl font-bold text-center underline mb-6">{b.text || "TITRE DU DOCUMENT"}</h2>;
-              if (b.type === "Paragraphe") return <p key={b.id} className="text-justify mb-4">{b.text || "..."}</p>;
+              if (b.type === "Titre") return <h2 key={b.id} className="text-xl font-bold text-center underline mb-6"><VariableText text={b.text || "TITRE DU DOCUMENT"} show={showVariables} /></h2>;
+              if (b.type === "Paragraphe") return <p key={b.id} className="text-justify mb-4"><VariableText text={b.text || "..."} show={showVariables} /></p>;
               if (b.type === "Tableau articles/packs") return (
                 <table key={b.id} className="w-full border-collapse border border-slate-300 mb-6">
                   <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Désignation</th><th className="border p-2">Qté</th><th className="border p-2">PU</th><th className="border p-2 text-right">Total</th></tr></thead>
@@ -108,13 +144,13 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               return (
                 <div key={b.id} className="mb-4">
                   {b.title && <h4 className="font-bold underline mb-2">{b.title}</h4>}
-                  <div className="whitespace-pre-wrap">{b.text || `[Bloc ${b.type} vide]`}</div>
+                  <div className="whitespace-pre-wrap"><VariableText text={b.text || `[Bloc ${b.type} vide]`} show={showVariables} /></div>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: template.content || "" }} />
+          <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: showVariables ? highlightTemplateVariables(template.content || "") : template.content || "" }} />
         )}
       </div>
     );
@@ -211,9 +247,9 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <p className="text-right font-bold underline mb-8">D'UNE PART,</p>
 
             {client?.type === 'Particulier' ? (
-              <p className="mb-4">Monsieur/Madame <strong>{client.name}</strong> domicilié(e) au {client.address || '................................'}<br/>Titulaire de la CIN / Passeport N° {client.idNumber || '................................'} délivré(e) le {client.idIssueDate ? new Date(client.idIssueDate).toLocaleDateString('fr-FR') : '................................'} à {client.idIssuePlace || '................................'}</p>
+              <p className="mb-4">Monsieur/Madame <strong><VariableValue token="client.name" value={client.name} show={showVariables} /></strong> domicilié(e) au <VariableValue token="client.address" value={client.address || '................................'} show={showVariables} /><br/>Titulaire de la CIN / Passeport N° <VariableValue token="client.idNumber" value={client.idNumber || '................................'} show={showVariables} /> délivré(e) le <VariableValue token="client.idIssueDate" value={client.idIssueDate ? new Date(client.idIssueDate).toLocaleDateString('fr-FR') : '................................'} show={showVariables} /> à <VariableValue token="client.idIssuePlace" value={client.idIssuePlace || '................................'} show={showVariables} /></p>
             ) : (
-              <p className="mb-4">La société <strong>{client?.name || 'Client'}</strong> domiciliée au {client?.address || '................................'}<br/>NIF : {client?.nif || '................................'}<br/>STAT : {client?.stat || '................................'}<br/>RCS : {client?.rcs || '................................'}<br/>Représentée par {client?.repFirstName || '................................'} en sa qualité de {client?.repRole || '................................'} </p>
+              <p className="mb-4">La société <strong><VariableValue token="client.name" value={client?.name || 'Client'} show={showVariables} /></strong> domiciliée au <VariableValue token="client.address" value={client?.address || '................................'} show={showVariables} /><br/>NIF : <VariableValue token="client.nif" value={client?.nif || '................................'} show={showVariables} /><br/>STAT : <VariableValue token="client.stat" value={client?.stat || '................................'} show={showVariables} /><br/>RCS : <VariableValue token="client.rcs" value={client?.rcs || '................................'} show={showVariables} /><br/>Représentée par <VariableValue token="client.repFirstName" value={client?.repFirstName || '................................'} show={showVariables} /> en sa qualité de <VariableValue token="client.repRole" value={client?.repRole || '................................'} show={showVariables} /> </p>
             )}
             <p className="text-right mb-6">Ci-après dénommée « Le client »</p>
             <p className="text-right font-bold underline mb-8">D'AUTRE PART,</p>
@@ -240,12 +276,12 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
           </ContractPage>
 
           <ContractPage pageNumber={2}>
-            <p className="mb-4">Les matériels loués sont destinés à un usage de : <strong>{tDetails?.usageType === 'Autre' ? tDetails?.usageTypeOther : (tDetails?.usageType || 'Non précisé')}</strong>.<br/>Toute autre activité en sus non mentionnée doit faire l’objet d’une annexe à titre d’avenant conclu entre les parties.</p>
+            <p className="mb-4">Les matériels loués sont destinés à un usage de : <strong><VariableValue token="event.usage" value={tDetails?.usageType === 'Autre' ? tDetails?.usageTypeOther : (tDetails?.usageType || 'Non précisé')} show={showVariables} /></strong>.<br/>Toute autre activité en sus non mentionnée doit faire l’objet d’une annexe à titre d’avenant conclu entre les parties.</p>
             <h6 className="font-semibold mb-2">Destination et lieu de la location :</h6>
             <ul className="list-disc pl-10 mb-8 space-y-1">
-              <li><strong>Nom du lieu :</strong> {tDetails?.destinationName || 'Non renseigné'}</li>
-              <li><strong>Adresse complète :</strong> {tDetails?.destinationAddress || 'Non renseigné'}</li>
-              <li><strong>Commune / Ville :</strong> {tDetails?.destinationCity || 'Non renseigné'}</li>
+              <li><strong>Nom du lieu :</strong> <VariableValue token="logistics.destinationName" value={tDetails?.destinationName || 'Non renseigné'} show={showVariables} /></li>
+              <li><strong>Adresse complète :</strong> <VariableValue token="logistics.destinationAddress" value={tDetails?.destinationAddress || 'Non renseigné'} show={showVariables} /></li>
+              <li><strong>Commune / Ville :</strong> <VariableValue token="logistics.destinationCity" value={tDetails?.destinationCity || 'Non renseigné'} show={showVariables} /></li>
               <li><strong>Contact sur place :</strong> {tDetails?.destinationContactName || 'Non renseigné'}</li>
               <li><strong>Téléphone contact :</strong> {tDetails?.destinationContactPhone || 'Non renseigné'}</li>
               {(tDetails?.destinationLat && tDetails?.destinationLng) && (
@@ -258,7 +294,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
 
             <h5 className="font-bold underline mb-4">Article 3 : Durée</h5>
             <p className="mb-4">
-              La location est consentie pour la période du {tDetails?.startDate || eventDate || 'non renseigné'} à {tDetails?.startTime || 'non renseigné'} au {tDetails?.endDate || eventDate || 'non renseigné'} à {tDetails?.endTime || 'non renseigné'}.
+              La location est consentie pour la période du <VariableValue token="reservation.startDate" value={tDetails?.startDate || eventDate || 'non renseigné'} show={showVariables} /> à <VariableValue token="reservation.startTime" value={tDetails?.startTime || 'non renseigné'} show={showVariables} /> au <VariableValue token="reservation.endDate" value={tDetails?.endDate || eventDate || 'non renseigné'} show={showVariables} /> à <VariableValue token="reservation.endTime" value={tDetails?.endTime || 'non renseigné'} show={showVariables} />.
             </p>
             <p className="mb-6">
               {tDetails?.movementMode === 'Livraison par Titan' ? (
@@ -363,7 +399,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <p className="mb-6 uppercase">IL A ETE CONVENU CE QUI SUIT :</p>
 
             <h5 className="font-bold underline mb-4">Article 1 : Objet du contrat</h5>
-            <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, situé à {hDetails?.venue || 'l’adresse renseignée dans la commande'} comprenant :</p>
+            <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, situé à <VariableValue token="event.venue" value={hDetails?.venue || 'l’adresse renseignée dans la commande'} show={showVariables} /> comprenant :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
               <li>Une salle de réception de 600 m2 ;</li>
               <li>Huit toilettes attenantes ;</li>
@@ -404,7 +440,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             )}
 
             <h5 className="font-bold underline mb-4">Article 3 : Durée</h5>
-            <p className="mb-4">La présente location est consentie et acceptée du {hDetails?.startDate || eventDate} à {hDetails?.startTime || '.................'} heures au {hDetails?.endDate || eventDate} à {hDetails?.endTime || '......03H30............'} heures.<br/>Les intervenants du client peuvent accéder aux locaux (veuillez rayer les mentions inutiles) :</p>
+            <p className="mb-4">La présente location est consentie et acceptée du <VariableValue token="reservation.startDate" value={hDetails?.startDate || eventDate} show={showVariables} /> à <VariableValue token="reservation.startTime" value={hDetails?.startTime || '.................'} show={showVariables} /> heures au <VariableValue token="reservation.endDate" value={hDetails?.endDate || eventDate} show={showVariables} /> à <VariableValue token="reservation.endTime" value={hDetails?.endTime || '......03H30............'} show={showVariables} /> heures.<br/>Les intervenants du client peuvent accéder aux locaux (veuillez rayer les mentions inutiles) :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
               <li><strong>la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire ;</strong></li>
               <li><span className="line-through">le jour-J à 07 heures.</span></li>
@@ -420,7 +456,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
               {materials.map((material) => <li key={material.id || material.name}>{material.quantity} × {material.name}</li>)}
             </ul>
             <div className="pl-10 mb-4 flex flex-col gap-2">
-              <div className="flex"><span className="w-48">N° Proforma :</span><span>{refNumber}</span></div>
+              <div className="flex"><span className="w-48">N° Proforma :</span><span><VariableValue token="dossier.ref" value={refNumber} show={showVariables} /></span></div>
               <div className="flex"><span className="w-48">Nombre de convives :</span><span>{hDetails?.guests || '200'}</span></div>
               <div className="flex"><span className="w-48">Type de location :</span><span>
                 {hDetails?.rentalType === 'Location nue' ? '☒' : '☐'} Location nue<br/>
@@ -441,7 +477,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             <h5 className="font-bold underline mb-4">Article 5 : Modalités de paiement</h5>
             <p className="mb-2">La présente location est consentie et acceptée moyennant le versement d’un acompte de :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
-              <li>Acompte prévu dans la commande : {formatMoneyRaw(paidAmount)} Ariary.</li>
+              <li>Acompte prévu dans la commande : <VariableValue token="finance.depositAmount" value={formatMoneyRaw(paidAmount)} show={showVariables} /> Ariary.</li>
               <li>Solde restant selon la commande : {formatMoneyRaw(remaining)} Ariary.</li>
             </ul>
             <p className="mb-2">Celui-ci devra être réglé le jour de la réservation de la salle, soit à la signature par le Client du présent contrat. Le client s’engage à verser le solde du montant de la location en deux tranches :</p>
@@ -620,11 +656,11 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
         <div className="text-[10px] text-black space-y-4">
           <div>
             <p className="font-bold">BANK</p>
-            <p>BMOI MADAGASCAR</p>
+            <p><VariableValue token="company.bankName" value="BMOI MADAGASCAR" show={showVariables} /></p>
           </div>
           <div>
             <p className="font-bold">RIB</p>
-            <p>00004 00009 03319320103 30</p>
+            <p><VariableValue token="company.bankRib" value="00004 00009 03319320103 30" show={showVariables} /></p>
           </div>
           <div className="mt-8">
             <p>Ergon Group SARL</p>
@@ -646,18 +682,18 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
         <img src={logoPath} alt="Watermark" className="absolute top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[80%] opacity-[0.03] pointer-events-none" />
 
         <div className="text-right mb-12">
-          <p className="text-sm font-bold mb-1">{typeRef} N°: {refNumber}</p>
+          <p className="text-sm font-bold mb-1">{typeRef} N°: <VariableValue token="dossier.ref" value={refNumber} show={showVariables} /></p>
           <h2 className="text-4xl font-bold tracking-[0.3em] text-black mb-2 whitespace-nowrap">{titleText}</h2>
-          <p className="text-sm">DATE {date}</p>
+          <p className="text-sm">DATE <VariableValue token="document.date" value={date} show={showVariables} /></p>
         </div>
 
         <div className="mb-10 text-sm grid grid-cols-[150px_1fr] gap-y-3">
           <p className="font-bold tracking-widest">N O M :</p>
-          <p>{client?.name}</p>
+          <p><VariableValue token="client.name" value={client?.name} show={showVariables} /></p>
           <p className="font-bold tracking-widest">C O N T A C T :</p>
-          <p>{client?.phone} {client?.email ? `/ ${client.email}` : '/'}</p>
+          <p><VariableValue token="client.phone" value={client?.phone} show={showVariables} /> {client?.email ? `/ ${client.email}` : '/'}</p>
           <p className="font-bold tracking-widest">E V E N E M E N T d u :</p>
-          <p>{eventDate}</p>
+          <p><VariableValue token="event.date" value={eventDate} show={showVariables} /></p>
         </div>
 
         {type === 'proforma' && client?.status === 'Prospect' && (
@@ -753,16 +789,16 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
         <div className="flex justify-end mb-2 mt-8 text-sm">
           <div className="w-[300px] grid grid-cols-[1fr_150px] gap-2">
             <div className="text-left tracking-widest">S O U S  -  T O T A L</div>
-            <div className="text-right">{formatMoneyRaw(safeSubTotal)}</div>
+            <div className="text-right"><VariableValue token="finance.subTotalAmount" value={formatMoneyRaw(safeSubTotal)} show={showVariables} /></div>
 
             <div className="text-left tracking-widest">R E M I S E</div>
-            <div className="text-right">- {formatMoneyRaw(safeDiscount)}</div>
+            <div className="text-right">- <VariableValue token="finance.discountAmount" value={formatMoneyRaw(safeDiscount)} show={showVariables} /></div>
           </div>
         </div>
 
         <div className="flex bg-[#efefef] p-3 text-sm font-bold items-center justify-between mx-[-2.5rem] px-[2.5rem] mb-2">
           <div className="tracking-widest">T O T A L A P A Y E R</div>
-          <div className="">{formatMoneyRaw(safeTotal)} Ar</div>
+          <div className=""><VariableValue token="finance.totalAmount" value={formatMoneyRaw(safeTotal)} show={showVariables} /> Ar</div>
         </div>
 
         <div className="flex justify-between text-xs mb-8">
@@ -770,7 +806,7 @@ export const DocumentPreview: React.FC<DocumentProps> = ({
             Arrêtée la présente {type === 'facture' ? 'facture' : 'facture proforma'}<br/>à la somme de
           </div>
           <div className="w-1/2 text-center pt-2">
-            {formatMoneyRaw(safeTotal)} Ar
+            <VariableValue token="finance.totalAmount" value={formatMoneyRaw(safeTotal)} show={showVariables} /> Ar
           </div>
         </div>
 

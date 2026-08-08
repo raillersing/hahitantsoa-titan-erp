@@ -1,11 +1,264 @@
-<html>
-  <body>
-    <h1>Facture excedent dommage/perte</h1>
-    <p>Document: {{ context.template.label }}</p>
-    <p>Reference facture: {{ context.excess_receivable.excess_receivable_id }}</p>
-    <p>Client: {{ context.excess_receivable.customer_display_name }}</p>
-    <p>Reservation: {{ context.excess_receivable.reservation_public_reference }}</p>
-    <p>Statut reservation: {{ context.excess_receivable.reservation_status }}</p>
-    <p>Montant: {{ context.excess_receivable.amount }}</p>
-  </body>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Facture Casse & Remise en État — {{ context.excess_receivable.excess_receivable_id }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 15mm 20mm 15mm;
+            @bottom-right {
+                content: "Page " counter(page) " / " counter(pages);
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 8pt;
+                color: #64748b;
+            }
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #1e293b;
+            font-size: 9.5pt;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+        }
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #b91c1c;
+            padding-bottom: 12px;
+        }
+        .brand-title {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #991b1b;
+            letter-spacing: 1px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+        .brand-subtitle {
+            font-size: 9pt;
+            color: #64748b;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+        .doc-title {
+            text-align: right;
+            font-size: 15pt;
+            font-weight: bold;
+            color: #991b1b;
+            text-transform: uppercase;
+            margin: 0;
+        }
+        .doc-ref {
+            text-align: right;
+            font-size: 9.5pt;
+            font-weight: bold;
+            color: #475569;
+            margin-top: 4px;
+        }
+        .info-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            width: 48%;
+            vertical-align: top;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 10px 12px;
+            background-color: #f8fafc;
+        }
+        .box-title {
+            font-size: 9pt;
+            font-weight: bold;
+            color: #991b1b;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
+        }
+        .info-line {
+            margin-bottom: 3px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #475569;
+            display: inline-block;
+            width: 130px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .items-table th {
+            background-color: #7f1d1d;
+            color: #ffffff;
+            font-size: 9pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 8px 10px;
+            text-align: left;
+            border: 1px solid #7f1d1d;
+        }
+        .items-table td {
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            font-size: 9.5pt;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .summary-box {
+            width: 50%;
+            margin-left: auto;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background-color: #fff1f2;
+            padding: 12px;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 9.5pt;
+        }
+        .summary-row.total {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #991b1b;
+            border-top: 2px solid #b91c1c;
+            padding-top: 6px;
+            margin-top: 6px;
+        }
+        .bank-box {
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            padding: 10px 12px;
+            background-color: #f8fafc;
+            margin-bottom: 20px;
+            font-size: 8.5pt;
+        }
+        .signatures-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+            page-break-inside: avoid;
+        }
+        .sig-box {
+            width: 48%;
+            vertical-align: top;
+            border: 1px solid #94a3b8;
+            border-radius: 4px;
+            padding: 12px;
+            height: 80px;
+        }
+    </style>
+</head>
+<body>
+    <table class="header-table">
+        <tr>
+            <td style="vertical-align: top;">
+                <h1 class="brand-title">TITAN / HAHITANTSOA</h1>
+                <div class="brand-subtitle">Facturation Casse & Remise en État</div>
+            </td>
+            <td style="vertical-align: top;">
+                <div class="doc-title">FACTURE DE CASSE</div>
+                <div class="doc-ref">N° {{ context.excess_receivable.excess_receivable_id }}</div>
+                <div style="text-align: right; font-size: 8.5pt; color: #64748b; margin-top: 4px;">
+                    Date : {% now "d/m/Y" %}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="info-grid">
+        <tr>
+            <td class="info-box">
+                <div class="box-title">Client Facturé</div>
+                <div class="info-line"><span class="info-label">Client :</span> <strong>{{ context.excess_receivable.customer_display_name }}</strong></div>
+                <div class="info-line"><span class="info-label">Réf. Réservation :</span> <strong>{{ context.excess_receivable.reservation_public_reference }}</strong></div>
+                <div class="info-line"><span class="info-label">Statut Réservation :</span> {{ context.excess_receivable.reservation_status }}</div>
+            </td>
+            <td style="width: 4%;"></td>
+            <td class="info-box">
+                <div class="box-title">Règlement & Solde</div>
+                <div class="info-line"><span class="info-label">Montant Dégâts :</span> <strong>{{ context.excess_receivable.amount }} Ar</strong></div>
+                <div class="info-line"><span class="info-label">Caution Initiale :</span> {{ context.excess_receivable.deposit_amount|default:"0" }} Ar</div>
+                <div class="info-line"><span class="info-label">Statut Paiement :</span> EXCÉDENT À RECOUVRER</div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 35px; text-align: center;">N°</th>
+                <th>Désignation de la Casse / Perte / Remise en État</th>
+                <th style="width: 80px; text-align: center;">Quantité</th>
+                <th style="width: 140px; text-align: right;">Montant Imputé (Ar)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="text-align: center;">1</td>
+                <td>
+                    <strong>Frais de réparation / Remplacement matériel endommagé</strong><br>
+                    <span style="font-size: 8.5pt; color: #64748b;">Imputation constatée lors du retour d'inventaire — Réservation {{ context.excess_receivable.reservation_public_reference }}</span>
+                </td>
+                <td style="text-align: center;">1</td>
+                <td style="text-align: right; font-weight: bold;">{{ context.excess_receivable.amount }} Ar</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="summary-table">
+        <tr>
+            <td style="width: 45%;"></td>
+            <td>
+                <div class="summary-box">
+                    <div class="summary-row">
+                        <span>Total Frais de Remise en État :</span>
+                        <strong>{{ context.excess_receivable.amount }} Ar</strong>
+                    </div>
+                    <div class="summary-row">
+                        <span>Dépôt de Caution Appliqué :</span>
+                        <span>- {{ context.excess_receivable.deposit_amount|default:"0" }} Ar</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Reste à Payer par le Client :</span>
+                        <span>{{ context.excess_receivable.amount }} Ar</span>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    {% if bank %}
+    <div class="bank-box">
+        <div style="font-weight: bold; color: #7f1d1d; margin-bottom: 4px; text-transform: uppercase;">Coordonnées Bancaires pour Règlement :</div>
+        <div><strong>Banque :</strong> {{ bank.name }} ({{ bank.branch }}) | <strong>Titulaire :</strong> {{ bank.account_holder }}</div>
+        <div><strong>N° Compte :</strong> {{ bank.account_number }} | <strong>RIB :</strong> {{ bank.rib }} | <strong>IBAN :</strong> {{ bank.iban }}</div>
+    </div>
+    {% endif %}
+
+    <table class="signatures-table">
+        <tr>
+            <td class="sig-box">
+                <div style="font-weight: bold; font-size: 9pt; color: #7f1d1d; text-transform: uppercase;">Pour la Direction Financiére</div>
+                <div style="font-size: 8pt; color: #64748b; margin-top: 3px;">Cachet et Signature :</div>
+            </td>
+            <td style="width: 4%;"></td>
+            <td class="sig-box">
+                <div style="font-weight: bold; font-size: 9pt; color: #1e293b; text-transform: uppercase;">Pour le Client (Bon pour accord)</div>
+                <div style="font-size: 8pt; color: #64748b; margin-top: 3px;">Mention « Lu et approuvé » + Signature :</div>
+            </td>
+        </tr>
+    </table>
+</body>
 </html>

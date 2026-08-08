@@ -1,1 +1,40 @@
-<html><body><h1>Refund Receipt</h1></body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Reçu de remboursement</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    body { font-family: Arial, sans-serif; color: #17202a; font-size: 10pt; }
+    .page { border: 1px solid #cbd5e1; padding: 22px; }
+    h1 { color: #7f1d1d; font-size: 20pt; margin: 0 0 4px; text-transform: uppercase; }
+    .sub { color: #64748b; margin-bottom: 22px; }
+    .grid { width: 100%; border-collapse: collapse; margin: 18px 0; }
+    .grid td { width: 50%; vertical-align: top; padding: 12px; border: 1px solid #e2e8f0; background: #f8fafc; }
+    .label { color: #64748b; font-size: 8.5pt; text-transform: uppercase; }
+    .value { font-weight: 700; margin-top: 4px; }
+    .amount { margin: 22px 0; padding: 18px; background: #7f1d1d; color: white; font-size: 18pt; font-weight: 800; text-align: right; }
+    .bank { border: 1px solid #cbd5e1; background: #f8fafc; padding: 12px; font-size: 8.5pt; color: #475569; }
+    .signatures { width: 100%; border-collapse: collapse; margin-top: 55px; }
+    .signatures td { width: 50%; height: 90px; vertical-align: top; border-top: 1px dashed #94a3b8; padding-top: 8px; }
+    .footer { margin-top: 28px; border-top: 1px solid #e2e8f0; padding-top: 8px; color: #94a3b8; text-align: center; font-size: 8pt; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Reçu de remboursement</h1>
+    <div class="sub">Document de remboursement · Référence {{ context.payment.external_reference|default:context.payment.id|default:"—" }}</div>
+    <table class="grid"><tr>
+      <td><div class="label">Bénéficiaire</div><div class="value">{{ context.payment.customer_display_name|default:"—" }}</div></td>
+      <td><div class="label">Réservation</div><div class="value">{{ context.payment.reservation_public_reference|default:"—" }}</div></td>
+    </tr><tr>
+      <td><div class="label">Mode de remboursement</div><div class="value">{{ context.payment.payment_method|default:"—" }}</div></td>
+      <td><div class="label">Date</div><div class="value">{{ context.payment.paid_at|date:"d/m/Y"|default:"—" }}</div></td>
+    </tr></table>
+    <div class="amount">Montant remboursé : {{ context.payment.amount|default:"0" }} MGA</div>
+    <div class="bank"><strong>Coordonnées bancaires :</strong> {{ bank.name }}{% if bank.branch %} — {{ bank.branch }}{% endif %}{% if bank.account_holder %} · {{ bank.account_holder }}{% endif %}{% if bank.account_number %} · {{ bank.account_number }}{% endif %}{% if bank.rib %} · RIB {{ bank.rib }}{% endif %}{% if bank.iban %} · IBAN {{ bank.iban }}{% endif %}{% if bank.swift_bic %} · SWIFT/BIC {{ bank.swift_bic }}{% endif %}</div>
+    <table class="signatures"><tr><td>Pour la société — cachet et signature</td><td>Pour le client — reçu et signature</td></tr></table>
+    <div class="footer">Document informatique · Ergon ERP · Hahitantsoa & Titan Rental</div>
+  </div>
+</body>
+</html>

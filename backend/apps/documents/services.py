@@ -42,13 +42,29 @@ SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "titan.invoice.v1",
     "shared.return_note.v1",
     "shared.preparation_sheet.v1",
+    "shared.internal_release_note.v1",
+    "shared.supplier_purchase_order.v1",
+    "shared.breakage_repair_invoice.v1",
+    "shared.damage_loss_excess_invoice.v1",
+    "shared.payment_receipt.v1",
+    "shared.payment_refund_receipt.v1",
 )
 SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     HAHITANTSOA_PROFORMA_TEMPLATE_KEY,
     HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
+    "hahitantsoa.contract_amendment.v1",
+    "hahitantsoa.invoice.v1",
     "hahitantsoa.liability_release.v1",
     "hahitantsoa.delivery_note.v1",
     "hahitantsoa.preparation_sheet.v1",
+    "shared.return_note.v1",
+    "shared.preparation_sheet.v1",
+    "shared.internal_release_note.v1",
+    "shared.supplier_purchase_order.v1",
+    "shared.breakage_repair_invoice.v1",
+    "shared.damage_loss_excess_invoice.v1",
+    "shared.payment_receipt.v1",
+    "shared.payment_refund_receipt.v1",
 )
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"

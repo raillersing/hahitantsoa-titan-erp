@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><title>Avenant de contrat Hahitantsoa</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 210mm; height: 297mm; color: #111; font-family: Georgia, 'Times New Roman', serif; }
+    .page { position: relative; width: 210mm; height: 297mm; padding: 9mm 23mm 7mm; overflow: hidden; }
+    .top { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; font-family: Arial, sans-serif; }
+    .top-brand { width: 45mm; text-align: center; font-size: 9pt; font-style: italic; line-height: 1.25; }
+    .top-brand img { display: block; margin: 0 auto 5mm; width: 29mm; height: 29mm; object-fit: contain; }
+    .top-brand.ergon img { width: 27mm; filter: none; }
+    .top-brand.hah img { filter: grayscale(1) contrast(2); }
+    h1 { margin: 8mm 0 7mm; text-align: center; font-family: Arial, sans-serif; font-size: 13pt; text-decoration: underline; }
+    .content { position: relative; z-index: 2; font-size: 9pt; line-height: 1.35; }
+    .content p { margin: 0 0 4mm; }
+    .dots { letter-spacing: .4mm; }
+    .details { margin: 0 0 5mm 13mm; }
+    .checks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18mm; row-gap: 1mm; margin: 0 0 0 15mm; line-height: 1.35; }
+    .check { white-space: nowrap; }
+    .box { display: inline-block; width: 3mm; height: 3mm; border: .3mm solid #111; margin-right: 1.5mm; vertical-align: -0.4mm; }
+    .watermark { position: absolute; z-index: 1; width: 105mm; height: 145mm; object-fit: contain; left: 43mm; top: 80mm; opacity: .10; }
+    .legal { margin-top: 25mm; text-align: right; font-size: 8.5pt; line-height: 2; }
+    .signatures { display: flex; justify-content: space-between; margin: 6mm 14mm 0; font-size: 8.5pt; }
+    .bottom { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; border-top: .25mm solid #777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; font-family: Arial, sans-serif; color: #999; font-size: 7.5pt; line-height: 1.4; }
+    .bottom strong { color: #888; }
+  </style>
+</head>
+<body><div class="page">
+  <div class="top">
+    <div class="top-brand ergon"><img src="/brand/ergon-logo.png" alt="Ergon Group"><em>ergon@ergon.mg<br>+261 34 61 791 41</em></div>
+    <div class="top-brand hah"><img src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa"><em>hahitantsoa@ergon.mg<br>+261 34 61 791 44</em></div>
+  </div>
+  <h1>AVENANT DE CONTRAT</h1>
+  <img class="watermark" src="/brand/ergon-logo.png" alt="">
+  <div class="content">
+    <p>La présente location est consentie et acceptée du <span class="dots">{{ context.event_draft.start_at|date:"d/m/Y"|default:"................" }}</span> à <span class="dots">{{ context.event_draft.start_at|date:"H:i"|default:"......" }}</span> heures au <span class="dots">{{ context.event_draft.end_at|date:"d/m/Y"|default:"................" }}</span> à <span class="dots">{{ context.event_draft.end_at|date:"H:i"|default:"......" }}</span> heures.</p>
+    <p>La présente location est consentie et acceptée moyennant le prix de <span class="dots">{{ context.event_draft.total_amount|default:".............................." }}</span> Ariary TTC.</p>
+    <p>Les modifications sont les suivantes :</p>
+    <div class="details">Type de location : {{ context.event_draft.event_type|default:"............................" }} &nbsp;&nbsp;/&nbsp;&nbsp; Proforma N° : {{ context.event_draft.public_reference|default:"........" }}<br>Nombre de convives : {{ context.event_draft.guest_count|default:".............." }}<br>Assiettes : {{ context.event_draft.plate_count|default:"........................" }}<br>Coussin : {{ context.event_draft.cushion_count|default:"........................" }}</div>
+    <div class="checks">
+      <div class="check"><span class="box"></span>Utilisation de nuit</div><div></div>
+      <div class="check"><span class="box"></span>Carrelage</div><div class="check"><span class="box"></span>Voilage</div>
+      <div class="check"><span class="box"></span>Gazon synthétique</div><div class="check"><span class="box"></span>Rideau ............................</div>
+      <div class="check"><span class="box"></span>Parquet</div><div></div>
+      <div class="check"><span class="box"></span>Effets spéciaux ........................</div><div class="check"><span class="box"></span>Autre : .................................</div>
+      <div class="check"><span class="box"></span>Ciel étoilé</div><div></div>
+      <div class="check"><span class="box"></span>Piste lumineuse</div><div></div>
+      <div class="check"><span class="box"></span>Décoration ............................</div><div></div>
+    </div>
+    {% if context.event_draft.lines %}<div style="margin:6mm 0 0 15mm">{% for line in context.event_draft.lines %}{{ line.quantity }} × {{ line.inventory_item_name }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>{% endif %}
+    <div class="legal">Fait en trois exemplaires originaux<br>À ........................................, le ....................</div>
+    <div class="signatures"><span>Le Prestataire,</span><span>Le Client,</span></div>
+  </div>
+  <footer class="bottom"><div>Ergon Group SARL<br>Lot P93M Ambohipo Sud Alasora Bypass<br><br><strong>ergon@ergon.mg<br>+261 34 61 791 41</strong></div><div>NIF: 6003298589<br>STAT: 77290 11 2019 010 215<br><br><strong>hahitantsoa@ergon.mg<br>+261 34 61 791 44</strong></div></footer>
+</div></body></html>

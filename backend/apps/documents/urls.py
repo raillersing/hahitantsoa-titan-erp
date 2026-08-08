@@ -1,12 +1,15 @@
 from django.urls import path
 
-from apps.documents.views import (
+from .views import (
     DocumentInstanceConvertToContractAPIView,
     DocumentInstancePDFRetrieveAPIView,
     DocumentInstancePrivateArtifactAPIView,
     DocumentInstanceVoidAPIView,
+    DocumentTemplateCRUDDestroyAPIView,
     DocumentTemplateCRUDListCreateAPIView,
     DocumentTemplateDefinitionAPIView,
+    DocumentTemplatePreviewAPIView,
+    DocumentTemplatePreviewPDFAPIView,
     DocumentTemplateRegistryAPIView,
     DocumentTemplateVersionActivateAPIView,
     DocumentTemplateVersionListCreateAPIView,
@@ -47,6 +50,16 @@ urlpatterns = [
         name="document-template-definition",
     ),
     path(
+        "templates/<str:template_key>/preview/",
+        DocumentTemplatePreviewAPIView.as_view(),
+        name="document-template-preview",
+    ),
+    path(
+        "templates/<str:template_key>/preview.pdf/",
+        DocumentTemplatePreviewPDFAPIView.as_view(),
+        name="document-template-preview-pdf",
+    ),
+    path(
         "titan/proforma-drafts/<uuid:reservation_draft_id>/preview/",
         TitanProformaDraftPreviewAPIView.as_view(),
         name="titan-proforma-draft-preview",
@@ -85,6 +98,11 @@ urlpatterns = [
         "document-templates/",
         DocumentTemplateCRUDListCreateAPIView.as_view(),
         name="document-template-crud-list",
+    ),
+    path(
+        "document-templates/<uuid:id>/",
+        DocumentTemplateCRUDDestroyAPIView.as_view(),
+        name="document-template-crud-detail",
     ),
     path(
         "document-template-versions/",

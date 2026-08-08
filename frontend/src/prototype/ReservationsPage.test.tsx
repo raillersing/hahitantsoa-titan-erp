@@ -149,7 +149,7 @@ describe('ReservationsPage', () => {
       expect(screen.getByText('LOC-2026-0089')).toBeInTheDocument();
     });
     await user.click(screen.getByRole('button', { name: /LOC-2026-0089/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'd2');
+      expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'titan:d2');
   });
 
   it('clic client ouvre la fiche client', async () => {

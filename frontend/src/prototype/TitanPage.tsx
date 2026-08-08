@@ -215,7 +215,7 @@ export default function TitanPage({ onNavigate, canSensitiveWrite = false }: Tit
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => onNavigate("reservation-detail", r.id)}
+                      onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
                       className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
                     >
                       {r.public_reference}
@@ -251,7 +251,7 @@ export default function TitanPage({ onNavigate, canSensitiveWrite = false }: Tit
                   <td className="px-4 py-3 text-right rounded-tr-lg">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => onNavigate("reservation-detail", r.id)}
+                        onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
                         className="text-slate-400 hover:text-indigo-600 transition-colors"
                         title="Voir les détails"
                       >
@@ -259,7 +259,7 @@ export default function TitanPage({ onNavigate, canSensitiveWrite = false }: Tit
                       </button>
                       {r.status === "draft" && canSensitiveWrite && (
                         <button
-                          onClick={() => onNavigate("reservation-detail", r.id)}
+                          onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
                           className="text-slate-400 hover:text-green-600 transition-colors"
                           title="Confirmer la réservation"
                         >

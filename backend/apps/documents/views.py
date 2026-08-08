@@ -1,3 +1,6 @@
+from datetime import UTC
+from io import BytesIO
+
 from django.db import transaction
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -13,11 +16,12 @@ from rest_framework.views import APIView
 from apps.audit.services import record_audit_event_on_commit
 from apps.documents.commercial import CommercialDocumentContextError
 from apps.documents.models import DocumentInstance, UploadedAttachment
-from apps.documents.pdf import DocumentPDFGenerationError
+from apps.documents.pdf import DocumentPDFGenerationError, get_pdf_generator
 from apps.documents.registry import (
     get_document_template_definition,
     list_document_template_definitions,
 )
+from apps.documents.rendering import resolve_document_template_path
 from apps.documents.runtime import DocumentRuntimeGenerationError
 from apps.documents.selectors import (
     get_document_instance_by_id,
@@ -207,6 +211,285 @@ class DocumentTemplateDefinitionAPIView(APIView):
 
         serializer = DocumentTemplateDefinitionSerializer(template_definition)
         return Response(serializer.data)
+
+
+def _resolve_preview_template_path(template_key: str) -> str | None:
+    return resolve_document_template_path(template_key)
+
+
+def _build_mock_preview_context(template_definition) -> dict:
+    """Build a mock context for template preview with realistic demo data."""
+    from datetime import datetime
+
+    mock_customer = {
+        "customer_id": "DEMO-001",
+        "public_reference": "LOC-2026-DEMO",
+        "display_name": "ETS Ravinala (Démo)",
+        "email": "info@ravinala.mg",
+        "phone": "+261 34 12 345 67",
+        "address": "Lot 12B, Mahajanga, Madagascar",
+        "civilite": "Société",
+        "birth_date": None,
+        "birth_place": "",
+        "id_type": "NIF",
+        "id_number": "6003298583",
+        "id_issue_date": None,
+        "id_issue_place": "Antananarivo",
+        "id_duplicata_date": None,
+        "id_duplicata_place": "",
+        "nif": "6003298583",
+        "stat": "77290 11 2019 010 215",
+        "rcs": "RCS-ANT-2019-00123",
+        "representative_name": "Rakotomalala Jean",
+        "representative_role": "Gérant",
+    }
+
+    mock_lines = [
+        {
+            "inventory_item_name": "Chaise chiavari dorée",
+            "inventory_item_kind": "material",
+            "quantity": 100,
+            "notes": "",
+        },
+        {
+            "inventory_item_name": "Table rectangulaire GM",
+            "inventory_item_kind": "material",
+            "quantity": 15,
+            "notes": "Avec nappage",
+        },
+    ]
+
+    # Context for reservation-based templates (titan)
+    reservation_context = {
+        "template": {
+            "label": template_definition.label,
+            "key": template_definition.key,
+            "template_path": template_definition.template_path,
+            "preview_path": template_definition.preview_path,
+        },
+        "reservation_draft": {
+            "public_reference": "LOC-2026-DEMO",
+            "customer": mock_customer,
+            "customer_display_name": mock_customer["display_name"],
+            "customer_email": mock_customer["email"],
+            "customer_phone": mock_customer["phone"],
+            "customer_address": mock_customer["address"],
+            "customer_civilite": mock_customer["civilite"],
+            "customer_id_type": mock_customer["id_type"],
+            "customer_id_number": mock_customer["id_number"],
+            "customer_nif": mock_customer["nif"],
+            "customer_stat": mock_customer["stat"],
+            "customer_rcs": mock_customer["rcs"],
+            "customer_representative_name": mock_customer["representative_name"],
+            "customer_representative_role": mock_customer["representative_role"],
+            "start_at": datetime(2026, 9, 1, 10, 0, tzinfo=UTC),
+            "end_at": datetime(2026, 9, 1, 20, 0, tzinfo=UTC),
+            "notes": "Réservation de démonstration pour prévisualisation.",
+            "lines": mock_lines,
+        },
+    }
+
+    # Context for event-based templates (hahitantsoa)
+    event_context = {
+        "template": {
+            "label": template_definition.label,
+            "key": template_definition.key,
+        },
+        "event_draft": {
+            **mock_customer,
+            "public_reference": "EVT-2026-DEMO",
+            "customer_display_name": mock_customer["display_name"],
+            "customer_email": mock_customer["email"],
+            "customer_phone": mock_customer["phone"],
+            "customer_address": mock_customer["address"],
+            "customer_civilite": mock_customer["civilite"],
+            "customer_id_type": mock_customer["id_type"],
+            "customer_id_number": mock_customer["id_number"],
+            "customer_id_issue_place": mock_customer["id_issue_place"],
+            "customer_nif": mock_customer["nif"],
+            "customer_stat": mock_customer["stat"],
+            "customer_rcs": mock_customer["rcs"],
+            "customer_representative_name": mock_customer["representative_name"],
+            "customer_representative_role": mock_customer["representative_role"],
+            "event_name": "Mariage de Rakotomalala & Rasoanaivo",
+            "event_type": "Mariage",
+            "venue_name": "Domaine Hahitantsoa",
+            "location_details": "Lot P93M, Ambohipo Sud, Alasora",
+            "service_notes": "Service traiteur inclus, 200 convives",
+            "start_at": datetime(2026, 9, 1, 18, 0, tzinfo=UTC),
+            "end_at": datetime(2026, 9, 2, 3, 30, tzinfo=UTC),
+            "notes": "Événement de démonstration pour prévisualisation.",
+            "lines": mock_lines,
+        },
+    }
+
+    # Payment receipt context
+    payment_context = {
+        "template": {
+            "label": template_definition.label,
+            "key": template_definition.key,
+        },
+        "payment": {
+            "id": "DEMO-PAY-001",
+            "amount": "500000",
+            "currency": "MGA",
+            "payment_kind": "deposit",
+            "payment_method": "Espèces",
+            "payment_status": "confirmed",
+            "confirmed_at": datetime(2026, 8, 6, 12, 0, tzinfo=UTC),
+            "customer_display_name": mock_customer["display_name"],
+            "customer_address": mock_customer["address"],
+            "customer_phone": mock_customer["phone"],
+            "customer_email": mock_customer["email"],
+            "reservation_public_reference": "LOC-2026-DEMO",
+            "reservation_draft": reservation_context["reservation_draft"],
+            "customer": mock_customer,
+        },
+    }
+
+    excess_context = {
+        "template": {
+            "label": template_definition.label,
+            "key": template_definition.key,
+        },
+        "excess_receivable": {
+            "excess_receivable_id": "EXC-2026-DEMO",
+            "customer_display_name": mock_customer["display_name"],
+            "reservation_public_reference": "LOC-2026-DEMO",
+            "reservation_status": "confirmed",
+            "amount": "160000",
+            "deposit_amount": "100000",
+        },
+    }
+
+    # Select context based on template key or business scope
+    key_upper = template_definition.key.upper()
+    if "PAYMENT" in key_upper or "RECET" in key_upper or "RECU" in key_upper:
+        return payment_context
+    elif "DAMAGE_LOSS_EXCESS" in key_upper:
+        return excess_context
+    elif template_definition.business_scope == "hahitantsoa":
+        return event_context
+    elif template_definition.business_scope == "titan":
+        return reservation_context
+    else:
+        return reservation_context
+
+
+def _build_preview_bank(template_definition) -> dict[str, str]:
+    """Use the source document's bank identity in non-persistent previews."""
+
+    if template_definition.business_scope == "titan":
+        return {
+            "name": "BMOI MADAGASCAR",
+            "branch": "Antananarivo",
+            "account_holder": "ERGON GROUP SARL",
+            "account_number": "00004 00009 03319320102 33",
+            "rib": "00004 00009 03319320102 33",
+            "iban": "",
+            "swift_bic": "",
+        }
+    if template_definition.business_scope == "hahitantsoa":
+        return {
+            "name": "BMOI MADAGASCAR",
+            "branch": "Antananarivo",
+            "account_holder": "ERGON GROUP SARL",
+            "account_number": "00004 00009 03319320103 30",
+            "rib": "00004 00009 03319320103 30",
+            "iban": "",
+            "swift_bic": "",
+        }
+    return {
+        "name": "BMOI MADAGASCAR",
+        "branch": "Antananarivo",
+        "account_holder": "ERGON GROUP SARL",
+        "account_number": "",
+        "rib": "{{rib}}",
+        "iban": "{{iban}}",
+        "swift_bic": "{{swift_bic}}",
+    }
+class DocumentTemplatePreviewAPIView(APIView):
+    """Render a template with mock data for preview without persisting anything."""
+
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                description="Rendered HTML preview of the template.",
+                response=OpenApiTypes.STR,
+            ),
+            404: OpenApiResponse(description="Template not found or no HTML template available."),
+        }
+    )
+    def get(self, request, template_key: str):
+        from django.http import HttpResponse
+        from django.template.loader import render_to_string
+
+        template_definition = get_document_template_definition(template_key)
+        if template_definition is None:
+            raise Http404("Document template definition not found.")
+
+        # Map template key to the Django template path used for rendering
+        template_path = _resolve_preview_template_path(template_key)
+        if template_path is None:
+            raise Http404(f"No HTML template available for preview of '{template_key}'.")
+
+        mock_context = _build_mock_preview_context(template_definition)
+        bank = _build_preview_bank(template_definition)
+
+        html_content = render_to_string(
+            template_path,
+            {"context": mock_context, "bank": bank},
+        )
+
+        return HttpResponse(html_content, content_type="text/html; charset=utf-8")
+
+
+class DocumentTemplatePreviewPDFAPIView(APIView):
+    """Render a non-persistent template preview as a printable PDF."""
+
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(description="Printable PDF preview of the template."),
+            404: OpenApiResponse(description="Template not found or no HTML template available."),
+            503: OpenApiResponse(description="PDF renderer unavailable."),
+        }
+    )
+    def get(self, request, template_key: str):
+        from django.template.loader import render_to_string
+
+        template_definition = get_document_template_definition(template_key)
+        if template_definition is None:
+            raise Http404("Document template definition not found.")
+
+        template_path = _resolve_preview_template_path(template_key)
+        if template_path is None:
+            raise Http404(f"No HTML template available for preview of '{template_key}'.")
+
+        bank = _build_preview_bank(template_definition)
+        html_content = render_to_string(
+            template_path,
+            {"context": _build_mock_preview_context(template_definition), "bank": bank},
+        )
+
+        try:
+            pdf_content = get_pdf_generator().generate_pdf(html_content)
+        except DocumentPDFGenerationError as error:
+            return Response({"detail": str(error), "code": error.code}, status=503)
+
+        response = FileResponse(
+            BytesIO(pdf_content),
+            content_type="application/pdf",
+        )
+        response["Content-Disposition"] = (
+            f'inline; filename="{template_key.replace(".", "-")}-preview.pdf"'
+        )
+        return response
 
 
 class TitanProformaDraftPreviewAPIView(APIView):
@@ -498,6 +781,27 @@ class DocumentTemplateCRUDListCreateAPIView(ListCreateAPIView):
         from apps.documents.models import DocumentTemplate
 
         return DocumentTemplate.objects.all()
+
+
+class DocumentTemplateCRUDDestroyAPIView(APIView):
+    http_method_names = ["delete", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        responses={
+            204: OpenApiResponse(description="Template deleted."),
+            403: OpenApiResponse(description="Unauthorized."),
+            404: OpenApiResponse(description="Not found."),
+        }
+    )
+    def delete(self, request, id):
+        from apps.documents.models import DocumentTemplate
+
+        template = DocumentTemplate.objects.filter(pk=id).first()
+        if template is None:
+            raise Http404("Document template not found.")
+        template.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DocumentTemplateVersionListCreateAPIView(ListCreateAPIView):

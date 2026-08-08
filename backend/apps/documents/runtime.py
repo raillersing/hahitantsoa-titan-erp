@@ -12,6 +12,7 @@ from apps.documents.commercial import build_reservation_draft_commercial_documen
 from apps.documents.excess_receivable import build_excess_receivable_invoice_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
+from apps.documents.rendering import resolve_document_template_path
 from apps.inventory.models import InventoryDamageLossExcessReceivable
 
 
@@ -148,6 +149,11 @@ def generate_document_instance_html(
     document_instance: DocumentInstance,
     actor: object | None = None,
 ) -> DocumentGenerationResult:
+    if document_instance.template_key == "hahitantsoa.house_rules.v1":
+        raise DocumentRuntimeGenerationError(
+            "The Hahitantsoa house rules are not generated as a document template.",
+            code="house_rules_document_generation_disabled",
+        )
     if document_instance.status != DocumentInstanceStatus.PREPARED:
         raise DocumentRuntimeGenerationError(
             f"Cannot generate document from status: {document_instance.status}",
@@ -207,7 +213,6 @@ def generate_document_instance_html(
         template_path = "documents/shared_damage_loss_excess_invoice.html"
     elif document_instance.template_key in {
         "hahitantsoa.proforma.v1",
-        "hahitantsoa.contract.v1",
     }:
         if document_instance.hahitantsoa_event_draft is None:
             raise DocumentRuntimeGenerationError(
@@ -215,7 +220,23 @@ def generate_document_instance_html(
                 code="hahitantsoa_event_draft_not_found",
             )
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
-        template_path = "documents/hahitantsoa_contract.html"
+        template_path = "documents/hahitantsoa_proforma.html"
+    elif document_instance.template_key in {
+        "hahitantsoa.contract.v1",
+        "hahitantsoa.contract_amendment.v1",
+        "hahitantsoa.invoice.v1",
+    }:
+        if document_instance.hahitantsoa_event_draft is None:
+            raise DocumentRuntimeGenerationError(
+                "Hahitantsoa document is not linked to an event draft source.",
+                code="hahitantsoa_event_draft_not_found",
+            )
+        context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
+        template_path = {
+            "hahitantsoa.contract.v1": "documents/hahitantsoa_contract.html",
+            "hahitantsoa.contract_amendment.v1": "documents/hahitantsoa_contract_amendment.html",
+            "hahitantsoa.invoice.v1": "documents/hahitantsoa_invoice.html",
+        }[document_instance.template_key]
     elif document_instance.template_key == "hahitantsoa.liability_release.v1":
         if document_instance.hahitantsoa_event_draft is None:
             raise DocumentRuntimeGenerationError(
@@ -240,20 +261,16 @@ def generate_document_instance_html(
             )
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_preparation_sheet.html"
+    elif document_instance.template_key == "shared.breakage_repair_invoice.v1":
+        context = _reservation_document_context(document_instance=document_instance)
+        template_path = "documents/shared_breakage_repair_invoice.html"
     else:
         context = _reservation_document_context(document_instance=document_instance)
         template_path = context.template.template_path
 
-    if document_instance.template_key == "titan.proforma.v1":
-        template_path = "documents/titan_proforma.html"
-    elif document_instance.template_key == "titan.material_contract.v1":
-        template_path = "documents/titan_material_contract.html"
-    elif document_instance.template_key == "titan.delivery_note.v1":
-        template_path = "documents/titan_delivery_note.html"
-    elif document_instance.template_key == "shared.return_note.v1":
-        template_path = "documents/shared_return_note.html"
-    elif document_instance.template_key == "shared.preparation_sheet.v1":
-        template_path = "documents/preparation_sheet.html"
+    canonical_template_path = resolve_document_template_path(document_instance.template_key)
+    if canonical_template_path is not None:
+        template_path = canonical_template_path
 
     bank = {
         "name": document_instance.bank_name,

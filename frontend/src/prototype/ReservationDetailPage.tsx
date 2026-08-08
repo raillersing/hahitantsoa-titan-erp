@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AppScope } from "../App";
-import { DocumentPreview } from "./DocumentPreview";
+import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import {
   getReservationDraft,
@@ -13,8 +13,11 @@ import {
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
   voidProforma,
+  getPayments,
+  createPayment,
+  confirmPayment,
 } from "../api";
-import type { ReservationDraft, Customer, DocumentInstance } from "../types";
+import type { ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
 
 /* ── inline helpers (formerly from mockData) ──────────────────────── */
 
@@ -144,6 +147,21 @@ export default function ReservationDetailPage({
         } catch {
           // Non-fatal: document instances fetch failed
         }
+        try {
+          const paymentRecords = await getPayments(d.id);
+          if (!cancelled) {
+            setPayments(paymentRecords.map((payment: Payment) => ({
+              id: payment.id,
+              date: payment.paid_at || payment.created_at,
+              method: payment.payment_method,
+              amount: Number(payment.amount),
+              note: payment.notes || payment.payment_kind,
+              reference: payment.external_reference || undefined,
+            })));
+          }
+        } catch {
+          // Non-fatal: payment loading failure does not hide the dossier.
+        }
       } catch (err: any) {
         if (!cancelled) {
           setError(
@@ -210,6 +228,19 @@ export default function ReservationDetailPage({
     if (!draft) return;
     setActionLoading("deposit");
     try {
+      const amount = Number(depositAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Saisissez un montant d'acompte supérieur à zéro.");
+      }
+      const payment = await createPayment({
+        reservation_draft: draft.id,
+        payment_kind: "deposit",
+        payment_method: "cash",
+        payment_status: "pending",
+        amount: amount.toFixed(2),
+        notes: "Acompte enregistré depuis le dossier Titan.",
+      });
+      await confirmPayment(payment.id, {});
       const result = await markReservationDraftRequiredDepositReceived(
         draft.id,
       );
@@ -395,6 +426,7 @@ export default function ReservationDetailPage({
       reference?: string;
     }[]
   >([]);
+  const [depositAmount, setDepositAmount] = useState("");
 
   /* ── loading / error states ───────────────────────────────────── */
   if (loading) {
@@ -846,18 +878,32 @@ export default function ReservationDetailPage({
           )}
 
           {draft.contract_signed_at && !draft.required_deposit_received_at && (
-            <button
-              onClick={handleDepositReceived}
-              disabled={actionLoading === "deposit"}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {actionLoading === "deposit" ? (
-                <i className="fa-solid fa-spinner fa-spin mr-2"></i>
-              ) : (
-                <i className="fa-solid fa-money-bill-transfer mr-2"></i>
-              )}
-              Marquer acompte reçu
-            </button>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-xs font-semibold text-slate-600">
+                Montant de l'acompte
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={depositAmount}
+                  onChange={(event) => setDepositAmount(event.target.value)}
+                  placeholder="Montant"
+                  className="mt-1 block w-40 rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal"
+                />
+              </label>
+              <button
+                onClick={handleDepositReceived}
+                disabled={actionLoading === "deposit"}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {actionLoading === "deposit" ? (
+                  <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                ) : (
+                  <i className="fa-solid fa-money-bill-transfer mr-2"></i>
+                )}
+                Enregistrer et confirmer l'acompte
+              </button>
+            </div>
           )}
 
           {draftStatus === "draft" &&
@@ -1969,7 +2015,7 @@ export default function ReservationDetailPage({
                 </section>
               </div>
             ) : (
-              <DocumentPreview
+              <DocumentPreviewDispatcher
                 type={previewDoc === "contrat" ? "contrat" : previewDoc}
                 domain={domain === "Titan" ? "titan" : "hahitantsoa"}
                 client={docClient}

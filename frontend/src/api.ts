@@ -898,7 +898,28 @@ export function getHahitantsoaEventDraftAmendmentRequestAvailabilityPreflight(
 export function getDocumentTemplates(
   signal?: AbortSignal,
 ): Promise<DocumentTemplateDefinition[]> {
-  return getAuthenticatedJson("/api/v1/documents/templates/", signal);
+  return getAuthenticatedJson<
+    | DocumentTemplateDefinition[]
+    | { items: DocumentTemplateDefinition[]; count: number }
+  >("/api/v1/documents/templates/", signal).then((payload) =>
+    Array.isArray(payload) ? payload : payload.items,
+  );
+}
+
+export async function getDocumentTemplatePreview(
+  templateKey: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const response = await fetch(
+    `/api/v1/documents/templates/${encodeURIComponent(templateKey)}/preview/`,
+    { credentials: "include", signal },
+  );
+  if (!response.ok) {
+    requestSessionRevalidation(response.status);
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+  return response.text();
 }
 
 export function createDocumentTemplate(
@@ -1148,6 +1169,16 @@ export function getPayments(
     );
   }
   return getAuthenticatedJson("/api/v1/payments/", reservationDraftIdOrSignal);
+}
+
+export function getHahitantsoaEventDraftPayments(
+  eventDraftId: string,
+  signal?: AbortSignal,
+): Promise<Payment[]> {
+  return getAuthenticatedJson(
+    `/api/v1/payments/?hahitantsoa_event_draft_id=${encodeURIComponent(eventDraftId)}`,
+    signal,
+  );
 }
 
 export function createPayment(

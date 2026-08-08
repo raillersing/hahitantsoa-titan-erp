@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
-import { DocumentPreview } from "./DocumentPreview";
+import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import {
   getCustomers,
   getHahitantsoaVenues,
@@ -2664,7 +2664,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
          <span className="text-sm text-slate-500">Émise le : {new Date().toLocaleDateString('fr-FR')}</span>
       </div>
       
-      <DocumentPreview 
+      <DocumentPreviewDispatcher
         type="proforma"
         domain={domain as 'titan' | 'hahitantsoa'}
         client={activeClient}
@@ -2926,7 +2926,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         </div>
         
       <div className="mb-8">
-        <DocumentPreview 
+        <DocumentPreviewDispatcher
           type="contrat"
           domain={domain as 'titan' | 'hahitantsoa'}
           client={activeClient}

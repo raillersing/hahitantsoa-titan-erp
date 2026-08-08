@@ -1,46 +1,12 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <title>Checking de passation Hahitantsoa</title>
-  <style>
-    @page { size: A4; margin: 18mm; }
-    body { color: #17202a; font-family: Arial, sans-serif; font-size: 10.5pt; }
-    h1 { color: #1d4d6b; font-size: 19pt; margin-bottom: 4px; }
-    .internal { color: #7a271a; font-size: 9pt; font-weight: bold; text-transform: uppercase; }
-    .meta { border-bottom: 1px solid #9aa6b2; margin: 14px 0; padding-bottom: 10px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #9aa6b2; padding: 7px; text-align: left; }
-    th { background: #eaf1f5; }
-    .qty, .check { text-align: center; }
-    .qty { width: 70px; }
-    .check { width: 75px; }
-    .note { margin-top: 22px; border: 1px solid #9aa6b2; height: 72px; padding: 8px; }
-    .signatures { display: flex; justify-content: space-between; margin-top: 26mm; }
-    .signature { width: 42%; border-top: 1px solid #17202a; padding-top: 6px; }
-  </style>
-</head>
-<body>
-  <div class="internal">Document interne — réservé au staff</div>
-  <h1>Checking de passation</h1>
-  <div class="meta">
-    <div><strong>Référence :</strong> {{ context.event_draft.public_reference }}</div>
-    <div><strong>Client :</strong> {{ context.event_draft.customer_display_name }}</div>
-    <div><strong>Événement :</strong> {{ context.event_draft.event_name }}{% if context.event_draft.event_type %} — {{ context.event_draft.event_type }}{% endif %}</div>
-    <div><strong>Location :</strong> {{ context.event_draft.start_at|date:"d/m/Y H:i" }} – {{ context.event_draft.end_at|date:"d/m/Y H:i" }}</div>
-  </div>
-  <table>
-    <thead><tr><th>Article à vérifier</th><th class="qty">Quantité</th><th class="check">Vérifié</th><th>Observations</th></tr></thead>
-    <tbody>
-      {% for line in context.event_draft.lines %}
-      <tr><td>{{ line.inventory_item_name }}</td><td class="qty">{{ line.quantity }}</td><td class="check">☐</td><td>{{ line.notes }}</td></tr>
-      {% empty %}<tr><td colspan="4">Aucun article commandé.</td></tr>{% endfor %}
-    </tbody>
-  </table>
-  <div class="note"><strong>Observations de passation :</strong></div>
-  <div class="signatures">
-    <div class="signature">Préparé / vérifié par le staff</div>
-    <div class="signature">Remis au client</div>
-  </div>
-</body>
-</html>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Checking passation</title>
+<style>@page{size:A4;margin:18mm 22mm}*{box-sizing:border-box}body{margin:0;font-family:'Century Gothic','Trebuchet MS',Arial,sans-serif;color:#000}.columns{column-count:2;column-gap:18mm}.section{break-inside:avoid;margin:0 0 5mm}.section h2{font-size:10pt;font-weight:400;margin:0 0 1.5mm}.section ul{margin:0;padding-left:7mm}.section li{font-size:8pt;line-height:1.45;margin:0}</style></head><body>
+<div class="columns">
+<section class="section"><h2>Cuisine</h2><ul><li>2 prises intérieures</li><li>1 interrupteur intérieure</li><li>1 évier</li><li>1 évier en inox (bas cabossé)</li><li>1 réfrigérateur (avec 4 plateaux)</li><li>1 congélateur (3 bacs</li><li>4 poubelles (1 couvercle détachée)</li><li>1 bassin extérieur</li><li>1 interrupteur extérieure</li><li>2 serpillères</li><li>2 balais pour extérieur</li><li>1 balai brosse</li><li>1 raclette</li><li>1 pelle à ordure</li><li>Porte/serrure</li></ul></section>
+<section class="section"><h2>Toilettes prestataires</h2><ul><li>Cuvette</li><li>Porte</li></ul></section>
+<section class="section"><h2>Groupe</h2><ul><li>Carburant : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; %</li></ul></section>
+<section class="section"><h2>Salle</h2><ul><li>Vitrage</li><li>4 prises (1 HS)</li></ul></section>
+<section class="section"><h2>Jardin</h2><ul><li>4 prises</li></ul></section>
+<section class="section"><h2>Toilettes invités</h2><ul><li>3 lavabos</li><li>1 prise</li><li>4 cuvettes femmes (mihetsika ny lunettes)</li><li>5 Pissoirs</li><li>2 cuvettes hommes (mihetsika ny lunettes)</li><li>Portes/serrure</li></ul></section>
+<section class="section"><h2>Petit salon</h2><ul><li>2 fauteuils avec coussins</li><li>1 tapis</li><li>1 table d’appoint</li><li>1 miroir</li><li>1 penderie</li><li>2 prises</li><li>Rideaux</li><li>Volet roulant</li><li>1 interrupteur</li><li>Porte / serrure</li></ul></section>
+<section class="section"><h2>Salle d’eau mariés</h2><ul><li>Lavabo</li><li>Cuvette</li><li>2 serviettes</li><li>1 interrupteur</li><li>1 prise</li><li>Colonne de douche</li><li>Porte / serrure</li></ul></section>
+</div></body></html>

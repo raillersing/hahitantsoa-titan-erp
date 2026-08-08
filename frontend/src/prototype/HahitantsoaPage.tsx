@@ -285,7 +285,7 @@ export default function HahitantsoaPage({
                   >
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => onNavigate("customer", r.customer_id)}
+                        onClick={() => onNavigate("reservation-detail", `hahitantsoa:${r.id}`)}
                         className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
                       >
                         {r.public_reference}
@@ -293,9 +293,7 @@ export default function HahitantsoaPage({
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() =>
-                          onNavigate("customer", r.customer_id)
-                        }
+                        onClick={() => onNavigate("customer", r.customer_id)}
                         className="flex items-center gap-2 group"
                       >
                         <div
@@ -325,7 +323,7 @@ export default function HahitantsoaPage({
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
-                        onClick={() => onNavigate("customer", r.customer_id)}
+                        onClick={() => onNavigate("reservation-detail", `hahitantsoa:${r.id}`)}
                         className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
                       >
                         <i className="fa-solid fa-eye text-[10px]"></i>

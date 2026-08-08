@@ -171,7 +171,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => onNavigate("reservation-detail", r.id)}
+                      onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
                       className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
                     >
                       {r.public_reference}

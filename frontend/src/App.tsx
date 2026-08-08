@@ -16,6 +16,7 @@ import CashboxPage from "./prototype/CashboxPage";
 import CautionPage from "./prototype/CautionPage";
 import ReservationNewPage from "./prototype/ReservationNewPage";
 import ReservationDetailPage from "./prototype/ReservationDetailPage";
+import HahitantsoaEventDraftDetailPage from "./prototype/HahitantsoaEventDraftDetailPage";
 import CustomerDetailPage from "./prototype/CustomerDetailPage";
 import PackageBuilderPage from "./prototype/PackageBuilderPage";
 import AuditPage from "./prototype/AuditPage";
@@ -191,7 +192,22 @@ function App() {
       case "caution": return <CautionPage onNavigate={navigate} />;
       case "help": return <HelpPage onNavigate={navigate} />;
       case "reservation-new": return <ReservationNewPage onNavigate={navigate} param={activeParam} />;
-      case "reservation-detail": return <ReservationDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} />;
+      case "reservation-detail":
+        return activeParam?.startsWith("hahitantsoa:") ? (
+          <HahitantsoaEventDraftDetailPage
+            onNavigate={navigate}
+            param={activeParam.slice("hahitantsoa:".length)}
+            onBack={navigateBack}
+          />
+        ) : (
+          <ReservationDetailPage
+            onNavigate={navigate}
+            param={activeParam?.startsWith("titan:") ? activeParam.slice("titan:".length) : activeParam}
+            onBack={navigateBack}
+            returnContext={returnContext}
+            domain="Titan"
+          />
+        );
       case "reservations": return <ReservationsPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "customer": return <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "packages": return <PackageBuilderPage />;

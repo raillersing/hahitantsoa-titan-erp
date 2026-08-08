@@ -64,6 +64,8 @@ const brandScopeByAppScope = {
 
 export function resolveBrandScope(activeScope: AppScope, activeParam?: string): BrandScope {
   if (activeScope === "reservation-detail") {
+    if (activeParam?.startsWith("titan:")) return "titan";
+    if (activeParam?.startsWith("hahitantsoa:")) return "hahitantsoa";
     if (activeParam?.startsWith("LOC-")) return "titan";
     if (activeParam?.startsWith("RES-")) return "hahitantsoa";
     return "ergon";

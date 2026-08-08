@@ -7,10 +7,17 @@ from apps.documents.registry import (
 )
 
 SOURCE_REFERENCE_PREFIX = "docs/references/source/"
+WINDOWS_SOURCE_PREFIX = "/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/"
 
 
 def _is_documented_source_pdf(path_value: str) -> bool:
-    return path_value.startswith(SOURCE_REFERENCE_PREFIX) and path_value.endswith(".pdf")
+    return (
+        path_value.endswith(".pdf")
+        and (
+            path_value.startswith(SOURCE_REFERENCE_PREFIX)
+            or path_value.startswith(WINDOWS_SOURCE_PREFIX)
+        )
+    )
 
 
 def _path_exists_or_is_documented_source_pdf(path_value: str) -> bool:

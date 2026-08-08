@@ -1,16 +1,188 @@
-<html>
-  <body>
-    <h1>Recu de paiement</h1>
-    <p>Document: {{ context.template.label }}</p>
-    <p>Paiement: {{ context.payment.payment_id }}</p>
-    <p>Source: {{ context.payment.customer_display_name }}</p>
-    <p>Type: {{ context.payment.payment_kind }}</p>
-    <p>Methode: {{ context.payment.payment_method }}</p>
-    <p>Montant: {{ context.payment.amount }}</p>
-    <p>Statut: {{ context.payment.payment_status }}</p>
-    <p>Reference externe: {{ context.payment.external_reference }}</p>
-    <p>Reservation: {{ context.payment.reservation_public_reference }}</p>
-    <p>Date de paiement: {{ context.payment.paid_at }}</p>
-    <p>Notes: {{ context.payment.notes }}</p>
-  </body>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Reçu de Paiement</title>
+  <style>
+    @page { size: A4; margin: 15mm; }
+    * { box-sizing: border-box; }
+    body { color: #0f172a; font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 10pt; line-height: 1.5; margin: 0; background: #ffffff; }
+
+    .receipt-card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 24px; position: relative; background: #ffffff; }
+
+    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .header-table td { vertical-align: top; }
+    .logo-img { height: 52px; object-fit: contain; }
+
+    .document-title { font-size: 20pt; font-weight: 800; color: #0f172a; text-transform: uppercase; tracking: 0.05em; margin: 0; }
+    .document-sub { font-size: 9pt; color: #64748b; margin-top: 4px; }
+
+    .status-stamp {
+      display: inline-block;
+      padding: 6px 16px;
+      border: 2px solid #10b981;
+      color: #047857;
+      background: #ecfdf5;
+      font-weight: 800;
+      font-size: 11pt;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .grid-two { display: table; width: 100%; margin-bottom: 24px; }
+    .col-half { display: table-cell; width: 50%; vertical-align: top; padding-right: 12px; }
+    .col-half:last-child { padding-right: 0; padding-left: 12px; }
+
+    .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; height: 100%; }
+    .box-title { font-size: 8.5pt; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 9.5pt; }
+    .info-label { color: #64748b; }
+    .info-val { font-weight: 600; color: #0f172a; text-align: right; }
+
+    .amount-banner {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #ffffff;
+      border-radius: 8px;
+      padding: 18px 24px;
+      margin: 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .amount-label { font-size: 11pt; font-weight: 600; color: #94a3b8; text-transform: uppercase; }
+    .amount-value { font-size: 22pt; font-weight: 800; color: #38bdf8; letter-spacing: -0.02em; }
+
+    .table-details { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .table-details th { background: #f1f5f9; color: #334155; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; padding: 10px 12px; border-bottom: 2px solid #cbd5e1; text-align: left; }
+    .table-details td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 9.5pt; }
+
+    .signatures-table { width: 100%; margin-top: 40px; border-collapse: collapse; }
+    .signatures-table td { width: 50%; vertical-align: top; padding: 0 16px; }
+    .sig-box { border: 1px dashed #cbd5e1; border-radius: 8px; min-h: 90px; padding: 12px; background: #fafafa; }
+    .sig-title { font-size: 9pt; font-weight: 700; color: #475569; margin-bottom: 40px; }
+
+    .footer-note { margin-top: 30px; text-align: center; font-size: 8pt; color: #94a3b8; border-t: 1px solid #f1f5f9; padding-top: 12px; }
+    .bank-box { margin-top: 22px; padding: 12px 14px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 8px; font-size: 8.5pt; color: #475569; }
+    .bank-box strong { color: #0f172a; }
+  </style>
+</head>
+<body>
+  <div class="receipt-card">
+    <table class="header-table">
+      <tr>
+        <td style="width: 60%;">
+          <img src="/brand/ergon-logo.png" alt="Ergon ERP" class="logo-img" onerror="this.style.display='none'" />
+          <div class="document-title">REÇU DE PAIEMENT</div>
+          <div class="document-sub">N° Reçu : {{ context.payment.id|default:"REC-2026-0001" }} · Document d'encaissement officiel</div>
+        </td>
+        <td style="text-align: right;">
+          <div class="status-stamp">PAYÉ / VALIDÉ</div>
+          <div style="font-size: 9pt; color: #64748b; margin-top: 8px;">
+            Date d'émission : <strong>{{ context.payment.confirmed_at|date:"d/m/Y H:i"|default:"08/08/2026 12:00" }}</strong>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="grid-two">
+      <div class="col-half">
+        <div class="info-box">
+          <div class="box-title">Informations Client</div>
+          <div class="info-row">
+            <span class="info-label">Client :</span>
+            <span class="info-val">{{ context.payment.customer.display_name|default:context.payment.customer_display_name|default:"Client démo" }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Réf. Client :</span>
+            <span class="info-val">{{ context.payment.customer.customer_id|default:"CUST-001" }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Téléphone :</span>
+            <span class="info-val">{{ context.payment.customer.phone|default:"+261 34 00 000 00" }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-half">
+        <div class="info-box">
+          <div class="box-title">Détails du Règlement</div>
+          <div class="info-row">
+            <span class="info-label">Réservation :</span>
+            <span class="info-val">{{ context.payment.reservation_draft.public_reference|default:context.payment.reservation_public_reference|default:"LOC-2026-DEMO" }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Type de paiement :</span>
+            <span class="info-val">{{ context.payment.payment_kind|default:"Acompte / Deposit" }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Mode de règlement :</span>
+            <span class="info-val">{{ context.payment.payment_method|default:"Espèces" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="amount-banner">
+      <div>
+        <div class="amount-label">Montant Total Recouvré</div>
+        <div style="font-size: 8.5pt; color: #cbd5e1;">Paiement enregistré et validé en caisse</div>
+      </div>
+      <div class="amount-value">{{ context.payment.amount|default:"500 000" }} MGA</div>
+    </div>
+
+    <table class="table-details">
+      <thead>
+        <tr>
+          <th>Désignation de la transaction</th>
+          <th>Référence transaction</th>
+          <th>Mode</th>
+          <th style="text-align: right;">Montant net</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <strong>{{ context.template.label|default:"Règlement d'acompte de réservation" }}</strong><br>
+            <span style="font-size: 8.5pt; color: #64748b;">{{ context.payment.notes|default:"Acompte pour confirmation de réservation de matériel" }}</span>
+          </td>
+          <td style="font-family: monospace;">{{ context.payment.external_reference|default:context.payment.id|default:"PAY-2026-001" }}</td>
+          <td>{{ context.payment.payment_method|default:"Espèces" }}</td>
+          <td style="text-align: right; font-weight: 700;">{{ context.payment.amount|default:"500 000" }} MGA</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="signatures-table">
+      <tr>
+        <td>
+          <div class="sig-box">
+            <div class="sig-title">Pour la Caisse / Société (Caissier) :</div>
+            <div style="font-size: 8.5pt; color: #94a3b8; font-style: italic;">Cachet & Signature officielle</div>
+          </div>
+        </td>
+        <td>
+          <div class="sig-box">
+            <div class="sig-title">Pour le Client (Émargement) :</div>
+            <div style="font-size: 8.5pt; color: #94a3b8; font-style: italic;">Mention « Reçu pour paiement » + Signature</div>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="bank-box">
+      <strong>Coordonnées bancaires :</strong>
+      {{ bank.name }}{% if bank.branch %} — {{ bank.branch }}{% endif %}
+      {% if bank.account_holder %} · Titulaire : {{ bank.account_holder }}{% endif %}
+      {% if bank.account_number %} · Compte : {{ bank.account_number }}{% endif %}
+      {% if bank.rib %} · RIB : {{ bank.rib }}{% endif %}
+      {% if bank.iban %} · IBAN : {{ bank.iban }}{% endif %}
+      {% if bank.swift_bic %} · SWIFT/BIC : {{ bank.swift_bic }}{% endif %}
+    </div>
+
+    <div class="footer-note">
+      Document informatique valant reçu d'encaissement officiel · Ergon ERP · Hahitantsoa & Titan Rental
+    </div>
+  </div>
+</body>
 </html>

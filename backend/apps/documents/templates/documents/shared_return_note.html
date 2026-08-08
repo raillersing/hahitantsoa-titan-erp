@@ -1,25 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>{{ context.template.label }}</title>
-</head>
-<body>
-    <h1>{{ context.template.label }}</h1>
-    <p>Reference: {{ context.reservation_draft.public_reference }}</p>
-    <p>Customer: {{ context.reservation_draft.customer.display_name }}</p>
-    <p>Window: {{ context.reservation_draft.start_at }} to {{ context.reservation_draft.end_at }}</p>
-
-    <h2>Returned Items</h2>
-    <ul>
-    {% for line in context.reservation_draft.lines %}
-        <li>
-            {{ line.quantity }} x {{ line.inventory_item_name }}
-            ({{ line.inventory_item_kind }}){% if line.notes %} - {{ line.notes }}{% endif %}
-        </li>
-    {% endfor %}
-    </ul>
-
-    <p>Notes: {{ context.reservation_draft.notes }}</p>
-</body>
-</html>
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Bon de retour</title>
+<style>@page{size:A4;margin:16mm}body{font-family:Arial,sans-serif;color:#17202a;font-size:10pt}.page{border:1px solid #cbd5e1;padding:22px}h1{color:#1d4d6b;margin:0 0 4px;text-transform:uppercase}.meta{border:1px solid #e2e8f0;background:#f8fafc;padding:12px;margin:18px 0}.meta p{margin:4px 0}table{width:100%;border-collapse:collapse}th,td{border:1px solid #94a3b2;padding:8px;text-align:left}th{background:#eaf1f5}.center{text-align:center}.sign{margin-top:55px}.sign td{height:80px;vertical-align:top;border-top:1px dashed #94a3b8;border-bottom:0}.footer{margin-top:22px;border-top:1px solid #e2e8f0;padding-top:8px;text-align:center;color:#94a3b8;font-size:8pt}</style></head>
+<body><div class="page"><h1>Bon de retour</h1><div class="meta"><p><strong>Référence :</strong> {{ context.reservation_draft.public_reference|default:"—" }}</p><p><strong>Client :</strong> {{ context.reservation_draft.customer.display_name|default:"—" }}</p><p><strong>Période :</strong> {{ context.reservation_draft.start_at|date:"d/m/Y" }} – {{ context.reservation_draft.end_at|date:"d/m/Y" }}</p></div>
+<table><thead><tr><th>Article / matériel</th><th class="center">Qté prévue</th><th class="center">Qté retournée</th><th>État / observations</th></tr></thead><tbody>{% for line in context.reservation_draft.lines %}<tr><td>{{ line.inventory_item_name }}</td><td class="center">{{ line.quantity }}</td><td class="center">________</td><td>{{ line.notes }}</td></tr>{% empty %}<tr><td colspan="4">Aucun article enregistré.</td></tr>{% endfor %}</tbody></table>
+<p style="margin-top:18px"><strong>Observations générales :</strong> {{ context.reservation_draft.notes }}</p><table class="sign"><tr><td>Responsable de la remise</td><td>Client — signature</td></tr></table><div class="footer">Document de retour matériel · Ergon ERP · Hahitantsoa & Titan Rental</div></div></body></html>
