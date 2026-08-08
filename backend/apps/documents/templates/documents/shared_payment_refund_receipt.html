@@ -23,7 +23,7 @@
 <body>
   <div class="page">
     <h1>Reçu de remboursement</h1>
-    <div class="sub">Document de remboursement · Référence {{ context.payment.external_reference|default:context.payment.id|default:"—" }}</div>
+    <div class="sub">Document de remboursement · Référence {{ context.payment.external_reference|default:context.payment.payment_id|default:"—" }}</div>
     <table class="grid"><tr>
       <td><div class="label">Bénéficiaire</div><div class="value">{{ context.payment.customer_display_name|default:"—" }}</div></td>
       <td><div class="label">Réservation</div><div class="value">{{ context.payment.reservation_public_reference|default:"—" }}</div></td>

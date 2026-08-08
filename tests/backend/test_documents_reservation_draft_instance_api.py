@@ -392,7 +392,7 @@ def test_document_instance_create_rejects_unsupported_template_key(sensitive_cli
 
     response = sensitive_client.post(
         _list_url(draft.id),
-        data={"template_key": "shared.payment_receipt.v1"},
+        data={"template_key": "shared.unsupported.v1"},
         content_type="application/json",
     )
 
@@ -443,7 +443,7 @@ def test_document_instance_create_supports_logistics_note_templates(
             "shared.return_note.v1",
             "Bon de retour",
             "backend/apps/documents/templates_documents/shared/bon_retour/v1/template.html",
-            "Returned Items",
+            "Article / matériel",
         ),
     ),
 )

@@ -46,8 +46,6 @@ SUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "shared.supplier_purchase_order.v1",
     "shared.breakage_repair_invoice.v1",
     "shared.damage_loss_excess_invoice.v1",
-    "shared.payment_receipt.v1",
-    "shared.payment_refund_receipt.v1",
 )
 SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     HAHITANTSOA_PROFORMA_TEMPLATE_KEY,
@@ -63,8 +61,6 @@ SUPPORTED_HAHITANTSOA_EVENT_DRAFT_DOCUMENT_TEMPLATE_KEYS = (
     "shared.supplier_purchase_order.v1",
     "shared.breakage_repair_invoice.v1",
     "shared.damage_loss_excess_invoice.v1",
-    "shared.payment_receipt.v1",
-    "shared.payment_refund_receipt.v1",
 )
 UNSUPPORTED_RESERVATION_DRAFT_DOCUMENT_TEMPLATE_KEY = (
     "unsupported_reservation_draft_document_template_key"
