@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { Client } from "../types";
+import { ApiError, convertProspectToClient, updateCustomer } from "../api";
 
 interface ProspectConversionAssistantProps {
   client: Client;
@@ -11,6 +12,8 @@ interface ProspectConversionAssistantProps {
 export function ProspectConversionAssistant({ client, proformaAmount, onCancel, onSuccess }: ProspectConversionAssistantProps) {
   const [step, setStep] = useState(1);
   const [draftClient, setDraftClient] = useState<Client>({ ...client });
+  const [isConverting, setIsConverting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   // Payment state
   const [paymentAmount, setPaymentAmount] = useState<number>(Math.max(1, Math.round(proformaAmount / 2)));
@@ -26,8 +29,6 @@ export function ProspectConversionAssistant({ client, proformaAmount, onCancel, 
       return !!(draftClient.name && draftClient.phone && draftClient.address && draftClient.nif && draftClient.stat && draftClient.repFirstName && draftClient.repRole);
     }
   };
-
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleNext = () => {
     setErrorMsg(null);
@@ -46,14 +47,55 @@ export function ProspectConversionAssistant({ client, proformaAmount, onCancel, 
     }
   };
 
-  const handleConfirm = () => {
-    const payment = {
-      amount: paymentAmount,
-      method: paymentMethod,
-      reference: paymentRef,
-      date: new Date().toISOString().split("T")[0]
-    };
-    onSuccess(draftClient, payment);
+  const handleConfirm = async () => {
+    setErrorMsg(null);
+    setIsConverting(true);
+    try {
+      // 1. Update customer legal info via API
+      const updatePayload: Record<string, string> = {
+        display_name: draftClient.name || "",
+        phone: draftClient.phone || "",
+        address: draftClient.address || "",
+        email: draftClient.email || "",
+      };
+      if (isParticulier) {
+        updatePayload.id_number = draftClient.idNumber || "";
+        updatePayload.id_issue_date = draftClient.idIssueDate || "";
+        updatePayload.id_issue_place = draftClient.idIssuePlace || "";
+      } else {
+        updatePayload.nif = draftClient.nif || "";
+        updatePayload.stat = draftClient.stat || "";
+        updatePayload.rcs = draftClient.rcs || "";
+        updatePayload.representative_name = draftClient.repFirstName || "";
+        updatePayload.representative_role = draftClient.repRole || "";
+      }
+      await updateCustomer(draftClient.id, updatePayload);
+
+      // 2. Convert prospect to client via API
+      const updated = await convertProspectToClient(draftClient.id);
+      const updatedClient: Client = {
+        ...draftClient,
+        status: "Client",
+      };
+
+      const payment = {
+        amount: paymentAmount,
+        method: paymentMethod,
+        reference: paymentRef,
+        date: new Date().toISOString().split("T")[0]
+      };
+      onSuccess(updatedClient, payment);
+    } catch (error: unknown) {
+      let message = "Erreur lors de la conversion.";
+      if (error instanceof ApiError) {
+        message = error.message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      setErrorMsg(message);
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   return (
@@ -201,8 +243,8 @@ export function ProspectConversionAssistant({ client, proformaAmount, onCancel, 
               Suivant
             </button>
           ) : (
-            <button onClick={handleConfirm} className="px-6 py-2 bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 rounded-lg transition-colors">
-              Confirmer la conversion
+            <button onClick={handleConfirm} disabled={isConverting} className="px-6 py-2 bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {isConverting ? "Conversion en cours..." : "Confirmer la conversion"}
             </button>
           )}
         </div>

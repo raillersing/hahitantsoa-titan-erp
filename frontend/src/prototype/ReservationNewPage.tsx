@@ -18,6 +18,8 @@ import {
   generateHahitantsoaEventDraftDocumentInstancePdf,
   convertProformaToContract,
   createCustomer,
+  convertProspectToClient,
+  updateCustomer,
   uploadAttachment,
 } from "../api";
 import type {
@@ -195,6 +197,7 @@ type ProspectProformaEmission = {
   draftId?: string;
   documentId?: string;
   htmlGenerated: boolean;
+  documentPdfGenerated?: boolean;
 };
 
 interface NewClientData {
@@ -900,9 +903,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     }
 
     if (isHahitantsoa) {
-      await generateHahitantsoaEventDraftDocumentInstancePdf(draftId, documentId);
+      if (!emission.documentPdfGenerated) {
+        await generateHahitantsoaEventDraftDocumentInstancePdf(draftId, documentId);
+        emission = { ...emission, documentPdfGenerated: true };
+        setProspectProformaEmission(emission);
+      }
     } else {
-      await generateReservationDraftDocumentInstancePdf(draftId, documentId);
+      if (!emission.documentPdfGenerated) {
+        await generateReservationDraftDocumentInstancePdf(draftId, documentId);
+        emission = { ...emission, documentPdfGenerated: true };
+        setProspectProformaEmission(emission);
+      }
     }
     return { documentId, draftId };
   };
@@ -926,8 +937,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     const contract = await convertProformaToContract(proformaDocumentId);
     setDocumentReference(contract.reservation_public_reference || emission.draftId);
     if (domain === "hahitantsoa") {
-      await generateHahitantsoaEventDraftDocumentInstance(emission.draftId, contract.id);
-      await generateHahitantsoaEventDraftDocumentInstancePdf(emission.draftId, contract.id);
+      if (contract.status === "prepared") {
+        await generateHahitantsoaEventDraftDocumentInstance(emission.draftId, contract.id);
+      }
+      if (!contract.pdf_storage_path) {
+        await generateHahitantsoaEventDraftDocumentInstancePdf(emission.draftId, contract.id);
+      }
       const documents = await getHahitantsoaEventDraftDocumentInstances(emission.draftId);
       let discharge = documents.find((document) => document.template_key === "hahitantsoa.liability_release.v1");
       if (!discharge) {
@@ -943,8 +958,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         await generateHahitantsoaEventDraftDocumentInstancePdf(emission.draftId, discharge.id);
       }
     } else {
-      await generateReservationDraftDocumentInstance(emission.draftId, contract.id);
-      await generateReservationDraftDocumentInstancePdf(emission.draftId, contract.id);
+      if (contract.status === "prepared") {
+        await generateReservationDraftDocumentInstance(emission.draftId, contract.id);
+      }
+      if (!contract.pdf_storage_path) {
+        await generateReservationDraftDocumentInstancePdf(emission.draftId, contract.id);
+      }
     }
     return contract;
   };
@@ -2904,9 +2923,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
         <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
           <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour au proforma</button>
-          <button 
+          <button
             className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium text-sm disabled:opacity-50 shadow-md hover:bg-green-700"
-            onClick={() => { setPaymentDone(true); goNext(); }}
+            onClick={async () => {
+              try {
+                if (activeClient?.status === "Prospect" && selectedClientId) {
+                  await convertProspectToClient(selectedClientId);
+                  setApiCustomers(prev => prev.map(c =>
+                    c.id === selectedClientId ? { ...c, lifecycle_status: "client" } : c
+                  ));
+                }
+                setPaymentDone(true);
+                goNext();
+              } catch (err: any) {
+                setSubmitError(err?.message || "Erreur lors de la conversion du prospect en client.");
+              }
+            }}
           >
             Valider paiement et Aperçu Contrat
           </button>

@@ -1,19 +1,26 @@
 import React, { useEffect, useRef, useState } from "react";
-import { AppScope } from "../App";
 import {
   ApiError,
+  convertProspectToClient,
   deleteAttachment,
   downloadAttachment,
   getCustomer,
   getCustomerAttachments,
+  getCustomerTimeline,
+  transitionProspectStatus,
   updateCustomer,
   uploadAttachment,
 } from "../api";
-import type { Customer as ApiCustomer, UploadedAttachment } from "../types";
+import type { Customer as ApiCustomer, UploadedAttachment, CommercialTimelineEvent } from "../types";
+import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 type Client = {
   id: string; reference?: string; initials: string; name: string; email: string; phone: string;
   type: "Particulier" | "Entreprise"; status: "Client" | "Prospect";
   colorClass: string; address?: string; notes?: string;
+  prospectStatus?: string;
+  prospectStatusChangedAt?: string | null;
+  prospectStatusReason?: string;
+  prospectNextFollowUp?: string | null;
   idType?: string; idNumber?: string; idIssueDate?: string; idIssuePlace?: string;
   idDuplicataDate?: string; idDuplicataPlace?: string; birthDate?: string;
   nif?: string; stat?: string; rcs?: string; repFirstName?: string; repRole?: string;
@@ -56,6 +63,11 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   const attachmentPreviewCloseRef = useRef<HTMLButtonElement>(null);
   const attachmentPreviewTriggerRef = useRef<HTMLButtonElement>(null);
   const attachmentPreviewRequestRef = useRef<AbortController | null>(null);
+  const [showConversionAssistant, setShowConversionAssistant] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [timelineEvents, setTimelineEvents] = useState<CommercialTimelineEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const reservations: ReservationSummary[] = [];
   const totalBilled = 0;
   const totalPaid = 0;
@@ -72,6 +84,11 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
     status: customer.lifecycle_status === "prospect" ? "Prospect" : "Client",
     colorClass: customer.lifecycle_status === "prospect" ? "bg-blue-100 text-blue-700" : customer.party_type === "company" ? "bg-emerald-100 text-emerald-700" : "bg-indigo-100 text-indigo-700",
     address: customer.address,
+    notes: customer.notes,
+    prospectStatus: customer.prospect_status,
+    prospectStatusChangedAt: customer.prospect_status_changed_at,
+    prospectStatusReason: customer.prospect_status_reason,
+    prospectNextFollowUp: customer.prospect_next_follow_up,
     idType: customer.id_type,
     idNumber: customer.id_number,
     idIssueDate: customer.id_issue_date || "",
@@ -84,7 +101,6 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
     rcs: customer.rcs,
     repFirstName: customer.representative_name,
     repRole: customer.representative_role,
-    notes: customer.notes,
   });
 
   useEffect(() => {
@@ -100,6 +116,19 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
       else if (error instanceof ApiError && error.status === 401) setLoadError("Votre session a expiré. Reconnectez-vous puis réessayez.");
       else setLoadError("Impossible de charger cette fiche client. Vérifiez votre connexion puis réessayez.");
     }).finally(() => setIsLoading(false));
+    return () => controller.abort();
+  }, [clientId, retryKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setTimelineLoading(true);
+    setTimelineError(null);
+    void getCustomerTimeline(clientId, controller.signal).then((data) => {
+      setTimelineEvents(data);
+    }).catch((error: unknown) => {
+      if ((error as { name?: string }).name === "AbortError") return;
+      setTimelineError("Impossible de charger la chronologie commerciale.");
+    }).finally(() => setTimelineLoading(false));
     return () => controller.abort();
   }, [clientId, retryKey]);
 
@@ -294,7 +323,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
           </div>
         </div>
       </div>
-      
+
       {client.status === 'Prospect' && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3 mb-6">
           <i className="fa-solid fa-circle-info text-blue-500 mt-0.5"></i>
@@ -317,12 +346,12 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
               {client.initials}
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">{client.name}</h3>
-            
+
             <div className="flex items-center gap-2 mt-2 mb-6">
               <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{client.type}</span>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${client.status === 'Prospect' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>{client.status}</span>
             </div>
-            
+
             {client.status === 'Prospect' ? (
               <div className="w-full flex justify-center text-xs text-slate-500 italic mb-2">
                 Conversion via Demande commerciale
@@ -334,103 +363,85 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             ) : null}
           </div>
 
-          {/* Solde / Demande commerciale */}
+          {/* Pipeline Commercial compact (prospects uniquement) */}
           {client.status === 'Prospect' ? (
-            <div className="space-y-6">
-              {linkedProforma && (
-                <div className="bg-white rounded-2xl border border-indigo-100 p-6 shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-                  <h3 className="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-4">Conversion en client</h3>
-                  <div className="space-y-3 mb-5">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-500">Proforma liée</span>
-                      <span className="font-bold text-slate-800">{linkedProforma.id}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-500">Total estimatif</span>
-                      <span className="font-bold text-slate-800">{linkedProforma.amount.toLocaleString('fr-FR')} Ar</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-slate-500">Statut</span>
-                      <span className="font-semibold text-amber-600">Prospect non confirmé</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-100">
-                      <span className="text-slate-500">Prochaine étape</span>
-                      <span className="font-semibold text-indigo-600 text-right">Acompte +<br/>Infos légales</span>
-                    </div>
+            <div className="space-y-4">
+              {/* Statut actuel */}
+              {client.prospectStatus && (
+                <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      client.prospectStatus === 'new' ? 'bg-slate-100 text-slate-600' :
+                      client.prospectStatus === 'contact_attempted' ? 'bg-orange-100 text-orange-700' :
+                      client.prospectStatus === 'contacted' ? 'bg-blue-100 text-blue-700' :
+                      client.prospectStatus === 'qualified' ? 'bg-indigo-100 text-indigo-700' :
+                      client.prospectStatus === 'proforma_sent' ? 'bg-violet-100 text-violet-700' :
+                      client.prospectStatus === 'to_recall' ? 'bg-yellow-100 text-yellow-700' :
+                      client.prospectStatus === 'converted' ? 'bg-green-100 text-green-700' :
+                      client.prospectStatus === 'disqualified' ? 'bg-red-100 text-red-700' :
+                      client.prospectStatus === 'lost' ? 'bg-red-200 text-red-800' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {client.prospectStatus === 'new' ? 'Nouveau' :
+                       client.prospectStatus === 'contact_attempted' ? 'Tentative de contact' :
+                       client.prospectStatus === 'contacted' ? 'Contacté' :
+                       client.prospectStatus === 'qualified' ? 'Qualifié' :
+                       client.prospectStatus === 'proforma_sent' ? 'Proforma envoyée' :
+                       client.prospectStatus === 'to_recall' ? 'À relancer' :
+                       client.prospectStatus === 'converted' ? 'Converti' :
+                       client.prospectStatus === 'disqualified' ? 'Non qualifié' :
+                       client.prospectStatus === 'lost' ? 'Perdu' : client.prospectStatus}
+                    </span>
+                    {client.prospectStatusChangedAt && (
+                      <span className="text-xs text-slate-400">Depuis {new Date(client.prospectStatusChangedAt).toLocaleDateString('fr-FR')}</span>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <button disabled className="w-full px-4 py-2 bg-slate-200 text-slate-500 font-medium text-sm rounded-lg cursor-not-allowed">
-                      Conversion disponible après connexion du workflow commercial
-                    </button>
-                    <button onClick={() => setIsEditing(true)} className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-50 transition-colors">
-                      <i className="fa-solid fa-file-contract mr-2"></i> Compléter infos légales
-                    </button>
-                    <button onClick={() => onNavigate("reservation-detail", linkedProforma.id)} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 text-indigo-700 font-medium text-sm rounded-lg hover:bg-indigo-50 transition-colors">
-                      <i className="fa-solid fa-eye mr-2"></i> Voir proforma
-                    </button>
-                  </div>
+                  {client.prospectStatusReason && (
+                    <p className="text-sm text-slate-700 mb-3">{client.prospectStatusReason}</p>
+                  )}
+
+                  {/* Action recommandée */}
+                  {client.prospectStatus && !['converted', 'lost', 'disqualified'].includes(client.prospectStatus) && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <i className="fa-solid fa-lightbulb text-amber-600 text-xs"></i>
+                        <span className="text-[10px] font-bold text-amber-800 uppercase">Action recommandée</span>
+                      </div>
+                      <p className="text-sm text-amber-700 font-medium">
+                        {client.prospectStatus === 'new' ? 'Premier contact (appel/email)' :
+                         client.prospectStatus === 'contact_attempted' ? 'Tenter un autre canal' :
+                         client.prospectStatus === 'contacted' ? 'Qualifier le besoin et le budget' :
+                         client.prospectStatus === 'qualified' ? 'Envoyer proforma personnalisée' :
+                         client.prospectStatus === 'proforma_sent' ? 'Relancer après 3-5 jours' :
+                         client.prospectStatus === 'to_recall' ? 'Relancer avec nouvelle offre' : 'Suivre le prospect'}
+                      </p>
+                      {client.prospectNextFollowUp && (
+                        <span className="text-xs text-amber-600">Limite : {new Date(client.prospectNextFollowUp).toLocaleDateString('fr-FR')}</span>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setShowStatusModal(true)}
+                    className="w-full px-4 py-2 bg-white border border-slate-300 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    <i className="fa-solid fa-pen-to-square mr-2"></i> Modifier le statut
+                  </button>
                 </div>
               )}
 
-              <div className="bg-white rounded-2xl border border-slate-100 p-6">
-                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-4">Demande commerciale</h3>
-              <div className="space-y-4">
-                <div className="text-sm">
-                  <span className="font-medium text-slate-500 block mb-1">Demande actuelle</span>
-                  <span className="font-semibold text-slate-800">{client.notes?.includes("Demande : ") ? client.notes.split("Demande : ")[1].split("\n")[0] : "Proforma demandée"}</span>
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium text-slate-500 block mb-1">Volet d'intérêt</span>
-                  <span className="font-semibold text-slate-800">{client.notes?.includes("Volet : ") ? client.notes.split("Volet : ")[1].split("\n")[0] : "Hahitantsoa"}</span>
-                </div>
-                
-                {client.notes?.includes("Proforma demandée") || !client.notes?.includes("Demande : ") ? (
-                  <div className="text-sm">
-                    <span className="font-medium text-slate-500 block mb-1">Proforma liée</span>
-                    <div className="mt-1 bg-slate-50 border border-slate-100 rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-bold text-indigo-700">#PROF-MOCK</span>
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Brouillon</span>
-                      </div>
-                      <span className="block w-full text-xs text-center py-1.5 text-slate-500">Aucune proforma chargée par l’API</span>
+              {/* Historique compact */}
+              <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3">Historique</h3>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5"></div>
+                  <div>
+                    <div className="text-sm text-slate-800">
+                      <span className="font-semibold">{client.prospectStatus ? (client.prospectStatus === 'new' ? 'Nouveau' : client.prospectStatus === 'contact_attempted' ? 'Tentative de contact' : client.prospectStatus === 'contacted' ? 'Contacté' : client.prospectStatus === 'qualified' ? 'Qualifié' : client.prospectStatus === 'proforma_sent' ? 'Proforma envoyée' : client.prospectStatus === 'to_recall' ? 'À relancer' : client.prospectStatus === 'converted' ? 'Converti' : client.prospectStatus === 'disqualified' ? 'Non qualifié' : client.prospectStatus === 'lost' ? 'Perdu' : client.prospectStatus) : 'Nouveau'}</span>
                     </div>
+                    <div className="text-xs text-slate-400">{client.prospectStatusChangedAt ? new Date(client.prospectStatusChangedAt).toLocaleDateString('fr-FR') : 'Date inconnue'}</div>
                   </div>
-                ) : null}
-
-                {client.notes?.includes("Disponibilité demandée") ? (
-                  <div className="text-sm">
-                    <span className="font-medium text-slate-500 block mb-1">Disponibilité demandée</span>
-                    <div className="mt-1 bg-slate-50 border border-slate-100 rounded-lg p-3">
-                      <span className="font-semibold text-slate-700 block mb-2">{client.notes?.includes("Date : ") ? client.notes.split("Date : ")[1].split("\n")[0] || "Juillet 2026" : "Juillet 2026"}</span>
-                      <button className="w-full text-xs text-center py-1.5 bg-white border border-slate-200 rounded hover:bg-slate-50 font-medium mb-2">Voir calendrier disponibilité</button>
-                      <span className="block w-full text-xs text-center py-1.5 text-slate-500">Vérification disponible dans le module planning</span>
-                    </div>
-                  </div>
-                ) : null}
-
-                {client.notes?.includes("Visite demandée") ? (
-                  <div className="text-sm">
-                    <span className="font-medium text-slate-500 block mb-1">Visite demandée</span>
-                    <div className="mt-1 bg-slate-50 border border-slate-100 rounded-lg p-3">
-                      <span className="font-semibold text-slate-700 block mb-1"><i className="fa-solid fa-calendar mr-1"></i> Date à confirmer</span>
-                      <span className="text-slate-600 block text-xs mb-2">Lieu : Hahitantsoa (Salle des fêtes)</span>
-                      <button className="w-full text-xs text-center py-1.5 bg-white border border-slate-200 rounded hover:bg-slate-50 font-medium">Voir agenda visite</button>
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="text-sm border-t border-slate-100 pt-3 mt-3">
-                  <span className="font-medium text-slate-500 block mb-1">Dernier échange</span>
-                  <span className="text-slate-700">Appel entrant du prospect. Intéressé par le jardin.</span>
                 </div>
-                <div className="text-sm">
-                  <span className="font-medium text-slate-500 block mb-1">Prochaine relance</span>
-                  <span className="text-rose-600 font-semibold"><i className="fa-solid fa-clock mr-1"></i> 10 Août 2026</span>
-                </div>
-                <button className="w-full mt-2 py-2 border-2 border-dashed border-slate-300 text-slate-500 rounded-lg text-xs font-bold hover:bg-slate-50 hover:border-slate-400">Planifier relance</button>
               </div>
-            </div>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-100 p-6">
@@ -752,11 +763,78 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             </div>
           </div>
 
+          {/* Pipeline Timeline — pleine largeur dans la colonne principale */}
+          {client.status === 'Prospect' && client.prospectStatus && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Pipeline commercial</h3>
+                {client.prospectStatusChangedAt && (
+                  <span className="text-[10px] text-slate-400">Mis à jour {new Date(client.prospectStatusChangedAt).toLocaleDateString('fr-FR')}</span>
+                )}
+              </div>
+
+              {(() => {
+                const steps = [
+                  { key: 'new', label: 'Nouveau', short: 'Nouveau' },
+                  { key: 'contact_attempted', label: 'Tentative', short: 'Tentative' },
+                  { key: 'contacted', label: 'Contacté', short: 'Contacté' },
+                  { key: 'qualified', label: 'Qualifié', short: 'Qualifié' },
+                  { key: 'proforma_sent', label: 'Proforma', short: 'Proforma' },
+                  { key: 'to_recall', label: 'Relance', short: 'Relance' },
+                  { key: 'converted', label: 'Converti', short: 'Converti' },
+                  { key: 'lost', label: 'Perdu', short: 'Perdu' },
+                  { key: 'disqualified', label: 'Disqualifié', short: 'Disqualifié' },
+                ];
+                const currentIdx = steps.findIndex(s => s.key === client.prospectStatus);
+                const progressWidth = currentIdx >= 0 ? ((currentIdx) / (steps.length - 1)) * 100 : 0;
+
+                return (
+                  <div className="relative">
+                    <div className="flex items-center relative">
+                      <div className="absolute top-[18px] left-0 right-0 h-[3px] bg-slate-200 z-0 rounded-full"></div>
+                      <div className="absolute top-[18px] left-0 h-[3px] bg-indigo-500 z-0 rounded-full" style={{ width: `${progressWidth}%` }} />
+                      {steps.map((step, idx) => {
+                        const isDone = idx < currentIdx;
+                        const isCurrent = idx === currentIdx;
+                        const isTerminal = ['lost', 'disqualified'].includes(step.key);
+                        const isSuccess = step.key === 'converted';
+                        return (
+                          <div key={step.key} className="relative z-10 flex flex-col items-center flex-1">
+                            <div className={`w-10 h-10 rounded-full border-[3px] flex items-center justify-center shadow-sm transition-all ${
+                              isDone ? 'bg-green-500 border-green-500' :
+                              isCurrent ? (isTerminal ? 'bg-rose-500 border-rose-500' : isSuccess ? 'bg-emerald-500 border-emerald-500' : 'bg-indigo-600 border-indigo-600') :
+                              'bg-white border-slate-300'
+                            }`}>
+                              {isDone ? (
+                                <i className="fa-solid fa-check text-white text-sm"></i>
+                              ) : isCurrent ? (
+                                <span className="text-white text-xs font-bold">{idx + 1}</span>
+                              ) : (
+                                <span className="text-slate-400 text-xs font-semibold">{idx + 1}</span>
+                              )}
+                            </div>
+                            <span className={`text-[10px] mt-2 text-center leading-tight w-16 ${
+                              isCurrent ? 'font-bold text-indigo-700' :
+                              isDone ? 'font-medium text-green-600' :
+                              'text-slate-400'
+                            }`}>
+                              {step.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Demande Commerciale (Prospect) */}
           {client.status === 'Prospect' && (
             <div className="bg-white rounded-2xl border border-slate-100 p-6">
               <h3 className="text-lg font-bold text-slate-800 mb-4">Demande commerciale</h3>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 text-sm">
                 <div>
                   <span className="block text-slate-500 font-medium mb-1">Demande actuelle</span>
@@ -807,7 +885,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                     </div>
                   </div>
                 )}
-                
+
                 {reqType === 'Visite demandée' && (
                   <div className="border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -834,6 +912,49 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
             <div className="space-y-3">
               <div className="text-sm text-slate-500 p-3 bg-slate-50 rounded-lg text-center">Aucune relance chargée par l’API.</div>
             </div>
+          </div>
+
+          {/* Chronologie commerciale unifiée */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">Chronologie commerciale</h3>
+            {timelineLoading ? (
+              <div className="py-8 text-center text-slate-500">Chargement...</div>
+            ) : timelineError ? (
+              <div className="py-8 text-center text-red-600">{timelineError}</div>
+            ) : timelineEvents.length === 0 ? (
+              <div className="py-8 text-center text-slate-500">Aucun événement dans la chronologie.</div>
+            ) : (
+              <div className="space-y-4">
+                {timelineEvents.map((evt, idx) => (
+                  <div key={idx} className="flex gap-4 items-start">
+                    <div className="flex flex-col items-center">
+                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 mt-1.5" />
+                      {idx < timelineEvents.length - 1 && (
+                        <div className="w-px flex-1 bg-slate-200 min-h-[2rem]" />
+                      )}
+                    </div>
+                    <div className="flex-1 pb-4">
+                      <div className="text-xs text-slate-500 font-medium">
+                        {new Date(evt.date).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                      <div className="text-sm font-semibold text-slate-800">{evt.title}</div>
+                      <div className="text-sm text-slate-600">{evt.description}</div>
+                      {evt.type && (
+                        <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wide">
+                          {evt.type}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Historique des dossiers */}
@@ -935,7 +1056,97 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
           </div>
         </div>
       )}
-      
+
+      {showConversionAssistant && client.status === "Prospect" && (
+        <ProspectConversionAssistant
+          client={client as any}
+          proformaAmount={linkedProforma?.amount || 0}
+          onCancel={() => setShowConversionAssistant(false)}
+          onSuccess={(updatedClient: any, _payment: any) => {
+            setClient(updatedClient);
+            setShowConversionAssistant(false);
+            setRetryKey((prev) => prev + 1);
+          }}
+        />
+      )}
+
+      {/* Modal Modifier le statut prospect */}
+      {showStatusModal && client.status === "Prospect" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Modifier le statut</h3>
+            <p className="text-sm text-slate-500 mb-6">{client.name}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Nouveau statut</label>
+                <select
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  defaultValue={client.prospectStatus || 'new'}
+                  onChange={(e) => {
+                    const newStatus = e.target.value;
+                    (document.getElementById('status-reason') as HTMLTextAreaElement).style.display =
+                      ['disqualified', 'lost'].includes(newStatus) ? 'block' : 'none';
+                  }}
+                  id="status-select"
+                >
+                  <option value="new">Nouveau</option>
+                  <option value="contact_attempted">Tentative de contact</option>
+                  <option value="contacted">Contacté</option>
+                  <option value="qualified">Qualifié</option>
+                  <option value="proforma_sent">Proforma envoyée</option>
+                  <option value="to_recall">À relancer</option>
+                  <option value="converted">Converti</option>
+                  <option value="disqualified">Non qualifié</option>
+                  <option value="lost">Perdu</option>
+                </select>
+              </div>
+              <div id="status-reason" style={{ display: 'none' }}>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">Motif (obligatoire)</label>
+                <textarea
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows={3}
+                  placeholder="Pourquoi ce statut ?"
+                  id="status-reason-input"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowStatusModal(false)}
+                  className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 font-medium text-sm rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={async () => {
+                    const select = document.getElementById('status-select') as HTMLSelectElement;
+                    const reasonInput = document.getElementById('status-reason-input') as HTMLTextAreaElement;
+                    const newStatus = select.value;
+                    const reason = reasonInput?.value || '';
+                    if (['disqualified', 'lost'].includes(newStatus) && !reason.trim()) {
+                      alert('Un motif est obligatoire pour ce statut.');
+                      return;
+                    }
+                    try {
+                      const updated = await transitionProspectStatus(client.id, {
+                        prospect_status: newStatus,
+                        reason: reason || undefined,
+                      });
+                      setClient(mapApiCustomer(updated));
+                      setShowStatusModal(false);
+                    } catch {
+                      alert('Erreur lors de la transition. Vérifiez les droits.');
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Valider
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

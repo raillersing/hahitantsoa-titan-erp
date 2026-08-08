@@ -50,6 +50,15 @@ export type Customer = {
   representative_role?: string;
   notes: string;
   is_active: boolean;
+  prospect_request_type?: string;
+  prospect_interest_domain?: string;
+  prospect_requested_date?: string | null;
+  prospect_budget?: string;
+  prospect_next_follow_up?: string | null;
+  prospect_status?: string;
+  prospect_status_changed_at?: string | null;
+  prospect_status_reason?: string;
+  prospect_follow_up_owner?: string | null;
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
@@ -85,6 +94,11 @@ export type CustomerCreatePayload = {
   representative_role?: string;
   notes?: string;
   is_active?: boolean;
+  prospect_request_type?: string;
+  prospect_interest_domain?: string;
+  prospect_requested_date?: string | null;
+  prospect_budget?: string;
+  prospect_next_follow_up?: string | null;
 };
 
 export type CustomerUpdatePayload = {
@@ -500,6 +514,17 @@ export type DocumentTemplateCreatePayload = {
   status?: "draft" | "active" | "archived";
 };
 
+export type DocumentTemplateCRUD = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  family: string;
+  business_scope: string;
+  document_type: string;
+  status: string;
+};
+
 export type DocumentTemplateVersion = {
   id: string;
   template: string;
@@ -692,6 +717,8 @@ export type LogisticsEventItemLine = {
   updated_by: string | null;
 };
 
+export type HandoverSignatureStatus = 'pending' | 'received' | 'exception';
+
 export type LogisticsEvent = {
   id: string;
   reservation_draft: string;
@@ -705,6 +732,11 @@ export type LogisticsEvent = {
   notes: string;
   signature_required: boolean;
   signature_received: boolean;
+  signature_status: HandoverSignatureStatus;
+  signature_exception_reason: string;
+  signed_document_file: string;
+  signed_document_hash: string;
+  signed_by_client_name: string;
   signed_by: string | null;
   signed_at: string | null;
   item_lines: LogisticsEventItemLine[];
@@ -756,6 +788,13 @@ export type LogisticsEventUpdatePayload = Partial<{
 export type LogisticsEventCompletePassationResponse = {
   event: LogisticsEvent;
   document_instance_id: string;
+};
+
+export type LogisticsEventSignatureUpdatePayload = {
+  signature_status: 'pending' | 'received' | 'exception';
+  signed_by_client_name?: string;
+  signature_exception_reason?: string;
+  signed_document_file?: string;
 };
 
 // ---- Returns Handling ----
@@ -1278,6 +1317,48 @@ export type QuickExpenseCreatePayload = {
   description?: string;
 };
 
+// ---- Finance / Bank profiles ----
+
+export type BankProfile = {
+  id: string;
+  account_id: string;
+  business_scope: "titan" | "hahitantsoa";
+  account_code: string;
+  bank_name: string;
+  branch: string;
+  account_holder: string;
+  account_number: string;
+  rib: string;
+  iban: string;
+  swift_bic: string;
+  is_default_for_documents: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BankProfileCreatePayload = {
+  account: string;
+  bank_name: string;
+  account_holder: string;
+  branch?: string;
+  account_number?: string;
+  rib?: string;
+  iban?: string;
+  swift_bic?: string;
+  is_default_for_documents?: boolean;
+};
+
+export type BankProfileUpdatePayload = {
+  bank_name?: string;
+  account_holder?: string;
+  branch?: string;
+  account_number?: string;
+  rib?: string;
+  iban?: string;
+  swift_bic?: string;
+  is_default_for_documents?: boolean;
+};
+
 // ---- Legacy Client type (from mockData, kept for backward compatibility) ----
 
 export type Client = {
@@ -1312,6 +1393,10 @@ export type Client = {
   reservationCount?: number;
   eventCount?: number;
   documentCount?: number;
+  prospectStatus?: string;
+  prospectStatusChangedAt?: string | null;
+  prospectStatusReason?: string;
+  prospectNextFollowUp?: string | null;
 };
 
 // ---- HR & Payroll ----
@@ -1395,6 +1480,38 @@ export type LeaveRequest = {
   reason: string;
   status: LeaveRequestStatus;
   created_at: string;
+};
+
+export type ReportCategory = "reservations" | "sales_billing" | "payments" | "prospects" | "logistics" | "inventory" | "documents";
+
+export type ReportKpi = {
+  key: string;
+  label: string;
+  value: number | string;
+  previous_value?: number | string;
+  previous_period_label?: string;
+  trend_pct?: number;
+  unit?: string;
+  format?: "number" | "money" | "percent";
+};
+
+export type ReportCategoryResponse = {
+  category: ReportCategory;
+  period: string;
+  kpis: ReportKpi[];
+};
+
+export type ReportKpiResponse = ReportKpi & {
+  category: ReportCategory;
+  period: string;
+};
+
+export type CommercialTimelineEvent = {
+  date: string;
+  type: string;
+  title: string;
+  description: string;
+  metadata?: Record<string, any>;
 };
 
 export type LeaveRequestCreatePayload = {

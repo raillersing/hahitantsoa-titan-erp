@@ -18,6 +18,7 @@ import type {
   Customer,
   CustomerCreatePayload,
   CustomerUpdatePayload,
+  CommercialTimelineEvent,
   DesiredDateWaitlistCreatePayload,
   DesiredDateWaitlistEntry,
   DesiredDateWaitlistTransition,
@@ -31,6 +32,7 @@ import type {
   LogisticsEventItemLineCreatePayload,
   LogisticsEventTransitionPayload,
   LogisticsEventUpdatePayload,
+  LogisticsEventSignatureUpdatePayload,
   MaterialPackage,
   MaterialPackageCreatePayload,
   MaterialPackageUpdatePayload,
@@ -40,6 +42,8 @@ import type {
   ReservationDraft,
   ReservationDraftCreatePayload,
   ReservationDraftMutationResult,
+  ReportCategory,
+  ReportCategoryResponse,
   ReservationDraftUpdatePayload,
   ReservationItemAvailabilityPreview,
   RoleAssignmentQueryParams,
@@ -420,6 +424,42 @@ export function updateCustomer(
     payload,
     signal,
   );
+}
+
+export function convertProspectToClient(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Customer> {
+  return postAuthenticatedJson(`/api/v1/customers/${id}/convert/`, {}, signal);
+}
+
+export function transitionProspectStatus(
+  id: string,
+  payload: {
+    prospect_status: string;
+    reason?: string;
+    next_follow_up?: string | null;
+    follow_up_owner_id?: string | null;
+  },
+  signal?: AbortSignal,
+): Promise<Customer> {
+  return postAuthenticatedJson(`/api/v1/customers/${id}/prospect-status/`, payload, signal);
+}
+
+export function getCustomerTimeline(
+  id: string,
+  signal?: AbortSignal,
+): Promise<CommercialTimelineEvent[]> {
+  return getAuthenticatedJson(`/api/v1/customers/${id}/timeline/`, signal);
+}
+
+export function getReportCategory(
+  category: ReportCategory,
+  period?: string,
+  signal?: AbortSignal,
+): Promise<ReportCategoryResponse> {
+  const query = period ? `?period=${encodeURIComponent(period)}` : "";
+  return getAuthenticatedJson(`/api/v1/reports/${category}/${query}`, signal);
 }
 
 export async function deleteCustomer(
@@ -1414,6 +1454,14 @@ export function completeLogisticsPassation(
   signal?: AbortSignal,
 ): Promise<LogisticsEventCompletePassationResponse> {
   return postAuthenticatedJson(`/api/v1/logistics/events/${id}/complete-passation/`, payload, signal);
+}
+
+export function updateLogisticsEventSignature(
+  id: string,
+  payload: LogisticsEventSignatureUpdatePayload,
+  signal?: AbortSignal,
+): Promise<LogisticsEvent> {
+  return postAuthenticatedJson(`/api/v1/logistics/events/${id}/signature/`, payload, signal);
 }
 // ---- Return Operations ----
 

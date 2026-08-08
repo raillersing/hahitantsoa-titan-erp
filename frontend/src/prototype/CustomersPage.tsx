@@ -69,6 +69,34 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
 
   const filters = ["Tous", "Prospects", "Clients", "Particuliers", "Entreprises", "Avec dossier actif", "À relancer"];
 
+  // Prospect pipeline status helpers (Lot 2)
+  const PROSPECT_STATUS_LABELS: Record<string, string> = {
+    new: "Nouveau",
+    contact_attempted: "Tentative de contact",
+    contacted: "Contacté",
+    qualified: "Qualifié",
+    proforma_sent: "Proforma envoyée",
+    to_recall: "À relancer",
+    converted: "Converti",
+    disqualified: "Non qualifié",
+    lost: "Perdu",
+  };
+
+  const getProspectStatusBadgeClass = (status?: string) => {
+    switch (status) {
+      case "new": return "bg-slate-100 text-slate-600";
+      case "contact_attempted": return "bg-orange-100 text-orange-700";
+      case "contacted": return "bg-blue-100 text-blue-700";
+      case "qualified": return "bg-indigo-100 text-indigo-700";
+      case "proforma_sent": return "bg-violet-100 text-violet-700";
+      case "to_recall": return "bg-yellow-100 text-yellow-700";
+      case "converted": return "bg-green-100 text-green-700";
+      case "disqualified": return "bg-red-100 text-red-700";
+      case "lost": return "bg-red-200 text-red-800";
+      default: return "bg-slate-100 text-slate-500";
+    }
+  };
+
   const mapApiCustomer = (customer: ApiCustomer): Client => {
     const isProspect = customer.lifecycle_status === "prospect";
     const isCompany = customer.party_type === "company";
@@ -87,6 +115,10 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
       reservationCount: customer.reservation_count ?? 0,
       eventCount: customer.event_count ?? 0,
       documentCount: customer.document_count ?? 0,
+      prospectStatus: customer.prospect_status,
+      prospectStatusChangedAt: customer.prospect_status_changed_at,
+      prospectStatusReason: customer.prospect_status_reason,
+      prospectNextFollowUp: customer.prospect_next_follow_up,
     };
   };
 
@@ -155,7 +187,11 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
         email: newEmail,
         phone: newPhone,
         address: newAddress,
-        notes: newNotes,
+        notes: newNotes + (prospectNote ? `\n${prospectNote}` : ""),
+        prospect_request_type: prospectRequestType || undefined,
+        prospect_interest_domain: prospectDomain || undefined,
+        prospect_requested_date: prospectDate || null,
+        prospect_budget: prospectBudget || undefined,
       });
       setIsAdding(false);
       await loadCustomers();
@@ -742,15 +778,16 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
             <tr className="text-xs text-slate-500 uppercase bg-slate-50">
               <th className="text-left px-4 py-3 rounded-l-lg">Contact</th>
               <th className="text-left px-4 py-3">Type</th>
-              <th className="text-left px-4 py-3">Statut</th>
+              <th className="text-left px-4 py-3">Catégorie</th>
+              <th className="text-left px-4 py-3">Pipeline</th>
+              <th className="text-left px-4 py-3">Relance</th>
               <th className="text-left px-4 py-3">Dernier dossier</th>
-              <th className="text-left px-4 py-3">Solde / Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredClients.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-8">
+                <td colSpan={6} className="py-8">
                   <EmptyState
                     message="Aucun résultat trouvé."
                     icon="fa-users"
@@ -759,13 +796,20 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
               </tr>
             )}
             {filteredClients.map(client => {
+              const isOverdue = client.prospectStatus === 'to_recall' && client.prospectStatusChangedAt &&
+                new Date(client.prospectStatusChangedAt) < new Date();
               return (
-                <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={client.id} className={`hover:bg-slate-50 transition-colors ${client.status === 'Prospect' ? 'bg-blue-50/20' : ''}`}>
                   <td className="px-4 py-4">
                     <button onClick={() => onNavigate("customer", client.id)} className="flex items-center gap-3 group text-left">
                       <div className={`w-9 h-9 rounded-full ${client.colorClass} flex items-center justify-center font-semibold text-xs`}>{client.initials}</div>
                       <div>
-                        <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">{client.name}</div>
+                        <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline flex items-center gap-1.5">
+                          {client.name}
+                          {client.status === 'Prospect' && client.prospectStatus && ['qualified', 'proforma_sent'].includes(client.prospectStatus) && (
+                            <span className="text-[9px] px-1 py-0 rounded bg-orange-100 text-orange-700 font-bold">HOT</span>
+                          )}
+                        </div>
                         <div className="text-xs text-slate-500">{client.email || client.phone}</div>
                       </div>
                     </button>
@@ -779,17 +823,44 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
                     </span>
                   </td>
                   <td className="px-4 py-4">
+                    {client.status === 'Prospect' && client.prospectStatus ? (
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold w-fit ${getProspectStatusBadgeClass(client.prospectStatus)}`}>
+                          {PROSPECT_STATUS_LABELS[client.prospectStatus] || client.prospectStatus}
+                        </span>
+                        {client.prospectStatus === 'to_recall' && client.prospectStatusChangedAt && (
+                          <span className="text-[10px] text-slate-400">
+                            Depuis {new Date(client.prospectStatusChangedAt).toLocaleDateString('fr-FR')}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    {client.status === 'Prospect' ? (
+                      client.prospectStatus === 'to_recall' && isOverdue ? (
+                        <span className="text-xs text-rose-600 font-semibold">
+                          <i className="fa-solid fa-triangle-exclamation mr-1"></i>Dépassée
+                        </span>
+                      ) : client.prospectNextFollowUp ? (
+                        <span className="text-xs text-slate-600">
+                          <i className="fa-solid fa-clock mr-1 text-slate-400"></i>
+                          {new Date(client.prospectNextFollowUp).toLocaleDateString('fr-FR')}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4 rounded-r-lg">
                     {client.reservationCount ? (
                       <span className="text-slate-700 font-medium">{client.reservationCount} dossier(s)</span>
                     ) : (
                       <span className="text-xs text-slate-400">Aucun dossier</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 rounded-r-lg">
-                    {client.status === 'Prospect' ? (
-                      <div className="text-blue-600 font-medium text-xs">À relancer</div>
-                    ) : (
-                      <div className="text-slate-500 font-medium text-xs">Solde non disponible</div>
                     )}
                   </td>
                 </tr>
