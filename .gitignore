@@ -34,6 +34,9 @@ frontend/node_modules/
 frontend/dist/
 .aider*
 /documents/
+/backend/media/
+~$*.xlsx
+~$*.docx
 
 # Local sensitive business document sources - keep originals out of Git
 docs/references/source/templates/**/*.pdf
