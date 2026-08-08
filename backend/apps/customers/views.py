@@ -41,6 +41,7 @@ class CustomerCommercialTimelineAPIView(APIView):
         if customer is None:
             raise Http404("Customer not found.")
         from apps.common.commercial_timeline import get_commercial_timeline
+
         timeline = get_commercial_timeline(customer.id)
         serializer = CommercialTimelineEventSerializer(timeline, many=True)
         return Response(serializer.data)

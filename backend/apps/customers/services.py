@@ -158,10 +158,14 @@ def transition_prospect_status(
         )
 
     # Terminal statuses (disqualified / lost) require a reason
-    if target_status in {
-        ProspectStatus.DISQUALIFIED,
-        ProspectStatus.LOST,
-    } and not reason:
+    if (
+        target_status
+        in {
+            ProspectStatus.DISQUALIFIED,
+            ProspectStatus.LOST,
+        }
+        and not reason
+    ):
         raise ProspectTransitionError(
             f"Transition to '{target_status}' requires a reason.",
         )

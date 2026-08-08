@@ -96,25 +96,21 @@ class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
             self.signature_status == HandoverSignatureStatus.EXCEPTION
             and not self.signature_exception_reason
         ):
-            raise ValidationError(
-                "Signature exception status requires a reason."
-            )
+            raise ValidationError("Signature exception status requires a reason.")
         if (
             self.signature_status == HandoverSignatureStatus.RECEIVED
             and not self.signed_document_file
             and not self.signed_by
         ):
             raise ValidationError(
-                "Signature received requires either a signed document "
-                "file or a signed_by user."
+                "Signature received requires either a signed document file or a signed_by user."
             )
         if (
             self.signature_status != HandoverSignatureStatus.EXCEPTION
             and self.signature_exception_reason
         ):
             raise ValidationError(
-                "Signature exception reason is only allowed when "
-                "status is 'exception'."
+                "Signature exception reason is only allowed when status is 'exception'."
             )
 
 

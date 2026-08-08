@@ -35,11 +35,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Bon de livraison/20240530 BL HAHITANTSOA 018-24 RAHARIJAONA RASETAMANANA Solofonantenaina.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Bon de livraison/20240530 BL HAHITANTSOA 018-24 RAHARIJAONA RASETAMANANA Solofonantenaina.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_delivery_note.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/bl/v1/preview.pdf",
         validated_by_client=False,
-        notes="Replicate the A4 Hahitantsoa delivery-note layout from the nested Windows source before client validation. PDF is generated at runtime.",
+        notes="Replicate the A4 Hahitantsoa delivery-note layout from the nested Windows source before client validation. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.contract_amendment.v1",
@@ -49,11 +49,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Avenant/20240418 Avenant de contrat du 05 OCTOBRE   2024 RAVAOHARIMANANA Miora Nandrianina.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Avenant/20240418 Avenant de contrat du 05 OCTOBRE   2024 RAVAOHARIMANANA Miora Nandrianina.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_contract_amendment.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/avenant/v1/preview.pdf",
         validated_by_client=False,
-        notes="Replicate the A4 Hahitantsoa amendment layout from the nested Windows source before client validation. PDF is generated at runtime.",
+        notes="Replicate the A4 Hahitantsoa amendment layout from the nested Windows source before client validation. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.contract.v1",
@@ -63,7 +63,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/templates/Hahitantsoa/Contrat/20240124 CONTRAT DE LOCATION HAHITANTSOA DU 26 JANVIER 2024 PWC.pdf",
+        source_reference="docs/references/source/templates/Hahitantsoa/Contrat/20240124 CONTRAT DE LOCATION HAHITANTSOA DU 26 JANVIER 2024 PWC.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_contract.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/contrat/v1/preview.pdf",
         validated_by_client=False,
@@ -77,11 +77,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Facture/2024130 FACTURE HAHITANTSOA 093-24 RANJAVASON Nihantra Fanomezana.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Facture/2024130 FACTURE HAHITANTSOA 093-24 RANJAVASON Nihantra Fanomezana.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_invoice.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/facture/v1/preview.pdf",
         validated_by_client=False,
-        notes="Source-backed A4 Hahitantsoa invoice; preserve its source geometry and validate the variable mapping. PDF is generated at runtime.",
+        notes="Source-backed A4 Hahitantsoa invoice; preserve its source geometry and validate the variable mapping. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.proforma.v1",
@@ -91,11 +91,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Proforma/20240109 PROFORMA HAHITANTSOA 003-24 ANDRIAMAMPIANINA Ranto.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Proforma/20240109 PROFORMA HAHITANTSOA 003-24 ANDRIAMAMPIANINA Ranto.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_proforma.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/proforma/v1/preview.pdf",
         validated_by_client=False,
-        notes="Source-backed A4 Hahitantsoa proforma; protected workflow renderer remains unchanged. PDF is generated at runtime.",
+        notes="Source-backed A4 Hahitantsoa proforma; protected workflow renderer remains unchanged. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.house_rules.v1",
@@ -119,11 +119,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="validated_source_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/DECHARGE RESPONSABILITE CIVILE HAHITANTSOA_v1.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/DECHARGE RESPONSABILITE CIVILE HAHITANTSOA_v1.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_liability_release.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/decharge_responsabilite/v1/preview.pdf",
         validated_by_client=True,
-        notes="Source-backed A4 liability release; document remains separate from the protected contract renderer.",
+        notes="Source-backed A4 liability release; document remains separate from the protected contract renderer.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.delivery_note.v1",
@@ -133,11 +133,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="validated_source_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Bon de livraison/20240808 BON DE LIVRAISON TITAN 018-24 calista.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Bon de livraison/20240808 BON DE LIVRAISON TITAN 018-24 calista.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_delivery_note.html",
         preview_path="backend/apps/documents/templates_documents/titan/bl/v1/preview.pdf",
         validated_by_client=True,
-        notes="Replicate the A4 Titan delivery-note layout from the nested Windows source before client validation.",
+        notes="Replicate the A4 Titan delivery-note layout from the nested Windows source before client validation.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.proforma.v1",
@@ -147,7 +147,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="validated_source_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Proforma/20240206 PROFORMA TITAN 002-24 CALISTA.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Proforma/20240206 PROFORMA TITAN 002-24 CALISTA.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_proforma.html",
         preview_path="backend/apps/documents/templates_documents/titan/proforma/v1/preview.pdf",
         validated_by_client=True,
@@ -161,11 +161,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="validated_source_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Facture/20240802 FACTURE  TITAN 033-24 RAZAFINDRASOA Lalaina.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Facture/20240802 FACTURE  TITAN 033-24 RAZAFINDRASOA Lalaina.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_invoice.html",
         preview_path="backend/apps/documents/templates_documents/titan/facture/v1/preview.pdf",
         validated_by_client=True,
-        notes="Replicate the A4 Titan invoice layout from the nested Windows source before client validation.",
+        notes="Replicate the A4 Titan invoice layout from the nested Windows source before client validation.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.material_amendment.v1",
@@ -175,11 +175,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="generated_from_brand_style",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Avenant de contrat titan 2023 V2.docx",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Avenant de contrat titan 2023 V2.docx",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_material_amendment.html",
         preview_path="backend/apps/documents/templates_documents/titan/avenant_materiel/v1/preview.pdf",
         validated_by_client=False,
-        notes="Draft HTML reconstructed from the nested Titan amendment DOCX; exact visual validation remains pending. PDF is generated at runtime.",
+        notes="Draft HTML reconstructed from the nested Titan amendment DOCX; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.material_contract.v1",
@@ -189,11 +189,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="generated_from_brand_style",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Contrat/20240615 CONTRAT DE LOCATION TITAN RENTAL 15 JUIN 2024.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Contrat/20240615 CONTRAT DE LOCATION TITAN RENTAL 15 JUIN 2024.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_material_contract.html",
         preview_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/preview.pdf",
         validated_by_client=False,
-        notes="Draft HTML reconstructed from the nested Titan contract PDF; exact visual validation remains pending. PDF is generated at runtime.",
+        notes="Draft HTML reconstructed from the nested Titan contract PDF; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="shared.payment_receipt.v1",
@@ -293,11 +293,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="generated_from_brand_style",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/20221128 BON DE COMMANDE 002-22.pdf",
+        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/20221128 BON DE COMMANDE 002-22.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/shared_supplier_purchase_order.html",
         preview_path="backend/apps/documents/templates_documents/shared/bon_commande_fournisseur/v1/preview.pdf",
         validated_by_client=False,
-        notes="Draft HTML reconstructed from the nested supplier purchase-order PDF; exact visual validation remains pending. PDF is generated at runtime.",
+        notes="Draft HTML reconstructed from the nested supplier purchase-order PDF; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="shared.breakage_repair_invoice.v1",

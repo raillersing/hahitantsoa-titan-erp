@@ -353,9 +353,7 @@ class LogisticsEventSignatureUpdateAPIView(APIView):
                 actor=request.user,
                 event=event,
                 signature_status=serializer.validated_data["signature_status"],
-                signed_by_client_name=serializer.validated_data.get(
-                    "signed_by_client_name", ""
-                ),
+                signed_by_client_name=serializer.validated_data.get("signed_by_client_name", ""),
                 signature_exception_reason=serializer.validated_data.get(
                     "signature_exception_reason", ""
                 ),

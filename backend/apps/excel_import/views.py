@@ -269,7 +269,10 @@ class ImportJobValidateAPIView(APIView):
             )
 
         mapped_targets = set(mapping.values())
-        if "reported_inventory_quantity" in mapped_targets and "initial_stock" not in mapped_targets:
+        if (
+            "reported_inventory_quantity" in mapped_targets
+            and "initial_stock" not in mapped_targets
+        ):
             mapped_targets.add("initial_stock")
 
         errors, prepared_rows = [], []
@@ -373,7 +376,9 @@ class ImportJobValidateAPIView(APIView):
                             )
             except ValueError as error:
                 errors.append({"row": None, "error": str(error)})
-        job.status = "completed" if not errors else ("partially_completed" if prepared_rows else "failed")
+        job.status = (
+            "completed" if not errors else ("partially_completed" if prepared_rows else "failed")
+        )
         job.valid_rows = len(prepared_rows)
         job.error_rows = len(errors)
         job.error_log = errors

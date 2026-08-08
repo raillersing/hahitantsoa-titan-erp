@@ -90,8 +90,8 @@ class WeasyPrintPDFGenerator(DocumentPDFGenerator):
 
     def generate_pdf(self, html_content: str) -> bytes:
         try:
-            from weasyprint import HTML
             from django.conf import settings
+            from weasyprint import HTML
 
             # The HTML artifact is served through the application, while
             # WeasyPrint renders without an HTTP request context. Resolve the

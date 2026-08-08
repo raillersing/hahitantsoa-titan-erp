@@ -82,8 +82,7 @@ def _reservations(customer_id: UUID) -> list[dict]:
                 "type": "reservation",
                 "title": f"Réservation {draft.public_reference}",
                 "description": (
-                    f"Du {draft.start_at:%Y-%m-%d %H:%M}"
-                    f" au {draft.end_at:%Y-%m-%d %H:%M}"
+                    f"Du {draft.start_at:%Y-%m-%d %H:%M} au {draft.end_at:%Y-%m-%d %H:%M}"
                 ),
                 "metadata": {
                     "reservation_draft_id": str(draft.id),
@@ -131,9 +130,13 @@ def _reservations(customer_id: UUID) -> list[dict]:
 
 def _invoices(customer_id: UUID) -> list[dict]:
     events = []
-    invoices = BillingInvoice.objects.filter(
-        Q(reservation_draft__customer_id=customer_id) | Q(excess_receivable__isnull=False),
-    ).select_related("reservation_draft").order_by("created_at")
+    invoices = (
+        BillingInvoice.objects.filter(
+            Q(reservation_draft__customer_id=customer_id) | Q(excess_receivable__isnull=False),
+        )
+        .select_related("reservation_draft")
+        .order_by("created_at")
+    )
     for inv in invoices:
         # Only include invoices linked to this customer's reservations or directly
         if inv.reservation_draft_id and str(inv.reservation_draft.customer_id) != str(customer_id):
@@ -173,12 +176,14 @@ def _invoices(customer_id: UUID) -> list[dict]:
 
 def _payments(customer_id: UUID) -> list[dict]:
     events = []
-    payments = Payment.objects.filter(
-        Q(reservation_draft__customer_id=customer_id)
-        | Q(hahitantsoa_event_draft__customer_id=customer_id),
-    ).select_related(
-        "reservation_draft", "hahitantsoa_event_draft"
-    ).order_by("created_at")
+    payments = (
+        Payment.objects.filter(
+            Q(reservation_draft__customer_id=customer_id)
+            | Q(hahitantsoa_event_draft__customer_id=customer_id),
+        )
+        .select_related("reservation_draft", "hahitantsoa_event_draft")
+        .order_by("created_at")
+    )
     for payment in payments:
         events.append(
             {
@@ -186,8 +191,7 @@ def _payments(customer_id: UUID) -> list[dict]:
                 "type": "payment",
                 "title": f"Paiement {payment.payment_kind}",
                 "description": (
-                    f"{payment.amount} via {payment.payment_method}"
-                    f" — {payment.payment_status}"
+                    f"{payment.amount} via {payment.payment_method} — {payment.payment_status}"
                 ),
                 "metadata": {
                     "payment_id": str(payment.id),
@@ -241,9 +245,13 @@ def _visits(customer_id: UUID) -> list[dict]:
 
 def _logistics(customer_id: UUID) -> list[dict]:
     events = []
-    log_events = LogisticsEvent.objects.filter(
-        reservation_draft__customer_id=customer_id,
-    ).select_related("reservation_draft").order_by("created_at")
+    log_events = (
+        LogisticsEvent.objects.filter(
+            reservation_draft__customer_id=customer_id,
+        )
+        .select_related("reservation_draft")
+        .order_by("created_at")
+    )
     for le in log_events:
         events.append(
             {
@@ -251,8 +259,7 @@ def _logistics(customer_id: UUID) -> list[dict]:
                 "type": "logistics",
                 "title": f"Logistique : {le.get_event_type_display()}",
                 "description": (
-                    f"Statut : {le.status}"
-                    f" — Réservation {le.reservation_draft.public_reference}"
+                    f"Statut : {le.status} — Réservation {le.reservation_draft.public_reference}"
                 ),
                 "metadata": {
                     "logistics_event_id": str(le.id),

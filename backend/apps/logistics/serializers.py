@@ -151,12 +151,10 @@ class LogisticsEventSignatureUpdateSerializer(serializers.Serializer):
                     "signed_by_client_name is required when signature_status is "
                     "'received' and no signed_document_file is provided."
                 )
-        if (
-            status_value == HandoverSignatureStatus.EXCEPTION
-            and not attrs.get("signature_exception_reason")
+        if status_value == HandoverSignatureStatus.EXCEPTION and not attrs.get(
+            "signature_exception_reason"
         ):
             raise serializers.ValidationError(
-                "signature_exception_reason is required when "
-                "signature_status is 'exception'."
+                "signature_exception_reason is required when signature_status is 'exception'."
             )
         return attrs

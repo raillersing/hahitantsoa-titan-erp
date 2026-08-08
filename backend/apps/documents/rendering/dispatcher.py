@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 DOCUMENT_TEMPLATE_PATHS: dict[str, str] = {
     "hahitantsoa.proforma.v1": "documents/hahitantsoa_proforma.html",
     "hahitantsoa.contract.v1": "documents/hahitantsoa_contract.html",

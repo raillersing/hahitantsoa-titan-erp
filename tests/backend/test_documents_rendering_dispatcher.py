@@ -14,10 +14,7 @@ def test_protected_workflow_documents_resolve_to_their_existing_templates() -> N
         resolve_document_template_path("hahitantsoa.proforma.v1")
         == "documents/hahitantsoa_proforma.html"
     )
-    assert (
-        resolve_document_template_path("titan.proforma.v1")
-        == "documents/titan_proforma.html"
-    )
+    assert resolve_document_template_path("titan.proforma.v1") == "documents/titan_proforma.html"
 
 
 def test_unknown_or_excluded_document_has_no_runtime_template() -> None:

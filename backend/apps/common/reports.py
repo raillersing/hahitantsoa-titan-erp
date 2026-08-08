@@ -205,9 +205,7 @@ def get_period_bounds(
         prev_end = prev_start + (end - start)
     elif period == "quarter":
         quarter = (now.month - 1) // 3
-        start = now.replace(
-            month=quarter * 3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0
-        )
+        start = now.replace(month=quarter * 3 + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
         end = now
         if quarter == 0:
             prev_start = start.replace(year=start.year - 1, month=10, day=1)
@@ -314,20 +312,14 @@ def calculate_reservation_scope_split(period: str) -> dict[str, Any]:
 
 def calculate_revenue_invoiced(period: str) -> dict[str, Any]:
     start, end, pstart, pend = get_period_bounds(period=period)
-    current = (
-        BillingInvoice.objects.filter(
-            issued_at__range=(start, end),
-            invoice_status__in=[BillingInvoiceStatus.OPEN, BillingInvoiceStatus.SETTLED],
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    previous = (
-        BillingInvoice.objects.filter(
-            issued_at__range=(pstart, pend),
-            invoice_status__in=[BillingInvoiceStatus.OPEN, BillingInvoiceStatus.SETTLED],
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
+    current = BillingInvoice.objects.filter(
+        issued_at__range=(start, end),
+        invoice_status__in=[BillingInvoiceStatus.OPEN, BillingInvoiceStatus.SETTLED],
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+    previous = BillingInvoice.objects.filter(
+        issued_at__range=(pstart, pend),
+        invoice_status__in=[BillingInvoiceStatus.OPEN, BillingInvoiceStatus.SETTLED],
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
     return {
         "value": float(current),
         "previous_period_value": float(previous),
@@ -339,18 +331,12 @@ def calculate_revenue_collected(period: str) -> dict[str, Any]:
     from apps.billing.models import BillingInvoiceSettlement
 
     start, end, pstart, pend = get_period_bounds(period=period)
-    current = (
-        BillingInvoiceSettlement.objects.filter(settled_at__range=(start, end)).aggregate(
-            total=models.Sum("amount")
-        )["total"]
-        or Decimal("0.00")
-    )
-    previous = (
-        BillingInvoiceSettlement.objects.filter(settled_at__range=(pstart, pend)).aggregate(
-            total=models.Sum("amount")
-        )["total"]
-        or Decimal("0.00")
-    )
+    current = BillingInvoiceSettlement.objects.filter(settled_at__range=(start, end)).aggregate(
+        total=models.Sum("amount")
+    )["total"] or Decimal("0.00")
+    previous = BillingInvoiceSettlement.objects.filter(settled_at__range=(pstart, pend)).aggregate(
+        total=models.Sum("amount")
+    )["total"] or Decimal("0.00")
     return {
         "value": float(current),
         "previous_period_value": float(previous),
@@ -360,18 +346,12 @@ def calculate_revenue_collected(period: str) -> dict[str, Any]:
 
 def calculate_revenue_outstanding(period: str) -> dict[str, Any]:
     _, end, _, prev_end = get_period_bounds(period=period)
-    current = (
-        BillingInvoice.objects.filter(
-            issued_at__lte=end, invoice_status=BillingInvoiceStatus.OPEN
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    previous = (
-        BillingInvoice.objects.filter(
-            issued_at__lte=prev_end, invoice_status=BillingInvoiceStatus.OPEN
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
+    current = BillingInvoice.objects.filter(
+        issued_at__lte=end, invoice_status=BillingInvoiceStatus.OPEN
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+    previous = BillingInvoice.objects.filter(
+        issued_at__lte=prev_end, invoice_status=BillingInvoiceStatus.OPEN
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
     return {
         "value": float(current),
         "previous_period_value": float(previous),
@@ -381,20 +361,14 @@ def calculate_revenue_outstanding(period: str) -> dict[str, Any]:
 
 def calculate_credit_note_total(period: str) -> dict[str, Any]:
     start, end, pstart, pend = get_period_bounds(period=period)
-    current = (
-        BillingCreditNote.objects.filter(
-            issued_at__range=(start, end),
-            status__in=[BillingCreditNoteStatus.ISSUED, BillingCreditNoteStatus.APPLIED],
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    previous = (
-        BillingCreditNote.objects.filter(
-            issued_at__range=(pstart, pend),
-            status__in=[BillingCreditNoteStatus.ISSUED, BillingCreditNoteStatus.APPLIED],
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
+    current = BillingCreditNote.objects.filter(
+        issued_at__range=(start, end),
+        status__in=[BillingCreditNoteStatus.ISSUED, BillingCreditNoteStatus.APPLIED],
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+    previous = BillingCreditNote.objects.filter(
+        issued_at__range=(pstart, pend),
+        status__in=[BillingCreditNoteStatus.ISSUED, BillingCreditNoteStatus.APPLIED],
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
     return {
         "value": float(current),
         "previous_period_value": float(previous),
@@ -404,20 +378,14 @@ def calculate_credit_note_total(period: str) -> dict[str, Any]:
 
 def calculate_refund_total(period: str) -> dict[str, Any]:
     start, end, pstart, pend = get_period_bounds(period=period)
-    current = (
-        BillingRefundObligation.objects.filter(
-            executed_at__range=(start, end),
-            status=BillingRefundObligationStatus.EXECUTED,
-        ).aggregate(total=models.Sum("refund_amount"))["total"]
-        or Decimal("0.00")
-    )
-    previous = (
-        BillingRefundObligation.objects.filter(
-            executed_at__range=(pstart, pend),
-            status=BillingRefundObligationStatus.EXECUTED,
-        ).aggregate(total=models.Sum("refund_amount"))["total"]
-        or Decimal("0.00")
-    )
+    current = BillingRefundObligation.objects.filter(
+        executed_at__range=(start, end),
+        status=BillingRefundObligationStatus.EXECUTED,
+    ).aggregate(total=models.Sum("refund_amount"))["total"] or Decimal("0.00")
+    previous = BillingRefundObligation.objects.filter(
+        executed_at__range=(pstart, pend),
+        status=BillingRefundObligationStatus.EXECUTED,
+    ).aggregate(total=models.Sum("refund_amount"))["total"] or Decimal("0.00")
     return {
         "value": float(current),
         "previous_period_value": float(previous),
@@ -433,22 +401,16 @@ def calculate_payment_method_split(period: str) -> dict[str, Any]:
     previous_total = Decimal("0.00")
     confirmed_statuses = [PaymentStatus.CONFIRMED, PaymentStatus.RECONCILED]
     for method, _label in PaymentMethod.choices:
-        cur = (
-            Payment.objects.filter(
-                paid_at__range=(start, end),
-                payment_status__in=confirmed_statuses,
-                payment_method=method,
-            ).aggregate(total=models.Sum("amount"))["total"]
-            or Decimal("0.00")
-        )
-        prev = (
-            Payment.objects.filter(
-                paid_at__range=(pstart, pend),
-                payment_status__in=confirmed_statuses,
-                payment_method=method,
-            ).aggregate(total=models.Sum("amount"))["total"]
-            or Decimal("0.00")
-        )
+        cur = Payment.objects.filter(
+            paid_at__range=(start, end),
+            payment_status__in=confirmed_statuses,
+            payment_method=method,
+        ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+        prev = Payment.objects.filter(
+            paid_at__range=(pstart, pend),
+            payment_status__in=confirmed_statuses,
+            payment_method=method,
+        ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
         current[method] = float(cur)
         previous[method] = float(prev)
         current_total += cur
@@ -478,18 +440,12 @@ def calculate_payment_due_date(period: str) -> dict[str, Any]:
 
 def calculate_payment_interim(period: str) -> dict[str, Any]:
     start, end, pstart, pend = get_period_bounds(period=period)
-    current = (
-        BillingInstallmentAllocation.objects.filter(
-            allocated_at__range=(start, end)
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    previous = (
-        BillingInstallmentAllocation.objects.filter(
-            allocated_at__range=(pstart, pend)
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
+    current = BillingInstallmentAllocation.objects.filter(
+        allocated_at__range=(start, end)
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+    previous = BillingInstallmentAllocation.objects.filter(
+        allocated_at__range=(pstart, pend)
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
     return {
         "value": float(current),
         "previous_period_value": float(previous),
@@ -499,20 +455,14 @@ def calculate_payment_interim(period: str) -> dict[str, Any]:
 
 def calculate_payment_reconciled(period: str) -> dict[str, Any]:
     start, end, pstart, pend = get_period_bounds(period=period)
-    current = (
-        Payment.objects.filter(
-            payment_status=PaymentStatus.RECONCILED,
-            confirmed_at__range=(start, end),
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
-    previous = (
-        Payment.objects.filter(
-            payment_status=PaymentStatus.RECONCILED,
-            confirmed_at__range=(pstart, pend),
-        ).aggregate(total=models.Sum("amount"))["total"]
-        or Decimal("0.00")
-    )
+    current = Payment.objects.filter(
+        payment_status=PaymentStatus.RECONCILED,
+        confirmed_at__range=(start, end),
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+    previous = Payment.objects.filter(
+        payment_status=PaymentStatus.RECONCILED,
+        confirmed_at__range=(pstart, pend),
+    ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
     return {
         "value": float(current),
         "previous_period_value": float(previous),
@@ -567,9 +517,7 @@ def calculate_prospect_conversion_rate(period: str) -> dict[str, Any]:
         + converted_current
     )
     rate = (
-        (converted_current / total_prospects_current * 100)
-        if total_prospects_current > 0
-        else 0.0
+        (converted_current / total_prospects_current * 100) if total_prospects_current > 0 else 0.0
     )
 
     converted_previous = Customer.objects.filter(
@@ -639,20 +587,28 @@ def calculate_prospect_overdue_recall(period: str) -> dict[str, Any]:
         ProspectStatus.DISQUALIFIED.value,
         ProspectStatus.LOST.value,
     ]
-    current = Customer.objects.filter(
-        lifecycle_status=CustomerLifecycleStatus.PROSPECT,
-        prospect_next_follow_up__lt=end,
-        prospect_next_follow_up__isnull=False,
-        is_active=True,
-        is_deleted=False,
-    ).exclude(prospect_status__in=terminal_statuses).count()
-    previous = Customer.objects.filter(
-        lifecycle_status=CustomerLifecycleStatus.PROSPECT,
-        prospect_next_follow_up__lt=pend,
-        prospect_next_follow_up__isnull=False,
-        is_active=True,
-        is_deleted=False,
-    ).exclude(prospect_status__in=terminal_statuses).count()
+    current = (
+        Customer.objects.filter(
+            lifecycle_status=CustomerLifecycleStatus.PROSPECT,
+            prospect_next_follow_up__lt=end,
+            prospect_next_follow_up__isnull=False,
+            is_active=True,
+            is_deleted=False,
+        )
+        .exclude(prospect_status__in=terminal_statuses)
+        .count()
+    )
+    previous = (
+        Customer.objects.filter(
+            lifecycle_status=CustomerLifecycleStatus.PROSPECT,
+            prospect_next_follow_up__lt=pend,
+            prospect_next_follow_up__isnull=False,
+            is_active=True,
+            is_deleted=False,
+        )
+        .exclude(prospect_status__in=terminal_statuses)
+        .count()
+    )
     return {
         "value": current,
         "previous_period_value": previous,

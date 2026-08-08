@@ -32,9 +32,9 @@ def auto_update_prospect_status_on_proforma(sender, instance, created, **kwargs)
         return
 
     # Ne met a jour que si c'est un prospect et qu'il n'est pas deja a proforma_sent
-    if (
-        customer.lifecycle_status == "prospect"
-        and customer.prospect_status not in ("proforma_sent", "converted")
+    if customer.lifecycle_status == "prospect" and customer.prospect_status not in (
+        "proforma_sent",
+        "converted",
     ):
         transition_prospect_status(
             customer=customer,

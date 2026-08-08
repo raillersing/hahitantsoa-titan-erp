@@ -11,12 +11,9 @@ WINDOWS_SOURCE_PREFIX = "/mnt/c/Users/raillersing/Documents/Ergon Projects/Model
 
 
 def _is_documented_source_pdf(path_value: str) -> bool:
-    return (
-        path_value.endswith(".pdf")
-        and (
-            path_value.startswith(SOURCE_REFERENCE_PREFIX)
-            or path_value.startswith(WINDOWS_SOURCE_PREFIX)
-        )
+    return path_value.endswith(".pdf") and (
+        path_value.startswith(SOURCE_REFERENCE_PREFIX)
+        or path_value.startswith(WINDOWS_SOURCE_PREFIX)
     )
 
 

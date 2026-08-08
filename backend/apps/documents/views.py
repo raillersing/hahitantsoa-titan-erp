@@ -408,6 +408,8 @@ def _build_preview_bank(template_definition) -> dict[str, str]:
         "iban": "{{iban}}",
         "swift_bic": "{{swift_bic}}",
     }
+
+
 class DocumentTemplatePreviewAPIView(APIView):
     """Render a template with mock data for preview without persisting anything."""
 
