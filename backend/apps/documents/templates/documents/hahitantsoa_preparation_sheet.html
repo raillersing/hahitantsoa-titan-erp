@@ -1,12 +1,200 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Checking passation</title>
-<style>@page{size:A4;margin:18mm 22mm}*{box-sizing:border-box}body{margin:0;font-family:'Century Gothic','Trebuchet MS',Arial,sans-serif;color:#000}.columns{column-count:2;column-gap:18mm}.section{break-inside:avoid;margin:0 0 5mm}.section h2{font-size:10pt;font-weight:400;margin:0 0 1.5mm}.section ul{margin:0;padding-left:7mm}.section li{font-size:8pt;line-height:1.45;margin:0}</style></head><body>
-<div class="columns">
-<section class="section"><h2>Cuisine</h2><ul><li>2 prises intérieures</li><li>1 interrupteur intérieure</li><li>1 évier</li><li>1 évier en inox (bas cabossé)</li><li>1 réfrigérateur (avec 4 plateaux)</li><li>1 congélateur (3 bacs</li><li>4 poubelles (1 couvercle détachée)</li><li>1 bassin extérieur</li><li>1 interrupteur extérieure</li><li>2 serpillères</li><li>2 balais pour extérieur</li><li>1 balai brosse</li><li>1 raclette</li><li>1 pelle à ordure</li><li>Porte/serrure</li></ul></section>
-<section class="section"><h2>Toilettes prestataires</h2><ul><li>Cuvette</li><li>Porte</li></ul></section>
-<section class="section"><h2>Groupe</h2><ul><li>Carburant : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; %</li></ul></section>
-<section class="section"><h2>Salle</h2><ul><li>Vitrage</li><li>4 prises (1 HS)</li></ul></section>
-<section class="section"><h2>Jardin</h2><ul><li>4 prises</li></ul></section>
-<section class="section"><h2>Toilettes invités</h2><ul><li>3 lavabos</li><li>1 prise</li><li>4 cuvettes femmes (mihetsika ny lunettes)</li><li>5 Pissoirs</li><li>2 cuvettes hommes (mihetsika ny lunettes)</li><li>Portes/serrure</li></ul></section>
-<section class="section"><h2>Petit salon</h2><ul><li>2 fauteuils avec coussins</li><li>1 tapis</li><li>1 table d’appoint</li><li>1 miroir</li><li>1 penderie</li><li>2 prises</li><li>Rideaux</li><li>Volet roulant</li><li>1 interrupteur</li><li>Porte / serrure</li></ul></section>
-<section class="section"><h2>Salle d’eau mariés</h2><ul><li>Lavabo</li><li>Cuvette</li><li>2 serviettes</li><li>1 interrupteur</li><li>1 prise</li><li>Colonne de douche</li><li>Porte / serrure</li></ul></section>
-</div></body></html>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Checking de Passation Hahitantsoa — {{ context.event_draft.public_reference }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 15mm 15mm 15mm;
+      @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        font-family: Arial, sans-serif;
+        font-size: 8pt;
+        color: #64748b;
+      }
+    }
+    body {
+      color: #0f172a;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.35;
+      margin: 0;
+      padding: 0;
+    }
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      border-bottom: 2px solid #1d4d6b;
+      padding-bottom: 8px;
+    }
+    .brand-title {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #1d4d6b;
+      margin: 0;
+      letter-spacing: 0.5px;
+    }
+    .brand-subtitle {
+      font-size: 8.5pt;
+      color: #7a271a;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .doc-title {
+      text-align: right;
+      font-size: 15pt;
+      font-weight: bold;
+      color: #1d4d6b;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .meta-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 8px 10px;
+      background-color: #f8fafc;
+      margin-bottom: 12px;
+      font-size: 9pt;
+    }
+    .meta-line {
+      margin-bottom: 3px;
+    }
+    .meta-label {
+      font-weight: bold;
+      color: #475569;
+      display: inline-block;
+      width: 110px;
+    }
+    .section-title {
+      font-size: 10.5pt;
+      font-weight: bold;
+      color: #1d4d6b;
+      background-color: #eaf1f5;
+      padding: 5px 8px;
+      border: 1px solid #9aa6b2;
+      margin-top: 12px;
+      margin-bottom: 0;
+      text-transform: uppercase;
+    }
+    table.grid {
+      border-collapse: collapse;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    table.grid th, table.grid td {
+      border: 1px solid #9aa6b2;
+      padding: 5px 7px;
+      font-size: 9pt;
+    }
+    table.grid th {
+      background-color: #f1f5f9;
+      font-weight: bold;
+      text-align: left;
+    }
+    .check-col { width: 45px; text-align: center; font-weight: bold; }
+    .item-col { width: 38%; }
+    .obs-col { width: 50%; }
+    .sig-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      page-break-inside: avoid;
+    }
+    .sig-td {
+      width: 48%;
+      vertical-align: top;
+      border: 1px solid #94a3b8;
+      border-radius: 4px;
+      padding: 10px;
+      height: 70px;
+    }
+  </style>
+</head>
+<body>
+  <table class="header-table">
+    <tr>
+      <td>
+        <h1 class="brand-title">HAHITANTSOA</h1>
+        <div class="brand-subtitle">Document Interne — Checking de Passation Événement</div>
+      </td>
+      <td style="text-align: right; vertical-align: top;">
+        <div class="doc-title">Checking de passation</div>
+        <div style="font-size: 9.5pt; font-weight: bold; color: #475569; margin-top: 4px;">Réf. {{ context.event_draft.public_reference }}</div>
+        <div style="font-size: 8pt; color: #64748b;">Date : {% now "d/m/Y" %}</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="meta-box">
+    <div class="meta-line"><span class="meta-label">Client :</span> <strong>{{ context.event_draft.customer_display_name }}</strong></div>
+    <div class="meta-line"><span class="meta-label">Événement :</span> <strong>{{ context.event_draft.event_name }}</strong> {% if context.event_draft.event_type %}({{ context.event_draft.event_type }}){% endif %}</div>
+    <div class="meta-line"><span class="meta-label">Lieu :</span> {{ context.event_draft.venue_name|default:"Non renseigné" }} {{ context.event_draft.location_details }}</div>
+    <div class="meta-line"><span class="meta-label">Période :</span> {{ context.event_draft.start_at|date:"d/m/Y H:i" }} au {{ context.event_draft.end_at|date:"d/m/Y H:i" }}</div>
+  </div>
+
+  <div class="section-title">1. Inventaire des Équipements Commandés</div>
+  <table class="grid">
+    <thead>
+      <tr>
+        <th class="check-col">OK</th>
+        <th class="item-col">Désignation Matériel / Prestation</th>
+        <th style="width: 60px; text-align: center;">Qté</th>
+        <th class="obs-col">Observations / État</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in context.event_draft.lines %}
+      <tr>
+        <td class="check-col">☐</td>
+        <td><strong>{{ line.inventory_item_name }}</strong> ({{ line.inventory_item_kind }})</td>
+        <td style="text-align: center; font-weight: bold;">{{ line.quantity }}</td>
+        <td>{{ line.notes|default:"" }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" style="text-align: center; color: #64748b;">Aucun article spécifique figurant sur le brouillon d'événement.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="section-title">2. Grille de Contrôle des Zones & Infrastructures (Checking Passation)</div>
+  <table class="grid">
+    <thead>
+      <tr>
+        <th class="check-col">OK</th>
+        <th class="item-col">Zone / Éléments à Contrôler</th>
+        <th class="obs-col">Observations à l'entrée / sortie</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="check-col">☐</td><td><strong>Cuisine</strong> — Prises, interrupteurs, évier, réfrigérateur, congélateur</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Cuisine</strong> — Poubelles, bassin extérieur, balais, serpillères, raclette, pelle</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Sécurité</strong> — Porte / serrure & Toilettes prestataires</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Énergie / Groupe</strong> — Niveau de carburant : ________ %</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Salle de Réception</strong> — Vitrage, fermetures & Prises électriques</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Espaces Extérieurs / Jardin</strong> — Prises & Éclairage extérieur</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Toilettes Invités</strong> — Lavabos, prises, cuvettes, urinoirs, serrures</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Petit Salon Mariés</strong> — Fauteuils, tapis, table, miroir, penderie, rideaux, volet, prises, serrures</td><td></td></tr>
+      <tr><td class="check-col">☐</td><td><strong>Salle d'Eau Mariés</strong> — Lavabo, cuvette, serviettes, interrupteur, prise, douche, serrures</td><td></td></tr>
+    </tbody>
+  </table>
+
+  <table class="sig-table">
+    <tr>
+      <td class="sig-td">
+        <div style="font-weight: bold; color: #1d4d6b;">Vérifié par le Staff Hahitantsoa</div>
+        <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Nom & Signature :</div>
+      </td>
+      <td style="width: 4%;"></td>
+      <td class="sig-td">
+        <div style="font-weight: bold; color: #0f172a;">Reçu / Validé par le Client</div>
+        <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">Mention « Lu et approuvé » + Signature :</div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
