@@ -73,7 +73,7 @@
         <td style="width: 60%;">
           <img src="/brand/ergon-logo.png" alt="Ergon ERP" class="logo-img" onerror="this.style.display='none'" />
           <div class="document-title">REÇU DE PAIEMENT</div>
-          <div class="document-sub">N° Reçu : {{ context.payment.id|default:"REC-2026-0001" }} · Document d'encaissement officiel</div>
+          <div class="document-sub">N° Reçu : {{ context.payment.payment_id|default:"REC-2026-0001" }} · Document d'encaissement officiel</div>
         </td>
         <td style="text-align: right;">
           <div class="status-stamp">PAYÉ / VALIDÉ</div>
@@ -144,7 +144,7 @@
             <strong>{{ context.template.label|default:"Règlement d'acompte de réservation" }}</strong><br>
             <span style="font-size: 8.5pt; color: #64748b;">{{ context.payment.notes|default:"Acompte pour confirmation de réservation de matériel" }}</span>
           </td>
-          <td style="font-family: monospace;">{{ context.payment.external_reference|default:context.payment.id|default:"PAY-2026-001" }}</td>
+          <td style="font-family: monospace;">{{ context.payment.external_reference|default:context.payment.payment_id|default:"PAY-2026-001" }}</td>
           <td>{{ context.payment.payment_method|default:"Espèces" }}</td>
           <td style="text-align: right; font-weight: 700;">{{ context.payment.amount|default:"500 000" }} MGA</td>
         </tr>
