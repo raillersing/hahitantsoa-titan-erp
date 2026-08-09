@@ -154,18 +154,9 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
 class DocumentInstanceListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for the hub list view."""
 
-    reservation_draft_id = serializers.UUIDField(
-        source="reservation_draft_id",
-        read_only=True,
-    )
-    hahitantsoa_event_draft_id = serializers.UUIDField(
-        source="hahitantsoa_event_draft_id",
-        read_only=True,
-    )
-    customer_id = serializers.UUIDField(
-        source="customer_id",
-        read_only=True,
-    )
+    reservation_draft_id = serializers.UUIDField(read_only=True)
+    hahitantsoa_event_draft_id = serializers.UUIDField(read_only=True)
+    customer_id = serializers.UUIDField(read_only=True)
 
     class Meta:
         model = DocumentInstance
