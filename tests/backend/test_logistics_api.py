@@ -19,6 +19,14 @@ LOGISTICS_EVENT_LIST_URL = "/api/v1/logistics/events/"
 LOGISTICS_EVENT_CREATE_URL = "/api/v1/logistics/events/create/"
 
 
+def _make_safe_dt(dt: timezone.datetime) -> timezone.datetime:
+    """Shift a datetime to the following Monday when it falls on Sunday."""
+    local = timezone.localtime(dt)
+    if local.weekday() == 6:
+        return (local + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+    return dt
+
+
 @pytest.fixture
 def regular_authenticated_client(client):
     user = User.objects.create_user(username="regular", password="test-pass")
@@ -132,7 +140,7 @@ def test_create_logistics_event(operator_authenticated_client, reservation_draft
     payload = {
         "reservation_draft": str(reservation_draft.id),
         "event_type": "handover",
-        "scheduled_at": timezone.now().isoformat(),
+        "scheduled_at": _make_safe_dt(timezone.now()).isoformat(),
         "address": "123 Rue de la Paix",
         "signature_required": True,
     }
@@ -283,7 +291,7 @@ def test_complete_passation(operator_authenticated_client, reservation_draft):
         event_type=LogisticsEventType.HANDOVER,
         status=LogisticsEventStatus.PLANNED,
         signature_required=True,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     # transition to completed
     url = f"/api/v1/logistics/events/{event.id}/transition/"
@@ -310,7 +318,7 @@ def test_complete_passation_not_handover(operator_authenticated_client, reservat
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.PLANNED,
         signature_required=True,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     url = f"/api/v1/logistics/events/{event.id}/transition/"
     operator_authenticated_client.post(

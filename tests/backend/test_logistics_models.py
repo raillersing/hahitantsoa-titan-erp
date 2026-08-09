@@ -17,6 +17,14 @@ from apps.reservations.models import ReservationDraft
 pytestmark = pytest.mark.django_db
 
 
+def _make_safe_dt(dt: timezone.datetime) -> timezone.datetime:
+    """Shift a datetime to the following Monday when it falls on Sunday."""
+    local = timezone.localtime(dt)
+    if local.weekday() == 6:
+        return (local + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+    return dt
+
+
 def _customer():
     return Customer.objects.create(display_name="Logistics Client")
 
@@ -26,7 +34,7 @@ def _item():
 
 
 def _reservation_draft():
-    start = timezone.now().replace(microsecond=0)
+    start = _make_safe_dt(timezone.now().replace(microsecond=0))
     return ReservationDraft.objects.create(
         customer=_customer(),
         start_at=start,
@@ -111,7 +119,7 @@ def test_signature_received_requires_signed_at():
         event_type=LogisticsEventType.HANDOVER,
         status=LogisticsEventStatus.COMPLETED,
         executed_at=timezone.now(),
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
         signature_required=True,
         signature_received=True,
         signed_at=None,
@@ -127,7 +135,7 @@ def test_signed_at_requires_signed_by():
         event_type=LogisticsEventType.HANDOVER,
         status=LogisticsEventStatus.COMPLETED,
         executed_at=timezone.now(),
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
         signature_required=True,
         signature_received=True,
         signed_at=timezone.now(),
@@ -145,7 +153,7 @@ def test_signature_only_for_handover(django_user_model):
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.COMPLETED,
         executed_at=timezone.now(),
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
         signature_required=True,
         signature_received=True,
         signed_by=actor,
