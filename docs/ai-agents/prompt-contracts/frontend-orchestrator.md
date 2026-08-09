@@ -149,8 +149,9 @@ Frontend orchestration should keep `frontend-agent-template.md` and
 - Agents must read `docs/design/DESIGN.md` for ERP UI/UX guidance when relevant.
 - Agents must also read the prototype/brand/theme contracts when the task touches
   navigation, shell layout, design system, responsive behavior, or light/dark support.
-- If skills are supported, agents should load or reference
-  `erp-ui-ux-design-review` and any relevant ERP frontend skills.
+- If an approved UI, workflow, or document source must be preserved and skills are
+  supported, agents must load `erp-replicate-from-source` plus relevant ERP frontend
+  skills. For general design guidance, use `docs/design/DESIGN.md` directly.
 - If skills are not supported, agents still use `docs/design/DESIGN.md` directly.
 
 ## Final Report Format

@@ -12,11 +12,11 @@ Codex discovery.
 
 | Skill | File | Purpose |
 |---|---|---|
-| `erp-ui-ux-design-review` | `.agents/skills/erp-ui-ux-design-review/SKILL.md` | Portable ERP design review checklist that points to `docs/design/DESIGN.md` |
+| `erp-replicate-from-source` | `.agents/skills/erp-replicate-from-source/SKILL.md` | Approved-source replication for UI, workflows, HTML/PDF, DOCX, and print documents |
 | `erp-frontend-scope-guard` | `.agents/skills/erp-frontend-scope-guard/SKILL.md` | Verify changes stay in approved frontend files and respect business boundaries |
-| `erp-frontend-typescript-quality` | `.agents/skills/erp-frontend-typescript-quality/SKILL.md` | TypeScript strictness, React patterns, consistent conventions |
+| `erp-frontend-typescript-quality` | `.agents/skills/erp-frontend-typescript-quality/SKILL.md` | Strict boundary types, safe React contracts, and minimal maintainable changes |
 | `erp-frontend-api-contracts` | `.agents/skills/erp-frontend-api-contracts/SKILL.md` | Confirm API calls match confirmed backend contracts |
-| `erp-frontend-testing` | `.agents/skills/erp-frontend-testing/SKILL.md` | Vitest + RTL test coverage and resilience |
+| `erp-frontend-testing` | `.agents/skills/erp-frontend-testing/SKILL.md` | User journeys plus visual and print evidence when fidelity matters |
 | `erp-frontend-accessibility-ux` | `.agents/skills/erp-frontend-accessibility-ux/SKILL.md` | WCAG fundamentals, keyboard nav, semantic HTML, UX consistency |
 | `erp-frontend-error-recovery` | `.agents/skills/erp-frontend-error-recovery/SKILL.md` | Graceful error handling and user-facing error communication |
 | `erp-frontend-state-forms` | `.agents/skills/erp-frontend-state-forms/SKILL.md` | Controlled form state, validation, and data-fetching patterns |
@@ -34,15 +34,16 @@ Codex discovery.
   - `docs/design/FRONTEND_PROTOTYPE_GAP_ANALYSIS.md`
   - `docs/design/FRONTEND_MIGRATION_ROADMAP_FROM_PROTOTYPE.md`
 - Agents should read it even if their runtime does not auto-load local skills.
-- `erp-ui-ux-design-review` exists to route agents back to that document and to
-  the relevant F150A frontend skills.
+- `erp-replicate-from-source` is mandatory when an approved UI, workflow, or
+  document source must be reproduced. It routes agents to compare the rendered
+  result with that source instead of improvising a redesign.
 
 ## When Each Agent Should Load Skills
 
 | Agent | Load |
 |---|---|
-| Agent FE-A (Implementer) | Read `docs/design/DESIGN.md`; load `erp-frontend-scope-guard` at task start; load `erp-ui-ux-design-review` for workflow/layout guidance; load `erp-frontend-typescript-quality` + `erp-frontend-api-contracts` + `erp-frontend-state-forms` during implementation; load `erp-frontend-testing` when writing tests |
-| Agent FE-B (UI/UX Reviewer) | Read `docs/design/DESIGN.md`; load `erp-ui-ux-design-review` + `erp-frontend-accessibility-ux` during review |
+| Agent FE-A (Implementer) | Read `docs/design/DESIGN.md`; load `erp-frontend-scope-guard` at task start; load `erp-replicate-from-source` when an approved source exists; load `erp-frontend-typescript-quality` + `erp-frontend-api-contracts` + `erp-frontend-state-forms` during implementation; load `erp-frontend-testing` when writing tests |
+| Agent FE-B (Fidelity and Interaction Reviewer) | Read the approved source and `docs/design/DESIGN.md`; load `erp-replicate-from-source` + `erp-frontend-accessibility-ux` during review |
 | Agent FE-C (Accessibility Reviewer) | `erp-frontend-accessibility-ux` during review |
 | Agent FE-D (Test Reviewer) | `erp-frontend-testing` during review |
 | Agent FE-E (API Contract Reviewer) | `erp-frontend-api-contracts` during review |

@@ -1,28 +1,47 @@
 ---
 name: erp-frontend-testing
-description: Select or review focused Vitest and React Testing Library coverage for changed behavior. Use when authoring tests or reviewing test adequacy; do not act as a general frontend quality gate.
+description: Select proportionate frontend evidence for changed behavior: user-centric component tests, real-contract journeys, and deterministic visual or print regression when source fidelity matters. Use when authoring or reviewing frontend tests; builds and mocks alone do not prove a workflow.
 ---
 
-## What I do
+# ERP Frontend Testing
 
-Guide frontend agents to write meaningful, resilient tests using Vitest and React Testing Library.
+Choose evidence that can falsify the claimed outcome. Start from the user journey
+and the approved source, then test only the changed risk.
 
-## Checklist
+## Evidence ladder
 
-- [ ] Tests cover at least: success render, loading state, empty state, error state
-- [ ] User interactions are tested via RTL fireEvent or userEvent, not by calling handlers directly
-- [ ] API calls are mocked at the fetch level (msw or vi.fn), never at the component internals
-- [ ] Test assertions verify visible UI output, not implementation details (no `wrapper.find` or state checks)
-- [ ] Async behavior uses `waitFor` or `findBy` — not arbitrary timeouts
-- [ ] Snapshot tests are used sparingly and only for stable presentational components
-- [ ] No tests rely on unmocked network calls
-- [ ] Test descriptions read as behavior specifications ("renders error when API fails")
-- [ ] New components have a corresponding test file
-- [ ] Select `L1`–`L4` from `docs/ai-agents/pr-quality-gates.md`; do not run unrelated suites
-- [ ] Run a production build for shipped frontend source changes
-- [ ] Use targeted Playwright only for browser-level, routing, responsive, or integration risk
-- [ ] Reuse green implementer evidence during review unless reproducing a finding
+1. Test pure parsing, formatting, and state transitions directly when they carry
+   business meaning.
+2. Use React Testing Library for visible labels, keyboard interaction, validation,
+   loading, empty, error, and success states. Prefer user-observable behavior to
+   component internals.
+3. Test real API integration whenever a changed route, authorization, persistence,
+   reload, error response, or download is part of the claim. Mocks may isolate a
+   component but cannot be the sole proof for those boundaries.
+4. Run a browser journey for cross-screen flows, authenticated routes, browser
+   navigation, print/download behavior, or data that must survive a reload.
+5. For faithful replication, use deterministic screenshot comparison: fixed
+   viewport, browser, locale, timezone, fonts, fixture data, and approved golden.
+   Review every golden update as a product change.
+6. For printable documents, compare the browser preview and exported PDF page by
+   page: page size, page count, breaks, margins, header/footer, logo, typography,
+   colours, wording, and variable placement.
 
-## When to use me
+## Required test notes
 
-Load during test implementation (Agent FE-A) and during test review (Agent FE-D).
+For each changed behavior, record the level used, fixture/source, command, and
+what remains unproven. State `UNCONFIRMED` rather than implying a mock or a build
+proved live behavior.
+
+## Guardrails
+
+- Keep tests focused on the changed risk; do not add boilerplate coverage merely
+  to increase a number.
+- Do not assert private implementation details when an accessible interaction or
+  visible result can express the requirement.
+- Exercise permission-denied and failed-request states when the journey touches
+  sensitive data or writes.
+- Reuse the repository's existing test runner and fixtures before adding a test
+  library, global mock, or screenshot framework.
+- Do not approve a visual replica from textual HTML, a unit test, or a successful
+  PDF generation alone. Inspect the rendered result against the approved source.

@@ -40,8 +40,8 @@ why no update is required.
 
 - Read `AGENTS.md` first.
 - Then read this file: `docs/design/DESIGN.md`.
-- Then reference `erp-ui-ux-design-review` if that skill is available in the
-  runtime.
+- When reproducing an approved interface, workflow, or document, inspect its source
+  and reference `erp-replicate-from-source` if that skill is available in the runtime.
 - When implementing or reviewing frontend work, also load or reference the
   relevant ERP frontend skills when available.
 
@@ -49,13 +49,14 @@ why no update is required.
 
 - Read `CLAUDE.md` first.
 - Then read this file: `docs/design/DESIGN.md`.
-- Then reference or load `erp-ui-ux-design-review` if that skill is available.
+- When reproducing an approved interface, workflow, or document, inspect its source
+  and reference or load `erp-replicate-from-source` if that skill is available.
 - Use this file as the canonical UI/UX source even when the runtime does not
   auto-load local skills.
 
 ### OpenCode
 
-- Load `erp-ui-ux-design-review` when available.
+- Load `erp-replicate-from-source` when reproducing an approved source and available.
 - Then read or reference `docs/design/DESIGN.md` as the canonical design source.
 - Then load the relevant F150A frontend skills for implementation or review,
   especially scope, API contract, testing, accessibility, error recovery, form

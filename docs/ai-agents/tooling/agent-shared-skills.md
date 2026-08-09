@@ -10,7 +10,7 @@ Shared skills provide load-on-demand checklists and procedures for repetitive ag
 
 | Skill | Purpose | Applies to |
 |-------|---------|------------|
-| [`erp-task-start`](../../../.agents/skills/erp-task-start/SKILL.md) | Mandatory task-start baseline and scope check | All executable agents |
+| [`erp-task-start`](../../../.agents/skills/erp-task-start/SKILL.md) | Non-mutating task-start baseline and scope check | All executable agents |
 | [`erp-quality-gates`](../../../.agents/skills/erp-quality-gates/SKILL.md) | Pre-commit quality verification for backend PRs | Backend agents |
 | [`erp-agent-roles`](../../../.agents/skills/erp-agent-roles/SKILL.md) | Role-specific checklists for backend agents A–F | Backend agents |
 | [`erp-ci-workflow`](../../../.agents/skills/erp-ci-workflow/SKILL.md) | CI wait, authorized finalization, and post-merge validation | All agents opening PRs |
@@ -41,11 +41,11 @@ Shared skills provide load-on-demand checklists and procedures for repetitive ag
 
 | Skill | Purpose | Applies to |
 |-------|---------|------------|
-| [`erp-ui-ux-design-review`](../../../.agents/skills/erp-ui-ux-design-review/SKILL.md) | Canonical ERP design and UX review routing | Frontend agents |
+| [`erp-replicate-from-source`](../../../.agents/skills/erp-replicate-from-source/SKILL.md) | Faithful approved-source UI, workflow, and document replication | Frontend agents |
 | [`erp-frontend-scope-guard`](../../../.agents/skills/erp-frontend-scope-guard/SKILL.md) | Verify frontend scope and business boundaries | Frontend agents |
-| [`erp-frontend-typescript-quality`](../../../.agents/skills/erp-frontend-typescript-quality/SKILL.md) | TypeScript strictness and React patterns | Frontend agents |
+| [`erp-frontend-typescript-quality`](../../../.agents/skills/erp-frontend-typescript-quality/SKILL.md) | Strict boundary types, safe React contracts, and minimal changes | Frontend agents |
 | [`erp-frontend-api-contracts`](../../../.agents/skills/erp-frontend-api-contracts/SKILL.md) | Confirm API calls match backend contracts | Frontend agents |
-| [`erp-frontend-testing`](../../../.agents/skills/erp-frontend-testing/SKILL.md) | Vitest + RTL test coverage | Frontend agents |
+| [`erp-frontend-testing`](../../../.agents/skills/erp-frontend-testing/SKILL.md) | User-centric, journey, visual, and print evidence | Frontend agents |
 | [`erp-frontend-accessibility-ux`](../../../.agents/skills/erp-frontend-accessibility-ux/SKILL.md) | WCAG and UX consistency | Frontend agents |
 | [`erp-frontend-error-recovery`](../../../.agents/skills/erp-frontend-error-recovery/SKILL.md) | Error handling and graceful degradation | Frontend agents |
 | [`erp-frontend-state-forms`](../../../.agents/skills/erp-frontend-state-forms/SKILL.md) | Form state and data fetching patterns | Frontend agents |

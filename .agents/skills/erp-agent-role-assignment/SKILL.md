@@ -1,57 +1,70 @@
 ---
 name: erp-agent-role-assignment
-description: Select the minimum relevant ERP agent roles for an orchestrated task. Use only while planning delegation; assigned backend agents use erp-agent-roles for their role checklist.
+description: Select the minimum relevant Titan ERP roles after classifying a task as audit, diagnosis, implementation, review, cleanup, or monitoring. Use while planning delegation; do not turn a report or review into implementation.
 ---
 
-## What I do
+# ERP Agent Role Assignment
 
-Help orchestrators and agents quickly determine which roles to assign for a given task type — backend, frontend, docs, or review.
+Classify the task before assigning a role. The requested outcome, not the number
+of available agents, determines whether any implementation role is needed.
 
-## Default Role Policy
+## Classify first
 
-### Backend tasks
+| Task type | Default owner | Change authority |
+|---|---|---|
+| Audit or report | Independent reviewer | Read-only; state evidence and unknowns |
+| Diagnosis | Reviewer or domain specialist | Read-only unless a fix is explicitly authorized |
+| Implementation | Implementer and independent reviewer | Only the approved scope and worktree |
+| Review | Independent reviewer | Report-only unless review-side changes are explicitly authorized |
+| Cleanup | Cleanup owner | Only exact, authorized targets after classification |
+| Monitoring or waiting | Observer | No state change |
 
-| Role | When to assign |
-|------|----------------|
-| Agent A — Implementer | Always — implements the approved change |
-| Agent B — Reviewer | Always — independent review |
-| Agent C — Test Reviewer | When tests are complex or failure-mode coverage matters |
-| Agent D — Scope Guardian | When scope boundaries or architecture decisions are at stake |
-| Agent E — Migration Reviewer | When models, migrations, or data integrity changes |
-| Agent F — Documentation Reviewer | When docs, status, or PR reports need verification |
+Do not assign an implementer because a reviewer found a problem. Record the
+finding and wait for explicit authorization when the original task is audit,
+diagnosis, review, or monitoring.
 
-**Default:** A (implement) + B (review). Add C–F only when relevant.
+## Implementation roles
 
-### Frontend tasks
+Assign roles only for an explicitly authorized implementation lot.
 
-| Role | When to assign |
-|------|----------------|
-| Agent FE-A — Implementer | Always — implements the approved change |
-| Agent FE-B — UI/UX Reviewer | When workflow clarity or responsive behavior needs review |
-| Agent FE-C — Accessibility Reviewer | When a11y is a concern or WCAG compliance is required |
-| Agent FE-D — Test Reviewer | When component tests need independent review |
-| Agent FE-E — API Contract Reviewer | When frontend calls a new or changed backend endpoint |
-| Agent FE-F — Scope Guardian | When scope boundaries or business rules are at stake |
+### Backend
 
-**Default:** FE-A (implement) + FE-E (API contract check, if applicable). Add FE-B–F only when relevant.
+| Role | Assign when |
+|---|---|
+| Agent A — Implementer | A backend change is authorized |
+| Agent B — Reviewer | Any backend implementation lot; review independently |
+| Agent C — Test Reviewer | Failure modes or test strategy need independent scrutiny |
+| Agent D — Scope Guardian | Boundaries or architecture choices are material |
+| Agent E — Migration Reviewer | Models, migrations, or data integrity change |
+| Agent F — Documentation Reviewer | Durable docs, status, or PR evidence change |
 
-### Docs/Tooling tasks
+### Frontend
 
-| Role | When to assign |
-|------|----------------|
-| Agent A / FE-A — Implementer | Always |
-| Agent B / FE-B — Reviewer | Always — independent review |
+| Role | Assign when |
+|---|---|
+| Agent FE-A — Implementer | A frontend change is authorized |
+| Agent FE-B — Fidelity and interaction reviewer | An approved source, print layout, responsive state, or workflow must be preserved |
+| Agent FE-C — Accessibility Reviewer | Interaction or visual changes need accessibility review |
+| Agent FE-D — Test Reviewer | Journey, visual, or component evidence needs independent scrutiny |
+| Agent FE-E — API Contract Reviewer | A real API contract is introduced or changed |
+| Agent FE-F — Scope Guardian | Business boundaries or validated UI preservation are material |
 
-Docs/tooling tasks use backend or frontend roles depending on which worktree they touch.
+Docs and tooling work use an explicitly assigned owner and a proportionate,
+independent review. Do not label them Agent A/FE-A by default: their worktree
+and allowed paths determine the correct assignment.
 
-### Cross-cutting rules
+## Assignment constraints
 
-- The orchestrator assigns only relevant agents — do not dispatch unused roles
-- Reporting alone is not a stopping condition
-- After merge and green main CI, continue to the next clear bundle unless a hard stop occurs
+- One agent, one worktree, one branch, one non-overlapping scope.
+- Select the minimum roles that can prove the approved outcome; unused roles are
+  not a quality signal.
+- A reviewer inspects and reports; an implementer fixes valid findings in the
+  approved scope.
+- A new bundle requires its own authorization. Green CI does not authorize a
+  new task or a merge.
 
 ## Source
 
-- [Backend Agent Template — Default role policy](../../../docs/ai-agents/backend-agent-template.md)
-- [Frontend Agent Template — Default role policy](../../../docs/ai-agents/frontend-agent-template.md)
+- [Backend Agent Template](../../../docs/ai-agents/backend-agent-template.md)
+- [Frontend Agent Template](../../../docs/ai-agents/frontend-agent-template.md)
 - [AGENTS.md — Official multi-agent workflow](../../../AGENTS.md#official-multi-agent-workflow)

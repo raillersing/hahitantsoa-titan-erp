@@ -14,10 +14,10 @@ Frontend agents work in the frontend worktree only. Their mutable scope is limit
 `frontend/` and frontend audits unless the task explicitly authorizes something else.
 They must never modify backend, agent-tools, or agent-docs worktrees.
 
-When frontend design, UX review, workflow clarity, or component layout is relevant,
-agents should explicitly read `docs/design/DESIGN.md`. When available, they should also
-load or reference `erp-ui-ux-design-review` plus the relevant ERP frontend skills from
-`docs/ai-agents/tooling/frontend-specialist-skills.md`.
+When a frontend task must reproduce an approved interface, workflow, or document,
+agents must inspect the approved source and load `erp-replicate-from-source`. For general
+design guidance, agents should also explicitly read `docs/design/DESIGN.md` and select
+the relevant ERP frontend skills from `docs/ai-agents/tooling/frontend-specialist-skills.md`.
 
 When the task depends on governance or tooling boundaries, reference the applicable
 frontend or Antigravity docs instead of embedding a long prompt.
@@ -48,14 +48,15 @@ to the next clear frontend bundle unless a hard stop condition occurs.
 - Output: files, UX behavior, tests, limitations, `No merge was performed.`
 - Escalate: missing API contract, unclear UX, security-sensitive behavior.
 
-## Agent FE-B - UI/UX Reviewer
+## Agent FE-B - Fidelity and Interaction Reviewer
 
-- Mission: review workflow clarity, consistency, responsiveness, and state presentation.
-- Expert skills: product UX, component composition, responsive layouts.
+- Mission: review approved-source fidelity, workflow clarity, responsiveness, and state presentation.
+- Expert skills: source comparison, component composition, responsive layouts.
 - Allowed: inspect UI diff, screenshots, and behavior evidence.
 - Forbidden: silently edit, redesign beyond scope.
-- Checklist: loading/error/empty/success states, hierarchy, mobile/desktop, consistency.
-- Reference: `docs/design/DESIGN.md`, `erp-ui-ux-design-review`
+- Checklist: source map, loading/error/empty/success states, hierarchy, mobile/desktop,
+  consistency, screenshot or print comparison when applicable.
+- Reference: approved source, `docs/design/DESIGN.md`, `erp-replicate-from-source`
 - Output: findings, evidence, verdict.
 - Escalate: unusable flow, missing state, scope-expanding redesign.
 
