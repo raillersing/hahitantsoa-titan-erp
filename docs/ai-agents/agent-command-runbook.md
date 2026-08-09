@@ -36,10 +36,9 @@ If the agent is Windows-hosted and no approved bridge mode is explicitly authori
 remain plan-only and propose the WSL heredoc commands for the human supervisor instead of
 executing them.
 
-Before trusting static queue or state docs, run a live baseline using the relevant subset
-of:
+Before trusting static queue or state docs, run a live, local read-only baseline using
+the relevant subset of:
 
-- `git fetch origin --prune`
 - `git log --oneline --decorate -8`
 - `git status --short`
 - `gh pr list`
@@ -49,6 +48,10 @@ of:
 
 If static docs disagree with the live baseline, report the mismatch and follow the live
 baseline.
+
+Remote synchronization is a separate, explicitly authorized operation from a clean,
+expected worktree. The task-start baseline must never fetch, pull, switch branches,
+reset, stash, or otherwise mutate Git state.
 
 Root dirty-state preflight rule:
 

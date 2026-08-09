@@ -1,0 +1,4 @@
+interface:
+  display_name: "ERP Source Fidelity"
+  short_description: "Reproduce approved sources faithfully"
+  default_prompt: "Use $erp-replicate-from-source to reproduce this approved source without redesign."
