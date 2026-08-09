@@ -35,8 +35,16 @@ class ActorStub:
     pk: int = 1
 
 
+def _make_safe_dt(dt: timezone.datetime) -> timezone.datetime:
+    """Shift a datetime to the following Monday when it falls on Sunday."""
+    local = timezone.localtime(dt)
+    if local.weekday() == 6:
+        return (local + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+    return dt
+
+
 def _reservation_draft():
-    start = timezone.now().replace(microsecond=0)
+    start = _make_safe_dt(timezone.now().replace(microsecond=0))
     customer = Customer.objects.create(display_name="Client")
     return ReservationDraft.objects.create(
         customer=customer,
@@ -74,7 +82,7 @@ def test_create_logistics_event_success():
         actor=actor,
         reservation_draft=draft,
         event_type=LogisticsEventType.DELIVERY,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
         address="123 Main St",
     )
     assert event.reservation_draft == draft
@@ -430,7 +438,7 @@ def test_add_item_line_to_completed_event_fails():
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.COMPLETED,
         executed_at=timezone.now(),
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     item = InventoryItem.objects.create(name="Lamp", kind="article")
     with pytest.raises(LogisticsServiceError, match="completed or cancelled"):
@@ -466,7 +474,7 @@ def test_remove_item_line_from_completed_event_fails():
         reservation_draft=draft,
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.PLANNED,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     item = InventoryItem.objects.create(name="Desk", kind="material")
     line = add_item_line_to_logistics_event(
@@ -491,7 +499,7 @@ def test_remove_item_line_not_found_fails():
         reservation_draft=draft,
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.PLANNED,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     with pytest.raises(LogisticsServiceError, match="does not exist"):
         remove_item_line_from_logistics_event(
@@ -510,13 +518,13 @@ def test_remove_item_line_wrong_event_fails():
         reservation_draft=draft1,
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.PLANNED,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     event2 = LogisticsEvent.objects.create(
         reservation_draft=draft2,
         event_type=LogisticsEventType.DELIVERY,
         status=LogisticsEventStatus.PLANNED,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     item = InventoryItem.objects.create(name="Desk2", kind="material")
     line = add_item_line_to_logistics_event(
@@ -538,7 +546,7 @@ def completed_handover_event():
         reservation_draft=draft,
         event_type=LogisticsEventType.HANDOVER,
         signature_required=True,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     event = transition_logistics_event_status(
         actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
@@ -566,7 +574,7 @@ def test_complete_passation_non_handover_fails():
         reservation_draft=draft,
         event_type=LogisticsEventType.DELIVERY,
         signature_required=True,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     event = transition_logistics_event_status(
         actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
@@ -588,7 +596,7 @@ def test_complete_passation_not_completed_fails(handover_event):
         reservation_draft=handover_event.reservation_draft,
         event_type=LogisticsEventType.HANDOVER,
         signature_required=True,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     with pytest.raises(LogisticsServiceError, match="already completed"):
         complete_handover_passation(actor=actor, event=event)
@@ -605,7 +613,7 @@ def test_complete_passation_without_signature_required_fails():
         reservation_draft=draft,
         event_type=LogisticsEventType.HANDOVER,
         signature_required=False,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
     )
     event = transition_logistics_event_status(
         actor=actor, event=event, new_status=LogisticsEventStatus.DISPATCHED
