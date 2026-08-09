@@ -164,7 +164,7 @@ class UploadedAttachmentDownloadAPIView(APIView):
         )
         try:
             attachment.file.open("rb")
-        except (FileNotFoundError, ValueError):
+        except FileNotFoundError, ValueError:
             raise Http404("Attachment file not found.")
         response = FileResponse(
             attachment.file,
