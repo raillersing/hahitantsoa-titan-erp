@@ -83,8 +83,16 @@ def _customer():
     return Customer.objects.create(display_name="E2E Client")
 
 
+def _make_safe_dt(dt):
+    """Shift a datetime to the following Monday when it falls on Sunday."""
+    local = timezone.localtime(dt)
+    if local.weekday() == 6:
+        return (local + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+    return dt
+
+
 def _draft_with_line():
-    start = timezone.now().replace(microsecond=0)
+    start = _make_safe_dt(timezone.now().replace(microsecond=0))
     draft = ReservationDraft.objects.create(
         customer=_customer(),
         start_at=start,
@@ -180,7 +188,7 @@ def test_titan_full_happy_path_operational_acceptance(
         actor=actor,
         reservation_draft=draft,
         event_type=LogisticsEventType.HANDOVER,
-        scheduled_at=timezone.now(),
+        scheduled_at=_make_safe_dt(timezone.now()),
         address="123 Test St",
         contact_name="Test Contact",
         contact_phone="+261330000000",
