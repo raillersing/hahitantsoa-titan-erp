@@ -70,6 +70,7 @@ import type {
   DocumentTemplateVersion,
   DocumentTemplateVersionCreatePayload,
   DocumentInstance,
+  DocumentInstanceListItem,
   DocumentInstanceCreatePayload,
   DocumentInstancePdfGenerationResult,
   UploadedAttachment,
@@ -1012,6 +1013,35 @@ export function getReservationDraftDocumentInstances(
 ): Promise<DocumentInstance[]> {
   return getAuthenticatedJson(
     `/api/v1/documents/reservation-drafts/${reservationDraftId}/instances/`,
+    signal,
+  );
+}
+
+export function getDocumentInstances(
+  params?: {
+    document_type?: string;
+    business_scope?: string;
+    status?: string;
+    customer_id?: string;
+    date_from?: string;
+    date_to?: string;
+    search?: string;
+    ordering?: string;
+  },
+  signal?: AbortSignal,
+): Promise<DocumentInstanceListItem[]> {
+  const qs = new URLSearchParams();
+  if (params?.document_type) qs.set("document_type", params.document_type);
+  if (params?.business_scope) qs.set("business_scope", params.business_scope);
+  if (params?.status) qs.set("status", params.status);
+  if (params?.customer_id) qs.set("customer_id", params.customer_id);
+  if (params?.date_from) qs.set("date_from", params.date_from);
+  if (params?.date_to) qs.set("date_to", params.date_to);
+  if (params?.search) qs.set("search", params.search);
+  if (params?.ordering) qs.set("ordering", params.ordering);
+  const query = qs.toString();
+  return getAuthenticatedJson(
+    `/api/v1/documents/instances/${query ? `?${query}` : ""}`,
     signal,
   );
 }

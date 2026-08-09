@@ -609,7 +609,24 @@ export type DocumentInstance = {
 export type DocumentInstanceCreatePayload = {
   template_key: string;
   notes?: string;
-  proforma_validity_days?: number;
+};
+
+export type DocumentInstanceListItem = {
+  id: string;
+  document_type: string;
+  business_scope: string;
+  template_label: string;
+  reservation_public_reference: string;
+  reservation_status: string;
+  customer_display_name: string;
+  customer_email: string;
+  customer_phone: string;
+  status: "prepared" | "generated" | "issued" | "voided";
+  created_at: string;
+  updated_at: string;
+  reservation_draft_id: string | null;
+  hahitantsoa_event_draft_id: string | null;
+  customer_id: string | null;
 };
 
 export type UploadedAttachment = {
