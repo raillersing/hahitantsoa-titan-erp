@@ -104,6 +104,7 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "reservation_public_reference",
             "reservation_status",
             "customer_display_name",
+            "customer_party_type",
             "customer_email",
             "customer_phone",
             "customer_address",

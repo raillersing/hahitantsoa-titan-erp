@@ -65,13 +65,7 @@ def get_pdf_generator() -> DocumentPDFGenerator:
 
     class_path = getattr(settings, "DOCUMENT_PDF_GENERATOR_CLASS", None)
     if class_path is None:
-        # Auto-detect: prefer WeasyPrint if available, fall back to mock
-        try:
-            from apps.documents.pdf_weasy import WeasyPrintPDFGenerator
-
-            return WeasyPrintPDFGenerator()
-        except ImportError:
-            return MockPDFGenerator()
+        return MockPDFGenerator()
     try:
         generator_class = import_string(class_path)
         return generator_class()

@@ -160,6 +160,7 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     reservation_public_reference = models.CharField(max_length=32)
     reservation_status = models.CharField(max_length=32)
     customer_display_name = models.CharField(max_length=255)
+    customer_party_type = models.CharField(max_length=16, blank=True)
     customer_email = models.EmailField(blank=True)
     customer_phone = models.CharField(max_length=64, blank=True)
     customer_address = models.TextField(blank=True)

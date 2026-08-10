@@ -950,9 +950,11 @@ export function getDocumentTemplates(
 export async function getDocumentTemplatePreview(
   templateKey: string,
   signal?: AbortSignal,
+  showVariables = false,
 ): Promise<string> {
+  const query = showVariables ? "?show_variables=1" : "";
   const response = await fetch(
-    `/api/v1/documents/templates/${encodeURIComponent(templateKey)}/preview/`,
+    `/api/v1/documents/templates/${encodeURIComponent(templateKey)}/preview/${query}`,
     { credentials: "include", signal },
   );
   if (!response.ok) {

@@ -1,57 +1,125 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8"><title>Avenant de contrat Hahitantsoa</title>
+  <meta charset="utf-8">
+  <title>Avenant de contrat Hahitantsoa</title>
   <style>
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; width: 210mm; height: 297mm; color: #111; font-family: Georgia, 'Times New Roman', serif; }
-    .page { position: relative; width: 210mm; height: 297mm; padding: 9mm 23mm 7mm; overflow: hidden; }
-    .top { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; font-family: Arial, sans-serif; }
-    .top-brand { width: 45mm; text-align: center; font-size: 9pt; font-style: italic; line-height: 1.25; }
-    .top-brand img { display: block; margin: 0 auto 5mm; width: 29mm; height: 29mm; object-fit: contain; }
-    .top-brand.ergon img { width: 27mm; filter: none; }
-    .top-brand.hah img { filter: grayscale(1) contrast(2); }
-    h1 { margin: 8mm 0 7mm; text-align: center; font-family: Arial, sans-serif; font-size: 13pt; text-decoration: underline; }
-    .content { position: relative; z-index: 2; font-size: 9pt; line-height: 1.35; }
-    .content p { margin: 0 0 4mm; }
-    .dots { letter-spacing: .4mm; }
-    .details { margin: 0 0 5mm 13mm; }
-    .checks { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18mm; row-gap: 1mm; margin: 0 0 0 15mm; line-height: 1.35; }
-    .check { white-space: nowrap; }
-    .box { display: inline-block; width: 3mm; height: 3mm; border: .3mm solid #111; margin-right: 1.5mm; vertical-align: -0.4mm; }
-    .watermark { position: absolute; z-index: 1; width: 105mm; height: 145mm; object-fit: contain; left: 43mm; top: 80mm; opacity: .10; }
-    .legal { margin-top: 25mm; text-align: right; font-size: 8.5pt; line-height: 2; }
-    .signatures { display: flex; justify-content: space-between; margin: 6mm 14mm 0; font-size: 8.5pt; }
-    .bottom { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; border-top: .25mm solid #777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; font-family: Arial, sans-serif; color: #999; font-size: 7.5pt; line-height: 1.4; }
-    .bottom strong { color: #888; }
+    html, body { margin: 0; width: 210mm; height: 297mm; color: #000; }
+    body { font-family: "Times New Roman", "Liberation Serif", serif; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; padding: 6mm 23mm 0; }
+    .header { height: 67mm; position: relative; font-family: Arial, sans-serif; }
+    .brand { position: absolute; top: 0; width: 50mm; text-align: center; font-family: Calibri, Arial, sans-serif; font-size: 9pt; font-style: italic; line-height: 1.25; }
+    .brand.ergon { left: 0; }
+    .brand.hahitantsoa { right: 0; }
+    .brand img { display: block; margin: 0 auto 5mm; width: 29mm; height: 29mm; object-fit: contain; }
+    .brand.ergon img { width: 27mm; }
+    .brand-contact { white-space: nowrap; }
+    .title { position: absolute; top: 52mm; left: 0; right: 0; margin: 0; text-align: center; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-size: 13pt; font-weight: 700; text-decoration: underline; }
+    .watermark { position: absolute; z-index: 0; width: 105mm; height: 145mm; left: 53mm; top: 80mm; object-fit: contain; opacity: .12; }
+    .content { position: relative; z-index: 1; font-size: 10pt; line-height: 1.18; }
+    .content p { margin: 0 0 3.5mm; }
+    .parties { margin-bottom: 3.5mm; }
+    .party-indent { margin-left: 3mm; }
+    .source-line { white-space: pre-wrap; }
+    .dotted { letter-spacing: .25mm; }
+    .modifications { margin-top: 2mm; }
+    .field-list { margin: 0 0 3.5mm 13mm; }
+    .field-list div { min-height: 4.5mm; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16mm; row-gap: .5mm; margin-left: 15mm; font-size: 9.5pt; line-height: 1.2; }
+    .option { min-height: 4.5mm; white-space: nowrap; }
+    .box { display: inline-block; width: 3.2mm; height: 3.2mm; margin-right: 1.5mm; border: .3mm solid #000; vertical-align: -.45mm; }
+    .box.checked::after { content: "×"; display: block; margin: -1.4mm 0 0 .25mm; font-size: 14pt; line-height: 1; }
+    .closing { position: absolute; left: 23mm; right: 23mm; top: 217mm; text-align: right; font-size: 10pt; line-height: 1.8; }
+    .signatures { position: absolute; left: 37mm; right: 37mm; top: 242mm; display: flex; justify-content: space-between; font-size: 10pt; }
+    .footer { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; height: 30mm; border-top: .25mm solid #777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; text-align: center; font-family: Arial, sans-serif; color: #999; font-size: 7.5pt; line-height: 1.4; }
+    .footer strong { color: #888; }
+    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    @media print { .variable { background: transparent; outline: 0; } }
   </style>
 </head>
-<body><div class="page">
-  <div class="top">
-    <div class="top-brand ergon"><img src="/brand/ergon-logo.png" alt="Ergon Group"><em>ergon@ergon.mg<br>+261 34 61 791 41</em></div>
-    <div class="top-brand hah"><img src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa"><em>hahitantsoa@ergon.mg<br>+261 34 61 791 44</em></div>
-  </div>
-  <h1>AVENANT DE CONTRAT</h1>
-  <img class="watermark" src="/brand/ergon-logo.png" alt="">
-  <div class="content">
-    <p>La présente location est consentie et acceptée du <span class="dots">{{ context.event_draft.start_at|date:"d/m/Y"|default:"................" }}</span> à <span class="dots">{{ context.event_draft.start_at|date:"H:i"|default:"......" }}</span> heures au <span class="dots">{{ context.event_draft.end_at|date:"d/m/Y"|default:"................" }}</span> à <span class="dots">{{ context.event_draft.end_at|date:"H:i"|default:"......" }}</span> heures.</p>
-    <p>La présente location est consentie et acceptée moyennant le prix de <span class="dots">{{ context.event_draft.total_amount|default:".............................." }}</span> Ariary TTC.</p>
-    <p>Les modifications sont les suivantes :</p>
-    <div class="details">Type de location : {{ context.event_draft.event_type|default:"............................" }} &nbsp;&nbsp;/&nbsp;&nbsp; Proforma N° : {{ context.event_draft.public_reference|default:"........" }}<br>Nombre de convives : {{ context.event_draft.guest_count|default:".............." }}<br>Assiettes : {{ context.event_draft.plate_count|default:"........................" }}<br>Coussin : {{ context.event_draft.cushion_count|default:"........................" }}</div>
-    <div class="checks">
-      <div class="check"><span class="box"></span>Utilisation de nuit</div><div></div>
-      <div class="check"><span class="box"></span>Carrelage</div><div class="check"><span class="box"></span>Voilage</div>
-      <div class="check"><span class="box"></span>Gazon synthétique</div><div class="check"><span class="box"></span>Rideau ............................</div>
-      <div class="check"><span class="box"></span>Parquet</div><div></div>
-      <div class="check"><span class="box"></span>Effets spéciaux ........................</div><div class="check"><span class="box"></span>Autre : .................................</div>
-      <div class="check"><span class="box"></span>Ciel étoilé</div><div></div>
-      <div class="check"><span class="box"></span>Piste lumineuse</div><div></div>
-      <div class="check"><span class="box"></span>Décoration ............................</div><div></div>
-    </div>
-    {% if context.event_draft.lines %}<div style="margin:6mm 0 0 15mm">{% for line in context.event_draft.lines %}{{ line.quantity }} × {{ line.inventory_item_name }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</div>{% endif %}
-    <div class="legal">Fait en trois exemplaires originaux<br>À ........................................, le ....................</div>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand ergon">
+        <img src="/brand/ergon-logo.png" alt="Ergon Group">
+        <div class="brand-contact">ergon@ergon.mg<br>+261 34 61 791 41</div>
+      </div>
+      <div class="brand hahitantsoa">
+        <img src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa">
+        <div class="brand-contact">hahitantsoa@ergon.mg<br>+261 34 61 791 44</div>
+      </div>
+      <h1 class="title">AVENANT DE CONTRAT</h1>
+    </header>
+
+    <img class="watermark" src="/brand/ergon-logo.png" alt="">
+
+    <main class="content">
+      {% if show_variables %}
+        <div class="parties">Entre les soussignés :<br>
+          <strong>La société ERGON GROUP</strong>, ci-après dénommée « Le prestataire », et<br>
+          {% if context.event_draft.party_type == "company" %}
+            <span class="party-indent">La société <span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, ci-après dénommée « Le client », représentée par <span class="variable">{% templatetag openvariable %} client.representativeName {% templatetag closevariable %}</span>, <span class="variable">{% templatetag openvariable %} client.representativeRole {% templatetag closevariable %}</span></span>
+          {% else %}
+            <span class="party-indent"><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, ci-après dénommée « Le client »</span>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="parties">Entre les soussignés :<br>
+          <strong>La société ERGON GROUP</strong>, ci-après dénommée « Le prestataire », et<br>
+          {% if context.event_draft.party_type == "company" %}
+            <span class="party-indent">La société {{ context.event_draft.customer_display_name }}, ci-après dénommée « Le client », représentée par {{ context.event_draft.customer_representative_name }}, {{ context.event_draft.customer_representative_role }}</span>
+          {% else %}
+            <span class="party-indent">{{ context.event_draft.customer_display_name }}, ci-après dénommée « Le client »</span>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <p>Les modifications sont les suivantes :</p>
+
+      <p>La présente location est consentie et acceptée du
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"………………" }}{% endif %}
+        à ……. heures au
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.end_at|date:"d/m/Y"|default:"………………" }}{% endif %}
+        à …….. heures.
+      </p>
+
+      <p>Les intervenants du client peuvent accéder aux locaux (veuillez rayer les mentions inutiles) :</p>
+      <div class="field-list">
+        <div>- la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire ;</div>
+        <div>- le jour-J à 07 heures.</div>
+      </div>
+
+      <p>La présente location est consentie et acceptée moyennant le prix de
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.total_amount|default:"………………………………" }}{% endif %} Ariary TTC.
+      </p>
+
+      <div class="field-list modifications">
+        <div>N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.proforma_reference|default:context.event_draft.public_reference|default:"………" }}{% endif %}</div>
+        <div>Nombre de convives : {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.guestCount {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.guest_count|default:"…………" }}{% endif %}</div>
+        <div>Type de location : {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.rentalType {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.rental_type|default:"…………………………" }}{% endif %}</div>
+      </div>
+
+      <div class="options">
+        <div class="option"><span class="box"></span>Utilisation de nuit</div><div></div>
+        <div class="option"><span class="box"></span>Carrelage</div><div class="option"><span class="box"></span>Voilage ………………………………</div>
+        <div class="option"><span class="box"></span>Gazon synthétique</div><div class="option"><span class="box"></span>Rideau</div>
+        <div class="option"><span class="box"></span>Parquet</div><div></div>
+        <div class="option"><span class="box"></span>Effets spéciaux ……………………</div><div class="option"><span class="box"></span>Autre : …………………………………</div>
+        <div class="option"><span class="box"></span>Ciel étoilé</div><div></div>
+        <div class="option"><span class="box"></span>Piste lumineuse</div><div></div>
+        <div class="option"><span class="box"></span>Décoration ……………………………</div><div></div>
+      </div>
+    </main>
+
+    <div class="closing">Fait en trois exemplaires originaux<br>A …………………………………, le ………………</div>
     <div class="signatures"><span>Le Prestataire,</span><span>Le Client,</span></div>
+
+    <footer class="footer">
+      <div>Ergon Group SARL<br>Lot P93M Ambohipo Sud Alasora Bypass<br><br><strong>ergon@ergon.mg<br>+261 34 61 791 41</strong></div>
+      <div>NIF: 6003298589<br>STAT: 77290 11 2019 010 215<br><br><strong>hahitantsoa@ergon.mg<br>+261 34 61 791 44</strong></div>
+    </footer>
   </div>
-  <footer class="bottom"><div>Ergon Group SARL<br>Lot P93M Ambohipo Sud Alasora Bypass<br><br><strong>ergon@ergon.mg<br>+261 34 61 791 41</strong></div><div>NIF: 6003298589<br>STAT: 77290 11 2019 010 215<br><br><strong>hahitantsoa@ergon.mg<br>+261 34 61 791 44</strong></div></footer>
-</div></body></html>
+</body>
+</html>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   getDocumentTemplates,
   getDocumentTemplatePreview,
@@ -23,6 +23,9 @@ const VARIABLE_MAP: Record<string, string> = {
   "document.date": "Date edition",
 };
 
+const A4_WIDTH_PX = 794;
+const A4_HEIGHT_PX = 1123;
+
 function extractVariables(html: string): string[] {
   const found = new Set<string>();
   const regex = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g;
@@ -42,12 +45,15 @@ export default function DocumentsTemplatesPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showVars, setShowVars] = useState(false);
   const [vars, setVars] = useState<string[]>([]);
+  const previewFrameContainerRef = useRef<HTMLDivElement>(null);
+  const [previewScale, setPreviewScale] = useState(1);
 
   useEffect(() => {
     const ctrl = new AbortController();
     setLoading(true);
     getDocumentTemplates(ctrl.signal)
       .then((data) => {
+        setError(null);
         setTemplates(data);
       })
       .catch(() => setError("Impossible de charger les modeles."))
@@ -60,7 +66,7 @@ export default function DocumentsTemplatesPage() {
     const ctrl = new AbortController();
     setPreviewLoading(true);
     setPreviewHtml(null);
-    getDocumentTemplatePreview(previewKey, ctrl.signal)
+    getDocumentTemplatePreview(previewKey, ctrl.signal, showVars)
       .then((html) => {
         setPreviewHtml(html);
         setVars(extractVariables(html));
@@ -68,7 +74,22 @@ export default function DocumentsTemplatesPage() {
       .catch(() => setPreviewHtml("<p>Apercu non disponible.</p>"))
       .finally(() => setPreviewLoading(false));
     return () => ctrl.abort();
-  }, [previewKey]);
+  }, [previewKey, showVars]);
+
+  useEffect(() => {
+    const container = previewFrameContainerRef.current;
+    if (!container) return;
+
+    const updateScale = () => {
+      setPreviewScale(Math.min(1, container.clientWidth / A4_WIDTH_PX));
+    };
+
+    updateScale();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [previewHtml]);
 
   const scopeColor = (scope: string) =>
     scope === "titan"
@@ -82,8 +103,10 @@ export default function DocumentsTemplatesPage() {
       proforma: "P",
       invoice: "F",
       contract: "C",
+      contract_amendment: "A",
       delivery_note: "B",
       amendment: "A",
+      material_amendment: "A",
       breakage_repair: "X",
       liability_release: "D",
     };
@@ -158,7 +181,7 @@ export default function DocumentsTemplatesPage() {
                 className="fixed inset-0 bg-slate-950/30 z-40"
                 onClick={() => setPreviewKey(null)}
               />
-              <div className="fixed top-0 right-0 w-full sm:w-[520px] h-full bg-white shadow-2xl z-50 border-l border-slate-200 flex flex-col">
+              <div className="fixed inset-3 sm:inset-5 lg:inset-8 bg-white shadow-2xl z-50 border border-slate-200 rounded-xl flex flex-col overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                   <div>
                     <h3 className="font-bold text-slate-900">
@@ -188,18 +211,33 @@ export default function DocumentsTemplatesPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 relative">
+                <div className="flex-1 overflow-y-auto p-6 relative bg-slate-50">
                   {previewLoading ? (
                     <div className="py-20 text-center text-slate-500">Chargement...</div>
                   ) : (
                     <div className="relative">
-                      {/* HTML Preview */}
+                      {/* The source is a complete A4 document. Keep its html/head/body
+                          isolated so its print CSS and page geometry remain intact. */}
                       <div
-                        className="border border-slate-200 rounded-lg overflow-hidden"
-                        dangerouslySetInnerHTML={{ __html: previewHtml || "" }}
-                      />
+                        ref={previewFrameContainerRef}
+                        data-testid="document-template-preview"
+                        className="border border-slate-200 rounded-lg overflow-hidden bg-slate-100 flex justify-center"
+                        style={{ height: `${A4_HEIGHT_PX * previewScale}px` }}
+                      >
+                        <iframe
+                          title="Aperçu du modèle de document"
+                          srcDoc={previewHtml || ""}
+                          className="block border-0 bg-white"
+                          style={{
+                            width: `${A4_WIDTH_PX}px`,
+                            height: `${A4_HEIGHT_PX}px`,
+                            transform: `scale(${previewScale})`,
+                            transformOrigin: "top left",
+                          }}
+                        />
+                      </div>
 
-                      {/* Variables Overlay */}
+                      {/* Variables are rendered at their source positions by the backend. */}
                       {showVars && vars.length > 0 && (
                         <div className="mt-4 bg-indigo-50 rounded-lg border border-indigo-200 p-4">
                           <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wide mb-3">

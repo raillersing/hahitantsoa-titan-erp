@@ -233,6 +233,7 @@ def _build_mock_preview_context(template_definition) -> dict:
         "customer_id": "DEMO-001",
         "public_reference": "LOC-2026-DEMO",
         "display_name": "ETS Ravinala (Démo)",
+        "party_type": "company",
         "email": "info@ravinala.mg",
         "phone": "+261 34 12 345 67",
         "address": "Lot 12B, Mahajanga, Madagascar",
@@ -448,10 +449,11 @@ class DocumentTemplatePreviewAPIView(APIView):
 
         mock_context = _build_mock_preview_context(template_definition)
         bank = _build_preview_bank(template_definition)
+        show_variables = request.query_params.get("show_variables") == "1"
 
         html_content = render_to_string(
             template_path,
-            {"context": mock_context, "bank": bank},
+            {"context": mock_context, "bank": bank, "show_variables": show_variables},
         )
 
         return HttpResponse(html_content, content_type="text/html; charset=utf-8")
@@ -484,7 +486,11 @@ class DocumentTemplatePreviewPDFAPIView(APIView):
         bank = _build_preview_bank(template_definition)
         html_content = render_to_string(
             template_path,
-            {"context": _build_mock_preview_context(template_definition), "bank": bank},
+            {
+                "context": _build_mock_preview_context(template_definition),
+                "bank": bank,
+                "show_variables": False,
+            },
         )
 
         try:
