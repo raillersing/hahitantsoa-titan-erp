@@ -5,7 +5,13 @@ from django.db import transaction
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiResponse, OpenApiTypes, extend_schema, inline_serializer
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    OpenApiTypes,
+    extend_schema,
+    inline_serializer,
+)
 from rest_framework import serializers, status
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -25,11 +31,13 @@ from apps.documents.rendering import resolve_document_template_path
 from apps.documents.runtime import DocumentRuntimeGenerationError
 from apps.documents.selectors import (
     get_document_instance_by_id,
+    list_all_document_instances,
     list_document_instances_for_reservation_draft,
 )
 from apps.documents.serializers import (
     DocumentInstanceCreateSerializer,
     DocumentInstanceGenerateSerializer,
+    DocumentInstanceListSerializer,
     DocumentInstancePDFSerializer,
     DocumentInstanceSerializer,
     DocumentTemplateDefinitionSerializer,
@@ -907,3 +915,72 @@ class DocumentInstanceVoidAPIView(APIView):
             )
 
         return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)
+
+
+class DocumentInstanceListAPIView(APIView):
+    """Globally list document instances with optional filtering."""
+
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="document_type",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="business_scope",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="status",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="customer_id",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="date_from",
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="date_to",
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="search",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name="ordering",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: DocumentInstanceListSerializer(many=True),
+            403: OpenApiResponse(description="Unauthorized."),
+        },
+    )
+    def get(self, request):
+        qs = list_all_document_instances(
+            document_type=request.query_params.get("document_type"),
+            business_scope=request.query_params.get("business_scope"),
+            status=request.query_params.get("status"),
+            customer_id=request.query_params.get("customer_id"),
+            date_from=request.query_params.get("date_from"),
+            date_to=request.query_params.get("date_to"),
+            search=request.query_params.get("search"),
+            ordering=request.query_params.get("ordering", "-created_at"),
+        )
+        serializer = DocumentInstanceListSerializer(qs, many=True)
+        return Response(serializer.data)

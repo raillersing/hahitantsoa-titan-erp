@@ -1,7 +1,8 @@
 from django.urls import path
 
-from .views import (
+from apps.documents.views import (
     DocumentInstanceConvertToContractAPIView,
+    DocumentInstanceListAPIView,
     DocumentInstancePDFRetrieveAPIView,
     DocumentInstancePrivateArtifactAPIView,
     DocumentInstanceVoidAPIView,
@@ -68,6 +69,11 @@ urlpatterns = [
         "instances/<uuid:id>/artifact/",
         DocumentInstancePrivateArtifactAPIView.as_view(),
         name="document-instance-private-artifact",
+    ),
+    path(
+        "instances/",
+        DocumentInstanceListAPIView.as_view(),
+        name="document-instance-list",
     ),
     path(
         "reservation-drafts/<uuid:reservation_draft_id>/instances/",

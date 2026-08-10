@@ -151,6 +151,35 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class DocumentInstanceListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for the hub list view."""
+
+    reservation_draft_id = serializers.UUIDField(read_only=True)
+    hahitantsoa_event_draft_id = serializers.UUIDField(read_only=True)
+    customer_id = serializers.UUIDField(read_only=True)
+
+    class Meta:
+        model = DocumentInstance
+        fields = (
+            "id",
+            "document_type",
+            "business_scope",
+            "template_label",
+            "reservation_public_reference",
+            "reservation_status",
+            "customer_display_name",
+            "customer_email",
+            "customer_phone",
+            "status",
+            "created_at",
+            "updated_at",
+            "reservation_draft_id",
+            "hahitantsoa_event_draft_id",
+            "customer_id",
+        )
+        read_only_fields = fields
+
+
 MAX_UPLOADED_ATTACHMENT_BYTES = 10 * 1024 * 1024
 ALLOWED_ATTACHMENT_TYPES = {
     ".pdf": "application/pdf",
