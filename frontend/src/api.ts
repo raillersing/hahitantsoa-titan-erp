@@ -951,8 +951,11 @@ export async function getDocumentTemplatePreview(
   templateKey: string,
   signal?: AbortSignal,
   showVariables = false,
+  partyType: "individual" | "company" = "individual",
 ): Promise<string> {
-  const query = showVariables ? "?show_variables=1" : "";
+  const params = new URLSearchParams({ party_type: partyType });
+  if (showVariables) params.set("show_variables", "1");
+  const query = `?${params.toString()}`;
   const response = await fetch(
     `/api/v1/documents/templates/${encodeURIComponent(templateKey)}/preview/${query}`,
     { credentials: "include", signal },

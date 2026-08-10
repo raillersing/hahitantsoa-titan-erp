@@ -69,6 +69,7 @@ export default function DocumentsTemplatesPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showVars, setShowVars] = useState(false);
+  const [partyType, setPartyType] = useState<"individual" | "company">("individual");
   const [vars, setVars] = useState<string[]>([]);
   const [paperSize, setPaperSize] = useState<PaperSize>("A4");
   const [pageCount, setPageCount] = useState(1);
@@ -105,7 +106,7 @@ export default function DocumentsTemplatesPage() {
     setPreviewError(null);
     setPreviewHtml(null);
     setVars([]);
-    getDocumentTemplatePreview(previewKey, ctrl.signal, showVars)
+    getDocumentTemplatePreview(previewKey, ctrl.signal, showVars, partyType)
       .then((html) => {
         setPreviewHtml(html);
         setPaperSize(detectPaperSize(html));
@@ -118,7 +119,7 @@ export default function DocumentsTemplatesPage() {
       })
       .finally(() => setPreviewLoading(false));
     return () => ctrl.abort();
-  }, [previewKey, showVars]);
+  }, [previewKey, showVars, partyType]);
 
   useEffect(() => {
     if (!previewKey) return;
@@ -149,6 +150,7 @@ export default function DocumentsTemplatesPage() {
     lastTriggerRef.current = trigger;
     setPreviewKey(template.key);
     setShowVars(false);
+    setPartyType("individual");
     setPaperSize("A4");
     setPageCount(1);
   };
@@ -287,6 +289,18 @@ export default function DocumentsTemplatesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                      <span className="sr-only">Variante client</span>
+                      <select
+                        aria-label="Variante client"
+                        value={partyType}
+                        onChange={(event) => setPartyType(event.target.value === "company" ? "company" : "individual")}
+                        className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      >
+                        <option value="individual">Particulier</option>
+                        <option value="company">Entreprise</option>
+                      </select>
+                    </label>
                     <button
                       type="button"
                       onClick={() => setShowVars((value) => !value)}

@@ -36,7 +36,7 @@ describe("DocumentsTemplatesPage", () => {
         notes: "Source-backed preview",
       },
     ]);
-    vi.spyOn(api, "getDocumentTemplatePreview").mockResolvedValue(
+    const previewSpy = vi.spyOn(api, "getDocumentTemplatePreview").mockResolvedValue(
       "<!doctype html><html><head><style>body{font-family:serif}</style></head><body><main>Avenant</main></body></html>",
     );
 
@@ -46,6 +46,16 @@ describe("DocumentsTemplatesPage", () => {
 
     await waitFor(() => expect(screen.getByTestId("document-template-preview")).toBeInTheDocument());
     expect(screen.getByTitle("Aperçu du modèle de document : Avenant de contrat Hahitantsoa")).toHaveAttribute("srcdoc");
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Variante client" }), {
+      target: { value: "company" },
+    });
+    await waitFor(() => expect(previewSpy).toHaveBeenLastCalledWith(
+      "hahitantsoa.contract_amendment.v1",
+      expect.anything(),
+      false,
+      "company",
+    ));
   });
 
   it("navigates between document slides with buttons and keeps variables visible", async () => {

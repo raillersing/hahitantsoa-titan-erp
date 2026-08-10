@@ -3,7 +3,10 @@ from pathlib import Path
 import pytest
 from django.template.loader import render_to_string
 
-from apps.documents.registry import get_document_template_definition
+from apps.documents.registry import (
+    get_document_template_definition,
+    list_document_template_definitions,
+)
 from apps.documents.views import (
     _build_mock_preview_context,
     _build_preview_bank,
@@ -81,3 +84,47 @@ def test_checking_preview_exposes_two_source_pages_without_internal_overflow() -
     )
 
     assert html.count('class="page document-page"') == 2
+
+
+def test_catalog_preview_context_is_blank_and_supports_party_variants() -> None:
+    definition = get_document_template_definition("hahitantsoa.contract_amendment.v1")
+    assert definition is not None
+
+    individual = _build_mock_preview_context(definition, party_type="individual")
+    company = _build_mock_preview_context(definition, party_type="company")
+
+    assert individual["blank_preview"] is True
+    assert company["blank_preview"] is True
+    assert individual["event_draft"]["party_type"] == "individual"
+    assert company["event_draft"]["party_type"] == "company"
+    assert individual["event_draft"]["lines"] == []
+    assert individual["event_draft"]["customer_display_name"].startswith("_")
+    assert company["event_draft"]["customer_display_name"].startswith("_")
+
+
+def test_catalog_previews_do_not_contain_seeded_demo_customer_data() -> None:
+    demo_markers = (
+        "ETS Ravinala",
+        "Chaise chiavari dorée",
+        "Table rectangulaire GM",
+        "LOC-2026-DEMO",
+        "EVT-2026-DEMO",
+        "Rakotomalala Jean",
+        "Mariage de Rakotomalala",
+    )
+
+    for definition in list_document_template_definitions():
+        if definition.key == "hahitantsoa.house_rules.v1":
+            continue
+        template_path = _resolve_preview_template_path(definition.key)
+        assert template_path is not None
+        html = render_to_string(
+            template_path,
+            {
+                "context": _build_mock_preview_context(definition),
+                "bank": _build_preview_bank(definition),
+                "show_variables": False,
+                "blank_preview": True,
+            },
+        )
+        assert not any(marker in html for marker in demo_markers), definition.key
