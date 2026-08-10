@@ -397,8 +397,13 @@ def _build_preview_bank(template_definition) -> dict[str, str]:
             "rib": "00004 00009 03319320102 33",
             "iban": "",
             "swift_bic": "",
+            "nif": "6003298583",
+            "stat": "77290 11 2019 010 215",
         }
-    if template_definition.business_scope == "hahitantsoa":
+    if (
+        template_definition.business_scope == "hahitantsoa"
+        or template_definition.key == "shared.breakage_repair_invoice.v1"
+    ):
         return {
             "name": "BMOI MADAGASCAR",
             "branch": "Antananarivo",
@@ -407,15 +412,19 @@ def _build_preview_bank(template_definition) -> dict[str, str]:
             "rib": "00004 00009 03319320103 30",
             "iban": "",
             "swift_bic": "",
+            "nif": "6003298583",
+            "stat": "77290 11 2019 010 215",
         }
     return {
         "name": "BMOI MADAGASCAR",
         "branch": "Antananarivo",
         "account_holder": "ERGON GROUP SARL",
         "account_number": "",
-        "rib": "{{rib}}",
-        "iban": "{{iban}}",
-        "swift_bic": "{{swift_bic}}",
+        "rib": "",
+        "iban": "",
+        "swift_bic": "",
+        "nif": "",
+        "stat": "",
     }
 
 
