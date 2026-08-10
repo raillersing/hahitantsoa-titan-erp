@@ -18,7 +18,8 @@ Behavior:
   - never reads, sources, copies, displays, or creates .env
   - never touches secrets
   - runs from the repository root
-  - prints branch, commits, status, open PRs, recent main CI, worktrees
+  - checks branch, HEAD, status, open PRs, recent main CI, worktrees
+  - never fetches, pulls, switches branches, resets, stashes, or changes Git state
   - runs orchestrator and task queue validation
   - reports untracked files separately
   - explicitly flags the local F140D audit report if present
@@ -44,19 +45,25 @@ case "${1:-}" in
 esac
 
 current_branch="$(git branch --show-current 2>/dev/null || true)"
+starting_head="$(git rev-parse HEAD)"
+status_before="$(git status --porcelain)"
 
 echo "============================================================"
 echo "ERP AGENT TASK START"
 echo "============================================================"
 echo "REPO_ROOT: $REPO_ROOT"
 echo "BRANCH: ${current_branch:-DETACHED}"
+echo "HEAD: $starting_head"
 
-git fetch origin --prune
+if [ -z "$current_branch" ]; then
+  echo "HARD STOP: detached HEAD. Resolve the assigned branch before continuing."
+  exit 3
+fi
 
-if [ "${current_branch:-}" = "main" ]; then
-  git pull --ff-only origin main || echo "WARN: unable to fast-forward local main."
-else
-  echo "INFO: not on main; skip local main pull."
+if [ -n "$status_before" ]; then
+  echo "HARD STOP: worktree is dirty. No network or Git mutation was performed."
+  printf '%s\n' "$status_before"
+  exit 3
 fi
 
 echo
@@ -65,15 +72,15 @@ git log --oneline --decorate -8
 
 echo
 echo "==== GIT STATUS ===="
-git status --short
+echo "clean"
 
 echo
 echo "==== OPEN PRS ===="
-gh pr list --state open --limit 20
+gh pr list --state open --limit 20 || echo "UNCONFIRMED: GitHub PR status is unavailable."
 
 echo
 echo "==== RECENT MAIN CI RUNS ===="
-gh run list --branch main --limit 10
+gh run list --branch main --limit 10 || echo "UNCONFIRMED: GitHub CI status is unavailable."
 
 echo
 echo "==== WORKTREES ===="
@@ -89,8 +96,19 @@ bash "$SCRIPT_DIR/erp-task-queue-validate"
 
 echo
 echo "==== UNTRACKED FILES ===="
-git ls-files --others --exclude-standard || true
+echo "none"
 
 if [ -e "$REPO_ROOT/docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATION.md" ]; then
   echo "F140D_LOCAL_UNTRACKED: docs/audits/F140D_OPENCODE_WSL_NATIVE_EVALUATION.md"
+fi
+
+ending_branch="$(git branch --show-current 2>/dev/null || true)"
+ending_head="$(git rev-parse HEAD)"
+if [ "$ending_branch" != "$current_branch" ] || [ "$ending_head" != "$starting_head" ]; then
+  echo "HARD STOP: branch or HEAD changed during baseline. Do not continue."
+  echo "START_BRANCH: $current_branch"
+  echo "END_BRANCH: ${ending_branch:-DETACHED}"
+  echo "START_HEAD: $starting_head"
+  echo "END_HEAD: $ending_head"
+  exit 4
 fi
