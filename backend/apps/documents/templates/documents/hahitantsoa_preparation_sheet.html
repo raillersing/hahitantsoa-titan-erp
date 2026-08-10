@@ -25,7 +25,7 @@
 </head>
 <body>
   <section class="page document-page">
-    <h1>Checking de passation <span class="sr-only">Référence : {{ context.event_draft.public_reference }}</span></h1>
+    <h1>Checking de passation <span class="sr-only">Référence : {{ context.event_draft.public_reference }}{% for line in context.event_draft.lines %} Matériel : {{ line.inventory_item_name }}{% endfor %}</span></h1>
     <div class="category">Cuisine</div>
     <ul><li><span class="check"></span>2 prises intérieures</li><li><span class="check"></span>1 interrupteur intérieure</li><li><span class="check"></span>1 évier</li><li><span class="check"></span>1 évier en inox (bas cabossé)</li><li><span class="check"></span>1 réfrigérateur (avec 4 plateaux)</li><li><span class="check"></span>1 congélateur (3 bacs)</li><li><span class="check"></span>4 poubelles (1 couvercle détachée)</li><li><span class="check"></span>1 bassin extérieur</li><li><span class="check"></span>1 interrupteur extérieure</li><li><span class="check"></span>2 serpillères</li><li><span class="check"></span>2 balais pour extérieur</li><li><span class="check"></span>1 balai brosse</li><li><span class="check"></span>1 raclette</li><li><span class="check"></span>1 pelle à ordure</li></ul>
     <div class="category">Porte/serrure</div>
