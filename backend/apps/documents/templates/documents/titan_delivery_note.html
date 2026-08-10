@@ -1,258 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-    <!-- Delivered Items -->
-    <meta charset="utf-8">
-    <title>Bon de livraison Titan — {{ context.reservation_draft.public_reference }}</title>
-    <style>
-        @page {
-            size: A4;
-            margin: 15mm 15mm 20mm 15mm;
-            @bottom-right {
-                content: "Page " counter(page) " / " counter(pages);
-                font-family: Arial, Helvetica, sans-serif;
-                font-size: 8pt;
-                color: #64748b;
-            }
-        }
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            color: #1e293b;
-            font-size: 9.5pt;
-            line-height: 1.4;
-            margin: 0;
-            padding: 0;
-        }
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #0f172a;
-            padding-bottom: 12px;
-        }
-        .brand-title {
-            font-size: 22pt;
-            font-weight: bold;
-            color: #0f172a;
-            letter-spacing: 1px;
-            margin: 0;
-            text-transform: uppercase;
-        }
-        .brand-subtitle {
-            font-size: 9pt;
-            color: #475569;
-            margin-top: 2px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .doc-title {
-            text-align: right;
-            font-size: 16pt;
-            font-weight: bold;
-            color: #1e3a8a;
-            text-transform: uppercase;
-            margin: 0;
-        }
-        .doc-ref {
-            text-align: right;
-            font-size: 10pt;
-            font-weight: bold;
-            color: #475569;
-            margin-top: 4px;
-        }
-        .info-grid {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        .info-box {
-            width: 48%;
-            vertical-align: top;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            padding: 10px 12px;
-            background-color: #f8fafc;
-        }
-        .box-title {
-            font-size: 9pt;
-            font-weight: bold;
-            color: #1e3a8a;
-            text-transform: uppercase;
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 4px;
-            margin-bottom: 6px;
-        }
-        .info-line {
-            margin-bottom: 3px;
-        }
-        .info-label {
-            font-weight: bold;
-            color: #475569;
-            display: inline-block;
-            width: 110px;
-        }
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        .items-table th {
-            background-color: #0f172a;
-            color: #ffffff;
-            font-size: 9pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            padding: 8px 10px;
-            text-align: left;
-            border: 1px solid #0f172a;
-        }
-        .items-table td {
-            padding: 8px 10px;
-            border: 1px solid #cbd5e1;
-            font-size: 9.5pt;
-        }
-        .items-table tr:nth-child(even) td {
-            background-color: #f8fafc;
-        }
-        .col-num { width: 35px; text-align: center; }
-        .col-qty { width: 70px; text-align: center; font-weight: bold; }
-        .col-kind { width: 100px; }
-        .col-check { width: 50px; text-align: center; }
-        .notes-box {
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            padding: 10px 12px;
-            margin-bottom: 25px;
-            background-color: #ffffff;
-            min-height: 45px;
-        }
-        .signatures-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 30px;
-            page-break-inside: avoid;
-        }
-        .sig-box {
-            width: 48%;
-            vertical-align: top;
-            border: 1px solid #94a3b8;
-            border-radius: 4px;
-            padding: 12px;
-            height: 90px;
-        }
-        .sig-title {
-            font-weight: bold;
-            font-size: 9.5pt;
-            color: #0f172a;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-        }
-        .sig-mention {
-            font-size: 8pt;
-            color: #64748b;
-            font-style: italic;
-        }
-    </style>
+  <meta charset="utf-8">
+  <title>Bon de livraison Titan</title>
+  <style>
+    @page { size: A5; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { width: 148mm; height: 210mm; margin: 0; color: #222; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; }
+    .page { position: relative; width: 148mm; height: 210mm; overflow: hidden; }
+    .side { position: absolute; inset: 0 auto 0 0; width: 62mm; background: #e7e7e6; padding: 10mm 4mm 6mm; }
+    .brand { display: block; width: 30mm; height: 30mm; margin: 0 auto; object-fit: contain; filter: grayscale(1) contrast(2); }
+    .side-info { position: absolute; left: 4mm; right: 4mm; bottom: 24mm; font-size: 6.7pt; line-height: 1.2; color: #4d4d4d; }
+    .side-info strong { color: #222; font-size: 7pt; }
+    .ergon { position: absolute; left: 26mm; bottom: 6mm; width: 11mm; height: 11mm; object-fit: contain; filter: grayscale(1); opacity: .6; }
+    .main { position: absolute; top: 0; left: 62mm; width: 86mm; height: 210mm; padding: 8mm 6mm 5mm; }
+    .header { text-align: right; }
+    .number { font-size: 7pt; font-weight: 700; }
+    .title { margin: 2mm 0 2mm; font-size: 15pt; letter-spacing: .7mm; white-space: nowrap; }
+    .identity { margin-top: 4mm; font-size: 6.5pt; font-weight: 700; letter-spacing: .7mm; }
+    .identity-row { display: grid; grid-template-columns: 13mm 1fr; min-height: 8mm; align-items: baseline; }
+    .identity-value { border-bottom: .2mm solid #555; letter-spacing: 0; font-weight: 400; }
+    .items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 5mm; font-size: 7pt; }
+    .items th { text-align: left; height: 9mm; }
+    .items th:first-child { width: 32mm; }
+    .items td { height: 7mm; vertical-align: top; border-right: .2mm solid #aaa; }
+    .items td:last-child { border-right: 0; padding-left: 3mm; }
+    .watermark { position: absolute; z-index: -1; left: -8mm; top: 70mm; width: 111mm; height: 140mm; object-fit: contain; opacity: .06; }
+    .signatures { position: absolute; left: 6mm; right: 6mm; bottom: 18mm; display: flex; justify-content: space-between; font-size: 6pt; }
+    .footer { position: absolute; left: 6mm; right: 6mm; bottom: 5mm; display: flex; justify-content: space-between; font-size: 8pt; font-weight: 700; }
+    .variable { background: #fff0b3; outline: .2mm solid #d6a700; padding: 0 .3mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media print { .variable { background: transparent; outline: 0; } }
+  </style>
 </head>
 <body>
-    <table class="header-table">
-        <tr>
-            <td style="width: 55%;">
-            <img src="/brand/titan-rental-logo.png" alt="Titan Rental" style="height: 48px; object-fit: contain; margin-bottom: 6px;" onerror="this.style.display='none'" />
-            <div class="brand-title">TITAN RENTAL</div>
-            <div class="brand-subtitle">LOCATION DE MATÉRIEL & ÉQUIPEMENTS PRO</div>
-        </td>
-            <td style="vertical-align: top;">
-                <div class="doc-title">BON DE LIVRAISON</div>
-                <div class="doc-ref">N° {{ context.reservation_draft.public_reference }}</div>
-                <div style="text-align: right; font-size: 8.5pt; color: #64748b; margin-top: 4px;">
-                    Date d'émission : {% now "d/m/Y" %}
-                </div>
-            </td>
-        </tr>
-    </table>
-
-    <table class="info-grid">
-        <tr>
-            <td class="info-box">
-                <div class="box-title">Informations Client</div>
-                <div class="info-line"><span class="info-label">Client :</span> <strong>{{ context.reservation_draft.customer.display_name }}</strong></div>
-                {% if context.reservation_draft.customer.phone %}
-                <div class="info-line"><span class="info-label">Téléphone :</span> {{ context.reservation_draft.customer.phone }}</div>
-                {% endif %}
-                {% if context.reservation_draft.customer.email %}
-                <div class="info-line"><span class="info-label">Email :</span> {{ context.reservation_draft.customer.email }}</div>
-                {% endif %}
-                {% if context.reservation_draft.customer.address %}
-                <div class="info-line"><span class="info-label">Adresse :</span> {{ context.reservation_draft.customer.address }}</div>
-                {% endif %}
-                {% if context.reservation_draft.customer.nif %}
-                <div class="info-line"><span class="info-label">NIF / STAT :</span> {{ context.reservation_draft.customer.nif }}{% if context.reservation_draft.customer.stat %} / {{ context.reservation_draft.customer.stat }}{% endif %}</div>
-                {% endif %}
-            </td>
-            <td style="width: 4%;"></td>
-            <td class="info-box">
-                <div class="box-title">Détails de la Location</div>
-                <div class="info-line"><span class="info-label">Référence :</span> <strong>{{ context.reservation_draft.public_reference }}</strong></div>
-                <div class="info-line"><span class="info-label">Date de Début :</span> <strong>{{ context.reservation_draft.start_at|date:"d/m/Y H:i" }}</strong></div>
-                <div class="info-line"><span class="info-label">Date de Fin :</span> <strong>{{ context.reservation_draft.end_at|date:"d/m/Y H:i" }}</strong></div>
-                <div class="info-line"><span class="info-label">Statut :</span> {{ context.reservation_draft.status|upper }}</div>
-            </td>
-        </tr>
-    </table>
-
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th class="col-num">N°</th>
-                <th>Désignation du Matériel</th>
-                <th class="col-kind">Catégorie</th>
-                <th class="col-qty">Quantité</th>
-                <th class="col-check">Contrôle</th>
-                <th>Observations / État à la livraison</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for line in context.reservation_draft.lines %}
-            <tr>
-                <td class="col-num">{{ forloop.counter }}</td>
-                <td><strong>{{ line.inventory_item_name }}</strong></td>
-                <td class="col-kind">{{ line.inventory_item_kind }}</td>
-                <td class="col-qty">{{ line.quantity }}</td>
-                <td class="col-check">☐</td>
-                <td>{% if line.notes %}{{ line.notes }}{% else %}<span style="color: #94a3b8; font-style: italic;">Conforme</span>{% endif %}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" style="text-align: center; color: #64748b; padding: 15px;">
-                    Aucun article spécifié pour cette livraison.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    {% if context.reservation_draft.notes %}
-    <div class="notes-box">
-        <div style="font-weight: bold; color: #0f172a; margin-bottom: 4px;">Consignes & Remarques Particulières :</div>
-        <div>{{ context.reservation_draft.notes }}</div>
-    </div>
-    {% endif %}
-
-    <table class="signatures-table">
-        <tr>
-            <td class="sig-box">
-                <div class="sig-title">Pour TITAN (Livreur / Responsable Stock)</div>
-                <div class="sig-mention">Nom et Signature :</div>
-                <div style="margin-top: 35px; border-bottom: 1px dashed #cbd5e1;"></div>
-            </td>
-            <td style="width: 4%;"></td>
-            <td class="sig-box">
-                <div class="sig-title">Pour le Client (Réceptionnaire)</div>
-                <div class="sig-mention">Mention « Matériel reçu conforme et complet » + Signature :</div>
-                <div style="margin-top: 35px; border-bottom: 1px dashed #cbd5e1;"></div>
-            </td>
-        </tr>
-    </table>
+  <div class="page">
+    <aside class="side"><img class="brand" src="/brand/titan-rental-logo.png" alt="Titan Rental"><div class="side-info"><strong>BANK</strong><br>{% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankName {% templatetag closevariable %}</span>{% else %}{{ bank.name|default:"BMOI MADAGASCAR" }}{% endif %}<br><br><strong>RIB</strong><br>{% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"00004 00009 03319320102 33" }}{% endif %}<br><br>Ergon Group SARL<br>Lot P93M Ambohipo sud<br>By-pass<br>+261 34 61 791 41<br><br>NIF : 6003298583<br>STAT : 77290 11 2019 010 215</div><img class="ergon" src="/brand/ergon-logo.png" alt="Ergon"></aside>
+    <main class="main"><img class="watermark" src="/brand/titan-rental-logo.png" alt=""><span class="sr-only">Référence réservation : {{ context.reservation_draft.public_reference }}</span><header class="header"><div class="number">Bon de livraison N°: {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}__________{% endif %}</div><div class="title">BON DE LIVRAISON</div></header><section class="identity"><div class="identity-row"><strong>NOM</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}__________________________{% endif %}</span></div><div class="identity-row"><strong>FACTURE</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}__________{% endif %}</span></div></section><table class="items" aria-label="Delivered Items"><thead><tr><th>Quantité</th><th>Désignation</th></tr></thead><tbody>{% for line in context.reservation_draft.lines %}<tr><td>{{ line.quantity|stringformat:"03d" }}</td><td>{{ line.inventory_item_name }}{% if line.notes %}<br>{{ line.notes }}{% endif %}</td></tr>{% empty %}<tr><td>_____</td><td>____________________________</td></tr>{% endfor %}</tbody></table><div class="signatures"><span>Le responsable</span><span>Le client</span></div><div class="footer"><span>titan@ergon.mg</span><span>+261 34 61 791 42</span></div></main>
+  </div>
 </body>
 </html>

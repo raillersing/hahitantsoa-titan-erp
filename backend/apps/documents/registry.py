@@ -35,7 +35,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Bon de livraison/20240530 BL HAHITANTSOA 018-24 RAHARIJAONA RASETAMANANA Solofonantenaina.pdf",  # noqa: E501
+        source_reference="docs/references/source/templates/Hahitantsoa/Bon de livraison/20240530 BL HAHITANTSOA 018-24 RAHARIJAONA RASETAMANANA Solofonantenaina.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_delivery_note.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/bl/v1/preview.pdf",
         validated_by_client=False,
@@ -77,7 +77,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Facture/2024130 FACTURE HAHITANTSOA 093-24 RANJAVASON Nihantra Fanomezana.pdf",  # noqa: E501
+        source_reference="docs/references/source/templates/Hahitantsoa/Facture/2024130 FACTURE HAHITANTSOA 093-24 RANJAVASON Nihantra Fanomezana.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_invoice.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/facture/v1/preview.pdf",
         validated_by_client=False,
@@ -117,13 +117,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="liability_release",
         label="Decharge de responsabilite Hahitantsoa",
         version="v1",
-        status="validated_source_template",
+        status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/DECHARGE RESPONSABILITE CIVILE HAHITANTSOA_v1.pdf",  # noqa: E501
+        source_reference="docs/references/source/templates/Hahitantsoa/Décharge de responsabilité civila_v1.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_liability_release.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/decharge_responsabilite/v1/preview.pdf",
-        validated_by_client=True,
-        notes="Source-backed A4 liability release; document remains separate from the protected contract renderer.",  # noqa: E501
+        validated_by_client=False,
+        notes="Source-backed A4 liability release replica; document remains separate from the protected contract renderer. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.delivery_note.v1",
@@ -131,13 +131,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="delivery_note",
         label="Bon de livraison Titan",
         version="v1",
-        status="validated_source_template",
+        status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Bon de livraison/20240808 BON DE LIVRAISON TITAN 018-24 calista.pdf",  # noqa: E501
+        source_reference="docs/references/source/templates/Template_BL_Titan_vierge_style_fidele_v1.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_delivery_note.html",
         preview_path="backend/apps/documents/templates_documents/titan/bl/v1/preview.pdf",
-        validated_by_client=True,
-        notes="Replicate the A4 Titan delivery-note layout from the nested Windows source before client validation.",  # noqa: E501
+        validated_by_client=False,
+        notes="Source-backed A5 Titan delivery-note replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.proforma.v1",
@@ -159,13 +159,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="invoice",
         label="Facture Titan",
         version="v1",
-        status="validated_source_template",
+        status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Facture/20240802 FACTURE  TITAN 033-24 RAZAFINDRASOA Lalaina.pdf",  # noqa: E501
+        source_reference="docs/references/source/templates/Template_FACTURE_Titan_vierge_style_fidele_v1.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_invoice.html",
         preview_path="backend/apps/documents/templates_documents/titan/facture/v1/preview.pdf",
-        validated_by_client=True,
-        notes="Replicate the A4 Titan invoice layout from the nested Windows source before client validation.",  # noqa: E501
+        validated_by_client=False,
+        notes="Source-backed A5 Titan invoice replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.material_amendment.v1",
@@ -267,7 +267,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/checking_passation/v1/preview.pdf",
         validated_by_client=False,
         notes=(
-            "Checklist interne à compléter par le staff pour chaque événement Hahitantsoa; "
+            "Source-backed A4 checking de passation replicated from checking passation.docx; "
             "aucun prix ni donnée financière. PDF is generated at runtime."
         ),
     ),
