@@ -16,6 +16,7 @@
     li { padding-left: 1mm; min-height: 6mm; }
     .check { display: inline-block; width: 4mm; height: 4mm; margin-right: 2mm; border: .3mm solid #222; vertical-align: -.4mm; }
     .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     @media print {
       body { background: #fff; }
       .variable { background: transparent; outline: 0; }
@@ -24,7 +25,7 @@
 </head>
 <body>
   <section class="page document-page">
-    <h1>Checking de passation</h1>
+    <h1>Checking de passation <span class="sr-only">Référence : {{ context.event_draft.public_reference }}</span></h1>
     <div class="category">Cuisine</div>
     <ul><li><span class="check"></span>2 prises intérieures</li><li><span class="check"></span>1 interrupteur intérieure</li><li><span class="check"></span>1 évier</li><li><span class="check"></span>1 évier en inox (bas cabossé)</li><li><span class="check"></span>1 réfrigérateur (avec 4 plateaux)</li><li><span class="check"></span>1 congélateur (3 bacs)</li><li><span class="check"></span>4 poubelles (1 couvercle détachée)</li><li><span class="check"></span>1 bassin extérieur</li><li><span class="check"></span>1 interrupteur extérieure</li><li><span class="check"></span>2 serpillères</li><li><span class="check"></span>2 balais pour extérieur</li><li><span class="check"></span>1 balai brosse</li><li><span class="check"></span>1 raclette</li><li><span class="check"></span>1 pelle à ordure</li></ul>
     <div class="category">Porte/serrure</div>
