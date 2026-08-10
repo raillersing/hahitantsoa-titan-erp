@@ -81,6 +81,7 @@ def _build_hahitantsoa_contract_runtime_context(
         "event_draft": {
             "customer_id": document_instance.customer_id,
             "public_reference": linked_event_draft.public_reference,
+            "party_type": document_instance.customer_party_type,
             "event_name": linked_event_draft.event_name,
             "event_type": linked_event_draft.event_type,
             "venue_name": linked_event_draft.venue_name,

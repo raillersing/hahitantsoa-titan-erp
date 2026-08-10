@@ -70,6 +70,7 @@ class CommercialDocumentTemplateContext:
 class CommercialDocumentCustomerContext:
     customer_id: object
     display_name: str
+    party_type: str
     email: str
     phone: str
     address: str
@@ -159,6 +160,7 @@ def _build_customer_context(
     return CommercialDocumentCustomerContext(
         customer_id=reservation_draft.customer_id,
         display_name=customer.display_name,
+        party_type=customer.party_type,
         email=customer.email or "",
         phone=customer.phone or "",
         address=customer.address or "",

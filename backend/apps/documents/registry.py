@@ -49,11 +49,11 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         version="v1",
         status="generated_draft_template",
         source_kind="source_pdf",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Avenant/20240418 Avenant de contrat du 05 OCTOBRE   2024 RAVAOHARIMANANA Miora Nandrianina.pdf",  # noqa: E501
+        source_reference="docs/references/source/templates/Hahitantsoa/Avenant/20240418 Avenant de contrat du 05 OCTOBRE   2024 RAVAOHARIMANANA Miora Nandrianina.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_contract_amendment.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/avenant/v1/preview.pdf",
         validated_by_client=False,
-        notes="Replicate the A4 Hahitantsoa amendment layout from the nested Windows source before client validation. PDF is generated at runtime.",  # noqa: E501
+        notes="Source-backed A4 Hahitantsoa amendment replica. The blank source controls geometry; filled sources control party, date, amount and option content. PDF is generated at runtime. Client visual validation remains pending.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.contract.v1",
