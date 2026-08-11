@@ -138,12 +138,21 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
 class ReservationCloseout(UUIDModel, TimestampedModel):
     """Append-only evidence that a reservation closeout was executed once."""
 
+    class Status(models.TextChoices):
+        CLOSED = "closed", "closed"
+
     reservation_draft = models.OneToOneField(
         ReservationDraft,
         on_delete=models.PROTECT,
         related_name="closeout_record",
     )
     closed_at = models.DateTimeField()
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.CLOSED,
+    )
+    idempotency_key = models.CharField(max_length=128, blank=True, default="")
     closed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -161,6 +170,8 @@ class ReservationCloseout(UUIDModel, TimestampedModel):
     def clean(self) -> None:
         if self.closed_at is None:
             raise ValidationError("Reservation closeouts require a closing timestamp.")
+        if self.status != self.Status.CLOSED:
+            raise ValidationError("Reservation closeouts must be closed when persisted.")
 
     def save(self, *args, **kwargs):
         if not self._state.adding:

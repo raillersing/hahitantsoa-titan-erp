@@ -385,11 +385,16 @@ class ReservationDraftCloseoutExecuteAPIView(APIView):
             summary = closeout_reservation_draft(
                 reservation_draft=draft,
                 actor=request.user,
+                idempotency_key=request.headers.get("Idempotency-Key", ""),
             )
         except CloseoutValidationError as error:
             return Response(
                 {"detail": str(error), "code": error.code},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=(
+                    status.HTTP_409_CONFLICT
+                    if error.code == "closeout_idempotency_key_mismatch"
+                    else status.HTTP_400_BAD_REQUEST
+                ),
             )
 
         import dataclasses

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
+from typing import Any
+from uuid import uuid4
 
 from django.db import transaction
 from django.utils import timezone
@@ -68,6 +70,69 @@ class CloseoutSummary:
     logistics: LogisticsCloseoutSummary = field(default_factory=LogisticsCloseoutSummary)
     returns: ReturnCloseoutSummary = field(default_factory=ReturnCloseoutSummary)
     financial: ReservationFinancialCloseoutSummary | None = None
+    closeout_id: str | None = None
+    closeout_status: str = "open"
+    closed_at: str | None = None
+    replayed: bool = False
+
+
+def _decimal(value: Any) -> Decimal:
+    return Decimal(str(value))
+
+
+def _summary_from_snapshot(snapshot: dict[str, Any], *, replayed: bool = False) -> CloseoutSummary:
+    billing = snapshot.get("billing", {})
+    payments = snapshot.get("payments", {})
+    logistics = snapshot.get("logistics", {})
+    returns = snapshot.get("returns", {})
+    financial = snapshot.get("financial")
+    return CloseoutSummary(
+        reservation_draft_id=snapshot.get("reservation_draft_id", ""),
+        status=snapshot.get("status", ""),
+        contract_signed=snapshot.get("contract_signed", False),
+        deposit_received=snapshot.get("deposit_received", False),
+        confirmed=snapshot.get("confirmed", False),
+        cancelled=snapshot.get("cancelled", False),
+        billing=BillingCloseoutSummary(
+            invoice_count=billing.get("invoice_count", 0),
+            total_amount=_decimal(billing.get("total_amount", "0.00")),
+            open_amount=_decimal(billing.get("open_amount", "0.00")),
+            settled_amount=_decimal(billing.get("settled_amount", "0.00")),
+        ),
+        payments=PaymentCloseoutSummary(
+            payment_count=payments.get("payment_count", 0),
+            total_received=_decimal(payments.get("total_received", "0.00")),
+        ),
+        logistics=LogisticsCloseoutSummary(**logistics),
+        returns=ReturnCloseoutSummary(
+            return_count=returns.get("return_count", 0),
+            settlement_count=returns.get("settlement_count", 0),
+            settlement_draft_count=returns.get("settlement_draft_count", 0),
+            settlement_validated_count=returns.get("settlement_validated_count", 0),
+            total_damage_loss=_decimal(returns.get("total_damage_loss", "0.00")),
+            total_excess_due=_decimal(returns.get("total_excess_due", "0.00")),
+            total_refund_due=_decimal(returns.get("total_refund_due", "0.00")),
+        ),
+        financial=(
+            ReservationFinancialCloseoutSummary(
+                total_invoiced=_decimal(financial.get("total_invoiced", "0.00")),
+                total_paid=_decimal(financial.get("total_paid", "0.00")),
+                total_settled=_decimal(financial.get("total_settled", "0.00")),
+                total_refunded=_decimal(financial.get("total_refunded", "0.00")),
+                total_cashbox_in=_decimal(financial.get("total_cashbox_in", "0.00")),
+                total_cashbox_out=_decimal(financial.get("total_cashbox_out", "0.00")),
+                net_balance=_decimal(financial.get("net_balance", "0.00")),
+                coherence_status=financial.get("coherence_status", "incoherent"),
+                coherence_detail=financial.get("coherence_detail", "snapshot incomplete"),
+            )
+            if financial is not None
+            else None
+        ),
+        closeout_id=snapshot.get("closeout_id"),
+        closeout_status=snapshot.get("closeout_status", "closed"),
+        closed_at=snapshot.get("closed_at"),
+        replayed=replayed,
+    )
 
 
 def get_closeout_summary(*, reservation_draft_id: str) -> CloseoutSummary | None:
@@ -83,6 +148,10 @@ def get_closeout_summary(*, reservation_draft_id: str) -> CloseoutSummary | None
     )
     if draft is None:
         return None
+
+    existing_closeout = ReservationCloseout.objects.filter(reservation_draft=draft).first()
+    if existing_closeout is not None:
+        return _summary_from_snapshot(existing_closeout.summary_snapshot)
 
     summary = CloseoutSummary(
         reservation_draft_id=str(draft.id),
@@ -195,9 +264,18 @@ def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> li
     # Returns
     return_ops = list(reservation_draft.return_operations.all())
     for op in return_ops:
+        if op.status != "validated":
+            blockers.append(f"return_operation_not_validated:{op.id}")
         settlement = getattr(op, "damage_loss_settlement", None)
         if settlement is not None and settlement.settlement_status != "validated":
             blockers.append(f"return_settlement_not_validated:{op.id}")
+
+    if reservation_draft.lines.filter(is_deleted=False).exists():
+        outbound_events = [e for e in events if e.operation == "outbound"]
+        if not outbound_events:
+            blockers.append("logistics_outbound_operation_missing")
+        if not return_ops:
+            blockers.append("return_operation_missing")
 
     from apps.billing.services import (
         RESERVATION_FINANCIAL_CLOSEOUT_COHERENT,
@@ -216,6 +294,7 @@ def closeout_reservation_draft(
     *,
     reservation_draft: ReservationDraft,
     actor: object | None = None,
+    idempotency_key: str = "",
 ) -> CloseoutSummary:
     """Validate and record closeout for a reservation draft.
 
@@ -223,18 +302,27 @@ def closeout_reservation_draft(
     """
     from apps.audit.services import record_audit_event_on_commit
 
+    if len(idempotency_key) > 128:
+        raise CloseoutValidationError(
+            "Closeout idempotency key must be at most 128 characters.",
+            code="closeout_idempotency_key_too_long",
+        )
+
     locked_draft = ReservationDraft.objects.select_for_update().get(pk=reservation_draft.pk)
     existing_closeout = ReservationCloseout.objects.filter(
         reservation_draft=locked_draft,
     ).first()
     if existing_closeout is not None:
-        existing_summary = get_closeout_summary(reservation_draft_id=str(locked_draft.id))
-        if existing_summary is None:
+        if (
+            idempotency_key
+            and existing_closeout.idempotency_key
+            and idempotency_key != existing_closeout.idempotency_key
+        ):
             raise CloseoutValidationError(
-                "Unable to compute closeout summary.",
-                code="closeout_summary_unavailable",
+                "Closeout already exists with a different idempotency key.",
+                code="closeout_idempotency_key_mismatch",
             )
-        return existing_summary
+        return _summary_from_snapshot(existing_closeout.summary_snapshot, replayed=True)
 
     blockers = validate_reservation_closeable(reservation_draft=locked_draft)
     if blockers:
@@ -250,11 +338,18 @@ def closeout_reservation_draft(
             code="closeout_summary_unavailable",
         )
 
+    closeout_id = uuid4()
+    closed_at = timezone.now()
+    summary.closeout_id = str(closeout_id)
+    summary.closeout_status = ReservationCloseout.Status.CLOSED
+    summary.closed_at = closed_at.isoformat()
     summary_snapshot = json.loads(json.dumps(asdict(summary), default=str))
     ReservationCloseout.objects.create(
+        id=closeout_id,
         reservation_draft=locked_draft,
-        closed_at=timezone.now(),
+        closed_at=closed_at,
         closed_by_id=getattr(actor, "pk", None),
+        idempotency_key=idempotency_key[:128],
         summary_snapshot=summary_snapshot,
     )
 

@@ -58,6 +58,7 @@ def test_closeout_summary_returns_expected_keys(operator_client):
     assert "logistics" in data
     assert "returns" in data
     assert data["financial"]["coherence_status"] == "coherent"
+    assert data["closeout_status"] == "open"
 
 
 def test_closeout_summary_404_for_missing_draft(operator_client):

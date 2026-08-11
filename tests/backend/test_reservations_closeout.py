@@ -64,10 +64,20 @@ def test_closeout_execution_is_durable_and_idempotent(
     draft.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
 
     with django_capture_on_commit_callbacks(execute=True):
-        first_result = closeout_reservation_draft(reservation_draft=draft, actor=actor)
-    second_result = closeout_reservation_draft(reservation_draft=draft, actor=actor)
+        first_result = closeout_reservation_draft(
+            reservation_draft=draft,
+            actor=actor,
+            idempotency_key="closeout-test-1",
+        )
+    second_result = closeout_reservation_draft(
+        reservation_draft=draft,
+        actor=actor,
+        idempotency_key="closeout-test-1",
+    )
 
     assert first_result.reservation_draft_id == second_result.reservation_draft_id
+    assert second_result.replayed is True
+    assert second_result.closeout_id == first_result.closeout_id
     assert ReservationCloseout.objects.filter(reservation_draft=draft).count() == 1
     assert (
         AuditEvent.objects.filter(
@@ -76,6 +86,34 @@ def test_closeout_execution_is_durable_and_idempotent(
         ).count()
         == 1
     )
+
+
+def test_closeout_returns_immutable_snapshot_after_source_changes(django_user_model):
+    from apps.billing.models import BillingInvoice
+
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(username="closeout-snapshot", password="p")
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
+
+    first_result = closeout_reservation_draft(reservation_draft=draft, actor=actor)
+    BillingInvoice.objects.create(
+        reservation_draft=draft,
+        amount=100,
+        invoice_status="open",
+        issued_at=timezone.now(),
+        source_kind="manual",
+    )
+    draft.notes = "Changed after closeout"
+    draft.save(update_fields=["notes", "updated_at"])
+
+    snapshot_result = get_closeout_summary(reservation_draft_id=str(draft.id))
+    assert snapshot_result is not None
+    assert snapshot_result.closeout_id == first_result.closeout_id
+    assert snapshot_result.closeout_status == "closed"
+    assert snapshot_result.closed_at == first_result.closed_at
+    assert snapshot_result.billing.invoice_count == 0
 
 
 def test_get_closeout_summary_with_contract_and_deposit():

@@ -343,6 +343,11 @@ def compute_reservation_financial_closeout_summary(
         coherence_detail_parts.append(
             f"total_settled ({total_settled}) exceeds total_paid ({total_paid})"
         )
+    if total_settled > total_invoiced:
+        is_coherent = False
+        coherence_detail_parts.append(
+            f"total_settled ({total_settled}) exceeds total_invoiced ({total_invoiced})"
+        )
     if total_refunded > total_paid:
         is_coherent = False
         coherence_detail_parts.append(
@@ -352,6 +357,11 @@ def compute_reservation_financial_closeout_summary(
         is_coherent = False
         coherence_detail_parts.append(
             f"total_refunded ({total_refunded}) exceeds total_invoiced ({total_invoiced})"
+        )
+    if total_refunded > total_settled:
+        is_coherent = False
+        coherence_detail_parts.append(
+            f"total_refunded ({total_refunded}) exceeds total_settled ({total_settled})"
         )
 
     coherence_status = (

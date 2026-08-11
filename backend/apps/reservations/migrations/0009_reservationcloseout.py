@@ -27,6 +27,8 @@ class Migration(migrations.Migration):
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("closed_at", models.DateTimeField()),
+                ("status", models.CharField(choices=[("closed", "closed")], default="closed", max_length=16)),
+                ("idempotency_key", models.CharField(blank=True, default="", max_length=128)),
                 ("summary_snapshot", models.JSONField(default=dict)),
                 (
                     "closed_by",
