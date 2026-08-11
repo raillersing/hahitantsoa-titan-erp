@@ -82,6 +82,8 @@ const MOCK_LINES: LogisticsEventItemLine[] = [
 describe("LogisticsDeliveryPanel", () => {
   beforeEach(() => {
     vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValue([]);
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([]);
     vi.spyOn(api, "getInventoryItems").mockResolvedValue(MOCK_ITEMS);
     vi.spyOn(api, "getLogisticsEventItemLines").mockResolvedValue(MOCK_LINES);
   });
@@ -106,6 +108,37 @@ describe("LogisticsDeliveryPanel", () => {
     expect(await screen.findByTestId("delivery-row-del-1")).toBeInTheDocument();
     expect(screen.getByTestId("delivery-row-handover-1")).toBeInTheDocument();
     expect(screen.getByTestId("delivery-row-pick-1")).toBeInTheDocument();
+  });
+
+  it("uses the public reservation reference when available", async () => {
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValue([
+      {
+        id: "rd-1111",
+        public_reference: "RES-2026-0042",
+        status: "draft",
+        customer_id: "customer-1",
+        customer_display_name: "John",
+        start_at: "2026-06-15T08:00:00Z",
+        end_at: "2026-06-16T08:00:00Z",
+        notes: "",
+        contract_signed_at: null,
+        contract_signed_by_id: null,
+        required_deposit_received_at: null,
+        required_deposit_received_by_id: null,
+        confirmed_at: null,
+        confirmed_by_id: null,
+        cancelled_at: null,
+        cancelled_by_id: null,
+        lines: [],
+        created_at: "",
+        updated_at: "",
+      },
+    ]);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_EVENT]);
+
+    render(<LogisticsDeliveryPanel />);
+
+    expect(await screen.findByText("RES-2026-0042")).toBeInTheDocument();
   });
 
   it("renders selected event detail and line items", async () => {
@@ -200,6 +233,17 @@ describe("LogisticsDeliveryPanel", () => {
       expect(passationSpy).toHaveBeenCalledWith("handover-1", {});
     });
     expect(await screen.findByText("Bon de livraison généré.")).toBeInTheDocument();
+  });
+
+  it("restores an existing delivery note when selecting an event", async () => {
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_HANDOVER_EVENT]);
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([
+      { id: "existing-delivery-note", template_key: "titan.delivery_note.v1", status: "generated" } as any,
+    ]);
+
+    render(<LogisticsDeliveryPanel />);
+
+    expect(await screen.findByRole("button", { name: "Voir le PDF" })).toBeInTheDocument();
   });
 
   it("generates and opens the printable preparation sheet", async () => {
