@@ -8,6 +8,7 @@ import {
   getHahitantsoaEventDraftDocumentInstances,
   getHahitantsoaEventDraftPayments,
 } from "../api";
+import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import type {
   DocumentInstance,
   HahitantsoaEventDraft,
@@ -159,6 +160,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           </ul>
         </div>
       </section>
+
+      <PaymentWhatsAppReminderButton draftId={param || draft.id} businessScope="hahitantsoa" />
 
       <section className="rounded-2xl border border-slate-100 bg-white p-6">
         <h2 className="font-bold text-slate-800">Actions</h2>

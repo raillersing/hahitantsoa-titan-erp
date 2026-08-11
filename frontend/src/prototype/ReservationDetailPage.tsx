@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { AppScope } from "../App";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
+import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import {
   getReservationDraft,
   getCustomer,
@@ -894,6 +895,8 @@ export default function ReservationDetailPage({
           </div>
         </div>
       )}
+
+      <PaymentWhatsAppReminderButton draftId={draftId} businessScope="titan" />
 
       {/* ── action buttons row ────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-100 p-6 mt-6">

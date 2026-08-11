@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
@@ -8,11 +9,14 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.finance.models import FinanceAccount
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.reservations.models import ReservationDraft
 
 from .gateway import PaymentGatewayError
 from .models import PaymentReconciliationImport
 from .permissions import IsAuthenticatedPaymentBoundary
+from .reminders import build_hahitantsoa_payment_reminder, build_reservation_payment_reminder
 from .serializers import (
     GatewayPaymentCallbackSerializer,
     GatewayPaymentInitiateSerializer,
@@ -118,6 +122,64 @@ class PaymentListCreateAPIView(ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         payment = create_payment(actor=request.user, **serializer.validated_data)
         return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
+
+
+class PaymentReminderWhatsAppAPIView(APIView):
+    """Build a reviewed payment recap for an operator to open in WhatsApp."""
+
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def get(self, request):
+        reservation_draft_id = request.query_params.get("reservation_draft_id")
+        hahitantsoa_event_draft_id = request.query_params.get("hahitantsoa_event_draft_id")
+        if bool(reservation_draft_id) == bool(hahitantsoa_event_draft_id):
+            return Response(
+                {
+                    "detail": (
+                        "Provide exactly one reservation_draft_id or hahitantsoa_event_draft_id."
+                    ),
+                    "code": "payment_reminder_single_draft_required",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if reservation_draft_id:
+            draft = get_object_or_404(
+                ReservationDraft.objects.select_related("customer"),
+                id=reservation_draft_id,
+                is_deleted=False,
+            )
+            reminder = build_reservation_payment_reminder(reservation_draft=draft)
+        else:
+            draft = get_object_or_404(
+                HahitantsoaEventDraft.objects.select_related("customer"),
+                id=hahitantsoa_event_draft_id,
+                is_deleted=False,
+            )
+            reminder = build_hahitantsoa_payment_reminder(hahitantsoa_event_draft=draft)
+
+        return Response(
+            {
+                "business_scope": reminder.business_scope,
+                "draft_id": reminder.draft_id,
+                "reference": reminder.reference,
+                "customer_name": reminder.customer_name,
+                "customer_phone": reminder.customer_phone,
+                "event_label": reminder.event_label,
+                "start_at": reminder.start_at,
+                "end_at": reminder.end_at,
+                "confirmed_payment_count": reminder.confirmed_payment_count,
+                "confirmed_amount": str(reminder.confirmed_amount),
+                "refunded_amount": str(reminder.refunded_amount),
+                "net_amount": str(reminder.net_amount),
+                "payments": reminder.payments,
+                "message": reminder.message,
+                "whatsapp_url": reminder.whatsapp_url,
+                "whatsapp_available": reminder.whatsapp_url is not None,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class PaymentRetrieveAPIView(RetrieveAPIView):
