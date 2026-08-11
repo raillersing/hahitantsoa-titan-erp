@@ -10,12 +10,12 @@ from apps.inventory.views import (
     InventoryExcessReceivableGenerateInvoiceAPIView,
     InventoryItemListAPIView,
     InventoryItemRetrieveAPIView,
-    InventoryStorageLocationListCreateAPIView,
     InventoryReturnOperationListCreateAPIView,
     InventoryReturnOperationRetrieveAPIView,
     InventoryReturnOperationValidateAPIView,
     InventoryStockMovementListCreateAPIView,
     InventoryStockMovementRetrieveAPIView,
+    InventoryStorageLocationListCreateAPIView,
 )
 
 urlpatterns = [
