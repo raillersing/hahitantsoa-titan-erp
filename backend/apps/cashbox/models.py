@@ -92,6 +92,25 @@ class CashboxSession(UUIDModel, TimestampedModel, AuditableModel):
         return f"Cashbox session {self.operator_id} ({self.opened_at})"
 
 
+class CashboxOperatorAccount(UUIDModel, TimestampedModel, AuditableModel):
+    """Stable physical cash account assigned to one authorized operator."""
+
+    operator = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cashbox_operator_account",
+    )
+    cash_account = models.OneToOneField(
+        FinanceAccount,
+        on_delete=models.PROTECT,
+        related_name="operator_cashbox_account",
+    )
+
+    def clean(self) -> None:
+        if self.cash_account_id and self.cash_account.kind != FinanceAccountKind.CASH:
+            raise ValidationError({"cash_account": "An operator cashbox requires a cash account."})
+
+
 def is_legacy_cashbox_session(session: CashboxSession) -> bool:
     return session.cash_account_id is None
 

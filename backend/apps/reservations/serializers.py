@@ -5,6 +5,7 @@ from apps.customers.models import Customer
 from apps.inventory.models import InventoryItem
 from apps.reservations.models import (
     ReservationDraft,
+    ReservationDraftAmendment,
     ReservationDraftLine,
     ReservationDraftStatus,
 )
@@ -23,8 +24,50 @@ class ReservationAvailabilityPreviewRequestSerializer(serializers.Serializer):
     start_at = serializers.DateTimeField()
     end_at = serializers.DateTimeField()
 
-    def validate_start_at(self, value):
-        raw_value = self.initial_data.get("start_at")
+
+class ReservationDraftAmendmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReservationDraftAmendment
+        fields = (
+            "id",
+            "reservation_draft",
+            "reason",
+            "notes",
+            "changed_start_at",
+            "changed_end_at",
+            "changed_lines",
+            "document_instance_id",
+            "created_at",
+            "created_by",
+        )
+        read_only_fields = fields
+
+
+class ReservationDraftAmendmentLineSerializer(serializers.Serializer):
+    inventory_item_id = serializers.PrimaryKeyRelatedField(
+        source="inventory_item",
+        queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
+    )
+    quantity = serializers.IntegerField(min_value=1)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_inventory_item(self, inventory_item):
+        try:
+            assert_reservable_inventory_item_kind(inventory_item.kind)
+        except ValueError as error:
+            raise serializers.ValidationError(str(error)) from error
+        return inventory_item
+
+
+class ReservationDraftAmendmentCreateSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=255, trim_whitespace=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    changed_start_at = serializers.DateTimeField(required=False)
+    changed_end_at = serializers.DateTimeField(required=False)
+    changed_lines = ReservationDraftAmendmentLineSerializer(many=True, required=False)
+
+    def validate_changed_start_at(self, value):
+        raw_value = self.initial_data.get("changed_start_at")
         if isinstance(raw_value, str) and raw_value.endswith("Z") is False:
             if "+" not in raw_value and raw_value.count("-") <= 2:
                 raise serializers.ValidationError(
@@ -32,8 +75,8 @@ class ReservationAvailabilityPreviewRequestSerializer(serializers.Serializer):
                 )
         return value
 
-    def validate_end_at(self, value):
-        raw_value = self.initial_data.get("end_at")
+    def validate_changed_end_at(self, value):
+        raw_value = self.initial_data.get("changed_end_at")
         if isinstance(raw_value, str) and raw_value.endswith("Z") is False:
             if "+" not in raw_value and raw_value.count("-") <= 2:
                 raise serializers.ValidationError(

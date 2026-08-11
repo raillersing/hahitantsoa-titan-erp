@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.inventory.models import InventoryItem
+from apps.logistics.models import TitanClosedDay
 from apps.logistics.selectors import (
     active_logistics_events,
     get_logistics_event_item_lines,
@@ -21,6 +22,7 @@ from apps.logistics.serializers import (
     LogisticsEventSignatureUpdateSerializer,
     LogisticsEventStatusTransitionSerializer,
     LogisticsEventUpdateSerializer,
+    TitanClosedDaySerializer,
 )
 from apps.logistics.services import (
     LOGISTICS_EVENT_NOT_FOUND,
@@ -34,6 +36,19 @@ from apps.logistics.services import (
     update_logistics_event_signature,
 )
 from apps.reservations.models import ReservationDraft
+
+
+class TitanClosedDayListAPIView(generics.ListAPIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+    serializer_class = TitanClosedDaySerializer
+
+    def get_queryset(self):
+        queryset = TitanClosedDay.objects.filter(is_active=True).order_by("date")
+        year = self.request.query_params.get("year")
+        if year:
+            queryset = queryset.filter(date__year=year)
+        return queryset
 
 
 class LogisticsEventListAPIView(generics.ListAPIView):
@@ -99,6 +114,7 @@ class LogisticsEventCreateAPIView(APIView):
                 actor=request.user,
                 reservation_draft=reservation_draft,
                 event_type=serializer.validated_data["event_type"],
+                operation=serializer.validated_data.get("operation", "outbound"),
                 scheduled_at=serializer.validated_data.get("scheduled_at") or None,
                 address=serializer.validated_data.get("address", ""),
                 contact_name=serializer.validated_data.get("contact_name", ""),

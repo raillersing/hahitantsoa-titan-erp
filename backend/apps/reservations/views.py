@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -6,6 +7,10 @@ from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.inventory.models import InventoryItem
+from apps.reservations.amendments import (
+    ReservationAmendmentError,
+    create_reservation_draft_amendment,
+)
 from apps.reservations.models import ReservationDraft
 from apps.reservations.periods import validate_reservation_period
 from apps.reservations.permissions import (
@@ -16,9 +21,41 @@ from apps.reservations.serializers import (
     ReservationAvailabilityPreviewRequestSerializer,
     ReservationAvailabilitySummarySerializer,
     ReservationAvailableItemPreviewSerializer,
+    ReservationDraftAmendmentCreateSerializer,
+    ReservationDraftAmendmentSerializer,
     ReservationDraftSerializer,
     ReservationItemAvailabilityPreviewSerializer,
 )
+
+
+class ReservationDraftAmendmentListCreateAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+    http_method_names = ["get", "post", "head", "options"]
+
+    def get(self, request, pk):
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+        return Response(ReservationDraftAmendmentSerializer(draft.amendments.all(), many=True).data)
+
+    @extend_schema(request=ReservationDraftAmendmentCreateSerializer)
+    def post(self, request, pk):
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+        serializer = ReservationDraftAmendmentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            result = create_reservation_draft_amendment(
+                reservation_draft=draft,
+                actor=request.user,
+                **serializer.validated_data,
+            )
+        except ReservationAmendmentError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            ReservationDraftAmendmentSerializer(result.amendment).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 def validated_period_or_error_response(request):

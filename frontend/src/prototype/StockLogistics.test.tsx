@@ -101,6 +101,7 @@ describe('Stock & Logistics Pages', () => {
         {
           id: 'evt-001',
           event_type: 'delivery',
+          operation: 'outbound',
           status: 'planned',
           reservation_draft: 'LOC-2026-0087',
           scheduled_at: '2026-07-25T10:00:00Z',

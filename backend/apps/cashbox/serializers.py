@@ -125,7 +125,9 @@ class CashboxSessionOpenSerializer(serializers.Serializer):
     operator = serializers.PrimaryKeyRelatedField(
         queryset=CashboxSession._meta.get_field("operator").remote_field.model.objects.all()
     )
-    cash_account = serializers.PrimaryKeyRelatedField(queryset=FinanceAccount.objects.all())
+    cash_account = serializers.PrimaryKeyRelatedField(
+        queryset=FinanceAccount.objects.all(), required=False, allow_null=True
+    )
     opening_amount = serializers.DecimalField(
         max_digits=12, decimal_places=2, min_value=Decimal("0.00")
     )

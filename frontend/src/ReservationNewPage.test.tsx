@@ -6,6 +6,7 @@ import {
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
+  getTitanClosedDays,
   getInventoryItems,
   getReservationAvailableItemPreviews,
   createReservationDraft,
@@ -153,6 +154,7 @@ const mockInventoryData = mockCatalogData.map((item, index) => ({
 // ---- Mock API ----
 vi.mock('./api', () => ({
   getCustomers: vi.fn(),
+  getTitanClosedDays: vi.fn(),
   getHahitantsoaVenues: vi.fn(),
   getHahitantsoaServices: vi.fn(),
   getInventoryItems: vi.fn(),
@@ -183,6 +185,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(getCustomers).mockResolvedValue(mockCustomersData as any);
     vi.mocked(getHahitantsoaVenues).mockResolvedValue(mockVenuesData as any);
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
+    vi.mocked(getTitanClosedDays).mockResolvedValue([]);
     vi.mocked(getInventoryItems).mockResolvedValue(mockInventoryData as any);
     vi.mocked(getReservationAvailableItemPreviews).mockResolvedValue(mockCatalogData as any);
     vi.mocked(createReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);

@@ -6,7 +6,16 @@ from apps.logistics.models import (
     LogisticsEventItemLine,
     LogisticsEventStatus,
     LogisticsEventType,
+    LogisticsOperationKind,
+    TitanClosedDay,
 )
+
+
+class TitanClosedDaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TitanClosedDay
+        fields = ("id", "date", "label")
+        read_only_fields = fields
 
 
 class LogisticsEventItemLineSerializer(serializers.ModelSerializer):
@@ -55,6 +64,7 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
             "id",
             "reservation_draft",
             "event_type",
+            "operation",
             "status",
             "scheduled_at",
             "executed_at",
@@ -99,6 +109,11 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
 class LogisticsEventCreateSerializer(serializers.Serializer):
     reservation_draft = serializers.UUIDField()
     event_type = serializers.ChoiceField(choices=LogisticsEventType.choices)
+    operation = serializers.ChoiceField(
+        choices=LogisticsOperationKind.choices,
+        required=False,
+        default=LogisticsOperationKind.OUTBOUND,
+    )
     scheduled_at = serializers.DateTimeField(required=False, allow_null=True)
     address = serializers.CharField(required=False, allow_blank=True)
     contact_name = serializers.CharField(required=False, allow_blank=True, max_length=255)

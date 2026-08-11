@@ -180,3 +180,27 @@ class ReservationDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, Auditab
 
     def __str__(self) -> str:
         return f"{self.reservation_draft} - {self.inventory_item} x {self.quantity}"
+
+
+class ReservationDraftAmendment(UUIDModel, TimestampedModel, AuditableModel):
+    """Audited Titan amendment request and its source business notes."""
+
+    reservation_draft = models.ForeignKey(
+        ReservationDraft,
+        on_delete=models.PROTECT,
+        related_name="amendments",
+    )
+    reason = models.CharField(max_length=255)
+    notes = models.TextField(blank=True)
+    changed_start_at = models.DateTimeField(null=True, blank=True)
+    changed_end_at = models.DateTimeField(null=True, blank=True)
+    changed_lines = models.JSONField(default=list, blank=True)
+    document_instance_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+
+    def clean(self) -> None:
+        super().clean()
+        if not self.reason.strip():
+            raise ValidationError({"reason": "An amendment requires a reason."})

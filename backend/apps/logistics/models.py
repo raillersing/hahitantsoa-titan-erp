@@ -14,6 +14,11 @@ class LogisticsEventType(models.TextChoices):
     HANDOVER = "handover", "handover"
 
 
+class LogisticsOperationKind(models.TextChoices):
+    OUTBOUND = "outbound", "Sortie / livraison"
+    RETURN = "return", "Retour / récupération"
+
+
 class LogisticsEventStatus(models.TextChoices):
     PLANNED = "planned", "planned"
     DISPATCHED = "dispatched", "dispatched"
@@ -27,6 +32,24 @@ class HandoverSignatureStatus(models.TextChoices):
     EXCEPTION = "exception", "Signature exceptionnellement non obtenue"
 
 
+class TitanClosedDay(UUIDModel, TimestampedModel, AuditableModel):
+    """A configured Titan closure day; Hahitantsoa is not governed by it."""
+
+    date = models.DateField(unique=True)
+    label = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["date"]
+        verbose_name = "Titan closed day"
+        verbose_name_plural = "Titan closed days"
+
+    def clean(self) -> None:
+        super().clean()
+        if not self.label.strip():
+            raise ValidationError({"label": "A closed day requires a label."})
+
+
 class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
     reservation_draft = models.ForeignKey(
         "reservations.ReservationDraft",
@@ -36,6 +59,11 @@ class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
     event_type = models.CharField(
         max_length=32,
         choices=LogisticsEventType.choices,
+    )
+    operation = models.CharField(
+        max_length=16,
+        choices=LogisticsOperationKind.choices,
+        default=LogisticsOperationKind.OUTBOUND,
     )
     status = models.CharField(
         max_length=32,

@@ -32,6 +32,7 @@ import type {
   LogisticsEventItemLineCreatePayload,
   LogisticsEventTransitionPayload,
   LogisticsEventUpdatePayload,
+  TitanClosedDay,
   LogisticsEventSignatureUpdatePayload,
   MaterialPackage,
   MaterialPackageCreatePayload,
@@ -40,6 +41,8 @@ import type {
   ReservationAvailableItemPreview,
   ReservationDraftConfirmResult,
   ReservationDraft,
+  ReservationDraftAmendment,
+  ReservationDraftAmendmentCreatePayload,
   ReservationDraftCreatePayload,
   ReservationDraftMutationResult,
   ReportCategory,
@@ -609,6 +612,28 @@ export function getReservationDraft(
 ): Promise<ReservationDraft> {
   return getAuthenticatedJson(
     `/api/v1/reservations/drafts/${draftId}/`,
+    signal,
+  );
+}
+
+export function getReservationDraftAmendments(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<ReservationDraftAmendment[]> {
+  return getAuthenticatedJson(
+    `/api/v1/reservations/drafts/${encodeURIComponent(draftId)}/amendments/`,
+    signal,
+  );
+}
+
+export function createReservationDraftAmendment(
+  draftId: string,
+  payload: ReservationDraftAmendmentCreatePayload,
+  signal?: AbortSignal,
+): Promise<ReservationDraftAmendment> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${encodeURIComponent(draftId)}/amendments/`,
+    payload,
     signal,
   );
 }
@@ -1422,6 +1447,14 @@ export function getLogisticsEvents(
     );
   }
   return getAuthenticatedJson("/api/v1/logistics/events/", reservationDraftIdOrSignal);
+}
+
+export function getTitanClosedDays(
+  year?: number,
+  signal?: AbortSignal,
+): Promise<TitanClosedDay[]> {
+  const suffix = year ? `?year=${year}` : "";
+  return getAuthenticatedJson(`/api/v1/logistics/closed-days/${suffix}`, signal);
 }
 
 export function transitionLogisticsEvent(

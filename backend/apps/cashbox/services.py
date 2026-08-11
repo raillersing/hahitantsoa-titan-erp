@@ -9,8 +9,9 @@ from django.db.models import Case, DecimalField, F, Sum, Value, When
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
-from apps.finance.models import FinanceAccountKind, FinanceCurrency
-from apps.identity.authorization import require_cashbox_supervisor_actor
+from apps.finance.models import FinanceAccountKind, FinanceBusinessScope, FinanceCurrency
+from apps.finance.services import create_finance_account
+from apps.identity.authorization import is_cashbox_operator_actor, require_cashbox_supervisor_actor
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, PaymentMethod
 
 from .models import (
@@ -18,6 +19,7 @@ from .models import (
     CashboxClosureValidation,
     CashboxMovement,
     CashboxMovementDirection,
+    CashboxOperatorAccount,
     CashboxReopenEvent,
     CashboxSession,
     is_legacy_cashbox_session,
@@ -31,6 +33,7 @@ CASHBOX_MOVEMENT_INVOICE_AMOUNT_MISMATCH = "cashbox_movement_invoice_amount_mism
 CASHBOX_MOVEMENT_REFUND_AMOUNT_MISMATCH = "cashbox_movement_refund_amount_mismatch"
 CASHBOX_MOVEMENT_PAYMENT_NOT_CONFIRMED_CASH = "cashbox_movement_payment_not_confirmed_cash"
 CASHBOX_SESSION_NOT_OPEN = "cashbox_session_not_open"
+CASHBOX_OPERATOR_NOT_AUTHORIZED = "cashbox_operator_not_authorized"
 CASHBOX_REOPEN_REASON_REQUIRED = "cashbox_reopen_reason_required"
 CASHBOX_SESSION_NOT_VALIDATED_CLOSED = "cashbox_session_not_validated_closed"
 CASHBOX_SESSION_LEGACY_ACCOUNT_UNASSIGNED = "cashbox_session_legacy_account_unassigned"
@@ -97,14 +100,51 @@ def compute_cashbox_session_theoretical_amount(session: CashboxSession) -> Decim
 
 
 @transaction.atomic
+def get_or_create_operator_cash_account(*, operator, actor):
+    if not is_cashbox_operator_actor(actor=actor):
+        raise CashboxLifecycleError(
+            "This user is not authorized to operate a cashbox.",
+            code=CASHBOX_OPERATOR_NOT_AUTHORIZED,
+        )
+    locked_operator = get_user_model().objects.select_for_update().get(pk=operator.pk)
+    assignment = (
+        CashboxOperatorAccount.objects.select_for_update()
+        .select_related("cash_account")
+        .filter(operator=locked_operator)
+        .first()
+    )
+    if assignment is not None:
+        return assignment.cash_account
+
+    account = create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.TITAN,
+        code=f"cashbox-{locked_operator.pk}",
+        label=f"Caisse de {locked_operator.get_username()}",
+        kind=FinanceAccountKind.CASH,
+    )
+    assignment = CashboxOperatorAccount(
+        operator=locked_operator,
+        cash_account=account,
+        created_by=actor,
+        updated_by=actor,
+    )
+    assignment.full_clean()
+    assignment.save()
+    return account
+
+
+@transaction.atomic
 def open_cashbox_session(
     *,
     operator,
-    cash_account,
+    cash_account=None,
     opening_amount: Decimal,
     actor: object | None = None,
     opening_note: str = "",
 ) -> CashboxSession:
+    if cash_account is None:
+        cash_account = get_or_create_operator_cash_account(operator=operator, actor=actor)
     user_model = get_user_model()
     locked_operator = user_model.objects.select_for_update().get(pk=operator.pk)
     locked_cash_account = cash_account.__class__.objects.select_for_update().get(pk=cash_account.pk)
