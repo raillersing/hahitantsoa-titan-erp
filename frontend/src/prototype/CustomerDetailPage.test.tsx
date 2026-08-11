@@ -21,6 +21,7 @@ beforeEach(() => {
     phone: payload.phone ?? '', address: payload.address ?? '', notes: payload.notes ?? '',
   }));
   vi.spyOn(api, 'getCustomerAttachments').mockResolvedValue([]);
+  vi.spyOn(api, 'getCustomerTimeline').mockResolvedValue([]);
   vi.spyOn(api, 'uploadAttachment').mockResolvedValue({
     id: 'ATT-001', customer_id: 'CUST-001', customer_reference: 'CLI-CUST-001', reservation_draft_id: null,
     hahitantsoa_event_draft_id: null, category: 'CIN', original_name: 'cin.pdf',
@@ -160,5 +161,67 @@ describe('CustomerDetailPage', () => {
     const resBtn = screen.getByText('Nouvelle réservation');
     fireEvent.click(resBtn);
     expect(mockNavigate).toHaveBeenCalledWith('reservation-new', 'CUST-001');
+  });
+
+  it('8. Affiche la synthèse des ressources commerciales depuis la chronologie', async () => {
+    vi.mocked(api.getCustomerTimeline).mockResolvedValue([
+      {
+        date: '2026-08-01T10:00:00Z',
+        type: 'reservation',
+        title: 'Réservation RES-001',
+        description: 'Réservation Titan',
+        metadata: {
+          reservation_draft_id: 'RES-001',
+          public_reference: 'RES-001',
+          start_at: '2026-08-20T08:00:00Z',
+          status: 'draft',
+        },
+      },
+      {
+        date: '2026-08-02T10:00:00Z',
+        type: 'proforma',
+        title: 'Proforma Titan',
+        description: 'Statut : generated',
+        metadata: {},
+      },
+      {
+        date: '2026-08-03T10:00:00Z',
+        type: 'invoice',
+        title: 'Facture INV-001',
+        description: 'Montant : 100000',
+        metadata: { amount: '100000', status: 'open' },
+      },
+      {
+        date: '2026-08-04T10:00:00Z',
+        type: 'payment',
+        title: 'Paiement deposit',
+        description: '40000 via bank',
+        metadata: { amount: '40000', status: 'confirmed' },
+      },
+      {
+        date: '2026-08-05T10:00:00Z',
+        type: 'logistics',
+        title: 'Logistique : Livraison',
+        description: 'Statut : planned',
+        metadata: {},
+      },
+      {
+        date: '2026-08-06T10:00:00Z',
+        type: 'follow_up',
+        title: 'Relance commerciale',
+        description: 'Raison : confirmer le besoin',
+        metadata: {},
+      },
+    ]);
+
+    render(<CustomerDetailPage param="CUST-001" onNavigate={vi.fn()} />);
+
+    expect(await screen.findByText('Fiche client — Ando Rakoto')).toBeInTheDocument();
+    expect(screen.getByText('Activité commerciale liée')).toBeInTheDocument();
+    expect(screen.getByText('Ouvrir Commercial Ops')).toBeInTheDocument();
+    expect(screen.getAllByText(/40.*000/)[0]).toBeInTheDocument();
+    expect(screen.getByText(/60.*000/)).toBeInTheDocument();
+    expect(screen.getByText('RES-001')).toBeInTheDocument();
+    expect(screen.getAllByText('Relance commerciale')).toHaveLength(2);
   });
 });

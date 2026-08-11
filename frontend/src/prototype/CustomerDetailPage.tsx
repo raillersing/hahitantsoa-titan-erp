@@ -25,7 +25,18 @@ type Client = {
   idDuplicataDate?: string; idDuplicataPlace?: string; birthDate?: string;
   nif?: string; stat?: string; rcs?: string; repFirstName?: string; repRole?: string;
 };
-type ReservationSummary = { id: string; title: string; date: string; amount: number; status: string; type: string };
+type ReservationSummary = { id: string; title: string; date: string; amount: number | null; status: string; type: string };
+type CommercialHistorySummary = {
+  reservations: ReservationSummary[];
+  agendaEvents: CommercialTimelineEvent[];
+  documentCount: number;
+  invoiceCount: number;
+  paymentCount: number;
+  logisticsCount: number;
+  totalBilled: number;
+  totalPaid: number;
+  totalDue: number;
+};
 type PendingAttachment = { id: string; file: File; category: string };
 type AttachmentPreview = {
   attachment: UploadedAttachment;
@@ -38,6 +49,64 @@ interface CustomerDetailPageProps {
   onBack?: () => void;
   returnContext?: { from: string; param?: string } | null;
   canSensitiveWrite?: boolean;
+}
+
+function metadataRecord(event: CommercialTimelineEvent): Record<string, unknown> {
+  return event.metadata && typeof event.metadata === "object" ? event.metadata : {};
+}
+
+function metadataString(event: CommercialTimelineEvent, key: string): string | null {
+  const value = metadataRecord(event)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function metadataAmount(event: CommercialTimelineEvent): number {
+  const value = metadataRecord(event).amount;
+  const amount = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function metadataAmountOrNull(event: CommercialTimelineEvent): number | null {
+  const value = metadataRecord(event).amount;
+  if (value === undefined || value === null || value === "") return null;
+  const amount = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(amount) ? amount : null;
+}
+
+function summarizeCommercialTimeline(events: CommercialTimelineEvent[]): CommercialHistorySummary {
+  const reservations = events
+    .filter((event) => event.type === "reservation")
+    .map((event) => {
+      const reservationId = metadataString(event, "reservation_draft_id") ?? metadataString(event, "public_reference") ?? event.title;
+      const scope = metadataString(event, "business_scope");
+      return {
+        id: reservationId,
+        title: event.title,
+        date: metadataString(event, "start_at") ?? event.date,
+        amount: metadataAmountOrNull(event),
+        status: metadataString(event, "status") ?? "Non précisé",
+        type: scope === "hahitantsoa" ? "Hahitantsoa" : scope === "titan" ? "Titan" : "Non précisé",
+      };
+    });
+  const invoiceEvents = events.filter((event) => event.type === "invoice");
+  const paymentEvents = events.filter((event) => event.type === "payment");
+  const totalBilled = invoiceEvents.reduce((total, event) => total + metadataAmount(event), 0);
+  const totalPaid = paymentEvents.reduce((total, event) => {
+    const status = metadataString(event, "status");
+    return status === "confirmed" || status === "reconciled" ? total + metadataAmount(event) : total;
+  }, 0);
+
+  return {
+    reservations,
+    agendaEvents: events.filter((event) => ["follow_up", "visit", "visit_reminder"].includes(event.type)),
+    documentCount: events.filter((event) => event.type === "proforma").length,
+    invoiceCount: invoiceEvents.length,
+    paymentCount: paymentEvents.length,
+    logisticsCount: events.filter((event) => event.type === "logistics").length,
+    totalBilled,
+    totalPaid,
+    totalDue: Math.max(totalBilled - totalPaid, 0),
+  };
 }
 
 export default function CustomerDetailPage({ onNavigate, param, onBack, returnContext, canSensitiveWrite = false }: CustomerDetailPageProps) {
@@ -68,10 +137,8 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   const [timelineEvents, setTimelineEvents] = useState<CommercialTimelineEvent[]>([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
-  const reservations: ReservationSummary[] = [];
-  const totalBilled = 0;
-  const totalPaid = 0;
-  const totalDue = 0;
+  const commercialHistory = summarizeCommercialTimeline(timelineEvents);
+  const { reservations, totalBilled, totalPaid, totalDue } = commercialHistory;
 
   const mapApiCustomer = (customer: ApiCustomer): Client => ({
     id: customer.id,
@@ -861,7 +928,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                       <h4 className="font-bold text-slate-800 flex items-center gap-2">
                         <i className="fa-solid fa-file-invoice text-indigo-500"></i> Proforma liée
                       </h4>
-                      <p className="text-xs text-slate-500 mt-1">{linkedProforma.id} • {linkedProforma.amount.toLocaleString('fr-FR')} Ar • Brouillon</p>
+                      <p className="text-xs text-slate-500 mt-1">{linkedProforma.id} • {linkedProforma.amount === null ? "Montant non renseigné" : `${linkedProforma.amount.toLocaleString('fr-FR')} Ar`} • Brouillon</p>
                     </div>
                     <button onClick={() => onNavigate("reservation-detail", linkedProforma.id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors whitespace-nowrap">
                       Voir proforma
@@ -907,10 +974,57 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
           <div className="bg-white rounded-2xl border border-slate-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-800">Agenda commercial / Relances</h3>
-              <span className="text-xs text-slate-500">Données chargées par le module commercial</span>
+              <span className="text-xs text-slate-500">{commercialHistory.agendaEvents.length} événement(s)</span>
             </div>
-            <div className="space-y-3">
-              <div className="text-sm text-slate-500 p-3 bg-slate-50 rounded-lg text-center">Aucune relance chargée par l’API.</div>
+            {commercialHistory.agendaEvents.length === 0 ? (
+              <div className="text-sm text-slate-500 p-3 bg-slate-50 rounded-lg text-center">Aucune relance ou visite planifiée.</div>
+            ) : (
+              <div className="space-y-3">
+                {commercialHistory.agendaEvents.map((event, index) => (
+                  <div key={`${event.type}-${event.date}-${index}`} className="flex items-start gap-3 rounded-xl border border-slate-100 p-3">
+                    <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600" aria-hidden="true">
+                      <i className={event.type === "follow_up" ? "fa-solid fa-phone" : "fa-regular fa-calendar-check"}></i>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-800">{event.title}</div>
+                      <div className="text-xs text-slate-500">
+                        {new Date(event.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                        {event.description ? ` — ${event.description}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Résumé des ressources commerciales liées */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-6" aria-labelledby="customer-commercial-summary-title">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 id="customer-commercial-summary-title" className="text-lg font-bold text-slate-800">Activité commerciale liée</h3>
+                <p className="text-xs text-slate-500 mt-1">Synthèse issue de la chronologie commerciale du client.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate("commercial-ops")}
+                className="min-h-11 rounded-lg border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+              >
+                Ouvrir Commercial Ops
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                ["Documents", commercialHistory.documentCount],
+                ["Factures", commercialHistory.invoiceCount],
+                ["Paiements", commercialHistory.paymentCount],
+                ["Logistique", commercialHistory.logisticsCount],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="text-xs font-medium text-slate-500">{label}</div>
+                  <div className="mt-1 text-xl font-bold text-slate-800">{value}</div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -980,7 +1094,7 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                   {reservations.map(res => (
                     <tr key={res.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 pr-4">
-                        <button onClick={() => onNavigate("reservation-detail", res.id)} className="text-left group">
+                        <button onClick={() => onNavigate("reservation-detail", res.id)} className="min-h-11 text-left group">
                           <div className="font-medium text-indigo-600 group-hover:underline">{res.id}</div>
                           <div className="text-xs text-slate-500">{res.title}</div>
                         </button>
@@ -988,12 +1102,12 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                       <td className="py-3 pr-4">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${res.type === 'Hahitantsoa' ? 'bg-hah-100 text-hah-700' : 'bg-tit-100 text-tit-700'}`}>{res.type}</span>
                       </td>
-                      <td className="py-3 pr-4 text-slate-700">{res.date}</td>
+                      <td className="py-3 pr-4 text-slate-700">{new Date(res.date).toLocaleDateString('fr-FR')}</td>
                       <td className="py-3 pr-4">
                         <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">{res.status}</span>
                       </td>
                       <td className="py-3 text-right font-semibold text-slate-800">
-                        {res.amount.toLocaleString('fr-FR')} Ar
+                        {res.amount === null ? "—" : `${res.amount.toLocaleString('fr-FR')} Ar`}
                       </td>
                     </tr>
                   ))}
