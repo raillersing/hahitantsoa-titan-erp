@@ -23,6 +23,7 @@ from apps.inventory.models import (
     InventoryCautionRefundObligation,
     InventoryCautionRefundObligationStatus,
 )
+from apps.notifications.services import create_payment_confirmation_notification
 from apps.payments.gateway import (
     CallbackValidationResult,
     GatewayInitiateResult,
@@ -293,6 +294,7 @@ def confirm_payment(
     payment.updated_by_id = actor_id
     payment.full_clean()
     payment.save()
+    create_payment_confirmation_notification(payment=payment)
 
     record_audit_event_on_commit(
         actor=actor,

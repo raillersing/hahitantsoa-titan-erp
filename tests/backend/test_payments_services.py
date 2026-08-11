@@ -10,6 +10,8 @@ import apps.documents.runtime as runtime_module
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.notifications.models import SystemNotification
+from apps.notifications.services import create_payment_confirmation_notification
 from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
 from apps.payments.services import (
     INVALID_PAYMENT_CANCEL_STATE,
@@ -103,6 +105,14 @@ def test_confirm_payment_generates_and_links_receipt_document(
     assert receipt_document.status == DocumentInstanceStatus.GENERATED
     assert receipt_document.content_checksum
     assert receipt_document.storage_path.endswith(".html")
+    notification = SystemNotification.objects.get(
+        notification_type="payment",
+        link=f"/payments/{payment.id}",
+    )
+    assert notification.title == "Paiement confirmé"
+    assert notification.severity == "success"
+    create_payment_confirmation_notification(payment=payment)
+    assert SystemNotification.objects.filter(link=f"/payments/{payment.id}").count() == 1
 
     assert AuditEvent.objects.filter(action="payment.confirmed", target_id=str(payment.id)).exists()
 
