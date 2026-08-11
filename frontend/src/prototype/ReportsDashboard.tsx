@@ -27,6 +27,24 @@ const PERIODS = [
 
 type PeriodKey = (typeof PERIODS)[number]["key"];
 
+function csvCell(value: unknown): string {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function downloadReportCsv(data: ReportCategoryResponse): void {
+  const rows = [
+    ["Indicateur", "Valeur", "Valeur précédente", "Tendance (%)"],
+    ...data.kpis.map((kpi) => [kpi.label, kpi.value, kpi.previous_value ?? "", kpi.trend_pct ?? ""]),
+  ];
+  const csv = `\ufeff${rows.map((row) => row.map(csvCell).join(";")).join("\n")}\n`;
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `rapport-${data.category}-${data.period}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function formatKpiValue(kpi: ReportKpi): string {
   const val = kpi.value;
   if (kpi.format === "money") {
@@ -107,6 +125,15 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
               {p.label}
             </button>
           ))}
+          <button
+            type="button"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => data && downloadReportCsv(data)}
+            disabled={!data || loading}
+          >
+            <i className="fas fa-file-csv mr-2" aria-hidden="true"></i>
+            Exporter CSV
+          </button>
         </div>
       </div>
 

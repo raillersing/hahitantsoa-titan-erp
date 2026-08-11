@@ -467,7 +467,107 @@ export function getReportCategory(
   signal?: AbortSignal,
 ): Promise<ReportCategoryResponse> {
   const query = period ? `?period=${encodeURIComponent(period)}` : "";
-  return getAuthenticatedJson(`/api/v1/reports/${category}/${query}`, signal);
+  return getAuthenticatedJson<unknown>(`/api/v1/reports/${category}/${query}`, signal).then(
+    (response) => normalizeReportCategoryResponse(response, category, period),
+  );
+}
+
+const REPORT_KPI_LABELS: Record<string, string> = {
+  reservation_created: "Réservations créées",
+  reservation_confirmed: "Réservations confirmées",
+  reservation_cancelled: "Réservations annulées",
+  reservation_scope_split: "Répartition des volets",
+  revenue_invoiced: "Chiffre d’affaires facturé",
+  revenue_collected: "Chiffre d’affaires encaissé",
+  revenue_outstanding: "Solde restant dû",
+  credit_note_total: "Avoirs émis",
+  refund_total: "Remboursements",
+  payment_method_split: "Répartition des moyens de paiement",
+  payment_due_date: "Échéances impayées",
+  payment_interim: "Paiements intermédiaires",
+  payment_reconciled: "Paiements rapprochés",
+  prospect_funnel: "Entonnoir prospects",
+  prospect_conversion_rate: "Taux de conversion",
+  prospect_delay: "Délai de conversion",
+  prospect_overdue_recall: "Relances prospects en retard",
+  logistics_prepared: "Opérations préparées",
+  logistics_delivered: "Opérations livrées",
+  logistics_returned: "Opérations retournées",
+  logistics_delay: "Retards logistiques",
+  logistics_exception: "Exceptions logistiques",
+  inventory_available: "Stock disponible",
+  inventory_reserved: "Stock réservé",
+  inventory_dispatched: "Stock sorti",
+  inventory_returned: "Stock retourné",
+  inventory_utilization: "Taux d’utilisation du stock",
+  inventory_breakage: "Casse inventaire",
+  inventory_loss: "Pertes inventaire",
+  doc_contract: "Contrats",
+  doc_amendment: "Avenants",
+  doc_delivery_note: "Bons de livraison",
+  doc_missing_signature: "Signatures manquantes",
+};
+
+function reportKpiLabel(key: string): string {
+  return REPORT_KPI_LABELS[key] ?? key.replaceAll("_", " ");
+}
+
+function reportKpiValue(value: unknown): string | number {
+  if (typeof value === "number" || typeof value === "string") return value;
+  if (!value || typeof value !== "object") return "—";
+  return Object.entries(value as Record<string, unknown>)
+    .map(([entryKey, entryValue]) => `${entryKey}: ${String(entryValue)}`)
+    .join(" · ");
+}
+
+function reportKpiFormat(key: string): "money" | "percent" | "number" | undefined {
+  if (key.includes("revenue") || key.includes("refund") || key.includes("credit_note") || key.includes("payment_interim") || key.includes("payment_reconciled")) {
+    return "money";
+  }
+  if (key.includes("rate") || key.includes("utilization")) return "percent";
+  if (key.includes("split") || key.includes("funnel")) return undefined;
+  return "number";
+}
+
+function normalizeReportCategoryResponse(
+  response: unknown,
+  fallbackCategory: ReportCategory,
+  fallbackPeriod?: string,
+): ReportCategoryResponse {
+  if (!response || typeof response !== "object") {
+    throw new Error("Le format du rapport reçu est invalide.");
+  }
+  const payload = response as {
+    category?: ReportCategory;
+    period?: string;
+    kpis?: unknown;
+  };
+  if (Array.isArray(payload.kpis)) {
+    return {
+      category: payload.category ?? fallbackCategory,
+      period: payload.period ?? fallbackPeriod ?? "month",
+      kpis: payload.kpis as ReportCategoryResponse["kpis"],
+    };
+  }
+  if (!payload.kpis || typeof payload.kpis !== "object") {
+    throw new Error("Le format des indicateurs du rapport est invalide.");
+  }
+  const kpis = Object.entries(payload.kpis as Record<string, unknown>).map(([key, rawValue]) => {
+    const details = rawValue && typeof rawValue === "object" ? rawValue as Record<string, unknown> : {};
+    return {
+      key,
+      label: reportKpiLabel(key),
+      value: reportKpiValue(details.value ?? rawValue),
+      previous_value: details.previous_period_value === undefined ? undefined : reportKpiValue(details.previous_period_value),
+      trend_pct: typeof details.trend_percentage === "number" ? details.trend_percentage : undefined,
+      format: reportKpiFormat(key),
+    };
+  });
+  return {
+    category: payload.category ?? fallbackCategory,
+    period: payload.period ?? fallbackPeriod ?? "month",
+    kpis,
+  };
 }
 
 export async function deleteCustomer(

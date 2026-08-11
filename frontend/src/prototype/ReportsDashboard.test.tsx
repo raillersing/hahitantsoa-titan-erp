@@ -46,4 +46,19 @@ describe("ReportsDashboard", () => {
     expect(await screen.findByText("Rapports indisponibles")).toBeInTheDocument();
     expect(screen.queryByText("Total réservations")).not.toBeInTheDocument();
   });
+
+  it("exports the API-backed report as CSV", async () => {
+    const createObjectURL = vi.fn(() => "blob:report");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<ReportsDashboard onNavigate={() => {}} />);
+    await screen.findByText("Total réservations");
+    fireEvent.click(screen.getByRole("button", { name: /Exporter CSV/i }));
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:report");
+    click.mockRestore();
+    vi.unstubAllGlobals();
+  });
 });
