@@ -58,6 +58,66 @@ describe("DocumentsTemplatesPage", () => {
     ));
   });
 
+  it("uses the protected workflow renderer for contracts instead of catalog HTML", async () => {
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([
+      {
+        key: "hahitantsoa.contract.v1",
+        business_scope: "hahitantsoa",
+        document_type: "contract",
+        label: "Contrat Hahitantsoa",
+        version: "v1",
+        status: "generated_draft_template",
+        source_kind: "source_pdf",
+        source_reference: "source.pdf",
+        template_path: "template.html",
+        preview_path: "preview.pdf",
+        validated_by_client: false,
+        notes: "",
+      },
+    ]);
+    const previewSpy = vi.spyOn(api, "getDocumentTemplatePreview");
+
+    const { container } = render(<DocumentsTemplatesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Contrat Hahitantsoa/ }));
+    previewSpy.mockClear();
+
+    expect(await screen.findByText("CONTRAT DE LOCATION « HAHITANTSOA »")).toBeInTheDocument();
+    expect(container.querySelectorAll(".contract-a4-page")).toHaveLength(8);
+    expect(screen.getByTestId("document-template-preview")).toHaveClass("overflow-visible");
+    expect(screen.queryByTitle(/Aperçu du modèle de document/)).not.toBeInTheDocument();
+    expect(previewSpy).not.toHaveBeenCalled();
+  });
+
+  it("uses the protected workflow renderer for proformas", async () => {
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([
+      {
+        key: "titan.proforma.v1",
+        business_scope: "titan",
+        document_type: "proforma",
+        label: "Proforma Titan",
+        version: "v1",
+        status: "validated_source_template",
+        source_kind: "source_pdf",
+        source_reference: "source.pdf",
+        template_path: "template.html",
+        preview_path: "preview.pdf",
+        validated_by_client: true,
+        notes: "",
+      },
+    ]);
+    const previewSpy = vi.spyOn(api, "getDocumentTemplatePreview");
+
+    render(<DocumentsTemplatesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Proforma Titan/ }));
+    previewSpy.mockClear();
+
+    expect(await screen.findByText("P R O F O R M A")).toBeInTheDocument();
+    expect(screen.getByTestId("document-template-preview")).toHaveClass("overflow-visible");
+    expect(screen.getByAltText("Watermark")).toHaveClass("commercial-proforma-watermark");
+    expect(screen.queryByTitle(/Aperçu du modèle de document/)).not.toBeInTheDocument();
+    expect(previewSpy).not.toHaveBeenCalled();
+  });
+
   it("navigates between document slides with buttons and keeps variables visible", async () => {
     const templates: DocumentTemplateDefinition[] = [
       {
@@ -109,7 +169,7 @@ describe("DocumentsTemplatesPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Document suivant" }));
     expect(within(screen.getByRole("dialog")).getByRole("heading", { name: "Facture Titan" })).toBeInTheDocument();
     expect(await screen.findByText("2 / 2")).toBeInTheDocument();
-    expect(screen.getByTestId("document-template-preview")).toHaveAttribute("data-paper-size", "A5");
+    expect(screen.getByTestId("document-template-preview")).toHaveAttribute("data-paper-size", "A4");
     expect(screen.getByRole("button", { name: "Masquer variables" })).toHaveAttribute("aria-pressed", "true");
   });
 

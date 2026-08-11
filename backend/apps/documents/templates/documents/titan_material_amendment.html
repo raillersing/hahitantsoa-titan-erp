@@ -1,53 +1,17 @@
 <!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <title>Avenant de contrat Titan</title>
-  <style>
-    @page { size: A4; margin: 0; }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; width: 210mm; height: 297mm; color: #111; font-family: Arial, sans-serif; }
-    .page { position: relative; width: 210mm; height: 297mm; padding: 9mm 23mm 7mm; overflow: hidden; }
-    .top { display: flex; justify-content: space-between; align-items: flex-start; }
-    .brand { width: 52mm; text-align: center; font-size: 8pt; line-height: 1.25; }
-    .brand img { display: block; width: 30mm; height: 30mm; margin: 0 auto 4mm; object-fit: contain; filter: grayscale(1) contrast(2); }
-    h1 { margin: 8mm 0 7mm; text-align: center; font-size: 13pt; text-decoration: underline; font-weight: 700; }
-    .content { font-size: 9pt; line-height: 1.45; }
-    .content p { margin: 0 0 4mm; }
-    .line { display: inline-block; min-width: 35mm; border-bottom: .2mm dotted #444; }
-    .details { margin: 5mm 0 5mm 10mm; }
-    .items { width: 100%; border-collapse: collapse; margin: 5mm 0 7mm; table-layout: fixed; }
-    .items th { border-bottom: .35mm solid #222; padding: 2mm 1mm; text-align: left; font-size: 8pt; }
-    .items th:first-child { width: 20mm; }
-    .items th:last-child { width: 32mm; }
-    .items td { border-bottom: .2mm solid #777; padding: 2mm 1mm; font-size: 8pt; height: 8mm; vertical-align: top; }
-    .items td:first-child, .items td:last-child { text-align: center; }
-    .amount { margin-top: 4mm; text-align: right; }
-    .signatures { display: flex; justify-content: space-between; margin: 22mm 14mm 0; font-size: 8pt; }
-    .bottom { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; border-top: .25mm solid #777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; color: #777; font-size: 7pt; line-height: 1.35; }
-  </style>
-</head>
-<body>
-  <div class="page">
-    <div class="top">
-      <div class="brand"><img src="/brand/ergon-logo.png" alt="Ergon Group">ergon@ergon.mg<br>+261 34 61 791 41</div>
-      <div class="brand"><img src="/brand/titan-rental-logo.png" alt="Titan Rental">titan@ergon.mg<br>+261 34 61 791 42</div>
-    </div>
-    <h1>AVENANT DE CONTRAT</h1>
-    <div class="content">
-      <p>Client : <span class="line">{{ context.reservation_draft.customer_display_name|default:"" }}</span></p>
-      <p>La présente location est consentie et acceptée du <span class="line">{{ context.reservation_draft.start_at|date:"d/m/Y H:i"|default:"" }}</span> au <span class="line">{{ context.reservation_draft.end_at|date:"d/m/Y H:i"|default:"" }}</span>.</p>
-      <p>Le matériel sera retiré le <span class="line">{{ context.reservation_draft.pickup_at|date:"d/m/Y H:i"|default:"" }}</span> et retourné le <span class="line">{{ context.reservation_draft.return_at|date:"d/m/Y H:i"|default:"" }}</span>.</p>
-      <p>Les modifications sont les suivantes :</p>
-      <table class="items">
-        <thead><tr><th>Quantité</th><th>Désignation</th><th>Prix</th></tr></thead>
-        <tbody>{% for line in context.reservation_draft.lines %}<tr><td>{{ line.quantity }}</td><td>{{ line.inventory_item_name }}</td><td>{{ line.total_price|default:"" }}</td></tr>{% empty %}<tr><td></td><td></td><td></td></tr>{% endfor %}</tbody>
-      </table>
-      <div class="details">Prix de la location : <span class="line">{{ context.reservation_draft.total_amount|default:"" }}</span> Ariary TTC.<br>Proforma N° : <span class="line">{{ context.reservation_draft.public_reference|default:"" }}</span></div>
-      <div class="amount">Fait à Antananarivo, le {% now "d/m/Y" %}</div>
-      <div class="signatures"><span>Le Prestataire,</span><span>Le Client,</span></div>
-    </div>
-    <footer class="bottom"><div>Ergon Group SARL<br>Lot P93M Ambohipo Sud Alasora Bypass<br><br>ergon@ergon.mg<br>+261 34 61 791 41</div><div>NIF : 6003298583<br>STAT : 77290 11 2019 010 215<br><br>titan@ergon.mg<br>+261 34 61 791 42</div></footer>
-  </div>
-</body>
-</html>
+<head><meta charset="utf-8"><title>Avenant de contrat Titan</title><style>{% include "documents/partials/constructed_document_family.css" %}</style></head>
+<body><div class="document-page">
+  <aside class="document-side"><img class="brand" src="/brand/titan-rental-logo.png" alt="Titan Rental"><div class="side-details"><strong>TITAN RENTAL</strong><br>Avenant de contrat de location<br><br><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320102 33" }}<br><br>Ergon Group SARL<br>Lot P93M Ambohipo sud<br>By-pass<br>+261 34 61 791 41</div><img class="ergon-mark" src="/brand/ergon-logo.png" alt="Ergon"></aside>
+  <main class="document-main" style="--document-watermark: url('/brand/titan-rental-logo.png');">
+    <header class="document-header"><div><p class="eyebrow">Titan Rental</p><h1>Avenant de contrat</h1></div><div class="meta"><strong>RÉF. : {{ context.reservation_draft.public_reference|default:"________________" }}</strong><br>Date : {% now "d/m/Y" %}</div></header>
+    <div class="document-kicker">Modification du contrat de location de matériels événementiels</div>
+    <div class="document-fields"><div class="document-field"><strong>CLIENT</strong><span>{{ context.reservation_draft.customer_display_name|default:"________________________" }}</span></div><div class="document-field"><strong>PÉRIODE</strong><span>{{ context.reservation_draft.start_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }} — {{ context.reservation_draft.end_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }}</span></div><div class="document-field"><strong>RETRAIT / RETOUR</strong><span>{{ context.reservation_draft.pickup_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }} — {{ context.reservation_draft.return_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }}</span></div></div>
+    <p>Les parties conviennent de modifier les éléments suivants du contrat :</p>
+    <table class="document-table"><thead><tr><th class="center" style="width: 24mm;">Quantité</th><th>Désignation</th><th class="right" style="width: 32mm;">Prix</th></tr></thead><tbody>{% for line in context.reservation_draft.lines %}<tr><td class="center">{{ line.quantity }}</td><td>{{ line.inventory_item_name }}</td><td class="right">{{ line.total_price|default:"" }}</td></tr>{% empty %}<tr class="empty-row"><td></td><td></td><td></td></tr>{% endfor %}</tbody></table>
+    <div class="document-total"><div class="total-row final"><span>Total location</span><span>{{ context.reservation_draft.total_amount|default:"________________" }} Ar</span></div></div>
+    <div class="document-note">Proforma / réservation de référence : {{ context.reservation_draft.public_reference|default:"________________" }}<br>Les autres clauses du contrat initial restent inchangées.</div>
+    <div class="document-signatures"><span>Le Prestataire</span><span>Le Client</span></div>
+    <footer class="document-footer"><span>titan@ergon.mg</span><span>+261 34 61 791 42</span></footer>
+  </main>
+</div></body></html>

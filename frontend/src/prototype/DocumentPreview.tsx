@@ -170,6 +170,16 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const safeSubTotal = safeNumber(subTotalAmount, safeNumber(totalAmount, 0));
   const safeDiscount = safeNumber(discountAmount, 0);
   const safeTotal = safeNumber(totalAmount, 0);
+  const showBreakageColumn = domain === 'hahitantsoa';
+  const hasHahitantsoaLocation = domain === 'hahitantsoa' && (
+    safeNumber(hDetails?.venuePrice, 0) > 0 ||
+    Boolean(hDetails?.venueName || hDetails?.venue || hDetails?.rentalType)
+  );
+  const hasCommercialLines = hasHahitantsoaLocation ||
+    materials.length > 0 ||
+    services.length > 0 ||
+    Boolean(deliveryFee) ||
+    safeNumber(hDetails?.durationOptionPrice, 0) > 0;
 
   if (type === 'contrat') {
     if (client?.status === 'Prospect') {
@@ -187,7 +197,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     }
 
     const ContractPage = ({ pageNumber, children }: { pageNumber: number, children: React.ReactNode }) => (
-      <div className="contract-a4-page relative flex flex-col shrink-0 text-[14px] leading-snug">
+      <div className="contract-a4-page relative flex flex-col shrink-0 text-[12px] leading-[1.35]">
         <div className="flex-1 relative pt-12 pb-8 px-16 flex flex-col z-10">
           <img src={logoPath} alt="Watermark" className="contract-watermark absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[70%] opacity-[0.08] pointer-events-none -z-10" />
 
@@ -648,7 +658,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   }
 
   return (
-    <div className="doc-preview flex bg-white text-black font-sans relative overflow-hidden" style={{ minHeight: '800px' }}>
+    <div className="doc-preview commercial-proforma-preview flex bg-white text-black relative overflow-hidden" style={{ minHeight: '800px' }}>
       <div className="doc-sidebar w-[22%] bg-[#efefef] flex flex-col justify-between py-12 px-6 border-none">
         <div>
           <img src={logoPath} alt={`${domain} logo`} className="w-full h-auto object-contain" />
@@ -660,7 +670,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           </div>
           <div>
             <p className="font-bold">RIB</p>
-            <p><VariableValue token="company.bankRib" value="00004 00009 03319320103 30" show={showVariables} /></p>
+            <p><VariableValue token="company.bankRib" value={isTitan ? "00004 00009 03319320102 33" : "00004 00009 03319320103 30"} show={showVariables} /></p>
           </div>
           <div className="mt-8">
             <p>Ergon Group SARL</p>
@@ -679,7 +689,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       </div>
 
       <div className="doc-body flex-1 py-12 px-10 relative flex flex-col">
-        <img src={logoPath} alt="Watermark" className="absolute top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[80%] opacity-[0.03] pointer-events-none" />
+        <img src={logoPath} alt="Watermark" className="commercial-proforma-watermark absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
         <div className="text-right mb-12">
           <p className="text-sm font-bold mb-1">{typeRef} N°: <VariableValue token="dossier.ref" value={refNumber} show={showVariables} /></p>
@@ -703,24 +713,24 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         )}
 
         <div className="mb-auto">
-          <table className="w-full text-xs doc-table-borderless">
+          <table className={`w-full text-xs doc-table-borderless ${isTitan ? 'commercial-proforma-titan-table' : 'commercial-proforma-hahitantsoa-table'}`}>
             <thead>
               <tr className="border-none">
                 <th className="text-left font-bold tracking-widest pb-4 w-12">Q T E</th>
                 <th className="text-left font-bold tracking-widest pb-4">D E S I G N A T I O N</th>
                 <th className="text-right font-bold tracking-widest pb-4 w-24">P. U.</th>
                 <th className="text-right font-bold tracking-widest pb-4 w-28">M O N T A N T</th>
-                <th className="text-right font-bold tracking-widest pb-4 w-24">P. C A S S E</th>
+                {showBreakageColumn && <th className="text-right font-bold tracking-widest pb-4 w-24">P. C A S S E</th>}
               </tr>
             </thead>
             <tbody>
-              {domain === 'hahitantsoa' && (
+              {hasHahitantsoaLocation && (
                 <tr className="border-none align-top">
                   <td className="text-left py-1.5">001</td>
                   <td className="py-1.5">Location local</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.venuePrice)}</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.venuePrice)}</td>
-                  <td className="text-right py-1.5">0,00</td>
+                  {showBreakageColumn && <td className="text-right py-1.5">0,00</td>}
                 </tr>
               )}
               {domain === 'hahitantsoa' && hDetails?.rentalType === 'Location nue + logistique' && (
@@ -729,12 +739,16 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                   <td className="py-1.5">Frais logistique</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.logisticsPrice)}</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.logisticsPrice)}</td>
-                  <td className="text-right py-1.5">0,00</td>
+                  {showBreakageColumn && <td className="text-right py-1.5">0,00</td>}
                 </tr>
               )}
-              {materials.length === 0 && services.length === 0 && domain !== 'hahitantsoa' && (
-                <tr className="border-none align-top">
-                  <td colSpan={5} className="py-4 text-sm text-slate-500 italic text-center">Aucune ligne à afficher dans ce document mock.</td>
+              {!hasCommercialLines && (
+                <tr className="commercial-proforma-empty-row border-none align-top">
+                  <td className="py-4">&nbsp;</td>
+                  <td className="py-4">&nbsp;</td>
+                  <td className="py-4">&nbsp;</td>
+                  <td className="py-4">&nbsp;</td>
+                  {showBreakageColumn && <td className="py-4">&nbsp;</td>}
                 </tr>
               )}
               {materials.map(m => {
@@ -748,7 +762,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     <td className="py-1.5">{m.name || m.designation || 'Article'}</td>
                     <td className="text-right py-1.5">{formatMoneyRaw(mPrice)}</td>
                     <td className="text-right py-1.5">{formatMoneyRaw(mTotal)}</td>
-                    <td className="text-right py-1.5">{formatMoneyRaw(mBreakage)}</td>
+                    {showBreakageColumn && <td className="text-right py-1.5">{formatMoneyRaw(mBreakage)}</td>}
                   </tr>
                 );
               })}
@@ -760,7 +774,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     <td className="py-1.5">{s.name || 'Service'}</td>
                     <td className="text-right py-1.5">{formatMoneyRaw(sPrice)}</td>
                     <td className="text-right py-1.5">{formatMoneyRaw(sPrice)}</td>
-                    <td className="text-right py-1.5">0,00</td>
+                    {showBreakageColumn && <td className="text-right py-1.5">0,00</td>}
                   </tr>
                 );
               })}
@@ -770,7 +784,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                   <td className="py-1.5">Frais de livraison</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(parseInt(deliveryFee, 10))}</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(parseInt(deliveryFee, 10))}</td>
-                  <td className="text-right py-1.5">0,00</td>
+                  {showBreakageColumn && <td className="text-right py-1.5">0,00</td>}
                 </tr>
               )}
               {safeNumber(hDetails?.durationOptionPrice, 0) > 0 && (
@@ -779,7 +793,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                   <td className="py-1.5">Tarif option horaire : {hDetails?.durationOption}</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.durationOptionPrice)}</td>
                   <td className="text-right py-1.5">{formatMoneyRaw(hDetails?.durationOptionPrice)}</td>
-                  <td className="text-right py-1.5">0,00</td>
+                  {showBreakageColumn && <td className="text-right py-1.5">0,00</td>}
                 </tr>
               )}
             </tbody>
@@ -788,7 +802,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
         <div className="flex justify-end mb-2 mt-8 text-sm">
           <div className="w-[300px] grid grid-cols-[1fr_150px] gap-2">
-            <div className="text-left tracking-widest">S O U S  -  T O T A L</div>
+            <div className="text-left tracking-widest">T O T A L</div>
             <div className="text-right"><VariableValue token="finance.subTotalAmount" value={formatMoneyRaw(safeSubTotal)} show={showVariables} /></div>
 
             <div className="text-left tracking-widest">R E M I S E</div>
@@ -796,12 +810,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           </div>
         </div>
 
-        <div className="flex bg-[#efefef] p-3 text-sm font-bold items-center justify-between mx-[-2.5rem] px-[2.5rem] mb-2">
+        <div className="commercial-proforma-total-header flex bg-[#efefef] p-3 text-sm font-bold items-center justify-between mx-[-2.5rem] px-[2.5rem] mb-2">
           <div className="tracking-widest">T O T A L A P A Y E R</div>
           <div className=""><VariableValue token="finance.totalAmount" value={formatMoneyRaw(safeTotal)} show={showVariables} /> Ar</div>
         </div>
 
-        <div className="flex justify-between text-xs mb-8">
+        <div className="commercial-proforma-amount-words flex justify-between text-xs mb-8">
           <div className="w-1/2">
             Arrêtée la présente {type === 'facture' ? 'facture' : 'facture proforma'}<br/>à la somme de
           </div>

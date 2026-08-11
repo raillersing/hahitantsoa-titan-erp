@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <title>Facture casse et remise en état</title>
   <style>
-    @page { size: A5; margin: 0; }
+  @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { width: 148mm; height: 210mm; margin: 0; color: #292929; }
+  html, body { width: 210mm; height: 297mm; margin: 0; color: #292929; }
     body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; }
-    .page { position: relative; width: 148mm; height: 210mm; overflow: hidden; }
+  .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; }
     .side { position: absolute; inset: 0 auto 0 0; width: 42mm; background: #e7e7e6; padding: 25mm 4mm 6mm; }
     .brand { display: block; width: 21mm; height: 21mm; object-fit: contain; margin: 0 auto; filter: grayscale(1) contrast(2); }
     .side-info { position: absolute; left: 3.5mm; right: 3.5mm; bottom: 23mm; font-size: 7pt; line-height: 1.2; color: #4d4d4d; }
     .side-info strong { color: #222; font-size: 7.5pt; }
     .ergon { position: absolute; left: 16mm; bottom: 5mm; width: 10mm; height: 10mm; object-fit: contain; filter: grayscale(1); opacity: .6; }
-    .main { position: absolute; top: 0; left: 42mm; width: 106mm; height: 210mm; padding: 8mm 5mm 5mm; }
+  .main { position: absolute; top: 0; left: 42mm; width: 168mm; height: 297mm; padding: 8mm 5mm 5mm; }
     .watermark { position: absolute; z-index: 0; right: -4mm; bottom: 5mm; width: 75mm; height: 75mm; object-fit: contain; opacity: .04; }
     .header, .identity, .items, .total, .amount-words, .settlement, .observations, .signatures, .footer-line, .footer { position: relative; z-index: 1; }
     .header { text-align: right; }

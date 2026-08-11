@@ -17,10 +17,20 @@ SOURCE_BACKED_DOCUMENTS = (
     ("hahitantsoa.liability_release.v1", "A4", "DECHARGE DE RESPONSABILITE"),
     ("hahitantsoa.delivery_note.v1", "A4", "BON DE LIVRAISON"),
     ("hahitantsoa.invoice.v1", "A4", "FACTURE"),
-    ("titan.delivery_note.v1", "A5", "BON DE LIVRAISON"),
-    ("titan.invoice.v1", "A5", "FACTURE"),
-    ("shared.breakage_repair_invoice.v1", "A5", "DETAILS DE CASSE"),
+    ("titan.delivery_note.v1", "A4", "BON DE LIVRAISON"),
+    ("titan.invoice.v1", "A4", "FACTURE"),
+    ("shared.breakage_repair_invoice.v1", "A4", "DETAILS DE CASSE"),
     ("hahitantsoa.preparation_sheet.v1", "A4", "Checking de passation"),
+)
+
+CONSTRUCTED_DOCUMENTS = (
+    ("titan.material_amendment.v1", "AVENANT DE CONTRAT"),
+    ("shared.payment_receipt.v1", "REÇU DE PAIEMENT"),
+    ("shared.payment_refund_receipt.v1", "REÇU DE REMBOURSEMENT"),
+    ("shared.return_note.v1", "BON DE RETOUR"),
+    ("shared.internal_release_note.v1", "BON DE SORTIE"),
+    ("shared.supplier_purchase_order.v1", "BON DE COMMANDE"),
+    ("shared.damage_loss_excess_invoice.v1", "FACTURE DE PERTE"),
 )
 
 
@@ -52,6 +62,26 @@ def test_source_backed_template_preview_renders_with_variables(template_key: str
     )
     assert "{{" in html
     assert "}}" in html
+
+
+@pytest.mark.parametrize("template_key,title", CONSTRUCTED_DOCUMENTS)
+def test_constructed_documents_share_the_a4_family_shell(template_key: str, title: str) -> None:
+    definition = get_document_template_definition(template_key)
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(template_key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+
+    assert "size: A4 portrait" in html
+    assert 'class="document-page"' in html
+    assert 'class="document-side"' in html
+    assert 'class="document-main"' in html
+    assert title.lower() in html.lower()
 
 
 def test_breakage_preview_does_not_expose_placeholder_bank_tokens() -> None:

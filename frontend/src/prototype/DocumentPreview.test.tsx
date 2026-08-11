@@ -15,8 +15,17 @@ describe('DocumentPreview', () => {
     expect(screen.getByText('D E S I G N A T I O N')).toBeInTheDocument();
     expect(screen.getByText('P. U.')).toBeInTheDocument();
     expect(screen.getByText('M O N T A N T')).toBeInTheDocument();
-    expect(screen.getByText('P. C A S S E')).toBeInTheDocument();
+    expect(screen.queryByText('P. C A S S E')).not.toBeInTheDocument();
     expect(screen.getByText('T O T A L A P A Y E R')).toBeInTheDocument();
+    expect(document.querySelector('.commercial-proforma-titan-table')).toBeInTheDocument();
+    expect(screen.queryByText('Aucune ligne à afficher dans ce document mock.')).not.toBeInTheDocument();
+  });
+
+  it('keeps the blank Hahitantsoa model free of fabricated line items', () => {
+    render(<DocumentPreview type="proforma" domain="hahitantsoa" client={clientMock} />);
+    expect(document.querySelector('.commercial-proforma-hahitantsoa-table')).toBeInTheDocument();
+    expect(screen.queryByText('Location local')).not.toBeInTheDocument();
+    expect(screen.getByText('P. C A S S E')).toBeInTheDocument();
   });
 
   it('renders Hahitantsoa facture correctly', () => {

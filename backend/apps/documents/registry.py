@@ -137,7 +137,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         template_path="backend/apps/documents/templates/documents/titan_delivery_note.html",
         preview_path="backend/apps/documents/templates_documents/titan/bl/v1/preview.pdf",
         validated_by_client=False,
-        notes="Source-backed A5 Titan delivery-note replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
+        notes="Source-backed A4 Titan delivery-note replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.proforma.v1",
@@ -165,7 +165,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         template_path="backend/apps/documents/templates/documents/titan_invoice.html",
         preview_path="backend/apps/documents/templates_documents/titan/facture/v1/preview.pdf",
         validated_by_client=False,
-        notes="Source-backed A5 Titan invoice replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
+        notes="Source-backed A4 Titan invoice replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="titan.material_amendment.v1",

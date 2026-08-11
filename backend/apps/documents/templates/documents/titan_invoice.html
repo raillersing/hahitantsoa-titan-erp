@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <title>Facture Titan</title>
   <style>
-    @page { size: A5; margin: 0; }
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { width: 148mm; height: 210mm; margin: 0; color: #202020; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
     body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; }
-    .page { position: relative; width: 148mm; height: 210mm; overflow: hidden; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; }
     .side { position: absolute; inset: 0 auto 0 0; width: 62mm; background: #e7e7e6; padding: 10mm 4mm 6mm; }
     .brand { display: block; width: 30mm; height: 30mm; object-fit: contain; margin: 0 auto; filter: grayscale(1) contrast(2); }
     .side-info { position: absolute; left: 4mm; right: 4mm; bottom: 24mm; font-size: 6.7pt; line-height: 1.2; color: #4d4d4d; }
     .side-info strong { color: #222; font-size: 7pt; }
     .ergon { display: block; width: 11mm; height: 11mm; object-fit: contain; margin: 9mm auto 0; filter: grayscale(1); opacity: .6; }
-    .main { position: absolute; top: 0; left: 62mm; width: 86mm; height: 210mm; padding: 7mm 5mm 5mm; }
+    .main { position: absolute; top: 0; left: 62mm; width: 148mm; height: 297mm; padding: 7mm 5mm 5mm; }
     .watermark { position: absolute; z-index: 0; left: -8mm; top: 60mm; width: 111mm; height: 140mm; object-fit: contain; opacity: .06; }
     .header, .identity, .items, .totals, .total-bar, .words, .signatures, .footer { position: relative; z-index: 1; }
     .header { text-align: center; }
@@ -33,15 +33,15 @@
     .items th:nth-child(4) { width: 22mm; }
     .items td { height: 6mm; vertical-align: top; text-align: right; }
     .items td:first-child, .items td:nth-child(2) { text-align: left; }
-    .totals { position: absolute; right: 4mm; top: 139mm; width: 39mm; font-size: 7pt; }
+    .totals { position: absolute; right: 4mm; top: 226mm; width: 55mm; font-size: 8pt; }
     .totals-row { display: grid; grid-template-columns: 20mm 1fr; min-height: 5mm; letter-spacing: .7mm; }
     .totals-row span:last-child { text-align: right; letter-spacing: 0; }
-    .total-bar { position: absolute; left: 0; right: 0; top: 153mm; height: 8mm; background: #e9e9e8; padding: 2mm 3mm; display: flex; justify-content: space-between; font-size: 7pt; letter-spacing: .7mm; }
+    .total-bar { position: absolute; left: 0; right: 0; top: 240mm; height: 9mm; background: #e9e9e8; padding: 2.2mm 3mm; display: flex; justify-content: space-between; font-size: 8pt; letter-spacing: .7mm; }
     .total-bar strong { letter-spacing: 0; }
-    .words { position: absolute; left: 0; right: 0; top: 162mm; height: 11mm; border: .5mm solid #eee; padding: 1mm 2mm; display: grid; grid-template-columns: 23mm 1fr; font-size: 5pt; }
+    .words { position: absolute; left: 0; right: 0; top: 251mm; height: 11mm; border: .5mm solid #eee; padding: 1mm 2mm; display: grid; grid-template-columns: 35mm 1fr; font-size: 5.5pt; }
     .words span:last-child { text-align: center; font-size: 6.5pt; }
-    .signatures { position: absolute; left: 10mm; right: 10mm; top: 177mm; display: flex; justify-content: space-between; font-size: 5.5pt; color: #555; }
-    .footer { position: absolute; left: 0; right: 0; top: 201mm; display: flex; justify-content: space-between; font-size: 8pt; font-weight: 700; }
+    .signatures { position: absolute; left: 16mm; right: 16mm; top: 266mm; display: flex; justify-content: space-between; font-size: 7pt; color: #555; }
+    .footer { position: absolute; left: 0; right: 0; bottom: 7mm; display: flex; justify-content: space-between; font-size: 9pt; font-weight: 700; }
     .variable { background: #fff0b3; outline: .2mm solid #d6a700; padding: 0 .3mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
     @media print { .variable { background: transparent; outline: 0; } }
   </style>
