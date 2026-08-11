@@ -2,7 +2,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [("documents", "0008_documentinstance_proforma_issuance_validity")]
+    dependencies = [("documents", "0014_documentinstance_customer_party_type")]
 
     operations = [
         migrations.AddField(
