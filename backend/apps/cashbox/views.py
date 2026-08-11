@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.authorization import is_cashbox_supervisor_actor
 
 from .serializers import (
     CashboxCountSubmitSerializer,
@@ -32,13 +33,20 @@ def _lifecycle_error_response(error):
     return Response({"detail": str(error), "code": error.code}, status=status.HTTP_400_BAD_REQUEST)
 
 
+def _sessions_visible_to_actor(actor):
+    queryset = active_cashbox_sessions()
+    if getattr(actor, "is_staff", False) or is_cashbox_supervisor_actor(actor=actor):
+        return queryset
+    return queryset.filter(operator=actor)
+
+
 class CashboxSessionListAPIView(generics.ListAPIView):
     http_method_names = ["get", "head", "options"]
     permission_classes = [HasReservationSensitiveAccess]
     serializer_class = CashboxSessionSerializer
 
     def get_queryset(self):
-        qs = active_cashbox_sessions()
+        qs = _sessions_visible_to_actor(self.request.user)
         if operator_id := self.request.query_params.get("operator_id"):
             qs = qs.filter(operator_id=operator_id)
         if status_param := self.request.query_params.get("status"):
@@ -53,7 +61,7 @@ class CashboxSessionRetrieveAPIView(generics.RetrieveAPIView):
     lookup_field = "id"
 
     def get_queryset(self):
-        return active_cashbox_sessions()
+        return _sessions_visible_to_actor(self.request.user)
 
 
 class CashboxSessionOpenAPIView(APIView):
@@ -64,6 +72,17 @@ class CashboxSessionOpenAPIView(APIView):
     def post(self, request):
         serializer = CashboxSessionOpenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        operator = serializer.validated_data["operator"]
+        privileged = getattr(request.user, "is_staff", False) or is_cashbox_supervisor_actor(
+            actor=request.user
+        )
+        if operator.pk != request.user.pk and not privileged:
+            return Response(
+                {"detail": "Un opérateur ne peut ouvrir que sa propre caisse."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not privileged:
+            serializer.validated_data["cash_account"] = None
         try:
             session = open_cashbox_session(actor=request.user, **serializer.validated_data)
         except CashboxLifecycleError as error:
@@ -78,7 +97,7 @@ class CashboxSessionLegacyCloseAPIView(APIView):
     permission_classes = [HasReservationSensitiveAccess]
 
     def post(self, request, id):
-        if not active_cashbox_sessions().filter(id=id).exists():
+        if not _sessions_visible_to_actor(request.user).filter(id=id).exists():
             raise Http404("Cashbox session not found.")
         return Response(
             {
@@ -100,7 +119,7 @@ class CashboxSessionCountSubmitAPIView(APIView):
     def post(self, request, id):
         serializer = CashboxCountSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        session = active_cashbox_sessions().filter(id=id).first()
+        session = _sessions_visible_to_actor(request.user).filter(id=id).first()
         if session is None:
             raise Http404("Cashbox session not found.")
         try:
@@ -121,7 +140,7 @@ class CashboxSessionCountValidateAPIView(APIView):
     def post(self, request, id):
         serializer = CashboxCountValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        session = active_cashbox_sessions().filter(id=id).first()
+        session = _sessions_visible_to_actor(request.user).filter(id=id).first()
         if session is None:
             raise Http404("Cashbox session not found.")
         idempotency_key = serializer.validated_data["idempotency_key"]
@@ -157,7 +176,7 @@ class CashboxSessionReopenAPIView(APIView):
     def post(self, request, id):
         serializer = CashboxSessionReopenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        session = active_cashbox_sessions().filter(id=id).first()
+        session = _sessions_visible_to_actor(request.user).filter(id=id).first()
         if session is None:
             raise Http404("Cashbox session not found.")
         try:
@@ -178,6 +197,8 @@ class CashboxMovementListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = active_cashbox_movements()
+        if not (getattr(self.request.user, "is_staff", False) or is_cashbox_supervisor_actor(actor=self.request.user)):
+            qs = qs.filter(session__operator=self.request.user)
         if session_id := self.request.query_params.get("session_id"):
             qs = qs.filter(session_id=session_id)
         if direction := self.request.query_params.get("direction"):
@@ -195,7 +216,7 @@ class CashboxMovementCreateAPIView(APIView):
     def post(self, request, id):
         serializer = CashboxMovementCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        session = active_cashbox_sessions().filter(id=id).first()
+        session = _sessions_visible_to_actor(request.user).filter(id=id).first()
         if session is None:
             raise Http404("Cashbox session not found.")
         try:
