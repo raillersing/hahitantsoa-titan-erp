@@ -7,6 +7,7 @@ class IdentityRole(StrEnum):
     IDENTITY_ADMIN = "identity_admin"
     RESERVATION_SENSITIVE_OPERATOR = "reservation_sensitive_operator"
     CASHBOX_SUPERVISOR = "cashbox_supervisor"
+    CASHBOX_OPERATOR = "cashbox_operator"
 
 
 class CompanyRole(StrEnum):
@@ -23,6 +24,7 @@ ROLE_GROUP_NAME_BY_ROLE: dict[IdentityRole, str] = {
     IdentityRole.IDENTITY_ADMIN: "identity_admin",
     IdentityRole.RESERVATION_SENSITIVE_OPERATOR: "reservation_sensitive_operator",
     IdentityRole.CASHBOX_SUPERVISOR: "cashbox_supervisor",
+    IdentityRole.CASHBOX_OPERATOR: "cashbox_operator",
 }
 
 # Django groups are the legacy identity source for these platform capabilities.

@@ -16,6 +16,7 @@ import {
   getPayments,
   createPayment,
   confirmPayment,
+  createReservationDraftAmendment,
 } from "../api";
 import type { ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
 
@@ -111,6 +112,12 @@ export default function ReservationDetailPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showAmendmentForm, setShowAmendmentForm] = useState(false);
+  const [amendmentReason, setAmendmentReason] = useState("");
+  const [amendmentNotes, setAmendmentNotes] = useState("");
+  const [amendmentStartAt, setAmendmentStartAt] = useState("");
+  const [amendmentEndAt, setAmendmentEndAt] = useState("");
+  const [amendmentQuantities, setAmendmentQuantities] = useState<Record<string, number>>({});
 
   /* ── fetch on mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -205,6 +212,38 @@ export default function ReservationDetailPage({
   };
 
   const closePreview = () => setPreviewDoc(null);
+
+  const handleCreateTitanAmendment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!draft) return;
+    setActionLoading("amendment");
+    try {
+      await createReservationDraftAmendment(draft.id, {
+        reason: amendmentReason.trim(),
+        notes: amendmentNotes.trim(),
+        changed_start_at: amendmentStartAt ? new Date(amendmentStartAt).toISOString() : undefined,
+        changed_end_at: amendmentEndAt ? new Date(amendmentEndAt).toISOString() : undefined,
+        changed_lines: draft.lines.map((line) => ({
+          inventory_item_id: line.inventory_item_id,
+          quantity: amendmentQuantities[line.id] ?? line.quantity,
+          notes: line.notes,
+        })),
+      });
+      setShowAmendmentForm(false);
+      setAmendmentReason("");
+      setAmendmentNotes("");
+      setAmendmentStartAt("");
+      setAmendmentEndAt("");
+      setAmendmentQuantities({});
+      showToast("Avenant Titan généré et prêt à être imprimé.", "success");
+      const instances = await getReservationDraftDocumentInstances(draft.id);
+      setDocumentInstances(instances);
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de la génération de l'avenant.", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   /* ── action handlers (real API) ───────────────────────────────── */
   const handleContractSigned = async () => {
@@ -1112,8 +1151,9 @@ export default function ReservationDetailPage({
                     <i className="fa-solid fa-eye text-slate-400 hover:text-emerald-600"></i>
                   </button>
                   <button
-                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50 opacity-60 cursor-not-allowed text-left"
-                    disabled
+                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
+                    onClick={() => setShowAmendmentForm(true)}
+                    disabled={actionLoading !== null}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg">
@@ -1123,7 +1163,7 @@ export default function ReservationDetailPage({
                         <p className="font-bold text-slate-800 text-sm">
                           Avenant
                         </p>
-                        <p className="text-xs text-slate-500">Non généré</p>
+                          <p className="text-xs text-slate-500">Créer jusqu’au jour J</p>
                       </div>
                     </div>
                   </button>
@@ -1850,6 +1890,116 @@ export default function ReservationDetailPage({
       </div>
 
       {/* ── document preview modal ────────────────────────────────── */}
+      {showAmendmentForm && domain === "Titan" && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          onClick={() => setShowAmendmentForm(false)}
+        >
+          <form
+            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleCreateTitanAmendment}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-slate-800">Nouvel avenant Titan</h3>
+              <button
+                type="button"
+                className="text-slate-400 hover:text-slate-600"
+                onClick={() => setShowAmendmentForm(false)}
+                aria-label="Fermer"
+              >
+                <i className="fa-solid fa-xmark text-xl"></i>
+              </button>
+            </div>
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="amendment-reason">
+              Motif de l’avenant
+            </label>
+            <input
+              id="amendment-reason"
+              required
+              value={amendmentReason}
+              onChange={(event) => setAmendmentReason(event.target.value)}
+              className="w-full border border-slate-300 rounded-lg p-2.5 text-sm mb-4"
+              placeholder="Ex. modification des articles loués"
+            />
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="amendment-notes">
+              Détails complémentaires
+            </label>
+            <textarea
+              id="amendment-notes"
+              value={amendmentNotes}
+              onChange={(event) => setAmendmentNotes(event.target.value)}
+              className="w-full border border-slate-300 rounded-lg p-2.5 text-sm mb-5 min-h-24"
+              placeholder="Précisions à faire apparaître dans l’avenant"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="amendment-start-at">
+                  Nouvelle date de début (facultatif)
+                </label>
+                <input
+                  id="amendment-start-at"
+                  type="datetime-local"
+                  value={amendmentStartAt}
+                  onChange={(event) => setAmendmentStartAt(event.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="amendment-end-at">
+                  Nouvelle date de fin (facultatif)
+                </label>
+                <input
+                  id="amendment-end-at"
+                  type="datetime-local"
+                  value={amendmentEndAt}
+                  onChange={(event) => setAmendmentEndAt(event.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
+                />
+              </div>
+            </div>
+            {draft?.lines && draft.lines.length > 0 && (
+              <div className="border border-slate-200 rounded-lg p-3 mb-5">
+                <p className="text-sm font-medium text-slate-700 mb-2">Quantités modifiées</p>
+                <div className="space-y-2">
+                  {draft.lines.map((line) => (
+                    <label key={line.id} className="flex items-center justify-between gap-3 text-sm text-slate-600">
+                      <span>{line.inventory_item_name}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={amendmentQuantities[line.id] ?? line.quantity}
+                        onChange={(event) => setAmendmentQuantities((current) => ({
+                          ...current,
+                          [line.id]: Math.max(1, Number(event.target.value) || 1),
+                        }))}
+                        className="w-20 border border-slate-300 rounded-lg p-2 text-center"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 border border-slate-300 rounded-lg text-sm"
+                onClick={() => setShowAmendmentForm(false)}
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading === "amendment"}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-60"
+              >
+                {actionLoading === "amendment" ? "Génération…" : "Générer l’avenant"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {previewDoc && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"

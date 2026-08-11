@@ -11,9 +11,11 @@ from .views import (
     LogisticsEventSignatureUpdateAPIView,
     LogisticsEventTransitionAPIView,
     LogisticsEventUpdateAPIView,
+    TitanClosedDayListAPIView,
 )
 
 urlpatterns = [
+    path("closed-days/", TitanClosedDayListAPIView.as_view(), name="titan-closed-day-list"),
     path("events/", LogisticsEventListAPIView.as_view(), name="logistics-event-list"),
     path(
         "events/<uuid:id>/",

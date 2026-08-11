@@ -305,6 +305,28 @@ export type ReservationDraft = {
   updated_at: string;
 };
 
+export type ReservationDraftAmendment = {
+  id: string;
+  reservation_draft: string;
+  reason: string;
+  notes: string;
+  document_instance_id: string | null;
+  created_at: string;
+  created_by: string | null;
+};
+
+export type ReservationDraftAmendmentCreatePayload = {
+  reason: string;
+  notes?: string;
+  changed_start_at?: string;
+  changed_end_at?: string;
+  changed_lines?: Array<{
+    inventory_item_id: string;
+    quantity: number;
+    notes?: string;
+  }>;
+};
+
 export type ReservationDraftMutationResult = {
   status: ReservationDraft["status"];
   public_reference: string;
@@ -717,6 +739,13 @@ export type PaymentActionPayload = {
 // ---- Logistics & Delivery ----
 
 export type LogisticsEventType = 'delivery' | 'pickup' | 'preparation' | 'handover';
+export type LogisticsOperationKind = 'outbound' | 'return';
+
+export type TitanClosedDay = {
+  id: string;
+  date: string;
+  label: string;
+};
 
 export type LogisticsEventStatus = 'planned' | 'dispatched' | 'completed' | 'cancelled';
 
@@ -740,6 +769,7 @@ export type LogisticsEvent = {
   id: string;
   reservation_draft: string;
   event_type: LogisticsEventType;
+  operation: LogisticsOperationKind;
   status: LogisticsEventStatus;
   scheduled_at: string | null;
   executed_at: string | null;
@@ -783,6 +813,7 @@ export type LogisticsEventCompletePassationPayload = {
 export type LogisticsEventCreatePayload = {
   reservation_draft: string;
   event_type: LogisticsEventType;
+  operation?: LogisticsOperationKind;
   scheduled_at?: string | null;
   address?: string;
   contact_name?: string;

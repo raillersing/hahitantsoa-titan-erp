@@ -518,6 +518,8 @@ def get_hahitantsoa_event_draft_amendment_preflight(
 
     if not _is_confirmed(event_draft=event_draft):
         blockers.append("draft_not_confirmed_for_amendment")
+    elif timezone.localdate() > timezone.localtime(event_draft.start_at).date():
+        blockers.append("amendment_deadline_passed")
 
     return HahitantsoaEventDraftAmendmentPreflight(
         event_draft_id=str(event_draft.id),

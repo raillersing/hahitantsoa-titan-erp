@@ -70,6 +70,7 @@ export function LogisticsDeliveryPanel() {
   const [createForm, setCreateForm] = useState({
     reservation_draft: "",
     event_type: "delivery" as LogisticsEvent["event_type"],
+    operation: "outbound" as LogisticsEvent["operation"],
     scheduled_at: "",
     address: "",
     contact_name: "",
@@ -270,7 +271,8 @@ export function LogisticsDeliveryPanel() {
     try {
       await createLogisticsEvent({
         reservation_draft: createForm.reservation_draft,
-        event_type: createForm.event_type,
+                event_type: createForm.event_type,
+                operation: createForm.operation,
         scheduled_at: createForm.scheduled_at || null,
         address: createForm.address || undefined,
         contact_name: createForm.contact_name || undefined,
@@ -282,6 +284,7 @@ export function LogisticsDeliveryPanel() {
       setCreateForm({
         reservation_draft: "",
         event_type: "delivery",
+        operation: "outbound",
         scheduled_at: "",
         address: "",
         contact_name: "",
@@ -369,6 +372,13 @@ export function LogisticsDeliveryPanel() {
                 <option value="delivery">Livraison</option>
                 <option value="handover">Remise</option>
                 <option value="pickup">Enlèvement</option>
+              </select>
+            </label>
+            <label>
+              Opération
+              <select value={createForm.operation} onChange={(e) => setCreateForm((f) => ({ ...f, operation: e.target.value as LogisticsEvent["operation"] }))}>
+                <option value="outbound">Sortie / livraison (J-1)</option>
+                <option value="return">Retour / récupération (J+1)</option>
               </select>
             </label>
             <label>

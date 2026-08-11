@@ -85,6 +85,16 @@ def is_cashbox_supervisor_actor(*, actor: object | None) -> bool:
     return actor_has_application_role(actor=actor, role_slug=IdentityRole.CASHBOX_SUPERVISOR.value)
 
 
+def is_cashbox_operator_actor(*, actor: object | None) -> bool:
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+    return (
+        getattr(actor, "is_staff", False) is True
+        or is_reservation_sensitive_actor(actor=actor)
+        or actor_has_identity_role(actor=actor, role=IdentityRole.CASHBOX_OPERATOR)
+    )
+
+
 def require_cashbox_supervisor_actor(*, actor: object | None) -> None:
     if not is_cashbox_supervisor_actor(actor=actor):
         raise PermissionError(CASHBOX_SUPERVISOR_PERMISSION_DENIED_MESSAGE)

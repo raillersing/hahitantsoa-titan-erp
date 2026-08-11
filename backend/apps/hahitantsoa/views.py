@@ -517,14 +517,30 @@ class HahitantsoaEventDraftDocumentInstanceListCreateAPIView(generics.ListCreate
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        instance = create_document_instance_from_hahitantsoa_event_draft(
-            event_draft=self.get_event_draft(),
-            template_key=serializer.validated_data["template_key"],
-            actor=request.user,
-            notes=serializer.validated_data.get("notes", ""),
-            proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
-            bank_profile=serializer.validated_data.get("bank_profile"),
-        )
+        event_draft = self.get_event_draft()
+        with transaction.atomic():
+            instance = create_document_instance_from_hahitantsoa_event_draft(
+                event_draft=event_draft,
+                template_key=serializer.validated_data["template_key"],
+                actor=request.user,
+                notes=serializer.validated_data.get("notes", ""),
+                proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
+                bank_profile=serializer.validated_data.get("bank_profile"),
+            )
+            if serializer.validated_data["template_key"] == "hahitantsoa.delivery_note.v1":
+                checklist_exists = DocumentInstance.objects.filter(
+                    hahitantsoa_event_draft=event_draft,
+                    template_key="hahitantsoa.preparation_sheet.v1",
+                    status__in=("prepared", "generated", "issued"),
+                ).exists()
+                if not checklist_exists:
+                    create_document_instance_from_hahitantsoa_event_draft(
+                        event_draft=event_draft,
+                        template_key="hahitantsoa.preparation_sheet.v1",
+                        actor=request.user,
+                        notes="Checklist manuelle Hahitantsoa associée au bon de livraison.",
+                        bank_profile=serializer.validated_data.get("bank_profile"),
+                    )
         return Response(
             HahitantsoaEventDraftDocumentInstanceSerializer(instance).data,
             status=status.HTTP_201_CREATED,

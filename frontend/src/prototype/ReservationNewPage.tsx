@@ -5,6 +5,7 @@ import {
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
+  getTitanClosedDays,
   getInventoryItems,
   getReservationAvailableItemPreviews,
   createReservationDraft,
@@ -29,6 +30,7 @@ import type {
   ReservationAvailableItemPreview,
   InventoryItem,
   InventoryItemKind,
+  TitanClosedDay,
 } from "../types";
 
 // ---- Inline business constants (formerly from mockData) ----
@@ -81,16 +83,18 @@ function formatIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function titanOpenDay(date: Date, direction: -1 | 1): Date {
+function titanOpenDay(date: Date, direction: -1 | 1, closedDates: Set<string>): Date {
   const result = new Date(date);
-  if (result.getDay() === 0) result.setDate(result.getDate() + direction);
+  while (result.getDay() === 0 || closedDates.has(formatIsoDate(result))) {
+    result.setDate(result.getDate() + direction);
+  }
   return result;
 }
 
-function titanMovementDate(date: string, offset: -1 | 1): string {
+function titanMovementDate(date: string, offset: -1 | 1, closedDates: Set<string>): string {
   const result = new Date(`${date}T12:00:00Z`);
   result.setUTCDate(result.getUTCDate() + offset);
-  const openDay = titanOpenDay(result, offset);
+  const openDay = titanOpenDay(result, offset, closedDates);
   return formatIsoDate(openDay);
 }
 
@@ -406,6 +410,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [showResuggest, setShowResuggest] = useState(false);
   const [lastCalculatedDelivery, setLastCalculatedDelivery] = useState({ date: "", time: "" });
   const [lastCalculatedReturn, setLastCalculatedReturn] = useState({ date: "", time: "" });
+  const [titanClosedDays, setTitanClosedDays] = useState<TitanClosedDay[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getTitanClosedDays(undefined, controller.signal)
+      .then(setTitanClosedDays)
+      .catch(() => setTitanClosedDays([]));
+    return () => controller.abort();
+  }, []);
   
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
@@ -517,8 +530,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   useEffect(() => {
     if (domain === 'titan' && tDetails.startDate && tDetails.endDate) {
       try {
-        const suggDeliveryDate = titanMovementDate(tDetails.startDate, -1);
-        const suggReturnDate = titanMovementDate(tDetails.endDate, 1);
+        const closedDates = new Set(titanClosedDays.map((closedDay) => closedDay.date));
+        const suggDeliveryDate = titanMovementDate(tDetails.startDate, -1, closedDates);
+        const suggReturnDate = titanMovementDate(tDetails.endDate, 1, closedDates);
         
         let changed = false;
         const newDetails = { ...tDetails };
@@ -558,7 +572,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         // ignore invalid dates
       }
     }
-  }, [tDetails.startDate, tDetails.endDate, domain]);
+  }, [tDetails.startDate, tDetails.endDate, domain, titanClosedDays]);
 
   const applySuggestions = () => {
     setDeliveryModifiedManually(false);

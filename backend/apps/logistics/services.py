@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING
 
 from django.db import transaction
@@ -19,6 +19,8 @@ from apps.logistics.models import (
     LogisticsEventItemLine,
     LogisticsEventStatus,
     LogisticsEventType,
+    LogisticsOperationKind,
+    TitanClosedDay,
 )
 
 if TYPE_CHECKING:
@@ -33,6 +35,8 @@ PASSATION_NOT_ALLOWED = "PASSATION_NOT_ALLOWED"
 DELIVERY_NOTE_TEMPLATE_KEY = "titan.delivery_note.v1"
 ITEM_LINE_NOT_FOUND = "item_line_not_found"
 LEGACY_UNBOUNDED_STOCK = 2**31 - 1
+TITAN_OPERATING_START = time(6, 0)
+TITAN_OPERATING_END = time(22, 0)
 
 
 class LogisticsServiceError(ValueError):
@@ -41,22 +45,56 @@ class LogisticsServiceError(ValueError):
         self.code = code
 
 
+def is_titan_closed_day(*, scheduled_date: date) -> bool:
+    return (
+        scheduled_date.weekday() == 6
+        or TitanClosedDay.objects.filter(date=scheduled_date, is_active=True).exists()
+    )
+
+
+def previous_titan_working_day(*, scheduled_date: date) -> date:
+    candidate = scheduled_date
+    while is_titan_closed_day(scheduled_date=candidate):
+        candidate -= timedelta(days=1)
+    return candidate
+
+
+def next_titan_working_day(*, scheduled_date: date) -> date:
+    candidate = scheduled_date
+    while is_titan_closed_day(scheduled_date=candidate):
+        candidate += timedelta(days=1)
+    return candidate
+
+
 def _validate_operational_schedule(*, scheduled_at: timezone.datetime | None) -> None:
-    if scheduled_at is not None and timezone.localtime(scheduled_at).weekday() == 6:
+    if scheduled_at is None:
+        return
+    local_scheduled_at = timezone.localtime(scheduled_at)
+    if is_titan_closed_day(scheduled_date=local_scheduled_at.date()):
         raise LogisticsServiceError(
-            "Les manœuvres Titan ne peuvent pas être planifiées le dimanche.",
-            code="sunday_logistics_closed",
+            "Les manœuvres Titan ne peuvent pas être planifiées le dimanche ou un jour férié.",
+            code="titan_closed_day",
+        )
+    if not TITAN_OPERATING_START <= local_scheduled_at.time() <= TITAN_OPERATING_END:
+        raise LogisticsServiceError(
+            "Les manœuvres Titan doivent être planifiées entre 06:00 et 22:00.",
+            code="titan_outside_operating_hours",
         )
 
 
-def default_logistics_scheduled_at(*, reservation_start_at: timezone.datetime) -> timezone.datetime:
-    """Return J-1, moving back to Saturday when J is Monday or Sunday."""
+def default_logistics_scheduled_at(
+    *, reservation_start_at: timezone.datetime, operation: str = "outbound"
+) -> timezone.datetime:
+    """Return Titan's previous/next working day at the start of operations."""
     local_start = timezone.localtime(reservation_start_at)
-    scheduled_date = local_start.date() - timedelta(days=1)
-    while scheduled_date.weekday() == 6:
-        scheduled_date -= timedelta(days=1)
+    requested_date = local_start.date() - timedelta(days=1)
+    if operation == "return":
+        requested_date = local_start.date() + timedelta(days=1)
+        scheduled_date = next_titan_working_day(scheduled_date=requested_date)
+    else:
+        scheduled_date = previous_titan_working_day(scheduled_date=requested_date)
     return timezone.make_aware(
-        datetime.combine(scheduled_date, time.min),
+        datetime.combine(scheduled_date, TITAN_OPERATING_START),
         timezone.get_current_timezone(),
     )
 
@@ -93,6 +131,7 @@ def create_logistics_event(
     actor: object | None,
     reservation_draft: ReservationDraft,
     event_type: str,
+    operation: str = LogisticsOperationKind.OUTBOUND,
     scheduled_at: timezone.datetime | None = None,
     address: str = "",
     contact_name: str = "",
@@ -103,13 +142,15 @@ def create_logistics_event(
     _require_logistics_actor(actor=actor)
     if scheduled_at is None:
         scheduled_at = default_logistics_scheduled_at(
-            reservation_start_at=reservation_draft.start_at
+            reservation_start_at=reservation_draft.start_at,
+            operation=operation,
         )
     _validate_operational_schedule(scheduled_at=scheduled_at)
 
     event = LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
         event_type=event_type,
+        operation=operation,
         scheduled_at=scheduled_at,
         address=address,
         contact_name=contact_name,

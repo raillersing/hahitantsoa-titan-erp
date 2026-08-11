@@ -18,6 +18,7 @@ const MOCK_EVENT: LogisticsEvent = {
   id: "del-1",
   reservation_draft: "rd-1111",
   event_type: "delivery",
+  operation: "outbound",
   status: "planned",
   scheduled_at: "2026-06-15T08:00:00Z",
   executed_at: null,
