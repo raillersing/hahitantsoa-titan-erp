@@ -80,6 +80,7 @@ import type {
   AuditEvent,
   AuditEventQueryParams,
   Payment,
+  PaymentWhatsAppReminder,
   PaymentActionPayload,
   PaymentCreatePayload,
   PaymentConfirmPayload,
@@ -1279,6 +1280,17 @@ export function getHahitantsoaEventDraftPayments(
     `/api/v1/payments/?hahitantsoa_event_draft_id=${encodeURIComponent(eventDraftId)}`,
     signal,
   );
+}
+
+export function getPaymentWhatsAppReminder(
+  draftId: string,
+  businessScope: 'titan' | 'hahitantsoa',
+  signal?: AbortSignal,
+): Promise<PaymentWhatsAppReminder> {
+  const query = businessScope === 'titan'
+    ? `reservation_draft_id=${encodeURIComponent(draftId)}`
+    : `hahitantsoa_event_draft_id=${encodeURIComponent(draftId)}`;
+  return getAuthenticatedJson(`/api/v1/payments/reminder/whatsapp/?${query}`, signal);
 }
 
 export function createPayment(
