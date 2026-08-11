@@ -27,6 +27,24 @@ const PERIODS = [
 
 type PeriodKey = (typeof PERIODS)[number]["key"];
 
+function csvCell(value: unknown): string {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function downloadReportCsv(data: ReportCategoryResponse): void {
+  const rows = [
+    ["Indicateur", "Valeur", "Valeur précédente", "Tendance (%)"],
+    ...data.kpis.map((kpi) => [kpi.label, kpi.value, kpi.previous_value ?? "", kpi.trend_pct ?? ""]),
+  ];
+  const csv = `\ufeff${rows.map((row) => row.map(csvCell).join(";")).join("\n")}\n`;
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `rapport-${data.category}-${data.period}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function formatKpiValue(kpi: ReportKpi): string {
   const val = kpi.value;
   if (kpi.format === "money") {
@@ -58,86 +76,6 @@ function trendIcon(trend?: number): string {
   return "fa-minus";
 }
 
-const MOCK_DATA: Record<ReportCategory, ReportCategoryResponse> = {
-  reservations: {
-    category: "reservations",
-    period: "today",
-    kpis: [
-      { key: "total_count", label: "Total réservations", value: 124, trend_pct: 5.2, previous_value: 118, format: "number" },
-      { key: "confirmed_count", label: "Confirmées", value: 89, trend_pct: 8.1, previous_value: 82, format: "number" },
-      { key: "draft_count", label: "Brouillons", value: 28, trend_pct: -3.4, previous_value: 29, format: "number" },
-      { key: "cancelled_count", label: "Annulées", value: 7, trend_pct: -12.5, previous_value: 8, format: "number" },
-      { key: "revenue", label: "CA Réservations", value: 24500000, trend_pct: 12.3, previous_value: 21800000, format: "money" },
-    ],
-  },
-  sales_billing: {
-    category: "sales_billing",
-    period: "today",
-    kpis: [
-      { key: "total_invoices", label: "Factures émises", value: 56, trend_pct: 4.5, previous_value: 54, format: "number" },
-      { key: "open_invoices", label: "Factures ouvertes", value: 18, trend_pct: -10.0, previous_value: 20, format: "number" },
-      { key: "settled_invoices", label: "Factures réglées", value: 38, trend_pct: 11.8, previous_value: 34, format: "number" },
-      { key: "remaining_balance", label: "Solde restant", value: 8750000, trend_pct: -5.2, previous_value: 9230000, format: "money" },
-      { key: "avg_invoice_amount", label: "Montant moyen", value: 437500, trend_pct: 2.1, previous_value: 428600, format: "money" },
-    ],
-  },
-  payments: {
-    category: "payments",
-    period: "today",
-    kpis: [
-      { key: "total_payments", label: "Paiements reçus", value: 42, trend_pct: 7.7, previous_value: 39, format: "number" },
-      { key: "total_amount", label: "Montant total", value: 18300000, trend_pct: 9.3, previous_value: 16750000, format: "money" },
-      { key: "cash_payments", label: "Espèces", value: 15, trend_pct: -6.3, previous_value: 16, format: "number" },
-      { key: "bank_payments", label: "Virements", value: 22, trend_pct: 15.8, previous_value: 19, format: "number" },
-      { key: "mobile_payments", label: "Mobile Money", value: 5, trend_pct: 25.0, previous_value: 4, format: "number" },
-    ],
-  },
-  prospects: {
-    category: "prospects",
-    period: "today",
-    kpis: [
-      { key: "total_prospects", label: "Total prospects", value: 67, trend_pct: 3.1, previous_value: 65, format: "number" },
-      { key: "new_prospects", label: "Nouveaux", value: 12, trend_pct: 20.0, previous_value: 10, format: "number" },
-      { key: "converted_prospects", label: "Convertis", value: 8, trend_pct: 14.3, previous_value: 7, format: "number" },
-      { key: "lost_prospects", label: "Perdus", value: 3, trend_pct: -25.0, previous_value: 4, format: "number" },
-      { key: "conversion_rate", label: "Taux conversion", value: 11.9, trend_pct: 1.2, previous_value: 10.8, format: "percent" },
-    ],
-  },
-  logistics: {
-    category: "logistics",
-    period: "today",
-    kpis: [
-      { key: "dispatch_events", label: "Événements sortie", value: 14, trend_pct: 16.7, previous_value: 12, format: "number" },
-      { key: "return_events", label: "Événements retour", value: 9, trend_pct: -10.0, previous_value: 10, format: "number" },
-      { key: "items_dispatched", label: "Articles sortis", value: 342, trend_pct: 8.2, previous_value: 316, format: "number" },
-      { key: "items_returned", label: "Articles retournés", value: 298, trend_pct: 5.3, previous_value: 283, format: "number" },
-      { key: "breakage_count", label: "Casse/Perte", value: 2, trend_pct: 0, previous_value: 2, format: "number" },
-    ],
-  },
-  inventory: {
-    category: "inventory",
-    period: "today",
-    kpis: [
-      { key: "total_items", label: "Total articles", value: 856, trend_pct: 2.3, previous_value: 837, format: "number" },
-      { key: "available_items", label: "Disponibles", value: 612, trend_pct: -1.8, previous_value: 623, format: "number" },
-      { key: "reserved_items", label: "Réservés", value: 198, trend_pct: 5.3, previous_value: 188, format: "number" },
-      { key: "damaged_items", label: "Endommagés", value: 12, trend_pct: 0, previous_value: 12, format: "number" },
-      { key: "out_items", label: "En sortie", value: 34, trend_pct: 13.3, previous_value: 30, format: "number" },
-    ],
-  },
-  documents: {
-    category: "documents",
-    period: "today",
-    kpis: [
-      { key: "total_documents", label: "Documents générés", value: 213, trend_pct: 4.9, previous_value: 203, format: "number" },
-      { key: "proformas", label: "Proformas", value: 78, trend_pct: 6.8, previous_value: 73, format: "number" },
-      { key: "invoices", label: "Factures", value: 56, trend_pct: 3.7, previous_value: 54, format: "number" },
-      { key: "contracts", label: "Contrats", value: 45, trend_pct: 12.5, previous_value: 40, format: "number" },
-      { key: "receipts", label: "Reçus", value: 34, trend_pct: -2.9, previous_value: 35, format: "number" },
-    ],
-  },
-};
-
 export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) {
   const [activeCategory, setActiveCategory] = useState<ReportCategory>("reservations");
   const [period, setPeriod] = useState<PeriodKey>("month");
@@ -153,14 +91,8 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
       setData(response);
     } catch (err: any) {
       if (err.name !== "AbortError") {
-      // Fallback to mock data so the UI is testable even if the API isn't wired yet
-      // WARNING: This shows MOCK DATA — remove for production
-      const mock = MOCK_DATA[activeCategory];
-      if (mock) {
-        setData({ ...mock, period, _mock: true } as ReportCategoryResponse & { _mock?: boolean });
-      } else {
+        setData(null);
         setError(err.message || "Erreur lors du chargement des rapports.");
-      }
       }
     } finally {
       setLoading(false);
@@ -193,6 +125,15 @@ export default function ReportsDashboard({ onNavigate }: ReportsDashboardProps) 
               {p.label}
             </button>
           ))}
+          <button
+            type="button"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => data && downloadReportCsv(data)}
+            disabled={!data || loading}
+          >
+            <i className="fas fa-file-csv mr-2" aria-hidden="true"></i>
+            Exporter CSV
+          </button>
         </div>
       </div>
 
