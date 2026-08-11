@@ -5,6 +5,7 @@ import {
 } from "../api";
 import type { DocumentTemplateDefinition } from "../types";
 import { XIcon } from "../components/icons";
+import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 
 const VARIABLE_MAP: Record<string, string> = {
   "client.name": "Nom du client",
@@ -23,13 +24,18 @@ const VARIABLE_MAP: Record<string, string> = {
   "document.date": "Date edition",
 };
 
-type PaperSize = "A4" | "A5";
+type PaperSize = "A4";
 
 const EXCLUDED_CATALOG_TEMPLATE_KEYS = new Set(["hahitantsoa.house_rules.v1"]);
+const WORKFLOW_PREVIEW_KEYS = new Set([
+  "hahitantsoa.contract.v1",
+  "titan.material_contract.v1",
+  "hahitantsoa.proforma.v1",
+  "titan.proforma.v1",
+]);
 
 const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number }> = {
   A4: { width: 794, height: 1123 },
-  A5: { width: 563, height: 794 },
 };
 
 function extractVariables(html: string): string[] {
@@ -42,14 +48,21 @@ function extractVariables(html: string): string[] {
   return Array.from(found);
 }
 
-function detectPaperSize(html: string): PaperSize {
-  const pageRule = html.match(/@page\s*\{[^}]*\bsize\s*:\s*(A5|A4)\b/i);
-  return pageRule?.[1]?.toUpperCase() === "A5" ? "A5" : "A4";
+function detectPaperSize(_html: string): PaperSize {
+  // All ERP documents are emitted and previewed on the normalized A4 canvas.
+  return "A4";
 }
 
 function detectPageCount(html: string): number {
   const pageMarkers = html.match(/class=["'][^"']*\bdocument-page\b[^"']*["']/g);
   return Math.max(1, pageMarkers?.length ?? 1);
+}
+
+function workflowPreviewPageCount(templateKey: string): number {
+  if (templateKey.endsWith("contract.v1") || templateKey.endsWith("material_contract.v1")) {
+    return templateKey.startsWith("hahitantsoa.") ? 8 : 3;
+  }
+  return 1;
 }
 
 function getFocusableElements(root: HTMLElement): HTMLElement[] {
@@ -69,6 +82,7 @@ export default function DocumentsTemplatesPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showVars, setShowVars] = useState(false);
+  const [partyType, setPartyType] = useState<"individual" | "company">("individual");
   const [vars, setVars] = useState<string[]>([]);
   const [paperSize, setPaperSize] = useState<PaperSize>("A4");
   const [pageCount, setPageCount] = useState(1);
@@ -80,6 +94,7 @@ export default function DocumentsTemplatesPage() {
 
   const previewIndex = templates.findIndex((template) => template.key === previewKey);
   const currentTemplate = previewIndex >= 0 ? templates[previewIndex] : undefined;
+  const usesWorkflowPreview = Boolean(currentTemplate && WORKFLOW_PREVIEW_KEYS.has(currentTemplate.key));
   const paperDimensions = PAPER_DIMENSIONS[paperSize];
 
   useEffect(() => {
@@ -105,7 +120,13 @@ export default function DocumentsTemplatesPage() {
     setPreviewError(null);
     setPreviewHtml(null);
     setVars([]);
-    getDocumentTemplatePreview(previewKey, ctrl.signal, showVars)
+    if (WORKFLOW_PREVIEW_KEYS.has(previewKey)) {
+      setPaperSize("A4");
+      setPageCount(workflowPreviewPageCount(previewKey));
+      setPreviewLoading(false);
+      return () => ctrl.abort();
+    }
+    getDocumentTemplatePreview(previewKey, ctrl.signal, showVars, partyType)
       .then((html) => {
         setPreviewHtml(html);
         setPaperSize(detectPaperSize(html));
@@ -118,7 +139,7 @@ export default function DocumentsTemplatesPage() {
       })
       .finally(() => setPreviewLoading(false));
     return () => ctrl.abort();
-  }, [previewKey, showVars]);
+  }, [previewKey, showVars, partyType]);
 
   useEffect(() => {
     if (!previewKey) return;
@@ -149,6 +170,7 @@ export default function DocumentsTemplatesPage() {
     lastTriggerRef.current = trigger;
     setPreviewKey(template.key);
     setShowVars(false);
+    setPartyType("individual");
     setPaperSize("A4");
     setPageCount(1);
   };
@@ -287,6 +309,18 @@ export default function DocumentsTemplatesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                      <span className="sr-only">Variante client</span>
+                      <select
+                        aria-label="Variante client"
+                        value={partyType}
+                        onChange={(event) => setPartyType(event.target.value === "company" ? "company" : "individual")}
+                        className="min-h-11 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      >
+                        <option value="individual">Particulier</option>
+                        <option value="company">Entreprise</option>
+                      </select>
+                    </label>
                     <button
                       type="button"
                       onClick={() => setShowVars((value) => !value)}
@@ -334,26 +368,64 @@ export default function DocumentsTemplatesPage() {
                     <div className="py-20 text-center text-slate-500" role="status" aria-live="polite">Chargement...</div>
                   ) : previewError ? (
                     <div className="py-20 text-center text-red-700" role="alert">{previewError}</div>
-                  ) : previewHtml ? (
+                  ) : previewHtml || usesWorkflowPreview ? (
                     <div className="relative">
                       <div
                         ref={previewFrameContainerRef}
                         data-testid="document-template-preview"
                         data-paper-size={paperSize}
-                        className="border border-slate-200 rounded-lg overflow-hidden bg-slate-100 flex justify-center mx-auto"
-                        style={{ height: `${paperDimensions.height * pageCount * previewScale}px`, maxWidth: `${paperDimensions.width}px` }}
+                        className={`border border-slate-200 rounded-lg bg-slate-100 flex justify-center mx-auto ${usesWorkflowPreview ? "overflow-visible" : "overflow-hidden"}`}
+                        style={usesWorkflowPreview
+                          ? { minHeight: `${paperDimensions.height * pageCount * previewScale}px`, maxWidth: `${paperDimensions.width}px` }
+                          : { height: `${paperDimensions.height * pageCount * previewScale}px`, maxWidth: `${paperDimensions.width}px` }}
                       >
-                        <iframe
-                          title={`Aperçu du modèle de document : ${currentTemplate.label}`}
-                          srcDoc={previewHtml}
-                          className="block border-0 bg-white shrink-0"
-                          style={{
-                            width: `${paperDimensions.width}px`,
-                            height: `${paperDimensions.height * pageCount}px`,
-                            transform: `scale(${previewScale})`,
-                            transformOrigin: "top left",
-                          }}
-                        />
+                        {usesWorkflowPreview ? (
+                          <div
+                            className="block shrink-0 bg-white"
+                            style={{
+                              width: `${paperDimensions.width}px`,
+                              minHeight: `${paperDimensions.height * pageCount}px`,
+                              transform: `scale(${previewScale})`,
+                              transformOrigin: "top left",
+                            }}
+                          >
+                            <DocumentPreviewDispatcher
+                              templateKey={currentTemplate.key}
+                              businessScope={currentTemplate.business_scope as "titan" | "hahitantsoa"}
+                              documentType={currentTemplate.document_type}
+                              client={{
+                                type: partyType === "company" ? "Entreprise" : "Particulier",
+                                name: "",
+                                address: "",
+                                phone: "",
+                                email: "",
+                                status: "Client",
+                              }}
+                              date=""
+                              refNumber=""
+                              eventDate=""
+                              materials={[]}
+                              services={[]}
+                              totalAmount={0}
+                              discountAmount={0}
+                              subTotalAmount={0}
+                              paidAmount={0}
+                              showVariables={showVars}
+                            />
+                          </div>
+                        ) : (
+                          <iframe
+                            title={`Aperçu du modèle de document : ${currentTemplate.label}`}
+                            srcDoc={previewHtml || ""}
+                            className="block border-0 bg-white shrink-0"
+                            style={{
+                              width: `${paperDimensions.width}px`,
+                              height: `${paperDimensions.height * pageCount}px`,
+                              transform: `scale(${previewScale})`,
+                              transformOrigin: "top left",
+                            }}
+                          />
+                        )}
                       </div>
 
                       {showVars && vars.length > 0 && (

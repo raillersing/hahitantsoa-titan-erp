@@ -53,7 +53,7 @@
             </td>
             <td style="text-align: right; vertical-align: middle;">
                 <div style="font-size: 11pt; font-weight: 800; color: #1d4d6b; font-family: monospace;">{{ context.event_draft.public_reference|default:"EVT-2026-DEMO" }}</div>
-                <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">Émis le : <strong>{% now "d/m/Y" %}</strong></div>
+                <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">Émis le : <strong>{% if blank_preview %}____/__/____{% else %}{% now "d/m/Y" %}{% endif %}</strong></div>
             </td>
         </tr>
     </table>
@@ -89,8 +89,8 @@
                 <div class="info-row"><span class="info-label">Lieu Réservé :</span> <span class="info-val">{{ context.event_draft.venue_name|default:"Domaine Hahitantsoa" }}</span></div>
             </div>
             <div class="col-half">
-                <div class="info-row"><span class="info-label">Début :</span> <span class="info-val">{{ context.event_draft.start_at|date:"d/m/Y H:i"|default:"01/09/2026 18:00" }}</span></div>
-                <div class="info-row"><span class="info-label">Fin :</span> <span class="info-val">{{ context.event_draft.end_at|date:"d/m/Y H:i"|default:"02/09/2026 03:30" }}</span></div>
+                <div class="info-row"><span class="info-label">Début :</span> <span class="info-val">{{ context.event_draft.start_at|date:"d/m/Y H:i"|default:"____/__/____ __:__" }}</span></div>
+                <div class="info-row"><span class="info-label">Fin :</span> <span class="info-val">{{ context.event_draft.end_at|date:"d/m/Y H:i"|default:"____/__/____ __:__" }}</span></div>
             </div>
         </div>
     </div>
@@ -115,16 +115,10 @@
             </tr>
             {% empty %}
             <tr>
-                <td><strong>Chaise chiavari dorée</strong></td>
-                <td><span style="font-size: 8pt; text-transform: uppercase; color: #64748b;">matériel</span></td>
-                <td style="text-align: center; font-weight: 700; color: #1d4d6b;">100</td>
-                <td>Conforme aux spécifications</td>
-            </tr>
-            <tr>
-                <td><strong>Table rectangulaire GM</strong></td>
-                <td><span style="font-size: 8pt; text-transform: uppercase; color: #64748b;">matériel</span></td>
-                <td style="text-align: center; font-weight: 700; color: #1d4d6b;">15</td>
-                <td>Avec nappage complet</td>
+                <td><strong>____________________________</strong></td>
+                <td><span style="font-size: 8pt; text-transform: uppercase; color: #64748b;">________</span></td>
+                <td style="text-align: center; font-weight: 700; color: #1d4d6b;">_____</td>
+                <td>____________________________</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -132,7 +126,7 @@
 
     <div class="clause-box">
         <strong>Notes de service & Consignes particulières :</strong><br>
-        {{ context.event_draft.service_notes|default:"Service traiteur et organisation logistique sous réserve du respect du règlement intérieur du Domaine." }}
+        {{ context.event_draft.service_notes|default:"________________________________" }}
     </div>
 
     <table class="signatures-table">

@@ -1,0 +1,46 @@
+@page { size: A4 portrait; margin: 0; }
+* { box-sizing: border-box; }
+html, body { width: 210mm; height: 297mm; margin: 0; }
+body { color: #202020; font-family: Arial, "DejaVu Sans", sans-serif; font-size: 8.5pt; line-height: 1.35; }
+.document-page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #fff; }
+.document-side { position: absolute; inset: 0 auto 0 0; width: 54mm; padding: 12mm 5mm 7mm; background: #e7e7e6; }
+.document-side .brand { display: block; width: 35mm; height: 35mm; margin: 0 auto; object-fit: contain; filter: grayscale(1) contrast(2); }
+.document-side .side-details { position: absolute; left: 5mm; right: 5mm; bottom: 22mm; color: #4d4d4d; font-size: 6.4pt; line-height: 1.2; }
+.document-side .side-details strong { color: #222; font-size: 6.8pt; }
+.document-side .ergon-mark { display: block; position: absolute; width: 12mm; height: 12mm; left: 21mm; bottom: 7mm; object-fit: contain; filter: grayscale(1); opacity: .6; }
+.document-main { position: absolute; inset: 0 0 0 54mm; padding: 10mm 8mm 8mm; }
+.document-main::before { content: ""; position: absolute; z-index: 0; left: 30mm; bottom: 8mm; width: 125mm; height: 175mm; background: var(--document-watermark) center/contain no-repeat; opacity: .035; filter: grayscale(1); }
+.document-main > * { position: relative; z-index: 1; }
+.document-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: .25mm solid #777; padding-bottom: 4mm; margin-bottom: 6mm; }
+.document-header h1 { margin: 0; font-size: 18pt; letter-spacing: 1.7mm; font-weight: 700; text-transform: uppercase; }
+.document-header .eyebrow { margin: 0 0 2mm; font-size: 7pt; font-weight: 700; letter-spacing: .7mm; text-transform: uppercase; }
+.document-header .meta { text-align: right; font-size: 7pt; line-height: 1.6; }
+.document-header .meta strong { font-size: 8pt; }
+.document-kicker { margin: 0 0 5mm; color: #555; font-size: 7pt; font-weight: 700; letter-spacing: .7mm; text-transform: uppercase; }
+.document-grid { width: 100%; border-collapse: collapse; margin-bottom: 6mm; }
+.document-grid td { width: 50%; vertical-align: top; padding: 3mm; border: .2mm solid #c7c7c7; background: #fafafa; }
+.document-grid td + td { border-left: 0; }
+.box-title { margin-bottom: 2mm; padding-bottom: 1.5mm; border-bottom: .2mm solid #aaa; color: #444; font-size: 7pt; font-weight: 700; letter-spacing: .6mm; text-transform: uppercase; }
+.info-row { display: flex; justify-content: space-between; gap: 3mm; min-height: 5mm; }
+.info-row .label { color: #666; }
+.info-row .value { font-weight: 700; text-align: right; }
+.document-fields { margin-bottom: 6mm; }
+.document-field { display: grid; grid-template-columns: 34mm 1fr; min-height: 7mm; align-items: baseline; border-bottom: .2mm solid #777; }
+.document-field strong { font-size: 7pt; letter-spacing: .6mm; }
+.document-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 5mm 0 7mm; }
+.document-table th { height: 8mm; padding: 1mm; border-bottom: .35mm solid #555; color: #333; font-size: 7pt; letter-spacing: .55mm; text-align: left; text-transform: uppercase; }
+.document-table td { min-height: 7mm; padding: 1.5mm 1mm; border-bottom: .2mm solid #aaa; vertical-align: top; font-size: 7.5pt; }
+.document-table .center { text-align: center; }
+.document-table .right { text-align: right; }
+.document-table .empty-row td { height: 65mm; }
+.document-total { width: 66mm; margin: 3mm 0 5mm auto; }
+.document-total .total-row { display: flex; justify-content: space-between; min-height: 6mm; letter-spacing: .45mm; }
+.document-total .total-row.final { margin-top: 1mm; padding: 2mm; border: .2mm solid #777; background: #e7e7e6; font-weight: 700; }
+.document-banner { display: flex; justify-content: space-between; align-items: center; min-height: 10mm; margin: 4mm 0 2mm; padding: 2.5mm 3mm; background: #e7e7e6; border: .2mm solid #c7c7c7; font-size: 8pt; font-weight: 700; letter-spacing: .6mm; text-transform: uppercase; }
+.document-note { min-height: 14mm; padding: 2mm 3mm; border: .2mm solid #c7c7c7; font-size: 7.2pt; }
+.document-bank { margin-top: 5mm; padding: 3mm; border: .2mm solid #c7c7c7; background: #fafafa; font-size: 7pt; }
+.document-signatures { display: flex; justify-content: space-between; gap: 18mm; margin: 18mm 10mm 0; font-size: 7pt; }
+.document-signatures span { flex: 1; padding-top: 2mm; border-top: .2mm solid #777; text-align: center; }
+.document-footer { position: absolute; left: 8mm; right: 8mm; bottom: 7mm; display: flex; justify-content: space-between; color: #555; font-size: 7pt; font-weight: 700; }
+.document-variable { background: #fff0b3; outline: .2mm solid #d6a700; padding: 0 .3mm; font-family: monospace; }
+@media print { .document-variable { background: transparent; outline: 0; } }

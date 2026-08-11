@@ -1,4 +1,3 @@
-from datetime import UTC
 from io import BytesIO
 
 from django.db import transaction
@@ -225,48 +224,34 @@ def _resolve_preview_template_path(template_key: str) -> str | None:
     return resolve_document_template_path(template_key)
 
 
-def _build_mock_preview_context(template_definition) -> dict:
-    """Build a mock context for template preview with realistic demo data."""
-    from datetime import datetime
-
+def _build_mock_preview_context(template_definition, *, party_type: str = "individual") -> dict:
+    """Build a blank, non-persistent context for a catalogue preview."""
+    party_type = "company" if party_type == "company" else "individual"
     mock_customer = {
-        "customer_id": "DEMO-001",
-        "public_reference": "LOC-2026-DEMO",
-        "display_name": "ETS Ravinala (Démo)",
-        "party_type": "company",
-        "email": "info@ravinala.mg",
-        "phone": "+261 34 12 345 67",
-        "address": "Lot 12B, Mahajanga, Madagascar",
-        "civilite": "Société",
+        "customer_id": "________________",
+        "public_reference": "________________",
+        "display_name": "________________________",
+        "party_type": party_type,
+        "email": "________________________",
+        "phone": "________________________",
+        "address": "________________________________",
+        "civilite": "________________",
         "birth_date": None,
         "birth_place": "",
-        "id_type": "NIF",
-        "id_number": "6003298583",
+        "id_type": "________________",
+        "id_number": "________________",
         "id_issue_date": None,
-        "id_issue_place": "Antananarivo",
+        "id_issue_place": "________________",
         "id_duplicata_date": None,
         "id_duplicata_place": "",
-        "nif": "6003298583",
-        "stat": "77290 11 2019 010 215",
-        "rcs": "RCS-ANT-2019-00123",
-        "representative_name": "Rakotomalala Jean",
-        "representative_role": "Gérant",
+        "nif": "________________",
+        "stat": "________________",
+        "rcs": "________________",
+        "representative_name": "________________________",
+        "representative_role": "________________",
     }
 
-    mock_lines = [
-        {
-            "inventory_item_name": "Chaise chiavari dorée",
-            "inventory_item_kind": "material",
-            "quantity": 100,
-            "notes": "",
-        },
-        {
-            "inventory_item_name": "Table rectangulaire GM",
-            "inventory_item_kind": "material",
-            "quantity": 15,
-            "notes": "Avec nappage",
-        },
-    ]
+    mock_lines: list[dict[str, object]] = []
 
     # Context for reservation-based templates (titan)
     reservation_context = {
@@ -277,7 +262,7 @@ def _build_mock_preview_context(template_definition) -> dict:
             "preview_path": template_definition.preview_path,
         },
         "reservation_draft": {
-            "public_reference": "LOC-2026-DEMO",
+            "public_reference": mock_customer["public_reference"],
             "customer": mock_customer,
             "customer_display_name": mock_customer["display_name"],
             "customer_email": mock_customer["email"],
@@ -291,11 +276,12 @@ def _build_mock_preview_context(template_definition) -> dict:
             "customer_rcs": mock_customer["rcs"],
             "customer_representative_name": mock_customer["representative_name"],
             "customer_representative_role": mock_customer["representative_role"],
-            "start_at": datetime(2026, 9, 1, 10, 0, tzinfo=UTC),
-            "end_at": datetime(2026, 9, 1, 20, 0, tzinfo=UTC),
-            "notes": "Réservation de démonstration pour prévisualisation.",
+            "start_at": None,
+            "end_at": None,
+            "notes": "________________________",
             "lines": mock_lines,
         },
+        "blank_preview": True,
     }
 
     # Context for event-based templates (hahitantsoa)
@@ -306,7 +292,7 @@ def _build_mock_preview_context(template_definition) -> dict:
         },
         "event_draft": {
             **mock_customer,
-            "public_reference": "EVT-2026-DEMO",
+            "public_reference": mock_customer["public_reference"],
             "customer_display_name": mock_customer["display_name"],
             "customer_email": mock_customer["email"],
             "customer_phone": mock_customer["phone"],
@@ -320,16 +306,17 @@ def _build_mock_preview_context(template_definition) -> dict:
             "customer_rcs": mock_customer["rcs"],
             "customer_representative_name": mock_customer["representative_name"],
             "customer_representative_role": mock_customer["representative_role"],
-            "event_name": "Mariage de Rakotomalala & Rasoanaivo",
-            "event_type": "Mariage",
-            "venue_name": "Domaine Hahitantsoa",
-            "location_details": "Lot P93M, Ambohipo Sud, Alasora",
-            "service_notes": "Service traiteur inclus, 200 convives",
-            "start_at": datetime(2026, 9, 1, 18, 0, tzinfo=UTC),
-            "end_at": datetime(2026, 9, 2, 3, 30, tzinfo=UTC),
-            "notes": "Événement de démonstration pour prévisualisation.",
+            "event_name": "________________________",
+            "event_type": "________________",
+            "venue_name": "________________________",
+            "location_details": "________________________________",
+            "service_notes": "________________________________",
+            "start_at": None,
+            "end_at": None,
+            "notes": "________________________",
             "lines": mock_lines,
         },
+        "blank_preview": True,
     }
 
     # Payment receipt context
@@ -339,21 +326,26 @@ def _build_mock_preview_context(template_definition) -> dict:
             "key": template_definition.key,
         },
         "payment": {
-            "id": "DEMO-PAY-001",
-            "amount": "500000",
-            "currency": "MGA",
-            "payment_kind": "deposit",
-            "payment_method": "Espèces",
-            "payment_status": "confirmed",
-            "confirmed_at": datetime(2026, 8, 6, 12, 0, tzinfo=UTC),
+            "id": "________________",
+            "payment_id": "________________",
+            "external_reference": "________________",
+            "amount": "________________",
+            "currency": "________",
+            "payment_kind": "________________",
+            "payment_method": "________________",
+            "payment_status": "________________",
+            "confirmed_at": None,
+            "paid_at": None,
+            "notes": "________________________",
             "customer_display_name": mock_customer["display_name"],
             "customer_address": mock_customer["address"],
             "customer_phone": mock_customer["phone"],
             "customer_email": mock_customer["email"],
-            "reservation_public_reference": "LOC-2026-DEMO",
+            "reservation_public_reference": "________________",
             "reservation_draft": reservation_context["reservation_draft"],
             "customer": mock_customer,
         },
+        "blank_preview": True,
     }
 
     excess_context = {
@@ -362,13 +354,14 @@ def _build_mock_preview_context(template_definition) -> dict:
             "key": template_definition.key,
         },
         "excess_receivable": {
-            "excess_receivable_id": "EXC-2026-DEMO",
+            "excess_receivable_id": "________________",
             "customer_display_name": mock_customer["display_name"],
-            "reservation_public_reference": "LOC-2026-DEMO",
-            "reservation_status": "confirmed",
-            "amount": "160000",
-            "deposit_amount": "100000",
+            "reservation_public_reference": "________________",
+            "reservation_status": "________________",
+            "amount": "________________",
+            "deposit_amount": "________________",
         },
+        "blank_preview": True,
     }
 
     # Select context based on template key or business scope
@@ -435,13 +428,28 @@ class DocumentTemplatePreviewAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="show_variables",
+                type=OpenApiTypes.BOOL,
+                required=False,
+                description="Show variable placeholders in their source positions.",
+            ),
+            OpenApiParameter(
+                name="party_type",
+                type=OpenApiTypes.STR,
+                enum=["individual", "company"],
+                required=False,
+                description="Blank customer variant for the preview.",
+            ),
+        ],
         responses={
             200: OpenApiResponse(
                 description="Rendered HTML preview of the template.",
                 response=OpenApiTypes.STR,
             ),
             404: OpenApiResponse(description="Template not found or no HTML template available."),
-        }
+        },
     )
     def get(self, request, template_key: str):
         from django.http import HttpResponse
@@ -456,13 +464,19 @@ class DocumentTemplatePreviewAPIView(APIView):
         if template_path is None:
             raise Http404(f"No HTML template available for preview of '{template_key}'.")
 
-        mock_context = _build_mock_preview_context(template_definition)
+        party_type = request.query_params.get("party_type", "individual")
+        mock_context = _build_mock_preview_context(template_definition, party_type=party_type)
         bank = _build_preview_bank(template_definition)
         show_variables = request.query_params.get("show_variables") == "1"
 
         html_content = render_to_string(
             template_path,
-            {"context": mock_context, "bank": bank, "show_variables": show_variables},
+            {
+                "context": mock_context,
+                "bank": bank,
+                "show_variables": show_variables,
+                "blank_preview": True,
+            },
         )
 
         return HttpResponse(html_content, content_type="text/html; charset=utf-8")
@@ -475,11 +489,20 @@ class DocumentTemplatePreviewPDFAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="party_type",
+                type=OpenApiTypes.STR,
+                enum=["individual", "company"],
+                required=False,
+                description="Blank customer variant for the PDF preview.",
+            ),
+        ],
         responses={
             200: OpenApiResponse(description="Printable PDF preview of the template."),
             404: OpenApiResponse(description="Template not found or no HTML template available."),
             503: OpenApiResponse(description="PDF renderer unavailable."),
-        }
+        },
     )
     def get(self, request, template_key: str):
         from django.template.loader import render_to_string
@@ -493,12 +516,14 @@ class DocumentTemplatePreviewPDFAPIView(APIView):
             raise Http404(f"No HTML template available for preview of '{template_key}'.")
 
         bank = _build_preview_bank(template_definition)
+        party_type = request.query_params.get("party_type", "individual")
         html_content = render_to_string(
             template_path,
             {
-                "context": _build_mock_preview_context(template_definition),
+                "context": _build_mock_preview_context(template_definition, party_type=party_type),
                 "bank": bank,
                 "show_variables": False,
+                "blank_preview": True,
             },
         )
 
