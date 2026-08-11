@@ -1385,7 +1385,10 @@ export type BankProfile = {
 };
 
 export type BankProfileCreatePayload = {
-  account: string;
+  account?: string;
+  business_scope?: "titan" | "hahitantsoa";
+  account_code?: string;
+  account_label?: string;
   bank_name: string;
   account_holder: string;
   branch?: string;
