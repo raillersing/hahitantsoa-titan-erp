@@ -736,6 +736,33 @@ export type PaymentActionPayload = {
   notes?: string;
 };
 
+export type PaymentWhatsAppReminder = {
+  business_scope: 'titan' | 'hahitantsoa';
+  draft_id: string;
+  reference: string;
+  customer_name: string;
+  customer_phone: string;
+  event_label: string;
+  start_at: string;
+  end_at: string;
+  confirmed_payment_count: number;
+  confirmed_amount: string;
+  refunded_amount: string;
+  net_amount: string;
+  payments: Array<{
+    id: string;
+    kind: string;
+    method: string;
+    amount: string;
+    status: PaymentStatus;
+    paid_at: string | null;
+    external_reference: string;
+  }>;
+  message: string;
+  whatsapp_url: string | null;
+  whatsapp_available: boolean;
+};
+
 // ---- Logistics & Delivery ----
 
 export type LogisticsEventType = 'delivery' | 'pickup' | 'preparation' | 'handover';
@@ -1387,7 +1414,10 @@ export type BankProfile = {
 };
 
 export type BankProfileCreatePayload = {
-  account: string;
+  account?: string;
+  business_scope?: "titan" | "hahitantsoa";
+  account_code?: string;
+  account_label?: string;
   bank_name: string;
   account_holder: string;
   branch?: string;
