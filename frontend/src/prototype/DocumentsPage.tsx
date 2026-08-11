@@ -22,10 +22,14 @@ export default function DocumentsPage({ onNavigate }: { onNavigate: (scope: any,
   return (
     <div className="space-y-6">
       {/* Tab bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-1 flex items-center gap-1">
+      <div className="bg-white rounded-xl border border-slate-200 p-1 flex items-center gap-1" role="tablist" aria-label="Espace Documents">
         {tabs.map((tab) => (
           <button
             key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            aria-controls={`documents-panel-${tab.key}`}
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition ${
               activeTab === tab.key
@@ -41,10 +45,10 @@ export default function DocumentsPage({ onNavigate }: { onNavigate: (scope: any,
 
       {/* Content */}
       <div>
-        {activeTab === "hub" && <DocumentsHubPage onNavigate={onNavigate} />}
-        {activeTab === "templates" && <DocumentsTemplatesPage />}
+        {activeTab === "hub" && <div id="documents-panel-hub" role="tabpanel" aria-label="Hub documentaire"><DocumentsHubPage onNavigate={onNavigate} /></div>}
+        {activeTab === "templates" && <div id="documents-panel-templates" role="tabpanel" aria-label="Modèles de documents"><DocumentsTemplatesPage /></div>}
         {activeTab === "generate" && (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+          <div id="documents-panel-generate" role="tabpanel" aria-label="Générer un document" className="bg-white rounded-xl border border-slate-200 p-12 text-center">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
               <ConstructionIcon size={28} />
             </div>

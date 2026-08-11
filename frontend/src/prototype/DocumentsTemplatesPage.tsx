@@ -237,12 +237,15 @@ export default function DocumentsTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Modeles de documents</h2>
           <p className="mt-1 text-sm text-slate-500">
             {templates.length} modeles disponibles — proforma, facture, contrat, BL, avenant, casse, decharge
           </p>
+        </div>
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs text-indigo-800">
+          <span className="font-semibold">Conseil :</span> sélectionnez un modèle pour l’ouvrir en grand et naviguer avec ← →.
         </div>
       </div>
 
@@ -254,12 +257,13 @@ export default function DocumentsTemplatesPage() {
         <div className="py-20 text-center text-slate-500" role="status" aria-live="polite">Chargement des modeles...</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {templates.map((template) => (
               <button
                 key={template.key}
                 type="button"
-                className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                aria-label={`Prévisualiser ${template.label}`}
+                className="group min-h-44 rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
                 onClick={(event) => openPreview(template, event.currentTarget)}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -270,7 +274,7 @@ export default function DocumentsTemplatesPage() {
                     {template.business_scope}
                   </span>
                 </div>
-                <h3 className="font-semibold text-slate-900 text-sm mb-1">{template.label}</h3>
+                <h3 className="mb-1 font-semibold text-slate-900 text-sm group-hover:text-indigo-700">{template.label}</h3>
                 <p className="text-xs text-slate-500 capitalize">{template.document_type.replace(/_/g, " ")}</p>
                 <div className="mt-3 flex items-center gap-2">
                   {template.validated_by_client && (
@@ -363,13 +367,14 @@ export default function DocumentsTemplatesPage() {
                   </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 relative bg-slate-50">
+                <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_17rem]">
+                <div className="relative min-h-0 overflow-y-auto bg-slate-100 p-4 sm:p-6">
                   {previewLoading ? (
                     <div className="py-20 text-center text-slate-500" role="status" aria-live="polite">Chargement...</div>
                   ) : previewError ? (
                     <div className="py-20 text-center text-red-700" role="alert">{previewError}</div>
                   ) : previewHtml || usesWorkflowPreview ? (
-                    <div className="relative">
+                    <div className="relative mx-auto max-w-[210mm]">
                       <div
                         ref={previewFrameContainerRef}
                         data-testid="document-template-preview"
@@ -445,6 +450,19 @@ export default function DocumentsTemplatesPage() {
                       )}
                     </div>
                   ) : null}
+                </div>
+                <aside className="max-h-56 overflow-y-auto border-t border-slate-200 bg-white p-4 sm:p-5 lg:max-h-none lg:border-l lg:border-t-0">
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Fiche du modèle</h4>
+                  <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 text-sm lg:block lg:space-y-4">
+                    <div><dt className="text-xs text-slate-500">Volet</dt><dd className="mt-1 font-semibold capitalize text-slate-900">{currentTemplate.business_scope}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Type</dt><dd className="mt-1 font-semibold capitalize text-slate-900">{currentTemplate.document_type.replace(/_/g, " ")}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Format</dt><dd className="mt-1 font-semibold text-slate-900">{paperSize} · {pageCount} page{pageCount > 1 ? "s" : ""}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Version</dt><dd className="mt-1 font-semibold text-slate-900">{currentTemplate.version || "—"}</dd></div>
+                  </dl>
+                  <div className="mt-5 border-t border-slate-100 pt-4">
+                    <p className="text-xs leading-5 text-slate-500">Le canvas respecte le format A4 et conserve le rendu du document source. Les variantes particulier/entreprise sont disponibles quand le modèle les prévoit.</p>
+                  </div>
+                </aside>
                 </div>
               </div>
             </>

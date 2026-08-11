@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   getDocumentInstances,
   getDocumentArtifactHtml,
@@ -109,6 +109,8 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const lastPreviewTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const loadDocs = useCallback(async () => {
     const controller = new AbortController();
@@ -192,6 +194,30 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
     return () => { cancelled = true; };
   }, [previewDoc]);
 
+  useEffect(() => {
+    if (!previewDoc) return;
+    previewCloseButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setPreviewDoc(null);
+        lastPreviewTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [previewDoc]);
+
+  const openPreview = useCallback((doc: DocumentInstanceListItem, trigger?: HTMLButtonElement) => {
+    lastPreviewTriggerRef.current = trigger ?? null;
+    setPreviewDoc(doc);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setPreviewDoc(null);
+    lastPreviewTriggerRef.current?.focus();
+  }, []);
+
   const handlePdfDownload = useCallback(async (doc: DocumentInstanceListItem) => {
     try {
       const blob = await getDocumentInstancePdfBlob(doc.id);
@@ -239,6 +265,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input
               type="text"
+              aria-label="Rechercher un document"
               placeholder="Rechercher client, référence, type…"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -257,7 +284,8 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
       {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((s) => (
-          <div
+          <button
+            type="button"
             key={s.label}
             className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm cursor-pointer hover:shadow-md transition"
             onClick={() => {
@@ -266,10 +294,11 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
               else if (s.label === "En attente") { setTypeFilter(""); /* no status filter in UI, just visual */ }
               else setTypeFilter("");
             }}
+            aria-label={`Filtrer par ${s.label}`}
           >
             <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
             <div className="text-sm text-slate-500 mt-1">{s.label}</div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -279,7 +308,9 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
         {DOCUMENT_TYPES.map((t) => (
           <button
             key={t.key}
+            type="button"
             onClick={() => { setTypeFilter(t.key); setPage(1); }}
+            aria-pressed={typeFilter === t.key}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
               typeFilter === t.key
                 ? "bg-indigo-50 text-indigo-700 border-indigo-200"
@@ -293,7 +324,9 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
         {BUSINESS_SCOPES.map((s) => (
           <button
             key={s.key}
+            type="button"
             onClick={() => { setScopeFilter(s.key); setPage(1); }}
+            aria-pressed={scopeFilter === s.key}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
               scopeFilter === s.key
                 ? "bg-indigo-50 text-indigo-700 border-indigo-200"
@@ -307,7 +340,9 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
         {DATE_FILTERS.map((d) => (
           <button
             key={d.key}
+            type="button"
             onClick={() => { setDateFilter(d.key); setPage(1); }}
+            aria-pressed={dateFilter === d.key}
             className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
               dateFilter === d.key
                 ? "bg-indigo-50 text-indigo-700 border-indigo-200"
@@ -401,21 +436,27 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          className="text-slate-400 hover:text-indigo-600 mr-3 transition"
+                          className="mr-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          type="button"
+                          aria-label={`Aperçu de ${doc.reservation_public_reference || doc.document_type}`}
                           title="Aperçu"
-                          onClick={() => setPreviewDoc(doc)}
+                          onClick={(event) => openPreview(doc, event.currentTarget)}
                         >
                           <i className="fa-solid fa-eye"></i>
                         </button>
                         <button
-                          className="text-slate-400 hover:text-indigo-600 mr-3 transition"
+                          className="mr-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          type="button"
+                          aria-label={`Télécharger le PDF de ${doc.reservation_public_reference || doc.document_type}`}
                           title="PDF"
                           onClick={() => void handlePdfDownload(doc)}
                         >
                           <i className="fa-solid fa-file-pdf"></i>
                         </button>
                         <button
-                          className="text-slate-400 hover:text-indigo-600 transition"
+                          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          type="button"
+                          aria-label="Ouvrir les modèles de documents"
                           title="Plus"
                           onClick={() => onNavigate("documents-templates")}
                         >
@@ -474,21 +515,27 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                   )}
                   <div className="flex items-center justify-end gap-3 pt-2">
                     <button
-                      className="text-slate-400 hover:text-indigo-600 transition"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      type="button"
+                      aria-label={`Aperçu de ${doc.reservation_public_reference || doc.document_type}`}
                       title="Aperçu"
-                      onClick={() => setPreviewDoc(doc)}
+                      onClick={(event) => openPreview(doc, event.currentTarget)}
                     >
                       <i className="fa-solid fa-eye"></i>
                     </button>
                     <button
-                      className="text-slate-400 hover:text-indigo-600 transition"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      type="button"
+                      aria-label={`Télécharger le PDF de ${doc.reservation_public_reference || doc.document_type}`}
                       title="PDF"
                       onClick={() => void handlePdfDownload(doc)}
                     >
                       <i className="fa-solid fa-file-pdf"></i>
                     </button>
                     <button
-                      className="text-slate-400 hover:text-indigo-600 transition"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      type="button"
+                      aria-label="Ouvrir les modèles de documents"
                       title="Plus"
                       onClick={() => onNavigate("documents-templates")}
                     >
@@ -508,7 +555,9 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
               </span>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                  aria-label="Page précédente"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                 >
@@ -517,7 +566,10 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                   <button
                     key={p}
+                    type="button"
                     onClick={() => setPage(p)}
+                    aria-label={`Page ${p}`}
+                    aria-current={p === currentPage ? "page" : undefined}
                     className={`px-3 py-1.5 rounded-lg text-sm font-semibold ${
                       p === currentPage ? "bg-indigo-600 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50"
                     }`}
@@ -526,7 +578,9 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                   </button>
                 ))}
                 <button
+                  type="button"
                   className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                  aria-label="Page suivante"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                 >
@@ -538,60 +592,67 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
         </div>
       )}
 
-      {/* Slide-in Preview Panel */}
+      {/* Document preview */}
       {previewDoc && (
         <>
-          {/* Overlay */}
           <div
-            className="fixed inset-0 bg-slate-950/30 z-40"
-            onClick={() => setPreviewDoc(null)}
-          ></div>
-          {/* Panel */}
-          <div className="fixed top-0 right-0 w-full max-w-lg h-full bg-white shadow-2xl z-50 border-l border-slate-200 flex flex-col animate-slide-in">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
-              <div>
-                <h3 className="font-bold text-slate-900">Aperçu du document</h3>
-                <p className="text-xs text-slate-500">{previewDoc.reservation_public_reference || previewDoc.id}</p>
+            className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-[2px]"
+            aria-hidden="true"
+            onClick={closePreview}
+          />
+          <div
+            className="fixed inset-2 z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:inset-4 lg:inset-8"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="document-instance-preview-title"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 px-4 py-4 sm:px-6">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Document généré</p>
+                <h3 id="document-instance-preview-title" className="truncate font-bold text-slate-900">Aperçu du document</h3>
+                <p className="truncate text-xs text-slate-500">{previewDoc.reservation_public_reference || previewDoc.id}</p>
               </div>
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="text-slate-400 hover:text-slate-700 transition"
-              >
+              <button ref={previewCloseButtonRef} type="button" onClick={closePreview} aria-label="Fermer l’aperçu" className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                 <i className="fa-solid fa-xmark text-lg"></i>
               </button>
             </div>
-            <div className="flex-1 p-6 overflow-y-auto">
-              {previewLoading && (
-                <div className="flex items-center justify-center h-full">
-                  <LoadingSpinner size="sm" message="Chargement de l'aperçu…" />
+            <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_19rem]">
+              <div className="min-h-0 overflow-auto bg-slate-100 p-3 sm:p-6">
+                {previewLoading && <div className="flex min-h-full items-center justify-center"><LoadingSpinner size="sm" message="Chargement de l'aperçu…" /></div>}
+                {previewError && <div className="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert"><i className="fa-solid fa-circle-exclamation mr-2"></i>{previewError}</div>}
+                {previewHtml && !previewLoading && !previewError && (
+                  <div className="mx-auto min-h-full w-full max-w-[210mm] rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
+                    <div className="document-instance-artifact" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                  </div>
+                )}
+                {!previewHtml && !previewLoading && !previewError && <div className="flex min-h-full items-center justify-center"><EmptyState message="Aucun aperçu disponible pour ce document." icon="fa-file-alt" /></div>}
+              </div>
+              <aside className="max-h-56 overflow-y-auto border-t border-slate-200 bg-white p-4 sm:p-5 lg:max-h-none lg:border-l lg:border-t-0">
+                <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Informations</h4>
+                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 text-sm lg:block lg:space-y-4">
+                  <div><dt className="text-xs text-slate-500">Type</dt><dd className="mt-1 font-semibold text-slate-900">{typeBadge(previewDoc.document_type).label}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Volet</dt><dd className="mt-1 font-semibold text-slate-900">{scopeLabel(previewDoc.business_scope)}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Client</dt><dd className="mt-1 break-words font-semibold text-slate-900">{previewDoc.customer_display_name || "—"}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Statut</dt><dd className="mt-1 font-semibold text-slate-900">{statusBadge(previewDoc.status).label}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Date</dt><dd className="mt-1 font-semibold text-slate-900">{formatDate(previewDoc.created_at)}</dd></div>
+                </dl>
+                <div className="mt-5 border-t border-slate-100 pt-4">
+                  <p className="text-xs leading-5 text-slate-500">Le document est présenté sur un canvas de lecture. Le contenu et la mise en forme du modèle ne sont pas modifiés.</p>
                 </div>
-              )}
-              {previewError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                  <i className="fa-solid fa-circle-exclamation mr-2"></i>
-                  {previewError}
-                </div>
-              )}
-              {previewHtml && !previewLoading && !previewError && (
-                <div
-                  className="border border-slate-200 rounded-lg p-4 bg-white"
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                />
-              )}
-              {!previewHtml && !previewLoading && !previewError && (
-                <EmptyState message="Aucun aperçu disponible pour ce document." icon="fa-file-alt" />
-              )}
+              </aside>
             </div>
-            <div className="px-6 py-4 border-t border-slate-200 shrink-0 space-y-3">
+            <div className="flex shrink-0 flex-col gap-2 border-t border-slate-200 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-6">
               <button
-                className="w-full py-2.5 rounded-lg bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 transition"
+                type="button"
+                className="min-h-11 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 onClick={() => void handlePdfDownload(previewDoc)}
               >
                 <i className="fa-solid fa-file-pdf mr-2"></i>Télécharger PDF
               </button>
               <button
-                className="w-full py-2.5 rounded-lg border border-slate-200 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition"
-                onClick={() => setPreviewDoc(null)}
+                type="button"
+                className="min-h-11 rounded-lg border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                onClick={closePreview}
               >
                 Fermer
               </button>
