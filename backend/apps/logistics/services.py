@@ -473,6 +473,7 @@ def create_delivery_note_from_handover_event(
         template_key=DELIVERY_NOTE_TEMPLATE_KEY,
         actor=actor,
         notes=document_notes,
+        document_date=timezone.localtime(event.scheduled_at).date() if event.scheduled_at else None,
     )
 
 

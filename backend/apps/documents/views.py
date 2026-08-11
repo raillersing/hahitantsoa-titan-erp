@@ -665,6 +665,7 @@ class ReservationDraftDocumentInstanceListCreateAPIView(ListCreateAPIView):
                 notes=serializer.validated_data.get("notes", ""),
                 proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
                 bank_profile=serializer.validated_data.get("bank_profile"),
+                document_date=serializer.validated_data.get("document_date"),
             )
         except CommercialDocumentContextError as error:
             return Response(

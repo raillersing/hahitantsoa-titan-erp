@@ -26,6 +26,7 @@ type TitanDocumentsState = {
   instances: DocumentInstance[];
   selectedTemplateKey: string;
   notes: string;
+  documentDate: string;
   loading: boolean;
   error: string;
   canWrite: boolean;
@@ -52,6 +53,7 @@ function TitanDocumentsPanel() {
     instances: [],
     selectedTemplateKey: "",
     notes: "",
+    documentDate: "",
     loading: false,
     error: "",
     canWrite: false,
@@ -117,12 +119,16 @@ function TitanDocumentsPanel() {
       await createReservationDraftDocumentInstance(state.selectedDraftId, {
         template_key: state.selectedTemplateKey,
         notes: state.notes,
+        ...(state.selectedTemplateKey === "titan.delivery_note.v1" && state.documentDate
+          ? { document_date: state.documentDate }
+          : {}),
       });
       const data = await getReservationDraftDocumentInstances(state.selectedDraftId);
       setState((prev) => ({
         ...prev,
         instances: data,
         notes: "",
+        documentDate: "",
         selectedTemplateKey: "",
         loading: false,
       }));
@@ -260,6 +266,24 @@ function TitanDocumentsPanel() {
               onChange={(e) => setState((prev) => ({ ...prev, notes: e.target.value }))}
               disabled={state.loading}
             />
+            {state.selectedTemplateKey === "titan.delivery_note.v1" && (
+              <label htmlFor="titan-delivery-date">
+                Date du bon de livraison
+                <input
+                  id="titan-delivery-date"
+                  type="date"
+                  value={state.documentDate || (() => {
+                    const start = state.drafts.find((draft) => draft.id === state.selectedDraftId)?.start_at;
+                    if (!start) return "";
+                    const date = new Date(start);
+                    date.setDate(date.getDate() - 1);
+                    return date.toISOString().slice(0, 10);
+                  })()}
+                  onChange={(e) => setState((prev) => ({ ...prev, documentDate: e.target.value }))}
+                  disabled={state.loading}
+                />
+              </label>
+            )}
             <button type="submit" disabled={state.loading || !state.selectedTemplateKey}>
               Préparer l'instance
             </button>

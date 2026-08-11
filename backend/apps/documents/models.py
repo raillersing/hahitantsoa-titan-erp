@@ -221,6 +221,7 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     pdf_generated_at = models.DateTimeField(null=True, blank=True)
     pdf_content_checksum = models.CharField(max_length=128, null=True, blank=True)
     proforma_validity_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    document_date = models.DateField(null=True, blank=True)
     issued_at = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
