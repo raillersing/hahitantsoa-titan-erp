@@ -57,6 +57,12 @@ const MOCK_PICKUP_EVENT: LogisticsEvent = {
   status: "completed",
 };
 
+const MOCK_PREPARATION_EVENT: LogisticsEvent = {
+  ...MOCK_EVENT,
+  id: "preparation-1",
+  event_type: "preparation",
+};
+
 const MOCK_LINES: LogisticsEventItemLine[] = [
   {
     id: "line-1",
@@ -194,5 +200,38 @@ describe("LogisticsDeliveryPanel", () => {
       expect(passationSpy).toHaveBeenCalledWith("handover-1", {});
     });
     expect(await screen.findByText("Bon de livraison généré.")).toBeInTheDocument();
+  });
+
+  it("generates and opens the printable preparation sheet", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_PREPARATION_EVENT]);
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([]);
+    const createSpy = vi.spyOn(api, "createReservationDraftDocumentInstance").mockResolvedValue({
+      id: "prep-doc-1",
+      status: "prepared",
+    } as any);
+    const generateSpy = vi.spyOn(api, "generateReservationDraftDocumentInstance").mockResolvedValue({
+      id: "prep-doc-1",
+      status: "generated",
+    } as any);
+    const pdfSpy = vi.spyOn(api, "generateReservationDraftDocumentInstancePdf").mockResolvedValue({
+      id: "prep-doc-1",
+    } as any);
+    vi.spyOn(api, "getDocumentInstancePdfBlob").mockResolvedValue(new Blob(["pdf"]));
+    vi.stubGlobal("open", vi.fn());
+    const createUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preparation");
+
+    render(<LogisticsDeliveryPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: "Imprimer le bon de préparation" }));
+
+    await waitFor(() => {
+      expect(createSpy).toHaveBeenCalledWith("rd-1111", {
+        template_key: "shared.preparation_sheet.v1",
+        notes: "Bon de préparation pour l'événement logistique preparation-1",
+      });
+      expect(generateSpy).toHaveBeenCalledWith("rd-1111", "prep-doc-1");
+      expect(pdfSpy).toHaveBeenCalledWith("rd-1111", "prep-doc-1");
+      expect(createUrl).toHaveBeenCalled();
+    });
   });
 });

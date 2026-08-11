@@ -6,11 +6,15 @@ import {
   checkEndpointPermission,
   completeLogisticsPassation,
   createLogisticsEvent,
+  createReservationDraftDocumentInstance,
   getDocumentInstancePdfBlob,
   getInventoryItems,
   getLogisticsEventItemLines,
   getLogisticsEvents,
+  getReservationDraftDocumentInstances,
   getReservationDrafts,
+  generateReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstancePdf,
   removeLogisticsEventItemLine,
   transitionLogisticsEvent,
 } from "./api";
@@ -45,6 +49,12 @@ type PassationState = {
   error: string | null;
 };
 
+type PreparationState = {
+  documentInstanceId: string | null;
+  loading: boolean;
+  error: string | null;
+};
+
 export function LogisticsDeliveryPanel() {
   const [events, setEvents] = useState<LogisticsEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -60,6 +70,11 @@ export function LogisticsDeliveryPanel() {
   const [lineQuantity, setLineQuantity] = useState("1");
   const [lineNotes, setLineNotes] = useState("");
   const [passationState, setPassationState] = useState<PassationState>({
+    documentInstanceId: null,
+    loading: false,
+    error: null,
+  });
+  const [preparationState, setPreparationState] = useState<PreparationState>({
     documentInstanceId: null,
     loading: false,
     error: null,
@@ -308,6 +323,61 @@ export function LogisticsDeliveryPanel() {
       window.open(url, "_blank");
     } catch {
       setPassationState((prev) => ({ ...prev, error: "Échec de l'ouverture du PDF du bon de livraison." }));
+    }
+  };
+
+  const handlePrintPreparationSheet = async () => {
+    if (!selectedEvent || selectedEvent.event_type !== "preparation") return;
+
+    setPreparationState({ documentInstanceId: null, loading: true, error: null });
+    try {
+      const existingInstances = await getReservationDraftDocumentInstances(
+        selectedEvent.reservation_draft,
+      );
+      let instance = existingInstances.find(
+        (document) =>
+          document.template_key === "shared.preparation_sheet.v1" &&
+          document.status !== "voided",
+      );
+
+      if (!instance) {
+        instance = await createReservationDraftDocumentInstance(
+          selectedEvent.reservation_draft,
+          {
+            template_key: "shared.preparation_sheet.v1",
+            notes: `Bon de préparation pour l'événement logistique ${selectedEvent.id}`,
+          },
+        );
+      }
+
+      if (instance.status === "prepared") {
+        instance = await generateReservationDraftDocumentInstance(
+          selectedEvent.reservation_draft,
+          instance.id,
+        );
+      }
+
+      if (instance.status !== "generated" && instance.status !== "issued") {
+        throw new Error("Le bon de préparation n'est pas prêt à être imprimé.");
+      }
+
+      if (instance.status === "generated") {
+        await generateReservationDraftDocumentInstancePdf(
+          selectedEvent.reservation_draft,
+          instance.id,
+        );
+      }
+
+      const blob = await getDocumentInstancePdfBlob(instance.id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setPreparationState({ documentInstanceId: instance.id, loading: false, error: null });
+    } catch (err: unknown) {
+      setPreparationState({
+        documentInstanceId: null,
+        loading: false,
+        error: err instanceof Error ? err.message : "Échec de la génération du bon de préparation.",
+      });
     }
   };
 
@@ -623,6 +693,19 @@ export function LogisticsDeliveryPanel() {
 
                 <section className="ops-callout">
                   <strong>Actions</strong>
+                  {selectedEvent.event_type === "preparation" ? (
+                    <div className="ops-preview-note">
+                      <p>Bon de préparation imprimable.</p>
+                      <button
+                        className="ops-button-secondary"
+                        type="button"
+                        disabled={preparationState.loading}
+                        onClick={() => void handlePrintPreparationSheet()}
+                      >
+                        {preparationState.loading ? "Génération..." : "Imprimer le bon de préparation"}
+                      </button>
+                    </div>
+                  ) : null}
                   {passationState.documentInstanceId ? (
                     <div className="ops-preview-note">
                       <p>Bon de livraison généré.</p>
@@ -633,6 +716,9 @@ export function LogisticsDeliveryPanel() {
                   ) : null}
                   {passationState.error ? (
                     <p className="ops-preview-note">{passationState.error}</p>
+                  ) : null}
+                  {preparationState.error ? (
+                    <p className="ops-preview-note" role="alert">{preparationState.error}</p>
                   ) : null}
                 </section>
 
