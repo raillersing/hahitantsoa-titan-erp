@@ -355,6 +355,7 @@ def commercial_document_context_to_document_instance_kwargs(
     notes: str,
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
+    document_date=None,
 ) -> dict[str, object]:
     bank_profile = bank_profile or get_default_finance_bank_profile(
         business_scope=context.template.business_scope
@@ -417,6 +418,7 @@ def commercial_document_context_to_document_instance_kwargs(
         "proforma_validity_days": (
             proforma_validity_days if context.template.document_type == "proforma" else None
         ),
+        "document_date": document_date,
         "notes": notes,
     }
 
@@ -429,6 +431,7 @@ def hahitantsoa_event_draft_document_instance_kwargs(
     notes: str,
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
+    document_date=None,
 ) -> dict[str, object]:
     from apps.documents.registry import get_document_template_definition
 
@@ -500,6 +503,7 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         "proforma_validity_days": (
             proforma_validity_days if template_definition.document_type == "proforma" else None
         ),
+        "document_date": document_date,
         "notes": notes,
     }
 
@@ -513,12 +517,19 @@ def create_document_instance_from_reservation_draft(
     notes: str = "",
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
+    document_date=None,
 ) -> DocumentInstance:
     context = build_reservation_draft_commercial_document_context(
         reservation_draft=reservation_draft,
         template_key=template_key,
     )
     validate_supported_reservation_draft_document_template_key(template_key)
+    if document_date is not None and context.template.document_type != "delivery_note":
+        raise CommercialDocumentContextError(
+            "Document date can only be set for delivery notes.", code="document_date_not_applicable"
+        )
+    if context.template.document_type == "delivery_note" and document_date is None:
+        document_date = timezone.localtime(reservation_draft.start_at).date() - timedelta(days=1)
     if context.template.document_type == "proforma":
         if proforma_validity_days is None:
             proforma_validity_days = DEFAULT_PROFORMA_VALIDITY_DAYS
@@ -542,6 +553,7 @@ def create_document_instance_from_reservation_draft(
             notes=notes,
             proforma_validity_days=proforma_validity_days,
             bank_profile=bank_profile,
+            document_date=document_date,
         )
     )
     record_audit_event_on_commit(
@@ -578,8 +590,15 @@ def create_document_instance_from_hahitantsoa_event_draft(
     notes: str = "",
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
+    document_date=None,
 ) -> DocumentInstance:
     validate_supported_hahitantsoa_event_draft_document_template_key(template_key)
+    if document_date is not None and template_key != "hahitantsoa.delivery_note.v1":
+        raise CommercialDocumentContextError(
+            "Document date can only be set for delivery notes.", code="document_date_not_applicable"
+        )
+    if template_key == "hahitantsoa.delivery_note.v1" and document_date is None:
+        document_date = timezone.localtime(event_draft.start_at).date() - timedelta(days=1)
     if template_key == HAHITANTSOA_PROFORMA_TEMPLATE_KEY:
         if proforma_validity_days is None:
             proforma_validity_days = DEFAULT_PROFORMA_VALIDITY_DAYS
@@ -602,6 +621,7 @@ def create_document_instance_from_hahitantsoa_event_draft(
             notes=notes,
             proforma_validity_days=proforma_validity_days,
             bank_profile=bank_profile,
+            document_date=document_date,
         )
     )
     record_audit_event_on_commit(

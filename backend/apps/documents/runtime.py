@@ -282,7 +282,10 @@ def generate_document_instance_html(
         "iban": document_instance.bank_iban,
         "swift_bic": document_instance.bank_swift_bic,
     }
-    html_content = render_to_string(template_path, {"context": context, "bank": bank})
+    html_content = render_to_string(
+        template_path,
+        {"context": context, "bank": bank, "document": {"date": document_instance.document_date}},
+    )
 
     if not html_content or not html_content.strip():
         raise DocumentRuntimeGenerationError(

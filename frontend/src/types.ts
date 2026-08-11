@@ -609,6 +609,7 @@ export type DocumentInstance = {
   customer_representative_name?: string;
   customer_representative_role?: string;
   proforma_validity_days?: number | null;
+  document_date?: string | null;
   issued_at?: string | null;
   status: "prepared" | "generated" | "issued" | "voided";
   prepared_at: string;
@@ -631,6 +632,7 @@ export type DocumentInstance = {
 export type DocumentInstanceCreatePayload = {
   template_key: string;
   notes?: string;
+  document_date?: string;
 };
 
 export type DocumentInstanceListItem = {

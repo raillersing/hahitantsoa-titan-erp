@@ -143,6 +143,7 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "pdf_generated_at",
             "pdf_content_checksum",
             "proforma_validity_days",
+            "document_date",
             "issued_at",
             "valid_until",
             "notes",
@@ -333,6 +334,7 @@ class DocumentInstanceCreateSerializer(serializers.Serializer):
         choices=tuple(get_supported_reservation_draft_document_template_keys())
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    document_date = serializers.DateField(required=False, allow_null=True)
     proforma_validity_days = serializers.IntegerField(required=False, min_value=1, max_value=365)
     bank_profile = serializers.PrimaryKeyRelatedField(
         queryset=FinanceBankProfile.objects.select_related("account"),

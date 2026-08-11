@@ -526,6 +526,7 @@ class HahitantsoaEventDraftDocumentInstanceListCreateAPIView(generics.ListCreate
                 notes=serializer.validated_data.get("notes", ""),
                 proforma_validity_days=serializer.validated_data.get("proforma_validity_days"),
                 bank_profile=serializer.validated_data.get("bank_profile"),
+                document_date=serializer.validated_data.get("document_date"),
             )
             if serializer.validated_data["template_key"] == "hahitantsoa.delivery_note.v1":
                 checklist_exists = DocumentInstance.objects.filter(

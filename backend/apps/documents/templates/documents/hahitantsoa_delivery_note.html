@@ -51,7 +51,7 @@
       <header class="header">
         <div class="number">B O N  D E  L I V R A I S O N  N° {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"____" }}{% endif %}</div>
         <h1>BON DE LIVRAISON</h1>
-        <div class="date">DATE {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.dateTime {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y H:i" %}{% endif %}</div>
+        <div class="date">DATE {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</div>
       </header>
       <section class="identity">
         <div class="identity-row"><strong>NOM :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"____________________________" }}{% endif %}</span></div>
