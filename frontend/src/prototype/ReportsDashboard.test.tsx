@@ -1,8 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ReportsDashboard from "./ReportsDashboard";
+import * as api from "../api";
+import type { ReportCategory } from "../types";
+
+const reportResponse = (category: ReportCategory, label: string, value: number) => ({
+  category,
+  period: "month",
+  kpis: [{ key: "total", label, value, format: "number" as const }],
+});
 
 describe("ReportsDashboard", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(api, "getReportCategory").mockImplementation(async (category) => {
+      if (category === "payments") return reportResponse(category, "Paiements reçus", 42);
+      return reportResponse(category, "Total réservations", 124);
+    });
+  });
+
   it("renders the dashboard heading and period selector", () => {
     render(<ReportsDashboard onNavigate={() => {}} />);
     expect(screen.getByRole("heading", { name: /Rapports & BI/i })).toBeInTheDocument();
@@ -10,13 +26,10 @@ describe("ReportsDashboard", () => {
     expect(screen.getByRole("button", { name: "Semaine" })).toBeInTheDocument();
   });
 
-  it("renders KPI cards with mock data for the default category", async () => {
+  it("renders KPI cards returned by the reporting API", async () => {
     render(<ReportsDashboard onNavigate={() => {}} />);
-    // Wait for mock data to render (useEffect runs immediately)
     expect(await screen.findByText("Total réservations")).toBeInTheDocument();
     expect(await screen.findByText("124")).toBeInTheDocument();
-    expect(await screen.findByText(/CA Réservations/i)).toBeInTheDocument();
-    expect(await screen.findByText(/24\.5M Ar/)).toBeInTheDocument();
   });
 
   it("switches category tabs and renders different KPIs", async () => {
@@ -25,14 +38,12 @@ describe("ReportsDashboard", () => {
     fireEvent.click(paymentsTab);
     expect(await screen.findByText("Paiements reçus")).toBeInTheDocument();
     expect(await screen.findByText("42")).toBeInTheDocument();
-    expect(await screen.findByText("Montant total")).toBeInTheDocument();
-    expect(await screen.findByText(/18\.3M Ar/)).toBeInTheDocument();
   });
 
-  it("shows trend badges with correct colors", async () => {
+  it("shows an API error instead of fabricated report data", async () => {
+    vi.mocked(api.getReportCategory).mockRejectedValueOnce(new Error("Rapports indisponibles"));
     render(<ReportsDashboard onNavigate={() => {}} />);
-    expect(await screen.findByText("+5.2%")).toBeInTheDocument();
-    expect(await screen.findByText("+8.1%")).toBeInTheDocument();
-    expect(await screen.findByText("-3.4%")).toBeInTheDocument();
+    expect(await screen.findByText("Rapports indisponibles")).toBeInTheDocument();
+    expect(screen.queryByText("Total réservations")).not.toBeInTheDocument();
   });
 });
