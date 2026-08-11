@@ -32,6 +32,7 @@ from apps.inventory.models import (
     InventoryStockMovement,
     InventoryStockMovementDirection,
     InventoryStockMovementType,
+    InventoryStorageLocation,
 )
 from apps.logistics.models import LogisticsEvent
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
@@ -41,6 +42,21 @@ class InventoryStockMovementError(ValueError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+@transaction.atomic
+def create_inventory_storage_location(*, name: str, actor) -> InventoryStorageLocation:
+    location = InventoryStorageLocation.objects.create(
+        name=name.strip(), created_by=actor, updated_by=actor
+    )
+    record_audit_event_on_commit(
+        actor=actor,
+        action="inventory.storage_location_created",
+        target_type="inventory_storage_location",
+        target_id=str(location.id),
+        metadata={"name": location.name},
+    )
+    return location
 
 
 INVALID_INVENTORY_STOCK_MOVEMENT_DIRECTION = "invalid_inventory_stock_movement_direction"
@@ -264,6 +280,7 @@ def resolve_inventory_stock_movement_direction(
 def create_inventory_stock_movement(
     *,
     inventory_item: InventoryItem,
+    storage_location: InventoryStorageLocation | None = None,
     movement_type: str,
     direction: str | None = None,
     quantity: int,
@@ -283,6 +300,7 @@ def create_inventory_stock_movement(
     )
     movement = InventoryStockMovement(
         inventory_item=inventory_item,
+        storage_location=storage_location,
         reservation_draft=reservation_draft,
         document_instance=document_instance,
         return_operation=return_operation,

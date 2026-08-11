@@ -967,6 +967,7 @@ export type InventoryStockMovementDirection = 'inbound' | 'outbound';
 export type InventoryStockMovement = {
   id: string;
   inventory_item: string;
+  storage_location?: string | null;
   reservation_draft: string | null;
   movement_type: InventoryStockMovementType;
   direction: InventoryStockMovementDirection;
@@ -1249,6 +1250,7 @@ export type AuditEventQueryParams = {
 
 export type StockMovementCreatePayload = {
   inventory_item: string;
+  storage_location?: string | null;
   reservation_draft?: string | null;
   movement_type: InventoryStockMovementType;
   direction: InventoryStockMovementDirection;

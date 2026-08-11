@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import generics, status
+from rest_framework import generics, serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,6 +11,7 @@ from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.inventory.models import (
     InventoryDamageLossExcessReceivable,
     InventoryItem,
+    InventoryStorageLocation,
 )
 from apps.inventory.serializers import (
     InventoryDamageLossSettlementCreateSerializer,
@@ -22,6 +23,8 @@ from apps.inventory.serializers import (
     InventoryReturnOperationSerializer,
     InventoryStockMovementCreateSerializer,
     InventoryStockMovementSerializer,
+    InventoryStorageLocationCreateSerializer,
+    InventoryStorageLocationSerializer,
 )
 from apps.inventory.services import (
     InventoryStockMovementError,
@@ -33,6 +36,7 @@ from apps.inventory.services import (
     create_inventory_damage_loss_settlement_execution,
     create_inventory_return_operation,
     create_inventory_stock_movement,
+    create_inventory_storage_location,
     execute_inventory_damage_loss_settlement_execution,
     validate_inventory_damage_loss_settlement,
     validate_inventory_return_operation,
@@ -68,6 +72,33 @@ class InventoryItemRetrieveAPIView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return active_inventory_items().prefetch_related("stock_movements")
+
+
+class InventoryStorageLocationListCreateAPIView(generics.ListCreateAPIView):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    serializer_class = InventoryStorageLocationSerializer
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasReservationSensitiveAccess()]
+        return [permission() for permission in self.permission_classes]
+
+    def get_queryset(self):
+        return InventoryStorageLocation.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        serializer = InventoryStorageLocationCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            location = create_inventory_storage_location(
+                name=serializer.validated_data["name"], actor=request.user
+            )
+        except ValidationError as error:
+            raise serializers.ValidationError(error.message_dict) from error
+        return Response(
+            InventoryStorageLocationSerializer(location).data, status=status.HTTP_201_CREATED
+        )
 
 
 class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):
