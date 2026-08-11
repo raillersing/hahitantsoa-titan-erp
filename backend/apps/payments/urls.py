@@ -9,12 +9,18 @@ from apps.payments.views import (
     PaymentReconcileAPIView,
     PaymentReconciliationCsvPreviewAPIView,
     PaymentReconciliationImportCommitAPIView,
+    PaymentReminderWhatsAppAPIView,
     PaymentRetrieveAPIView,
     RefundPaymentConfirmAPIView,
     RefundPaymentCreateAPIView,
 )
 
 urlpatterns = [
+    path(
+        "reminder/whatsapp/",
+        PaymentReminderWhatsAppAPIView.as_view(),
+        name="payment-reminder-whatsapp",
+    ),
     path(
         "reconciliation/imports/csv/",
         PaymentReconciliationCsvPreviewAPIView.as_view(),
