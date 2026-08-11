@@ -239,6 +239,7 @@ def test_reservations_api_surface_allows_draft_model_files() -> None:
 
 def test_reservations_app_contains_draft_models() -> None:
     from apps.reservations.models import (
+        ReservationCloseout,
         ReservationDraft,
         ReservationDraftAmendment,
         ReservationDraftLine,
@@ -250,4 +251,5 @@ def test_reservations_app_contains_draft_models() -> None:
         ReservationDraft,
         ReservationDraftAmendment,
         ReservationDraftLine,
+        ReservationCloseout,
     }

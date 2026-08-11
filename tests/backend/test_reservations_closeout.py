@@ -3,6 +3,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
+from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.inventory.models import (
     InventoryDamageLossSettlement,
@@ -10,8 +11,8 @@ from apps.inventory.models import (
     InventoryReturnOperation,
 )
 from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsEventType
-from apps.reservations.closeout import get_closeout_summary
-from apps.reservations.models import ReservationDraft, ReservationDraftStatus
+from apps.reservations.closeout import closeout_reservation_draft, get_closeout_summary
+from apps.reservations.models import ReservationCloseout, ReservationDraft, ReservationDraftStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -48,6 +49,71 @@ def test_get_closeout_summary_empty_draft():
     assert result.payments.payment_count == 0
     assert result.logistics.event_count == 0
     assert result.returns.return_count == 0
+    assert result.financial is not None
+    assert result.financial.coherence_status == "coherent"
+
+
+def test_closeout_execution_is_durable_and_idempotent(
+    django_capture_on_commit_callbacks,
+    django_user_model,
+):
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(username="closeout-idempotent", password="p")
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
+
+    with django_capture_on_commit_callbacks(execute=True):
+        first_result = closeout_reservation_draft(
+            reservation_draft=draft,
+            actor=actor,
+            idempotency_key="closeout-test-1",
+        )
+    second_result = closeout_reservation_draft(
+        reservation_draft=draft,
+        actor=actor,
+        idempotency_key="closeout-test-1",
+    )
+
+    assert first_result.reservation_draft_id == second_result.reservation_draft_id
+    assert second_result.replayed is True
+    assert second_result.closeout_id == first_result.closeout_id
+    assert ReservationCloseout.objects.filter(reservation_draft=draft).count() == 1
+    assert (
+        AuditEvent.objects.filter(
+            action="reservation.closeout_executed",
+            target_id=str(draft.id),
+        ).count()
+        == 1
+    )
+
+
+def test_closeout_returns_immutable_snapshot_after_source_changes(django_user_model):
+    from apps.billing.models import BillingInvoice
+
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(username="closeout-snapshot", password="p")
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
+
+    first_result = closeout_reservation_draft(reservation_draft=draft, actor=actor)
+    BillingInvoice.objects.create(
+        reservation_draft=draft,
+        amount=100,
+        invoice_status="open",
+        issued_at=timezone.now(),
+        source_kind="manual",
+    )
+    draft.notes = "Changed after closeout"
+    draft.save(update_fields=["notes", "updated_at"])
+
+    snapshot_result = get_closeout_summary(reservation_draft_id=str(draft.id))
+    assert snapshot_result is not None
+    assert snapshot_result.closeout_id == first_result.closeout_id
+    assert snapshot_result.closeout_status == "closed"
+    assert snapshot_result.closed_at == first_result.closed_at
+    assert snapshot_result.billing.invoice_count == 0
 
 
 def test_get_closeout_summary_with_contract_and_deposit():
