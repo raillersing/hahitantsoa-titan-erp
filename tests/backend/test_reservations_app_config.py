@@ -1,6 +1,7 @@
 from django.apps import apps
 
 from apps.reservations.models import (
+    ReservationCloseout,
     ReservationDraft,
     ReservationDraftAmendment,
     ReservationDraftLine,
@@ -25,4 +26,5 @@ def test_reservations_app_registry_contains_draft_models() -> None:
         ReservationDraft,
         ReservationDraftLine,
         ReservationDraftAmendment,
+        ReservationCloseout,
     }

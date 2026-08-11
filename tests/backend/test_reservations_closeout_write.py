@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from django.db import DatabaseError
 from django.utils import timezone
 
 from apps.reservations.closeout import (
@@ -10,7 +11,7 @@ from apps.reservations.closeout import (
     closeout_reservation_draft,
     validate_reservation_closeable,
 )
-from apps.reservations.models import ReservationDraft
+from apps.reservations.models import ReservationCloseout, ReservationDraft
 
 
 @pytest.fixture
@@ -121,6 +122,27 @@ class TestCloseoutReservationDraft:
         result = closeout_reservation_draft(reservation_draft=draft, actor=user)
         assert result.reservation_draft_id == str(draft.id)
         assert result.confirmed is True
+
+    @pytest.mark.django_db
+    def test_closeout_evidence_is_append_only(self, django_user_model) -> None:
+        from apps.customers.models import Customer
+
+        customer = Customer.objects.create(display_name="Closeout Evidence Customer")
+        draft = ReservationDraft.objects.create(
+            public_reference="T-CO-006",
+            customer=customer,
+            start_at=timezone.now(),
+            end_at=timezone.now(),
+            confirmed_at=timezone.now(),
+        )
+        user = django_user_model.objects.create_user(
+            username="closeout_evidence_actor", password="p", is_staff=True
+        )
+        closeout_reservation_draft(reservation_draft=draft, actor=user)
+        evidence = ReservationCloseout.objects.get(reservation_draft=draft)
+
+        with pytest.raises(DatabaseError, match="append-only"):
+            ReservationCloseout.objects.filter(pk=evidence.pk).update(summary_snapshot={})
 
 
 class TestCloseoutExecuteAPI:

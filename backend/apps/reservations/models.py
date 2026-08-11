@@ -135,6 +135,42 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
         return self.public_reference
 
 
+class ReservationCloseout(UUIDModel, TimestampedModel):
+    """Append-only evidence that a reservation closeout was executed once."""
+
+    reservation_draft = models.OneToOneField(
+        ReservationDraft,
+        on_delete=models.PROTECT,
+        related_name="closeout_record",
+    )
+    closed_at = models.DateTimeField()
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reservation_closeouts",
+    )
+    summary_snapshot = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-closed_at", "-created_at", "id"]
+        verbose_name = "Reservation closeout"
+        verbose_name_plural = "Reservation closeouts"
+
+    def clean(self) -> None:
+        if self.closed_at is None:
+            raise ValidationError("Reservation closeouts require a closing timestamp.")
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Reservation closeouts are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Reservation closeouts are append-only.")
+
+
 class ReservationDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
     reservation_draft = models.ForeignKey(
         ReservationDraft,

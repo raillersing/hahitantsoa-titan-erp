@@ -3,6 +3,7 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
+from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.inventory.models import (
     InventoryDamageLossSettlement,
@@ -10,8 +11,8 @@ from apps.inventory.models import (
     InventoryReturnOperation,
 )
 from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsEventType
-from apps.reservations.closeout import get_closeout_summary
-from apps.reservations.models import ReservationDraft, ReservationDraftStatus
+from apps.reservations.closeout import closeout_reservation_draft, get_closeout_summary
+from apps.reservations.models import ReservationCloseout, ReservationDraft, ReservationDraftStatus
 
 pytestmark = pytest.mark.django_db
 
@@ -48,6 +49,33 @@ def test_get_closeout_summary_empty_draft():
     assert result.payments.payment_count == 0
     assert result.logistics.event_count == 0
     assert result.returns.return_count == 0
+    assert result.financial is not None
+    assert result.financial.coherence_status == "coherent"
+
+
+def test_closeout_execution_is_durable_and_idempotent(
+    django_capture_on_commit_callbacks,
+    django_user_model,
+):
+    draft = _reservation_draft()
+    actor = django_user_model.objects.create_user(username="closeout-idempotent", password="p")
+    draft.confirmed_at = timezone.now()
+    draft.confirmed_by = actor
+    draft.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
+
+    with django_capture_on_commit_callbacks(execute=True):
+        first_result = closeout_reservation_draft(reservation_draft=draft, actor=actor)
+    second_result = closeout_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert first_result.reservation_draft_id == second_result.reservation_draft_id
+    assert ReservationCloseout.objects.filter(reservation_draft=draft).count() == 1
+    assert (
+        AuditEvent.objects.filter(
+            action="reservation.closeout_executed",
+            target_id=str(draft.id),
+        ).count()
+        == 1
+    )
 
 
 def test_get_closeout_summary_with_contract_and_deposit():

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import json
+from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 
-from apps.reservations.models import ReservationDraft
+from django.db import transaction
+from django.utils import timezone
+
+from apps.billing.services import ReservationFinancialCloseoutSummary
+from apps.reservations.models import ReservationCloseout, ReservationDraft
 
 
 class CloseoutValidationError(ValueError):
@@ -62,6 +67,7 @@ class CloseoutSummary:
     payments: PaymentCloseoutSummary = field(default_factory=PaymentCloseoutSummary)
     logistics: LogisticsCloseoutSummary = field(default_factory=LogisticsCloseoutSummary)
     returns: ReturnCloseoutSummary = field(default_factory=ReturnCloseoutSummary)
+    financial: ReservationFinancialCloseoutSummary | None = None
 
 
 def get_closeout_summary(*, reservation_draft_id: str) -> CloseoutSummary | None:
@@ -153,6 +159,10 @@ def get_closeout_summary(*, reservation_draft_id: str) -> CloseoutSummary | None
         ),
     )
 
+    from apps.billing.services import compute_reservation_financial_closeout_summary
+
+    summary.financial = compute_reservation_financial_closeout_summary(draft)
+
     return summary
 
 
@@ -189,9 +199,19 @@ def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> li
         if settlement is not None and settlement.settlement_status != "validated":
             blockers.append(f"return_settlement_not_validated:{op.id}")
 
+    from apps.billing.services import (
+        RESERVATION_FINANCIAL_CLOSEOUT_COHERENT,
+        compute_reservation_financial_closeout_summary,
+    )
+
+    financial = compute_reservation_financial_closeout_summary(reservation_draft)
+    if financial.coherence_status != RESERVATION_FINANCIAL_CLOSEOUT_COHERENT:
+        blockers.append(f"financial_closeout_incoherent:{financial.coherence_detail}")
+
     return blockers
 
 
+@transaction.atomic
 def closeout_reservation_draft(
     *,
     reservation_draft: ReservationDraft,
@@ -203,19 +223,40 @@ def closeout_reservation_draft(
     """
     from apps.audit.services import record_audit_event_on_commit
 
-    blockers = validate_reservation_closeable(reservation_draft=reservation_draft)
+    locked_draft = ReservationDraft.objects.select_for_update().get(pk=reservation_draft.pk)
+    existing_closeout = ReservationCloseout.objects.filter(
+        reservation_draft=locked_draft,
+    ).first()
+    if existing_closeout is not None:
+        existing_summary = get_closeout_summary(reservation_draft_id=str(locked_draft.id))
+        if existing_summary is None:
+            raise CloseoutValidationError(
+                "Unable to compute closeout summary.",
+                code="closeout_summary_unavailable",
+            )
+        return existing_summary
+
+    blockers = validate_reservation_closeable(reservation_draft=locked_draft)
     if blockers:
         raise CloseoutValidationError(
             "Reservation draft is not ready for closeout: " + ", ".join(blockers),
             code="reservation_not_closeable",
         )
 
-    summary = get_closeout_summary(reservation_draft_id=str(reservation_draft.id))
+    summary = get_closeout_summary(reservation_draft_id=str(locked_draft.id))
     if summary is None:
         raise CloseoutValidationError(
             "Unable to compute closeout summary.",
             code="closeout_summary_unavailable",
         )
+
+    summary_snapshot = json.loads(json.dumps(asdict(summary), default=str))
+    ReservationCloseout.objects.create(
+        reservation_draft=locked_draft,
+        closed_at=timezone.now(),
+        closed_by_id=getattr(actor, "pk", None),
+        summary_snapshot=summary_snapshot,
+    )
 
     record_audit_event_on_commit(
         actor=actor,
@@ -223,7 +264,7 @@ def closeout_reservation_draft(
         target_type="reservation_draft",
         target_id=str(reservation_draft.id),
         metadata={
-            "public_reference": reservation_draft.public_reference,
+            "public_reference": locked_draft.public_reference,
             "billing_total": str(summary.billing.total_amount),
             "payments_total": str(summary.payments.total_received),
             "logistics_completed": summary.logistics.completed_count,
