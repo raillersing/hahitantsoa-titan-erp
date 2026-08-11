@@ -1,6 +1,6 @@
 import './titan-styles.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { checkEndpointPermission, createStockMovement, getInventoryItems, getStockMovements } from './api';
+import { checkEndpointPermission, createStockMovement, getInventoryItems, getInventoryStorageLocations, getStockMovements } from './api';
 import type {
   InventoryItem,
   InventoryStockMovement,
@@ -49,11 +49,13 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [internalItems, setInternalItems] = useState<InventoryItem[]>([]);
+  const [storageLocations, setStorageLocations] = useState<Array<{ id: string; name: string }>>([]);
 
   const inventoryItems = propItems && propItems.length > 0 ? propItems : internalItems;
 
   // Form state
   const [inventoryItem, setInventoryItem] = useState('');
+  const [storageLocation, setStorageLocation] = useState('');
   const [movementType, setMovementType] = useState<InventoryStockMovementType>('outbound_delivery');
   const [direction, setDirection] = useState<InventoryStockMovementDirection>('outbound');
   const [quantity, setQuantity] = useState('1');
@@ -79,6 +81,14 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
       .catch(() => { /* non-fatal */ });
     return () => controller.abort();
   }, [propItems]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getInventoryStorageLocations(controller.signal)
+      .then((locations) => { if (!controller.signal.aborted) setStorageLocations(Array.isArray(locations) ? locations : []); })
+      .catch(() => { /* locations are optional for existing stock history */ });
+    return () => controller.abort();
+  }, []);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -127,6 +137,7 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
     setSubmitting(true);
     const payload: StockMovementCreatePayload = {
       inventory_item: inventoryItem,
+      storage_location: storageLocation || null,
       movement_type: movementType,
       direction: FIXED_DIRECTIONS[movementType] ?? direction,
       quantity: qty,
@@ -138,6 +149,7 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
       setMovements((prev) => [created, ...prev]);
       setShowForm(false);
       setInventoryItem('');
+      setStorageLocation('');
       setMovementType('outbound_delivery');
       setDirection('outbound');
       setQuantity('1');
@@ -214,6 +226,14 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
                 {(Object.keys(TYPE_LABELS) as InventoryStockMovementType[]).map((type) => (
                   <option key={type} value={type}>{TYPE_LABELS[type]}</option>
                 ))}
+              </select>
+            </label>
+
+            <label className="titan-stock-form__label">
+              Dépôt
+              <select value={storageLocation} onChange={(e) => setStorageLocation(e.target.value)} disabled={submitting} aria-label="Sélectionner un dépôt">
+                <option value="">— aucun dépôt renseigné —</option>
+                {storageLocations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
               </select>
             </label>
 

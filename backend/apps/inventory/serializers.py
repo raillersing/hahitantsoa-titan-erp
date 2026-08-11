@@ -14,6 +14,7 @@ from apps.inventory.models import (
     InventoryReturnOperationLine,
     InventoryStockMovement,
     InventoryStockMovementType,
+    InventoryStorageLocation,
 )
 from apps.inventory.scope import assert_titan_allowed_item_kind
 from apps.logistics.models import LogisticsEvent
@@ -116,12 +117,29 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         return item_kind.value
 
 
+class InventoryStorageLocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryStorageLocation
+        fields = ("id", "name", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at")
+
+
+class InventoryStorageLocationCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255, trim_whitespace=True)
+
+    def validate_name(self, value):
+        if InventoryStorageLocation.objects.filter(name__iexact=value.strip()).exists():
+            raise serializers.ValidationError("A storage location with this name already exists.")
+        return value.strip()
+
+
 class InventoryStockMovementSerializer(serializers.ModelSerializer):
     class Meta:
         model = InventoryStockMovement
         fields = (
             "id",
             "inventory_item",
+            "storage_location",
             "reservation_draft",
             "movement_type",
             "direction",
@@ -142,6 +160,9 @@ class InventoryStockMovementSerializer(serializers.ModelSerializer):
 class InventoryStockMovementCreateSerializer(serializers.Serializer):
     inventory_item = serializers.PrimaryKeyRelatedField(
         queryset=InventoryItem.objects.filter(is_active=True, is_deleted=False),
+    )
+    storage_location = serializers.PrimaryKeyRelatedField(
+        queryset=InventoryStorageLocation.objects.all(), required=False, allow_null=True
     )
     reservation_draft = serializers.PrimaryKeyRelatedField(
         queryset=ReservationDraft.objects.filter(is_deleted=False),

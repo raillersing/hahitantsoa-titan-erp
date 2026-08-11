@@ -10,6 +10,7 @@ from apps.inventory.views import (
     InventoryExcessReceivableGenerateInvoiceAPIView,
     InventoryItemListAPIView,
     InventoryItemRetrieveAPIView,
+    InventoryStorageLocationListCreateAPIView,
     InventoryReturnOperationListCreateAPIView,
     InventoryReturnOperationRetrieveAPIView,
     InventoryReturnOperationValidateAPIView,
@@ -27,6 +28,11 @@ urlpatterns = [
         "api/v1/inventory/items/<uuid:pk>/",
         InventoryItemRetrieveAPIView.as_view(),
         name="inventory-item-detail",
+    ),
+    path(
+        "api/v1/inventory/storage-locations/",
+        InventoryStorageLocationListCreateAPIView.as_view(),
+        name="inventory-storage-location-list",
     ),
     path(
         "api/v1/inventory/stock-movements/",

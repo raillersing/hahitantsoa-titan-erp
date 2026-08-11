@@ -1428,6 +1428,12 @@ export function getStockMovements(
   return getAuthenticatedJson('/api/v1/inventory/stock-movements/', signal);
 }
 
+export function getInventoryStorageLocations(
+  signal?: AbortSignal,
+): Promise<Array<{ id: string; name: string }>> {
+  return getAuthenticatedJson('/api/v1/inventory/storage-locations/', signal);
+}
+
 export function createStockMovement(
   payload: import('./types').StockMovementCreatePayload,
   signal?: AbortSignal,
