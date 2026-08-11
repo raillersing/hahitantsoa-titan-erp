@@ -55,6 +55,10 @@ type PreparationState = {
   error: string | null;
 };
 
+type ConfirmAction =
+  | { type: "remove-line"; lineId: string }
+  | { type: "transition"; action: "dispatch" | "complete" | "cancel" };
+
 export function LogisticsDeliveryPanel() {
   const [events, setEvents] = useState<LogisticsEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -93,9 +97,20 @@ export function LogisticsDeliveryPanel() {
     notes: "",
     signature_required: false,
   });
-  const [confirmAction, setConfirmAction] = useState<{ type: string; lineId?: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lineAbortRef = useRef<AbortController | null>(null);
+
+  const reservationReferenceById = useMemo(
+    () => new Map(reservationDrafts.map((draft) => [draft.id, draft.public_reference])),
+    [reservationDrafts],
+  );
+
+  const formatReservationReference = useCallback(
+    (reservationDraftId: string) =>
+      reservationReferenceById.get(reservationDraftId) ?? reservationDraftId.slice(0, 8),
+    [reservationReferenceById],
+  );
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.id === selectedEventId) ?? null,
@@ -167,6 +182,33 @@ export function LogisticsDeliveryPanel() {
     }
   }, []);
 
+  const loadPassationDocument = useCallback(async (event: LogisticsEvent) => {
+    if (!event.reservation_draft) {
+      setPassationState({ documentInstanceId: null, loading: false, error: null });
+      return;
+    }
+
+    try {
+      const instances = await getReservationDraftDocumentInstances(event.reservation_draft);
+      const deliveryNote = instances.find(
+        (document) =>
+          ["titan.delivery_note.v1", "hahitantsoa.delivery_note.v1"].includes(document.template_key) &&
+          document.status !== "voided",
+      );
+      setPassationState({
+        documentInstanceId: deliveryNote?.id ?? null,
+        loading: false,
+        error: null,
+      });
+    } catch (err: unknown) {
+      setPassationState({
+        documentInstanceId: null,
+        loading: false,
+        error: err instanceof Error ? err.message : "Échec du chargement du bon de livraison.",
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     checkEndpointPermission("/api/v1/logistics/events/create/", "OPTIONS", controller.signal)
@@ -182,6 +224,10 @@ export function LogisticsDeliveryPanel() {
   }, [load]);
 
   useEffect(() => {
+    void loadReservationDrafts();
+  }, [loadReservationDrafts]);
+
+  useEffect(() => {
     if (!selectedEventId) {
       setItemLines([]);
       return;
@@ -191,6 +237,15 @@ export function LogisticsDeliveryPanel() {
       lineAbortRef.current?.abort();
     };
   }, [loadItemLines, selectedEventId]);
+
+  useEffect(() => {
+    setPassationState({ documentInstanceId: null, loading: true, error: null });
+    if (selectedEvent) {
+      void loadPassationDocument(selectedEvent);
+    } else {
+      setPassationState({ documentInstanceId: null, loading: false, error: null });
+    }
+  }, [loadPassationDocument, selectedEventId]);
 
   const handleTransition = async (newStatus: LogisticsEvent["status"]) => {
     if (!selectedEvent || !canWrite) {
@@ -543,7 +598,7 @@ export function LogisticsDeliveryPanel() {
                       {STATUS_LABELS[event.status] ?? event.status}
                     </span>
                     <span className="ops-row__detail">{formatDateTime(event.scheduled_at)}</span>
-                    <span className="ops-row__ref">{event.reservation_draft.slice(0, 8)}</span>
+                    <span className="ops-row__ref">{formatReservationReference(event.reservation_draft)}</span>
                   </button>
                 </li>
               ))}
@@ -557,7 +612,7 @@ export function LogisticsDeliveryPanel() {
                   <div>
                     <h4>{EVENT_TYPE_LABELS[selectedEvent.event_type]}</h4>
                     <p className="ops-section-helper">
-                      Réservation {selectedEvent.reservation_draft.slice(0, 8)}
+                      Réservation {formatReservationReference(selectedEvent.reservation_draft)}
                     </p>
                   </div>
                   <span className={`ops-status-badge ops-status-badge--${selectedEvent.status}`}>
@@ -728,11 +783,11 @@ export function LogisticsDeliveryPanel() {
                   {confirmAction?.type === "transition" ? (
                     <span className="confirm-delete-group">
                       <span className="confirm-delete-hint">Confirmer cette action ?</span>
-                      {confirmAction.lineId === "dispatch" ? (
+                      {confirmAction.action === "dispatch" ? (
                         <button className="ops-button-secondary" type="button" disabled={actionLoading} onClick={() => { setConfirmAction(null); void handleTransition("dispatched"); }}>
                           {actionLoading ? "..." : "Confirmer l'envoi"}
                         </button>
-                      ) : confirmAction.lineId === "complete" ? (
+                      ) : confirmAction.action === "complete" ? (
                         <button className="ops-button-secondary" type="button" disabled={actionLoading} onClick={() => { setConfirmAction(null); void handleTransition("completed"); }}>
                           {actionLoading ? "..." : "Confirmer la complétion"}
                         </button>
@@ -747,13 +802,13 @@ export function LogisticsDeliveryPanel() {
                     </span>
                   ) : (
                     <>
-                      <button className="ops-button-secondary" type="button" disabled={!canWrite || actionLoading || selectedEvent.status !== "planned"} onClick={() => setConfirmAction({ type: "transition", lineId: "dispatch" })}>
+                      <button className="ops-button-secondary" type="button" disabled={!canWrite || actionLoading || selectedEvent.status !== "planned"} onClick={() => setConfirmAction({ type: "transition", action: "dispatch" })}>
                         Envoyer
                       </button>
-                      <button className="ops-button-secondary" type="button" disabled={!canWrite || actionLoading || selectedEvent.status !== "dispatched"} onClick={() => setConfirmAction({ type: "transition", lineId: "complete" })}>
+                      <button className="ops-button-secondary" type="button" disabled={!canWrite || actionLoading || selectedEvent.status !== "dispatched"} onClick={() => setConfirmAction({ type: "transition", action: "complete" })}>
                         Compléter
                       </button>
-                      <button className="ops-button-danger" type="button" disabled={!canWrite || actionLoading || selectedEvent.status === "completed" || selectedEvent.status === "cancelled"} onClick={() => setConfirmAction({ type: "transition", lineId: "cancel" })}>
+                      <button className="ops-button-danger" type="button" disabled={!canWrite || actionLoading || selectedEvent.status === "completed" || selectedEvent.status === "cancelled"} onClick={() => setConfirmAction({ type: "transition", action: "cancel" })}>
                         Annuler
                       </button>
                       <button className="ops-button" type="button" disabled={!canWrite || passationState.loading || selectedEvent.event_type !== "handover" || selectedEvent.status !== "completed" || !selectedEvent.signature_required || selectedEvent.signature_received} onClick={() => void handleCompletePassation()}>
