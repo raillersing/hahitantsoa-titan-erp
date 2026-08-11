@@ -238,8 +238,16 @@ def test_reservations_api_surface_allows_draft_model_files() -> None:
 
 
 def test_reservations_app_contains_draft_models() -> None:
-    from apps.reservations.models import ReservationDraft, ReservationDraftLine
+    from apps.reservations.models import (
+        ReservationDraft,
+        ReservationDraftAmendment,
+        ReservationDraftLine,
+    )
 
     app_config = apps.get_app_config("reservations")
 
-    assert set(app_config.get_models()) == {ReservationDraft, ReservationDraftLine}
+    assert set(app_config.get_models()) == {
+        ReservationDraft,
+        ReservationDraftAmendment,
+        ReservationDraftLine,
+    }

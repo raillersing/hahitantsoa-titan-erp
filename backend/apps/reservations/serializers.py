@@ -24,6 +24,24 @@ class ReservationAvailabilityPreviewRequestSerializer(serializers.Serializer):
     start_at = serializers.DateTimeField()
     end_at = serializers.DateTimeField()
 
+    def validate_start_at(self, value):
+        raw_value = self.initial_data.get("start_at")
+        if isinstance(raw_value, str) and not raw_value.endswith("Z"):
+            if "+" not in raw_value and raw_value.count("-") <= 2:
+                raise serializers.ValidationError(
+                    "Reservation period start_at must be timezone-aware."
+                )
+        return value
+
+    def validate_end_at(self, value):
+        raw_value = self.initial_data.get("end_at")
+        if isinstance(raw_value, str) and not raw_value.endswith("Z"):
+            if "+" not in raw_value and raw_value.count("-") <= 2:
+                raise serializers.ValidationError(
+                    "Reservation period end_at must be timezone-aware."
+                )
+        return value
+
 
 class ReservationDraftAmendmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,24 +83,6 @@ class ReservationDraftAmendmentCreateSerializer(serializers.Serializer):
     changed_start_at = serializers.DateTimeField(required=False)
     changed_end_at = serializers.DateTimeField(required=False)
     changed_lines = ReservationDraftAmendmentLineSerializer(many=True, required=False)
-
-    def validate_changed_start_at(self, value):
-        raw_value = self.initial_data.get("changed_start_at")
-        if isinstance(raw_value, str) and raw_value.endswith("Z") is False:
-            if "+" not in raw_value and raw_value.count("-") <= 2:
-                raise serializers.ValidationError(
-                    "Reservation period start_at must be timezone-aware."
-                )
-        return value
-
-    def validate_changed_end_at(self, value):
-        raw_value = self.initial_data.get("changed_end_at")
-        if isinstance(raw_value, str) and raw_value.endswith("Z") is False:
-            if "+" not in raw_value and raw_value.count("-") <= 2:
-                raise serializers.ValidationError(
-                    "Reservation period end_at must be timezone-aware."
-                )
-        return value
 
 
 class ReservationAvailabilitySummarySerializer(serializers.Serializer):

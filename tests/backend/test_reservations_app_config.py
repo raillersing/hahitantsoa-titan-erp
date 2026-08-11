@@ -1,6 +1,10 @@
 from django.apps import apps
 
-from apps.reservations.models import ReservationDraft, ReservationDraftLine
+from apps.reservations.models import (
+    ReservationDraft,
+    ReservationDraftAmendment,
+    ReservationDraftLine,
+)
 
 
 def test_reservations_app_is_installed() -> None:
@@ -20,4 +24,5 @@ def test_reservations_app_registry_contains_draft_models() -> None:
     assert set(app_config.get_models()) == {
         ReservationDraft,
         ReservationDraftLine,
+        ReservationDraftAmendment,
     }
