@@ -5,8 +5,8 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.identity.authorization import is_cashbox_supervisor_actor
+from apps.identity.permissions import HasReservationSensitiveAccess
 
 from .serializers import (
     CashboxCountSubmitSerializer,
@@ -197,7 +197,10 @@ class CashboxMovementListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = active_cashbox_movements()
-        if not (getattr(self.request.user, "is_staff", False) or is_cashbox_supervisor_actor(actor=self.request.user)):
+        if not (
+            getattr(self.request.user, "is_staff", False)
+            or is_cashbox_supervisor_actor(actor=self.request.user)
+        ):
             qs = qs.filter(session__operator=self.request.user)
         if session_id := self.request.query_params.get("session_id"):
             qs = qs.filter(session_id=session_id)
