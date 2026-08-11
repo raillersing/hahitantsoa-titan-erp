@@ -60,6 +60,7 @@ const brandScopeByAppScope = {
   admin: "ergon",
   "mobile-tablet": "ergon",
   profile: "ergon",
+  "bank-settings": "ergon",
 } satisfies Record<StaticAppScope, BrandScope>;
 
 export function resolveBrandScope(activeScope: AppScope, activeParam?: string): BrandScope {
@@ -407,6 +408,9 @@ export default function AppShell({
           </a>
           <a href="#cashbox" onClick={(e) => { e.preventDefault(); onNavigate("cashbox"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "cashbox" ? "active" : ""}`}>
             <i className="fas fa-cash-register w-5 text-center"></i><span>Caisse</span>
+          </a>
+          <a href="#bank-settings" onClick={(e) => { e.preventDefault(); onNavigate("bank-settings"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "bank-settings" ? "active" : ""}`}>
+            <i className="fas fa-building-columns w-5 text-center"></i><span>Coordonnées bancaires</span>
           </a>
           <a href="#caution" onClick={(e) => { e.preventDefault(); onNavigate("caution"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "caution" ? "active" : ""}`}>
             <i className="fas fa-undo w-5 text-center"></i><span>Caution</span>

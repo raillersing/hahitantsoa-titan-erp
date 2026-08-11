@@ -80,6 +80,9 @@ import type {
   AuditEvent,
   AuditEventQueryParams,
   Payment,
+  BankProfile,
+  BankProfileCreatePayload,
+  BankProfileUpdatePayload,
   PaymentWhatsAppReminder,
   PaymentActionPayload,
   PaymentCreatePayload,
@@ -2139,4 +2142,27 @@ export async function deleteExpense(
     headers: { "Content-Type": "application/json" },
     body: "{}",
   }, signal);
+}
+
+export function getBankProfiles(
+  businessScope?: 'titan' | 'hahitantsoa',
+  signal?: AbortSignal,
+): Promise<BankProfile[]> {
+  const query = businessScope ? `?business_scope=${encodeURIComponent(businessScope)}` : '';
+  return getAuthenticatedJson(`/api/v1/finance/banks/${query}`, signal);
+}
+
+export function createBankProfile(
+  payload: BankProfileCreatePayload,
+  signal?: AbortSignal,
+): Promise<BankProfile> {
+  return postAuthenticatedJson('/api/v1/finance/banks/', payload, signal);
+}
+
+export function updateBankProfile(
+  id: string,
+  payload: BankProfileUpdatePayload,
+  signal?: AbortSignal,
+): Promise<BankProfile> {
+  return patchAuthenticatedJson(`/api/v1/finance/banks/${id}/`, payload, signal);
 }

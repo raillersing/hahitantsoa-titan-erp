@@ -43,6 +43,7 @@ import ProfilePage from "./prototype/ProfilePage";
 import HRPage from "./prototype/HRPage";
 import HRPayrollPage from "./prototype/HRPayrollPage";
 import MobileTabletPage from "./prototype/MobileTabletPage";
+import BankSettingsPage from "./prototype/BankSettingsPage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
 import { capabilitiesForUser } from "./capabilities";
 import ErrorBoundary from "./ErrorBoundary";
@@ -178,6 +179,7 @@ function App() {
     (effectiveRoute.scope === "admin" && capabilities && !capabilities.canManageIdentity) ||
     (effectiveRoute.scope === "audit" && capabilities && !capabilities.canViewAudit) ||
     (effectiveRoute.scope === "reservation-new" && capabilities && !capabilities.canSensitiveWrite)
+    || (effectiveRoute.scope === "bank-settings" && capabilities && !capabilities.canSensitiveWrite)
   );
 
   const renderKnownRoute = (scope: AppScope) => {
@@ -236,6 +238,7 @@ function App() {
       case "hr-payroll": return <HRPayrollPage onNavigate={navigate} />;
       case "purchasing": return <ProcurementPage onNavigate={navigate} />;
       case "mobile-tablet": return <MobileTabletPage onNavigate={navigate} />;
+      case "bank-settings": return <BankSettingsPage />;
     }
   };
 
