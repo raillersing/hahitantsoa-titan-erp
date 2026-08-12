@@ -412,6 +412,12 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
 .commercial-proforma-preview .proforma-items td:nth-child(5) { width: 91px !important; }
 .commercial-proforma-preview .proforma-items tbody { height: 499px; }
 .commercial-proforma-preview .proforma-items td { height: 26px; padding: 0 !important; }
+.commercial-proforma-preview .proforma-items th,
+.commercial-proforma-preview .proforma-items td { vertical-align: top; }
+.commercial-proforma-preview .proforma-items th:nth-child(2),
+.commercial-proforma-preview .proforma-items td:nth-child(2) { padding-left: 8px !important; }
+.commercial-proforma-preview .proforma-items th:nth-child(n+3),
+.commercial-proforma-preview .proforma-items td:nth-child(n+3) { padding-right: 8px !important; }
 
 .commercial-proforma-hahitantsoa .proforma-watermark {
   width: 491px !important;
