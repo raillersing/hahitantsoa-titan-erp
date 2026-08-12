@@ -1,132 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>{{ context.template.label }}</title>
-    <style>
-        @page { size: A4 portrait; margin: 12mm 10mm; }
-        body { font-family: 'Times New Roman', serif; color: #000; font-size: 10pt; margin: 0; padding: 0; }
-        .doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6mm; padding-bottom: 4mm; border-bottom: 1px solid #000; }
-        .doc-header-left { font-size: 9pt; line-height: 1.4; }
-        .doc-header-left strong { font-size: 10pt; }
-        .doc-header-right { font-size: 9pt; line-height: 1.4; text-align: right; }
-        .doc-header-right .bank-section { margin-bottom: 2mm; }
-        .doc-header-right .bank-section p { margin: 0; }
-        .doc-title { text-align: right; margin-bottom: 8mm; }
-        .doc-title .ref { font-size: 10pt; font-weight: bold; margin-bottom: 1mm; }
-        .doc-title h2 { font-size: 24pt; font-weight: bold; letter-spacing: 6px; margin: 0 0 1mm 0; }
-        .doc-title .date { font-size: 10pt; }
-        .doc-info { margin-bottom: 8mm; font-size: 10pt; }
-        .doc-info .row { display: grid; grid-template-columns: 60mm 1fr; gap: 4mm; margin-bottom: 2mm; }
-        .doc-info .label { font-weight: bold; letter-spacing: 1px; }
-        .doc-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 6mm; }
-        .doc-table thead th { font-weight: bold; letter-spacing: 1px; padding-bottom: 3mm; text-align: left; }
-        .doc-table thead th.right { text-align: right; }
-        .doc-table tbody tr { page-break-inside: avoid; }
-        .doc-table tbody td { padding: 1.5mm 0; text-align: left; }
-        .doc-table tbody td.right { text-align: right; }
-        .doc-totals { display: flex; justify-content: flex-end; margin-bottom: 2mm; font-size: 10pt; }
-        .doc-totals .totals-grid { display: grid; grid-template-columns: 60mm 40mm; gap: 2mm; }
-        .doc-totals .totals-grid .label { letter-spacing: 1px; }
-        .doc-totals .totals-grid .value { text-align: right; }
-        .doc-total-bar { background: #efefef; padding: 3mm 6mm; font-size: 10pt; font-weight: bold; display: flex; justify-content: space-between; letter-spacing: 1px; margin-bottom: 4mm; }
-        .doc-amount-text { font-size: 10pt; margin-bottom: 8mm; display: flex; justify-content: space-between; }
-        .doc-signatures { display: flex; justify-content: space-between; font-size: 10pt; margin-top: auto; padding-top: 10mm; }
-        .doc-signatures div { width: 50%; text-align: center; }
-        .doc-footer { position: fixed; bottom: 6mm; font-size: 8pt; display: flex; justify-content: space-between; width: 100%; }
-        .watermark { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; width: 80%; pointer-events: none; }
-    </style>
-</head>
-<body>
-    <div class="doc-header">
-        <div class="doc-header-left">
-            <strong>Ergon Group SARL</strong><br>
-            Lot P93M Ambohipo sud<br>
-            By-pass<br>
-            +261 34 61 791 41<br>
-            NIF : 6003298583<br>
-            STAT : 77290 11 2019 0 10215
-        </div>
-        <div class="doc-header-right">
-            <div class="bank-section">
-                <p><strong>BANK</strong></p>
-                <p>{{ bank.name|default:"BMOI MADAGASCAR" }}</p>
-            </div>
-            <div class="bank-section">
-                <p><strong>RIB</strong></p>
-                <p>{{ bank.rib|default:"00004 00009 03319320102 33" }}</p>
-            </div>
-            <p>titan@ergon.mg</p>
-            <p>+261 34 61 791 42</p>
-        </div>
-    </div>
-
-    <div class="doc-title">
-        <p class="ref">PROFORMA N° : {{ context.reservation_draft.public_reference|default:"..." }}</p>
-        <h2>P R O F O R M A</h2>
-        <p class="date">DATE {{ context.reservation_draft.start_at|default:"... / ... / ..." }}</p>
-    </div>
-
-    <div class="doc-info">
-        <div class="row">
-            <span class="label">N O M :</span>
-            <span>{{ context.reservation_draft.customer.display_name|default:"" }}</span>
-        </div>
-        <div class="row">
-            <span class="label">C O N T A C T :</span>
-            <span>{{ context.reservation_draft.customer.phone|default:"" }} / {{ context.reservation_draft.customer.email|default:"" }}</span>
-        </div>
-        <div class="row">
-            <span class="label">E V E N E M E N T du :</span>
-            <span>{{ context.reservation_draft.start_at|default:"... / ... / ..." }}</span>
-        </div>
-    </div>
-
-    <table class="doc-table">
-        <thead>
-            <tr>
-                <th style="width: 15mm">Q T E</th>
-                <th>D E S I G N A T I O N</th>
-                <th class="right" style="width: 25mm">P. U.</th>
-                <th class="right" style="width: 30mm">M O N T A N T</th>
-                <th class="right" style="width: 25mm">P. C A S S E</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for line in context.reservation_draft.lines %}
-            <tr>
-                <td>{{ line.quantity }} x</td>
-                <td>{{ line.inventory_item_name|default:"Article" }}{% if line.inventory_item_description %} - {{ line.inventory_item_description }}{% endif %}</td>
-                <td class="right">{{ line.unit_price|default:"0,00" }}</td>
-                <td class="right">{{ line.total_price|default:"0,00" }}</td>
-                <td class="right">{{ line.breakage_price|default:"0,00" }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <div class="doc-totals">
-        <div class="totals-grid">
-            <div class="label">S O U S - T O T A L</div>
-            <div class="value">{{ context.reservation_draft.sub_total|default:"0,00" }}</div>
-            <div class="label">R E M I S E</div>
-            <div class="value">- {{ context.reservation_draft.discount|default:"0,00" }}</div>
-        </div>
-    </div>
-
-    <div class="doc-total-bar">
-        <span>T O T A L A P A Y E R</span>
-        <span>{{ context.reservation_draft.total_amount|default:"0,00" }} Ar</span>
-    </div>
-
-    <div class="doc-amount-text">
-        <div>Arrêtée la présente facture proforma<br>à la somme de</div>
-        <div style="text-align: center; padding-top: 2mm;">{{ context.reservation_draft.total_amount|default:"0,00" }} Ar</div>
-    </div>
-
-    <div class="doc-signatures">
-        <div>Le responsable</div>
-        <div>Le client</div>
-    </div>
-</body>
-</html>
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>PROFORMA Titan</title>
+<style>
+@page { size:A4; margin:0; } *{box-sizing:border-box} html,body{margin:0;width:210mm;height:297mm;font-family:Arial,sans-serif;color:#202020}
+.page{position:relative;width:210mm;height:297mm;overflow:hidden}.side{position:absolute;top:0;left:0;width:51mm;height:297mm;background:#e7e8e8;padding:13mm 3mm 7mm}
+.brand{display:block;width:38mm;height:38mm;object-fit:contain;margin:0 auto;filter:grayscale(1) contrast(2)}.side-bottom{position:absolute;left:3mm;right:3mm;bottom:7mm;font-size:7.8pt;line-height:1.2;color:#4c4c4c}.side-bottom strong{font-size:8pt;color:#292929}.ergon{display:block;width:14mm;height:14mm;object-fit:contain;margin:12mm auto 0;filter:grayscale(1);opacity:.55}
+.main{position:absolute;top:0;left:51mm;width:159mm;height:297mm;padding:7mm 3mm}.watermark{position:absolute;width:155mm;height:180mm;right:-38mm;bottom:-8mm;object-fit:contain;filter:grayscale(1);opacity:.035}.header{text-align:center;position:relative;z-index:1}.ref{font-size:10.5pt;font-weight:700;margin:0}.title{font-size:27pt;line-height:1.05;font-weight:700;letter-spacing:3.5mm;margin:2mm 0}.date{font-size:10pt;letter-spacing:1.2mm}
+.identity{position:relative;z-index:1;margin:4mm 0 0;font-size:9pt;letter-spacing:.7mm}.identity-row{display:grid;grid-template-columns:36mm 1fr;min-height:10mm;align-items:start}.identity-row strong{font-size:8.5pt}.identity-value{letter-spacing:0;font-size:10pt}
+.items{position:relative;z-index:1;width:100%;border-collapse:collapse;table-layout:fixed;margin-top:7mm;font-size:8.6pt}.items thead{letter-spacing:.55mm}.items th{height:9mm;text-align:right;font-size:7.5pt;white-space:nowrap}.items th:nth-child(1){width:12mm;text-align:left}.items th:nth-child(2){text-align:left}.items th:nth-child(3){width:22mm}.items th:nth-child(4){width:27mm}.items th:nth-child(5){width:24mm}.items td{height:7mm;vertical-align:top;text-align:right}.items td:nth-child(1),.items td:nth-child(2){text-align:left}.items tbody{height:132mm}
+.totals{position:absolute;z-index:2;right:10mm;bottom:59mm;width:63mm;font-size:10pt}.totals-row{display:grid;grid-template-columns:31mm 1fr;min-height:6mm;letter-spacing:.7mm}.totals-row span:last-child{text-align:right;letter-spacing:0}
+.total-bar{position:absolute;z-index:2;left:3mm;right:3mm;bottom:47mm;height:9mm;background:#e9e9e8;padding:2.2mm 3mm;display:flex;justify-content:space-between;font-size:10pt;letter-spacing:.8mm}.total-bar strong{letter-spacing:0}
+.words{position:absolute;z-index:2;left:3mm;right:3mm;bottom:37mm;height:10mm;border:1mm solid #eee;padding:1mm 2mm;display:grid;grid-template-columns:45mm 1fr;font-size:6.5pt}.words span:last-child{text-align:center;font-size:9pt}
+.signatures{position:absolute;z-index:2;left:16mm;right:16mm;bottom:31mm;display:flex;justify-content:space-between;font-size:7pt;color:#555}.footer{position:absolute;z-index:2;left:10mm;right:7mm;bottom:7mm;display:flex;justify-content:space-between;font-size:10pt;font-weight:700}
+</style></head><body><div class="page">
+<aside class="side"><img class="brand" src="/brand/titan-source-logo.png" alt="Titan Rental"><div class="side-bottom"><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320102 33" }}<br><br><br>{{ bank.account_holder|default:"Ergon Group SARL" }}<br>Lot P93M Ambohipo sud<br>By-pass<br>+261 34 61 791 41<br><br>NIF : 6003298583<br>STAT : 77290 11 2019 0 10215<img class="ergon" src="/brand/ergon-logo.png" alt="Ergon"></div></aside>
+<main class="main"><img class="watermark" src="/brand/titan-rental-logo.png" alt=""><header class="header"><p class="ref">PROFORMA N°: {{ context.reservation_draft.public_reference|default:"" }}</p><div class="title">PROFORMA</div><div class="date">DATE&nbsp;&nbsp;{% now "d/m/Y" %}</div></header>
+<section class="identity"><div class="identity-row"><strong>NOM :</strong><span class="identity-value">{{ context.reservation_draft.customer.display_name|default:context.reservation_draft.customer_display_name }}</span></div><div class="identity-row"><strong>CONTACT :</strong><span class="identity-value">{{ context.reservation_draft.customer.phone|default:context.reservation_draft.customer_phone }}</span></div><div class="identity-row"><strong>EVENEMENT du :</strong><span class="identity-value">{{ context.reservation_draft.start_at|date:"d/m/Y" }}</span></div></section>
+<table class="items"><thead><tr><th>QTE</th><th>DESIGNATION</th><th>P.U.</th><th>MONTANT</th><th>P. CASSE</th></tr></thead><tbody>{% for line in context.reservation_draft.lines %}<tr><td>{{ line.quantity|stringformat:"03d" }}</td><td>{{ line.inventory_item_name }}</td><td>{{ line.unit_price|default:"0,00" }}</td><td>{{ line.total_price|default:"0,00" }}</td><td>{{ line.breakage_price|default:"0,00" }}</td></tr>{% endfor %}</tbody></table>
+<div class="totals"><div class="totals-row"><span>TOTAL</span><span>{{ context.reservation_draft.sub_total|default:"0,00" }}</span></div><div class="totals-row"><span>Remise</span><span>{{ context.reservation_draft.discount|default:"0,00" }}</span></div></div>
+<div class="total-bar"><span>TOTAL A PAYER</span><strong>{{ context.reservation_draft.total_amount|default:"0,00" }} Ar</strong></div><div class="words"><span>Arrêtée la présente facture proforma<br>à la somme de</span><span>{{ context.reservation_draft.total_amount_in_words|default:"" }}</span></div><div class="signatures"><span>Le responsable</span><span>Le Client</span></div><div class="footer"><span>titan@ergon.mg</span><span>+261 34 61 791 42</span></div>
+</main></div></body></html>

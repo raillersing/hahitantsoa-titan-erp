@@ -691,7 +691,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       <div className="doc-body flex-1 py-12 px-10 relative flex flex-col">
         <img src={logoPath} alt="Watermark" className="commercial-proforma-watermark absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
-        <div className="text-right mb-12">
+        <div className="text-center mb-12">
           <p className="text-sm font-bold mb-1">{typeRef} N°: <VariableValue token="dossier.ref" value={refNumber} show={showVariables} /></p>
           <h2 className="text-4xl font-bold tracking-[0.3em] text-black mb-2 whitespace-nowrap">{titleText}</h2>
           <p className="text-sm">DATE <VariableValue token="document.date" value={date} show={showVariables} /></p>

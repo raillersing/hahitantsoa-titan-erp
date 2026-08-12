@@ -191,11 +191,11 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
   height: auto !important;
 }
 
-.commercial-proforma-preview .doc-body > .text-right {
+.commercial-proforma-preview .doc-body > .text-center {
   margin-bottom: 30px !important;
 }
 
-.commercial-proforma-preview .doc-body > .text-right h2 {
+.commercial-proforma-preview .doc-body > .text-center h2 {
   font-size: 30px !important;
   line-height: 1 !important;
   letter-spacing: 0.24em !important;
