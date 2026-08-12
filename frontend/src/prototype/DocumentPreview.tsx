@@ -136,7 +136,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               if (b.type === "Titre") return <h2 key={b.id} className="text-xl font-bold text-center underline mb-6"><VariableText text={b.text || "TITRE DU DOCUMENT"} show={showVariables} /></h2>;
               if (b.type === "Paragraphe") return <p key={b.id} className="text-justify mb-4"><VariableText text={b.text || "..."} show={showVariables} /></p>;
               if (b.type === "Tableau articles/packs") return (
-                <table key={b.id} className="w-full border-collapse border border-slate-300 mb-6">
+                <table key={b.id} className="document-generic-items w-full border-collapse border border-slate-300 mb-6">
                   <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Désignation</th><th className="border p-2">Qté</th><th className="border p-2">PU</th><th className="border p-2 text-right">Total</th></tr></thead>
                   <tbody><tr><td className="border p-2">Article / Pack</td><td className="border p-2 text-center">1</td><td className="border p-2 text-center">X Ar</td><td className="border p-2 text-right">X Ar</td></tr></tbody>
                 </table>
@@ -658,12 +658,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   }
 
   return (
-    <div className="doc-preview commercial-proforma-preview flex bg-white text-black relative overflow-hidden" style={{ minHeight: '800px' }}>
-      <div className="doc-sidebar w-[22%] bg-[#efefef] flex flex-col justify-between py-12 px-6 border-none">
+    <div className={`doc-preview commercial-proforma-preview commercial-proforma-${domain} flex bg-white text-black relative overflow-hidden`} style={{ minHeight: '800px' }}>
+      <div className="doc-sidebar proforma-sidebar w-[22%] bg-[#efefef] flex flex-col justify-between py-12 px-6 border-none">
         <div>
-          <img src={logoPath} alt={`${domain} logo`} className="w-full h-auto object-contain" />
+          <img src={logoPath} alt={`${domain} logo`} className="proforma-brand h-auto object-contain" />
         </div>
-        <div className="text-[10px] text-black space-y-4">
+        <div className="proforma-side-bottom text-[10px] text-black space-y-4">
           <div>
             <p className="font-bold">BANK</p>
             <p><VariableValue token="company.bankName" value="BMOI MADAGASCAR" show={showVariables} /></p>
@@ -684,20 +684,20 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           </div>
         </div>
         <div>
-          <img src={ergonLogo} alt="Ergon logo" className="w-12 h-auto" />
+          <img src={ergonLogo} alt="Ergon logo" className="proforma-ergon h-auto" />
         </div>
       </div>
 
-      <div className="doc-body flex-1 py-12 px-10 relative flex flex-col">
-        <img src={logoPath} alt="Watermark" className="commercial-proforma-watermark absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+      <div className="doc-body proforma-main flex-1 py-12 px-10 relative flex flex-col">
+        <img src={logoPath} alt="Watermark" className="commercial-proforma-watermark proforma-watermark absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
-        <div className="text-right mb-12">
-          <p className="text-sm font-bold mb-1">{typeRef} N°: <VariableValue token="dossier.ref" value={refNumber} show={showVariables} /></p>
-          <h2 className="text-4xl font-bold tracking-[0.3em] text-black mb-2 whitespace-nowrap">{titleText}</h2>
-          <p className="text-sm">DATE <VariableValue token="document.date" value={date} show={showVariables} /></p>
+        <div className="proforma-header text-center mb-12">
+          <p className="proforma-ref text-sm font-bold mb-1">{typeRef} N°: <VariableValue token="dossier.ref" value={refNumber} show={showVariables} /></p>
+          <h2 className="proforma-title text-4xl font-bold tracking-[0.3em] text-black mb-2 whitespace-nowrap">{titleText}</h2>
+          <p className="proforma-date text-sm">DATE <VariableValue token="document.date" value={date} show={showVariables} /></p>
         </div>
 
-        <div className="mb-10 text-sm grid grid-cols-[150px_1fr] gap-y-3">
+        <div className="proforma-identity mb-10 text-sm grid grid-cols-[150px_1fr] gap-y-3">
           <p className="font-bold tracking-widest">N O M :</p>
           <p><VariableValue token="client.name" value={client?.name} show={showVariables} /></p>
           <p className="font-bold tracking-widest">C O N T A C T :</p>
@@ -713,7 +713,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         )}
 
         <div className="mb-auto">
-          <table className={`w-full text-xs doc-table-borderless ${isTitan ? 'commercial-proforma-titan-table' : 'commercial-proforma-hahitantsoa-table'}`}>
+          <table className={`proforma-items w-full text-xs doc-table-borderless ${isTitan ? 'commercial-proforma-titan-table' : 'commercial-proforma-hahitantsoa-table'}`}>
             <thead>
               <tr className="border-none">
                 <th className="text-left font-bold tracking-widest pb-4 w-12">Q T E</th>
@@ -800,7 +800,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           </table>
         </div>
 
-        <div className="flex justify-end mb-2 mt-8 text-sm">
+        <div className="proforma-totals flex justify-end mb-2 mt-8 text-sm">
           <div className="w-[300px] grid grid-cols-[1fr_150px] gap-2">
             <div className="text-left tracking-widest">T O T A L</div>
             <div className="text-right"><VariableValue token="finance.subTotalAmount" value={formatMoneyRaw(safeSubTotal)} show={showVariables} /></div>
@@ -829,10 +829,10 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           <div className="w-1/2">Le Client</div>
         </div>
 
-        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-xs font-bold">
+        <div className="proforma-footer-email absolute bottom-6 text-xs font-bold">
           {emailText}
         </div>
-        <div className="absolute bottom-6 right-10 text-xs font-bold">
+        <div className="proforma-footer-phone absolute bottom-6 text-xs font-bold">
           {phoneText}
         </div>
       </div>

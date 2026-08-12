@@ -191,11 +191,11 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
   height: auto !important;
 }
 
-.commercial-proforma-preview .doc-body > .text-right {
+.commercial-proforma-preview .doc-body > .text-center {
   margin-bottom: 30px !important;
 }
 
-.commercial-proforma-preview .doc-body > .text-right h2 {
+.commercial-proforma-preview .doc-body > .text-center h2 {
   font-size: 30px !important;
   line-height: 1 !important;
   letter-spacing: 0.24em !important;
@@ -296,6 +296,152 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
   padding: 7px 10px;
   margin-top: -8px;
 }
+
+/* Source geometry: the printable templates use a 51mm sidebar, 3mm main
+ * padding and fixed Arial metrics. Keep the preview on the same A4 grid. */
+.commercial-proforma-preview .proforma-sidebar {
+  position: relative;
+  justify-content: initial !important;
+  padding: 49px 11px 26px !important;
+}
+
+.commercial-proforma-preview .proforma-brand {
+  display: block;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
+.commercial-proforma-hahitantsoa .proforma-brand { width: 128px; }
+.commercial-proforma-titan .proforma-brand { width: 144px; }
+
+.commercial-proforma-preview .proforma-side-bottom {
+  position: absolute;
+  left: 11px;
+  right: 11px;
+  bottom: 90px;
+  margin: 0 !important;
+  font-size: 10px !important;
+  line-height: 1.2 !important;
+  color: #4c4c4c !important;
+}
+
+.commercial-proforma-preview .proforma-side-bottom > div { margin: 0 0 14px; }
+.commercial-proforma-preview .proforma-side-bottom > div:last-child { margin-bottom: 0; }
+.commercial-proforma-preview .proforma-side-bottom p { margin: 0; }
+.commercial-proforma-preview .proforma-side-bottom .font-bold { color: #292929 !important; }
+
+.commercial-proforma-preview .proforma-ergon {
+  position: absolute;
+  width: 53px;
+  height: 53px;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  margin: 0 !important;
+}
+
+.commercial-proforma-preview .proforma-main {
+  padding: 26px 11px !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.commercial-proforma-preview .proforma-header {
+  margin-bottom: 15px !important;
+}
+
+.commercial-proforma-preview .proforma-ref {
+  font-size: 14px !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+}
+
+.commercial-proforma-preview .proforma-title {
+  font-size: 36px !important;
+  line-height: 1.05 !important;
+  letter-spacing: 13px !important;
+  margin: 8px 0 !important;
+  transform: translateX(6px);
+}
+
+.commercial-proforma-preview .proforma-date {
+  font-size: 13px !important;
+  letter-spacing: 4.5px !important;
+  margin: 0 !important;
+}
+
+.commercial-proforma-preview .proforma-identity {
+  grid-template-columns: 136px minmax(0, 1fr) !important;
+  row-gap: 0 !important;
+  margin: 15px 0 0 !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  letter-spacing: 2.6px;
+}
+
+.commercial-proforma-preview .proforma-identity > p {
+  min-height: 38px;
+  margin: 0 !important;
+}
+
+.commercial-proforma-preview .proforma-identity > p:nth-child(even) {
+  letter-spacing: 0;
+  font-size: 13px;
+}
+
+.commercial-proforma-preview .proforma-items {
+  margin-top: 26px !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+}
+
+.commercial-proforma-preview .proforma-items thead th {
+  height: 34px;
+  padding-bottom: 0 !important;
+  font-size: 10px !important;
+  letter-spacing: 2.1px !important;
+}
+
+.commercial-proforma-preview .proforma-items th:nth-child(1),
+.commercial-proforma-preview .proforma-items td:nth-child(1) { width: 45px !important; }
+.commercial-proforma-preview .proforma-items th:nth-child(3),
+.commercial-proforma-preview .proforma-items td:nth-child(3) { width: 83px !important; }
+.commercial-proforma-preview .proforma-items th:nth-child(4),
+.commercial-proforma-preview .proforma-items td:nth-child(4) { width: 102px !important; }
+.commercial-proforma-preview .proforma-items th:nth-child(5),
+.commercial-proforma-preview .proforma-items td:nth-child(5) { width: 91px !important; }
+.commercial-proforma-preview .proforma-items tbody { height: 499px; }
+.commercial-proforma-preview .proforma-items td { height: 26px; padding: 0 !important; }
+.commercial-proforma-preview .proforma-items th,
+.commercial-proforma-preview .proforma-items td { vertical-align: top; }
+.commercial-proforma-preview .proforma-items th,
+.commercial-proforma-preview .proforma-items td { text-align: center !important; }
+
+.document-generic-items th,
+.document-generic-items td { text-align: center !important; }
+.commercial-proforma-preview .proforma-items th:nth-child(2),
+.commercial-proforma-preview .proforma-items td:nth-child(2) { padding-left: 8px !important; }
+.commercial-proforma-preview .proforma-items th:nth-child(n+3),
+.commercial-proforma-preview .proforma-items td:nth-child(n+3) { padding-right: 8px !important; }
+
+.commercial-proforma-hahitantsoa .proforma-watermark {
+  width: 491px !important;
+  right: -57px !important;
+  bottom: -30px !important;
+}
+
+.commercial-proforma-titan .proforma-watermark {
+  width: 586px !important;
+  right: -144px !important;
+  bottom: -30px !important;
+}
+
+.commercial-proforma-preview .proforma-footer-email {
+  left: 38px;
+  transform: none;
+}
+
+.commercial-proforma-preview .proforma-footer-phone { right: 26px; }
 
 .contract-a4-page:not(:last-child) {
   margin-bottom: 2rem;

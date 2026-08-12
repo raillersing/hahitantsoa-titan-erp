@@ -18,6 +18,10 @@ describe('DocumentPreview', () => {
     expect(screen.queryByText('P. C A S S E')).not.toBeInTheDocument();
     expect(screen.getByText('T O T A L A P A Y E R')).toBeInTheDocument();
     expect(document.querySelector('.commercial-proforma-titan-table')).toBeInTheDocument();
+    expect(document.querySelector('.commercial-proforma-preview .doc-body > .text-center'))
+      .toBeInTheDocument();
+    expect(document.querySelector('.commercial-proforma-preview .doc-body > .text-right'))
+      .not.toBeInTheDocument();
     expect(screen.queryByText('Aucune ligne à afficher dans ce document mock.')).not.toBeInTheDocument();
   });
 
