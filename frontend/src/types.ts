@@ -1603,3 +1603,39 @@ export type LeaveRequestCreatePayload = {
   reason?: string;
   status?: LeaveRequestStatus;
 };
+
+export type PayrollRuleSetStatus = "draft" | "pending_review" | "active" | "archived";
+
+export type PayrollRuleSet = {
+  id: string;
+  status: PayrollRuleSetStatus;
+  label: string;
+  effective_from: string;
+  effective_until: string | null;
+  source_reference: string;
+  validation_note: string;
+  irsa_brackets: Array<Record<string, string>>;
+  irsa_minimum: string | null;
+  irsa_abatement: string | null;
+  dependent_allowance: string | null;
+  contribution_base_definition: string;
+  cnaps_employee_rate: string | null;
+  cnaps_employer_rate: string | null;
+  ostie_employee_rate: string | null;
+  ostie_employer_rate: string | null;
+  fmfp_rate: string | null;
+  contribution_cap: string | null;
+  overtime_rules: Record<string, unknown>;
+  payslip_contexture: Record<string, unknown>;
+  dns_format: Record<string, unknown>;
+  ostie_format: Record<string, unknown>;
+  collective_agreement: Record<string, unknown>;
+  completeness_errors: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PayrollRuleSetCreatePayload = Omit<
+  PayrollRuleSet,
+  "id" | "status" | "completeness_errors" | "created_at" | "updated_at"
+>;

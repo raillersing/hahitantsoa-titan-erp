@@ -4,6 +4,8 @@ import {
   getPaySlips,
   getAdvanceRequests,
   getLeaveRequests,
+  getCurrentPayrollRuleSet,
+  ApiError,
 } from "../api";
 import type {
   Employee,
@@ -11,6 +13,8 @@ import type {
   AdvanceRequest,
   LeaveRequest,
 } from "../types";
+import PayrollRulesPanel from "./PayrollRulesPanel";
+import type { PayrollRuleSet } from "../types";
 
 interface HRPayrollPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -53,6 +57,8 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
   const [activeTab, setActiveTab] = useState<"payslips" | "advances" | "leaves">(
     "payslips"
   );
+  const [currentRuleSet, setCurrentRuleSet] = useState<PayrollRuleSet | null>(null);
+  const [ruleSetUnavailable, setRuleSetUnavailable] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
@@ -68,6 +74,17 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
       setPayslips(psData);
       setAdvances(advData);
       setLeaves(leaveData);
+      setCurrentRuleSet(null);
+      setRuleSetUnavailable(false);
+      try {
+        setCurrentRuleSet(await getCurrentPayrollRuleSet());
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          setRuleSetUnavailable(true);
+        } else {
+          throw err;
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Erreur lors du chargement.");
     } finally {
@@ -122,6 +139,16 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
           </button>
         </div>
       )}
+
+      {currentRuleSet ? (
+        <div className="mb-6 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
+          <strong>Configuration de paie active :</strong> {currentRuleSet.label} · applicable depuis {currentRuleSet.effective_from}
+        </div>
+      ) : ruleSetUnavailable ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Aucune configuration de paie active ne couvre la date actuelle. Les bulletins peuvent rester en brouillon, mais leur validation est bloquée.
+        </div>
+      ) : null}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -361,6 +388,7 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
           </>
         )}
       </div>
+      <PayrollRulesPanel />
     </div>
   );
 }

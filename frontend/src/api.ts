@@ -2044,7 +2044,48 @@ import type {
   AdvanceRequestCreatePayload,
   LeaveRequest,
   LeaveRequestCreatePayload,
+  PayrollRuleSet,
+  PayrollRuleSetCreatePayload,
 } from "./types";
+
+export function getPayrollRuleSets(signal?: AbortSignal): Promise<PayrollRuleSet[]> {
+  return getAuthenticatedJson("/api/v1/hr/rule-sets/", signal);
+}
+
+export function getCurrentPayrollRuleSet(
+  effectiveOn?: string,
+  signal?: AbortSignal,
+): Promise<PayrollRuleSet> {
+  const query = effectiveOn ? `?effective_on=${encodeURIComponent(effectiveOn)}` : "";
+  return getAuthenticatedJson(`/api/v1/hr/rule-sets/current/${query}`, signal);
+}
+
+export function createPayrollRuleSet(
+  payload: PayrollRuleSetCreatePayload,
+  signal?: AbortSignal,
+): Promise<PayrollRuleSet> {
+  return postAuthenticatedJson("/api/v1/hr/rule-sets/", payload, signal);
+}
+
+export function updatePayrollRuleSet(
+  id: string,
+  payload: Partial<PayrollRuleSetCreatePayload>,
+  signal?: AbortSignal,
+): Promise<PayrollRuleSet> {
+  return patchAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/`, payload, signal);
+}
+
+export function submitPayrollRuleSet(id: string, signal?: AbortSignal): Promise<PayrollRuleSet> {
+  return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/submit/`, {}, signal);
+}
+
+export function activatePayrollRuleSet(id: string, signal?: AbortSignal): Promise<PayrollRuleSet> {
+  return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/activate/`, {}, signal);
+}
+
+export function archivePayrollRuleSet(id: string, signal?: AbortSignal): Promise<PayrollRuleSet> {
+  return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/archive/`, {}, signal);
+}
 
 export function getEmployees(
   params?: { status?: string; role?: string; assignment?: string },
