@@ -2,8 +2,11 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   activatePayrollRuleSet,
   archivePayrollRuleSet,
+  confirmPayrollRuleSetFields,
   createPayrollRuleSet,
+  duplicatePayrollRuleSet,
   getPayrollRuleSets,
+  previewPayrollRuleSet,
   submitPayrollRuleSet,
   updatePayrollRuleSet,
 } from "../api";
@@ -75,6 +78,8 @@ export default function PayrollRulesPanel({ access }: { access: PayrollRulesAcce
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [simulationSalary, setSimulationSalary] = useState("1000000");
+  const [simulation, setSimulation] = useState<Record<string, string | boolean> | null>(null);
 
   const selected = useMemo(
     () => ruleSets.find((item) => item.id === selectedId) ?? null,
@@ -192,6 +197,51 @@ export default function PayrollRulesPanel({ access }: { access: PayrollRulesAcce
     }
   };
 
+  const confirmAllFields = async () => {
+    if (!selectedId || !selected) return;
+    const fields = Object.keys(selected.completeness_errors).reduce<Record<string, Record<string, string>>>((result, field) => {
+      result[field] = { source: "Confirmation DRH dans l’application" };
+      return result;
+    }, {});
+    try {
+      setSaving(true);
+      setError(null);
+      await confirmPayrollRuleSetFields(selectedId, fields);
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Confirmation impossible.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const duplicate = async () => {
+    if (!selectedId) return;
+    try {
+      setSaving(true);
+      const result = await duplicatePayrollRuleSet(selectedId);
+      setSelectedId(result.id);
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Duplication impossible.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const simulate = async () => {
+    if (!selectedId) return;
+    try {
+      setSaving(true);
+      setError(null);
+      setSimulation(await previewPayrollRuleSet(selectedId, simulationSalary));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Simulation impossible.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <div className="p-6 text-sm text-slate-500">Chargement des paramètres de paie…</div>;
 
   if (!access.canView) {
@@ -242,11 +292,14 @@ export default function PayrollRulesPanel({ access }: { access: PayrollRulesAcce
           </div>
           <label className="block text-sm font-medium text-slate-700">Note de validation<textarea value={form.validation_note} onChange={(e) => setField("validation_note", e.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" /></label>
           {selected && Object.keys(selected.completeness_errors).length > 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><strong>Champs restant à compléter :</strong><ul className="mt-1 list-disc pl-5">{Object.entries(selected.completeness_errors).map(([key, message]) => <li key={key}>{key} — {message}</li>)}</ul></div>}
+          {selected && <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong>Confirmation des champs</strong><p className="mt-1">Chaque valeur doit être confirmée par la DRH avant soumission.</p><div className="mt-2 flex flex-wrap gap-2">{Object.entries(selected.field_confirmations ?? {}).map(([key, metadata]) => <span key={key} className={`rounded-full px-2 py-1 text-xs ${metadata.status === "confirmed" ? "bg-emerald-100 text-emerald-800" : metadata.status === "proposed" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{key}: {metadata.status}</span>)}</div>{access.canEdit && selected.status === "draft" && <button type="button" disabled={saving || Object.keys(selected.completeness_errors).length === 0} onClick={() => void confirmAllFields()} className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">Confirmer les champs remplis</button>}</div>}
+          {selected && <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900"><strong>Simulation indicative</strong><p className="mt-1">Aucun bulletin ni montant comptable n’est créé.</p><div className="mt-2 flex gap-2"><input aria-label="Salaire brut à simuler" type="number" value={simulationSalary} onChange={(e) => setSimulationSalary(e.target.value)} className="w-44 rounded-lg border border-indigo-200 px-3 py-2" /><button type="button" disabled={saving} onClick={() => void simulate()} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Simuler</button></div>{simulation && <div className="mt-3 grid gap-1 text-xs sm:grid-cols-2">{Object.entries(simulation).filter(([key]) => key !== "simulation_only").map(([key, value]) => <span key={key}><strong>{key.replaceAll("_", " ")} :</strong> {value}</span>)}</div>}</div>}
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
             {access.canEdit && (!selected || selected.status === "draft") && <button disabled={saving} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Enregistrement…" : "Enregistrer le brouillon"}</button>}
             {access.canEdit && selected?.status === "draft" && <button type="button" disabled={saving} onClick={() => void runAction(submitPayrollRuleSet)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Soumettre à validation</button>}
             {access.canActivate && selected?.status === "pending_review" && <button type="button" disabled={saving} onClick={() => void runAction(activatePayrollRuleSet)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Activer la configuration</button>}
             {access.canEdit && selected && selected.status !== "active" && selected.status !== "archived" && <button type="button" disabled={saving} onClick={() => void runAction(archivePayrollRuleSet)} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">Archiver</button>}
+            {access.canEdit && selected && <button type="button" disabled={saving} onClick={() => void duplicate()} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50">Dupliquer la version</button>}
           </div>
         </form>
       </div>

@@ -2087,6 +2087,26 @@ export function archivePayrollRuleSet(id: string, signal?: AbortSignal): Promise
   return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/archive/`, {}, signal);
 }
 
+export function duplicatePayrollRuleSet(id: string, signal?: AbortSignal): Promise<PayrollRuleSet> {
+  return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/duplicate/`, {}, signal);
+}
+
+export function confirmPayrollRuleSetFields(
+  id: string,
+  fields: Record<string, Record<string, string>>,
+  signal?: AbortSignal,
+): Promise<PayrollRuleSet> {
+  return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/confirm-fields/`, { fields }, signal);
+}
+
+export function previewPayrollRuleSet(
+  id: string,
+  gross_salary: string,
+  signal?: AbortSignal,
+): Promise<{ simulation_only: boolean; gross_salary: string; employee_cnaps: string; employee_ostie: string; employer_fmfp: string; irsa: string; net_before_other_deductions: string }> {
+  return postAuthenticatedJson(`/api/v1/hr/rule-sets/${id}/preview/`, { gross_salary }, signal);
+}
+
 export function getEmployees(
   params?: { status?: string; role?: string; assignment?: string },
   signal?: AbortSignal,

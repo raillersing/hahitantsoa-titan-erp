@@ -27,6 +27,7 @@ const draft = {
   dns_format: {},
   ostie_format: {},
   collective_agreement: {},
+  field_confirmations: {},
   completeness_errors: { irsa_minimum: "À renseigner" },
   created_at: "2098-01-01T00:00:00Z",
   updated_at: "2098-01-01T00:00:00Z",

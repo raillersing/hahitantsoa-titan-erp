@@ -1630,6 +1630,7 @@ export type PayrollRuleSet = {
   dns_format: Record<string, unknown>;
   ostie_format: Record<string, unknown>;
   collective_agreement: Record<string, unknown>;
+  field_confirmations: Record<string, { status: "missing" | "proposed" | "confirmed"; source?: string; confirmed_at?: string; confirmed_by?: string }>;
   completeness_errors: Record<string, string>;
   created_at: string;
   updated_at: string;
@@ -1637,5 +1638,5 @@ export type PayrollRuleSet = {
 
 export type PayrollRuleSetCreatePayload = Omit<
   PayrollRuleSet,
-  "id" | "status" | "completeness_errors" | "created_at" | "updated_at"
+  "id" | "status" | "field_confirmations" | "completeness_errors" | "created_at" | "updated_at"
 >;
