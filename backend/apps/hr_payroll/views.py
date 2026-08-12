@@ -7,13 +7,14 @@ from django.http import Http404
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.hr_payroll.models import AdvanceRequest, Employee, LeaveRequest, PayrollRuleSet, PaySlip
 from apps.hr_payroll.payroll import PaySlipValidationError, validate_payslip
 from apps.hr_payroll.permissions import (
+    HasPayrollRecordsEditAccess,
+    HasPayrollRecordsViewAccess,
     HasPayrollRulesActivationAccess,
     HasPayrollRulesEditAccess,
     HasPayrollRulesViewAccess,
@@ -165,7 +166,12 @@ class PaySlipValidateAPIView(APIView):
 
 
 class EmployeeListCreateAPIView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
+
+    def perform_create(self, serializer):
+        if not HasPayrollRecordsEditAccess().has_permission(self.request, self):
+            self.permission_denied(self.request)
+        serializer.save()
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -187,7 +193,7 @@ class EmployeeListCreateAPIView(generics.ListCreateAPIView):
 
 
 class EmployeeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
     lookup_field = "pk"
 
     def get_serializer_class(self):
@@ -199,6 +205,8 @@ class EmployeeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
         return Employee.objects.all()
 
     def destroy(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
         instance = self.get_object()
         try:
             instance.delete()
@@ -209,12 +217,22 @@ class EmployeeRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def update(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
+        return super().update(request, *args, **kwargs)
+
 
 # ── PaySlip ─────────────────────────────────────────────────────────────────
 
 
 class PaySlipListCreateAPIView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
+
+    def perform_create(self, serializer):
+        if not HasPayrollRecordsEditAccess().has_permission(self.request, self):
+            self.permission_denied(self.request)
+        serializer.save()
 
     def get_serializer_class(self):
         return PaySlipSerializer
@@ -231,7 +249,7 @@ class PaySlipListCreateAPIView(generics.ListCreateAPIView):
 
 
 class PaySlipRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
     serializer_class = PaySlipSerializer
     lookup_field = "pk"
 
@@ -239,6 +257,8 @@ class PaySlipRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
         return PaySlip.objects.select_related("employee").all()
 
     def update(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
         instance = self.get_object()
         if instance.status != "draft":
             return Response(
@@ -248,6 +268,8 @@ class PaySlipRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
         instance = self.get_object()
         if instance.status != "draft":
             return Response(
@@ -261,7 +283,12 @@ class PaySlipRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView)
 
 
 class AdvanceRequestListCreateAPIView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
+
+    def perform_create(self, serializer):
+        if not HasPayrollRecordsEditAccess().has_permission(self.request, self):
+            self.permission_denied(self.request)
+        serializer.save()
 
     def get_serializer_class(self):
         return AdvanceRequestSerializer
@@ -278,19 +305,34 @@ class AdvanceRequestListCreateAPIView(generics.ListCreateAPIView):
 
 
 class AdvanceRequestRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
     serializer_class = AdvanceRequestSerializer
     lookup_field = "pk"
 
     def get_queryset(self):
         return AdvanceRequest.objects.select_related("employee").all()
 
+    def update(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
+        return super().destroy(request, *args, **kwargs)
+
 
 # ── LeaveRequest ────────────────────────────────────────────────────────────
 
 
 class LeaveRequestListCreateAPIView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
+
+    def perform_create(self, serializer):
+        if not HasPayrollRecordsEditAccess().has_permission(self.request, self):
+            self.permission_denied(self.request)
+        serializer.save()
 
     def get_serializer_class(self):
         return LeaveRequestSerializer
@@ -307,9 +349,19 @@ class LeaveRequestListCreateAPIView(generics.ListCreateAPIView):
 
 
 class LeaveRequestRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasPayrollRecordsViewAccess]
     serializer_class = LeaveRequestSerializer
     lookup_field = "pk"
 
     def get_queryset(self):
         return LeaveRequest.objects.select_related("employee").all()
+
+    def update(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if not HasPayrollRecordsEditAccess().has_permission(request, self):
+            self.permission_denied(request)
+        return super().destroy(request, *args, **kwargs)

@@ -61,6 +61,11 @@ def accountant_user():
     return user
 
 
+@pytest.fixture
+def regular_user():
+    return User.objects.create_user(username="regular", password="test-pass")
+
+
 def test_rule_set_requires_explicit_hr_or_finance_role(client):
     user = User.objects.create_user(username="regular", password="test-pass")
     client.force_login(user)
@@ -68,6 +73,37 @@ def test_rule_set_requires_explicit_hr_or_finance_role(client):
     response = client.get(LIST_URL)
 
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/api/v1/hr/employees/",
+        "/api/v1/hr/payslips/",
+        "/api/v1/hr/advances/",
+        "/api/v1/hr/leaves/",
+    ],
+)
+def test_legacy_hr_records_require_explicit_role(client, regular_user, url):
+    client.force_login(regular_user)
+
+    response = client.get(url)
+
+    assert response.status_code == 403
+
+
+def test_accountant_can_read_but_cannot_create_legacy_employee(client, accountant_user):
+    client.force_login(accountant_user)
+
+    read_response = client.get("/api/v1/hr/employees/")
+    create_response = client.post(
+        "/api/v1/hr/employees/",
+        {"first_name": "Jean", "last_name": "Rakoto", "role": "Agent"},
+        content_type="application/json",
+    )
+
+    assert read_response.status_code == 200
+    assert create_response.status_code == 403
 
 
 def test_current_rule_set_resolves_by_effective_date(client, accountant_user):
@@ -256,7 +292,7 @@ def test_payslip_validation_snapshots_active_rules(
     assert payslip.payroll_rule_snapshot == original_snapshot
 
 
-def test_validated_payslip_cannot_be_updated_or_deleted(client, accountant_user):
+def test_validated_payslip_cannot_be_updated_or_deleted(client, drh_user):
     rule_set = PayrollRuleSet.objects.create(
         **make_complete_payload(), status=PayrollRuleSetStatus.ACTIVE
     )
@@ -269,7 +305,7 @@ def test_validated_payslip_cannot_be_updated_or_deleted(client, accountant_user)
         payroll_rule_set=rule_set,
         payroll_rule_snapshot=rule_set.snapshot(),
     )
-    client.force_login(accountant_user)
+    client.force_login(drh_user)
     url = f"/api/v1/hr/payslips/{payslip.id}/"
 
     update_response = client.patch(url, {"gross_salary": "1"}, content_type="application/json")
@@ -280,7 +316,7 @@ def test_validated_payslip_cannot_be_updated_or_deleted(client, accountant_user)
     assert PaySlip.objects.filter(id=payslip.id).exists()
 
 
-def test_employee_with_validated_payslip_cannot_be_deleted(client, accountant_user):
+def test_employee_with_validated_payslip_cannot_be_deleted(client, drh_user):
     rule_set = PayrollRuleSet.objects.create(
         **make_complete_payload(), status=PayrollRuleSetStatus.ACTIVE
     )
@@ -293,7 +329,7 @@ def test_employee_with_validated_payslip_cannot_be_deleted(client, accountant_us
         payroll_rule_set=rule_set,
         payroll_rule_snapshot=rule_set.snapshot(),
     )
-    client.force_login(accountant_user)
+    client.force_login(drh_user)
 
     response = client.delete(f"/api/v1/hr/employees/{employee.id}/")
 
