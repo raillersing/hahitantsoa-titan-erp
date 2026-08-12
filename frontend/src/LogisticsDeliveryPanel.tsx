@@ -12,6 +12,7 @@ import {
   getLogisticsEventItemLines,
   getLogisticsEvents,
   getReservationDraftDocumentInstances,
+  getTitanClosedDays,
   getReservationDrafts,
   generateReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstancePdf,
@@ -19,7 +20,7 @@ import {
   transitionLogisticsEvent,
 } from "./api";
 import HandoverSignaturePanel from "./HandoverSignaturePanel";
-import type { InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft } from "./types";
+import type { InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft, TitanClosedDay } from "./types";
 
 const STATUS_LABELS: Record<LogisticsEvent["status"], string> = {
   planned: "Planifié",
@@ -43,6 +44,53 @@ function formatDateTime(value: string | null): string {
   return new Date(value).toLocaleString();
 }
 
+const TITAN_OPENING_HOUR = 6;
+const TITAN_CLOSING_HOUR = 22;
+type LogisticsBusinessScope = "titan" | "hahitantsoa";
+
+function localDateKey(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isTitanClosedDate(date: Date, closedDays: TitanClosedDay[]): boolean {
+  return date.getDay() === 0 || closedDays.some((closedDay) => closedDay.date === localDateKey(date));
+}
+
+function shiftToTitanWorkingDate(date: Date, direction: -1 | 1, closedDays: TitanClosedDay[]): Date {
+  const candidate = new Date(date);
+  while (isTitanClosedDate(candidate, closedDays)) {
+    candidate.setDate(candidate.getDate() + direction);
+  }
+  return candidate;
+}
+
+function defaultTitanSchedule(draft: ReservationDraft, operation: LogisticsEvent["operation"], closedDays: TitanClosedDay[]): string {
+  const anchor = new Date(draft.start_at);
+  anchor.setHours(0, 0, 0, 0);
+  anchor.setDate(anchor.getDate() + (operation === "return" ? 1 : -1));
+  const scheduledDate = shiftToTitanWorkingDate(anchor, operation === "return" ? 1 : -1, closedDays);
+  scheduledDate.setHours(TITAN_OPENING_HOUR, 0, 0, 0);
+  const offset = scheduledDate.getTimezoneOffset() * 60_000;
+  return new Date(scheduledDate.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function scheduleWarning(value: string, closedDays: TitanClosedDay[]): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Choisissez une date et une heure valides.";
+  const hour = date.getHours() + date.getMinutes() / 60;
+  if (hour < TITAN_OPENING_HOUR || hour > TITAN_CLOSING_HOUR) {
+    return "Les manœuvres Titan sont possibles entre 06:00 et 22:00.";
+  }
+  if (isTitanClosedDate(date, closedDays)) {
+    return "Cette date est fermée pour Titan. Choisissez un jour ouvré.";
+  }
+  return null;
+}
+
 type PassationState = {
   documentInstanceId: string | null;
   loading: boolean;
@@ -59,7 +107,8 @@ type ConfirmAction =
   | { type: "remove-line"; lineId: string }
   | { type: "transition"; action: "dispatch" | "complete" | "cancel" };
 
-export function LogisticsDeliveryPanel() {
+export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessScope?: LogisticsBusinessScope }) {
+  const isTitan = businessScope === "titan";
   const [events, setEvents] = useState<LogisticsEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [itemLines, setItemLines] = useState<LogisticsEventItemLine[]>([]);
@@ -86,6 +135,10 @@ export function LogisticsDeliveryPanel() {
   const [eventFilter, setEventFilter] = useState<LogisticsEvent["event_type"] | "all">("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [reservationDrafts, setReservationDrafts] = useState<ReservationDraft[]>([]);
+  const [closedDays, setClosedDays] = useState<TitanClosedDay[]>([]);
+  const [closedDaysLoading, setClosedDaysLoading] = useState(false);
+  const [closedDaysError, setClosedDaysError] = useState<string | null>(null);
+  const [scheduleTouched, setScheduleTouched] = useState(false);
   const [createForm, setCreateForm] = useState({
     reservation_draft: "",
     event_type: "delivery" as LogisticsEvent["event_type"],
@@ -100,6 +153,7 @@ export function LogisticsDeliveryPanel() {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const lineAbortRef = useRef<AbortController | null>(null);
+  const passationLoadRef = useRef(0);
 
   const reservationReferenceById = useMemo(
     () => new Map(reservationDrafts.map((draft) => [draft.id, draft.public_reference])),
@@ -182,7 +236,34 @@ export function LogisticsDeliveryPanel() {
     }
   }, []);
 
+  const loadClosedDays = useCallback(async (drafts: ReservationDraft[]) => {
+    if (!isTitan) {
+      setClosedDays([]);
+      setClosedDaysError(null);
+      setClosedDaysLoading(false);
+      return;
+    }
+
+    const years = new Set([new Date().getFullYear(), ...drafts.flatMap((draft) => [
+      new Date(draft.start_at).getFullYear(),
+      new Date(draft.end_at).getFullYear(),
+    ])]);
+    setClosedDaysLoading(true);
+    setClosedDaysError(null);
+    try {
+      const results = await Promise.all([...years].map((year) => getTitanClosedDays(year)));
+      const uniqueDays = new Map(results.flat().map((closedDay) => [closedDay.date, closedDay]));
+      setClosedDays([...uniqueDays.values()]);
+    } catch (err: unknown) {
+      setClosedDays([]);
+      setClosedDaysError(err instanceof Error ? err.message : "Impossible de vérifier les jours fériés Titan.");
+    } finally {
+      setClosedDaysLoading(false);
+    }
+  }, [isTitan]);
+
   const loadPassationDocument = useCallback(async (event: LogisticsEvent) => {
+    const requestId = ++passationLoadRef.current;
     if (!event.reservation_draft) {
       setPassationState({ documentInstanceId: null, loading: false, error: null });
       return;
@@ -190,6 +271,7 @@ export function LogisticsDeliveryPanel() {
 
     try {
       const instances = await getReservationDraftDocumentInstances(event.reservation_draft);
+      if (requestId !== passationLoadRef.current) return;
       const deliveryNote = instances.find(
         (document) =>
           ["titan.delivery_note.v1", "hahitantsoa.delivery_note.v1"].includes(document.template_key) &&
@@ -201,6 +283,7 @@ export function LogisticsDeliveryPanel() {
         error: null,
       });
     } catch (err: unknown) {
+      if (requestId !== passationLoadRef.current) return;
       setPassationState({
         documentInstanceId: null,
         loading: false,
@@ -226,6 +309,28 @@ export function LogisticsDeliveryPanel() {
   useEffect(() => {
     void loadReservationDrafts();
   }, [loadReservationDrafts]);
+
+  useEffect(() => {
+    if (reservationDrafts.length > 0) {
+      void loadClosedDays(reservationDrafts);
+    } else {
+      setClosedDays([]);
+      setClosedDaysError(null);
+      setClosedDaysLoading(false);
+    }
+  }, [loadClosedDays, reservationDrafts]);
+
+  const selectedCreateDraft = reservationDrafts.find((draft) => draft.id === createForm.reservation_draft) ?? null;
+  const createScheduleWarning = isTitan ? scheduleWarning(createForm.scheduled_at, closedDays) : null;
+  const createScheduleUnavailable = isTitan && Boolean(selectedCreateDraft) && (closedDaysLoading || Boolean(closedDaysError));
+
+  useEffect(() => {
+    if (!isTitan || !selectedCreateDraft || scheduleTouched || closedDaysLoading || closedDaysError) return;
+    setCreateForm((current) => ({
+      ...current,
+      scheduled_at: defaultTitanSchedule(selectedCreateDraft, current.operation, closedDays),
+    }));
+  }, [closedDays, closedDaysError, closedDaysLoading, createForm.operation, isTitan, scheduleTouched, selectedCreateDraft]);
 
   useEffect(() => {
     if (!selectedEventId) {
@@ -315,6 +420,7 @@ export function LogisticsDeliveryPanel() {
       return;
     }
 
+    passationLoadRef.current += 1;
     setPassationState({ documentInstanceId: null, loading: true, error: null });
     try {
       const response = await completeLogisticsPassation(selectedEvent.id, {});
@@ -341,8 +447,8 @@ export function LogisticsDeliveryPanel() {
     try {
       await createLogisticsEvent({
         reservation_draft: createForm.reservation_draft,
-                event_type: createForm.event_type,
-                operation: createForm.operation,
+        event_type: createForm.event_type,
+        operation: createForm.operation,
         scheduled_at: createForm.scheduled_at || null,
         address: createForm.address || undefined,
         contact_name: createForm.contact_name || undefined,
@@ -351,6 +457,7 @@ export function LogisticsDeliveryPanel() {
         signature_required: createForm.signature_required,
       });
       setShowCreateForm(false);
+      setScheduleTouched(false);
       setCreateForm({
         reservation_draft: "",
         event_type: "delivery",
@@ -483,7 +590,7 @@ export function LogisticsDeliveryPanel() {
           <div className="ops-inline-form__row">
             <label>
               Réservation
-              <select value={createForm.reservation_draft} onChange={(e) => setCreateForm((f) => ({ ...f, reservation_draft: e.target.value }))} required>
+              <select value={createForm.reservation_draft} onChange={(e) => { setScheduleTouched(false); setCreateForm((f) => ({ ...f, reservation_draft: e.target.value })); }} required>
                 <option value="">Sélectionner une réservation</option>
                 {reservationDrafts.map((d) => (
                   <option key={d.id} value={d.id}>{d.public_reference} — {d.customer_display_name}</option>
@@ -501,14 +608,14 @@ export function LogisticsDeliveryPanel() {
             </label>
             <label>
               Opération
-              <select value={createForm.operation} onChange={(e) => setCreateForm((f) => ({ ...f, operation: e.target.value as LogisticsEvent["operation"] }))}>
+              <select value={createForm.operation} onChange={(e) => { setScheduleTouched(false); setCreateForm((f) => ({ ...f, operation: e.target.value as LogisticsEvent["operation"] })); }}>
                 <option value="outbound">Sortie / livraison (J-1)</option>
                 <option value="return">Retour / récupération (J+1)</option>
               </select>
             </label>
             <label>
               Planifié le
-              <input type="datetime-local" value={createForm.scheduled_at} onChange={(e) => setCreateForm((f) => ({ ...f, scheduled_at: e.target.value }))} />
+              <input type="datetime-local" value={createForm.scheduled_at} onChange={(e) => { setScheduleTouched(true); setCreateForm((f) => ({ ...f, scheduled_at: e.target.value })); }} />
             </label>
           </div>
           <div className="ops-inline-form__row">
@@ -536,7 +643,11 @@ export function LogisticsDeliveryPanel() {
             </label>
           </div>
           <div className="ops-inline-form__actions">
-            <button className="ops-button" type="submit" disabled={actionLoading || !createForm.reservation_draft}>
+            {isTitan && selectedCreateDraft ? <p className="ops-section-helper">Titan : sortie/livraison le jour ouvré précédent, retour/récupération le jour ouvré suivant. Dimanche et jours fériés sont exclus automatiquement.</p> : null}
+            {isTitan && closedDaysLoading && selectedCreateDraft ? <p className="ops-section-helper">Vérification des jours fériés Titan...</p> : null}
+            {isTitan && closedDaysError && selectedCreateDraft ? <p className="notice error-notice" role="alert">{closedDaysError} Réessayez avant de planifier l'opération.</p> : null}
+            {createScheduleWarning ? <p className="notice error-notice" role="alert">{createScheduleWarning}</p> : null}
+            <button className="ops-button" type="submit" disabled={actionLoading || !createForm.reservation_draft || createScheduleUnavailable || Boolean(createScheduleWarning)}>
               {actionLoading ? "Création..." : "Créer l'événement"}
             </button>
           </div>

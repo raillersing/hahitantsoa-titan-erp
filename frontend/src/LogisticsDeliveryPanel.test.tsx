@@ -83,6 +83,7 @@ describe("LogisticsDeliveryPanel", () => {
   beforeEach(() => {
     vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(false);
     vi.spyOn(api, "getReservationDrafts").mockResolvedValue([]);
+    vi.spyOn(api, "getTitanClosedDays").mockResolvedValue([]);
     vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([]);
     vi.spyOn(api, "getInventoryItems").mockResolvedValue(MOCK_ITEMS);
     vi.spyOn(api, "getLogisticsEventItemLines").mockResolvedValue(MOCK_LINES);
@@ -180,6 +181,116 @@ describe("LogisticsDeliveryPanel", () => {
         expect.objectContaining({ new_status: "dispatched" }),
       );
     });
+  });
+
+  it("defaults Titan outbound operations to the previous working day and rejects closed hours", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValue([{
+      id: "rd-1111",
+      public_reference: "RES-2026-0042",
+      status: "draft",
+      customer_id: "customer-1",
+      customer_display_name: "John",
+      start_at: "2026-06-27T08:00:00Z",
+      end_at: "2026-06-27T18:00:00Z",
+      notes: "",
+      contract_signed_at: null,
+      contract_signed_by_id: null,
+      required_deposit_received_at: null,
+      required_deposit_received_by_id: null,
+      confirmed_at: null,
+      confirmed_by_id: null,
+      cancelled_at: null,
+      cancelled_by_id: null,
+      lines: [],
+      created_at: "",
+      updated_at: "",
+    }]);
+    vi.spyOn(api, "getTitanClosedDays").mockResolvedValue([{ id: "holiday", date: "2026-06-26", label: "Férié" }]);
+
+    render(<LogisticsDeliveryPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: "+ Nouvel événement" }));
+    fireEvent.change(screen.getByLabelText("Réservation"), { target: { value: "rd-1111" } });
+
+    const schedule = await screen.findByLabelText("Planifié le") as HTMLInputElement;
+    await waitFor(() => expect(schedule.value).toMatch(/T06:00$/));
+    expect(screen.getByText(/jour ouvré précédent/)).toBeInTheDocument();
+
+    fireEvent.change(schedule, { target: { value: "2026-06-25T05:00" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("06:00 et 22:00");
+    expect(screen.getByRole("button", { name: "Créer l'événement" })).toBeDisabled();
+  });
+
+  it("defaults Titan returns from the reservation start date to the next working day", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValue([{
+      id: "rd-1111",
+      public_reference: "RES-2026-0042",
+      status: "draft",
+      customer_id: "customer-1",
+      customer_display_name: "John",
+      start_at: "2026-06-25T08:00:00Z",
+      end_at: "2026-06-27T18:00:00Z",
+      notes: "",
+      contract_signed_at: null,
+      contract_signed_by_id: null,
+      required_deposit_received_at: null,
+      required_deposit_received_by_id: null,
+      confirmed_at: null,
+      confirmed_by_id: null,
+      cancelled_at: null,
+      cancelled_by_id: null,
+      lines: [],
+      created_at: "",
+      updated_at: "",
+    }]);
+    vi.spyOn(api, "getTitanClosedDays").mockResolvedValue([{ id: "holiday", date: "2026-06-26", label: "Férié" }]);
+
+    render(<LogisticsDeliveryPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: "+ Nouvel événement" }));
+    fireEvent.change(screen.getByLabelText("Réservation"), { target: { value: "rd-1111" } });
+    fireEvent.change(screen.getByLabelText("Opération"), { target: { value: "return" } });
+
+    const schedule = await screen.findByLabelText("Planifié le") as HTMLInputElement;
+    await waitFor(() => expect(schedule.value).toMatch(/2026-06-27T06:00$/));
+    expect(screen.getByText(/jour ouvré suivant/)).toBeInTheDocument();
+  });
+
+  it("does not apply Titan closures to the Hahitantsoa logistics panel", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([]);
+    vi.spyOn(api, "getReservationDrafts").mockResolvedValue([{
+      id: "rd-1111",
+      public_reference: "RES-2026-0042",
+      status: "draft",
+      customer_id: "customer-1",
+      customer_display_name: "John",
+      start_at: "2026-06-27T08:00:00Z",
+      end_at: "2026-06-27T18:00:00Z",
+      notes: "",
+      contract_signed_at: null,
+      contract_signed_by_id: null,
+      required_deposit_received_at: null,
+      required_deposit_received_by_id: null,
+      confirmed_at: null,
+      confirmed_by_id: null,
+      cancelled_at: null,
+      cancelled_by_id: null,
+      lines: [],
+      created_at: "",
+      updated_at: "",
+    }]);
+    const closedDaysSpy = vi.spyOn(api, "getTitanClosedDays");
+
+    render(<LogisticsDeliveryPanel businessScope="hahitantsoa" />);
+    fireEvent.click(await screen.findByRole("button", { name: "+ Nouvel événement" }));
+    fireEvent.change(screen.getByLabelText("Réservation"), { target: { value: "rd-1111" } });
+
+    expect(await screen.findByLabelText("Planifié le")).toBeInTheDocument();
+    expect(closedDaysSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText(/jour ouvré précédent/)).not.toBeInTheDocument();
   });
 
   it("adds and removes logistics item lines when write access is granted", async () => {

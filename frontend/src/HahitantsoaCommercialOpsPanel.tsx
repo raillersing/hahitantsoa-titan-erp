@@ -171,7 +171,7 @@ export function HahitantsoaCommercialOpsPanel() {
               <BillingInvoicePanel />
             ) : null}
             {sec.id === "logistics" && sec.status !== "pending_backend" ? (
-              <LogisticsDeliveryPanel />
+              <LogisticsDeliveryPanel businessScope="hahitantsoa" />
             ) : null}
             {sec.id === "returns" && sec.status !== "pending_backend" ? (
               <ReturnsHandlingPanel />
