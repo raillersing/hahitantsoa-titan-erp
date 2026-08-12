@@ -9,9 +9,12 @@ from apps.hr_payroll.views import (
     LeaveRequestRetrieveUpdateDestroyAPIView,
     PayrollRuleSetActivateAPIView,
     PayrollRuleSetArchiveAPIView,
+    PayrollRuleSetConfirmFieldsAPIView,
     PayrollRuleSetCurrentAPIView,
     PayrollRuleSetDetailAPIView,
+    PayrollRuleSetDuplicateAPIView,
     PayrollRuleSetListCreateAPIView,
+    PayrollRuleSetPreviewAPIView,
     PayrollRuleSetSubmitAPIView,
     PaySlipListCreateAPIView,
     PaySlipRetrieveUpdateDestroyAPIView,
@@ -44,6 +47,21 @@ urlpatterns = [
         "rule-sets/<uuid:pk>/archive/",
         PayrollRuleSetArchiveAPIView.as_view(),
         name="hr-payroll-rule-set-archive",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/duplicate/",
+        PayrollRuleSetDuplicateAPIView.as_view(),
+        name="hr-payroll-rule-set-duplicate",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/confirm-fields/",
+        PayrollRuleSetConfirmFieldsAPIView.as_view(),
+        name="hr-payroll-rule-set-confirm-fields",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/preview/",
+        PayrollRuleSetPreviewAPIView.as_view(),
+        name="hr-payroll-rule-set-preview",
     ),
     # Employees
     path(

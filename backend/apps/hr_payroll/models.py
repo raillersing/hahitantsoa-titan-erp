@@ -15,6 +15,31 @@ class PayrollRuleSetStatus(models.TextChoices):
     ARCHIVED = "archived", "Archivé"
 
 
+class PayrollFieldConfirmationStatus(models.TextChoices):
+    MISSING = "missing", "Manquant"
+    PROPOSED = "proposed", "Proposé"
+    CONFIRMED = "confirmed", "Confirmé par la DRH"
+
+
+PAYROLL_CONFIRMABLE_FIELDS = {
+    "irsa_brackets",
+    "irsa_minimum",
+    "irsa_abatement",
+    "dependent_allowance",
+    "contribution_base_definition",
+    "cnaps_employee_rate",
+    "cnaps_employer_rate",
+    "ostie_employee_rate",
+    "ostie_employer_rate",
+    "fmfp_rate",
+    "overtime_rules",
+    "payslip_contexture",
+    "dns_format",
+    "ostie_format",
+    "collective_agreement",
+}
+
+
 class PayrollRuleSet(UUIDModel, TimestampedModel, AuditableModel):
     """Versioned employer-supplied rules used by a future payroll run."""
 
@@ -46,6 +71,7 @@ class PayrollRuleSet(UUIDModel, TimestampedModel, AuditableModel):
     dns_format = models.JSONField(default=dict, blank=True)
     ostie_format = models.JSONField(default=dict, blank=True)
     collective_agreement = models.JSONField(default=dict, blank=True)
+    field_confirmations = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["-effective_from", "-created_at"]
@@ -84,6 +110,11 @@ class PayrollRuleSet(UUIDModel, TimestampedModel, AuditableModel):
         for field, value in required_fields.items():
             if value in (None, "", [], {}):
                 errors[field] = "Ce champ doit être renseigné avant activation."
+            elif (
+                self.field_confirmations.get(field, {}).get("status")
+                != PayrollFieldConfirmationStatus.CONFIRMED
+            ):
+                errors[field] = "Ce champ doit être confirmé par la DRH avant activation."
 
         if self.irsa_brackets:
             previous_upper: Decimal | None = None
@@ -164,6 +195,7 @@ class PayrollRuleSet(UUIDModel, TimestampedModel, AuditableModel):
             "dns_format": self.dns_format,
             "ostie_format": self.ostie_format,
             "collective_agreement": self.collective_agreement,
+            "field_confirmations": self.field_confirmations,
         }
         result.update(
             {

@@ -4,6 +4,7 @@ from apps.hr_payroll.models import (
     AdvanceRequest,
     Employee,
     LeaveRequest,
+    PayrollFieldConfirmationStatus,
     PayrollRuleSet,
     PaySlip,
 )
@@ -38,6 +39,7 @@ class PayrollRuleSetSerializer(serializers.ModelSerializer):
             "dns_format",
             "ostie_format",
             "collective_agreement",
+            "field_confirmations",
             "completeness_errors",
             "created_by",
             "updated_by",
@@ -47,12 +49,26 @@ class PayrollRuleSetSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "status",
+            "field_confirmations",
             "completeness_errors",
             "created_by",
             "updated_by",
             "created_at",
             "updated_at",
         ]
+
+    def validate_field_confirmations(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Les confirmations doivent être un objet JSON.")
+        for field, metadata in value.items():
+            if not isinstance(metadata, dict):
+                raise serializers.ValidationError({field: "Les métadonnées doivent être un objet."})
+            if (
+                metadata.get("status", PayrollFieldConfirmationStatus.MISSING)
+                not in PayrollFieldConfirmationStatus.values
+            ):
+                raise serializers.ValidationError({field: "Statut de confirmation invalide."})
+        return value
 
     def get_completeness_errors(self, obj: PayrollRuleSet) -> dict[str, str]:
         return obj.configuration_errors()

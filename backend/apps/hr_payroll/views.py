@@ -10,7 +10,14 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.hr_payroll.models import AdvanceRequest, Employee, LeaveRequest, PayrollRuleSet, PaySlip
+from apps.hr_payroll.models import (
+    PAYROLL_CONFIRMABLE_FIELDS,
+    AdvanceRequest,
+    Employee,
+    LeaveRequest,
+    PayrollRuleSet,
+    PaySlip,
+)
 from apps.hr_payroll.payroll import PaySlipValidationError, validate_payslip
 from apps.hr_payroll.permissions import (
     HasPayrollRecordsEditAccess,
@@ -31,6 +38,9 @@ from apps.hr_payroll.services import (
     PayrollRuleSetWorkflowError,
     activate_rule_set,
     archive_rule_set,
+    confirm_rule_set_fields,
+    duplicate_rule_set,
+    preview_rule_set,
     submit_rule_set,
 )
 
@@ -74,6 +84,17 @@ class PayrollRuleSetDetailAPIView(generics.RetrieveUpdateAPIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save(updated_by=request.user)
+        changed_fields = set(request.data).intersection(PAYROLL_CONFIRMABLE_FIELDS)
+        if changed_fields:
+            confirmations = dict(instance.field_confirmations or {})
+            for field in changed_fields:
+                metadata = dict(confirmations.get(field, {}))
+                metadata["status"] = "proposed"
+                metadata.pop("confirmed_at", None)
+                metadata.pop("confirmed_by", None)
+                confirmations[field] = metadata
+            instance.field_confirmations = confirmations
+            instance.save(update_fields=["field_confirmations", "updated_at"])
         return Response(serializer.data)
 
 
@@ -143,6 +164,59 @@ class PayrollRuleSetActivateAPIView(PayrollRuleSetActionAPIView):
 class PayrollRuleSetArchiveAPIView(PayrollRuleSetActionAPIView):
     permission_classes = [HasPayrollRulesEditAccess]
     action = "archive"
+
+
+class PayrollRuleSetDuplicateAPIView(APIView):
+    permission_classes = [HasPayrollRulesEditAccess]
+
+    def post(self, request, pk):
+        rule_set = PayrollRuleSet.objects.filter(pk=pk).first()
+        if rule_set is None:
+            return Response(
+                {"detail": "Configuration introuvable."}, status=status.HTTP_404_NOT_FOUND
+            )
+        result = duplicate_rule_set(rule_set=rule_set, actor=request.user)
+        return Response(PayrollRuleSetSerializer(result).data, status=status.HTTP_201_CREATED)
+
+
+class PayrollRuleSetConfirmFieldsAPIView(APIView):
+    permission_classes = [HasPayrollRulesEditAccess]
+
+    def post(self, request, pk):
+        rule_set = PayrollRuleSet.objects.filter(pk=pk).first()
+        if rule_set is None:
+            return Response(
+                {"detail": "Configuration introuvable."}, status=status.HTTP_404_NOT_FOUND
+            )
+        fields = request.data.get("fields")
+        if not isinstance(fields, dict) or not fields:
+            return Response(
+                {"detail": "Le dictionnaire fields est obligatoire."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            result = confirm_rule_set_fields(rule_set=rule_set, fields=fields, actor=request.user)
+        except PayrollRuleSetWorkflowError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(PayrollRuleSetSerializer(result).data)
+
+
+class PayrollRuleSetPreviewAPIView(APIView):
+    permission_classes = [HasPayrollRulesViewAccess]
+
+    def post(self, request, pk):
+        rule_set = PayrollRuleSet.objects.filter(pk=pk).first()
+        if rule_set is None:
+            return Response(
+                {"detail": "Configuration introuvable."}, status=status.HTTP_404_NOT_FOUND
+            )
+        try:
+            result = preview_rule_set(
+                rule_set=rule_set, gross_salary=request.data.get("gross_salary")
+            )
+        except PayrollRuleSetWorkflowError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result)
 
 
 class PaySlipValidateAPIView(APIView):

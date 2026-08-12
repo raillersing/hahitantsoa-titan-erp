@@ -19,7 +19,7 @@ PAYSLIP_VALIDATE_URL = "/api/v1/hr/payslips/{}/validate/"
 
 
 def make_complete_payload(*, effective_from: str = "2099-01-01") -> dict:
-    return {
+    payload = {
         "label": "Configuration entreprise 2099",
         "effective_from": effective_from,
         "source_reference": "Référence DRH à compléter",
@@ -39,6 +39,27 @@ def make_complete_payload(*, effective_from: str = "2099-01-01") -> dict:
         "ostie_format": {"source": "DRH"},
         "collective_agreement": {"source": "DRH"},
     }
+    payload["field_confirmations"] = {
+        field: {"status": "confirmed", "source": "test"}
+        for field in (
+            "irsa_brackets",
+            "irsa_minimum",
+            "irsa_abatement",
+            "dependent_allowance",
+            "contribution_base_definition",
+            "cnaps_employee_rate",
+            "cnaps_employer_rate",
+            "ostie_employee_rate",
+            "ostie_employer_rate",
+            "fmfp_rate",
+            "overtime_rules",
+            "payslip_contexture",
+            "dns_format",
+            "ostie_format",
+            "collective_agreement",
+        )
+    }
+    return payload
 
 
 def create_role(*, slug: str, name: str) -> ApplicationRole:
@@ -142,13 +163,27 @@ def test_current_rule_set_rejects_invalid_date(client, accountant_user):
 
 def test_drh_can_create_draft_and_submit(client, drh_user, django_capture_on_commit_callbacks):
     client.force_login(drh_user)
-    response = client.post(LIST_URL, make_complete_payload(), content_type="application/json")
+    payload = make_complete_payload()
+    payload.pop("field_confirmations")
+    response = client.post(LIST_URL, payload, content_type="application/json")
 
     assert response.status_code == 201
     rule_set_id = response.json()["id"]
     rule_set = PayrollRuleSet.objects.get(id=rule_set_id)
     assert rule_set.status == PayrollRuleSetStatus.DRAFT
-    assert response.json()["completeness_errors"] == {}
+
+    confirmation = client.post(
+        f"{LIST_URL}{rule_set_id}/confirm-fields/",
+        {
+            "fields": {
+                field: {"source": "Confirmation DRH de test"}
+                for field in make_complete_payload()["field_confirmations"]
+            }
+        },
+        content_type="application/json",
+    )
+    assert confirmation.status_code == 200
+    assert confirmation.json()["completeness_errors"] == {}
 
     with django_capture_on_commit_callbacks(execute=True):
         response = client.post(f"{LIST_URL}{rule_set_id}/submit/", content_type="application/json")
@@ -156,6 +191,60 @@ def test_drh_can_create_draft_and_submit(client, drh_user, django_capture_on_com
     assert response.status_code == 200
     assert response.json()["status"] == PayrollRuleSetStatus.PENDING_REVIEW
     assert AuditEvent.objects.filter(action="hr_payroll.rule_set_submitted").exists()
+
+
+def test_drh_can_confirm_fields_and_duplicate_rule_set(client, drh_user):
+    source = PayrollRuleSet.objects.create(
+        **make_complete_payload(), status=PayrollRuleSetStatus.DRAFT
+    )
+    client.force_login(drh_user)
+
+    confirmation = client.post(
+        f"{LIST_URL}{source.id}/confirm-fields/",
+        {"fields": {"irsa_minimum": {"source": "DGI 2026"}}},
+        content_type="application/json",
+    )
+    duplicate = client.post(f"{LIST_URL}{source.id}/duplicate/", content_type="application/json")
+
+    assert confirmation.status_code == 200
+    assert confirmation.json()["field_confirmations"]["irsa_minimum"]["status"] == "confirmed"
+    assert duplicate.status_code == 201
+    assert duplicate.json()["status"] == PayrollRuleSetStatus.DRAFT
+    assert duplicate.json()["field_confirmations"]["irsa_minimum"]["status"] == "proposed"
+
+
+def test_editing_confirmed_value_requires_new_confirmation(client, drh_user):
+    rule_set = PayrollRuleSet.objects.create(
+        **make_complete_payload(), status=PayrollRuleSetStatus.DRAFT
+    )
+    client.force_login(drh_user)
+
+    response = client.patch(
+        f"{LIST_URL}{rule_set.id}/",
+        {"irsa_minimum": "2000"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["field_confirmations"]["irsa_minimum"]["status"] == "proposed"
+
+
+def test_preview_is_simulation_only(client, accountant_user):
+    rule_set = PayrollRuleSet.objects.create(
+        **make_complete_payload(), status=PayrollRuleSetStatus.ACTIVE
+    )
+    rule_set.refresh_from_db()
+    client.force_login(accountant_user)
+
+    response = client.post(
+        f"{LIST_URL}{rule_set.id}/preview/",
+        {"gross_salary": "1000000"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["simulation_only"] is True
+    assert PaySlip.objects.count() == 0
 
 
 def test_accountant_can_activate_submitted_rules_and_close_open_period(
