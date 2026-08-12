@@ -7,11 +7,44 @@ from apps.hr_payroll.views import (
     EmployeeRetrieveUpdateDestroyAPIView,
     LeaveRequestListCreateAPIView,
     LeaveRequestRetrieveUpdateDestroyAPIView,
+    PayrollRuleSetActivateAPIView,
+    PayrollRuleSetArchiveAPIView,
+    PayrollRuleSetCurrentAPIView,
+    PayrollRuleSetDetailAPIView,
+    PayrollRuleSetListCreateAPIView,
+    PayrollRuleSetSubmitAPIView,
     PaySlipListCreateAPIView,
     PaySlipRetrieveUpdateDestroyAPIView,
+    PaySlipValidateAPIView,
 )
 
 urlpatterns = [
+    path("rule-sets/", PayrollRuleSetListCreateAPIView.as_view(), name="hr-payroll-rule-set-list"),
+    path(
+        "rule-sets/current/",
+        PayrollRuleSetCurrentAPIView.as_view(),
+        name="hr-payroll-rule-set-current",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/",
+        PayrollRuleSetDetailAPIView.as_view(),
+        name="hr-payroll-rule-set-detail",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/submit/",
+        PayrollRuleSetSubmitAPIView.as_view(),
+        name="hr-payroll-rule-set-submit",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/activate/",
+        PayrollRuleSetActivateAPIView.as_view(),
+        name="hr-payroll-rule-set-activate",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/archive/",
+        PayrollRuleSetArchiveAPIView.as_view(),
+        name="hr-payroll-rule-set-archive",
+    ),
     # Employees
     path(
         "employees/",
@@ -33,6 +66,11 @@ urlpatterns = [
         "payslips/<uuid:pk>/",
         PaySlipRetrieveUpdateDestroyAPIView.as_view(),
         name="hr-payslip-detail",
+    ),
+    path(
+        "payslips/<uuid:pk>/validate/",
+        PaySlipValidateAPIView.as_view(),
+        name="hr-payslip-validate",
     ),
     # Advance Requests
     path(

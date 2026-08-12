@@ -18,6 +18,7 @@ class CompanyRole(StrEnum):
     CLEANER = "cleaner"
     LOGISTICS_MANAGER = "logistics_manager"
     ACCOUNTANT = "accountant"
+    HR_MANAGER = "hr_manager"
 
 
 ROLE_GROUP_NAME_BY_ROLE: dict[IdentityRole, str] = {
@@ -63,5 +64,11 @@ COMPANY_ROLE_CATALOG: dict[CompanyRole, dict[str, str]] = {
     CompanyRole.ACCOUNTANT: {
         "name": "Comptable",
         "description": "Responsable de la comptabilité.",
+    },
+    CompanyRole.HR_MANAGER: {
+        "name": "Responsable RH / DRH",
+        "description": (
+            "Responsable des ressources humaines et de la préparation des règles de paie."
+        ),
     },
 }
