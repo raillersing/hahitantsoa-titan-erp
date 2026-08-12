@@ -4,6 +4,8 @@ import {
   getPaySlips,
   getAdvanceRequests,
   getLeaveRequests,
+  getCurrentPayrollRuleSet,
+  ApiError,
 } from "../api";
 import type {
   Employee,
@@ -11,9 +13,13 @@ import type {
   AdvanceRequest,
   LeaveRequest,
 } from "../types";
+import type { SessionUser } from "../api";
+import PayrollRulesPanel from "./PayrollRulesPanel";
+import type { PayrollRuleSet } from "../types";
 
 interface HRPayrollPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  user: SessionUser;
 }
 
 const PAYSLIP_STATUS: Record<string, string> = {
@@ -43,7 +49,13 @@ const STATUS_BADGE: Record<string, string> = {
   rejected: "bg-red-50 text-red-700",
 };
 
-export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
+export default function HRPayrollPage({ onNavigate, user }: HRPayrollPageProps) {
+  const roles = new Set(user.roles);
+  const payrollAccess = {
+    canView: user.is_staff || ["hr_manager", "accountant", "owner_manager"].some((role) => roles.has(role)),
+    canEdit: user.is_staff || ["hr_manager", "owner_manager"].some((role) => roles.has(role)),
+    canActivate: user.is_staff || ["accountant", "owner_manager"].some((role) => roles.has(role)),
+  };
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payslips, setPayslips] = useState<PaySlip[]>([]);
   const [advances, setAdvances] = useState<AdvanceRequest[]>([]);
@@ -53,6 +65,8 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
   const [activeTab, setActiveTab] = useState<"payslips" | "advances" | "leaves">(
     "payslips"
   );
+  const [currentRuleSet, setCurrentRuleSet] = useState<PayrollRuleSet | null>(null);
+  const [ruleSetUnavailable, setRuleSetUnavailable] = useState(false);
 
   const loadAll = useCallback(async () => {
     try {
@@ -68,6 +82,17 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
       setPayslips(psData);
       setAdvances(advData);
       setLeaves(leaveData);
+      setCurrentRuleSet(null);
+      setRuleSetUnavailable(false);
+      try {
+        setCurrentRuleSet(await getCurrentPayrollRuleSet());
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) {
+          setRuleSetUnavailable(true);
+        } else {
+          throw err;
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Erreur lors du chargement.");
     } finally {
@@ -122,6 +147,16 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
           </button>
         </div>
       )}
+
+      {currentRuleSet ? (
+        <div className="mb-6 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
+          <strong>Configuration de paie active :</strong> {currentRuleSet.label} · applicable depuis {currentRuleSet.effective_from}
+        </div>
+      ) : ruleSetUnavailable ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Aucune configuration de paie active ne couvre la date actuelle. Les bulletins peuvent rester en brouillon, mais leur validation est bloquée.
+        </div>
+      ) : null}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -361,6 +396,7 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
           </>
         )}
       </div>
+      <PayrollRulesPanel access={payrollAccess} />
     </div>
   );
 }
