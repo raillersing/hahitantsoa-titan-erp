@@ -7,11 +7,62 @@ from apps.hr_payroll.views import (
     EmployeeRetrieveUpdateDestroyAPIView,
     LeaveRequestListCreateAPIView,
     LeaveRequestRetrieveUpdateDestroyAPIView,
+    PayrollRuleSetActivateAPIView,
+    PayrollRuleSetArchiveAPIView,
+    PayrollRuleSetConfirmFieldsAPIView,
+    PayrollRuleSetCurrentAPIView,
+    PayrollRuleSetDetailAPIView,
+    PayrollRuleSetDuplicateAPIView,
+    PayrollRuleSetListCreateAPIView,
+    PayrollRuleSetPreviewAPIView,
+    PayrollRuleSetSubmitAPIView,
     PaySlipListCreateAPIView,
     PaySlipRetrieveUpdateDestroyAPIView,
+    PaySlipValidateAPIView,
 )
 
 urlpatterns = [
+    path("rule-sets/", PayrollRuleSetListCreateAPIView.as_view(), name="hr-payroll-rule-set-list"),
+    path(
+        "rule-sets/current/",
+        PayrollRuleSetCurrentAPIView.as_view(),
+        name="hr-payroll-rule-set-current",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/",
+        PayrollRuleSetDetailAPIView.as_view(),
+        name="hr-payroll-rule-set-detail",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/submit/",
+        PayrollRuleSetSubmitAPIView.as_view(),
+        name="hr-payroll-rule-set-submit",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/activate/",
+        PayrollRuleSetActivateAPIView.as_view(),
+        name="hr-payroll-rule-set-activate",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/archive/",
+        PayrollRuleSetArchiveAPIView.as_view(),
+        name="hr-payroll-rule-set-archive",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/duplicate/",
+        PayrollRuleSetDuplicateAPIView.as_view(),
+        name="hr-payroll-rule-set-duplicate",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/confirm-fields/",
+        PayrollRuleSetConfirmFieldsAPIView.as_view(),
+        name="hr-payroll-rule-set-confirm-fields",
+    ),
+    path(
+        "rule-sets/<uuid:pk>/preview/",
+        PayrollRuleSetPreviewAPIView.as_view(),
+        name="hr-payroll-rule-set-preview",
+    ),
     # Employees
     path(
         "employees/",
@@ -33,6 +84,11 @@ urlpatterns = [
         "payslips/<uuid:pk>/",
         PaySlipRetrieveUpdateDestroyAPIView.as_view(),
         name="hr-payslip-detail",
+    ),
+    path(
+        "payslips/<uuid:pk>/validate/",
+        PaySlipValidateAPIView.as_view(),
+        name="hr-payslip-validate",
     ),
     # Advance Requests
     path(

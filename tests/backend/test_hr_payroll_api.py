@@ -12,6 +12,7 @@ import pytest
 from django.contrib.auth.models import User
 
 from apps.hr_payroll.models import AdvanceRequest, Employee, LeaveRequest, PaySlip
+from apps.identity.models import ApplicationRole, UserRoleAssignment
 
 pytestmark = pytest.mark.django_db
 
@@ -36,6 +37,8 @@ ALL_LIST_URLS = [EMPLOYEE_LIST_URL, PAYSLIP_LIST_URL, ADVANCE_LIST_URL, LEAVE_LI
 def authenticated_client(client):
     """Return a Django test client force-logged-in as a regular user."""
     user = User.objects.create_user(username="hr_test_user", password="test-pass", is_active=True)
+    role = ApplicationRole.objects.create(slug="hr_manager", name="Responsable RH / DRH")
+    UserRoleAssignment.objects.create(user=user, role=role)
     client.force_login(user)
     return client
 
