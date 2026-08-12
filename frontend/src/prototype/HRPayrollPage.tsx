@@ -13,11 +13,13 @@ import type {
   AdvanceRequest,
   LeaveRequest,
 } from "../types";
+import type { SessionUser } from "../api";
 import PayrollRulesPanel from "./PayrollRulesPanel";
 import type { PayrollRuleSet } from "../types";
 
 interface HRPayrollPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  user: SessionUser;
 }
 
 const PAYSLIP_STATUS: Record<string, string> = {
@@ -47,7 +49,13 @@ const STATUS_BADGE: Record<string, string> = {
   rejected: "bg-red-50 text-red-700",
 };
 
-export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
+export default function HRPayrollPage({ onNavigate, user }: HRPayrollPageProps) {
+  const roles = new Set(user.roles);
+  const payrollAccess = {
+    canView: user.is_staff || ["hr_manager", "accountant", "owner_manager"].some((role) => roles.has(role)),
+    canEdit: user.is_staff || ["hr_manager", "owner_manager"].some((role) => roles.has(role)),
+    canActivate: user.is_staff || ["accountant", "owner_manager"].some((role) => roles.has(role)),
+  };
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payslips, setPayslips] = useState<PaySlip[]>([]);
   const [advances, setAdvances] = useState<AdvanceRequest[]>([]);
@@ -388,7 +396,7 @@ export default function HRPayrollPage({ onNavigate }: HRPayrollPageProps) {
           </>
         )}
       </div>
-      <PayrollRulesPanel />
+      <PayrollRulesPanel access={payrollAccess} />
     </div>
   );
 }

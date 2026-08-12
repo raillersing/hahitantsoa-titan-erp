@@ -235,7 +235,7 @@ function App() {
       case "notifications": return <NotificationsPage onNavigate={navigate} />;
       case "import-excel": return <ImportExcelPage onNavigate={navigate} />;
       case "hr": return <HRPage onNavigate={navigate} />;
-      case "hr-payroll": return <HRPayrollPage onNavigate={navigate} />;
+      case "hr-payroll": return <HRPayrollPage onNavigate={navigate} user={state.user} />;
       case "purchasing": return <ProcurementPage onNavigate={navigate} />;
       case "mobile-tablet": return <MobileTabletPage onNavigate={navigate} />;
       case "bank-settings": return <BankSettingsPage />;

@@ -33,10 +33,12 @@ const draft = {
 };
 
 describe("PayrollRulesPanel", () => {
+  const drhAccess = { canView: true, canEdit: true, canActivate: false };
+
   it("loads versions and displays incomplete fields", async () => {
     vi.spyOn(api, "getPayrollRuleSets").mockResolvedValue([draft]);
 
-    render(<PayrollRulesPanel />);
+    render(<PayrollRulesPanel access={drhAccess} />);
 
     expect(await screen.findByText("Configuration DRH")).toBeInTheDocument();
     expect(screen.getByText(/Champs restant à compléter/)).toBeInTheDocument();
@@ -47,7 +49,7 @@ describe("PayrollRulesPanel", () => {
     vi.spyOn(api, "getPayrollRuleSets").mockResolvedValue([]);
     const create = vi.spyOn(api, "createPayrollRuleSet");
 
-    render(<PayrollRulesPanel />);
+    render(<PayrollRulesPanel access={drhAccess} />);
     await screen.findByText("Aucune configuration enregistrée.");
 
     fireEvent.click(screen.getByRole("button", { name: "Nouveau brouillon" }));
@@ -65,10 +67,20 @@ describe("PayrollRulesPanel", () => {
     const submit = vi.spyOn(api, "submitPayrollRuleSet").mockResolvedValue({ ...draft, status: "pending_review" });
     vi.spyOn(api, "updatePayrollRuleSet").mockResolvedValue(draft);
 
-    render(<PayrollRulesPanel />);
+    render(<PayrollRulesPanel access={drhAccess} />);
     await screen.findByText("Configuration DRH");
     fireEvent.click(screen.getByRole("button", { name: "Soumettre à validation" }));
 
     await waitFor(() => expect(submit).toHaveBeenCalledWith("rules-1"));
+  });
+
+  it("hides write actions for a read-only accounting user", async () => {
+    vi.spyOn(api, "getPayrollRuleSets").mockResolvedValue([{ ...draft, status: "pending_review" }]);
+
+    render(<PayrollRulesPanel access={{ canView: true, canEdit: false, canActivate: false }} />);
+
+    expect(await screen.findByText("Configuration DRH")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nouveau brouillon" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Activer la configuration" })).not.toBeInTheDocument();
   });
 });
