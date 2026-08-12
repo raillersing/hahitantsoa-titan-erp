@@ -414,6 +414,11 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
 .commercial-proforma-preview .proforma-items td { height: 26px; padding: 0 !important; }
 .commercial-proforma-preview .proforma-items th,
 .commercial-proforma-preview .proforma-items td { vertical-align: top; }
+.commercial-proforma-preview .proforma-items th,
+.commercial-proforma-preview .proforma-items td { text-align: center !important; }
+
+.document-generic-items th,
+.document-generic-items td { text-align: center !important; }
 .commercial-proforma-preview .proforma-items th:nth-child(2),
 .commercial-proforma-preview .proforma-items td:nth-child(2) { padding-left: 8px !important; }
 .commercial-proforma-preview .proforma-items th:nth-child(n+3),

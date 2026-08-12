@@ -53,16 +53,16 @@
       border-collapse: collapse;
       margin: 20px 0;
     }
-    thead th {
+    table.document-items-centered thead th {
       background: #1e293b;
       color: white;
       padding: 8px 10px;
-      text-align: left;
+      text-align: center;
       font-size: 9pt;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    tbody td {
+    table.document-items-centered tbody td {
       padding: 8px 10px;
       border-bottom: 1px solid #e2e8f0;
       font-size: 10pt;
@@ -70,8 +70,8 @@
     tbody tr:nth-child(even) {
       background: #f8fafc;
     }
-    .amount {
-      text-align: right;
+    table.document-items-centered .amount {
+      text-align: center;
       font-weight: bold;
     }
     .totals {
@@ -140,7 +140,7 @@
     </div>
   </div>
 
-  <table>
+  <table class="document-items-centered">
     <thead>
       <tr>
         <th>#</th>

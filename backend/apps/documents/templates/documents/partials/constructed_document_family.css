@@ -30,6 +30,10 @@ body { color: #202020; font-family: Arial, "DejaVu Sans", sans-serif; font-size:
 .document-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 5mm 0 7mm; }
 .document-table th { height: 8mm; padding: 1mm; border-bottom: .35mm solid #555; color: #333; font-size: 7pt; letter-spacing: .55mm; text-align: left; text-transform: uppercase; }
 .document-table td { min-height: 7mm; padding: 1.5mm 1mm; border-bottom: .2mm solid #aaa; vertical-align: top; font-size: 7.5pt; }
+.document-table th, .document-table td, .document-table .right { text-align: center; }
+.document-table-excluded th:nth-child(1), .document-table-excluded td:nth-child(1) { text-align: center; }
+.document-table-excluded th:nth-child(2), .document-table-excluded td:nth-child(2) { text-align: left; }
+.document-table-excluded th:nth-child(3), .document-table-excluded td:nth-child(3) { text-align: right; }
 .document-table .center { text-align: center; }
 .document-table .right { text-align: right; }
 .document-table .empty-row td { height: 65mm; }

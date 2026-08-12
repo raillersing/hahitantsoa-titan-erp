@@ -136,7 +136,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               if (b.type === "Titre") return <h2 key={b.id} className="text-xl font-bold text-center underline mb-6"><VariableText text={b.text || "TITRE DU DOCUMENT"} show={showVariables} /></h2>;
               if (b.type === "Paragraphe") return <p key={b.id} className="text-justify mb-4"><VariableText text={b.text || "..."} show={showVariables} /></p>;
               if (b.type === "Tableau articles/packs") return (
-                <table key={b.id} className="w-full border-collapse border border-slate-300 mb-6">
+                <table key={b.id} className="document-generic-items w-full border-collapse border border-slate-300 mb-6">
                   <thead><tr className="bg-slate-100"><th className="border p-2 text-left">Désignation</th><th className="border p-2">Qté</th><th className="border p-2">PU</th><th className="border p-2 text-right">Total</th></tr></thead>
                   <tbody><tr><td className="border p-2">Article / Pack</td><td className="border p-2 text-center">1</td><td className="border p-2 text-center">X Ar</td><td className="border p-2 text-right">X Ar</td></tr></tbody>
                 </table>
