@@ -5,6 +5,7 @@ import pytest
 from django.utils import timezone
 
 from apps.customers.models import Customer
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import InventoryItem, InventoryStockMovement, InventoryStockMovementType
 from apps.logistics.models import (
     LogisticsEvent,
@@ -667,3 +668,22 @@ def test_complete_passation_success(completed_handover_event):
     assert event.signed_at is not None
     assert document_instance is not None
     assert document_instance.template_key == "titan.delivery_note.v1"
+    preparation = DocumentInstance.objects.get(
+        reservation_draft=completed_handover_event.reservation_draft,
+        template_key="shared.preparation_sheet.v1",
+    )
+    assert preparation.status == DocumentInstanceStatus.GENERATED
+    assert preparation.pdf_storage_path
+
+
+def test_complete_passation_reuses_preparation_document(completed_handover_event):
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+    actor = User.objects.create_user(username="staff_p_reuse", password="p", is_staff=True)
+    first_event, _ = complete_handover_passation(actor=actor, event=completed_handover_event)
+    preparation_id = DocumentInstance.objects.get(
+        reservation_draft=first_event.reservation_draft,
+        template_key="shared.preparation_sheet.v1",
+    ).id
+    assert preparation_id

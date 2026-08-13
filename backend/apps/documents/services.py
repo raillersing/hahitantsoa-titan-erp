@@ -728,6 +728,84 @@ def generate_hahitantsoa_event_draft_document_instance_html(
 
 
 @transaction.atomic
+def ensure_reservation_draft_preparation_document(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None = None,
+) -> DocumentInstance:
+    """Create and emit the internal preparation sheet exactly once for a reservation."""
+    preparation = (
+        DocumentInstance.objects.select_for_update()
+        .filter(
+            reservation_draft=reservation_draft,
+            template_key="shared.preparation_sheet.v1",
+            status__in=(
+                DocumentInstanceStatus.PREPARED,
+                DocumentInstanceStatus.GENERATED,
+                DocumentInstanceStatus.ISSUED,
+            ),
+        )
+        .order_by("created_at", "id")
+        .first()
+    )
+    if preparation is None:
+        preparation = create_document_instance_from_reservation_draft(
+            reservation_draft=reservation_draft,
+            template_key="shared.preparation_sheet.v1",
+            actor=actor,
+            notes="Bon de préparation interne généré avec le bon de livraison.",
+        )
+    if preparation.status == DocumentInstanceStatus.PREPARED:
+        preparation = generate_reservation_draft_document_instance_html(
+            reservation_draft=reservation_draft,
+            document_instance_id=preparation.id,
+            actor=actor,
+        )
+    if preparation.pdf_storage_path is None:
+        preparation = generate_document_instance_pdf(document_instance=preparation, actor=actor)
+    return preparation
+
+
+@transaction.atomic
+def ensure_hahitantsoa_preparation_document(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None = None,
+) -> DocumentInstance:
+    """Create and emit the Hahitantsoa checking sheet exactly once."""
+    preparation = (
+        DocumentInstance.objects.select_for_update()
+        .filter(
+            hahitantsoa_event_draft=event_draft,
+            template_key="hahitantsoa.preparation_sheet.v1",
+            status__in=(
+                DocumentInstanceStatus.PREPARED,
+                DocumentInstanceStatus.GENERATED,
+                DocumentInstanceStatus.ISSUED,
+            ),
+        )
+        .order_by("created_at", "id")
+        .first()
+    )
+    if preparation is None:
+        preparation = create_document_instance_from_hahitantsoa_event_draft(
+            event_draft=event_draft,
+            template_key="hahitantsoa.preparation_sheet.v1",
+            actor=actor,
+            notes="Checklist manuelle Hahitantsoa générée avec le bon de livraison.",
+        )
+    if preparation.status == DocumentInstanceStatus.PREPARED:
+        preparation = generate_hahitantsoa_event_draft_document_instance_html(
+            event_draft=event_draft,
+            document_instance_id=preparation.id,
+            actor=actor,
+        )
+    if preparation.pdf_storage_path is None:
+        preparation = generate_document_instance_pdf(document_instance=preparation, actor=actor)
+    return preparation
+
+
+@transaction.atomic
 def generate_document_instance_pdf(
     *,
     document_instance: DocumentInstance,

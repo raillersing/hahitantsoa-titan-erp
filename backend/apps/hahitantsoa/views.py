@@ -670,6 +670,7 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
         from apps.documents.pdf import DocumentPDFGenerationError
         from apps.documents.serializers import DocumentInstancePDFSerializer
         from apps.documents.services import (
+            ensure_hahitantsoa_preparation_document,
             generate_document_instance_pdf,
             get_hahitantsoa_event_draft_document_instance_or_404,
         )
@@ -686,6 +687,10 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
                 actor=request.user,
             )
             if instance.template_key == "hahitantsoa.delivery_note.v1":
+                ensure_hahitantsoa_preparation_document(
+                    event_draft=event_draft,
+                    actor=request.user,
+                )
                 issue_delivery_note_stock(document_instance=instance, actor=request.user)
         except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")

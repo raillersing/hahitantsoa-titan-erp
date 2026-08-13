@@ -362,6 +362,7 @@ def complete_handover_passation(
         notes=notes,
     )
     from apps.documents.services import (
+        ensure_reservation_draft_preparation_document,
         generate_document_instance_pdf,
         generate_reservation_draft_document_instance_html,
     )
@@ -374,6 +375,10 @@ def complete_handover_passation(
     )
     document_instance = generate_document_instance_pdf(
         document_instance=document_instance,
+        actor=actor,
+    )
+    ensure_reservation_draft_preparation_document(
+        reservation_draft=event.reservation_draft,
         actor=actor,
     )
     try:
