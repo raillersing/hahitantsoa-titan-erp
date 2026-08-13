@@ -111,7 +111,7 @@ export function ProspectConversionAssistant({ client, proformaAmount, onCancel, 
         <div className="p-6">
           <div className="flex mb-8">
             <div className={`flex-1 text-center border-b-2 pb-2 ${step >= 1 ? 'border-indigo-600 text-indigo-600 font-bold' : 'border-slate-200 text-slate-400'}`}>1. Infos légales</div>
-            <div className={`flex-1 text-center border-b-2 pb-2 ${step >= 2 ? 'border-indigo-600 text-indigo-600 font-bold' : 'border-slate-200 text-slate-400'}`}>2. Acompte mock</div>
+            <div className={`flex-1 text-center border-b-2 pb-2 ${step >= 2 ? 'border-indigo-600 text-indigo-600 font-bold' : 'border-slate-200 text-slate-400'}`}>2. Acompte</div>
             <div className={`flex-1 text-center border-b-2 pb-2 ${step >= 3 ? 'border-indigo-600 text-indigo-600 font-bold' : 'border-slate-200 text-slate-400'}`}>3. Confirmation</div>
           </div>
 

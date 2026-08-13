@@ -804,6 +804,17 @@ export function cancelReservationDraft(
   );
 }
 
+export function deleteReservationDraft(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${encodeURIComponent(draftId)}/delete/`,
+    {},
+    signal,
+  ).then(() => undefined);
+}
+
 export async function getDocumentArtifactHtml(
   documentInstanceId: string,
   signal?: AbortSignal,

@@ -12,6 +12,7 @@ from apps.reservations.views import (
     ReservationDraftMarkContractSignedAPIView,
     ReservationDraftMarkRequiredDepositReceivedAPIView,
     ReservationDraftRetrieveAPIView,
+    ReservationDraftSoftDeleteAPIView,
     ReservationItemAvailabilityPreviewAPIView,
 )
 
@@ -40,6 +41,11 @@ urlpatterns = [
         "api/v1/reservations/drafts/<uuid:pk>/cancel/",
         ReservationDraftCancelAPIView.as_view(),
         name="reservation-draft-cancel",
+    ),
+    path(
+        "api/v1/reservations/drafts/<uuid:pk>/delete/",
+        ReservationDraftSoftDeleteAPIView.as_view(),
+        name="reservation-draft-soft-delete",
     ),
     path(
         "api/v1/reservations/drafts/<uuid:pk>/contract-signed/",

@@ -3,6 +3,7 @@ import {
   ApiError,
   convertProspectToClient,
   deleteAttachment,
+  deleteCustomer,
   downloadAttachment,
   getCustomer,
   getCustomerAttachments,
@@ -217,6 +218,24 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
   }, [previewingAttachmentId, attachmentPreview, attachmentPreviewError]);
 
   const [editFeedback, setEditFeedback] = useState<string | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+
+  const handleCustomerDelete = async () => {
+    if (!canSensitiveWrite || deletePending) return;
+    if (!window.confirm(`Supprimer la fiche client « ${client.name} » ?`)) return;
+    setDeletePending(true);
+    setEditFeedback(null);
+    try {
+      await deleteCustomer(client.id);
+      onNavigate("customers");
+    } catch (error: unknown) {
+      setEditFeedback(error instanceof ApiError && error.status === 403
+        ? "Vous n’êtes pas autorisé à supprimer cette fiche client."
+        : error instanceof Error ? error.message : "La suppression a échoué.");
+    } finally {
+      setDeletePending(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!canSensitiveWrite || isSaving) return;
@@ -424,9 +443,14 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
                 Conversion via Demande commerciale
               </div>
             ) : canSensitiveWrite ? (
-              <button className="w-full px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 mb-2 transition-colors" onClick={() => onNavigate("reservation-new", client.id)}>
-                <i className="fa-solid fa-plus mr-2"></i> Nouvelle réservation
-              </button>
+              <>
+                <button className="w-full px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 mb-2 transition-colors" onClick={() => onNavigate("reservation-new", client.id)}>
+                  <i className="fa-solid fa-plus mr-2"></i> Nouvelle réservation
+                </button>
+                <button type="button" className="w-full px-4 py-2 border border-rose-200 text-rose-600 font-medium text-sm rounded-lg hover:bg-rose-50 transition-colors" disabled={deletePending} onClick={() => void handleCustomerDelete()}>
+                  {deletePending ? "Suppression…" : "Supprimer la fiche client"}
+                </button>
+              </>
             ) : null}
           </div>
 

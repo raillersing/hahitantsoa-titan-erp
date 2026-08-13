@@ -30,9 +30,8 @@ import type {
 
 type ViewState = "list" | "detail" | "create" | "edit" | "fiche";
 
-// --- MOCK LOCAL PROSPECT ---
-// En attendant que le backend supporte un vrai champ 'status: "prospect" | "client"',
-// on stocke cette information dans le champ 'notes' sous la forme d'un tag "[PROSPECT]".
+// Prospect status is temporarily represented by the backend notes tag until the
+// dedicated lifecycle field is exposed by the customer API.
 export function isCustomerProspect(customer: { notes?: string | null }): boolean {
   return Boolean(customer.notes && customer.notes.includes("[PROSPECT]"));
 }

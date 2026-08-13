@@ -237,7 +237,7 @@ describe('DashboardPanel', () => {
     mockAllApis({});
     render(<DashboardPanel onNavigate={() => {}} />);
     await waitFor(() => {
-      expect(screen.getByText('Activité des 7 derniers jours')).toBeInTheDocument();
+      expect(screen.getByText('Répartition actuelle des dossiers')).toBeInTheDocument();
     });
     expect(screen.getByText('Alertes & Notifications')).toBeInTheDocument();
     expect(screen.getByText('Dossiers en cours')).toBeInTheDocument();

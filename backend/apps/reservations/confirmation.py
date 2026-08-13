@@ -595,6 +595,55 @@ def cancel_confirmed_reservation_draft(
         )
 
 
+def soft_delete_reservation_draft(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None,
+) -> ReservationDraft:
+    """Hide an unconfirmed draft without physically deleting business evidence."""
+    attribution = capture_reservation_sensitive_actor_attribution(actor=actor)
+
+    with transaction.atomic():
+        locked_reservation_draft = _get_locked_reservation_draft(
+            reservation_draft=reservation_draft
+        )
+        if locked_reservation_draft.is_deleted:
+            raise ReservationLifecycleStateError(
+                "Reservation draft is already deleted.",
+                code="draft_already_deleted",
+            )
+        if locked_reservation_draft.status != ReservationDraftStatus.DRAFT:
+            raise ReservationLifecycleStateError(
+                "Only an unconfirmed reservation draft can be deleted.",
+                code="draft_not_deletable",
+            )
+
+        deleted_at = attribution.attributed_at
+        locked_reservation_draft.is_deleted = True
+        locked_reservation_draft.deleted_at = deleted_at
+        locked_reservation_draft.updated_by_id = attribution.actor_id
+        locked_reservation_draft.save(
+            update_fields=["is_deleted", "deleted_at", "updated_by", "updated_at"]
+        )
+        locked_reservation_draft.lines.filter(is_deleted=False).update(
+            is_deleted=True,
+            deleted_at=deleted_at,
+            updated_by_id=attribution.actor_id,
+            updated_at=deleted_at,
+        )
+        record_audit_event_on_commit(
+            actor=actor,
+            action="reservation.deleted",
+            target_type="reservation_draft",
+            target_id=str(locked_reservation_draft.id),
+            metadata={
+                "public_reference": locked_reservation_draft.public_reference,
+                "result": "soft_deleted",
+            },
+        )
+        return locked_reservation_draft
+
+
 def get_reservation_draft_confirmation_preflight(
     *,
     reservation_draft: ReservationDraft,
