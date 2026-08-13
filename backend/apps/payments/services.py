@@ -17,7 +17,13 @@ from apps.billing.models import BillingRefundObligationStatus
 from apps.documents.models import DocumentInstance
 from apps.documents.registry import get_document_template_definition
 from apps.documents.runtime import generate_document_instance_html
-from apps.finance.models import FinanceAccount, FinanceAccountKind, FinancialJournalDirection
+from apps.finance.models import (
+    FinanceAccount,
+    FinanceAccountKind,
+    FinanceBusinessScope,
+    FinancialCategory,
+    FinancialJournalDirection,
+)
 from apps.finance.services import record_financial_journal_entry
 from apps.inventory.models import (
     InventoryCautionRefundObligation,
@@ -62,12 +68,103 @@ REFUND_OBLIGATION_NOT_FOUND = "refund_obligation_not_found"
 REFUND_OBLIGATION_NOT_PENDING = "refund_obligation_not_pending"
 GATEWAY_SANDBOX_DISABLED = "gateway_sandbox_disabled"
 INVALID_RECONCILIATION = "invalid_payment_reconciliation"
+PAYMENT_FINANCE_ACCOUNT_MISSING = "payment_finance_account_missing"
+PAYMENT_FINANCE_ACCOUNT_SELECTION_REQUIRED = "payment_finance_account_selection_required"
 
 
 class PaymentReconciliationError(ValueError):
     def __init__(self, message: str, *, code: str = INVALID_RECONCILIATION) -> None:
         super().__init__(message)
         self.code = code
+
+
+def _payment_business_scope(*, payment: Payment) -> str | None:
+    if payment.reservation_draft_id is not None:
+        return FinanceBusinessScope.TITAN
+    if payment.hahitantsoa_event_draft_id is not None:
+        return FinanceBusinessScope.HAHITANTSOA
+    return None
+
+
+def _payment_finance_account(*, payment: Payment, actor) -> FinanceAccount:
+    business_scope = _payment_business_scope(payment=payment)
+    if business_scope is None:
+        raise PaymentLifecycleError(
+            "A linked business scope is required before recording the payment in finance.",
+            code=PAYMENT_FINANCE_ACCOUNT_MISSING,
+        )
+
+    if payment.payment_method == PaymentMethod.CASH:
+        from apps.cashbox.services import get_or_create_operator_cash_account
+
+        account = get_or_create_operator_cash_account(
+            operator=actor,
+            actor=actor,
+            business_scope=business_scope,
+        )
+        if account.business_scope != business_scope:
+            raise PaymentLifecycleError(
+                "The operator cashbox is configured for another business scope.",
+                code=PAYMENT_FINANCE_ACCOUNT_SELECTION_REQUIRED,
+            )
+        return account
+
+    account_kind_by_method = {
+        PaymentMethod.BANK_TRANSFER: FinanceAccountKind.BANK,
+        PaymentMethod.MOBILE_MONEY: FinanceAccountKind.MOBILE_MONEY,
+        PaymentMethod.CHEQUE: FinanceAccountKind.CHEQUE,
+    }
+    account_kind = account_kind_by_method.get(payment.payment_method)
+    if account_kind is None:
+        raise PaymentLifecycleError(
+            "Configure a finance account for this payment method before confirming the payment.",
+            code=PAYMENT_FINANCE_ACCOUNT_MISSING,
+        )
+
+    accounts = list(
+        FinanceAccount.objects.select_for_update().filter(
+            business_scope=business_scope,
+            kind=account_kind,
+            is_active=True,
+        )
+    )
+    if not accounts:
+        raise PaymentLifecycleError(
+            "No active finance account is configured for this payment method.",
+            code=PAYMENT_FINANCE_ACCOUNT_MISSING,
+        )
+    if len(accounts) > 1:
+        raise PaymentLifecycleError(
+            "Select the finance account to use before confirming this payment.",
+            code=PAYMENT_FINANCE_ACCOUNT_SELECTION_REQUIRED,
+        )
+    return accounts[0]
+
+
+def _record_confirmed_payment_finance_entry(*, payment: Payment, actor) -> None:
+    # Standalone owner/investor/other payments do not belong to a commercial
+    # business scope, so they remain in the payment register until explicitly
+    # assigned to a finance account by the relevant operational workflow.
+    if _payment_business_scope(payment=payment) is None:
+        return
+    account = _payment_finance_account(payment=payment, actor=actor)
+    category_code = (
+        "income.deposit"
+        if payment.payment_kind == PaymentKind.DEPOSIT
+        else "income.invoice_settlement"
+    )
+    category = FinancialCategory.objects.get(code=category_code)
+    record_financial_journal_entry(
+        account=account,
+        category=category,
+        direction=FinancialJournalDirection.INFLOW,
+        amount=payment.amount,
+        occurred_at=payment.paid_at or timezone.now(),
+        actor=actor,
+        payment=payment,
+        source_label=payment.source_label or "Paiement client",
+        notes=payment.notes,
+    )
 
 
 @dataclass(frozen=True)
@@ -294,6 +391,7 @@ def confirm_payment(
     payment.updated_by_id = actor_id
     payment.full_clean()
     payment.save()
+    _record_confirmed_payment_finance_entry(payment=payment, actor=actor)
     create_payment_confirmation_notification(payment=payment, recipient=actor)
 
     record_audit_event_on_commit(

@@ -10,6 +10,14 @@ import apps.documents.runtime as runtime_module
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.finance.models import (
+    FinanceAccount,
+    FinanceAccountKind,
+    FinanceBusinessScope,
+    FinancialJournalEntry,
+)
+from apps.finance.services import create_finance_account
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.notifications.models import SystemNotification
 from apps.notifications.services import create_payment_confirmation_notification
 from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
@@ -56,6 +64,19 @@ def _reservation_draft() -> ReservationDraft:
     )
 
 
+def _hahitantsoa_event_draft(*, actor) -> HahitantsoaEventDraft:
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=3)
+    end_at = start_at + timedelta(hours=6)
+    return HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Payment service event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=actor,
+        updated_by=actor,
+    )
+
+
 def test_create_payment_persists_generic_pending_payment(django_user_model) -> None:
     actor = django_user_model.objects.create_user(username="payment-creator", password="test-pass")
 
@@ -79,6 +100,13 @@ def test_confirm_payment_generates_and_links_receipt_document(
 ) -> None:
     actor = django_user_model.objects.create_user(
         username="payment-confirmer", password="test-pass"
+    )
+    create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.TITAN,
+        code="BANK-TITAN-PAYMENT-TEST",
+        label="Titan payment test bank",
+        kind=FinanceAccountKind.BANK,
     )
     payment = create_payment(
         actor=actor,
@@ -116,6 +144,73 @@ def test_confirm_payment_generates_and_links_receipt_document(
     assert SystemNotification.objects.filter(link=f"/payments/{payment.id}").count() == 1
 
     assert AuditEvent.objects.filter(action="payment.confirmed", target_id=str(payment.id)).exists()
+    journal_entry = FinancialJournalEntry.objects.get(payment=payment)
+    assert journal_entry.account.kind == FinanceAccountKind.BANK
+    assert journal_entry.amount == payment.amount
+
+
+def test_confirm_cash_reservation_payment_creates_operator_cash_journal_entry(
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="payment-cash-journal", password="test-pass"
+    )
+    payment = create_payment(
+        actor=actor,
+        reservation_draft=_reservation_draft(),
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("125000.00"),
+        source_label="Client deposit",
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        confirm_payment(payment=payment, actor=actor)
+
+    entry = FinancialJournalEntry.objects.get(payment=payment)
+    assert entry.account.business_scope == "titan"
+    assert entry.account.kind == FinanceAccountKind.CASH
+    assert entry.amount == Decimal("125000.00")
+    assert FinanceAccount.objects.filter(code=f"cashbox-titan-{actor.pk}").exists()
+
+
+def test_cash_payments_use_distinct_operator_accounts_per_business_scope(
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="payment-cash-two-scopes", password="test-pass"
+    )
+    titan_payment = create_payment(
+        actor=actor,
+        reservation_draft=_reservation_draft(),
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("100000.00"),
+        source_label="Titan deposit",
+    )
+    hahitantsoa_payment = create_payment(
+        actor=actor,
+        hahitantsoa_event_draft=_hahitantsoa_event_draft(actor=actor),
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("150000.00"),
+        source_label="Hahitantsoa deposit",
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        confirm_payment(payment=titan_payment, actor=actor)
+        confirm_payment(payment=hahitantsoa_payment, actor=actor)
+
+    titan_entry = FinancialJournalEntry.objects.get(payment=titan_payment)
+    hahitantsoa_entry = FinancialJournalEntry.objects.get(payment=hahitantsoa_payment)
+    assert titan_entry.account.business_scope == FinanceBusinessScope.TITAN
+    assert hahitantsoa_entry.account.business_scope == FinanceBusinessScope.HAHITANTSOA
+    assert titan_entry.account_id != hahitantsoa_entry.account_id
 
 
 def test_confirm_payment_rolls_back_when_receipt_generation_fails(
@@ -228,6 +323,13 @@ def test_reconcile_payment_transitions_confirmed_to_reconciled(
 ) -> None:
     actor = django_user_model.objects.create_user(
         username="payment-reconciler", password="test-pass"
+    )
+    create_finance_account(
+        actor=actor,
+        business_scope=FinanceBusinessScope.TITAN,
+        code="BANK-TITAN-RECONCILE-TEST",
+        label="Titan reconcile test bank",
+        kind=FinanceAccountKind.BANK,
     )
     reservation = _reservation_draft()
     payment = create_payment(

@@ -8,7 +8,7 @@ from django.db import models
 
 from apps.billing.models import BillingInvoice, BillingRefundObligation
 from apps.common.models import AuditableModel, TimestampedModel, UUIDModel
-from apps.finance.models import FinanceAccount, FinanceAccountKind
+from apps.finance.models import FinanceAccount, FinanceAccountKind, FinanceBusinessScope
 from apps.payments.models import Payment
 
 
@@ -93,22 +93,39 @@ class CashboxSession(UUIDModel, TimestampedModel, AuditableModel):
 
 
 class CashboxOperatorAccount(UUIDModel, TimestampedModel, AuditableModel):
-    """Stable physical cash account assigned to one authorized operator."""
+    """Stable physical cash account assigned to one operator and business scope."""
 
-    operator = models.OneToOneField(
+    operator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="cashbox_operator_account",
+        related_name="cashbox_operator_accounts",
     )
+    business_scope = models.CharField(max_length=32, choices=FinanceBusinessScope.choices)
     cash_account = models.OneToOneField(
         FinanceAccount,
         on_delete=models.PROTECT,
         related_name="operator_cashbox_account",
     )
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["operator", "business_scope"],
+                name="cashbox_operator_account_scope_unique",
+            ),
+        ]
+
     def clean(self) -> None:
         if self.cash_account_id and self.cash_account.kind != FinanceAccountKind.CASH:
             raise ValidationError({"cash_account": "An operator cashbox requires a cash account."})
+        if self.cash_account_id and self.cash_account.business_scope != self.business_scope:
+            raise ValidationError(
+                {
+                    "cash_account": (
+                        "An operator cashbox must use an account in the same business scope."
+                    )
+                }
+            )
 
 
 def is_legacy_cashbox_session(session: CashboxSession) -> bool:
