@@ -11,6 +11,9 @@ import {
   getInventoryItems,
   getLogisticsEventItemLines,
   getLogisticsEvents,
+  getHahitantsoaEventDraftLogisticsEvents,
+  getHahitantsoaEventDraftDocumentInstances,
+  getHahitantsoaEventDrafts,
   getReservationDraftDocumentInstances,
   getTitanClosedDays,
   getReservationDrafts,
@@ -20,7 +23,7 @@ import {
   transitionLogisticsEvent,
 } from "./api";
 import HandoverSignaturePanel from "./HandoverSignaturePanel";
-import type { InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft, TitanClosedDay } from "./types";
+import type { HahitantsoaEventDraft, InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft, TitanClosedDay } from "./types";
 
 const STATUS_LABELS: Record<LogisticsEvent["status"], string> = {
   planned: "Planifié",
@@ -107,7 +110,13 @@ type ConfirmAction =
   | { type: "remove-line"; lineId: string }
   | { type: "transition"; action: "dispatch" | "complete" | "cancel" };
 
-export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessScope?: LogisticsBusinessScope }) {
+export function LogisticsDeliveryPanel({
+  businessScope = "titan",
+  draftId,
+}: {
+  businessScope?: LogisticsBusinessScope;
+  draftId?: string;
+}) {
   const isTitan = businessScope === "titan";
   const [events, setEvents] = useState<LogisticsEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -135,6 +144,7 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
   const [eventFilter, setEventFilter] = useState<LogisticsEvent["event_type"] | "all">("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [reservationDrafts, setReservationDrafts] = useState<ReservationDraft[]>([]);
+  const [hahitantsoaDrafts, setHahitantsoaDrafts] = useState<HahitantsoaEventDraft[]>([]);
   const [closedDays, setClosedDays] = useState<TitanClosedDay[]>([]);
   const [closedDaysLoading, setClosedDaysLoading] = useState(false);
   const [closedDaysError, setClosedDaysError] = useState<string | null>(null);
@@ -161,8 +171,12 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
   );
 
   const formatReservationReference = useCallback(
-    (reservationDraftId: string) =>
-      reservationReferenceById.get(reservationDraftId) ?? reservationDraftId.slice(0, 8),
+    (reservationDraftId: string | null, eventDraftId?: string | null) =>
+      reservationDraftId
+        ? reservationReferenceById.get(reservationDraftId) ?? reservationDraftId.slice(0, 8)
+        : eventDraftId
+          ? eventDraftId.slice(0, 8)
+          : "Dossier non identifié",
     [reservationReferenceById],
   );
 
@@ -190,7 +204,11 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
 
     try {
       const [eventsData, itemsData] = await Promise.all([
-        getLogisticsEvents(abortRef.current.signal),
+        isTitan
+          ? getLogisticsEvents(abortRef.current.signal)
+          : draftId
+            ? getHahitantsoaEventDraftLogisticsEvents(draftId, abortRef.current.signal)
+            : Promise.resolve([]),
         getInventoryItems(abortRef.current.signal),
       ]);
       const allEvents = Array.isArray(eventsData) ? eventsData : [];
@@ -208,7 +226,7 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [draftId, isTitan]);
 
   const loadItemLines = useCallback(async (eventId: string) => {
     lineAbortRef.current?.abort();
@@ -228,13 +246,22 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
   }, []);
 
   const loadReservationDrafts = useCallback(async () => {
+    if (!isTitan) {
+      try {
+        const drafts = await getHahitantsoaEventDrafts();
+        setHahitantsoaDrafts(Array.isArray(drafts) ? drafts : []);
+      } catch {
+        setHahitantsoaDrafts([]);
+      }
+      return;
+    }
     try {
       const drafts = await getReservationDrafts();
       setReservationDrafts(Array.isArray(drafts) ? drafts : []);
     } catch {
       // silent — reservation list is optional for creation
     }
-  }, []);
+  }, [isTitan]);
 
   const loadClosedDays = useCallback(async (drafts: ReservationDraft[]) => {
     if (!isTitan) {
@@ -264,13 +291,15 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
 
   const loadPassationDocument = useCallback(async (event: LogisticsEvent) => {
     const requestId = ++passationLoadRef.current;
-    if (!event.reservation_draft) {
+    if (!event.reservation_draft && !event.hahitantsoa_event_draft) {
       setPassationState({ documentInstanceId: null, loading: false, error: null });
       return;
     }
 
     try {
-      const instances = await getReservationDraftDocumentInstances(event.reservation_draft);
+      const instances = event.hahitantsoa_event_draft
+        ? await getHahitantsoaEventDraftDocumentInstances(event.hahitantsoa_event_draft)
+        : await getReservationDraftDocumentInstances(event.reservation_draft!);
       if (requestId !== passationLoadRef.current) return;
       const deliveryNote = instances.find(
         (document) =>
@@ -446,7 +475,9 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
     setError(null);
     try {
       await createLogisticsEvent({
-        reservation_draft: createForm.reservation_draft,
+        ...(isTitan
+          ? { reservation_draft: createForm.reservation_draft }
+          : { hahitantsoa_event_draft: createForm.reservation_draft }),
         event_type: createForm.event_type,
         operation: createForm.operation,
         scheduled_at: createForm.scheduled_at || null,
@@ -490,6 +521,14 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
 
   const handlePrintPreparationSheet = async () => {
     if (!selectedEvent || selectedEvent.event_type !== "preparation") return;
+    if (!selectedEvent.reservation_draft) {
+      setPreparationState({
+        documentInstanceId: null,
+        loading: false,
+        error: "Le bon de préparation est disponible uniquement pour Titan.",
+      });
+      return;
+    }
 
     setPreparationState({ documentInstanceId: null, loading: true, error: null });
     try {
@@ -589,11 +628,13 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
           </div>
           <div className="ops-inline-form__row">
             <label>
-              Réservation
+              {isTitan ? "Réservation" : "Dossier Hahitantsoa"}
               <select value={createForm.reservation_draft} onChange={(e) => { setScheduleTouched(false); setCreateForm((f) => ({ ...f, reservation_draft: e.target.value })); }} required>
-                <option value="">Sélectionner une réservation</option>
-                {reservationDrafts.map((d) => (
+                <option value="">Sélectionner {isTitan ? "une réservation" : "un dossier"}</option>
+                {isTitan ? reservationDrafts.map((d) => (
                   <option key={d.id} value={d.id}>{d.public_reference} — {d.customer_display_name}</option>
+                )) : hahitantsoaDrafts.map((d) => (
+                  <option key={d.id} value={d.id}>{d.public_reference} — {d.event_name}</option>
                 ))}
               </select>
             </label>
@@ -709,7 +750,7 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
                       {STATUS_LABELS[event.status] ?? event.status}
                     </span>
                     <span className="ops-row__detail">{formatDateTime(event.scheduled_at)}</span>
-                    <span className="ops-row__ref">{formatReservationReference(event.reservation_draft)}</span>
+                    <span className="ops-row__ref">{formatReservationReference(event.reservation_draft, event.hahitantsoa_event_draft)}</span>
                   </button>
                 </li>
               ))}
@@ -723,7 +764,7 @@ export function LogisticsDeliveryPanel({ businessScope = "titan" }: { businessSc
                   <div>
                     <h4>{EVENT_TYPE_LABELS[selectedEvent.event_type]}</h4>
                     <p className="ops-section-helper">
-                      Réservation {formatReservationReference(selectedEvent.reservation_draft)}
+                      {isTitan ? "Réservation" : "Dossier"} {formatReservationReference(selectedEvent.reservation_draft, selectedEvent.hahitantsoa_event_draft)}
                     </p>
                   </div>
                   <span className={`ops-status-badge ops-status-badge--${selectedEvent.status}`}>

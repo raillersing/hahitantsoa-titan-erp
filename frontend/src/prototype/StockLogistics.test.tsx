@@ -103,7 +103,7 @@ describe('Stock & Logistics Pages', () => {
           event_type: 'delivery',
           operation: 'outbound',
           status: 'planned',
-          reservation_draft: 'LOC-2026-0087',
+          reservation_draft: 'LOC-2026-0087', hahitantsoa_event_draft: null,
           scheduled_at: '2026-07-25T10:00:00Z',
           executed_at: null,
           address: '123 Rue Example',

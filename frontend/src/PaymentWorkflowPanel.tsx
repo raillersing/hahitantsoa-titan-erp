@@ -7,6 +7,7 @@ import {
   confirmPayment,
   createPayment,
   getPayments,
+  getHahitantsoaEventDraftPayments,
   reconcilePayment,
 } from './api';
 import {
@@ -201,10 +202,17 @@ const EMPTY_FORM: PaymentCreatePayload = {
 
 interface CreatePaymentFormProps {
   onCreated: (payment: Payment) => void;
+  businessScope: 'titan' | 'hahitantsoa';
+  draftId?: string;
 }
 
-function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
-  const [form, setForm] = useState<PaymentCreatePayload>(EMPTY_FORM);
+function CreatePaymentForm({ onCreated, businessScope, draftId }: CreatePaymentFormProps) {
+  const [form, setForm] = useState<PaymentCreatePayload>(() => ({
+    ...EMPTY_FORM,
+    ...(businessScope === 'hahitantsoa'
+      ? { reservation_draft: null, hahitantsoa_event_draft: draftId ?? null }
+      : { reservation_draft: draftId ?? null, hahitantsoa_event_draft: null }),
+  }));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -227,13 +235,20 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
         const payment = await createPayment(
           {
             ...form,
-            reservation_draft: form.reservation_draft || null,
+            reservation_draft: businessScope === 'titan' ? form.reservation_draft || null : null,
+            hahitantsoa_event_draft:
+              businessScope === 'hahitantsoa' ? draftId || form.hahitantsoa_event_draft || null : null,
             source_label: form.source_label || '',
           },
           abortRef.current.signal,
         );
         onCreated(payment);
-        setForm(EMPTY_FORM);
+        setForm({
+          ...EMPTY_FORM,
+          ...(businessScope === 'hahitantsoa'
+            ? { reservation_draft: null, hahitantsoa_event_draft: draftId ?? null }
+            : { reservation_draft: draftId ?? null, hahitantsoa_event_draft: null }),
+        });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
           setError(err.message || 'Échec de la création du paiement.');
@@ -242,7 +257,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
         setSubmitting(false);
       }
     },
-    [form, onCreated],
+    [businessScope, draftId, form, onCreated],
   );
 
   useEffect(() => {
@@ -251,7 +266,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
     };
   }, []);
 
-  const needsSource = !form.reservation_draft && !form.source_label;
+  const needsSource = businessScope === "titan" && !form.reservation_draft && !form.source_label;
 
   return (
     <form className="payment-create-form" onSubmit={handleSubmit} aria-label="Formulaire de paiement">
@@ -307,7 +322,7 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
       </div>
 
       <div className="payment-form__row">
-        <div className="payment-form__field payment-form__field--wide">
+        {businessScope === 'titan' ? <div className="payment-form__field payment-form__field--wide">
           <label htmlFor="reservation_draft_id">UUID réservation (optionnel)</label>
           <input
             id="reservation_draft_id"
@@ -321,7 +336,11 @@ function CreatePaymentForm({ onCreated }: CreatePaymentFormProps) {
           <p id="reservation_draft_help" className="payment-form__helper">
             Réservé à un usage avancé : collez l'identifiant UUID d'un brouillon de réservation pour rattacher ce paiement. Pour un paiement autonome (sans réservation), laissez ce champ vide et renseignez « Libellé source ».
           </p>
-        </div>
+        </div> : (
+          <p className="payment-form__helper" role="status">
+            Paiement rattaché au dossier Hahitantsoa sélectionné.
+          </p>
+        )}
 
         <div className="payment-form__field payment-form__field--wide">
           <label htmlFor="source_label">
@@ -744,7 +763,15 @@ type ActivePaymentDialog = {
   trigger: HTMLButtonElement;
 };
 
-export default function PaymentWorkflowPanel() {
+type PaymentWorkflowPanelProps = {
+  businessScope?: 'titan' | 'hahitantsoa';
+  draftId?: string;
+};
+
+export default function PaymentWorkflowPanel({
+  businessScope = 'titan',
+  draftId,
+}: PaymentWorkflowPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -778,11 +805,19 @@ export default function PaymentWorkflowPanel() {
   }, []);
 
   const loadPayments = useCallback(async () => {
+    if (businessScope === 'hahitantsoa' && !draftId) {
+      setPayments([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     abortRef.current = new AbortController();
     try {
-      const data = await getPayments(abortRef.current.signal);
+      const data = businessScope === 'hahitantsoa'
+        ? await getHahitantsoaEventDraftPayments(draftId!, abortRef.current.signal)
+        : await getPayments(draftId, abortRef.current.signal);
       setPayments(Array.isArray(data) ? data : []);
       setActionError(null);
       setBlockedPaymentIds(new Set());
@@ -793,7 +828,7 @@ export default function PaymentWorkflowPanel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [businessScope, draftId]);
 
   useEffect(() => {
     void loadPayments();
@@ -849,7 +884,9 @@ export default function PaymentWorkflowPanel() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const data = await getPayments(controller.signal);
+      const data = businessScope === 'hahitantsoa'
+        ? await getHahitantsoaEventDraftPayments(draftId!, controller.signal)
+        : await getPayments(draftId, controller.signal);
       setPayments(Array.isArray(data) ? data : []);
       setError(null);
       setBlockedPaymentIds((current) => {
@@ -869,7 +906,7 @@ export default function PaymentWorkflowPanel() {
       setActiveDialog(null);
       restoreDialogFocus(dialog);
     }
-  }, [restoreDialogFocus]);
+  }, [businessScope, draftId, restoreDialogFocus]);
 
   return (
     <div
@@ -889,7 +926,9 @@ export default function PaymentWorkflowPanel() {
           >
             {loading ? 'Chargement...' : 'Actualiser'}
           </button>
-          {writeAccess === 'allowed' ? (
+          {businessScope === 'hahitantsoa' && !draftId ? (
+            <p className="status" role="status">Sélectionnez un dossier Hahitantsoa pour gérer ses paiements.</p>
+          ) : writeAccess === 'allowed' ? (
           <button
             className="payment-workflow-panel__new"
             onClick={() => setShowForm((v) => !v)}
@@ -906,7 +945,13 @@ export default function PaymentWorkflowPanel() {
         </div>
       </div>
 
-      {showForm && <CreatePaymentForm onCreated={handlePaymentCreated} />}
+      {showForm && (businessScope === 'titan' || draftId) && (
+        <CreatePaymentForm
+          onCreated={handlePaymentCreated}
+          businessScope={businessScope}
+          draftId={draftId}
+        />
+      )}
 
       {actionError && (
         <div className="payment-workflow-panel__error" role="alert" aria-live="assertive">

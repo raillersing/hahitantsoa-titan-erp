@@ -17,6 +17,7 @@ const MOCK_ITEMS: InventoryItem[] = [
 const MOCK_EVENT: LogisticsEvent = {
   id: "del-1",
   reservation_draft: "rd-1111",
+  hahitantsoa_event_draft: null,
   event_type: "delivery",
   operation: "outbound",
   status: "planned",
@@ -286,7 +287,7 @@ describe("LogisticsDeliveryPanel", () => {
 
     render(<LogisticsDeliveryPanel businessScope="hahitantsoa" />);
     fireEvent.click(await screen.findByRole("button", { name: "+ Nouvel événement" }));
-    fireEvent.change(screen.getByLabelText("Réservation"), { target: { value: "rd-1111" } });
+    fireEvent.change(screen.getByLabelText("Dossier Hahitantsoa"), { target: { value: "rd-1111" } });
 
     expect(await screen.findByLabelText("Planifié le")).toBeInTheDocument();
     expect(closedDaysSpy).not.toHaveBeenCalled();

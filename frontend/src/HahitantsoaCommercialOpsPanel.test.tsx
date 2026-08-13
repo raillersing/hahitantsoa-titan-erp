@@ -186,12 +186,21 @@ describe("HahitantsoaCommercialOpsPanel", () => {
     render(<HahitantsoaCommercialOpsPanel />);
 
     expect(screen.getByTestId("card-documents")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-billing")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-payments")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-logistics")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-returns")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-breakage")).toHaveTextContent("Partially Connected");
-    expect(screen.getByTestId("card-stock")).toHaveTextContent("Partially Connected");
+    expect(screen.getByTestId("card-billing")).toHaveTextContent("Connecté");
+    expect(screen.getByTestId("card-payments")).toHaveTextContent("Connecté");
+    expect(screen.getByTestId("card-logistics")).toHaveTextContent("Connecté");
+    expect(screen.getByTestId("card-returns")).toHaveTextContent("Contrat backend requis");
+    expect(screen.getByTestId("card-breakage")).toHaveTextContent("Contrat backend requis");
+    expect(screen.getByTestId("card-stock")).toHaveTextContent("Contrat backend requis");
+  });
+
+  it("contextualizes Hahitantsoa payments to the selected event draft", async () => {
+    mockAllApis();
+    const paymentsSpy = vi.spyOn(api, "getHahitantsoaEventDraftPayments").mockResolvedValue([]);
+    render(<HahitantsoaCommercialOpsPanel />);
+
+    await waitFor(() => expect(paymentsSpy).toHaveBeenCalledWith("edraft-1", expect.any(AbortSignal)));
+    expect(api.getPayments).not.toHaveBeenCalled();
   });
 
   it("renders document tab bar and switches between Titan and Hahitantsoa tabs", async () => {

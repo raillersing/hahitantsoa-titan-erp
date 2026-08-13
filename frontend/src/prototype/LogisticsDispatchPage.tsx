@@ -148,7 +148,7 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                      <span className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer" onClick={() => onNavigate("reservation-detail", evt.reservation_draft)}>
+                      <span className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer" onClick={() => evt.reservation_draft && onNavigate("reservation-detail", evt.reservation_draft)}>
                         {evt.reservation_draft}
                       </span>
                     </h3>

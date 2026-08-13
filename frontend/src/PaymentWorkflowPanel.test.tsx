@@ -72,6 +72,7 @@ const MOCK_PAYMENT_CONFIRMED = {
 
 vi.mock('./api', () => ({
   getPayments: vi.fn(),
+  getHahitantsoaEventDraftPayments: vi.fn(),
   createPayment: vi.fn(),
   confirmPayment: vi.fn(),
   cancelPayment: vi.fn(),
@@ -92,6 +93,20 @@ describe('PaymentWorkflowPanel', () => {
   it('shows loading state initially', () => {
     render(<PaymentWorkflowPanel />);
     expect(screen.getByText('Chargement des paiements...')).toBeInTheDocument();
+  });
+
+  it('loads Hahitantsoa payments through the event-draft filter', async () => {
+    vi.mocked(api.getHahitantsoaEventDraftPayments).mockResolvedValueOnce([MOCK_PAYMENT_PENDING]);
+
+    render(<PaymentWorkflowPanel businessScope="hahitantsoa" draftId="event-1" />);
+
+    await waitFor(() => {
+      expect(api.getHahitantsoaEventDraftPayments).toHaveBeenCalledWith(
+        'event-1',
+        expect.any(AbortSignal),
+      );
+    });
+    expect(api.getPayments).not.toHaveBeenCalled();
   });
 
   it('renders payment list after loading', async () => {
