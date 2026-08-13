@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.db import transaction
 from django.utils import timezone
 
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.notifications.models import (
     NotificationType,
     PaymentReminderDispatch,
@@ -12,7 +13,6 @@ from apps.payments.reminders import (
     build_hahitantsoa_payment_reminder,
     build_reservation_payment_reminder,
 )
-from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
 

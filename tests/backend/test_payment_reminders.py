@@ -7,13 +7,13 @@ from django.utils import timezone
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventType
+from apps.notifications.models import PaymentReminderDispatch, SystemNotification
+from apps.notifications.services import prepare_payment_reminder_dispatch
 from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
 from apps.payments.reminders import (
     build_hahitantsoa_payment_reminder,
     build_reservation_payment_reminder,
 )
-from apps.notifications.models import PaymentReminderDispatch, SystemNotification
-from apps.notifications.services import prepare_payment_reminder_dispatch
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db

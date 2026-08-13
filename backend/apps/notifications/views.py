@@ -6,7 +6,6 @@ from rest_framework.views import APIView
 
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.identity.permissions import HasReservationSensitiveAccess
-from apps.reservations.models import ReservationDraft
 from apps.notifications.models import SystemNotification
 from apps.notifications.serializers import (
     PaymentReminderDispatchCreateSerializer,
@@ -15,6 +14,7 @@ from apps.notifications.serializers import (
     SystemNotificationSerializer,
 )
 from apps.notifications.services import prepare_payment_reminder_dispatch
+from apps.reservations.models import ReservationDraft
 
 
 class SystemNotificationListAPIView(generics.ListAPIView):

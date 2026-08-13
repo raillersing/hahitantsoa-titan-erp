@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
-from apps.notifications.models import SystemNotification
-from apps.notifications.models import PaymentReminderDispatch
+from apps.notifications.models import PaymentReminderDispatch, SystemNotification
 
 
 class SystemNotificationSerializer(serializers.ModelSerializer):
