@@ -188,3 +188,38 @@ def test_payment_reminder_dispatch_api_requires_one_scope(client, django_user_mo
 
     assert response.status_code == 400
     assert response.json()["code"] == "single_draft_required"
+
+
+def test_payment_reminder_dispatch_detail_is_available_to_authorized_staff(
+    client, django_user_model
+):
+    actor = django_user_model.objects.create_user(
+        username="reminder-detail-authorized", is_staff=True
+    )
+    start_at, end_at = _period()
+    draft = ReservationDraft.objects.create(customer=_customer(), start_at=start_at, end_at=end_at)
+    dispatch = prepare_payment_reminder_dispatch(actor=actor, reservation_draft=draft)
+    client.force_login(actor)
+
+    response = client.get(f"/api/v1/notifications/payment-reminders/{dispatch.id}/")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(dispatch.id)
+    assert response.json()["reservation_draft"] == str(draft.id)
+    assert response.json()["reminder"]["draft_id"] == str(draft.id)
+    assert response.json()["reminder"]["confirmed_amount"] == "0.00"
+
+
+def test_payment_reminder_dispatch_detail_rejects_unauthorized_user(client, django_user_model):
+    actor = django_user_model.objects.create_user(username="reminder-detail-owner", is_staff=True)
+    other_actor = django_user_model.objects.create_user(
+        username="reminder-detail-other", is_staff=False
+    )
+    start_at, end_at = _period()
+    draft = ReservationDraft.objects.create(customer=_customer(), start_at=start_at, end_at=end_at)
+    dispatch = prepare_payment_reminder_dispatch(actor=actor, reservation_draft=draft)
+    client.force_login(other_actor)
+
+    response = client.get(f"/api/v1/notifications/payment-reminders/{dispatch.id}/")
+
+    assert response.status_code == 403

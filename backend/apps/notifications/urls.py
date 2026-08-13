@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.notifications.views import (
     PaymentReminderDispatchCreateAPIView,
+    PaymentReminderDispatchDetailAPIView,
     SystemNotificationListAPIView,
     SystemNotificationMarkAllReadAPIView,
     SystemNotificationMarkReadAPIView,
@@ -12,6 +13,11 @@ urlpatterns = [
         "payment-reminders/",
         PaymentReminderDispatchCreateAPIView.as_view(),
         name="payment-reminder-dispatch-create",
+    ),
+    path(
+        "payment-reminders/<uuid:id>/",
+        PaymentReminderDispatchDetailAPIView.as_view(),
+        name="payment-reminder-dispatch-detail",
     ),
     path(
         "",
