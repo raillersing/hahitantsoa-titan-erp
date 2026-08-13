@@ -1460,6 +1460,16 @@ export function getBillingInvoices(
   return getAuthenticatedJson("/api/v1/billing/invoices/", reservationDraftIdOrSignal);
 }
 
+export function getHahitantsoaEventDraftBillingInvoices(
+  eventDraftId: string,
+  signal?: AbortSignal,
+): Promise<BillingInvoice[]> {
+  return getAuthenticatedJson(
+    `/api/v1/billing/invoices/?hahitantsoa_event_draft_id=${encodeURIComponent(eventDraftId)}`,
+    signal,
+  );
+}
+
 export function getBillingInvoice(id: string, signal?: AbortSignal): Promise<BillingInvoice> {
   return getAuthenticatedJson(`/api/v1/billing/invoices/${id}/`, signal);
 }
@@ -1580,6 +1590,16 @@ export function getLogisticsEvents(
     );
   }
   return getAuthenticatedJson("/api/v1/logistics/events/", reservationDraftIdOrSignal);
+}
+
+export function getHahitantsoaEventDraftLogisticsEvents(
+  eventDraftId: string,
+  signal?: AbortSignal,
+): Promise<LogisticsEvent[]> {
+  return getAuthenticatedJson(
+    `/api/v1/logistics/events/?hahitantsoa_event_draft_id=${encodeURIComponent(eventDraftId)}`,
+    signal,
+  );
 }
 
 export function getTitanClosedDays(

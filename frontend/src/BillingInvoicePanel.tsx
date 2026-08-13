@@ -8,6 +8,7 @@ import {
   executeBillingRefundObligation,
   getBillingCreditNotes,
   getBillingInvoices,
+  getHahitantsoaEventDraftBillingInvoices,
   issueBillingCreditNote,
   settleBillingInvoice,
 } from "./api";
@@ -182,7 +183,13 @@ function CreditNoteList({
   );
 }
 
-export function BillingInvoicePanel() {
+export function BillingInvoicePanel({
+  businessScope = "titan",
+  draftId,
+}: {
+  businessScope?: "titan" | "hahitantsoa";
+  draftId?: string;
+}) {
   const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -216,7 +223,11 @@ export function BillingInvoicePanel() {
       setLoading(true);
       setError("");
       try {
-        const data = await getBillingInvoices();
+        const data = businessScope === "hahitantsoa"
+          ? draftId
+            ? await getHahitantsoaEventDraftBillingInvoices(draftId)
+            : []
+          : await getBillingInvoices();
         if (!cancelled) {
           setInvoices(Array.isArray(data) ? data : []);
           setSelectedInvoiceId((current) => current || data[0]?.id || "");
@@ -235,7 +246,7 @@ export function BillingInvoicePanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [businessScope, draftId]);
 
   useEffect(() => {
     let cancelled = false;

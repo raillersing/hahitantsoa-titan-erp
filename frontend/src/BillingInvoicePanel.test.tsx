@@ -10,6 +10,7 @@ const MOCK_INVOICE: BillingInvoice = {
   excess_receivable: "er-0001",
   document_instance: null,
   reservation_draft: null,
+  hahitantsoa_event_draft: null,
   source_kind: "commercial_closeout",
   invoice_status: "open",
   amount: "150000.00",

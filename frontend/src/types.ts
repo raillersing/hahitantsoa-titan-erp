@@ -825,7 +825,8 @@ export type HandoverSignatureStatus = 'pending' | 'received' | 'exception';
 
 export type LogisticsEvent = {
   id: string;
-  reservation_draft: string;
+  reservation_draft: string | null;
+  hahitantsoa_event_draft: string | null;
   event_type: LogisticsEventType;
   operation: LogisticsOperationKind;
   status: LogisticsEventStatus;
@@ -869,7 +870,8 @@ export type LogisticsEventCompletePassationPayload = {
 };
 
 export type LogisticsEventCreatePayload = {
-  reservation_draft: string;
+  reservation_draft?: string;
+  hahitantsoa_event_draft?: string;
   event_type: LogisticsEventType;
   operation?: LogisticsOperationKind;
   scheduled_at?: string | null;
@@ -1032,6 +1034,7 @@ export type BillingInvoice = {
   excess_receivable: string | null;
   document_instance: DocumentInstance | null;
   reservation_draft: string | null;
+  hahitantsoa_event_draft: string | null;
   source_kind: string;
   invoice_status: BillingInvoiceStatus;
   amount: string;
