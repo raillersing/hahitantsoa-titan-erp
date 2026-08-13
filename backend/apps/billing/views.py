@@ -56,6 +56,9 @@ class BillingInvoiceListAPIView(generics.ListAPIView):
         reservation_draft_id = self.request.query_params.get("reservation_draft_id")
         if reservation_draft_id:
             qs = qs.filter(reservation_draft_id=reservation_draft_id)
+        hahitantsoa_event_draft_id = self.request.query_params.get("hahitantsoa_event_draft_id")
+        if hahitantsoa_event_draft_id:
+            qs = qs.filter(hahitantsoa_event_draft_id=hahitantsoa_event_draft_id)
         min_amount = self.request.query_params.get("min_amount")
         if min_amount:
             qs = qs.filter(amount__gte=min_amount)

@@ -414,6 +414,8 @@ def active_billing_invoices():
             "document_instance",
             "reservation_draft",
             "reservation_draft__customer",
+            "hahitantsoa_event_draft",
+            "hahitantsoa_event_draft__customer",
             "settled_by",
             "settlement",
             "settlement__payment",
@@ -596,6 +598,50 @@ def issue_billing_invoice_for_commercial_closeout(
 
 
 @transaction.atomic
+def issue_billing_invoice_for_hahitantsoa_closeout(
+    *,
+    hahitantsoa_event_draft,
+    amount: Decimal,
+    actor: object | None = None,
+    notes: str = "",
+) -> BillingInvoice:
+    if amount <= Decimal("0.00"):
+        raise BillingLifecycleError(
+            "Hahitantsoa closeout invoice amount must be positive.",
+            code=INVALID_BILLING_INVOICE_SOURCE_STATE,
+        )
+
+    actor_id = getattr(actor, "pk", None)
+    invoice = BillingInvoice.objects.create(
+        excess_receivable=None,
+        document_instance=None,
+        reservation_draft=None,
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
+        source_kind=BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT,
+        invoice_status=BillingInvoiceStatus.OPEN,
+        amount=amount,
+        issued_at=timezone.now(),
+        notes=notes,
+        created_by_id=actor_id,
+        updated_by_id=actor_id,
+    )
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="billing.invoice_issued",
+        target_type="billing_invoice",
+        target_id=str(invoice.id),
+        metadata={
+            "hahitantsoa_event_draft_id": str(hahitantsoa_event_draft.pk),
+            "amount": str(invoice.amount),
+            "source_kind": invoice.source_kind,
+        },
+    )
+    assign_invoice_number(invoice=invoice)
+    return invoice
+
+
+@transaction.atomic
 def settle_billing_invoice(
     *,
     invoice: BillingInvoice,
@@ -604,11 +650,13 @@ def settle_billing_invoice(
     notes: str = "",
 ) -> BillingInvoiceSettlementResult:
     locked_invoice = BillingInvoice.objects.select_for_update().get(pk=invoice.pk)
-    locked_invoice = BillingInvoice.objects.select_related("settlement", "reservation_draft").get(
-        pk=locked_invoice.pk
-    )
+    locked_invoice = BillingInvoice.objects.select_related(
+        "settlement", "reservation_draft", "hahitantsoa_event_draft"
+    ).get(pk=locked_invoice.pk)
     locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
-    locked_payment = Payment.objects.select_related("reservation_draft").get(pk=locked_payment.pk)
+    locked_payment = Payment.objects.select_related(
+        "reservation_draft", "hahitantsoa_event_draft"
+    ).get(pk=locked_payment.pk)
 
     if locked_invoice.invoice_status != BillingInvoiceStatus.OPEN:
         raise BillingLifecycleError(
@@ -656,6 +704,12 @@ def settle_billing_invoice(
         if locked_payment.reservation_draft_id != locked_invoice.reservation_draft_id:
             raise BillingLifecycleError(
                 "Billing settlements require a payment linked to the same reservation draft.",
+                code=INVALID_BILLING_SETTLEMENT_PAYMENT,
+            )
+    if locked_invoice.hahitantsoa_event_draft_id is not None:
+        if locked_payment.hahitantsoa_event_draft_id != locked_invoice.hahitantsoa_event_draft_id:
+            raise BillingLifecycleError(
+                "Billing settlements require a payment linked to the same Hahitantsoa event draft.",
                 code=INVALID_BILLING_SETTLEMENT_PAYMENT,
             )
 
@@ -918,9 +972,12 @@ def allocate_payment_to_installment(
     locked_installment = BillingInvoiceInstallment.objects.select_related(
         "invoice",
         "invoice__reservation_draft",
+        "invoice__hahitantsoa_event_draft",
     ).get(pk=locked_installment.pk)
     locked_payment = Payment.objects.select_for_update().get(pk=payment.pk)
-    locked_payment = Payment.objects.select_related("reservation_draft").get(pk=locked_payment.pk)
+    locked_payment = Payment.objects.select_related(
+        "reservation_draft", "hahitantsoa_event_draft"
+    ).get(pk=locked_payment.pk)
     locked_invoice = BillingInvoice.objects.select_for_update().get(
         pk=locked_installment.invoice_id
     )
@@ -978,6 +1035,13 @@ def allocate_payment_to_installment(
         if locked_payment.reservation_draft_id != locked_invoice.reservation_draft_id:
             raise BillingLifecycleError(
                 "Installment allocations require a payment linked to the same reservation draft.",
+                code=INVALID_BILLING_INSTALLMENT_ALLOCATION,
+            )
+    if locked_invoice.hahitantsoa_event_draft_id is not None:
+        if locked_payment.hahitantsoa_event_draft_id != locked_invoice.hahitantsoa_event_draft_id:
+            raise BillingLifecycleError(
+                "Installment allocations require a payment linked to the same "
+                "Hahitantsoa event draft.",
                 code=INVALID_BILLING_INSTALLMENT_ALLOCATION,
             )
 

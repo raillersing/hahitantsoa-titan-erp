@@ -19,6 +19,7 @@ from apps.logistics.models import (
 )
 
 if TYPE_CHECKING:
+    from apps.hahitantsoa.models import HahitantsoaEventDraft
     from apps.inventory.models import InventoryItem
     from apps.reservations.models import ReservationDraft
 
@@ -123,7 +124,8 @@ def _transition_allowed(from_status: str, to_status: str) -> bool:
 def create_logistics_event(
     *,
     actor: object | None,
-    reservation_draft: ReservationDraft,
+    reservation_draft: ReservationDraft | None = None,
+    hahitantsoa_event_draft: HahitantsoaEventDraft | None = None,
     event_type: str,
     operation: str = LogisticsOperationKind.OUTBOUND,
     scheduled_at: timezone.datetime | None = None,
@@ -134,15 +136,27 @@ def create_logistics_event(
     signature_required: bool = False,
 ) -> LogisticsEvent:
     _require_logistics_actor(actor=actor)
+    if (reservation_draft is None) == (hahitantsoa_event_draft is None):
+        raise LogisticsServiceError(
+            "Exactly one business draft is required for a logistics event.",
+            code="logistics_event_single_business_draft_required",
+        )
+    reservation_start_at = (
+        reservation_draft.start_at
+        if reservation_draft is not None
+        else hahitantsoa_event_draft.start_at
+    )
     if scheduled_at is None:
         scheduled_at = default_logistics_scheduled_at(
-            reservation_start_at=reservation_draft.start_at,
+            reservation_start_at=reservation_start_at,
             operation=operation,
         )
-    _validate_operational_schedule(scheduled_at=scheduled_at)
+    if reservation_draft is not None:
+        _validate_operational_schedule(scheduled_at=scheduled_at)
 
     event = LogisticsEvent.objects.create(
         reservation_draft=reservation_draft,
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
         event_type=event_type,
         operation=operation,
         scheduled_at=scheduled_at,
@@ -361,26 +375,38 @@ def complete_handover_passation(
         event=event,
         notes=notes,
     )
-    from apps.documents.services import (
-        ensure_reservation_draft_preparation_document,
-        generate_document_instance_pdf,
-        generate_reservation_draft_document_instance_html,
-    )
+    from apps.documents.services import generate_document_instance_pdf
+
+    if event.hahitantsoa_event_draft_id:
+        from apps.documents.services import generate_hahitantsoa_event_draft_document_instance_html
+    else:
+        from apps.documents.services import (
+            ensure_reservation_draft_preparation_document,
+            generate_reservation_draft_document_instance_html,
+        )
     from apps.inventory.services import InventoryStockMovementError, issue_delivery_note_stock
 
-    document_instance = generate_reservation_draft_document_instance_html(
-        reservation_draft=event.reservation_draft,
-        document_instance_id=document_instance.id,
-        actor=actor,
-    )
+    if event.hahitantsoa_event_draft_id:
+        document_instance = generate_hahitantsoa_event_draft_document_instance_html(
+            event_draft=event.hahitantsoa_event_draft,
+            document_instance_id=document_instance.id,
+            actor=actor,
+        )
+    else:
+        document_instance = generate_reservation_draft_document_instance_html(
+            reservation_draft=event.reservation_draft,
+            document_instance_id=document_instance.id,
+            actor=actor,
+        )
     document_instance = generate_document_instance_pdf(
         document_instance=document_instance,
         actor=actor,
     )
-    ensure_reservation_draft_preparation_document(
-        reservation_draft=event.reservation_draft,
-        actor=actor,
-    )
+    if not event.hahitantsoa_event_draft_id:
+        ensure_reservation_draft_preparation_document(
+            reservation_draft=event.reservation_draft,
+            actor=actor,
+        )
     try:
         issue_delivery_note_stock(
             document_instance=document_instance,
@@ -420,12 +446,23 @@ def create_delivery_note_from_handover_event(
     if notes:
         document_notes = f"{document_notes}. Notes: {notes}"
 
+    document_date = timezone.localtime(event.scheduled_at).date() if event.scheduled_at else None
+    if event.hahitantsoa_event_draft_id:
+        from apps.documents.services import create_document_instance_from_hahitantsoa_event_draft
+
+        return create_document_instance_from_hahitantsoa_event_draft(
+            event_draft=event.hahitantsoa_event_draft,
+            template_key="hahitantsoa.delivery_note.v1",
+            actor=actor,
+            notes=document_notes,
+            document_date=document_date,
+        )
     return create_document_instance_from_reservation_draft(
         reservation_draft=event.reservation_draft,
         template_key=DELIVERY_NOTE_TEMPLATE_KEY,
         actor=actor,
         notes=document_notes,
-        document_date=timezone.localtime(event.scheduled_at).date() if event.scheduled_at else None,
+        document_date=document_date,
     )
 
 

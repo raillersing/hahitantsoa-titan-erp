@@ -63,6 +63,7 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "reservation_draft",
+            "hahitantsoa_event_draft",
             "event_type",
             "operation",
             "status",
@@ -107,7 +108,8 @@ class LogisticsEventSerializer(serializers.ModelSerializer):
 
 
 class LogisticsEventCreateSerializer(serializers.Serializer):
-    reservation_draft = serializers.UUIDField()
+    reservation_draft = serializers.UUIDField(required=False)
+    hahitantsoa_event_draft = serializers.UUIDField(required=False)
     event_type = serializers.ChoiceField(choices=LogisticsEventType.choices)
     operation = serializers.ChoiceField(
         choices=LogisticsOperationKind.choices,
@@ -120,6 +122,13 @@ class LogisticsEventCreateSerializer(serializers.Serializer):
     contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=64)
     notes = serializers.CharField(required=False, allow_blank=True)
     signature_required = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        if bool(attrs.get("reservation_draft")) == bool(attrs.get("hahitantsoa_event_draft")):
+            raise serializers.ValidationError(
+                "Provide exactly one reservation_draft or hahitantsoa_event_draft."
+            )
+        return attrs
 
 
 class LogisticsEventUpdateSerializer(serializers.Serializer):

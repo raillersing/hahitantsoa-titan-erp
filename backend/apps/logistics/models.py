@@ -53,6 +53,15 @@ class TitanClosedDay(UUIDModel, TimestampedModel, AuditableModel):
 class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
     reservation_draft = models.ForeignKey(
         "reservations.ReservationDraft",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="logistics_events",
+    )
+    hahitantsoa_event_draft = models.ForeignKey(
+        "hahitantsoa.HahitantsoaEventDraft",
+        null=True,
+        blank=True,
         on_delete=models.PROTECT,
         related_name="logistics_events",
     )
@@ -102,9 +111,21 @@ class LogisticsEvent(UUIDModel, TimestampedModel, AuditableModel):
         ordering = ["-scheduled_at", "-created_at"]
         verbose_name = "Logistics Event"
         verbose_name_plural = "Logistics Events"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(reservation_draft__isnull=False, hahitantsoa_event_draft__isnull=True)
+                    | models.Q(
+                        reservation_draft__isnull=True, hahitantsoa_event_draft__isnull=False
+                    )
+                ),
+                name="logistics_event_single_business_draft",
+            )
+        ]
 
     def __str__(self) -> str:
-        return f"{self.event_type.label} ? {self.reservation_draft.public_reference}"
+        draft = self.reservation_draft or self.hahitantsoa_event_draft
+        return f"{self.event_type.label} ? {draft.public_reference}"
 
     def clean(self) -> None:
         super().clean()
