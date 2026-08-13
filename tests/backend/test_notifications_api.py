@@ -72,6 +72,30 @@ def test_list_notifications_empty(authenticated_client):
     assert response.json() == []
 
 
+def test_list_notifications_hides_other_recipient_notifications(authenticated_client, user):
+    other_user = get_user_model().objects.create_user(
+        username="other-notification-user",
+        password="test-pass",
+    )
+    SystemNotification.objects.create(
+        recipient=other_user,
+        notification_type="payment",
+        title="Private payment",
+        is_read=False,
+    )
+    SystemNotification.objects.create(
+        recipient=None,
+        notification_type="system",
+        title="Global system notice",
+        is_read=False,
+    )
+
+    response = authenticated_client.get(NOTIFICATION_LIST_URL)
+
+    assert response.status_code == 200
+    assert [item["title"] for item in response.json()] == ["Global system notice"]
+
+
 # --- Mark notification as read (authenticated) ---
 
 
@@ -115,6 +139,29 @@ def test_mark_notification_as_read_404(authenticated_client):
         content_type="application/json",
     )
     assert response.status_code == 404
+
+
+def test_mark_other_recipient_notification_as_read_is_not_allowed(authenticated_client):
+    other_user = get_user_model().objects.create_user(
+        username="other-read-user",
+        password="test-pass",
+    )
+    notification = SystemNotification.objects.create(
+        recipient=other_user,
+        notification_type="payment",
+        title="Private payment",
+        is_read=False,
+    )
+
+    response = authenticated_client.patch(
+        f"{NOTIFICATION_LIST_URL}{notification.id}/read/",
+        data={"is_read": True},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 404
+    notification.refresh_from_db()
+    assert notification.is_read is False
 
 
 # --- Mark all as read (authenticated) ---

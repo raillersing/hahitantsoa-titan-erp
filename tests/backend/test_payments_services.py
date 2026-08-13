@@ -111,6 +111,7 @@ def test_confirm_payment_generates_and_links_receipt_document(
     )
     assert notification.title == "Paiement confirmé"
     assert notification.severity == "success"
+    assert notification.recipient_id == actor.id
     create_payment_confirmation_notification(payment=payment)
     assert SystemNotification.objects.filter(link=f"/payments/{payment.id}").count() == 1
 
