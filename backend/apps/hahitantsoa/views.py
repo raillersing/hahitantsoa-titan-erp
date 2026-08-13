@@ -24,7 +24,6 @@ from apps.hahitantsoa.models import (
     HahitantsoaVenue,
 )
 from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
-from apps.identity.permissions import HasSuperAdminAccess
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
@@ -54,6 +53,7 @@ from apps.hahitantsoa.services import (
     confirm_hahitantsoa_event_draft,
     mark_hahitantsoa_event_draft_required_deposit_received,
 )
+from apps.identity.permissions import HasSuperAdminAccess
 from apps.inventory.services import InventoryStockMovementError
 from apps.reservations.confirmation import (
     ReservationConfirmationPreflightError,
