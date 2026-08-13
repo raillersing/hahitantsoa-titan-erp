@@ -233,7 +233,7 @@ def test_reservation_draft_detail_rejects_delete_method(
 
 
 def test_sensitive_user_cannot_soft_delete_draft(
-    sensitive_authenticated_client,
+    authenticated_client,
 ):
     draft = ReservationDraft.objects.create(
         customer=_customer(),
@@ -246,7 +246,7 @@ def test_sensitive_user_cannot_soft_delete_draft(
         quantity=1,
     )
 
-    response = sensitive_authenticated_client.post(
+    response = authenticated_client.post(
         f"{DRAFT_LIST_URL}{draft.id}/delete/",
         data={},
         content_type="application/json",
