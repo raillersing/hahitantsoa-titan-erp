@@ -4,14 +4,20 @@ import pytest
 from django.utils import timezone
 
 from apps.customers.models import Customer
-from apps.inventory.models import InventoryItem
+from apps.inventory.models import InventoryItem, InventoryStockMovementType
 from apps.inventory.selectors import get_event_operations_summary
 from apps.inventory.services import (
     check_event_operations_completeness,
     create_inventory_return_operation,
+    create_inventory_stock_movement,
     validate_inventory_return_operation,
 )
-from apps.logistics.models import LogisticsEvent, LogisticsEventType
+from apps.logistics.models import (
+    LogisticsEvent,
+    LogisticsEventStatus,
+    LogisticsEventType,
+    LogisticsOperationKind,
+)
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
@@ -50,7 +56,22 @@ def _logistics_event(draft: ReservationDraft) -> LogisticsEvent:
     return LogisticsEvent.objects.create(
         reservation_draft=draft,
         event_type=LogisticsEventType.PICKUP,
+        operation=LogisticsOperationKind.RETURN,
+        status=LogisticsEventStatus.COMPLETED,
         scheduled_at=timezone.now() + timedelta(days=1),
+        executed_at=timezone.now(),
+    )
+
+
+def _issue_for_return(*, actor, draft, item, quantity):
+    create_inventory_stock_movement(
+        actor=actor,
+        inventory_item=item,
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        quantity=quantity,
+        source_label="consolidation delivery",
+        notes="Issued delivery for return consolidation",
     )
 
 
@@ -102,6 +123,7 @@ def test_completeness_validated_return_only_intact(django_user_model) -> None:
     item = _inventory_item("Intact return item")
     draft = _reservation_draft()
     event = _logistics_event(draft)
+    _issue_for_return(actor=actor, draft=draft, item=item, quantity=3)
     ro = create_inventory_return_operation(
         actor=actor,
         reservation_draft=draft,
@@ -135,6 +157,7 @@ def test_completeness_validated_return_with_damage(django_user_model) -> None:
     item = _inventory_item("Damaged return item")
     draft = _reservation_draft()
     event = _logistics_event(draft)
+    _issue_for_return(actor=actor, draft=draft, item=item, quantity=2)
     ro = create_inventory_return_operation(
         actor=actor,
         reservation_draft=draft,
@@ -168,6 +191,8 @@ def test_completeness_validated_return_mixed_lines(django_user_model) -> None:
     item_b = _inventory_item("Item B")
     draft = _reservation_draft()
     event = _logistics_event(draft)
+    _issue_for_return(actor=actor, draft=draft, item=item_a, quantity=2)
+    _issue_for_return(actor=actor, draft=draft, item=item_b, quantity=1)
     ro = create_inventory_return_operation(
         actor=actor,
         reservation_draft=draft,
@@ -256,6 +281,7 @@ def test_summary_validated_return_full(django_user_model) -> None:
     item = _inventory_item("Summary full item")
     draft = _reservation_draft()
     event = _logistics_event(draft)
+    _issue_for_return(actor=actor, draft=draft, item=item, quantity=4)
     ro = create_inventory_return_operation(
         actor=actor,
         reservation_draft=draft,
