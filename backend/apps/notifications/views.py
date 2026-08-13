@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -6,14 +7,17 @@ from rest_framework.views import APIView
 
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.identity.permissions import HasReservationSensitiveAccess
-from apps.notifications.models import SystemNotification
+from apps.notifications.models import PaymentReminderDispatch, SystemNotification
 from apps.notifications.serializers import (
     PaymentReminderDispatchCreateSerializer,
     PaymentReminderDispatchSerializer,
     SystemNotificationMarkReadSerializer,
     SystemNotificationSerializer,
 )
-from apps.notifications.services import prepare_payment_reminder_dispatch
+from apps.notifications.services import (
+    build_payment_reminder_for_dispatch,
+    prepare_payment_reminder_dispatch,
+)
 from apps.reservations.models import ReservationDraft
 
 
@@ -104,6 +108,47 @@ class PaymentReminderDispatchCreateAPIView(APIView):
             hahitantsoa_event_draft=event,
             reminder_key=serializer.validated_data["reminder_key"],
         )
-        return Response(
-            PaymentReminderDispatchSerializer(dispatch).data, status=status.HTTP_201_CREATED
+        return Response(self._response_payload(dispatch), status=status.HTTP_201_CREATED)
+
+    @staticmethod
+    def _response_payload(dispatch):
+        reminder = build_payment_reminder_for_dispatch(dispatch=dispatch)
+        return {
+            **PaymentReminderDispatchSerializer(dispatch).data,
+            "reminder": {
+                "business_scope": reminder.business_scope,
+                "draft_id": reminder.draft_id,
+                "reference": reminder.reference,
+                "customer_name": reminder.customer_name,
+                "customer_phone": reminder.customer_phone,
+                "event_label": reminder.event_label,
+                "start_at": reminder.start_at,
+                "end_at": reminder.end_at,
+                "confirmed_payment_count": reminder.confirmed_payment_count,
+                "confirmed_amount": str(reminder.confirmed_amount),
+                "refunded_amount": str(reminder.refunded_amount),
+                "net_amount": str(reminder.net_amount),
+                "payments": reminder.payments,
+                "message": reminder.message,
+                "whatsapp_url": reminder.whatsapp_url,
+                "whatsapp_available": reminder.whatsapp_url is not None,
+            },
+        }
+
+
+class PaymentReminderDispatchDetailAPIView(APIView):
+    """Read one operator-prepared reminder draft for an authorized actor."""
+
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    def get(self, request, id):
+        dispatch = get_object_or_404(
+            PaymentReminderDispatch.objects.select_related(
+                "reservation_draft",
+                "hahitantsoa_event_draft",
+                "prepared_by",
+            ),
+            pk=id,
         )
+        return Response(PaymentReminderDispatchCreateAPIView._response_payload(dispatch))

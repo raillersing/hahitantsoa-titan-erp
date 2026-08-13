@@ -16,6 +16,14 @@ from apps.payments.reminders import (
 from apps.reservations.models import ReservationDraft
 
 
+def build_payment_reminder_for_dispatch(*, dispatch: PaymentReminderDispatch):
+    if dispatch.reservation_draft_id:
+        return build_reservation_payment_reminder(reservation_draft=dispatch.reservation_draft)
+    return build_hahitantsoa_payment_reminder(
+        hahitantsoa_event_draft=dispatch.hahitantsoa_event_draft
+    )
+
+
 def create_payment_confirmation_notification(*, payment, recipient=None) -> SystemNotification:
     """Create the internal notification for a successfully confirmed payment."""
     link = f"/payments/{payment.id}"
