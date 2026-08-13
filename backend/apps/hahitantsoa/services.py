@@ -841,9 +841,9 @@ def mark_hahitantsoa_event_draft_required_deposit_received(
                 "updated_at",
             ]
         )
-        if not _is_contract_signed(event_draft=locked_event_draft) and _lock_contract_truth_documents(
+        if not _is_contract_signed(
             event_draft=locked_event_draft
-        ):
+        ) and _lock_contract_truth_documents(event_draft=locked_event_draft):
             now = timezone.now()
             locked_event_draft.contract_signed_at = now
             locked_event_draft.contract_signed_by_id = actor.pk

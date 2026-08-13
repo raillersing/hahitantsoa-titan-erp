@@ -13,12 +13,12 @@ from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.identity.authorization import require_super_admin_actor
 from apps.inventory.models import (
     InventoryAvailability,
     InventoryAvailabilityStatus,
     InventoryItem,
 )
-from apps.identity.authorization import require_super_admin_actor
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 from apps.reservations.attribution import (
     ReservationSensitiveActorAttribution,
@@ -502,9 +502,9 @@ def mark_reservation_draft_required_deposit_received(
             reservation_draft=locked_reservation_draft,
             attribution=attribution,
         )
-        if not _is_contract_signed(reservation_draft=marked_draft) and _lock_contract_truth_documents(
+        if not _is_contract_signed(
             reservation_draft=marked_draft
-        ):
+        ) and _lock_contract_truth_documents(reservation_draft=marked_draft):
             _persist_contract_signed_marker(
                 reservation_draft=marked_draft,
                 attribution=attribution,
@@ -626,15 +626,19 @@ def soft_delete_reservation_draft(
                 "Reservation draft is already deleted.",
                 code="draft_already_deleted",
             )
-        active_blocks = list(InventoryAvailability.objects.filter(
-            reservation_draft=locked_reservation_draft,
-            is_deleted=False,
-        ).select_for_update())
+        active_blocks = list(
+            InventoryAvailability.objects.filter(
+                reservation_draft=locked_reservation_draft,
+                is_deleted=False,
+            ).select_for_update()
+        )
         deleted_at = attribution.attributed_at
         for block in active_blocks:
             block.is_deleted = True
             block.deleted_at = deleted_at
-            block.notes = f"Released by super-admin cleanup for {locked_reservation_draft.public_reference}."
+            block.notes = (
+                f"Released by super-admin cleanup for {locked_reservation_draft.public_reference}."
+            )
             block.save(update_fields=["is_deleted", "deleted_at", "notes"])
 
         locked_reservation_draft.is_deleted = True
