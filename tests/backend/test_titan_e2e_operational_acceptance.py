@@ -86,11 +86,11 @@ def _customer():
 
 
 def _make_safe_dt(dt):
-    """Shift a datetime to the following Monday when it falls on Sunday."""
+    """Return a weekday datetime inside Titan's 06:00-22:00 operating window."""
     local = timezone.localtime(dt)
     if local.weekday() == 6:
-        return (local + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-    return dt
+        local += timedelta(days=1)
+    return local.replace(hour=10, minute=0, second=0, microsecond=0)
 
 
 def _draft_with_line():

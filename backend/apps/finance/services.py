@@ -264,6 +264,7 @@ def configure_finance_account(
 def record_financial_journal_entry(
     *,
     account: FinanceAccount,
+    category: FinancialCategory | None = None,
     direction: str,
     amount: Decimal,
     occurred_at,
@@ -283,6 +284,7 @@ def record_financial_journal_entry(
         raise ValueError("Financial journal entries require an active finance account.")
     entry = FinancialJournalEntry(
         account=locked_account,
+        category=category,
         direction=direction,
         amount=amount,
         occurred_at=occurred_at,

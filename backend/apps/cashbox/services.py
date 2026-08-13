@@ -100,7 +100,9 @@ def compute_cashbox_session_theoretical_amount(session: CashboxSession) -> Decim
 
 
 @transaction.atomic
-def get_or_create_operator_cash_account(*, operator, actor):
+def get_or_create_operator_cash_account(
+    *, operator, actor, business_scope=FinanceBusinessScope.TITAN
+):
     if not is_cashbox_operator_actor(actor=actor):
         raise CashboxLifecycleError(
             "This user is not authorized to operate a cashbox.",
@@ -110,7 +112,7 @@ def get_or_create_operator_cash_account(*, operator, actor):
     assignment = (
         CashboxOperatorAccount.objects.select_for_update()
         .select_related("cash_account")
-        .filter(operator=locked_operator)
+        .filter(operator=locked_operator, business_scope=business_scope)
         .first()
     )
     if assignment is not None:
@@ -118,13 +120,14 @@ def get_or_create_operator_cash_account(*, operator, actor):
 
     account = create_finance_account(
         actor=actor,
-        business_scope=FinanceBusinessScope.TITAN,
-        code=f"cashbox-{locked_operator.pk}",
+        business_scope=business_scope,
+        code=f"cashbox-{business_scope}-{locked_operator.pk}",
         label=f"Caisse de {locked_operator.get_username()}",
         kind=FinanceAccountKind.CASH,
     )
     assignment = CashboxOperatorAccount(
         operator=locked_operator,
+        business_scope=business_scope,
         cash_account=account,
         created_by=actor,
         updated_by=actor,

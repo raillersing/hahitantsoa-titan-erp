@@ -24,7 +24,7 @@ def _make_safe_dt(dt: timezone.datetime) -> timezone.datetime:
     local = timezone.localtime(dt)
     if local.weekday() == 6:
         return (local + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
-    return dt
+    return local.replace(hour=10, minute=0, second=0, microsecond=0)
 
 
 @pytest.fixture

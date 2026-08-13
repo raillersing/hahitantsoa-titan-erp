@@ -45,7 +45,7 @@ def _actor(*, django_user_model, username: str = "hahitantsoa-staff"):
     )
 
 
-def _confirmable_draft(*, actor) -> HahitantsoaEventDraft:
+def _confirmable_draft(*, actor, with_deposit: bool = True) -> HahitantsoaEventDraft:
     start_at, end_at = _period()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
@@ -60,11 +60,13 @@ def _confirmable_draft(*, actor) -> HahitantsoaEventDraft:
         quantity=1,
         created_by=actor,
     )
-    _create_confirmation_truth(event_draft=draft, actor=actor)
+    _create_confirmation_truth(event_draft=draft, actor=actor, with_deposit=with_deposit)
     return draft
 
 
-def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> None:
+def _create_confirmation_truth(
+    *, event_draft: HahitantsoaEventDraft, actor, with_deposit: bool = True
+) -> None:
     instance = create_document_instance_from_hahitantsoa_event_draft(
         event_draft=event_draft,
         template_key="hahitantsoa.contract.v1",
@@ -73,6 +75,9 @@ def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> 
     from apps.documents.runtime import generate_document_instance_html
 
     generate_document_instance_html(document_instance=instance, actor=actor)
+    if not with_deposit:
+        return
+
     payment = create_payment(
         actor=actor,
         hahitantsoa_event_draft=event_draft,
@@ -150,7 +155,7 @@ def test_hahitantsoa_confirmation_succeeds_persists_state_blocks_and_audit(
 
 def test_hahitantsoa_confirmation_refuses_when_preflight_fails(django_user_model) -> None:
     actor = _actor(django_user_model=django_user_model)
-    draft = _confirmable_draft(actor=actor)
+    draft = _confirmable_draft(actor=actor, with_deposit=False)
     draft.payments.all().delete()
 
     with pytest.raises(ReservationConfirmationPreflightError) as error_info:
