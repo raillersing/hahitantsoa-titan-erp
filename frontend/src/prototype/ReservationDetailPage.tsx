@@ -119,6 +119,16 @@ export default function ReservationDetailPage({
   const [amendmentStartAt, setAmendmentStartAt] = useState("");
   const [amendmentEndAt, setAmendmentEndAt] = useState("");
   const [amendmentQuantities, setAmendmentQuantities] = useState<Record<string, number>>({});
+  const [payments, setPayments] = useState<
+    {
+      id: string;
+      date: string;
+      method: string;
+      amount: number;
+      note: string;
+      reference?: string;
+    }[]
+  >([]);
 
   /* ── fetch on mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -158,14 +168,18 @@ export default function ReservationDetailPage({
         try {
           const paymentRecords = await getPayments(d.id);
           if (!cancelled) {
-            setPayments(paymentRecords.map((payment: Payment) => ({
+            setPayments(paymentRecords
+              .filter((payment: Payment) =>
+                payment.payment_status === "confirmed" || payment.payment_status === "reconciled",
+              )
+              .map((payment: Payment) => ({
               id: payment.id,
               date: payment.paid_at || payment.created_at,
               method: payment.payment_method,
               amount: Number(payment.amount),
               note: payment.notes || payment.payment_kind,
               reference: payment.external_reference || undefined,
-            })));
+              })));
           }
         } catch {
           // Non-fatal: payment loading failure does not hide the dossier.
@@ -420,8 +434,8 @@ export default function ReservationDetailPage({
   };
 
   const safeAmount = 0; // Prices not available on draft lines
-  const paidAmount = 0;
-  const remainingAmount = 0;
+  const paidAmount = payments.reduce((total, payment) => total + payment.amount, 0);
+  const remainingAmount = Math.max(0, safeAmount - paidAmount);
 
   const materials =
     draft?.lines
@@ -456,16 +470,6 @@ export default function ReservationDetailPage({
   const publicRef = draft?.public_reference || draftId;
   const draftStatus = draft?.status || "draft";
 
-  const [payments, setPayments] = useState<
-    {
-      id: string;
-      date: string;
-      method: string;
-      amount: number;
-      note: string;
-      reference?: string;
-    }[]
-  >([]);
   const [depositAmount, setDepositAmount] = useState("");
 
   /* ── loading / error states ───────────────────────────────────── */

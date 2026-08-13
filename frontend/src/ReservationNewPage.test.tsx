@@ -731,7 +731,24 @@ describe('ReservationNewPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-001');
   });
 
-  it('15. émet le proforma prospect Titan après création du brouillon et du PDF', async () => {
+  it('15. ouvre directement le choix du volet avec un identifiant client API', async () => {
+    const apiClientId = '7f4c2d9e-2f11-4b10-8a1c-2b4d5e6f7081';
+    vi.mocked(getCustomers).mockResolvedValueOnce([
+      { ...mockCustomersData[0], id: apiClientId },
+      ...mockCustomersData.slice(1),
+    ] as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param={apiClientId} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Choix du volet métier/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Comment voulez-vous commencer \?/)).not.toBeInTheDocument();
+    expect(screen.getByText('Hahitantsoa')).toBeInTheDocument();
+    expect(screen.getByText('Titan Rental')).toBeInTheDocument();
+  });
+
+  it('16. émet le proforma prospect Titan après création du brouillon et du PDF', async () => {
     render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-t/CUST-001" />);
 
     await screen.findByText('Détails Location (Titan)');
