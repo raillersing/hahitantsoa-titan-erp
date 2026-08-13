@@ -8,6 +8,7 @@ export type FrontendCapabilities = {
   canManageIdentity: boolean;
   canViewAudit: boolean;
   canSensitiveWrite: boolean;
+  canSuperAdminDelete: boolean;
 };
 
 const RESERVATION_SENSITIVE_ROLE = "reservation_sensitive_operator";
@@ -24,5 +25,6 @@ export function capabilitiesForUser(user: SessionUser): FrontendCapabilities {
     canManageIdentity: user.is_staff || hasRole(user, IDENTITY_ADMIN_ROLE),
     canViewAudit: canSensitiveWrite,
     canSensitiveWrite,
+    canSuperAdminDelete: user.is_staff,
   };
 }

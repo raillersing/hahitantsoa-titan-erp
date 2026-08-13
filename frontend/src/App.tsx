@@ -186,10 +186,10 @@ function App() {
     switch (scope) {
       case "dashboard": return <DashboardPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
       case "planning": return <PlanningPage onNavigate={navigate} />;
-      case "hahitantsoa": return <HahitantsoaPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
-      case "titan": return <TitanPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
+      case "hahitantsoa": return <HahitantsoaPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
+      case "titan": return <TitanPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "commercial-ops": return <CommercialOpsPage onNavigate={navigate} />;
-      case "customers": return <CustomersPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
+      case "customers": return <CustomersPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "cashbox": return <CashboxPage onNavigate={navigate} />;
       case "caution": return <CautionPage onNavigate={navigate} />;
       case "help": return <HelpPage onNavigate={navigate} />;
@@ -210,8 +210,8 @@ function App() {
             domain="Titan"
           />
         );
-      case "reservations": return <ReservationsPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
-      case "customer": return <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} />;
+      case "reservations": return <ReservationsPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
+      case "customer": return <CustomerDetailPage onNavigate={navigate} param={activeParam} onBack={navigateBack} returnContext={returnContext} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "packages": return <PackageBuilderPage />;
       case "services": return <ServicesPage />;
       case "blacklist-intervenants": return <BlacklistPage />;

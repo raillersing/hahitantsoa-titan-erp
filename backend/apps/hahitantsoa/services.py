@@ -814,6 +814,54 @@ def _persist_hahitantsoa_event_draft_confirmation(
     return event_draft
 
 
+def mark_hahitantsoa_event_draft_required_deposit_received(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None,
+) -> HahitantsoaEventDraft:
+    """Record the confirmed deposit and complete confirmation atomically."""
+    capture_reservation_sensitive_actor_attribution(actor=actor)
+    with transaction.atomic():
+        locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
+        _assert_active_draft_state(event_draft=locked_event_draft)
+        if not _lock_confirmed_required_deposit_payments(event_draft=locked_event_draft):
+            raise ReservationLifecycleStateError(
+                "Hahitantsoa event draft must have a confirmed deposit payment.",
+                code="required_deposit_payment_truth_missing",
+            )
+        now = timezone.now()
+        locked_event_draft.required_deposit_received_at = now
+        locked_event_draft.required_deposit_received_by_id = actor.pk
+        locked_event_draft.updated_by = actor
+        locked_event_draft.save(
+            update_fields=[
+                "required_deposit_received_at",
+                "required_deposit_received_by",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        if not _is_contract_signed(event_draft=locked_event_draft) and _lock_contract_truth_documents(
+            event_draft=locked_event_draft
+        ):
+            now = timezone.now()
+            locked_event_draft.contract_signed_at = now
+            locked_event_draft.contract_signed_by_id = actor.pk
+            locked_event_draft.updated_by = actor
+            locked_event_draft.save(
+                update_fields=[
+                    "contract_signed_at",
+                    "contract_signed_by",
+                    "updated_by",
+                    "updated_at",
+                ]
+            )
+        return confirm_hahitantsoa_event_draft(
+            event_draft=locked_event_draft,
+            actor=actor,
+        ).event_draft
+
+
 def _schedule_confirmation_success_audit(
     *,
     event_draft: HahitantsoaEventDraft,

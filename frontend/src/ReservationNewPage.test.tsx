@@ -21,6 +21,10 @@ import {
   convertProformaToContract,
   createCustomer,
   uploadAttachment,
+  createPayment,
+  confirmPayment,
+  markReservationDraftRequiredDepositReceived,
+  markHahitantsoaEventDraftRequiredDepositReceived,
 } from './api';
 
 // ---- Shared mock data ----
@@ -172,6 +176,10 @@ vi.mock('./api', () => ({
   convertProformaToContract: vi.fn(),
   createCustomer: vi.fn(),
   uploadAttachment: vi.fn(),
+  createPayment: vi.fn(),
+  confirmPayment: vi.fn(),
+  markReservationDraftRequiredDepositReceived: vi.fn(),
+  markHahitantsoaEventDraftRequiredDepositReceived: vi.fn(),
 }));
 
 describe('ReservationNewPage', () => {
@@ -215,6 +223,10 @@ describe('ReservationNewPage', () => {
     vi.mocked(convertProformaToContract).mockResolvedValue({ id: 'CONTRACT-001', reservation_public_reference: 'RES-001' } as any);
     vi.mocked(createCustomer).mockResolvedValue({ id: 'CUST-NEW', display_name: 'New Client' } as any);
     vi.mocked(uploadAttachment).mockResolvedValue({ id: 'ATT-001' } as any);
+    vi.mocked(createPayment).mockResolvedValue({ id: 'PAY-001' } as any);
+    vi.mocked(confirmPayment).mockResolvedValue({ id: 'PAY-001', payment_status: 'confirmed' } as any);
+    vi.mocked(markReservationDraftRequiredDepositReceived).mockResolvedValue({ status: 'confirmed' } as any);
+    vi.mocked(markHahitantsoaEventDraftRequiredDepositReceived).mockResolvedValue({ status: 'confirmed' } as any);
   });
 
   afterEach(() => {

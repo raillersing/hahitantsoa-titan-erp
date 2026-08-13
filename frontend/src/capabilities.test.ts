@@ -15,6 +15,7 @@ describe("capabilitiesForUser", () => {
       canManageIdentity: false,
       canViewAudit: true,
       canSensitiveWrite: true,
+      canSuperAdminDelete: false,
     });
   });
 
@@ -23,6 +24,7 @@ describe("capabilitiesForUser", () => {
       canManageIdentity: true,
       canViewAudit: false,
       canSensitiveWrite: false,
+      canSuperAdminDelete: false,
     });
   });
 
@@ -31,6 +33,7 @@ describe("capabilitiesForUser", () => {
       canManageIdentity: true,
       canViewAudit: true,
       canSensitiveWrite: true,
+      canSuperAdminDelete: true,
     });
   });
 
@@ -39,6 +42,7 @@ describe("capabilitiesForUser", () => {
       canManageIdentity: false,
       canViewAudit: false,
       canSensitiveWrite: false,
+      canSuperAdminDelete: false,
     });
   });
 });

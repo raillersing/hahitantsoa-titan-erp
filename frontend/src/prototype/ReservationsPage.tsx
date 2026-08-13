@@ -7,11 +7,12 @@ import type { ReservationDraft } from "../types";
 interface ReservationsPageProps {
   onNavigate: (scope: AppScope, param?: string) => void;
   canSensitiveWrite?: boolean;
+  canSuperAdminDelete?: boolean;
 }
 
 type FilterKey = "all" | "draft" | "confirmed" | "cancelled";
 
-export default function ReservationsPage({ onNavigate, canSensitiveWrite = false }: ReservationsPageProps) {
+export default function ReservationsPage({ onNavigate, canSensitiveWrite = false, canSuperAdminDelete = false }: ReservationsPageProps) {
   const [drafts, setDrafts] = useState<ReservationDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
   const [actionError, setActionError] = useState<string | null>(null);
 
   const handleDelete = async (draft: ReservationDraft) => {
-    if (draft.status !== "draft" || deletingId) return;
+    if (!canSuperAdminDelete || draft.status !== "draft" || deletingId) return;
     if (!window.confirm(`Supprimer le brouillon ${draft.public_reference} ?`)) return;
     setDeletingId(draft.id);
     setActionError(null);
@@ -185,7 +186,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
                 <th className="px-4 py-3 text-left font-medium">Date / Période</th>
                 <th className="px-4 py-3 text-left font-medium">Articles</th>
                 <th className="px-4 py-3 text-center font-medium">Statut</th>
-                {canSensitiveWrite && <th className="px-4 py-3 text-right font-medium rounded-tr-lg">Actions</th>}
+                {canSuperAdminDelete && <th className="px-4 py-3 text-right font-medium rounded-tr-lg">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -218,7 +219,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
                   <td className="px-4 py-3 text-center rounded-tr-lg">
                     {formatStatusBadge(r.status)}
                   </td>
-                  {canSensitiveWrite && <td className="px-4 py-3 text-right">
+                  {canSuperAdminDelete && <td className="px-4 py-3 text-right">
                     {r.status === "draft" ? (
                       <button type="button" className="font-semibold text-rose-600 hover:underline disabled:opacity-50" disabled={deletingId === r.id} onClick={() => void handleDelete(r)}>
                         {deletingId === r.id ? "Suppression…" : "Supprimer"}
@@ -229,7 +230,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={canSensitiveWrite ? 6 : 5} className="px-4 py-8">
+                  <td colSpan={canSuperAdminDelete ? 6 : 5} className="px-4 py-8">
                     <EmptyState
                       message="Aucune réservation ne correspond à votre recherche."
                       icon="fa-calendar-xmark"

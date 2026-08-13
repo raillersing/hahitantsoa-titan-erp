@@ -33,6 +33,17 @@ def sensitive_authenticated_client(client, django_user_model):
     return client
 
 
+@pytest.fixture
+def staff_authenticated_client(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="reservation-draft-super-admin",
+        password="test-password",
+        is_staff=True,
+    )
+    client.force_login(user)
+    return client
+
+
 def _period():
     start_at = timezone.now().replace(microsecond=0)
     return start_at, start_at + timedelta(hours=2)
@@ -221,7 +232,7 @@ def test_reservation_draft_detail_rejects_delete_method(
     assert response.status_code == 405
 
 
-def test_sensitive_user_can_soft_delete_draft_without_physical_delete(
+def test_sensitive_user_cannot_soft_delete_draft(
     sensitive_authenticated_client,
 ):
     draft = ReservationDraft.objects.create(
@@ -236,6 +247,33 @@ def test_sensitive_user_can_soft_delete_draft_without_physical_delete(
     )
 
     response = sensitive_authenticated_client.post(
+        f"{DRAFT_LIST_URL}{draft.id}/delete/",
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+    draft.refresh_from_db()
+    line.refresh_from_db()
+    assert draft.is_deleted is False
+    assert line.is_deleted is False
+
+
+def test_staff_user_can_soft_delete_test_draft_without_physical_delete(
+    staff_authenticated_client,
+):
+    draft = ReservationDraft.objects.create(
+        customer=_customer(),
+        start_at=_period()[0],
+        end_at=_period()[1],
+    )
+    line = ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=_item(),
+        quantity=1,
+    )
+
+    response = staff_authenticated_client.post(
         f"{DRAFT_LIST_URL}{draft.id}/delete/",
         data={},
         content_type="application/json",

@@ -965,6 +965,17 @@ export function confirmHahitantsoaEventDraft(
   );
 }
 
+export function markHahitantsoaEventDraftRequiredDepositReceived(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<{ status: string; public_reference: string; event_draft: HahitantsoaEventDraft }> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/required-deposit-received/`,
+    {},
+    signal,
+  );
+}
+
 export function getHahitantsoaEventDraftAmendmentRequests(
   draftId: string,
   signal?: AbortSignal,

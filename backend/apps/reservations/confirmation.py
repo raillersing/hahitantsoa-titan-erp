@@ -18,6 +18,7 @@ from apps.inventory.models import (
     InventoryAvailabilityStatus,
     InventoryItem,
 )
+from apps.identity.authorization import require_super_admin_actor
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 from apps.reservations.attribution import (
     ReservationSensitiveActorAttribution,
@@ -497,10 +498,22 @@ def mark_reservation_draft_required_deposit_received(
                 ),
                 code=REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING,
             )
-        return _persist_required_deposit_received_marker(
+        marked_draft = _persist_required_deposit_received_marker(
             reservation_draft=locked_reservation_draft,
             attribution=attribution,
         )
+        if not _is_contract_signed(reservation_draft=marked_draft) and _lock_contract_truth_documents(
+            reservation_draft=marked_draft
+        ):
+            _persist_contract_signed_marker(
+                reservation_draft=marked_draft,
+                attribution=attribution,
+            )
+            marked_draft.refresh_from_db()
+        return confirm_reservation_draft(
+            reservation_draft=marked_draft,
+            actor=actor,
+        ).reservation_draft
 
 
 def confirm_reservation_draft(
@@ -601,6 +614,7 @@ def soft_delete_reservation_draft(
     actor: object | None,
 ) -> ReservationDraft:
     """Hide an unconfirmed draft without physically deleting business evidence."""
+    require_super_admin_actor(actor=actor)
     attribution = capture_reservation_sensitive_actor_attribution(actor=actor)
 
     with transaction.atomic():
@@ -612,13 +626,17 @@ def soft_delete_reservation_draft(
                 "Reservation draft is already deleted.",
                 code="draft_already_deleted",
             )
-        if locked_reservation_draft.status != ReservationDraftStatus.DRAFT:
-            raise ReservationLifecycleStateError(
-                "Only an unconfirmed reservation draft can be deleted.",
-                code="draft_not_deletable",
-            )
-
+        active_blocks = list(InventoryAvailability.objects.filter(
+            reservation_draft=locked_reservation_draft,
+            is_deleted=False,
+        ).select_for_update())
         deleted_at = attribution.attributed_at
+        for block in active_blocks:
+            block.is_deleted = True
+            block.deleted_at = deleted_at
+            block.notes = f"Released by super-admin cleanup for {locked_reservation_draft.public_reference}."
+            block.save(update_fields=["is_deleted", "deleted_at", "notes"])
+
         locked_reservation_draft.is_deleted = True
         locked_reservation_draft.deleted_at = deleted_at
         locked_reservation_draft.updated_by_id = attribution.actor_id
@@ -638,7 +656,8 @@ def soft_delete_reservation_draft(
             target_id=str(locked_reservation_draft.id),
             metadata={
                 "public_reference": locked_reservation_draft.public_reference,
-                "result": "soft_deleted",
+                "result": "soft_deleted_by_super_admin",
+                "released_block_count": len(active_blocks),
             },
         )
         return locked_reservation_draft

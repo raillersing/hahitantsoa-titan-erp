@@ -5,7 +5,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasReservationSensitiveAccess, HasSuperAdminAccess
 from apps.inventory.models import InventoryItem
 from apps.reservations.amendments import (
     ReservationAmendmentError,
@@ -267,7 +267,7 @@ class ReservationDraftCancelAPIView(APIView):
 
 
 class ReservationDraftSoftDeleteAPIView(APIView):
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasSuperAdminAccess]
     http_method_names = ["post", "head", "options"]
 
     def post(self, request, pk):

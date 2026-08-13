@@ -18,6 +18,9 @@ LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE = (
     "Actor is not allowed to perform a logistics override; explicit "
     "logistics_override capability is required."
 )
+SUPER_ADMIN_PERMISSION_DENIED_MESSAGE = (
+    "Seul un super-administrateur peut supprimer des données métier."
+)
 
 
 def is_authenticated_active_actor(*, actor: object | None) -> bool:
@@ -79,6 +82,16 @@ def is_reservation_sensitive_actor(*, actor: object | None) -> bool:
 def require_reservation_sensitive_actor(*, actor: object | None) -> None:
     if not is_reservation_sensitive_actor(actor=actor):
         raise PermissionError(RESERVATION_SENSITIVE_PERMISSION_DENIED_MESSAGE)
+
+
+def is_super_admin_actor(*, actor: object | None) -> bool:
+    """Allow destructive test-data cleanup only through Django staff users."""
+    return is_authenticated_active_actor(actor=actor) and getattr(actor, "is_staff", False) is True
+
+
+def require_super_admin_actor(*, actor: object | None) -> None:
+    if not is_super_admin_actor(actor=actor):
+        raise PermissionError(SUPER_ADMIN_PERMISSION_DENIED_MESSAGE)
 
 
 def is_cashbox_supervisor_actor(*, actor: object | None) -> bool:

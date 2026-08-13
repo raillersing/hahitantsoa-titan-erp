@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasReservationSensitiveAccess, HasSuperAdminAccess
 
 from .models import Customer, DesiredDateWaitlistEntry, DesiredDateWaitlistStatus, ProspectStatus
 from .serializers import (
@@ -155,7 +155,7 @@ class CustomerUpdateAPIView(APIView):
 
 class CustomerSoftDeleteAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasSuperAdminAccess]
 
     @extend_schema(
         responses={

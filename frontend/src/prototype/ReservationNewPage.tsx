@@ -23,6 +23,10 @@ import {
   convertProspectToClient,
   updateCustomer,
   uploadAttachment,
+  createPayment,
+  confirmPayment,
+  markReservationDraftRequiredDepositReceived,
+  markHahitantsoaEventDraftRequiredDepositReceived,
 } from "../api";
 import type {
   Customer,
@@ -438,6 +442,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [proformaValidity, setProformaValidity] = useState<number>(15);
   const [proformaGenerated, setProformaGenerated] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [paymentRecorded, setPaymentRecorded] = useState(false);
   const [clientAttachments, setClientAttachments] = useState<Attachment[]>([]);
   const [paymentAttachments, setPaymentAttachments] = useState<Attachment[]>([]);
 
@@ -941,7 +946,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     return { documentId, draftId };
   };
 
-  const ensureContractGenerated = async () => {
+  const ensureContractGenerated = async (): Promise<{ contract: Awaited<ReturnType<typeof convertProformaToContract>>; draftId: string }> => {
     let emission = prospectProformaEmission;
     let proformaDocumentId = emission?.documentId;
     if (!emission?.draftId || !proformaDocumentId) {
@@ -988,7 +993,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         await generateReservationDraftDocumentInstancePdf(emission.draftId, contract.id);
       }
     }
-    return contract;
+    return { contract, draftId: emission.draftId };
   };
 
   const renderStepper = () => {
@@ -3011,6 +3016,33 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     c.id === selectedClientId ? { ...c, lifecycle_status: "client" } : c
                   ));
                 }
+                const emitted = prospectProformaEmission?.draftId
+                  ? prospectProformaEmission
+                  : await issueProspectProforma();
+                if (!emitted.draftId) throw new Error("Le brouillon de réservation est introuvable.");
+                if (!paymentRecorded) {
+                  const method = payment.method === "Espèces"
+                    ? "cash"
+                    : payment.method === "Chèque"
+                      ? "cheque"
+                      : payment.method === "Mobile Money"
+                        ? "mobile_money"
+                        : payment.method === "Virement"
+                          ? "bank_transfer"
+                          : "other";
+                  const paymentRecord = await createPayment({
+                    ...(domain === "hahitantsoa"
+                      ? { hahitantsoa_event_draft: emitted.draftId }
+                      : { reservation_draft: emitted.draftId }),
+                    payment_kind: "deposit",
+                    payment_method: method,
+                    payment_status: "pending",
+                    amount: parseFloat(payment.amount || currentRequestedPayment).toFixed(2),
+                    notes: "Acompte confirmé depuis l’assistant de réservation.",
+                  });
+                  await confirmPayment(paymentRecord.id, {});
+                  setPaymentRecorded(true);
+                }
                 setPaymentDone(true);
                 goNext();
               } catch (err: any) {
@@ -3065,7 +3097,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               try {
                 setSubmitting(true);
                 setSubmitError(null);
-                await ensureContractGenerated();
+                const generated = await ensureContractGenerated();
+                if (generated.draftId) {
+                  if (domain === "hahitantsoa") {
+                    await markHahitantsoaEventDraftRequiredDepositReceived(generated.draftId);
+                  } else {
+                    await markReservationDraftRequiredDepositReceived(generated.draftId);
+                  }
+                }
                 const msg = domain === "hahitantsoa"
                   ? "Contrat Hahitantsoa généré avec succès"
                   : "Contrat Titan généré avec succès";

@@ -4,6 +4,7 @@ import { LoadingSpinner, EmptyState } from "../components";
 import {
   getHahitantsoaDiscoveryItems,
   getHahitantsoaEventDrafts,
+  deleteHahitantsoaEventDraft,
 } from "../api";
 import type {
   HahitantsoaDiscoveryItem,
@@ -13,6 +14,7 @@ import type {
 interface HahitantsoaPageProps {
   onNavigate: (scope: any, param?: string) => void;
   canSensitiveWrite?: boolean;
+  canSuperAdminDelete?: boolean;
 }
 
 type FilterKey = "all" | "draft" | "confirmed";
@@ -86,6 +88,7 @@ function initialsColor(name: string) {
 export default function HahitantsoaPage({
   onNavigate,
   canSensitiveWrite = false,
+  canSuperAdminDelete = false,
 }: HahitantsoaPageProps) {
   const [drafts, setDrafts] = useState<HahitantsoaEventDraft[]>([]);
   const [discoveryItems, setDiscoveryItems] = useState<
@@ -95,6 +98,18 @@ export default function HahitantsoaPage({
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (draft: HahitantsoaEventDraft) => {
+    if (!canSuperAdminDelete || deletingId || !window.confirm(`Supprimer la réservation de test ${draft.public_reference} ?`)) return;
+    setDeletingId(draft.id);
+    try {
+      await deleteHahitantsoaEventDraft(draft.id);
+      setDrafts((current) => current.filter((item) => item.id !== draft.id));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -290,6 +305,12 @@ export default function HahitantsoaPage({
                       >
                         {r.public_reference}
                       </button>
+                      {canSuperAdminDelete && r.status === "draft" && (
+                        <button type="button" onClick={() => void handleDelete(r)} disabled={deletingId === r.id} className="ml-2 inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-rose-50 text-rose-600 text-xs font-medium hover:bg-rose-100 disabled:opacity-50">
+                          <i className="fa-solid fa-trash text-[10px]"></i>
+                          {deletingId === r.id ? "Suppression…" : "Supprimer test"}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button
