@@ -369,7 +369,7 @@ def test_cashbox_0004_reverse_restores_legacy_session_statuses() -> None:
     operator = _actor("cashbox-0004-reverse")
     executor = MigrationExecutor(connection)
     previous = [("cashbox", "0003_cashboxsession_status_cashboxclosureattempt")]
-    current = [("cashbox", "0005_cashboxclosureattempt_append_only")]
+    current = [("cashbox", "0007_cashboxoperatoraccount_scope")]
     try:
         executor.migrate(previous)
         old_apps = executor.loader.project_state(previous).apps
