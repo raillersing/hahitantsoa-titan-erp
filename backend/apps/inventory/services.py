@@ -82,12 +82,23 @@ def issue_delivery_note_stock(
         )
 
     if logistics_event is not None:
-        if document.template_key != "titan.delivery_note.v1":
+        expected_template = (
+            "hahitantsoa.delivery_note.v1"
+            if logistics_event.hahitantsoa_event_draft_id
+            else "titan.delivery_note.v1"
+        )
+        if document.template_key != expected_template:
             raise InventoryStockMovementError(
-                "Un événement logistique Titan doit utiliser le bon de livraison Titan.",
+                "Le bon de livraison ne correspond pas au périmètre de l'événement.",
                 code="stock_issue_document_scope_mismatch",
             )
-        if document.reservation_draft_id != logistics_event.reservation_draft_id:
+        if logistics_event.hahitantsoa_event_draft_id:
+            if document.hahitantsoa_event_draft_id != logistics_event.hahitantsoa_event_draft_id:
+                raise InventoryStockMovementError(
+                    "Le bon de livraison ne correspond pas à l'événement Hahitantsoa.",
+                    code="stock_issue_source_mismatch",
+                )
+        elif document.reservation_draft_id != logistics_event.reservation_draft_id:
             raise InventoryStockMovementError(
                 "Le bon de livraison ne correspond pas à l'événement logistique.",
                 code="stock_issue_source_mismatch",
@@ -151,6 +162,7 @@ def issue_delivery_note_stock(
                 actor=actor,
                 inventory_item=item,
                 reservation_draft=document.reservation_draft,
+                hahitantsoa_event_draft=document.hahitantsoa_event_draft,
                 document_instance=document,
                 movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
                 quantity=line.quantity,
@@ -319,6 +331,7 @@ def active_inventory_stock_movements():
     return InventoryStockMovement.objects.select_related(
         "inventory_item",
         "reservation_draft",
+        "hahitantsoa_event_draft",
         "document_instance",
         "validated_by",
         "created_by",
@@ -406,6 +419,7 @@ def create_inventory_stock_movement(
     quantity: int,
     actor: object | None = None,
     reservation_draft=None,
+    hahitantsoa_event_draft=None,
     document_instance=None,
     return_operation=None,
     return_operation_line=None,
@@ -422,6 +436,7 @@ def create_inventory_stock_movement(
         inventory_item=inventory_item,
         storage_location=storage_location,
         reservation_draft=reservation_draft,
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
         document_instance=document_instance,
         return_operation=return_operation,
         return_operation_line=return_operation_line,
@@ -459,6 +474,11 @@ def create_inventory_stock_movement(
             "signed_quantity": movement.signed_quantity,
             "reservation_draft_id": (
                 str(movement.reservation_draft_id) if movement.reservation_draft_id else None
+            ),
+            "hahitantsoa_event_draft_id": (
+                str(movement.hahitantsoa_event_draft_id)
+                if movement.hahitantsoa_event_draft_id
+                else None
             ),
             "document_instance_id": (
                 str(movement.document_instance_id) if movement.document_instance_id else None

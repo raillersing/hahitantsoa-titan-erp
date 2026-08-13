@@ -3,6 +3,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from apps.documents.models import DocumentInstance
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import (
     InventoryCautionRefundObligation,
     InventoryDamageLossExcessReceivable,
@@ -141,6 +142,7 @@ class InventoryStockMovementSerializer(serializers.ModelSerializer):
             "inventory_item",
             "storage_location",
             "reservation_draft",
+            "hahitantsoa_event_draft",
             "movement_type",
             "direction",
             "quantity",
@@ -166,6 +168,11 @@ class InventoryStockMovementCreateSerializer(serializers.Serializer):
     )
     reservation_draft = serializers.PrimaryKeyRelatedField(
         queryset=ReservationDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    hahitantsoa_event_draft = serializers.PrimaryKeyRelatedField(
+        queryset=HahitantsoaEventDraft.objects.filter(is_deleted=False),
         required=False,
         allow_null=True,
     )

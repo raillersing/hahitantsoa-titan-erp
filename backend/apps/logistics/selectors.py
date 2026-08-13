@@ -8,7 +8,7 @@ def active_logistics_events():
         LogisticsEvent.objects.exclude(
             status="cancelled",
         )
-        .select_related("reservation_draft", "created_by", "updated_by")
+        .select_related("reservation_draft", "hahitantsoa_event_draft", "created_by", "updated_by")
         .prefetch_related("item_lines__inventory_item")
     )
 
@@ -19,6 +19,14 @@ def logistics_events_for_reservation_draft(*, reservation_draft_id: str):
             reservation_draft_id=reservation_draft_id,
         )
         .select_related("reservation_draft", "created_by", "updated_by")
+        .prefetch_related("item_lines__inventory_item")
+    )
+
+
+def logistics_events_for_hahitantsoa_event_draft(*, event_draft_id: str):
+    return (
+        LogisticsEvent.objects.filter(hahitantsoa_event_draft_id=event_draft_id)
+        .select_related("hahitantsoa_event_draft", "created_by", "updated_by")
         .prefetch_related("item_lines__inventory_item")
     )
 

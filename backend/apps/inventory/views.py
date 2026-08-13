@@ -129,6 +129,9 @@ class InventoryStockMovementListCreateAPIView(generics.ListCreateAPIView):
         reservation_draft = self.request.query_params.get("reservation_draft")
         if reservation_draft:
             qs = qs.filter(reservation_draft=reservation_draft)
+        hahitantsoa_event_draft = self.request.query_params.get("hahitantsoa_event_draft")
+        if hahitantsoa_event_draft:
+            qs = qs.filter(hahitantsoa_event_draft=hahitantsoa_event_draft)
         return_operation = self.request.query_params.get("return_operation")
         if return_operation:
             qs = qs.filter(return_operation=return_operation)

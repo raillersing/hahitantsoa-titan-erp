@@ -88,7 +88,12 @@ class BillingInvoiceSerializer(serializers.ModelSerializer):
         return compute_billing_invoice_installment_lifecycle(obj)
 
     def get_suggested_due_dates(self, obj):
-        start_at = obj.reservation_draft.start_at if obj.reservation_draft_id else None
+        if obj.reservation_draft_id:
+            start_at = obj.reservation_draft.start_at
+        elif obj.hahitantsoa_event_draft_id:
+            start_at = obj.hahitantsoa_event_draft.start_at
+        else:
+            start_at = None
         presets = billing_installment_due_date_presets(start_at=start_at)
         if presets is None:
             return None
@@ -113,6 +118,7 @@ class BillingInvoiceSerializer(serializers.ModelSerializer):
             "excess_receivable",
             "document_instance",
             "reservation_draft",
+            "hahitantsoa_event_draft",
             "source_kind",
             "invoice_status",
             "amount",

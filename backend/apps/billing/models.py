@@ -8,6 +8,7 @@ from django.db import models
 
 from apps.common.models import AuditableModel, TimestampedModel, UUIDModel
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import InventoryDamageLossExcessReceivable
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment
 from apps.reservations.models import ReservationDraft
@@ -47,6 +48,13 @@ class BillingInvoice(UUIDModel, TimestampedModel, AuditableModel):
     )
     reservation_draft = models.ForeignKey(
         ReservationDraft,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="billing_invoices",
+    )
+    hahitantsoa_event_draft = models.ForeignKey(
+        HahitantsoaEventDraft,
         null=True,
         blank=True,
         on_delete=models.PROTECT,
@@ -111,6 +119,12 @@ class BillingInvoice(UUIDModel, TimestampedModel, AuditableModel):
             BillingInvoiceSourceKind.COMMERCIAL_CLOSEOUT,
         ):
             raise ValidationError({"source_kind": "Unsupported billing invoice source kind."})
+
+        if self.reservation_draft_id and self.hahitantsoa_event_draft_id:
+            raise ValidationError(
+                "A billing invoice cannot reference both a Titan reservation and a "
+                "Hahitantsoa event."
+            )
 
         if self.source_kind == BillingInvoiceSourceKind.INVENTORY_DAMAGE_LOSS_EXCESS_RECEIVABLE:
             if not self.excess_receivable_id:
@@ -218,6 +232,20 @@ class BillingInvoiceSettlement(UUIDModel, TimestampedModel, AuditableModel):
                         "payment": (
                             "Billing settlements require a payment linked to the same "
                             "reservation draft as the invoice."
+                        )
+                    }
+                )
+        if (
+            self.invoice_id
+            and self.payment_id
+            and self.invoice.hahitantsoa_event_draft_id is not None
+        ):
+            if self.payment.hahitantsoa_event_draft_id != self.invoice.hahitantsoa_event_draft_id:
+                raise ValidationError(
+                    {
+                        "payment": (
+                            "Billing settlements require a payment linked to the same "
+                            "Hahitantsoa event draft as the invoice."
                         )
                     }
                 )

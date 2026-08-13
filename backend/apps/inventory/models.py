@@ -185,6 +185,23 @@ class InventoryAvailability(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
         verbose_name_plural = "Inventory availabilities"
         constraints = [
             models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        reservation_draft__isnull=False,
+                        hahitantsoa_event_draft__isnull=True,
+                    )
+                    | models.Q(
+                        reservation_draft__isnull=True,
+                        hahitantsoa_event_draft__isnull=False,
+                    )
+                    | models.Q(
+                        reservation_draft__isnull=True,
+                        hahitantsoa_event_draft__isnull=True,
+                    )
+                ),
+                name="inventory_availability_single_business_draft",
+            ),
+            models.CheckConstraint(
                 condition=models.Q(status__in=INVENTORY_AVAILABILITY_STATUS_VALUES),
                 name="inventory_availability_status_allowed",
             ),
@@ -201,6 +218,13 @@ class InventoryAvailability(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
 class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
     inventory_item = models.ForeignKey(
         InventoryItem,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+    )
+    hahitantsoa_event_draft = models.ForeignKey(
+        "hahitantsoa.HahitantsoaEventDraft",
+        null=True,
+        blank=True,
         on_delete=models.PROTECT,
         related_name="stock_movements",
     )
@@ -263,6 +287,23 @@ class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
         verbose_name_plural = "Inventory stock movements"
         constraints = [
             models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        reservation_draft__isnull=False,
+                        hahitantsoa_event_draft__isnull=True,
+                    )
+                    | models.Q(
+                        reservation_draft__isnull=True,
+                        hahitantsoa_event_draft__isnull=False,
+                    )
+                    | models.Q(
+                        reservation_draft__isnull=True,
+                        hahitantsoa_event_draft__isnull=True,
+                    )
+                ),
+                name="inventory_stock_movement_single_business_draft",
+            ),
+            models.CheckConstraint(
                 condition=models.Q(quantity__gt=0),
                 name="inventory_stock_movement_quantity_positive",
             ),
@@ -282,6 +323,7 @@ class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
             models.CheckConstraint(
                 condition=(
                     models.Q(reservation_draft__isnull=False)
+                    | models.Q(hahitantsoa_event_draft__isnull=False)
                     | models.Q(document_instance__isnull=False)
                     | (~models.Q(source_label="") & ~models.Q(notes=""))
                 ),
@@ -292,6 +334,12 @@ class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
     def clean(self) -> None:
         if self.quantity <= 0:
             raise ValidationError({"quantity": "Quantity must be greater than zero."})
+
+        if self.reservation_draft_id and self.hahitantsoa_event_draft_id:
+            raise ValidationError(
+                "A stock movement cannot reference both a Titan reservation and a "
+                "Hahitantsoa event."
+            )
 
         try:
             expected_direction = FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS[
@@ -312,6 +360,7 @@ class InventoryStockMovement(UUIDModel, TimestampedModel, AuditableModel):
 
         if (
             self.reservation_draft_id is None
+            and self.hahitantsoa_event_draft_id is None
             and self.document_instance_id is None
             and ((self.source_label or "").strip() == "" or (self.notes or "").strip() == "")
         ):

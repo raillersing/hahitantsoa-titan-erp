@@ -5,12 +5,14 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.identity.permissions import HasReservationSensitiveAccess
 from apps.inventory.models import InventoryItem
 from apps.logistics.models import TitanClosedDay
 from apps.logistics.selectors import (
     active_logistics_events,
     get_logistics_event_item_lines,
+    logistics_events_for_hahitantsoa_event_draft,
     logistics_events_for_reservation_draft,
 )
 from apps.logistics.serializers import (
@@ -58,8 +60,15 @@ class LogisticsEventListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         reservation_draft_id = self.request.query_params.get("reservation_draft_id")
+        hahitantsoa_event_draft_id = self.request.query_params.get("hahitantsoa_event_draft_id")
+        if reservation_draft_id and hahitantsoa_event_draft_id:
+            return active_logistics_events().none()
         if reservation_draft_id:
             qs = logistics_events_for_reservation_draft(reservation_draft_id=reservation_draft_id)
+        elif hahitantsoa_event_draft_id:
+            qs = logistics_events_for_hahitantsoa_event_draft(
+                event_draft_id=hahitantsoa_event_draft_id
+            )
         else:
             qs = active_logistics_events()
 
@@ -104,15 +113,25 @@ class LogisticsEventCreateAPIView(APIView):
         serializer = LogisticsEventCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        reservation_draft = get_object_or_404(
-            ReservationDraft,
-            pk=serializer.validated_data["reservation_draft"],
-        )
+        reservation_draft = None
+        event_draft = None
+        if serializer.validated_data.get("reservation_draft"):
+            reservation_draft = get_object_or_404(
+                ReservationDraft,
+                pk=serializer.validated_data["reservation_draft"],
+            )
+        else:
+            event_draft = get_object_or_404(
+                HahitantsoaEventDraft,
+                pk=serializer.validated_data["hahitantsoa_event_draft"],
+                is_deleted=False,
+            )
 
         try:
             event = create_logistics_event(
                 actor=request.user,
                 reservation_draft=reservation_draft,
+                hahitantsoa_event_draft=event_draft,
                 event_type=serializer.validated_data["event_type"],
                 operation=serializer.validated_data.get("operation", "outbound"),
                 scheduled_at=serializer.validated_data.get("scheduled_at") or None,
