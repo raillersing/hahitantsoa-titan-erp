@@ -99,7 +99,7 @@ def test_confirm_payment_generates_and_links_receipt_document(
     django_capture_on_commit_callbacks,
 ) -> None:
     actor = django_user_model.objects.create_user(
-        username="payment-confirmer", password="test-pass"
+        username="payment-confirmer", password="test-pass", is_staff=True
     )
     create_finance_account(
         actor=actor,
@@ -154,7 +154,7 @@ def test_confirm_cash_reservation_payment_creates_operator_cash_journal_entry(
     django_capture_on_commit_callbacks,
 ) -> None:
     actor = django_user_model.objects.create_user(
-        username="payment-cash-journal", password="test-pass"
+        username="payment-cash-journal", password="test-pass", is_staff=True
     )
     payment = create_payment(
         actor=actor,
@@ -181,7 +181,7 @@ def test_cash_payments_use_distinct_operator_accounts_per_business_scope(
     django_capture_on_commit_callbacks,
 ) -> None:
     actor = django_user_model.objects.create_user(
-        username="payment-cash-two-scopes", password="test-pass"
+        username="payment-cash-two-scopes", password="test-pass", is_staff=True
     )
     titan_payment = create_payment(
         actor=actor,
@@ -322,7 +322,7 @@ def test_reconcile_payment_transitions_confirmed_to_reconciled(
     django_capture_on_commit_callbacks,
 ) -> None:
     actor = django_user_model.objects.create_user(
-        username="payment-reconciler", password="test-pass"
+        username="payment-reconciler", password="test-pass", is_staff=True
     )
     create_finance_account(
         actor=actor,

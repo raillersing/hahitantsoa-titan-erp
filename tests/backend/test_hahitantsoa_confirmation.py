@@ -8,6 +8,7 @@ from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance
 from apps.documents.services import create_document_instance_from_hahitantsoa_event_draft
+from apps.finance.models import FinancialJournalEntry
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
 from apps.hahitantsoa.services import (
     HahitantsoaEventDraftConfirmationResult,
@@ -151,6 +152,7 @@ def test_hahitantsoa_confirmation_succeeds_persists_state_blocks_and_audit(
 def test_hahitantsoa_confirmation_refuses_when_preflight_fails(django_user_model) -> None:
     actor = _actor(django_user_model=django_user_model)
     draft = _confirmable_draft(actor=actor)
+    FinancialJournalEntry.objects.filter(payment__in=draft.payments.all()).delete()
     draft.payments.all().delete()
 
     with pytest.raises(ReservationConfirmationPreflightError) as error_info:
