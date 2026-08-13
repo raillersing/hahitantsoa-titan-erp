@@ -21,7 +21,7 @@ import {
 } from "../api";
 import type { ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
 
-/* ── inline helpers (formerly from mockData) ──────────────────────── */
+/* ── inline helpers ────────────────────────────────────────────────── */
 
 function safeNumber(
   value: number | string | undefined | null,

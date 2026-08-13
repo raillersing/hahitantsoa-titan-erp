@@ -7,6 +7,7 @@ import {
   getHahitantsoaServices,
   getTitanClosedDays,
   getInventoryItems,
+  getMaterialPackages,
   getReservationAvailableItemPreviews,
   createReservationDraft,
   createReservationDraftDocumentInstance,
@@ -30,15 +31,20 @@ import type {
   ReservationAvailableItemPreview,
   InventoryItem,
   InventoryItemKind,
+  MaterialPackage,
   TitanClosedDay,
 } from "../types";
 
-// ---- Inline business constants (formerly from mockData) ----
+// Business labels used by the reservation form. All selectable data comes from the API.
 const HAHITANTSOA_EVENT_TYPES = [
   "Fiançailles", "Mariage civil", "Mariage", "Baptême", "Anniversaire", "Réception privée", "Séminaire",
   "Corporate", "Conférence", "Atelier / Formation", "Fête familiale", "Autre"
 ];
-const HAHITANTSOA_RENTAL_TYPES = ["Location nue", "Location nue + logistique", "Location avec package"];
+const HAHITANTSOA_RENTAL_TYPES = [
+  "Location nue",
+  "Location nue + logistique",
+  "Location + article",
+];
 const HAHITANTSOA_DURATION_OPTIONS = [
   { label: "Fête de jour : Sortie J-J à 20:00", price: 0 },
   { label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30", price: 0 },
@@ -54,12 +60,6 @@ const TITAN_DEFAULT_ADVANCE_RATE = 0.25;
 const TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP = 5;
 const TITAN_TRANSPORT_REQUIREMENT = "Un véhicule fourgon est exigé pour le transport des matériels.";
 const TITAN_MOVEMENT_MODES = ["Livraison par Titan", "Prélèvement par le client"];
-
-const MOCK_PACKAGES = [
-  { id: "PACK-1", name: "Package Standard 100 pax", price: 2000000, desc: "Local + 100 chaises + 10 tables", imageUrl: "", active: true, articles: [{id: "MAT-01", qty: 100}, {id: "MAT-02", qty: 10}] },
-  { id: "PACK-2", name: "Package Premium 200 pax", price: 3500000, desc: "Local + 200 chaises chiavari + 20 tables + Sono", imageUrl: "", active: true, articles: [{id: "MAT-05", qty: 200}, {id: "MAT-02", qty: 20}, {id: "MAT-04", qty: 1}] },
-  { id: "PACK-3", name: "Package VIP 300 pax", price: 5000000, desc: "Local + 300 chaises + 30 tables + Sono + Lumières", imageUrl: "", active: true, articles: [{id: "MAT-01", qty: 300}, {id: "MAT-02", qty: 30}, {id: "MAT-04", qty: 1}, {id: "MAT-06", qty: 4}] },
-];
 
 function formatDateFr(dateStr: string | undefined): string {
   if (!dateStr) return "Date non renseignée";
@@ -98,7 +98,7 @@ function titanMovementDate(date: string, offset: -1 | 1, closedDates: Set<string
   return formatIsoDate(openDay);
 }
 
-// ---- Local Client interface (adapted from mockData.Client for API compatibility) ----
+// Local view model for the API-backed customer data.
 interface Client {
   id: string;
   initials: string;
@@ -262,7 +262,7 @@ interface HahitantsoaDetails {
 }
 
 interface TitanDetails {
-  period: string; // Keep for fallback
+  period: string;
   startDate: string;
   startTime: string;
   endDate: string;
@@ -343,14 +343,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [apiCustomers, setApiCustomers] = useState<Customer[]>([]);
   const [apiVenues, setApiVenues] = useState<HahitantsoaVenue[]>([]);
   const [apiServices, setApiServices] = useState<HahitantsoaService[]>([]);
+  const [apiPackages, setApiPackages] = useState<MaterialPackage[]>([]);
   const [availableCatalogItems, setAvailableCatalogItems] = useState<CatalogItem[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [loadingVenues, setLoadingVenues] = useState(true);
   const [loadingServices, setLoadingServices] = useState(true);
+  const [loadingPackages, setLoadingPackages] = useState(true);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [errorClients, setErrorClients] = useState<string | null>(null);
   const [errorVenues, setErrorVenues] = useState<string | null>(null);
   const [errorServices, setErrorServices] = useState<string | null>(null);
+  const [errorPackages, setErrorPackages] = useState<string | null>(null);
   const [errorCatalog, setErrorCatalog] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -359,14 +362,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [documentReference, setDocumentReference] = useState("");
 
   // Derived: mapped clients (API Customer → local Client format)
-  const mockClients: Client[] = apiCustomers.map(mapCustomerToClient);
+  const clients: Client[] = apiCustomers.map(mapCustomerToClient);
   // Derived: mapped venues
-  const mockVenues: HahitantsoaVenue[] = apiVenues;
+  const venues: HahitantsoaVenue[] = apiVenues;
   // Derived: mapped catalog items
-  const mockCatalog: CatalogItem[] = availableCatalogItems;
+  const catalog: CatalogItem[] = availableCatalogItems;
   // Derived: mapped services (API → local format)
-  const hahitantsoaMockServices: { id: string; name: string; desc: string; price: number; active: boolean }[] =
+  const hahitantsoaServices: { id: string; name: string; desc: string; price: number; active: boolean }[] =
     apiServices.map(s => ({ id: s.id, name: s.name, desc: s.desc, price: s.price, active: s.active }));
+  const packages = apiPackages.filter((pkg) => pkg.is_active);
 
   // ---- Fetch clients, venues, services on mount ----
   useEffect(() => {
@@ -386,6 +390,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       .then(data => { if (!cancelled) { setApiServices(data); setErrorServices(null); } })
       .catch(err => { if (!cancelled) setErrorServices(err?.message || "Erreur de chargement des services"); })
       .finally(() => { if (!cancelled) setLoadingServices(false); });
+    setLoadingPackages(true);
+    getMaterialPackages()
+      .then(data => { if (!cancelled) { setApiPackages(data); setErrorPackages(null); } })
+      .catch(err => { if (!cancelled) setErrorPackages(err?.message || "Erreur de chargement des packages"); })
+      .finally(() => { if (!cancelled) setLoadingPackages(false); });
     return () => { cancelled = true; };
   }, []);
 
@@ -647,7 +656,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   const activeClient: Client | null = clientMode === "existing" && selectedClientId 
-    ? mockClients.find(c => c.id === selectedClientId) || null
+    ? clients.find(c => c.id === selectedClientId) || null
     : clientMode === "new" && newClient.name 
       ? { 
           id: "NEW", 
@@ -692,23 +701,23 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   let packageTotal = 0;
   let materialsTotal = 0;
   
-  if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package' && hDetails.packageId) {
-    const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
+  if (domain === 'hahitantsoa' && hDetails.packageMode !== 'free' && hDetails.packageId) {
+    const pkg = packages.find(p => p.id === hDetails.packageId);
     if (pkg) {
       packageTotal = pkg.price;
       // Calculate extra cost/discount based on qty diff
       materialsTotal = selectedMaterials.reduce((acc, m) => {
-        const pkgArt = pkg.articles.find(a => a.id === m.id);
-        const pkgQty = pkgArt ? pkgArt.qty : 0;
+        const pkgArt = pkg.lines.find(a => a.inventory_item === m.id);
+        const pkgQty = pkgArt ? pkgArt.quantity : 0;
         const diffQty = m.quantity - pkgQty;
         return acc + (diffQty * m.price);
       }, 0);
       // Need to subtract items removed from package that are completely missing from selectedMaterials
-      pkg.articles.forEach(pkgArt => {
-        if (!selectedMaterials.find(m => m.id === pkgArt.id)) {
-          const catItem = mockCatalog.find(c => c.id === pkgArt.id);
+      pkg.lines.forEach(pkgArt => {
+        if (!selectedMaterials.find(m => m.id === pkgArt.inventory_item)) {
+          const catItem = catalog.find(c => c.id === pkgArt.inventory_item);
           if (catItem) {
-            materialsTotal -= (pkgArt.qty * catItem.price);
+            materialsTotal -= (pkgArt.quantity * catItem.price);
           }
         }
       });
@@ -1054,7 +1063,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         <div className="mb-4">
            <button onClick={() => onNavigate('customer', selectedClientId)} className="text-slate-500 hover:text-slate-800 text-sm font-medium">
              <i className="fa-solid fa-arrow-left mr-2"></i> 
-             Retour à la fiche {mockClients.find(c => c.id === selectedClientId)?.name || 'client'}
+             Retour à la fiche {clients.find(c => c.id === selectedClientId)?.name || 'client'}
            </button>
         </div>
       )}
@@ -1069,7 +1078,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="flex items-center gap-2">
             <i className="fa-solid fa-lock text-indigo-400"></i>
             <div>
-              Quel volet pour <strong>{mockClients.find(c => c.id === selectedClientId)?.name || 'ce client'}</strong> ?
+              Quel volet pour <strong>{clients.find(c => c.id === selectedClientId)?.name || 'ce client'}</strong> ?
             </div>
           </div>
         </div>
@@ -1108,7 +1117,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                </div>
              ) : null}
              {!loadingClients && !errorClients && (<>
-             {mockClients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
+             {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).map(c => (
                 <div key={c.id} data-testid={`client-select-${c.id}`} className={`p-3 border-b border-slate-100 cursor-pointer hover:bg-indigo-50 flex items-center justify-between ${selectedClientId === c.id ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`} onClick={() => setSelectedClientId(c.id)}>
                    <div>
                      <p className="font-bold text-slate-800 text-sm">{c.name} <span className="text-xs font-normal text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded ml-2">{c.type}</span></p>
@@ -1117,7 +1126,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                    {selectedClientId === c.id && <i className="fa-solid fa-check text-indigo-600"></i>}
                 </div>
              ))}
-             {mockClients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).length === 0 && (
+             {clients.filter(c => c.name.toLowerCase().includes(clientSearchStr.toLowerCase()) || c.phone.includes(clientSearchStr) || (c.email && c.email.toLowerCase().includes(clientSearchStr.toLowerCase())) || c.id.toLowerCase().includes(clientSearchStr.toLowerCase())).length === 0 && (
                 <div className="p-4 text-center text-sm text-slate-500">Aucun client trouvé.</div>
              )}
              <div className="p-3 text-center text-sm font-medium text-indigo-600 cursor-pointer hover:bg-slate-100 bg-white sticky bottom-0 border-t border-slate-200" onClick={() => setClientMode("new")}>
@@ -1331,7 +1340,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         <div className="mb-6 pb-4 border-b border-slate-100">
            <button onClick={() => onNavigate('customer', selectedClientId)} className="text-slate-500 hover:text-slate-800 text-sm font-medium flex items-center">
              <i className="fa-solid fa-arrow-left mr-2"></i> 
-             Retour à la fiche {mockClients.find(c => c.id === selectedClientId)?.name || 'client'}
+             Retour à la fiche {clients.find(c => c.id === selectedClientId)?.name || 'client'}
            </button>
         </div>
       )}
@@ -1339,7 +1348,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       {param && (param.startsWith('CUST-') || param.startsWith('PROS-')) && (
         <div className="mb-6 bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <p className="text-sm text-slate-500 font-medium">Quel volet pour <span className="font-bold text-slate-800">{mockClients.find(c => c.id === selectedClientId)?.name || 'ce client'}</span> ?</p>
+            <p className="text-sm text-slate-500 font-medium">Quel volet pour <span className="font-bold text-slate-800">{clients.find(c => c.id === selectedClientId)?.name || 'ce client'}</span> ?</p>
           </div>
         </div>
       )}
@@ -1399,7 +1408,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-slate-700 mb-1">Local / Lieu</label>
-              {mockVenues && mockVenues.length > 0 ? (
+              {venues && venues.length > 0 ? (
                 <div className="flex flex-col gap-2 relative">
                   <div className="flex items-center justify-between border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm">
                     <div className="flex items-center gap-2">
@@ -1410,7 +1419,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   </div>
                   {showVenueSelector && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 p-2 space-y-1">
-                      {mockVenues.filter(v => v.type === 'location_event' && v.active).map(v => (
+                      {venues.filter(v => v.type === 'location_event' && v.active).map(v => (
                         <div key={v.id} onClick={() => { setHDetails({...hDetails, venue: v.name}); setShowVenueSelector(false); }} className={`p-2 rounded cursor-pointer text-sm font-medium hover:bg-slate-50 ${hDetails.venue === v.name ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}>
                           <div>{v.name}</div>
                           {v.capacity && <div className="text-xs text-slate-500 font-normal">{v.capacity}</div>}
@@ -1515,10 +1524,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Ce Samedi</button>
                 </div>
               </div>
-              
+
               <div className="mb-4">
-                <MockAvailabilityCalendar 
-                  selectedDate={hDetails.startDate} 
+                <MockAvailabilityCalendar
+                  selectedDate={hDetails.startDate}
                   onDateSelect={(dateStr: string) => {
                     let endDate = dateStr;
                     if (hDetails.durationOption?.includes('03:30')) {
@@ -1526,7 +1535,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                       dt.setDate(dt.getDate() + 1);
                       endDate = dt.toISOString().split('T')[0];
                     }
-                    setHDetails(p => ({...p, startDate: dateStr, endDate: endDate}));
+                    setHDetails(p => ({ ...p, startDate: dateStr, endDate }));
                   }}
                   allowPast={false}
                 />
@@ -1659,7 +1668,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
             <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>
-              {(hDetails.rentalType === 'Location nue' || hDetails.rentalType === 'Location nue + logistique') ? 'Suivant (Services)' : 'Aller au catalogue / package'}
+            {(hDetails.rentalType === 'Location nue' || hDetails.rentalType === 'Location nue + logistique') ? 'Suivant (Services)' : 'Aller au catalogue / package'}
             </button>
           </div>
         </div>
@@ -1791,6 +1800,19 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <button type="button" onClick={() => setTDetails(p => ({...p, startDate: '', endDate: ''}))} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-medium rounded border border-rose-200 transition-colors ml-auto">Effacer</button>
               </div>
 
+              <div className="mb-4">
+                <MockAvailabilityCalendar
+                  selectedDate={tDetails.startDate}
+                  disabledDates={titanClosedDays.map((closedDay) => closedDay.date)}
+                  onDateSelect={(dateStr: string) => setTDetails((previous) => ({
+                    ...previous,
+                    startDate: dateStr,
+                    endDate: !previous.endDate || previous.endDate < dateStr ? dateStr : previous.endDate,
+                  }))}
+                  allowPast={false}
+                />
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex gap-2">
                   <div className="flex-1">
@@ -1831,16 +1853,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     <span className="font-semibold text-slate-700">Période sélectionnée : </span>
                     <span className="text-indigo-700 font-medium">{formatDateFr(tDetails.startDate)} {tDetails.endDate && tDetails.endDate !== tDetails.startDate ? ` → ${formatDateFr(tDetails.endDate)}` : ''}</span>
                   </div>
-                  {/* Mock conflict logic */}
-                  {tDetails.startDate.includes('2026-12-25') || tDetails.startDate.includes('2026-12-31') ? (
-                    <span className="text-amber-600 font-medium text-xs flex items-center gap-1 bg-amber-50 px-2 py-1 rounded border border-amber-200">
-                      <i className="fa-solid fa-lock"></i> Cette date semble déjà occupée dans le planning mock.
-                    </span>
-                  ) : (
-                    <span className="text-emerald-600 font-medium text-xs flex items-center gap-1">
-                      <i className="fa-solid fa-check"></i> Date disponible en mock
-                    </span>
-                  )}
+                  <span className="text-slate-500 font-medium text-xs flex items-center gap-1">
+                    <i className="fa-solid fa-circle-info"></i> La disponibilité sera confirmée avec le catalogue réel.
+                  </span>
                 </div>
               )}
             </div>
@@ -1955,8 +1970,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const catalogListRef = useRef<HTMLDivElement>(null);
   const catalogActionRef = useRef<HTMLDivElement>(null);
 
-  const catalogCategories = Array.from(new Set(mockCatalog.map(item => item.category))).sort((a, b) => a.localeCompare(b));
-  const filteredCatalog = mockCatalog.filter(item => {
+  const catalogCategories = Array.from(new Set(catalog.map(item => item.category))).sort((a, b) => a.localeCompare(b));
+  const filteredCatalog = catalog.filter(item => {
     const normalizedSearch = catalogSearch.trim().toLocaleLowerCase();
     const matchesSearch = !normalizedSearch
       || item.name.toLocaleLowerCase().includes(normalizedSearch)
@@ -2010,23 +2025,37 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     };
 
     const handlePackageSelect = (pkgId: string) => {
-      setHDetails({...hDetails, packageId: pkgId});
-      const pkg = MOCK_PACKAGES.find(p => p.id === pkgId);
+      setHDetails({...hDetails, packageMode: 'package', packageId: pkgId});
+      const pkg = packages.find(p => p.id === pkgId);
       if (pkg) {
         // Only reset if empty or switching package entirely. Let's merge or reset.
-        const newMaterials = pkg.articles.map(art => {
-          const catItem = mockCatalog.find(c => c.id === art.id);
+        const newMaterials = pkg.lines.map(art => {
+            const catItem = catalog.find(c => c.id === art.inventory_item);
           return {
-            id: art.id,
+            id: art.inventory_item,
             name: catItem ? catItem.name : "Article Inconnu",
             price: catItem ? catItem.price : 0,
-            quantity: art.qty
+            quantity: art.quantity
           };
         });
         setSelectedMaterials(newMaterials);
       } else {
         setSelectedMaterials([]);
       }
+    };
+
+    const switchToFreeCatalog = () => {
+      const selectedPackage = packages.find((pkg) => pkg.id === hDetails.packageId);
+      const packageItemIds = new Set(selectedPackage?.lines.map((line) => line.inventory_item) ?? []);
+      setHDetails(previous => ({ ...previous, packageMode: 'free', packageId: undefined }));
+      setSelectedMaterials(previous => previous.filter((material) => !packageItemIds.has(material.id)));
+      setCatalogSubStep(1);
+    };
+
+    const switchToPackageCatalog = () => {
+      setHDetails(previous => ({ ...previous, packageMode: 'package', packageId: undefined }));
+      setSelectedMaterials([]);
+      setCatalogSubStep(1);
     };
 
     const renderCatalogToolbar = () => (
@@ -2073,19 +2102,39 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       </div>
     );
 
-    if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package') {
+    if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location + article' && hDetails.packageMode !== 'free') {
       return (
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Parcours Package Hahitantsoa</h3>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">Location + article</h3>
+          <p className="text-sm text-slate-500 mb-6">Vous pouvez choisir un package, le modifier et ajouter des articles, ou ouvrir directement le catalogue.</p>
+          <div className="mb-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              onClick={() => setCatalogSubStep(1)}
+            >
+              Voir les packages
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
+              onClick={switchToFreeCatalog}
+            >
+              Ouvrir le catalogue sans package
+            </button>
+          </div>
           {quantityFeedback && (
             <div className="mb-4 p-3 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm flex items-center gap-2 animate-fade-in">
               <i className="fa-solid fa-circle-exclamation"></i>
               {quantityFeedback}
             </div>
           )}
+          {loadingPackages && <p className="mb-5 rounded-lg bg-blue-50 p-3 text-sm text-blue-700">Chargement des packages réels…</p>}
+          {errorPackages && <p className="mb-5 rounded-lg bg-rose-50 p-3 text-sm text-rose-700" role="alert">{errorPackages}</p>}
+          {!loadingPackages && !errorPackages && packages.length === 0 && <p className="mb-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">Aucun package actif n’est configuré.</p>}
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div 
+            {hDetails.packageId && <div
               className={`min-h-[140px] p-6 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-center ${catalogSubStep === 1 ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50 scale-[1.02]' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm'}`} 
               onClick={() => setCatalogSubStep(1)}
             >
@@ -2096,9 +2145,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   <p className="text-sm text-slate-500 leading-snug">Sélectionner un package actif.</p>
                 </div>
               </div>
-            </div>
+            </div>}
             
-            <div 
+            {hDetails.packageId && <div
               className={`min-h-[140px] p-6 rounded-2xl border-2 transition-all flex flex-col justify-center ${!hDetails.packageId ? 'border-slate-100 bg-slate-50/50 opacity-60 cursor-not-allowed' : catalogSubStep === 2 ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50 scale-[1.02] cursor-pointer' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm cursor-pointer'}`} 
               onClick={() => hDetails.packageId && setCatalogSubStep(2)}
             >
@@ -2110,9 +2159,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   {!hDetails.packageId && <p className="text-xs text-rose-500 font-bold mt-2"><i className="fa-solid fa-lock mr-1"></i> Sélectionnez d'abord un package</p>}
                 </div>
               </div>
-            </div>
+            </div>}
             
-            <div 
+            {hDetails.packageId && <div
               className={`min-h-[140px] p-6 rounded-2xl border-2 transition-all flex flex-col justify-center ${!hDetails.packageId ? 'border-slate-100 bg-slate-50/50 opacity-60 cursor-not-allowed' : catalogSubStep === 3 ? 'border-indigo-600 bg-indigo-50 shadow-md ring-4 ring-indigo-50 scale-[1.02] cursor-pointer' : 'border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm cursor-pointer'}`} 
               onClick={() => hDetails.packageId && setCatalogSubStep(3)}
             >
@@ -2124,26 +2173,33 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   {!hDetails.packageId && <p className="text-xs text-rose-500 font-bold mt-2"><i className="fa-solid fa-lock mr-1"></i> Sélectionnez d'abord un package</p>}
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
 
           {catalogSubStep === 1 && (
             <div className="mb-6 animate-fade-in">
               <label className="block text-sm font-medium text-slate-700 mb-2">Packages disponibles</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {MOCK_PACKAGES.filter(p => p.active !== false).map(p => (
+                {packages.map(p => (
                   <div key={p.id} className={`border rounded-xl p-4 cursor-pointer transition-colors ${hDetails.packageId === p.id ? 'border-indigo-500 bg-indigo-50 shadow-sm' : 'border-slate-200 hover:border-indigo-300'}`} onClick={() => handlePackageSelect(p.id)}>
-                    <div className="w-full h-32 bg-slate-200 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                      {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <i className="fa-solid fa-box-open text-4xl text-slate-400"></i>}
+                    <div className="w-full h-32 bg-slate-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                      <i className="fa-solid fa-box-open text-4xl text-slate-400" aria-hidden="true"></i>
                     </div>
                     <div className="flex justify-between items-start mb-2">
                       <h5 className="font-bold text-slate-800">{p.name}</h5>
                       <span className="bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded text-xs">{p.price.toLocaleString('fr-FR')} Ar</span>
                     </div>
-                    <p className="text-xs text-slate-600 mb-3">{p.desc}</p>
+                    <p className="text-xs text-slate-600 mb-3">{p.description || "Aucune description renseignée."}</p>
                   </div>
                 ))}
               </div>
+              <button
+                type="button"
+                className="mt-4 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
+                onClick={switchToFreeCatalog}
+              >
+                Ouvrir le catalogue sans package
+              </button>
             </div>
           )}
 
@@ -2155,10 +2211,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(() => {
-                  const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
+                  const pkg = packages.find(p => p.id === hDetails.packageId);
                   if (!pkg) return null;
-                  return pkg.articles.map(art => {
-                    const catItem = mockCatalog.find(c => c.id === art.id);
+                  return pkg.lines.map(art => {
+                    const catItem = catalog.find(c => c.id === art.inventory_item);
                     if (!catItem) return null;
                     const selected = selectedMaterials.find(m => m.id === catItem.id);
                     const currentQty = selected ? selected.quantity : 0;
@@ -2170,7 +2226,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                         <div className="flex-1">
                           <h4 className="font-bold text-slate-800 text-sm mb-1">{catItem.name}</h4>
                           <div className="flex justify-between items-center text-xs text-slate-500 mb-2">
-                            <span>Quantité base: {art.qty}</span>
+                            <span>Quantité base: {art.quantity}</span>
                             <span className="font-bold text-indigo-600">{catItem.price.toLocaleString('fr-FR')} Ar/u</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -2199,8 +2255,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               {renderCatalogToolbar()}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredCatalog.filter(item => {
-                  const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
-                  return !pkg?.articles.find(a => a.id === item.id);
+                  const pkg = packages.find(p => p.id === hDetails.packageId);
+                  return !pkg?.lines.find(a => a.inventory_item === item.id);
                 }).map(item => {
                   const selected = selectedMaterials.find(m => m.id === item.id);
                   const currentQty = selected ? selected.quantity : 0;
@@ -2232,8 +2288,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 })}
               </div>
               {filteredCatalog.filter(item => {
-                const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
-                return !pkg?.articles.find(a => a.id === item.id);
+                const pkg = packages.find(p => p.id === hDetails.packageId);
+                return !pkg?.lines.find(a => a.inventory_item === item.id);
               }).length === 0 && renderCatalogEmptyState()}
             </div>
           )}
@@ -2242,15 +2298,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-700">Total Package (Ajusté) :</span>
               <span className="text-lg font-bold text-indigo-600">{(packageTotal + materialsTotal - selectedMaterials.filter(m => {
-                const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
-                return !pkg?.articles.find(a => a.id === m.id);
+                const pkg = packages.find(p => p.id === hDetails.packageId);
+                return !pkg?.lines.find(a => a.inventory_item === m.id);
               }).reduce((acc, m) => acc + m.price * m.quantity, 0)).toLocaleString('fr-FR')} Ar</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-700">Total Articles complémentaires :</span>
               <span className="text-lg font-bold text-emerald-600">{selectedMaterials.filter(m => {
-                const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
-                return !pkg?.articles.find(a => a.id === m.id);
+                const pkg = packages.find(p => p.id === hDetails.packageId);
+                return !pkg?.lines.find(a => a.inventory_item === m.id);
               }).reduce((acc, m) => acc + m.price * m.quantity, 0).toLocaleString('fr-FR')} Ar</span>
             </div>
           </div>
@@ -2258,10 +2314,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
             <div className="flex gap-2">
+              <button type="button" className="px-4 py-2 border border-indigo-300 text-indigo-700 rounded-lg font-medium text-sm hover:bg-indigo-50" onClick={switchToFreeCatalog}>
+                Retirer le package
+              </button>
               {catalogSubStep < 3 && hDetails.packageId && (
                 <button className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-300" onClick={() => setCatalogSubStep(catalogSubStep + 1)}>Étape suivante</button>
               )}
-              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext} disabled={!hDetails.packageId}>Aller aux Services</button>
+              <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext} disabled={!hDetails.packageId || loadingPackages}>Aller aux Services</button>
             </div>
           </div>
         </div>
@@ -2272,6 +2331,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
         <h3 className="text-lg font-bold text-slate-800 mb-2">Catalogue Matériels</h3>
         <p className="text-sm text-slate-500 mb-6">Sélectionnez les articles souhaités.</p>
+        {domain === 'hahitantsoa' && hDetails.rentalType === 'Location + article' && (
+          <button type="button" className="mb-5 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50" onClick={switchToPackageCatalog}>
+            Revenir au choix du package
+          </button>
+        )}
         {renderCatalogToolbar()}
         
         {quantityFeedback && (
@@ -2360,7 +2424,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <p className="text-sm text-slate-500 mb-6">Ajoutez les services événementiels souhaités (Traiteur, Déco, etc.)</p>
           
           <div className="space-y-3 mb-6">
-            {hahitantsoaMockServices.filter(s => s.active !== false).map(srv => {
+            {hahitantsoaServices.filter(s => s.active !== false).map(srv => {
               const selected = selectedServices.find(s => s.id === srv.id);
               const isSelected = !!selected;
               return (
@@ -2515,21 +2579,21 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
       <div className="bg-white p-4 rounded-xl border border-slate-200 mb-6">
         <div className="flex justify-between items-start mb-4">
-          <h4 className="font-semibold text-slate-700 text-sm uppercase">{domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package' ? 'Détails Package & Matériels' : 'Matériels sélectionnés'}</h4>
+          <h4 className="font-semibold text-slate-700 text-sm uppercase">{domain === 'hahitantsoa' && hDetails.packageId ? 'Détails Package & Matériels' : 'Matériels sélectionnés'}</h4>
           <button className="text-indigo-600 text-xs hover:underline" onClick={() => jumpTo(4)}>Modifier catalogue</button>
         </div>
         
-        {domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package' && hDetails.packageId && (
+        {domain === 'hahitantsoa' && hDetails.packageId && hDetails.packageMode !== 'free' && (
           <div className="mb-4 pb-4 border-b border-slate-100">
-            <h5 className="font-bold text-slate-800 text-sm mb-2">Package choisi : {MOCK_PACKAGES.find(p => p.id === hDetails.packageId)?.name}</h5>
+            <h5 className="font-bold text-slate-800 text-sm mb-2">Package choisi : {packages.find(p => p.id === hDetails.packageId)?.name}</h5>
             
             <h6 className="text-xs font-semibold text-slate-500 uppercase mt-4 mb-2">Articles du package ajustés</h6>
             <div className="overflow-x-auto mb-4">
               <table className="w-full text-sm text-left">
                 <tbody>
                   {selectedMaterials.filter(m => {
-                    const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
-                    return pkg?.articles.find(a => a.id === m.id);
+                    const pkg = packages.find(p => p.id === hDetails.packageId);
+                    return pkg?.lines.find(a => a.inventory_item === m.id);
                   }).map(m => (
                     <tr key={m.id} className="border-b border-slate-50 last:border-0">
                       <td className="px-4 py-2 font-medium w-16">{m.quantity}</td>
@@ -2542,8 +2606,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
             <h6 className="text-xs font-semibold text-slate-500 uppercase mb-2">Articles complémentaires du catalogue</h6>
             {selectedMaterials.filter(m => {
-              const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
-              return !pkg?.articles.find(a => a.id === m.id);
+              const pkg = packages.find(p => p.id === hDetails.packageId);
+              return !pkg?.lines.find(a => a.inventory_item === m.id);
             }).length === 0 ? (
               <p className="text-xs text-slate-400 italic px-4">Aucun article complémentaire.</p>
             ) : (
@@ -2551,8 +2615,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <table className="w-full text-sm text-left">
                   <tbody>
                     {selectedMaterials.filter(m => {
-                      const pkg = MOCK_PACKAGES.find(p => p.id === hDetails.packageId);
-                      return !pkg?.articles.find(a => a.id === m.id);
+                      const pkg = packages.find(p => p.id === hDetails.packageId);
+                      return !pkg?.lines.find(a => a.inventory_item === m.id);
                     }).map(m => (
                       <tr key={m.id} className="border-b border-slate-50 last:border-0">
                         <td className="px-4 py-2 font-medium w-16">{m.quantity}</td>
@@ -2567,7 +2631,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </div>
         )}
 
-        {!(domain === 'hahitantsoa' && hDetails.rentalType === 'Location avec package' && hDetails.packageId) && (
+        {!(domain === 'hahitantsoa' && hDetails.packageId && hDetails.packageMode !== 'free') && (
           selectedMaterials.length === 0 ? (
             <p className="text-sm text-slate-500 italic">Aucun matériel sélectionné.</p>
           ) : (
@@ -3046,7 +3110,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   if (showDraftPrompt) {
-    const client = param ? mockClients.find(c => c.id === param) : null;
+    const client = param ? clients.find(c => c.id === param) : null;
     return (
       <div className="page active max-w-2xl mx-auto mt-12 text-center">
         <div className="bg-white rounded-2xl border border-slate-100 p-10 shadow-sm animate-fade-in">
@@ -3084,7 +3148,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
 
   // Si on est sur #reservation-new/CUST-XXX mais que le client n'existe pas
-  if (param && param.startsWith('CUST-') && !loadingClients && !mockClients.find(c => c.id === param)) {
+  if (param && param.startsWith('CUST-') && !loadingClients && !clients.find(c => c.id === param)) {
     return (
       <div className="page active max-w-2xl mx-auto mt-12 text-center">
         <div className="bg-white rounded-2xl border border-slate-100 p-10 shadow-sm animate-fade-in">
@@ -3108,7 +3172,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <div className="text-sm font-medium text-slate-500 mb-2">
               <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('customers')}>Clients & Prospects</span>
               <span className="mx-2">/</span>
-              <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('customer', param)}>{mockClients.find(c => c.id === param)?.name || "Client"}</span>
+              <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('customer', param)}>{clients.find(c => c.id === param)?.name || "Client"}</span>
               <span className="mx-2">/</span>
               <span className="text-slate-800 font-bold">Nouvelle réservation</span>
             </div>
@@ -3118,7 +3182,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 onClick={() => onNavigate('customer', param)}
                 className="text-slate-500 hover:text-slate-800 text-sm font-medium border border-slate-200 bg-white px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
               >
-                <i className="fa-solid fa-arrow-left mr-2"></i> Retour à la fiche {mockClients.find(c => c.id === param)?.name || "client"}
+                <i className="fa-solid fa-arrow-left mr-2"></i> Retour à la fiche {clients.find(c => c.id === param)?.name || "client"}
               </button>
             </div>
           </>

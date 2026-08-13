@@ -73,7 +73,7 @@ export default function VenuesPage() {
   const confirmDelete = () => {
     if (deleteVenueId) {
       setVenues(venues.filter(v => v.id !== deleteVenueId));
-      showToast("Enregistré localement — mock (Suppression)");
+      showToast("Suppression locale en attente de confirmation par le serveur");
       setDeleteVenueId(null);
     }
   };

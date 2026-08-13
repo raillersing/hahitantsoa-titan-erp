@@ -75,14 +75,30 @@ const mockDrafts: ReservationDraft[] = [
 
 vi.mock('../api', () => ({
   getReservationDrafts: vi.fn(),
+  deleteReservationDraft: vi.fn(),
 }));
 
-import { getReservationDrafts } from '../api';
+import { deleteReservationDraft, getReservationDrafts } from '../api';
 const mockGetReservationDrafts = vi.mocked(getReservationDrafts);
+const mockDeleteReservationDraft = vi.mocked(deleteReservationDraft);
 
 describe('ReservationsPage', () => {
   beforeEach(() => {
     mockGetReservationDrafts.mockResolvedValue(mockDrafts);
+    mockDeleteReservationDraft.mockResolvedValue(undefined);
+    vi.stubGlobal('confirm', vi.fn(() => true));
+  });
+
+  it('supprime uniquement un brouillon pour un utilisateur autorisé', async () => {
+    const user = userEvent.setup();
+    render(<ReservationsPage onNavigate={vi.fn()} canSensitiveWrite />);
+    await waitFor(() => expect(screen.getByText('LOC-2026-0089')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Supprimer' }));
+
+    expect(mockDeleteReservationDraft).toHaveBeenCalledWith('d2');
+    expect(screen.queryByText('LOC-2026-0089')).not.toBeInTheDocument();
+    expect(screen.getByText('RES-2026-0142')).toBeInTheDocument();
   });
 
   it('affiche toutes les réservations après chargement', async () => {

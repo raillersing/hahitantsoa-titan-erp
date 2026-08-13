@@ -266,6 +266,41 @@ class ReservationDraftCancelAPIView(APIView):
         return Response(payload, status=status.HTTP_200_OK)
 
 
+class ReservationDraftSoftDeleteAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+    http_method_names = ["post", "head", "options"]
+
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        from apps.reservations.confirmation import (
+            ReservationLifecycleStateError,
+            soft_delete_reservation_draft,
+        )
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+        try:
+            deleted_draft = soft_delete_reservation_draft(
+                reservation_draft=draft,
+                actor=request.user,
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except ReservationLifecycleStateError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "status": "deleted",
+                "public_reference": deleted_draft.public_reference,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class ReservationDraftMarkContractSignedAPIView(APIView):
     permission_classes = [HasReservationSensitiveAccess]
 

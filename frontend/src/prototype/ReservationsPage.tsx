@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AppScope } from "../App";
 import { EmptyState, LoadingSpinner } from "../components";
-import { getReservationDrafts } from "../api";
+import { ApiError, deleteReservationDraft, getReservationDrafts } from "../api";
 import type { ReservationDraft } from "../types";
 
 interface ReservationsPageProps {
@@ -17,6 +17,25 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const handleDelete = async (draft: ReservationDraft) => {
+    if (draft.status !== "draft" || deletingId) return;
+    if (!window.confirm(`Supprimer le brouillon ${draft.public_reference} ?`)) return;
+    setDeletingId(draft.id);
+    setActionError(null);
+    try {
+      await deleteReservationDraft(draft.id);
+      setDrafts((current) => current.filter((item) => item.id !== draft.id));
+    } catch (error) {
+      setActionError(error instanceof ApiError && error.status === 403
+        ? "Vous n’avez pas l’autorisation de supprimer ce brouillon."
+        : error instanceof Error ? error.message : "La suppression a échoué.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,6 +173,8 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
         </div>
       )}
 
+      {actionError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{actionError}</div>}
+
       {!loading && !error && (
         <div className="bg-white rounded-2xl border border-slate-100 p-6 overflow-x-auto">
           <table className="w-full text-sm min-w-[800px]">
@@ -163,7 +184,8 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
                 <th className="px-4 py-3 text-left font-medium">Client</th>
                 <th className="px-4 py-3 text-left font-medium">Date / Période</th>
                 <th className="px-4 py-3 text-left font-medium">Articles</th>
-                <th className="px-4 py-3 text-center font-medium rounded-tr-lg">Statut</th>
+                <th className="px-4 py-3 text-center font-medium">Statut</th>
+                {canSensitiveWrite && <th className="px-4 py-3 text-right font-medium rounded-tr-lg">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -196,11 +218,18 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
                   <td className="px-4 py-3 text-center rounded-tr-lg">
                     {formatStatusBadge(r.status)}
                   </td>
+                  {canSensitiveWrite && <td className="px-4 py-3 text-right">
+                    {r.status === "draft" ? (
+                      <button type="button" className="font-semibold text-rose-600 hover:underline disabled:opacity-50" disabled={deletingId === r.id} onClick={() => void handleDelete(r)}>
+                        {deletingId === r.id ? "Suppression…" : "Supprimer"}
+                      </button>
+                    ) : <span className="text-xs text-slate-400">Annulation requise</span>}
+                  </td>}
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8">
+                  <td colSpan={canSensitiveWrite ? 6 : 5} className="px-4 py-8">
                     <EmptyState
                       message="Aucune réservation ne correspond à votre recherche."
                       icon="fa-calendar-xmark"

@@ -13,6 +13,7 @@ interface MockAvailabilityCalendarProps {
   onDateSelect?: (dateStr: string) => void;
   selectedDate?: string;
   allowPast?: boolean;
+  disabledDates?: string[];
   /**
    * The calendar remains reusable for date-only forms. When enabled, it shows
    * the authoritative Titan availability preview for the selected full day.
@@ -58,6 +59,7 @@ export function MockAvailabilityCalendar({
   onDateSelect,
   selectedDate,
   allowPast = false,
+  disabledDates = [],
   showAvailabilityPreview = false,
 }: MockAvailabilityCalendarProps) {
   const currentDate = new Date();
@@ -129,8 +131,9 @@ export function MockAvailabilityCalendar({
     for (let day = 1; day <= daysInMonth; day += 1) {
       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       const isPast = !allowPast && new Date(`${dateStr}T00:00:00`) < today;
+      const isDisabled = disabledDates.includes(dateStr);
       const isSelected = selectedDate === dateStr;
-      const style = isPast
+      const style = isPast || isDisabled
         ? "bg-slate-50 text-slate-300 cursor-not-allowed"
         : isSelected
           ? "bg-indigo-600 text-white font-bold shadow-md"
@@ -140,7 +143,7 @@ export function MockAvailabilityCalendar({
         <button
           key={dateStr}
           type="button"
-          disabled={isPast}
+          disabled={isPast || isDisabled}
           onClick={() => onDateSelect?.(dateStr)}
           aria-pressed={isSelected}
           aria-label={`${day} ${monthNames[currentMonth].toLowerCase()} ${currentYear}`}

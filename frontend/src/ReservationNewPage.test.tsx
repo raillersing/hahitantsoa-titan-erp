@@ -8,6 +8,7 @@ import {
   getHahitantsoaServices,
   getTitanClosedDays,
   getInventoryItems,
+  getMaterialPackages,
   getReservationAvailableItemPreviews,
   createReservationDraft,
   createReservationDraftDocumentInstance,
@@ -158,6 +159,7 @@ vi.mock('./api', () => ({
   getHahitantsoaVenues: vi.fn(),
   getHahitantsoaServices: vi.fn(),
   getInventoryItems: vi.fn(),
+  getMaterialPackages: vi.fn(),
   getReservationAvailableItemPreviews: vi.fn(),
   createReservationDraft: vi.fn(),
   createReservationDraftDocumentInstance: vi.fn(),
@@ -187,6 +189,20 @@ describe('ReservationNewPage', () => {
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
     vi.mocked(getTitanClosedDays).mockResolvedValue([]);
     vi.mocked(getInventoryItems).mockResolvedValue(mockInventoryData as any);
+    vi.mocked(getMaterialPackages).mockResolvedValue([
+      {
+        id: 'PKG-001',
+        name: 'Package de test',
+        description: 'Package API de test',
+        price: 200000,
+        is_active: true,
+        lines: [
+          { id: 'PKG-LINE-001', inventory_item: 'MAT-01', inventory_item_name: 'Chaise Napoléon transparente', quantity: 10, created_at: '2026-01-01T00:00:00Z' },
+        ],
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+    ] as any);
     vi.mocked(getReservationAvailableItemPreviews).mockResolvedValue(mockCatalogData as any);
     vi.mocked(createReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);
     vi.mocked(createReservationDraftDocumentInstance).mockResolvedValue({ id: 'DOC-T-001' } as any);
@@ -651,13 +667,13 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByTestId('client-select-CUST-001'));
     fireEvent.click(screen.getByRole('button', {name: /Continuer/i}));
 
-    // We are on details step. Click Location avec package
+    // We are on details step. Choose article composition.
     await waitFor(() => {
-      expect(screen.getByText('Location avec package')).toBeInTheDocument();
+      expect(screen.getByText('Location + article')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText('Location avec package'));
+    fireEvent.click(screen.getByText('Location + article'));
 
-    // Now the next button says "Aller au catalogue / package"
+    // The existing catalogue/package step is opened directly.
     // Set dates so the catalog availability API is triggered
     const dateInputs12 = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'date');
     const timeInputs12 = screen.getAllByDisplayValue('').filter(el => el.getAttribute('type') === 'time');
@@ -671,11 +687,11 @@ describe('ReservationNewPage', () => {
     }
     fireEvent.click(screen.getByText(/Aller au catalogue/i));
 
-    // Choose package 1
+    // Choose the real API package
     await waitFor(() => {
-      expect(screen.getByText(/Package Standard 100 pax/i)).toBeInTheDocument();
+      expect(screen.getByText(/Package de test/i)).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText(/Package Standard 100 pax/i));
+    fireEvent.click(screen.getByText(/Package de test/i));
 
     // Adjust package
     fireEvent.click(screen.getByText('Ajuster package'));

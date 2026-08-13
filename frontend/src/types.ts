@@ -1487,7 +1487,7 @@ export type PaymentReminderDispatch = {
   reminder: PaymentWhatsAppReminder;
 };
 
-// ---- Legacy Client type (from mockData, kept for backward compatibility) ----
+// ---- Legacy Client type kept for backward compatibility ----
 
 export type Client = {
   id: string;

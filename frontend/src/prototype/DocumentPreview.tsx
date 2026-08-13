@@ -271,7 +271,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
             <ul className="list-none pl-10 mb-4 space-y-2">
               {materials.length === 0 ? (
-                <p className="text-sm text-slate-500 italic">Aucune ligne à afficher dans ce document mock.</p>
+                <p className="text-sm text-slate-500 italic">Aucune ligne à afficher dans ce document.</p>
               ) : (
                 materials.map((m, i) => (
                   <li key={m.id || i}>- {safeNumber(m.quantity, 1)} {m.name || m.designation || "Article"}</li>
@@ -582,7 +582,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-sm text-slate-600 italic">Plan indicatif mock. En cas de divergence, le plan approuvé par le prestataire et affiché sur place fait foi.</p>
+            <p className="mt-4 text-sm text-slate-600 italic">En cas de divergence, le plan approuvé par le prestataire et affiché sur place fait foi.</p>
           </ContractPage>
 
           <ContractPage pageNumber={7}>

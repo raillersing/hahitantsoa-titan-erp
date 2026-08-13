@@ -7,7 +7,7 @@ import {
   getReservationDrafts,
 } from "./api";
 
-const DAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const ACTIVITY_LABEL = "Total";
 
 type DashboardMetrics = {
   inventoryCount: number;
@@ -20,28 +20,12 @@ type DashboardPanelProps = {
   onNavigate: (scope: "titan" | "hahitantsoa" | "commercial-ops" | "planning") => void;
 };
 
-function rngSeed(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return s / 2147483647;
-  };
-}
-
-function mockActivityData(eventCount: number, reservationCount: number) {
-  const rng = rngSeed(eventCount * 31 + reservationCount * 17 + 42);
-  const baseHah = Math.max(1, Math.min(eventCount, 10));
-  const baseTitan = Math.max(1, Math.min(reservationCount, 10));
-
-  return DAY_LABELS.map(() => {
-    const hahPct = Math.round((rng() * 0.5 + 0.5) * baseHah * 10);
-    const titPct = Math.round((rng() * 0.5 + 0.5) * baseTitan * 10);
-    const maxVal = Math.max(hahPct + titPct, 1);
-    return {
-      hahPct: Math.round((hahPct / maxVal) * 100),
-      titPct: Math.round((titPct / maxVal) * 100),
-    };
-  });
+function activityData(eventCount: number, reservationCount: number) {
+  const total = Math.max(eventCount + reservationCount, 1);
+  return [{
+    hahPct: Math.round((eventCount / total) * 100),
+    titPct: Math.round((reservationCount / total) * 100),
+  }];
 }
 
 function DashboardPanel({ onNavigate }: DashboardPanelProps) {
@@ -89,7 +73,7 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
   }, []);
 
   const choiceRef = useRef<HTMLDivElement>(null);
-  const activityBars = mockActivityData(metrics.eventDraftCount, metrics.reservationDraftCount);
+  const activityBars = activityData(metrics.eventDraftCount, metrics.reservationDraftCount);
 
   if (loading) {
     return (
@@ -285,7 +269,7 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
       <div className="dash-bottom">
         <section className="dash-card dash-card--wide" aria-labelledby="dash-activity-title">
           <div className="dash-card__header">
-            <h3 id="dash-activity-title">Activité des 7 derniers jours</h3>
+            <h3 id="dash-activity-title">Répartition actuelle des dossiers</h3>
             <div className="dash-legend">
               <span className="dash-legend__item">
                 <span className="dash-legend__dot dash-legend__dot--hah" />
@@ -298,8 +282,8 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
             </div>
           </div>
           <div className="dash-chart">
-            {activityBars.map((bar, i) => (
-              <div className="dash-chart__col" key={DAY_LABELS[i]}>
+            {activityBars.map((bar) => (
+              <div className="dash-chart__col" key={ACTIVITY_LABEL}>
                 <div className="dash-chart__bars">
                   <div
                     className="dash-chart__bar dash-chart__bar--titan"
@@ -310,7 +294,7 @@ function DashboardPanel({ onNavigate }: DashboardPanelProps) {
                     style={{ height: `${bar.hahPct}%` }}
                   />
                 </div>
-                <p className="dash-chart__label">{DAY_LABELS[i]}</p>
+                <p className="dash-chart__label">{ACTIVITY_LABEL}</p>
               </div>
             ))}
           </div>

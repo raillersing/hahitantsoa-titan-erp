@@ -3,7 +3,6 @@ import { ApiError, createCustomer, getCustomers } from "../api";
 import type { Customer as ApiCustomer } from "../types";
 import type { Client } from "../types";
 import { EmptyState, LoadingSpinner } from "../components";
-import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
 
 interface CustomersPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -479,10 +478,14 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
           {(isProspect && getStepType(wizardStep) === 'calendrier') && (
             <div className="space-y-6">
               <h3 className="text-lg font-bold text-slate-800">Calendrier de disponibilité</h3>
-              <MockAvailabilityCalendar 
-                selectedDate={prospectDate} 
-                onDateSelect={setProspectDate}
-                showAvailabilityPreview
+              <label className="block text-sm font-medium text-slate-700" htmlFor="prospect-requested-date">Date souhaitée</label>
+              <input
+                id="prospect-requested-date"
+                type="date"
+                min={new Date().toISOString().slice(0, 10)}
+                value={prospectDate}
+                onChange={(event) => setProspectDate(event.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
               <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-4">
                 <div className="text-center">
@@ -508,7 +511,13 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false }:
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Choisir une date</label>
-                  <MockAvailabilityCalendar selectedDate={prospectDate} onDateSelect={setProspectDate} />
+                  <input
+                    type="date"
+                    min={new Date().toISOString().slice(0, 10)}
+                    value={prospectDate}
+                    onChange={(event) => setProspectDate(event.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
                 </div>
                 
                 <div className="space-y-4">
