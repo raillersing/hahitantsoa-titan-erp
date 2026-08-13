@@ -164,12 +164,16 @@ def test_payment_reminder_dispatch_is_persistent_and_idempotent(django_user_mode
     )
 
     assert first.id == second.id
-    assert PaymentReminderDispatch.objects.filter(
-        reservation_draft=draft, reminder_key="j30"
-    ).count() == 1
-    assert SystemNotification.objects.filter(
-        recipient=actor, link=f"/payment-reminders/{first.id}"
-    ).count() == 1
+    assert (
+        PaymentReminderDispatch.objects.filter(reservation_draft=draft, reminder_key="j30").count()
+        == 1
+    )
+    assert (
+        SystemNotification.objects.filter(
+            recipient=actor, link=f"/payment-reminders/{first.id}"
+        ).count()
+        == 1
+    )
 
 
 def test_payment_reminder_dispatch_api_requires_one_scope(client, django_user_model):

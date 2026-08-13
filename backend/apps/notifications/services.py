@@ -80,7 +80,9 @@ def prepare_payment_reminder_dispatch(
         dispatch.whatsapp_url = reminder.whatsapp_url or ""
         dispatch.prepared_by = actor
         dispatch.prepared_at = timezone.now()
-        dispatch.save(update_fields=["message", "whatsapp_url", "prepared_by", "prepared_at", "updated_at"])
+        dispatch.save(
+            update_fields=["message", "whatsapp_url", "prepared_by", "prepared_at", "updated_at"]
+        )
     reference = reminder.reference
     recipient = getattr(actor, "pk", None)
     SystemNotification.objects.get_or_create(

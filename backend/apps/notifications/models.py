@@ -88,8 +88,14 @@ class PaymentReminderDispatch(UUIDModel, TimestampedModel):
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    (models.Q(reservation_draft__isnull=False) & models.Q(hahitantsoa_event_draft__isnull=True))
-                    | (models.Q(reservation_draft__isnull=True) & models.Q(hahitantsoa_event_draft__isnull=False))
+                    (
+                        models.Q(reservation_draft__isnull=False)
+                        & models.Q(hahitantsoa_event_draft__isnull=True)
+                    )
+                    | (
+                        models.Q(reservation_draft__isnull=True)
+                        & models.Q(hahitantsoa_event_draft__isnull=False)
+                    )
                 ),
                 name="payment_reminder_single_draft_link",
             ),

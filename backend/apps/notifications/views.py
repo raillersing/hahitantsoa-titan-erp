@@ -95,11 +95,15 @@ class PaymentReminderDispatchCreateAPIView(APIView):
             else None
         )
         if reservation is None and event is None:
-            return Response({"detail": "Business draft not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Business draft not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         dispatch = prepare_payment_reminder_dispatch(
             actor=request.user,
             reservation_draft=reservation,
             hahitantsoa_event_draft=event,
             reminder_key=serializer.validated_data["reminder_key"],
         )
-        return Response(PaymentReminderDispatchSerializer(dispatch).data, status=status.HTTP_201_CREATED)
+        return Response(
+            PaymentReminderDispatchSerializer(dispatch).data, status=status.HTTP_201_CREATED
+        )
