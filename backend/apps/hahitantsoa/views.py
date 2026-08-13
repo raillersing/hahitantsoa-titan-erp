@@ -541,6 +541,7 @@ class HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView(APIView):
             marked_draft = mark_hahitantsoa_event_draft_required_deposit_received(
                 event_draft=event_draft,
                 actor=request.user,
+                auto_confirm=True,
             )
         except PermissionError as error:
             return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)

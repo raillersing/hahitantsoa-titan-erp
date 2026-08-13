@@ -818,6 +818,7 @@ def mark_hahitantsoa_event_draft_required_deposit_received(
     *,
     event_draft: HahitantsoaEventDraft,
     actor: object | None,
+    auto_confirm: bool = False,
 ) -> HahitantsoaEventDraft:
     """Record the confirmed deposit and complete confirmation atomically."""
     capture_reservation_sensitive_actor_attribution(actor=actor)
@@ -856,10 +857,12 @@ def mark_hahitantsoa_event_draft_required_deposit_received(
                     "updated_at",
                 ]
             )
-        return confirm_hahitantsoa_event_draft(
-            event_draft=locked_event_draft,
-            actor=actor,
-        ).event_draft
+        if auto_confirm and _is_contract_signed(event_draft=locked_event_draft):
+            return confirm_hahitantsoa_event_draft(
+                event_draft=locked_event_draft,
+                actor=actor,
+            ).event_draft
+        return locked_event_draft
 
 
 def _schedule_confirmation_success_audit(

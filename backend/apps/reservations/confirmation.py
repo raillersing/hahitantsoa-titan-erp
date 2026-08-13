@@ -480,6 +480,7 @@ def mark_reservation_draft_required_deposit_received(
     *,
     reservation_draft: ReservationDraft,
     actor: object | None,
+    auto_confirm: bool = False,
 ) -> ReservationDraft:
     attribution = capture_reservation_sensitive_actor_attribution(actor=actor)
 
@@ -510,10 +511,12 @@ def mark_reservation_draft_required_deposit_received(
                 attribution=attribution,
             )
             marked_draft.refresh_from_db()
-        return confirm_reservation_draft(
-            reservation_draft=marked_draft,
-            actor=actor,
-        ).reservation_draft
+        if auto_confirm and _is_contract_signed(reservation_draft=marked_draft):
+            return confirm_reservation_draft(
+                reservation_draft=marked_draft,
+                actor=actor,
+            ).reservation_draft
+        return marked_draft
 
 
 def confirm_reservation_draft(

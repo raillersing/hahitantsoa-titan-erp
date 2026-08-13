@@ -354,6 +354,7 @@ class ReservationDraftMarkRequiredDepositReceivedAPIView(APIView):
             marked_draft = mark_reservation_draft_required_deposit_received(
                 reservation_draft=draft,
                 actor=request.user,
+                auto_confirm=True,
             )
         except PermissionError as error:
             return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
