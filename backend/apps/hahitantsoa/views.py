@@ -52,6 +52,7 @@ from apps.hahitantsoa.services import (
     assert_hahitantsoa_event_draft_mutable,
     confirm_hahitantsoa_event_draft,
 )
+from apps.inventory.services import InventoryStockMovementError
 from apps.reservations.confirmation import (
     ReservationConfirmationPreflightError,
     ReservationLifecycleError,
@@ -661,6 +662,7 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
     http_method_names = ["post", "head", "options"]
     permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
 
+    @transaction.atomic
     def post(self, request, pk, id):
         from django.http import Http404
         from django.shortcuts import get_object_or_404
@@ -671,6 +673,7 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
             generate_document_instance_pdf,
             get_hahitantsoa_event_draft_document_instance_or_404,
         )
+        from apps.inventory.services import issue_delivery_note_stock
 
         event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
         try:
@@ -682,9 +685,16 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
                 document_instance=instance,
                 actor=request.user,
             )
+            if instance.template_key == "hahitantsoa.delivery_note.v1":
+                issue_delivery_note_stock(document_instance=instance, actor=request.user)
         except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
         except DocumentPDFGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except InventoryStockMovementError as error:
             return Response(
                 {"detail": str(error), "code": error.code},
                 status=status.HTTP_400_BAD_REQUEST,

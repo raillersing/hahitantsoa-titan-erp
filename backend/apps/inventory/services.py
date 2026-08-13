@@ -44,6 +44,124 @@ class InventoryStockMovementError(ValueError):
         self.code = code
 
 
+LEGACY_UNBOUNDED_STOCK = 2**31 - 1
+
+
+def get_current_inventory_stock(*, inventory_item_id) -> int:
+    """Return current stock while the caller owns the item row lock."""
+    from apps.inventory.models import InventoryItem
+
+    item = InventoryItem.objects.select_for_update().get(pk=inventory_item_id)
+    movements = list(InventoryStockMovement.objects.filter(inventory_item_id=inventory_item_id))
+    initial_movements = [
+        movement for movement in movements if movement.source_label == "Initial inventory import"
+    ]
+    if initial_movements:
+        baseline = sum(movement.quantity for movement in initial_movements)
+        movements = [movement for movement in movements if movement not in initial_movements]
+    else:
+        baseline = item.reported_inventory_quantity
+        if baseline == 0 and not movements:
+            return LEGACY_UNBOUNDED_STOCK
+    return max(baseline + sum(movement.signed_quantity for movement in movements), 0)
+
+
+@transaction.atomic
+def issue_delivery_note_stock(
+    *, document_instance: DocumentInstance, actor, logistics_event=None
+) -> tuple[InventoryStockMovement, ...]:
+    """Create the physical outbound movements exactly once for an emitted delivery note."""
+    from apps.hahitantsoa.models import HahitantsoaEventDraftLine
+    from apps.reservations.models import ReservationDraftLine
+
+    document = DocumentInstance.objects.select_for_update().get(pk=document_instance.pk)
+    if document.document_type != "delivery_note":
+        raise InventoryStockMovementError(
+            "Stock can only be issued from a delivery note.",
+            code="stock_issue_requires_delivery_note",
+        )
+
+    if logistics_event is not None:
+        if document.template_key != "titan.delivery_note.v1":
+            raise InventoryStockMovementError(
+                "Un événement logistique Titan doit utiliser le bon de livraison Titan.",
+                code="stock_issue_document_scope_mismatch",
+            )
+        if document.reservation_draft_id != logistics_event.reservation_draft_id:
+            raise InventoryStockMovementError(
+                "Le bon de livraison ne correspond pas à l'événement logistique.",
+                code="stock_issue_source_mismatch",
+            )
+        lines = tuple(
+            logistics_event.item_lines.select_related("inventory_item").order_by("created_at", "id")
+        )
+    elif document.reservation_draft_id is not None:
+        lines = tuple(
+            ReservationDraftLine.objects.filter(
+                reservation_draft_id=document.reservation_draft_id,
+                is_deleted=False,
+            )
+            .select_related("inventory_item")
+            .order_by("created_at", "id")
+        )
+    elif document.hahitantsoa_event_draft_id is not None:
+        lines = tuple(
+            HahitantsoaEventDraftLine.objects.filter(
+                event_draft_id=document.hahitantsoa_event_draft_id,
+                is_deleted=False,
+            )
+            .select_related("inventory_item")
+            .order_by("created_at", "id")
+        )
+    else:
+        raise InventoryStockMovementError(
+            "A delivery note must be linked to a reservation or event.",
+            code="stock_issue_source_missing",
+        )
+
+    item_ids = sorted({line.inventory_item_id for line in lines})
+    locked_items = {
+        item.id: item for item in InventoryItem.objects.select_for_update().filter(id__in=item_ids)
+    }
+    movements: list[InventoryStockMovement] = []
+    for line in lines:
+        item = locked_items[line.inventory_item_id]
+        existing = InventoryStockMovement.objects.filter(
+            document_instance=document,
+            inventory_item=item,
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        ).first()
+        if existing is not None:
+            if existing.quantity != line.quantity:
+                raise InventoryStockMovementError(
+                    "The issued quantity no longer matches the delivery note.",
+                    code="stock_issue_conflict",
+                )
+            movements.append(existing)
+            continue
+
+        current_stock = get_current_inventory_stock(inventory_item_id=item.id)
+        if current_stock < line.quantity:
+            raise InventoryStockMovementError(
+                f"Stock insuffisant pour {item.name}: {current_stock} disponible(s).",
+                code="insufficient_stock_for_dispatch",
+            )
+        movements.append(
+            create_inventory_stock_movement(
+                actor=actor,
+                inventory_item=item,
+                reservation_draft=document.reservation_draft,
+                document_instance=document,
+                movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+                quantity=line.quantity,
+                source_label=f"document_instance:{document.id}",
+                notes=line.notes or "Sortie de stock liée au bon de livraison.",
+                effective_at=timezone.now(),
+            )
+        )
+    return tuple(movements)
+
+
 @transaction.atomic
 def create_inventory_storage_location(*, name: str, actor) -> InventoryStorageLocation:
     location = InventoryStorageLocation.objects.create(

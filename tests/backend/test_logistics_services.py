@@ -184,7 +184,7 @@ def test_create_event_defaults_to_previous_working_day():
     assert event.scheduled_at == default_logistics_scheduled_at(reservation_start_at=monday)
 
 
-def test_dispatch_creates_one_outbound_movement_and_updates_stock():
+def test_delivery_note_issuance_creates_one_outbound_movement_and_updates_stock():
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
@@ -198,7 +198,8 @@ def test_dispatch_creates_one_outbound_movement_and_updates_stock():
     event = create_logistics_event(
         actor=actor,
         reservation_draft=draft,
-        event_type=LogisticsEventType.DELIVERY,
+        event_type=LogisticsEventType.HANDOVER,
+        signature_required=True,
     )
     add_item_line_to_logistics_event(actor=actor, event=event, inventory_item=item, quantity=2)
 
@@ -208,16 +209,27 @@ def test_dispatch_creates_one_outbound_movement_and_updates_stock():
         new_status=LogisticsEventStatus.DISPATCHED,
     )
 
+    assert not InventoryStockMovement.objects.filter(
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+    ).exists()
+
+    event = transition_logistics_event_status(
+        actor=actor,
+        event=event,
+        new_status=LogisticsEventStatus.COMPLETED,
+    )
+    _, document_instance = complete_handover_passation(actor=actor, event=event)
     movement = InventoryStockMovement.objects.get(
-        source_label=f"logistics_event:{event.id}",
+        document_instance=document_instance,
         movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
     )
-    assert event.status == LogisticsEventStatus.DISPATCHED
+    assert event.status == LogisticsEventStatus.COMPLETED
     assert movement.quantity == 2
     assert movement.reservation_draft_id == draft.id
 
 
-def test_dispatch_rejects_insufficient_stock_without_status_change():
+def test_delivery_note_issuance_rejects_insufficient_stock_without_movement():
     from django.contrib.auth import get_user_model
 
     User = get_user_model()
@@ -232,21 +244,28 @@ def test_dispatch_rejects_insufficient_stock_without_status_change():
         actor=actor,
         reservation_draft=draft,
         event_type=LogisticsEventType.HANDOVER,
+        signature_required=True,
     )
     add_item_line_to_logistics_event(actor=actor, event=event, inventory_item=item, quantity=2)
 
+    transition_logistics_event_status(
+        actor=actor,
+        event=event,
+        new_status=LogisticsEventStatus.DISPATCHED,
+    )
+    event = transition_logistics_event_status(
+        actor=actor,
+        event=event,
+        new_status=LogisticsEventStatus.COMPLETED,
+    )
+
     with pytest.raises(LogisticsServiceError, match="Stock insuffisant"):
-        transition_logistics_event_status(
-            actor=actor,
-            event=event,
-            new_status=LogisticsEventStatus.DISPATCHED,
-        )
+        complete_handover_passation(actor=actor, event=event)
 
     event.refresh_from_db()
-    assert event.status == LogisticsEventStatus.PLANNED
-    assert not InventoryStockMovement.objects.filter(
-        source_label=f"logistics_event:{event.id}"
-    ).exists()
+    assert event.status == LogisticsEventStatus.COMPLETED
+    assert event.signature_received is False
+    assert not InventoryStockMovement.objects.filter(reservation_draft=draft).exists()
 
 
 def test_create_handover_event_success():

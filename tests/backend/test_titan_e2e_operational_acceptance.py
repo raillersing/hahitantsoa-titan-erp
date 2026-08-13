@@ -25,6 +25,8 @@ from apps.inventory.models import (
     InventoryDamageLossSettlementStatus,
     InventoryItem,
     InventoryReturnOperationStatus,
+    InventoryStockMovement,
+    InventoryStockMovementType,
 )
 from apps.inventory.services import (
     create_inventory_damage_loss_settlement,
@@ -206,6 +208,10 @@ def test_titan_full_happy_path_operational_acceptance(
         event=event,
         new_status=LogisticsEventStatus.DISPATCHED,
     )
+    assert not InventoryStockMovement.objects.filter(
+        reservation_draft=draft,
+        movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+    ).exists()
     transition_logistics_event_status(
         actor=actor,
         event=event,
@@ -221,6 +227,14 @@ def test_titan_full_happy_path_operational_acceptance(
     event.refresh_from_db()
     assert event.status == LogisticsEventStatus.COMPLETED
     assert event.signature_received is True
+    assert (
+        InventoryStockMovement.objects.filter(
+            reservation_draft=draft,
+            document_instance__template_key="titan.delivery_note.v1",
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        ).count()
+        == 1
+    )
 
     # 4. Return operation
     return_op = create_inventory_return_operation(
