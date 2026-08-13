@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { AppScope } from "../App";
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from "../api";
-import type { SystemNotification } from "../types";
+import { getNotifications, getPaymentReminderDispatch, markNotificationRead, markAllNotificationsRead } from "../api";
+import type { PaymentReminderDispatch, SystemNotification } from "../types";
 
 interface NotificationsPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  param?: string;
 }
 
 const severityConfig: Record<string, { bg: string; border: string; iconBg: string; icon: string; iconColor: string }> = {
@@ -35,7 +36,7 @@ function formatRelativeTime(dateStr: string): string {
   return `Il y a ${diffD} j`;
 }
 
-export default function NotificationsPage({ onNavigate }: NotificationsPageProps) {
+export default function NotificationsPage({ onNavigate, param }: NotificationsPageProps) {
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,9 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
     import_anomaly: true,
     expense_notif: false,
   });
+  const [reminderState, setReminderState] = useState<
+    { status: "idle" } | { status: "loading" } | { status: "ready"; dispatch: PaymentReminderDispatch } | { status: "error"; message: string }
+  >({ status: "idle" });
 
   const fetchNotifications = async () => {
     try {
@@ -60,6 +64,26 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
   };
 
   useEffect(() => { fetchNotifications(); }, []);
+
+  useEffect(() => {
+    if (!param) {
+      setReminderState({ status: "idle" });
+      return;
+    }
+    const controller = new AbortController();
+    setReminderState({ status: "loading" });
+    void getPaymentReminderDispatch(param, controller.signal)
+      .then((dispatch) => setReminderState({ status: "ready", dispatch }))
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setReminderState({
+            status: "error",
+            message: err instanceof Error ? err.message : "Impossible de charger le brouillon de rappel.",
+          });
+        }
+      });
+    return () => controller.abort();
+  }, [param]);
 
   const handleMarkRead = async (id: string) => {
     try {
@@ -93,6 +117,31 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
           Retour
         </button>
       </div>
+
+      {param && (
+        <section className="bg-white rounded-2xl border border-slate-100 p-6" aria-labelledby="payment-reminder-detail-title">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 id="payment-reminder-detail-title" className="text-lg font-semibold text-slate-800">Brouillon de rappel de paiement</h2>
+              <p className="text-sm text-slate-500 mt-1">Message préparé pour relecture avant envoi.</p>
+            </div>
+            <button type="button" onClick={() => onNavigate("notifications")} className="text-sm text-slate-600 hover:text-slate-900">Fermer</button>
+          </div>
+          {reminderState.status === "loading" && <p role="status" className="text-sm text-slate-500">Chargement du brouillon…</p>}
+          {reminderState.status === "error" && <p role="alert" className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">{reminderState.message}</p>}
+          {reminderState.status === "ready" && (
+            <div className="space-y-3">
+              <dl className="grid gap-3 sm:grid-cols-2 text-sm">
+                <div><dt className="text-slate-500">Clé du rappel</dt><dd className="font-medium text-slate-800">{reminderState.dispatch.reminder_key}</dd></div>
+                <div><dt className="text-slate-500">Préparé le</dt><dd className="font-medium text-slate-800">{new Date(reminderState.dispatch.prepared_at).toLocaleString("fr-FR")}</dd></div>
+              </dl>
+              <label className="block text-sm font-medium text-slate-700" htmlFor="payment-reminder-detail-message">Message</label>
+              <textarea id="payment-reminder-detail-message" readOnly value={reminderState.dispatch.message} className="min-h-40 w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm" />
+              {reminderState.dispatch.whatsapp_url && <a href={reminderState.dispatch.whatsapp_url} target="_blank" rel="noreferrer" className="inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Ouvrir WhatsApp</a>}
+            </div>
+          )}
+        </section>
+      )}
 
       {unreadCount > 0 && (
         <button
@@ -135,8 +184,14 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 const config = severityConfig[notif.severity] || severityConfig.info;
                 const icon = typeIcons[notif.notification_type] || config.icon;
                 return (
-                  <div
+                  <button
                     key={notif.id}
+                    type="button"
+                    onClick={() => {
+                      if (!notif.is_read) void handleMarkRead(notif.id);
+                      const reminderId = notif.link.match(/^\/payment-reminders\/([^/]+)\/?$/)?.[1];
+                      if (reminderId) onNavigate("notifications", reminderId);
+                    }}
                     className={`flex items-start gap-4 p-4 rounded-xl border transition-opacity ${
                       notif.is_read ? "bg-slate-50 border-slate-200 opacity-60" : `${config.bg} ${config.border}`
                     }`}
@@ -156,15 +211,15 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                       )}
                     </div>
                     {!notif.is_read && (
-                      <button
-                        onClick={() => handleMarkRead(notif.id)}
+                      <span
+                        aria-hidden="true"
                         className="flex-shrink-0 px-2 py-1 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         title="Marquer comme lu"
                       >
                         <i className="fa-solid fa-check"></i>
-                      </button>
+                      </span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -180,6 +235,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
             <h2 className="text-lg font-semibold text-slate-800">Préférences</h2>
           </div>
           <div className="space-y-3">
+            <p className="text-xs text-slate-500">Ces préférences sont locales à cet écran et ne modifient pas encore les notifications serveur.</p>
             <label className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer">
               <div className="flex items-center gap-3">
                 <i className="fa-solid fa-envelope text-slate-400"></i>

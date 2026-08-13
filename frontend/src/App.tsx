@@ -232,7 +232,7 @@ function App() {
       case "desired-dates": return <DesiredDatesPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} currentUserId={state.user.id} />;
       case "profile": return <ProfilePage user={state.user} />;
       case "login": return <DashboardPage onNavigate={navigate} />;
-      case "notifications": return <NotificationsPage onNavigate={navigate} />;
+      case "notifications": return <NotificationsPage onNavigate={navigate} param={activeParam} />;
       case "import-excel": return <ImportExcelPage onNavigate={navigate} />;
       case "hr": return <HRPage onNavigate={navigate} />;
       case "hr-payroll": return <HRPayrollPage onNavigate={navigate} user={state.user} />;
