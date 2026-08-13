@@ -28,6 +28,7 @@ from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAmendmentPreflightSerializer,
+    HahitantsoaEventDraftAmendmentRequestApplySerializer,
     HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer,
     HahitantsoaEventDraftAmendmentRequestCreateSerializer,
     HahitantsoaEventDraftAmendmentRequestLineCreateSerializer,
@@ -47,6 +48,7 @@ from apps.hahitantsoa.serializers import (
     ReservationAvailabilityPreviewRequestSerializer,
 )
 from apps.hahitantsoa.services import (
+    apply_hahitantsoa_event_draft_amendment_request,
     assert_hahitantsoa_event_draft_mutable,
     confirm_hahitantsoa_event_draft,
 )
@@ -313,6 +315,44 @@ class HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView(generics.Retrie
         serializer.save(updated_by=self.request.user)
 
 
+class HahitantsoaEventDraftAmendmentRequestApplyAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(responses=HahitantsoaEventDraftAmendmentRequestApplySerializer)
+    def post(self, request, event_draft_pk, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(
+            visible_hahitantsoa_event_drafts(user=request.user), pk=event_draft_pk
+        )
+        amendment_request = get_object_or_404(
+            HahitantsoaEventDraftAmendmentRequest.objects.filter(
+                event_draft=event_draft
+            ).prefetch_related("lines__inventory_item"),
+            pk=pk,
+        )
+        try:
+            result = apply_hahitantsoa_event_draft_amendment_request(
+                event_draft=event_draft,
+                amendment_request=amendment_request,
+                actor=request.user,
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            HahitantsoaEventDraftAmendmentRequestApplySerializer(
+                {"amendment_request": result.amendment_request}
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+
 class HahitantsoaEventDraftAmendmentRequestLineListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
@@ -437,6 +477,10 @@ class HahitantsoaEventDraftAmendmentRequestLineRetrieveUpdateDestroyAPIView(
         serializer.save(updated_by=self.request.user)
 
     def perform_destroy(self, instance):
+        if instance.amendment_request.status != "draft":
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError("An applied amendment request is immutable.")
         instance.is_deleted = True
         instance.deleted_at = timezone.now()
         instance.updated_by = self.request.user

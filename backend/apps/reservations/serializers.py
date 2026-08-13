@@ -55,6 +55,10 @@ class ReservationDraftAmendmentSerializer(serializers.ModelSerializer):
             "changed_end_at",
             "changed_lines",
             "document_instance_id",
+            "amendment_sequence",
+            "source_contract_document_id",
+            "applied_at",
+            "applied_by",
             "created_at",
             "created_by",
         )

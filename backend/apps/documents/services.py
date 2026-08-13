@@ -518,6 +518,8 @@ def create_document_instance_from_reservation_draft(
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
     document_date=None,
+    amendment_sequence: int | None = None,
+    amendment_source_document_id=None,
 ) -> DocumentInstance:
     context = build_reservation_draft_commercial_document_context(
         reservation_draft=reservation_draft,
@@ -556,6 +558,16 @@ def create_document_instance_from_reservation_draft(
             document_date=document_date,
         )
     )
+    if amendment_sequence is not None or amendment_source_document_id is not None:
+        instance.amendment_sequence = amendment_sequence
+        instance.amendment_source_document_id = amendment_source_document_id
+        instance.save(
+            update_fields=[
+                "amendment_sequence",
+                "amendment_source_document_id",
+                "updated_at",
+            ]
+        )
     record_audit_event_on_commit(
         actor=actor,
         action="document.instance_prepared",
@@ -591,6 +603,8 @@ def create_document_instance_from_hahitantsoa_event_draft(
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
     document_date=None,
+    amendment_sequence: int | None = None,
+    amendment_source_document_id=None,
 ) -> DocumentInstance:
     validate_supported_hahitantsoa_event_draft_document_template_key(template_key)
     if document_date is not None and template_key != "hahitantsoa.delivery_note.v1":
@@ -624,6 +638,16 @@ def create_document_instance_from_hahitantsoa_event_draft(
             document_date=document_date,
         )
     )
+    if amendment_sequence is not None or amendment_source_document_id is not None:
+        instance.amendment_sequence = amendment_sequence
+        instance.amendment_source_document_id = amendment_source_document_id
+        instance.save(
+            update_fields=[
+                "amendment_sequence",
+                "amendment_source_document_id",
+                "updated_at",
+            ]
+        )
     record_audit_event_on_commit(
         actor=actor,
         action="document.instance_prepared",

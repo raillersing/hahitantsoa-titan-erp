@@ -147,6 +147,8 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "issued_at",
             "valid_until",
             "notes",
+            "amendment_sequence",
+            "amendment_source_document_id",
             "created_at",
             "updated_at",
         )

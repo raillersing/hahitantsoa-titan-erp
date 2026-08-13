@@ -36,6 +36,12 @@ def _amendment_request_detail_url(event_draft_id, amendment_request_id) -> str:
     return f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/{amendment_request_id}/"
 
 
+def _amendment_request_apply_url(event_draft_id, amendment_request_id) -> str:
+    return (
+        f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/{amendment_request_id}/apply/"
+    )
+
+
 def _amendment_request_line_list_url(event_draft_id, amendment_request_id) -> str:
     return (
         f"{EVENT_DRAFT_LIST_URL}{event_draft_id}/amendment-requests/{amendment_request_id}/lines/"
@@ -1066,6 +1072,61 @@ def test_owner_can_create_list_and_read_amendment_request_for_confirmed_draft(
     assert detail_response.status_code == 200
     assert detail_response.json()["id"] == str(amendment_request.id)
     assert detail_response.json()["lines"] == []
+
+
+def test_owner_can_apply_hahitantsoa_amendment_and_replay_is_idempotent(
+    authenticated_client,
+    django_user_model,
+) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    draft = _confirmed_draft(user=user, item=_item(kind="article"))
+    _create_confirmation_truth(event_draft=draft, actor=user)
+    request_response = authenticated_client.post(
+        _amendment_request_list_url(draft.id),
+        data={
+            "reason": "Client requests a new date",
+            "changed_event_name": "Updated event name",
+            "changed_notes": "Updated operational notes",
+        },
+        content_type="application/json",
+    )
+    assert request_response.status_code == 201
+    amendment_id = request_response.json()["amendment_request"]["id"]
+
+    apply_response = authenticated_client.post(_amendment_request_apply_url(draft.id, amendment_id))
+    assert apply_response.status_code == 200
+    payload = apply_response.json()["amendment_request"]
+    assert payload["status"] == "applied"
+    assert payload["amendment_sequence"] == 1
+    assert payload["document_instance_id"]
+    assert payload["source_contract_document_id"]
+    assert payload["applied_at"]
+
+    draft.refresh_from_db()
+    assert draft.event_name == "Updated event name"
+    assert draft.notes == "Updated operational notes"
+    amendment_document = draft.document_instances.get(id=payload["document_instance_id"])
+    assert amendment_document.template_key == "hahitantsoa.contract_amendment.v1"
+    assert amendment_document.amendment_sequence == 1
+    assert (
+        str(amendment_document.amendment_source_document_id)
+        == payload["source_contract_document_id"]
+    )
+
+    replay_response = authenticated_client.post(
+        _amendment_request_apply_url(draft.id, amendment_id)
+    )
+    assert replay_response.status_code == 200
+    assert (
+        replay_response.json()["amendment_request"]["document_instance_id"]
+        == payload["document_instance_id"]
+    )
+    assert (
+        draft.document_instances.filter(template_key="hahitantsoa.contract_amendment.v1").count()
+        == 1
+    )
 
 
 def test_amendment_request_creation_rejects_draft_state_original(authenticated_client) -> None:

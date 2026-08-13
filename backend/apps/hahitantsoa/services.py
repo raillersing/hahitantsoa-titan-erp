@@ -6,12 +6,19 @@ from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.documents.services import (
+    create_document_instance_from_hahitantsoa_event_draft,
+    generate_document_instance_pdf,
+    generate_hahitantsoa_event_draft_document_instance_html,
+)
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
+    HahitantsoaEventDraftLine,
 )
 from apps.hahitantsoa.selectors import _get_available_hahitantsoa_shared_inventory_items_for_period
+from apps.inventory.availability import get_inventory_availability_conflicts
 from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus, InventoryItem
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 from apps.reservations.attribution import capture_reservation_sensitive_actor_attribution
@@ -131,6 +138,166 @@ class HahitantsoaEventDraftConfirmationResult:
 @dataclass(frozen=True)
 class HahitantsoaEventDraftAmendmentRequestResult:
     amendment_request: HahitantsoaEventDraftAmendmentRequest
+
+
+def apply_hahitantsoa_event_draft_amendment_request(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    amendment_request: HahitantsoaEventDraftAmendmentRequest,
+    actor: object | None,
+) -> HahitantsoaEventDraftAmendmentRequestResult:
+    """Apply one amendment atomically and create its immutable document artifact."""
+    from apps.reservations.periods import validate_reservation_period
+
+    capture_reservation_sensitive_actor_attribution(actor=actor)
+    with transaction.atomic():
+        locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
+        locked_request = (
+            HahitantsoaEventDraftAmendmentRequest.objects.select_for_update()
+            .prefetch_related("lines__inventory_item")
+            .get(pk=amendment_request.pk, event_draft=locked_event_draft)
+        )
+        if locked_request.status == "applied":
+            return HahitantsoaEventDraftAmendmentRequestResult(amendment_request=locked_request)
+        preflight = get_hahitantsoa_event_draft_amendment_preflight(event_draft=locked_event_draft)
+        if not preflight.can_amend:
+            raise ReservationLifecycleStateError(
+                "Hahitantsoa event draft amendment application preflight failed: "
+                + ", ".join(preflight.blockers),
+                code=preflight.blockers[0] if preflight.blockers else "amendment_not_allowed",
+            )
+        source_contract = (
+            _contract_truth_documents(event_draft=locked_event_draft)
+            .order_by("-created_at", "-id")
+            .first()
+        )
+        if source_contract is None:
+            raise ReservationLifecycleStateError(
+                "A generated contract is required before applying an amendment.",
+                code="missing_contract_document",
+            )
+
+        start_at = locked_request.changed_start_at or locked_event_draft.start_at
+        end_at = locked_request.changed_end_at or locked_event_draft.end_at
+        try:
+            validate_reservation_period(start_at=start_at, end_at=end_at)
+        except ValueError as error:
+            raise ReservationLifecycleStateError(
+                str(error), code="invalid_amendment_period"
+            ) from error
+
+        requested_lines = list(locked_request.lines.filter(is_deleted=False))
+        if requested_lines:
+            item_ids = {line.inventory_item_id for line in requested_lines}
+            locked_items = {
+                item.id: item
+                for item in InventoryItem.objects.select_for_update().filter(id__in=item_ids)
+            }
+            for line in requested_lines:
+                if line.inventory_item_id not in locked_items:
+                    raise ReservationLifecycleStateError(
+                        "An amendment item is no longer available.", code="amendment_item_missing"
+                    )
+                item = locked_items[line.inventory_item_id]
+                if not item.is_active or item.is_deleted:
+                    raise ReservationLifecycleStateError(
+                        f"Article indisponible pour la période modifiée: {item.name}.",
+                        code="amendment_unavailable",
+                    )
+                conflicts = get_inventory_availability_conflicts(
+                    inventory_item=item,
+                    start_at=start_at,
+                    end_at=end_at,
+                ).exclude(hahitantsoa_event_draft=locked_event_draft)
+                if conflicts.exists():
+                    raise ReservationLifecycleStateError(
+                        f"Article indisponible pour la période modifiée: {item.name}.",
+                        code="amendment_unavailable",
+                    )
+            active_lines = tuple(requested_lines)
+        else:
+            active_lines = _locked_active_hahitantsoa_event_draft_lines(
+                event_draft=locked_event_draft
+            )
+        if not active_lines:
+            raise ReservationLifecycleStateError(
+                "An amendment must keep at least one article.", code="empty_amendment_lines"
+            )
+
+        previous = (
+            HahitantsoaEventDraftAmendmentRequest.objects.filter(
+                event_draft=locked_event_draft, status="applied"
+            )
+            .order_by("-amendment_sequence")
+            .first()
+        )
+        sequence = (
+            previous.amendment_sequence if previous and previous.amendment_sequence else 0
+        ) + 1
+        locked_event_draft.start_at = start_at
+        locked_event_draft.end_at = end_at
+        for field in (
+            "changed_event_name",
+            "changed_event_type",
+            "changed_venue_name",
+            "changed_location_details",
+            "changed_service_notes",
+            "changed_notes",
+        ):
+            value = getattr(locked_request, field)
+            if value:
+                setattr(locked_event_draft, field.removeprefix("changed_"), value)
+        locked_event_draft.updated_by = actor
+        locked_event_draft.full_clean()
+        locked_event_draft.save()
+
+        if requested_lines:
+            now = timezone.now()
+            locked_event_draft.lines.filter(is_deleted=False).update(
+                is_deleted=True, deleted_at=now, updated_by=actor, updated_at=now
+            )
+            for line in active_lines:
+                HahitantsoaEventDraftLine.objects.create(
+                    event_draft=locked_event_draft,
+                    inventory_item=line.inventory_item,
+                    quantity=line.quantity,
+                    notes=line.notes,
+                    created_by=actor,
+                    updated_by=actor,
+                )
+
+        document = create_document_instance_from_hahitantsoa_event_draft(
+            event_draft=locked_event_draft,
+            template_key="hahitantsoa.contract_amendment.v1",
+            actor=actor,
+            notes=f"Avenant {sequence}: {locked_request.reason}. {locked_request.notes}".strip(),
+            amendment_sequence=sequence,
+            amendment_source_document_id=source_contract.id,
+        )
+        document = generate_hahitantsoa_event_draft_document_instance_html(
+            event_draft=locked_event_draft, document_instance_id=document.id, actor=actor
+        )
+        document = generate_document_instance_pdf(document_instance=document, actor=actor)
+        locked_request.status = "applied"
+        locked_request.amendment_sequence = sequence
+        locked_request.document_instance_id = document.id
+        locked_request.source_contract_document_id = source_contract.id
+        locked_request.applied_at = timezone.now()
+        locked_request.applied_by = actor
+        locked_request.updated_by = actor
+        locked_request.save()
+        record_audit_event_on_commit(
+            actor=actor,
+            action="hahitantsoa.event_draft.amendment_request.applied",
+            target_type="hahitantsoa_event_draft_amendment_request",
+            target_id=str(locked_request.id),
+            metadata={
+                "event_draft_id": str(locked_event_draft.id),
+                "document_instance_id": str(document.id),
+                "amendment_sequence": sequence,
+            },
+        )
+        return HahitantsoaEventDraftAmendmentRequestResult(amendment_request=locked_request)
 
 
 def get_hahitantsoa_shared_availability_item_previews(
@@ -537,6 +704,14 @@ def create_hahitantsoa_event_draft_amendment_request(
     actor: object | None,
     reason: str = "",
     notes: str = "",
+    changed_start_at=None,
+    changed_end_at=None,
+    changed_event_name: str = "",
+    changed_event_type: str = "",
+    changed_venue_name: str = "",
+    changed_location_details: str = "",
+    changed_service_notes: str = "",
+    changed_notes: str = "",
 ) -> HahitantsoaEventDraftAmendmentRequestResult:
     capture_reservation_sensitive_actor_attribution(actor=actor)
 
@@ -561,6 +736,14 @@ def create_hahitantsoa_event_draft_amendment_request(
             event_draft=locked_event_draft,
             reason=reason,
             notes=notes,
+            changed_start_at=changed_start_at,
+            changed_end_at=changed_end_at,
+            changed_event_name=changed_event_name,
+            changed_event_type=changed_event_type,
+            changed_venue_name=changed_venue_name,
+            changed_location_details=changed_location_details,
+            changed_service_notes=changed_service_notes,
+            changed_notes=changed_notes,
             created_by=actor,
         )
         amendment_request.full_clean()
