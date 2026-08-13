@@ -7,6 +7,8 @@ from django.utils import timezone
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventType
+from apps.notifications.models import PaymentReminderDispatch, SystemNotification
+from apps.notifications.services import prepare_payment_reminder_dispatch
 from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
 from apps.payments.reminders import (
     build_hahitantsoa_payment_reminder,
@@ -143,3 +145,46 @@ def test_payment_reminder_endpoint_requires_one_scope_identifier(client, django_
 
     assert response.status_code == 400
     assert response.json()["code"] == "payment_reminder_single_draft_required"
+
+
+def test_payment_reminder_dispatch_is_persistent_and_idempotent(django_user_model):
+    actor = django_user_model.objects.create_user(username="reminder-dispatch")
+    start_at, end_at = _period()
+    draft = ReservationDraft.objects.create(customer=_customer(), start_at=start_at, end_at=end_at)
+
+    first = prepare_payment_reminder_dispatch(
+        actor=actor,
+        reservation_draft=draft,
+        reminder_key="j30",
+    )
+    second = prepare_payment_reminder_dispatch(
+        actor=actor,
+        reservation_draft=draft,
+        reminder_key="j30",
+    )
+
+    assert first.id == second.id
+    assert (
+        PaymentReminderDispatch.objects.filter(reservation_draft=draft, reminder_key="j30").count()
+        == 1
+    )
+    assert (
+        SystemNotification.objects.filter(
+            recipient=actor, link=f"/payment-reminders/{first.id}"
+        ).count()
+        == 1
+    )
+
+
+def test_payment_reminder_dispatch_api_requires_one_scope(client, django_user_model):
+    actor = django_user_model.objects.create_user(username="reminder-dispatch-api", is_staff=True)
+    client.force_login(actor)
+
+    response = client.post(
+        "/api/v1/notifications/payment-reminders/",
+        {"reminder_key": "j10"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "single_draft_required"
