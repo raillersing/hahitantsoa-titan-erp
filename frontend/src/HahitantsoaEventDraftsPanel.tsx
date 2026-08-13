@@ -14,6 +14,7 @@ import {
   confirmHahitantsoaEventDraft,
   getHahitantsoaEventDraftAmendmentRequests,
   createHahitantsoaEventDraftAmendmentRequest,
+  applyHahitantsoaEventDraftAmendmentRequest,
   updateHahitantsoaEventDraftAmendmentRequest,
   getHahitantsoaEventDraftAmendmentRequestLines,
   createHahitantsoaEventDraftAmendmentRequestLine,
@@ -405,6 +406,21 @@ export function HahitantsoaEventDraftsPanel({
       setActionState({
         status: "error",
         message: err instanceof Error ? err.message : "Échec de la mise à jour de la demande d'avenant.",
+      });
+    }
+  };
+
+  const handleApplyAmendmentRequest = async (draftId: string, requestId: string) => {
+    setActionState({ status: "loading" });
+    try {
+      await applyHahitantsoaEventDraftAmendmentRequest(draftId, requestId);
+      setActionState({ status: "success", message: "Avenant appliqué et contrat mis à jour." });
+      await fetchAmendmentRequests(draftId);
+      await handleViewDetails(draftId);
+    } catch (err) {
+      setActionState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Échec de l'application de l'avenant.",
       });
     }
   };
@@ -1336,6 +1352,11 @@ export function HahitantsoaEventDraftsPanel({
                         </div>
                         <p><strong>Motif :</strong> {req.reason || <em>Aucun motif fourni</em>}</p>
                         {req.notes && <p><strong>Notes:</strong> {req.notes}</p>}
+                        {req.status === "applied" && (
+                          <p className="success-badge">
+                            Avenant appliqué — version {req.amendment_sequence ?? "?"}.
+                          </p>
+                        )}
 
                         <div className="amendment-request-lines-wrapper">
                           <h5>Lignes proposées</h5>
@@ -1460,6 +1481,16 @@ export function HahitantsoaEventDraftsPanel({
                         </div>
 
                         <div className="amendment-availability-preflight-wrapper">
+                          {req.status === "draft" && (
+                            <button
+                              type="button"
+                              className="btn-confirm-action"
+                              disabled={isDisabled}
+                              onClick={() => handleApplyAmendmentRequest(draftDetailState.draft.id, req.id)}
+                            >
+                              Appliquer l'avenant au contrat
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="check-availability-btn"

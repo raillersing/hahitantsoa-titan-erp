@@ -988,6 +988,18 @@ export function updateHahitantsoaEventDraftAmendmentRequest(
   );
 }
 
+export function applyHahitantsoaEventDraftAmendmentRequest(
+  draftId: string,
+  amendmentRequestId: string,
+  signal?: AbortSignal,
+): Promise<{ amendment_request: HahitantsoaEventDraftAmendmentRequest }> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/amendment-requests/${amendmentRequestId}/apply/`,
+    {},
+    signal,
+  );
+}
+
 export function getHahitantsoaEventDraftAmendmentRequest(
   draftId: string,
   amendmentRequestId: string,

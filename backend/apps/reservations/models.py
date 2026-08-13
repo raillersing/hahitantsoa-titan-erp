@@ -243,9 +243,25 @@ class ReservationDraftAmendment(UUIDModel, TimestampedModel, AuditableModel):
     changed_end_at = models.DateTimeField(null=True, blank=True)
     changed_lines = models.JSONField(default=list, blank=True)
     document_instance_id = models.UUIDField(null=True, blank=True)
+    amendment_sequence = models.PositiveSmallIntegerField(null=True, blank=True)
+    source_contract_document_id = models.UUIDField(null=True, blank=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+    applied_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     class Meta:
         ordering = ["-created_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["reservation_draft", "amendment_sequence"],
+                name="reservation_draft_amendment_sequence_unique",
+            )
+        ]
 
     def clean(self) -> None:
         super().clean()

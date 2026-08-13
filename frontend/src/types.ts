@@ -458,10 +458,23 @@ export type HahitantsoaEventDraftAmendmentRequestLine = {
 export type HahitantsoaEventDraftAmendmentRequest = {
   id: string;
   event_draft_id: string;
-  status: "draft";
+  status: "draft" | "applied";
   reason: string;
   notes: string;
+  changed_start_at: string | null;
+  changed_end_at: string | null;
+  changed_event_name: string;
+  changed_event_type: string;
+  changed_venue_name: string;
+  changed_location_details: string;
+  changed_service_notes: string;
+  changed_notes: string;
   lines: HahitantsoaEventDraftAmendmentRequestLine[];
+  amendment_sequence: number | null;
+  document_instance_id: string | null;
+  source_contract_document_id: string | null;
+  applied_at: string | null;
+  applied_by: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -469,11 +482,27 @@ export type HahitantsoaEventDraftAmendmentRequest = {
 export type HahitantsoaEventDraftAmendmentRequestCreatePayload = {
   reason?: string;
   notes?: string;
+  changed_start_at?: string | null;
+  changed_end_at?: string | null;
+  changed_event_name?: string;
+  changed_event_type?: string;
+  changed_venue_name?: string;
+  changed_location_details?: string;
+  changed_service_notes?: string;
+  changed_notes?: string;
 };
 
 export type HahitantsoaEventDraftAmendmentRequestUpdatePayload = {
   reason?: string;
   notes?: string;
+  changed_start_at?: string | null;
+  changed_end_at?: string | null;
+  changed_event_name?: string;
+  changed_event_type?: string;
+  changed_venue_name?: string;
+  changed_location_details?: string;
+  changed_service_notes?: string;
+  changed_notes?: string;
 };
 
 export type HahitantsoaEventDraftAmendmentRequestLineCreatePayload = {

@@ -28,6 +28,7 @@ class HahitantsoaEventType(models.TextChoices):
 
 class HahitantsoaEventDraftAmendmentRequestStatus(models.TextChoices):
     DRAFT = "draft", "draft"
+    APPLIED = "applied", "applied"
 
 
 HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_STATUS_VALUES = [
@@ -219,6 +220,25 @@ class HahitantsoaEventDraftAmendmentRequest(UUIDModel, TimestampedModel, Auditab
     )
     reason = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
+    changed_start_at = models.DateTimeField(null=True, blank=True)
+    changed_end_at = models.DateTimeField(null=True, blank=True)
+    changed_event_name = models.CharField(max_length=255, blank=True)
+    changed_event_type = models.CharField(max_length=32, blank=True)
+    changed_venue_name = models.CharField(max_length=255, blank=True)
+    changed_location_details = models.TextField(blank=True)
+    changed_service_notes = models.TextField(blank=True)
+    changed_notes = models.TextField(blank=True)
+    amendment_sequence = models.PositiveSmallIntegerField(null=True, blank=True)
+    document_instance_id = models.UUIDField(null=True, blank=True)
+    source_contract_document_id = models.UUIDField(null=True, blank=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+    applied_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     class Meta:
         ordering = ["created_at", "id"]

@@ -225,6 +225,8 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     issued_at = models.DateTimeField(null=True, blank=True)
     valid_until = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    amendment_sequence = models.PositiveSmallIntegerField(null=True, blank=True)
+    amendment_source_document_id = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ["created_at", "id"]

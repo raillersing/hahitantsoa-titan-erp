@@ -13,7 +13,7 @@ from apps.documents.excess_receivable import (
     EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY,
     build_excess_receivable_invoice_context,
 )
-from apps.documents.models import DocumentInstance
+from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
     FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS,
     InventoryCautionRefundObligation,
@@ -34,7 +34,7 @@ from apps.inventory.models import (
     InventoryStockMovementType,
     InventoryStorageLocation,
 )
-from apps.logistics.models import LogisticsEvent
+from apps.logistics.models import LogisticsEvent, LogisticsEventStatus, LogisticsOperationKind
 from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, Payment, PaymentKind
 
 
@@ -42,6 +42,124 @@ class InventoryStockMovementError(ValueError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+LEGACY_UNBOUNDED_STOCK = 2**31 - 1
+
+
+def get_current_inventory_stock(*, inventory_item_id) -> int:
+    """Return current stock while the caller owns the item row lock."""
+    from apps.inventory.models import InventoryItem
+
+    item = InventoryItem.objects.select_for_update().get(pk=inventory_item_id)
+    movements = list(InventoryStockMovement.objects.filter(inventory_item_id=inventory_item_id))
+    initial_movements = [
+        movement for movement in movements if movement.source_label == "Initial inventory import"
+    ]
+    if initial_movements:
+        baseline = sum(movement.quantity for movement in initial_movements)
+        movements = [movement for movement in movements if movement not in initial_movements]
+    else:
+        baseline = item.reported_inventory_quantity
+        if baseline == 0 and not movements:
+            return LEGACY_UNBOUNDED_STOCK
+    return max(baseline + sum(movement.signed_quantity for movement in movements), 0)
+
+
+@transaction.atomic
+def issue_delivery_note_stock(
+    *, document_instance: DocumentInstance, actor, logistics_event=None
+) -> tuple[InventoryStockMovement, ...]:
+    """Create the physical outbound movements exactly once for an emitted delivery note."""
+    from apps.hahitantsoa.models import HahitantsoaEventDraftLine
+    from apps.reservations.models import ReservationDraftLine
+
+    document = DocumentInstance.objects.select_for_update().get(pk=document_instance.pk)
+    if document.document_type != "delivery_note":
+        raise InventoryStockMovementError(
+            "Stock can only be issued from a delivery note.",
+            code="stock_issue_requires_delivery_note",
+        )
+
+    if logistics_event is not None:
+        if document.template_key != "titan.delivery_note.v1":
+            raise InventoryStockMovementError(
+                "Un événement logistique Titan doit utiliser le bon de livraison Titan.",
+                code="stock_issue_document_scope_mismatch",
+            )
+        if document.reservation_draft_id != logistics_event.reservation_draft_id:
+            raise InventoryStockMovementError(
+                "Le bon de livraison ne correspond pas à l'événement logistique.",
+                code="stock_issue_source_mismatch",
+            )
+        lines = tuple(
+            logistics_event.item_lines.select_related("inventory_item").order_by("created_at", "id")
+        )
+    elif document.reservation_draft_id is not None:
+        lines = tuple(
+            ReservationDraftLine.objects.filter(
+                reservation_draft_id=document.reservation_draft_id,
+                is_deleted=False,
+            )
+            .select_related("inventory_item")
+            .order_by("created_at", "id")
+        )
+    elif document.hahitantsoa_event_draft_id is not None:
+        lines = tuple(
+            HahitantsoaEventDraftLine.objects.filter(
+                event_draft_id=document.hahitantsoa_event_draft_id,
+                is_deleted=False,
+            )
+            .select_related("inventory_item")
+            .order_by("created_at", "id")
+        )
+    else:
+        raise InventoryStockMovementError(
+            "A delivery note must be linked to a reservation or event.",
+            code="stock_issue_source_missing",
+        )
+
+    item_ids = sorted({line.inventory_item_id for line in lines})
+    locked_items = {
+        item.id: item for item in InventoryItem.objects.select_for_update().filter(id__in=item_ids)
+    }
+    movements: list[InventoryStockMovement] = []
+    for line in lines:
+        item = locked_items[line.inventory_item_id]
+        existing = InventoryStockMovement.objects.filter(
+            document_instance=document,
+            inventory_item=item,
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        ).first()
+        if existing is not None:
+            if existing.quantity != line.quantity:
+                raise InventoryStockMovementError(
+                    "The issued quantity no longer matches the delivery note.",
+                    code="stock_issue_conflict",
+                )
+            movements.append(existing)
+            continue
+
+        current_stock = get_current_inventory_stock(inventory_item_id=item.id)
+        if current_stock < line.quantity:
+            raise InventoryStockMovementError(
+                f"Stock insuffisant pour {item.name}: {current_stock} disponible(s).",
+                code="insufficient_stock_for_dispatch",
+            )
+        movements.append(
+            create_inventory_stock_movement(
+                actor=actor,
+                inventory_item=item,
+                reservation_draft=document.reservation_draft,
+                document_instance=document,
+                movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+                quantity=line.quantity,
+                source_label=f"document_instance:{document.id}",
+                notes=line.notes or "Sortie de stock liée au bon de livraison.",
+                effective_at=timezone.now(),
+            )
+        )
+    return tuple(movements)
 
 
 @transaction.atomic
@@ -63,6 +181,8 @@ INVALID_INVENTORY_STOCK_MOVEMENT_DIRECTION = "invalid_inventory_stock_movement_d
 INVALID_INVENTORY_STOCK_MOVEMENT = "invalid_inventory_stock_movement"
 INVALID_RETURN_OPERATION_STATE = "invalid_return_operation_state"
 INVALID_RETURN_OPERATION = "invalid_return_operation"
+RETURN_OPERATION_SCOPE_MISMATCH = "return_operation_scope_mismatch"
+RETURN_OPERATION_QUANTITY_EXCEEDED = "return_operation_quantity_exceeded"
 INVALID_DAMAGE_LOSS_SETTLEMENT_STATE = "invalid_damage_loss_settlement_state"
 INVALID_DAMAGE_LOSS_SETTLEMENT = "invalid_damage_loss_settlement"
 INVALID_DAMAGE_LOSS_SETTLEMENT_RETURN_OPERATION_STATE = (
@@ -554,6 +674,111 @@ def create_inventory_return_operation(
     return return_operation
 
 
+def _validate_return_operation_delivery_scope(
+    *,
+    return_operation: InventoryReturnOperation,
+    lines: list[InventoryReturnOperationLine],
+) -> None:
+    """Validate linked returns against the emitted delivery and prior returns."""
+    document = return_operation.document_instance
+    event = return_operation.logistics_event
+
+    if document is None and event is None:
+        return
+
+    if document is not None:
+        document = DocumentInstance.objects.select_for_update().get(pk=document.pk)
+        if document.document_type != "delivery_note" or document.status not in {
+            DocumentInstanceStatus.GENERATED,
+            DocumentInstanceStatus.ISSUED,
+        }:
+            raise InventoryStockMovementError(
+                "Un retour doit être rattaché à un bon de livraison.",
+                code=RETURN_OPERATION_SCOPE_MISMATCH,
+            )
+        if return_operation.reservation_draft_id != document.reservation_draft_id:
+            if return_operation.reservation_draft_id is not None or document.reservation_draft_id:
+                raise InventoryStockMovementError(
+                    "Le retour et le bon de livraison ne concernent pas le même dossier.",
+                    code=RETURN_OPERATION_SCOPE_MISMATCH,
+                )
+        outbound_movements = InventoryStockMovement.objects.filter(
+            document_instance=document,
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        )
+    else:
+        if return_operation.reservation_draft_id is not None:
+            from apps.reservations.models import ReservationDraft
+
+            ReservationDraft.objects.select_for_update().get(
+                pk=return_operation.reservation_draft_id
+            )
+        outbound_movements = InventoryStockMovement.objects.filter(
+            reservation_draft=return_operation.reservation_draft,
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+        )
+
+    if event is not None:
+        if (
+            event.operation != LogisticsOperationKind.RETURN
+            or event.status != LogisticsEventStatus.COMPLETED
+        ):
+            raise InventoryStockMovementError(
+                "L'événement de retour doit être terminé avant la validation du retour.",
+                code=RETURN_OPERATION_SCOPE_MISMATCH,
+            )
+        if event.reservation_draft_id != return_operation.reservation_draft_id:
+            raise InventoryStockMovementError(
+                "L'événement de retour et le dossier ne correspondent pas.",
+                code=RETURN_OPERATION_SCOPE_MISMATCH,
+            )
+        if document is not None and event.reservation_draft_id != document.reservation_draft_id:
+            raise InventoryStockMovementError(
+                "L'événement et le bon de livraison ne correspondent pas.",
+                code=RETURN_OPERATION_SCOPE_MISMATCH,
+            )
+
+    outbound_by_item = {
+        item_id: quantity
+        for item_id, quantity in outbound_movements.values("inventory_item_id")
+        .annotate(quantity=Sum("quantity"))
+        .values_list("inventory_item_id", "quantity")
+    }
+    prior_returns = InventoryReturnOperationLine.objects.filter(
+        return_operation__status=InventoryReturnOperationStatus.VALIDATED,
+        inventory_item_id__in=outbound_by_item,
+    ).exclude(return_operation=return_operation)
+    if document is not None:
+        prior_returns = prior_returns.filter(return_operation__document_instance=document)
+    else:
+        prior_returns = prior_returns.filter(
+            return_operation__reservation_draft=return_operation.reservation_draft
+        )
+    prior_returned_by_item = {
+        item_id: quantity
+        for item_id, quantity in prior_returns.values("inventory_item_id")
+        .annotate(quantity=Sum("returned_quantity") + Sum("missing_quantity"))
+        .values_list("inventory_item_id", "quantity")
+    }
+
+    requested_by_item: dict[object, int] = {}
+    for line in lines:
+        requested_by_item[line.inventory_item_id] = (
+            requested_by_item.get(line.inventory_item_id, 0)
+            + line.returned_quantity
+            + line.missing_quantity
+        )
+
+    for item_id, requested_quantity in requested_by_item.items():
+        outbound_quantity = outbound_by_item.get(item_id, 0)
+        already_returned = prior_returned_by_item.get(item_id, 0)
+        if outbound_quantity <= 0 or already_returned + requested_quantity > outbound_quantity:
+            raise InventoryStockMovementError(
+                "La quantité retournée dépasse la quantité livrée disponible.",
+                code=RETURN_OPERATION_QUANTITY_EXCEEDED,
+            )
+
+
 @transaction.atomic
 def validate_inventory_return_operation(
     *,
@@ -568,11 +793,19 @@ def validate_inventory_return_operation(
         .filter(return_operation=locked_return_operation)
         .order_by("created_at", "id")
     )
+    locked_return_operation = InventoryReturnOperation.objects.select_related(
+        "document_instance", "logistics_event"
+    ).get(pk=locked_return_operation.pk)
     if locked_return_operation.status != InventoryReturnOperationStatus.DRAFT:
         raise InventoryStockMovementError(
             "Return operation is already validated.",
             code=INVALID_RETURN_OPERATION_STATE,
         )
+
+    _validate_return_operation_delivery_scope(
+        return_operation=locked_return_operation,
+        lines=locked_lines,
+    )
 
     actor_id = getattr(actor, "pk", None)
     validated_at = timezone.now()

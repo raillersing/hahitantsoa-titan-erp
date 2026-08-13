@@ -123,6 +123,32 @@ def test_hahitantsoa_event_draft_document_list_create_and_generate(authenticated
     assert generated_payload["storage_path"].endswith(".html")
 
 
+def test_hahitantsoa_delivery_pdf_emits_checklist_once(authenticated_client) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+    create_response = authenticated_client.post(
+        _documents_url(draft.id),
+        data={"template_key": "hahitantsoa.delivery_note.v1"},
+        content_type="application/json",
+    )
+
+    assert create_response.status_code == 201
+    delivery_id = create_response.json()["id"]
+    html_response = authenticated_client.post(_document_generate_url(draft.id, delivery_id))
+    assert html_response.status_code == 200
+
+    pdf_response = authenticated_client.post(_document_generate_pdf_url(draft.id, delivery_id))
+    assert pdf_response.status_code == 200
+
+    documents = authenticated_client.get(_documents_url(draft.id)).json()
+    checklists = [
+        document
+        for document in documents
+        if document["template_key"] == "hahitantsoa.preparation_sheet.v1"
+    ]
+    assert len(checklists) == 1
+    assert checklists[0]["status"] == DocumentInstanceStatus.GENERATED
+
+
 def test_hahitantsoa_proforma_uses_configured_validity_from_first_pdf_issuance(
     authenticated_client,
 ) -> None:

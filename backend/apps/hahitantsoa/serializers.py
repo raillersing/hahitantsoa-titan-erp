@@ -356,7 +356,20 @@ class HahitantsoaEventDraftAmendmentRequestSerializer(serializers.ModelSerialize
             "status",
             "reason",
             "notes",
+            "changed_start_at",
+            "changed_end_at",
+            "changed_event_name",
+            "changed_event_type",
+            "changed_venue_name",
+            "changed_location_details",
+            "changed_service_notes",
+            "changed_notes",
             "lines",
+            "amendment_sequence",
+            "document_instance_id",
+            "source_contract_document_id",
+            "applied_at",
+            "applied_by",
             "created_at",
             "updated_at",
         )
@@ -365,6 +378,11 @@ class HahitantsoaEventDraftAmendmentRequestSerializer(serializers.ModelSerialize
             "event_draft_id",
             "status",
             "lines",
+            "amendment_sequence",
+            "document_instance_id",
+            "source_contract_document_id",
+            "applied_at",
+            "applied_by",
             "created_at",
             "updated_at",
         )
@@ -412,6 +430,8 @@ class HahitantsoaEventDraftAmendmentRequestLineCreateSerializer(serializers.Seri
     def create(self, validated_data):
         amendment_request = self.context["amendment_request"]
         actor = self.context["actor"]
+        if amendment_request.status != "draft":
+            raise serializers.ValidationError("An applied amendment request is immutable.")
         inventory_item = validated_data["inventory_item"]
 
         with transaction.atomic():
@@ -476,6 +496,8 @@ class HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer(serializers.Mode
         return inventory_item
 
     def update(self, instance, validated_data):
+        if instance.amendment_request.status != "draft":
+            raise serializers.ValidationError("An applied amendment request is immutable.")
         for field in ("inventory_item", "quantity", "notes"):
             if field in validated_data:
                 setattr(instance, field, validated_data[field])
@@ -488,6 +510,14 @@ class HahitantsoaEventDraftAmendmentRequestLineUpdateSerializer(serializers.Mode
 class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, max_length=255)
     notes = serializers.CharField(required=False, allow_blank=True)
+    changed_start_at = serializers.DateTimeField(required=False, allow_null=True)
+    changed_end_at = serializers.DateTimeField(required=False, allow_null=True)
+    changed_event_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    changed_event_type = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    changed_venue_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    changed_location_details = serializers.CharField(required=False, allow_blank=True)
+    changed_service_notes = serializers.CharField(required=False, allow_blank=True)
+    changed_notes = serializers.CharField(required=False, allow_blank=True)
 
     def create(self, validated_data):
         event_draft = self.context["event_draft"]
@@ -497,6 +527,14 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
             actor=actor,
             reason=validated_data.get("reason", ""),
             notes=validated_data.get("notes", ""),
+            changed_start_at=validated_data.get("changed_start_at"),
+            changed_end_at=validated_data.get("changed_end_at"),
+            changed_event_name=validated_data.get("changed_event_name", ""),
+            changed_event_type=validated_data.get("changed_event_type", ""),
+            changed_venue_name=validated_data.get("changed_venue_name", ""),
+            changed_location_details=validated_data.get("changed_location_details", ""),
+            changed_service_notes=validated_data.get("changed_service_notes", ""),
+            changed_notes=validated_data.get("changed_notes", ""),
         )
         self.context["result"] = result
         return result.amendment_request
@@ -505,7 +543,23 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
 class HahitantsoaEventDraftAmendmentRequestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = HahitantsoaEventDraftAmendmentRequest
-        fields = ("reason", "notes")
+        fields = (
+            "reason",
+            "notes",
+            "changed_start_at",
+            "changed_end_at",
+            "changed_event_name",
+            "changed_event_type",
+            "changed_venue_name",
+            "changed_location_details",
+            "changed_service_notes",
+            "changed_notes",
+        )
+
+    def validate(self, attrs):
+        if self.instance.status != "draft":
+            raise serializers.ValidationError("An applied amendment request is immutable.")
+        return attrs
 
 
 class HahitantsoaEventDraftAmendmentRequestResultSerializer(serializers.Serializer):
@@ -518,6 +572,10 @@ class HahitantsoaEventDraftAmendmentRequestResultSerializer(serializers.Serializ
                 "amendment_request": result.amendment_request,
             }
         )
+
+
+class HahitantsoaEventDraftAmendmentRequestApplySerializer(serializers.Serializer):
+    amendment_request = HahitantsoaEventDraftAmendmentRequestSerializer()
 
 
 class HahitantsoaEventDraftLineSerializer(serializers.ModelSerializer):

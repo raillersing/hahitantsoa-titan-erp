@@ -294,7 +294,7 @@ def confirm_payment(
     payment.updated_by_id = actor_id
     payment.full_clean()
     payment.save()
-    create_payment_confirmation_notification(payment=payment)
+    create_payment_confirmation_notification(payment=payment, recipient=actor)
 
     record_audit_event_on_commit(
         actor=actor,

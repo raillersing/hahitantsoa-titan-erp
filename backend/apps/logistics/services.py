@@ -9,11 +9,6 @@ from django.utils import timezone
 from apps.audit.services import record_audit_event_on_commit
 from apps.documents.services import create_document_instance_from_reservation_draft
 from apps.identity.authorization import is_reservation_sensitive_actor
-from apps.inventory.models import InventoryStockMovement, InventoryStockMovementType
-from apps.inventory.services import (
-    InventoryStockMovementError,
-    create_inventory_stock_movement,
-)
 from apps.logistics.models import (
     LogisticsEvent,
     LogisticsEventItemLine,
@@ -34,7 +29,6 @@ LOGISTICS_EVENT_NOT_FOUND = "logistics_event_not_found"
 PASSATION_NOT_ALLOWED = "PASSATION_NOT_ALLOWED"
 DELIVERY_NOTE_TEMPLATE_KEY = "titan.delivery_note.v1"
 ITEM_LINE_NOT_FOUND = "item_line_not_found"
-LEGACY_UNBOUNDED_STOCK = 2**31 - 1
 TITAN_OPERATING_START = time(6, 0)
 TITAN_OPERATING_END = time(22, 0)
 
@@ -234,9 +228,6 @@ def transition_logistics_event_status(
             code=INVALID_STATUS_TRANSITION,
         )
 
-    if new_status == LogisticsEventStatus.DISPATCHED:
-        _dispatch_event_stock(event=event, actor=actor)
-
     event.status = new_status
     if executed_at is not None:
         event.executed_at = executed_at
@@ -245,73 +236,6 @@ def transition_logistics_event_status(
     event.updated_by = actor
     event.save(update_fields=["status", "executed_at", "notes", "updated_at", "updated_by"])
     return event
-
-
-def _current_stock_for_item(*, inventory_item_id) -> int:
-    from apps.inventory.models import InventoryItem
-
-    item = InventoryItem.objects.select_for_update().get(pk=inventory_item_id)
-    movements = list(InventoryStockMovement.objects.filter(inventory_item_id=inventory_item_id))
-    initial_movements = [
-        movement for movement in movements if movement.source_label == "Initial inventory import"
-    ]
-    if initial_movements:
-        baseline = sum(movement.quantity for movement in initial_movements)
-        movements = [movement for movement in movements if movement not in initial_movements]
-    else:
-        baseline = item.reported_inventory_quantity
-        # Existing reservations created before stock import have no reliable
-        # baseline. Preserve their dispatch workflow while still enforcing
-        # quantities once an inventory baseline or movement exists.
-        if baseline == 0 and not movements:
-            return LEGACY_UNBOUNDED_STOCK
-    return max(baseline + sum(movement.signed_quantity for movement in movements), 0)
-
-
-def _dispatch_event_stock(*, event: LogisticsEvent, actor: object | None) -> None:
-    """Create outbound movements once when a delivery/handover actually leaves."""
-    if event.event_type not in {LogisticsEventType.DELIVERY, LogisticsEventType.HANDOVER}:
-        return
-
-    lines = list(event.item_lines.select_related("inventory_item").order_by("created_at", "id"))
-    source_label = f"logistics_event:{event.id}"
-    for line in lines:
-        existing = InventoryStockMovement.objects.filter(
-            reservation_draft=event.reservation_draft,
-            inventory_item=line.inventory_item,
-            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
-            source_label=source_label,
-        ).first()
-        if existing is not None:
-            if existing.quantity != line.quantity:
-                raise LogisticsServiceError(
-                    "La quantité de sortie déjà validée ne correspond plus à la ligne.",
-                    code="stock_dispatch_conflict",
-                )
-            continue
-
-        current_stock = _current_stock_for_item(inventory_item_id=line.inventory_item_id)
-        if current_stock < line.quantity:
-            raise LogisticsServiceError(
-                (
-                    f"Stock insuffisant pour {line.inventory_item.name}: "
-                    f"{current_stock} disponible(s)."
-                ),
-                code="insufficient_stock_for_dispatch",
-            )
-        try:
-            create_inventory_stock_movement(
-                actor=actor,
-                inventory_item=line.inventory_item,
-                reservation_draft=event.reservation_draft,
-                movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
-                quantity=line.quantity,
-                source_label=source_label,
-                notes=line.notes or "Sortie de stock liée au bon de livraison.",
-                effective_at=timezone.now(),
-            )
-        except InventoryStockMovementError as error:
-            raise LogisticsServiceError(str(error), code=error.code) from error
 
 
 @transaction.atomic
@@ -437,6 +361,34 @@ def complete_handover_passation(
         event=event,
         notes=notes,
     )
+    from apps.documents.services import (
+        ensure_reservation_draft_preparation_document,
+        generate_document_instance_pdf,
+        generate_reservation_draft_document_instance_html,
+    )
+    from apps.inventory.services import InventoryStockMovementError, issue_delivery_note_stock
+
+    document_instance = generate_reservation_draft_document_instance_html(
+        reservation_draft=event.reservation_draft,
+        document_instance_id=document_instance.id,
+        actor=actor,
+    )
+    document_instance = generate_document_instance_pdf(
+        document_instance=document_instance,
+        actor=actor,
+    )
+    ensure_reservation_draft_preparation_document(
+        reservation_draft=event.reservation_draft,
+        actor=actor,
+    )
+    try:
+        issue_delivery_note_stock(
+            document_instance=document_instance,
+            actor=actor,
+            logistics_event=event,
+        )
+    except InventoryStockMovementError as error:
+        raise LogisticsServiceError(str(error), code=error.code) from error
 
     record_audit_event_on_commit(
         actor=actor,

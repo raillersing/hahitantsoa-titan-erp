@@ -6,6 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
+from apps.documents.models import DocumentInstance
 from apps.documents.services import (
     create_document_instance_from_reservation_draft,
     generate_document_instance_pdf,
@@ -77,6 +78,24 @@ def create_reservation_draft_amendment(
         raise ReservationAmendmentError(
             "An amendment must keep at least one article.", code="empty_amendment_lines"
         )
+
+    existing = (
+        ReservationDraftAmendment.objects.select_for_update()
+        .filter(reservation_draft=locked_draft, applied_at__isnull=False)
+        .order_by("-amendment_sequence")
+        .first()
+    )
+    next_sequence = (
+        existing.amendment_sequence if existing and existing.amendment_sequence else 0
+    ) + 1
+    source_contract = (
+        DocumentInstance.objects.filter(
+            reservation_draft=locked_draft,
+            template_key="titan.material_contract.v1",
+        )
+        .order_by("-created_at", "-id")
+        .first()
+    )
     item_ids = [line["inventory_item"].id for line in line_data]
     if len(item_ids) != len(set(item_ids)):
         raise ReservationAmendmentError(
@@ -111,6 +130,10 @@ def create_reservation_draft_amendment(
             }
             for line in line_data
         ],
+        amendment_sequence=next_sequence,
+        source_contract_document_id=source_contract.id if source_contract else None,
+        applied_at=timezone.now(),
+        applied_by=actor,
         created_by=actor,
         updated_by=actor,
     )
@@ -152,6 +175,8 @@ def create_reservation_draft_amendment(
         template_key="titan.material_amendment.v1",
         actor=actor,
         notes=f"Avenant: {reason}. {notes}".strip(),
+        amendment_sequence=next_sequence,
+        amendment_source_document_id=source_contract.id if source_contract else None,
     )
     document = generate_reservation_draft_document_instance_html(
         reservation_draft=locked_draft,

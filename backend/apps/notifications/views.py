@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -16,7 +17,9 @@ class SystemNotificationListAPIView(generics.ListAPIView):
     serializer_class = SystemNotificationSerializer
 
     def get_queryset(self):
-        qs = SystemNotification.objects.all()
+        qs = SystemNotification.objects.filter(
+            Q(recipient__isnull=True) | Q(recipient=self.request.user)
+        )
         unread_only = self.request.query_params.get("unread_only")
         if unread_only == "true":
             qs = qs.filter(is_read=False)
@@ -30,7 +33,12 @@ class SystemNotificationMarkReadAPIView(APIView):
     def patch(self, request, id):
         from django.shortcuts import get_object_or_404
 
-        notification = get_object_or_404(SystemNotification, pk=id)
+        notification = get_object_or_404(
+            SystemNotification.objects.filter(
+                Q(recipient__isnull=True) | Q(recipient=request.user)
+            ),
+            pk=id,
+        )
         serializer = SystemNotificationMarkReadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         notification.is_read = serializer.validated_data["is_read"]
@@ -43,5 +51,8 @@ class SystemNotificationMarkAllReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        count = SystemNotification.objects.filter(is_read=False).update(is_read=True)
+        count = SystemNotification.objects.filter(
+            Q(recipient__isnull=True) | Q(recipient=request.user),
+            is_read=False,
+        ).update(is_read=True)
         return Response({"marked_read": count}, status=status.HTTP_200_OK)

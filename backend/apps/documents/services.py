@@ -518,6 +518,8 @@ def create_document_instance_from_reservation_draft(
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
     document_date=None,
+    amendment_sequence: int | None = None,
+    amendment_source_document_id=None,
 ) -> DocumentInstance:
     context = build_reservation_draft_commercial_document_context(
         reservation_draft=reservation_draft,
@@ -556,6 +558,16 @@ def create_document_instance_from_reservation_draft(
             document_date=document_date,
         )
     )
+    if amendment_sequence is not None or amendment_source_document_id is not None:
+        instance.amendment_sequence = amendment_sequence
+        instance.amendment_source_document_id = amendment_source_document_id
+        instance.save(
+            update_fields=[
+                "amendment_sequence",
+                "amendment_source_document_id",
+                "updated_at",
+            ]
+        )
     record_audit_event_on_commit(
         actor=actor,
         action="document.instance_prepared",
@@ -591,6 +603,8 @@ def create_document_instance_from_hahitantsoa_event_draft(
     proforma_validity_days: int | None = None,
     bank_profile: FinanceBankProfile | None = None,
     document_date=None,
+    amendment_sequence: int | None = None,
+    amendment_source_document_id=None,
 ) -> DocumentInstance:
     validate_supported_hahitantsoa_event_draft_document_template_key(template_key)
     if document_date is not None and template_key != "hahitantsoa.delivery_note.v1":
@@ -624,6 +638,16 @@ def create_document_instance_from_hahitantsoa_event_draft(
             document_date=document_date,
         )
     )
+    if amendment_sequence is not None or amendment_source_document_id is not None:
+        instance.amendment_sequence = amendment_sequence
+        instance.amendment_source_document_id = amendment_source_document_id
+        instance.save(
+            update_fields=[
+                "amendment_sequence",
+                "amendment_source_document_id",
+                "updated_at",
+            ]
+        )
     record_audit_event_on_commit(
         actor=actor,
         action="document.instance_prepared",
@@ -701,6 +725,84 @@ def generate_hahitantsoa_event_draft_document_instance_html(
         },
     )
     return result.document_instance
+
+
+@transaction.atomic
+def ensure_reservation_draft_preparation_document(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None = None,
+) -> DocumentInstance:
+    """Create and emit the internal preparation sheet exactly once for a reservation."""
+    preparation = (
+        DocumentInstance.objects.select_for_update()
+        .filter(
+            reservation_draft=reservation_draft,
+            template_key="shared.preparation_sheet.v1",
+            status__in=(
+                DocumentInstanceStatus.PREPARED,
+                DocumentInstanceStatus.GENERATED,
+                DocumentInstanceStatus.ISSUED,
+            ),
+        )
+        .order_by("created_at", "id")
+        .first()
+    )
+    if preparation is None:
+        preparation = create_document_instance_from_reservation_draft(
+            reservation_draft=reservation_draft,
+            template_key="shared.preparation_sheet.v1",
+            actor=actor,
+            notes="Bon de préparation interne généré avec le bon de livraison.",
+        )
+    if preparation.status == DocumentInstanceStatus.PREPARED:
+        preparation = generate_reservation_draft_document_instance_html(
+            reservation_draft=reservation_draft,
+            document_instance_id=preparation.id,
+            actor=actor,
+        )
+    if preparation.pdf_storage_path is None:
+        preparation = generate_document_instance_pdf(document_instance=preparation, actor=actor)
+    return preparation
+
+
+@transaction.atomic
+def ensure_hahitantsoa_preparation_document(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None = None,
+) -> DocumentInstance:
+    """Create and emit the Hahitantsoa checking sheet exactly once."""
+    preparation = (
+        DocumentInstance.objects.select_for_update()
+        .filter(
+            hahitantsoa_event_draft=event_draft,
+            template_key="hahitantsoa.preparation_sheet.v1",
+            status__in=(
+                DocumentInstanceStatus.PREPARED,
+                DocumentInstanceStatus.GENERATED,
+                DocumentInstanceStatus.ISSUED,
+            ),
+        )
+        .order_by("created_at", "id")
+        .first()
+    )
+    if preparation is None:
+        preparation = create_document_instance_from_hahitantsoa_event_draft(
+            event_draft=event_draft,
+            template_key="hahitantsoa.preparation_sheet.v1",
+            actor=actor,
+            notes="Checklist manuelle Hahitantsoa générée avec le bon de livraison.",
+        )
+    if preparation.status == DocumentInstanceStatus.PREPARED:
+        preparation = generate_hahitantsoa_event_draft_document_instance_html(
+            event_draft=event_draft,
+            document_instance_id=preparation.id,
+            actor=actor,
+        )
+    if preparation.pdf_storage_path is None:
+        preparation = generate_document_instance_pdf(document_instance=preparation, actor=actor)
+    return preparation
 
 
 @transaction.atomic

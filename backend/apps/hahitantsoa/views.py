@@ -28,6 +28,7 @@ from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAmendmentPreflightSerializer,
+    HahitantsoaEventDraftAmendmentRequestApplySerializer,
     HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer,
     HahitantsoaEventDraftAmendmentRequestCreateSerializer,
     HahitantsoaEventDraftAmendmentRequestLineCreateSerializer,
@@ -47,9 +48,11 @@ from apps.hahitantsoa.serializers import (
     ReservationAvailabilityPreviewRequestSerializer,
 )
 from apps.hahitantsoa.services import (
+    apply_hahitantsoa_event_draft_amendment_request,
     assert_hahitantsoa_event_draft_mutable,
     confirm_hahitantsoa_event_draft,
 )
+from apps.inventory.services import InventoryStockMovementError
 from apps.reservations.confirmation import (
     ReservationConfirmationPreflightError,
     ReservationLifecycleError,
@@ -313,6 +316,44 @@ class HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView(generics.Retrie
         serializer.save(updated_by=self.request.user)
 
 
+class HahitantsoaEventDraftAmendmentRequestApplyAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(responses=HahitantsoaEventDraftAmendmentRequestApplySerializer)
+    def post(self, request, event_draft_pk, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(
+            visible_hahitantsoa_event_drafts(user=request.user), pk=event_draft_pk
+        )
+        amendment_request = get_object_or_404(
+            HahitantsoaEventDraftAmendmentRequest.objects.filter(
+                event_draft=event_draft
+            ).prefetch_related("lines__inventory_item"),
+            pk=pk,
+        )
+        try:
+            result = apply_hahitantsoa_event_draft_amendment_request(
+                event_draft=event_draft,
+                amendment_request=amendment_request,
+                actor=request.user,
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            HahitantsoaEventDraftAmendmentRequestApplySerializer(
+                {"amendment_request": result.amendment_request}
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+
 class HahitantsoaEventDraftAmendmentRequestLineListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
@@ -437,6 +478,10 @@ class HahitantsoaEventDraftAmendmentRequestLineRetrieveUpdateDestroyAPIView(
         serializer.save(updated_by=self.request.user)
 
     def perform_destroy(self, instance):
+        if instance.amendment_request.status != "draft":
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError("An applied amendment request is immutable.")
         instance.is_deleted = True
         instance.deleted_at = timezone.now()
         instance.updated_by = self.request.user
@@ -617,6 +662,7 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
     http_method_names = ["post", "head", "options"]
     permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
 
+    @transaction.atomic
     def post(self, request, pk, id):
         from django.http import Http404
         from django.shortcuts import get_object_or_404
@@ -624,9 +670,11 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
         from apps.documents.pdf import DocumentPDFGenerationError
         from apps.documents.serializers import DocumentInstancePDFSerializer
         from apps.documents.services import (
+            ensure_hahitantsoa_preparation_document,
             generate_document_instance_pdf,
             get_hahitantsoa_event_draft_document_instance_or_404,
         )
+        from apps.inventory.services import issue_delivery_note_stock
 
         event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
         try:
@@ -638,9 +686,20 @@ class HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView(APIView):
                 document_instance=instance,
                 actor=request.user,
             )
+            if instance.template_key == "hahitantsoa.delivery_note.v1":
+                ensure_hahitantsoa_preparation_document(
+                    event_draft=event_draft,
+                    actor=request.user,
+                )
+                issue_delivery_note_stock(document_instance=instance, actor=request.user)
         except DocumentInstance.DoesNotExist:
             raise Http404("Document instance not found.")
         except DocumentPDFGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except InventoryStockMovementError as error:
             return Response(
                 {"detail": str(error), "code": error.code},
                 status=status.HTTP_400_BAD_REQUEST,

@@ -190,7 +190,17 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
       </div>
 
       {error && (
-        <p className="titan-stock-panel__error" role="alert">{error}</p>
+        <div className="titan-stock-panel__error" role="alert">
+          <span>{error}</span>
+          <button
+            type="button"
+            className="titan-stock-panel__retry"
+            onClick={() => void loadMovements()}
+            disabled={loading}
+          >
+            Réessayer
+          </button>
+        </div>
       )}
 
       {showForm && (
@@ -305,14 +315,19 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
         </form>
       )}
 
+      {loading ? (
+        <p className="titan-stock-panel__loading" role="status" aria-live="polite">
+          Chargement des mouvements de stock…
+        </p>
+      ) : null}
+
       <div className="titan-stock-panel__list" role="list" aria-label="Liste des mouvements de stock">
         {!loading && movements.length > 0 && (
-          <div className="titan-stock-panel__filters" style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="titan-stock-panel__filters">
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
               aria-label="Filtrer par type"
-              style={{ padding: '4px 8px', fontSize: '0.85rem' }}
             >
               <option value="">Tous les types</option>
               {Object.entries(TYPE_LABELS).map(([key, label]) => (
@@ -323,7 +338,6 @@ export function TitanStockMovementPanel({ inventoryItems: propItems }: Props) {
               value={filterDirection}
               onChange={(e) => setFilterDirection(e.target.value)}
               aria-label="Filtrer par direction"
-              style={{ padding: '4px 8px', fontSize: '0.85rem' }}
             >
               <option value="">Toutes les directions</option>
               {Object.entries(DIRECTION_LABELS).map(([key, label]) => (

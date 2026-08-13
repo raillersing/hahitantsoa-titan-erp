@@ -130,6 +130,20 @@ describe('TitanStockMovementPanel', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Service unavailable');
     });
+    expect(screen.getByRole('button', { name: 'Réessayer' })).toBeInTheDocument();
+  });
+
+  it('retries loading movements from the error state', async () => {
+    const movementsSpy = vi.spyOn(api, 'getStockMovements')
+      .mockRejectedValueOnce(new Error('Service unavailable'))
+      .mockResolvedValueOnce([MOCK_MOVEMENT]);
+    render(<TitanStockMovementPanel inventoryItems={MOCK_ITEMS} />);
+
+    const retry = await screen.findByRole('button', { name: 'Réessayer' });
+    fireEvent.click(retry);
+
+    await waitFor(() => expect(screen.getByTestId(`stock-movement-row-${MOCK_MOVEMENT.id}`)).toBeInTheDocument());
+    expect(movementsSpy).toHaveBeenCalledTimes(2);
   });
 
   it('disables form inputs and submit button while submitting', async () => {

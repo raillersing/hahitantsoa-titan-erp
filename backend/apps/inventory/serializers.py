@@ -219,6 +219,7 @@ class InventoryReturnOperationSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "reservation_draft",
+            "logistics_event",
             "document_instance",
             "status",
             "notes",

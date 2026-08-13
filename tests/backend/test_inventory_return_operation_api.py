@@ -11,7 +11,9 @@ from apps.inventory.models import (
     InventoryReturnOperationLine,
     InventoryReturnOperationStatus,
     InventoryStockMovement,
+    InventoryStockMovementType,
 )
+from apps.inventory.services import create_inventory_stock_movement
 from apps.logistics.models import LogisticsEvent, LogisticsEventType
 from apps.reservations.models import ReservationDraft
 
@@ -77,25 +79,25 @@ def _document_instance(reservation_draft: ReservationDraft) -> DocumentInstance:
     return DocumentInstance.objects.create(
         reservation_draft=reservation_draft,
         customer=reservation_draft.customer,
-        template_key="shared.return_note.v1",
+        template_key="titan.delivery_note.v1",
         template_version="v1",
-        template_label="Bon de retour",
-        business_scope="shared",
-        document_type="return_note",
-        template_status="generated_draft_template",
-        template_source_kind="generated_from_brand_style",
-        template_source_reference="docs/references/source/Document_B_Presentation_Metier_Evenementiel_v3.4.pdf",
-        template_path="backend/apps/documents/templates_documents/shared/return_note/v1/template.html",
-        template_preview_path="backend/apps/documents/templates_documents/shared/return_note/v1/preview.pdf",
-        template_validated_by_client=False,
-        template_notes="Return note draft placeholder",
+        template_label="Bon de livraison",
+        business_scope="titan",
+        document_type="delivery_note",
+        template_status="validated_source_template",
+        template_source_kind="source_backed",
+        template_source_reference="test",
+        template_path="test/delivery-note.html",
+        template_preview_path="test/delivery-note.pdf",
+        template_validated_by_client=True,
+        template_notes="Emitted delivery note",
         reservation_public_reference=reservation_draft.public_reference,
         reservation_status=reservation_draft.status,
         customer_display_name=reservation_draft.customer.display_name,
         customer_email=reservation_draft.customer.email,
         customer_phone=reservation_draft.customer.phone,
         customer_address=reservation_draft.customer.address,
-        status=DocumentInstanceStatus.PREPARED,
+        status=DocumentInstanceStatus.GENERATED,
     )
 
 
@@ -107,12 +109,24 @@ def test_return_operation_list_requires_authentication(client) -> None:
 
 def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_return_operation(
     sensitive_client,
+    sensitive_user,
     authenticated_client,
 ) -> None:
     reservation_draft = _reservation_draft()
     document_instance = _document_instance(reservation_draft)
     intact_item = _inventory_item("Return API intact")
     mixed_item = _inventory_item("Return API mixed")
+    for item in (intact_item, mixed_item):
+        create_inventory_stock_movement(
+            actor=sensitive_user,
+            inventory_item=item,
+            reservation_draft=reservation_draft,
+            document_instance=document_instance,
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+            quantity=3 if item is mixed_item else 1,
+            source_label="test delivery note",
+            notes="Issued delivery note",
+        )
 
     create_response = sensitive_client.post(
         RETURN_OPERATION_LIST_URL,
@@ -148,7 +162,12 @@ def test_sensitive_user_can_create_validate_and_authenticated_user_can_read_retu
     payload = create_response.json()
     assert payload["status"] == InventoryReturnOperationStatus.DRAFT
     assert len(payload["lines"]) == 2
-    assert InventoryStockMovement.objects.count() == 0
+    assert (
+        InventoryStockMovement.objects.filter(
+            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY
+        ).count()
+        == 2
+    )
 
     list_response = authenticated_client.get(RETURN_OPERATION_LIST_URL)
     assert list_response.status_code == 200

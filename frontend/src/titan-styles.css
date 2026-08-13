@@ -60,6 +60,33 @@
   border-radius: 5px;
   padding: 8px 12px;
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.titan-stock-panel__retry {
+  flex: 0 0 auto;
+  border: 1px solid #c0392b;
+  border-radius: 4px;
+  padding: 4px 9px;
+  background: #ffffff;
+  color: #c0392b;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.titan-stock-panel__retry:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.titan-stock-panel__loading {
+  color: #607080;
+  font-size: 0.8rem;
+  margin: 8px 0;
 }
 
 .titan-stock-panel__empty {
@@ -74,6 +101,18 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.titan-stock-panel__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.titan-stock-panel__filters select {
+  padding: 4px 8px;
+  font-size: 0.85rem;
 }
 
 .titan-stock-row {
