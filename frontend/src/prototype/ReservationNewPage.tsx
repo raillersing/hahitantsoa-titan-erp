@@ -200,6 +200,11 @@ interface ReservationNewPageProps {
 type PathType = "client_first" | "domain_first" | null;
 type DomainType = "hahitantsoa" | "titan" | null;
 
+function isReservationClientParam(param?: string): boolean {
+  if (!param || param === "hahitantsoa" || param === "titan") return false;
+  return !param.startsWith("quote/") && !param.startsWith("prospect-proforma-") && !param.startsWith("catalog-prep|");
+}
+
 type ProspectProformaEmission = {
   domain: Exclude<DomainType, null>;
   draftId?: string;
@@ -495,7 +500,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setDomain(param as DomainType);
       setStep(2); // Domain is known (step 1 in domain_first is domain, step 2 is client)
       setMaxReachedStep(2);
-    } else if (param && (param.startsWith('CUST-') || param.startsWith('PROS-'))) {
+    } else if (isReservationClientParam(param) || (param && param.startsWith('PROS-'))) {
       const saved = localStorage.getItem("prototypeReservationDraft");
       if (saved) {
         const data = JSON.parse(saved);
@@ -507,7 +512,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       // New reservation from customer detail: param = clientId
       setPath('client_first');
       setClientMode('existing');
-      setSelectedClientId(param);
+      setSelectedClientId(param!);
       setStep(2); // skip client selection, go to domain choice
       setMaxReachedStep(2);
     } else if (param && param.startsWith('quote/')) {
@@ -636,11 +641,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const clearDraft = (resetState = true) => {
     localStorage.removeItem("prototypeReservationDraft");
     if (resetState) {
-      if (param && (param.startsWith('CUST-') || param.startsWith('PROS-'))) {
+      if (isReservationClientParam(param) || (param && param.startsWith('PROS-'))) {
         setShowDraftPrompt(false);
         setPath('client_first');
         setClientMode('existing');
-        setSelectedClientId(param);
+        setSelectedClientId(param!);
         setStep(2); 
         setMaxReachedStep(2);
       } else {
@@ -1064,7 +1069,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const renderClientStep = () => (
     <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
       <h3 className="text-lg font-bold text-slate-800 mb-4">Sélection ou création du client</h3>
-      {param && param.startsWith('CUST-') && (
+      {isReservationClientParam(param) && (
         <div className="mb-4">
            <button onClick={() => onNavigate('customer', selectedClientId)} className="text-slate-500 hover:text-slate-800 text-sm font-medium">
              <i className="fa-solid fa-arrow-left mr-2"></i> 
@@ -1078,7 +1083,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           Volet sélectionné : <strong>{param === 'hahitantsoa' ? 'Hahitantsoa' : 'Titan Rental'}</strong>
         </div>
       )}
-      {param && (param.startsWith('CUST-') || param.startsWith('PROS-')) ? (
+      {isReservationClientParam(param) || (param && param.startsWith('PROS-')) ? (
         <div className="bg-indigo-50 text-indigo-700 text-sm p-4 rounded-lg mb-6 border border-indigo-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <i className="fa-solid fa-lock text-indigo-400"></i>
@@ -1104,7 +1109,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       </div>
       )}
 
-      {clientMode === "existing" && (!param || !param.startsWith('CUST-')) ? (
+      {clientMode === "existing" && !isReservationClientParam(param) ? (
         <div className="space-y-4">
           <label className="block text-sm font-medium text-slate-700">Chercher un client existant</label>
           <div className="relative">
@@ -1341,7 +1346,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const renderDomainStep = () => (
     <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
-      {(param && (param.startsWith('CUST-') || param.startsWith('PROS-'))) && (
+      {(isReservationClientParam(param) || (param && param.startsWith('PROS-'))) && (
         <div className="mb-6 pb-4 border-b border-slate-100">
            <button onClick={() => onNavigate('customer', selectedClientId)} className="text-slate-500 hover:text-slate-800 text-sm font-medium flex items-center">
              <i className="fa-solid fa-arrow-left mr-2"></i> 
@@ -1350,7 +1355,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         </div>
       )}
       <h3 className="text-lg font-bold text-slate-800 mb-6">Choix du volet métier</h3>
-      {param && (param.startsWith('CUST-') || param.startsWith('PROS-')) && (
+      {isReservationClientParam(param) || (param && param.startsWith('PROS-')) && (
         <div className="mb-6 bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <p className="text-sm text-slate-500 font-medium">Quel volet pour <span className="font-bold text-slate-800">{clients.find(c => c.id === selectedClientId)?.name || 'ce client'}</span> ?</p>
@@ -3187,7 +3192,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
 
   // Si on est sur #reservation-new/CUST-XXX mais que le client n'existe pas
-  if (param && param.startsWith('CUST-') && !loadingClients && !clients.find(c => c.id === param)) {
+  if (isReservationClientParam(param) && !loadingClients && !clients.find(c => c.id === param)) {
     return (
       <div className="page active max-w-2xl mx-auto mt-12 text-center">
         <div className="bg-white rounded-2xl border border-slate-100 p-10 shadow-sm animate-fade-in">
@@ -3206,7 +3211,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   return (
     <div className="page active space-y-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        {param && param.startsWith('CUST-') ? (
+        {isReservationClientParam(param) ? (
           <>
             <div className="text-sm font-medium text-slate-500 mb-2">
               <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('customers')}>Clients & Prospects</span>
