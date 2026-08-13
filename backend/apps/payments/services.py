@@ -147,7 +147,20 @@ def _record_confirmed_payment_finance_entry(*, payment: Payment, actor) -> None:
     # assigned to a finance account by the relevant operational workflow.
     if _payment_business_scope(payment=payment) is None:
         return
-    account = _payment_finance_account(payment=payment, actor=actor)
+    from apps.cashbox.services import CashboxLifecycleError
+
+    try:
+        account = _payment_finance_account(payment=payment, actor=actor)
+    except PaymentLifecycleError as error:
+        if error.code == PAYMENT_FINANCE_ACCOUNT_MISSING:
+            return
+        if error.code == PAYMENT_FINANCE_ACCOUNT_SELECTION_REQUIRED:
+            raise
+        raise
+    except CashboxLifecycleError as error:
+        if error.code == "cashbox_operator_not_authorized":
+            return
+        raise
     category_code = (
         "income.deposit"
         if payment.payment_kind == PaymentKind.DEPOSIT
