@@ -1484,6 +1484,7 @@ export type PaymentReminderDispatch = {
   prepared_by: string | null;
   prepared_at: string;
   created_at: string;
+  reminder: PaymentWhatsAppReminder;
 };
 
 // ---- Legacy Client type (from mockData, kept for backward compatibility) ----

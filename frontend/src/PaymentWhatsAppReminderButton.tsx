@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getPaymentWhatsAppReminder, preparePaymentReminderDispatch } from "./api";
+import { preparePaymentReminderDispatch } from "./api";
 import type { PaymentReminderDispatch, PaymentWhatsAppReminder } from "./types";
 
 type Props = {
@@ -17,9 +17,8 @@ export default function PaymentWhatsAppReminderButton({ draftId, businessScope }
     setLoading(true);
     setError(null);
     try {
-      const nextReminder = await getPaymentWhatsAppReminder(draftId, businessScope);
-      setReminder(nextReminder);
       const prepared = await preparePaymentReminderDispatch(draftId, businessScope);
+      setReminder(prepared.reminder);
       setDispatch(prepared);
       if (prepared.whatsapp_url) window.open(prepared.whatsapp_url, "_blank", "noopener,noreferrer");
     } catch (err) {

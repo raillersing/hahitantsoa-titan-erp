@@ -1946,6 +1946,13 @@ export function markAllNotificationsRead(
   return postAuthenticatedJson("/api/v1/notifications/mark-all-read/", {}, signal);
 }
 
+export function getPaymentReminderDispatch(
+  id: string,
+  signal?: AbortSignal,
+): Promise<PaymentReminderDispatch> {
+  return getAuthenticatedJson(`/api/v1/notifications/payment-reminders/${encodeURIComponent(id)}/`, signal);
+}
+
 // ---- Import Excel ----
 
 import type { ImportJob } from "./types";

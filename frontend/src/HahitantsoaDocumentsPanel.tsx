@@ -51,6 +51,19 @@ function HahitantsoaDocumentsPanel() {
   });
   const [bankProfiles, setBankProfiles] = useState<BankProfile[]>([]);
   const [bankProfileId, setBankProfileId] = useState("");
+  const [bankState, setBankState] = useState<"loading" | "ready" | "error">("loading");
+
+  const loadBankProfiles = (signal?: AbortSignal) => {
+    setBankState("loading");
+    void getBankProfiles("hahitantsoa", signal)
+      .then((profiles) => {
+        setBankProfiles(profiles);
+        setBankState("ready");
+      })
+      .catch(() => {
+        if (!signal?.aborted) setBankState("error");
+      });
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,7 +74,7 @@ function HahitantsoaDocumentsPanel() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void getBankProfiles("hahitantsoa", controller.signal).then(setBankProfiles).catch(() => setBankProfiles([]));
+    loadBankProfiles(controller.signal);
     return () => controller.abort();
   }, []);
 
@@ -235,7 +248,7 @@ function HahitantsoaDocumentsPanel() {
             />
             <label htmlFor="hahitantsoa-bank-profile">
               Banque à afficher dans le document
-              <select id="hahitantsoa-bank-profile" value={bankProfileId} onChange={(e) => setBankProfileId(e.target.value)} disabled={state.loading}>
+              <select id="hahitantsoa-bank-profile" value={bankProfileId} onChange={(e) => setBankProfileId(e.target.value)} disabled={state.loading || bankState === "loading"}>
                 <option value="">Banque par défaut</option>
                 {bankProfiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
@@ -243,6 +256,14 @@ function HahitantsoaDocumentsPanel() {
                   </option>
                 ))}
               </select>
+              {bankState === "loading" && <span className="text-xs text-slate-500">Chargement des banques…</span>}
+              {bankState === "error" && (
+                <span className="flex items-center gap-2 text-xs text-rose-700" role="alert">
+                  Impossible de charger les banques.
+                  <button type="button" className="underline" onClick={() => loadBankProfiles()}>Réessayer</button>
+                </span>
+              )}
+              {bankState === "ready" && bankProfiles.length === 0 && <span className="text-xs text-slate-500">Aucune banque configurée ; la banque par défaut sera utilisée.</span>}
             </label>
             {state.selectedTemplateKey === "hahitantsoa.delivery_note.v1" && (
               <label htmlFor="hahitantsoa-delivery-date">
