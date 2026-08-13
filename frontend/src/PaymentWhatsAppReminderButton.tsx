@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { getPaymentWhatsAppReminder } from "./api";
-import type { PaymentWhatsAppReminder } from "./types";
+import { getPaymentWhatsAppReminder, preparePaymentReminderDispatch } from "./api";
+import type { PaymentReminderDispatch, PaymentWhatsAppReminder } from "./types";
 
 type Props = {
   draftId: string;
@@ -9,6 +9,7 @@ type Props = {
 
 export default function PaymentWhatsAppReminderButton({ draftId, businessScope }: Props) {
   const [reminder, setReminder] = useState<PaymentWhatsAppReminder | null>(null);
+  const [dispatch, setDispatch] = useState<PaymentReminderDispatch | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,9 +19,9 @@ export default function PaymentWhatsAppReminderButton({ draftId, businessScope }
     try {
       const nextReminder = await getPaymentWhatsAppReminder(draftId, businessScope);
       setReminder(nextReminder);
-      if (nextReminder.whatsapp_url) {
-        window.open(nextReminder.whatsapp_url, "_blank", "noopener,noreferrer");
-      }
+      const prepared = await preparePaymentReminderDispatch(draftId, businessScope);
+      setDispatch(prepared);
+      if (prepared.whatsapp_url) window.open(prepared.whatsapp_url, "_blank", "noopener,noreferrer");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de préparer le rappel WhatsApp.");
     } finally {
@@ -45,6 +46,7 @@ export default function PaymentWhatsAppReminderButton({ draftId, businessScope }
           <p role="status">
             Récapitulatif prêt : <strong>{reminder.confirmed_amount} MGA</strong> confirmé(s).
           </p>
+          {dispatch && <p className="text-xs text-emerald-700">Brouillon enregistré dans les notifications ({dispatch.reminder_key}).</p>}
           {!reminder.whatsapp_available && (
             <p className="text-amber-700">Aucun numéro international exploitable; copiez le message ci-dessous.</p>
           )}

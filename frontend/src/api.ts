@@ -84,6 +84,7 @@ import type {
   BankProfileCreatePayload,
   BankProfileUpdatePayload,
   PaymentWhatsAppReminder,
+  PaymentReminderDispatch,
   PaymentActionPayload,
   PaymentCreatePayload,
   PaymentConfirmPayload,
@@ -1406,6 +1407,18 @@ export function getPaymentWhatsAppReminder(
     ? `reservation_draft_id=${encodeURIComponent(draftId)}`
     : `hahitantsoa_event_draft_id=${encodeURIComponent(draftId)}`;
   return getAuthenticatedJson(`/api/v1/payments/reminder/whatsapp/?${query}`, signal);
+}
+
+export function preparePaymentReminderDispatch(
+  draftId: string,
+  businessScope: 'titan' | 'hahitantsoa',
+  reminderKey = 'payment_due',
+  signal?: AbortSignal,
+): Promise<PaymentReminderDispatch> {
+  const payload = businessScope === 'titan'
+    ? { reservation_draft_id: draftId, reminder_key: reminderKey }
+    : { hahitantsoa_event_draft_id: draftId, reminder_key: reminderKey };
+  return postAuthenticatedJson('/api/v1/notifications/payment-reminders/', payload, signal);
 }
 
 export function createPayment(

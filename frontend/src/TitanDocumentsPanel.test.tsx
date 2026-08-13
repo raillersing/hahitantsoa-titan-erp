@@ -168,6 +168,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.spyOn(api, 'checkEndpointPermission').mockResolvedValue(true);
+  vi.spyOn(api, 'getBankProfiles').mockResolvedValue([]);
 });
 
 describe("TitanDocumentsPanel", () => {

@@ -49,6 +49,24 @@ const statusLabel: Record<string, string> = {
   archived: "Archivé",
 };
 
+const CONFIRMABLE_FIELDS = [
+  "irsa_brackets",
+  "irsa_minimum",
+  "irsa_abatement",
+  "dependent_allowance",
+  "contribution_base_definition",
+  "cnaps_employee_rate",
+  "cnaps_employer_rate",
+  "ostie_employee_rate",
+  "ostie_employer_rate",
+  "fmfp_rate",
+  "overtime_rules",
+  "payslip_contexture",
+  "dns_format",
+  "ostie_format",
+  "collective_agreement",
+] as const;
+
 function jsonText(value: Record<string, unknown> | Array<Record<string, string>>): string {
   return JSON.stringify(value, null, 2);
 }
@@ -199,7 +217,11 @@ export default function PayrollRulesPanel({ access }: { access: PayrollRulesAcce
 
   const confirmAllFields = async () => {
     if (!selectedId || !selected) return;
-    const fields = Object.keys(selected.completeness_errors).reduce<Record<string, Record<string, string>>>((result, field) => {
+    if (Object.keys(selected.completeness_errors).length > 0) {
+      setError("Complétez tous les champs requis avant de demander la confirmation DRH.");
+      return;
+    }
+    const fields = CONFIRMABLE_FIELDS.reduce<Record<string, Record<string, string>>>((result, field) => {
       result[field] = { source: "Confirmation DRH dans l’application" };
       return result;
     }, {});
@@ -292,7 +314,7 @@ export default function PayrollRulesPanel({ access }: { access: PayrollRulesAcce
           </div>
           <label className="block text-sm font-medium text-slate-700">Note de validation<textarea value={form.validation_note} onChange={(e) => setField("validation_note", e.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" /></label>
           {selected && Object.keys(selected.completeness_errors).length > 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"><strong>Champs restant à compléter :</strong><ul className="mt-1 list-disc pl-5">{Object.entries(selected.completeness_errors).map(([key, message]) => <li key={key}>{key} — {message}</li>)}</ul></div>}
-          {selected && <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong>Confirmation des champs</strong><p className="mt-1">Chaque valeur doit être confirmée par la DRH avant soumission.</p><div className="mt-2 flex flex-wrap gap-2">{Object.entries(selected.field_confirmations ?? {}).map(([key, metadata]) => <span key={key} className={`rounded-full px-2 py-1 text-xs ${metadata.status === "confirmed" ? "bg-emerald-100 text-emerald-800" : metadata.status === "proposed" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{key}: {metadata.status}</span>)}</div>{access.canEdit && selected.status === "draft" && <button type="button" disabled={saving || Object.keys(selected.completeness_errors).length === 0} onClick={() => void confirmAllFields()} className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">Confirmer les champs remplis</button>}</div>}
+          {selected && <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><strong>Confirmation des champs</strong><p className="mt-1">Chaque valeur doit être confirmée par la DRH avant soumission.</p><div className="mt-2 flex flex-wrap gap-2">{Object.entries(selected.field_confirmations ?? {}).map(([key, metadata]) => <span key={key} className={`rounded-full px-2 py-1 text-xs ${metadata.status === "confirmed" ? "bg-emerald-100 text-emerald-800" : metadata.status === "proposed" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>{key}: {metadata.status}</span>)}</div>{access.canEdit && selected.status === "draft" && <button type="button" disabled={saving || Object.keys(selected.completeness_errors).length > 0} onClick={() => void confirmAllFields()} className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50">Confirmer les champs remplis</button>}</div>}
           {selected && <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900"><strong>Simulation indicative</strong><p className="mt-1">Aucun bulletin ni montant comptable n’est créé.</p><div className="mt-2 flex gap-2"><input aria-label="Salaire brut à simuler" type="number" value={simulationSalary} onChange={(e) => setSimulationSalary(e.target.value)} className="w-44 rounded-lg border border-indigo-200 px-3 py-2" /><button type="button" disabled={saving} onClick={() => void simulate()} className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Simuler</button></div>{simulation && <div className="mt-3 grid gap-1 text-xs sm:grid-cols-2">{Object.entries(simulation).filter(([key]) => key !== "simulation_only").map(([key, value]) => <span key={key}><strong>{key.replaceAll("_", " ")} :</strong> {value}</span>)}</div>}</div>}
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
             {access.canEdit && (!selected || selected.status === "draft") && <button disabled={saving} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? "Enregistrement…" : "Enregistrer le brouillon"}</button>}

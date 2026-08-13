@@ -662,6 +662,7 @@ export type DocumentInstanceCreatePayload = {
   template_key: string;
   notes?: string;
   document_date?: string;
+  bank_profile?: string | null;
 };
 
 export type DocumentInstanceListItem = {
@@ -1471,6 +1472,18 @@ export type BankProfileUpdatePayload = {
   iban?: string;
   swift_bic?: string;
   is_default_for_documents?: boolean;
+};
+
+export type PaymentReminderDispatch = {
+  id: string;
+  reservation_draft: string | null;
+  hahitantsoa_event_draft: string | null;
+  reminder_key: string;
+  message: string;
+  whatsapp_url: string;
+  prepared_by: string | null;
+  prepared_at: string;
+  created_at: string;
 };
 
 // ---- Legacy Client type (from mockData, kept for backward compatibility) ----
