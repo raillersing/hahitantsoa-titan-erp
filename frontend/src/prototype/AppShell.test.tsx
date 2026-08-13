@@ -80,6 +80,7 @@ describe('AppShell', () => {
       canManageIdentity: false,
       canViewAudit: false,
       canSensitiveWrite: false,
+      canSuperAdminDelete: false,
     };
     render(
       <AppShell

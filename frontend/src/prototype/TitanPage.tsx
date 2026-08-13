@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import BrandIdentity from "./BrandIdentity";
 import { LoadingSpinner, EmptyState } from "../components";
-import { getReservationDrafts } from "../api";
+import { deleteReservationDraft, getReservationDrafts } from "../api";
 import type { ReservationDraft } from "../types";
 
 const TITAN_KINDS = new Set(["material", "article", "material_pack"]);
@@ -9,6 +9,7 @@ const TITAN_KINDS = new Set(["material", "article", "material_pack"]);
 interface TitanPageProps {
   onNavigate: (scope: any, param?: string) => void;
   canSensitiveWrite?: boolean;
+  canSuperAdminDelete?: boolean;
 }
 
 type FilterKey = "all" | "en_cours" | "a_preparer" | "sorties";
@@ -61,12 +62,24 @@ function formatLinesSummary(lines: ReservationDraft["lines"]): string {
     .join(", ");
 }
 
-export default function TitanPage({ onNavigate, canSensitiveWrite = false }: TitanPageProps) {
+export default function TitanPage({ onNavigate, canSensitiveWrite = false, canSuperAdminDelete = false }: TitanPageProps) {
   const [drafts, setDrafts] = useState<ReservationDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (draft: ReservationDraft) => {
+    if (!canSuperAdminDelete || deletingId || !window.confirm(`Supprimer la réservation de test ${draft.public_reference} ?`)) return;
+    setDeletingId(draft.id);
+    try {
+      await deleteReservationDraft(draft.id);
+      setDrafts((current) => current.filter((item) => item.id !== draft.id));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -264,6 +277,11 @@ export default function TitanPage({ onNavigate, canSensitiveWrite = false }: Tit
                           title="Confirmer la réservation"
                         >
                           <i className="fa-solid fa-check-circle"></i>
+                        </button>
+                      )}
+                      {canSuperAdminDelete && (
+                        <button type="button" onClick={() => void handleDelete(r)} disabled={deletingId === r.id} className="text-slate-400 hover:text-rose-600 disabled:opacity-50" title="Supprimer une réservation de test">
+                          <i className="fa-solid fa-trash"></i>
                         </button>
                       )}
                     </div>

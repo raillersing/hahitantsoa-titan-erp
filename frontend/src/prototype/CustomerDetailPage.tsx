@@ -50,6 +50,7 @@ interface CustomerDetailPageProps {
   onBack?: () => void;
   returnContext?: { from: string; param?: string } | null;
   canSensitiveWrite?: boolean;
+  canSuperAdminDelete?: boolean;
 }
 
 function metadataRecord(event: CommercialTimelineEvent): Record<string, unknown> {
@@ -110,7 +111,7 @@ function summarizeCommercialTimeline(events: CommercialTimelineEvent[]): Commerc
   };
 }
 
-export default function CustomerDetailPage({ onNavigate, param, onBack, returnContext, canSensitiveWrite = false }: CustomerDetailPageProps) {
+export default function CustomerDetailPage({ onNavigate, param, onBack, returnContext, canSensitiveWrite = false, canSuperAdminDelete = false }: CustomerDetailPageProps) {
   const clientId = param || "CUST-001";
   const emptyClient: Client = { id: clientId, initials: "…", name: "", email: "", phone: "", type: "Particulier", status: "Client", colorClass: "bg-slate-100 text-slate-600" };
   const [client, setClient] = useState<Client>(emptyClient);
@@ -442,16 +443,16 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
               <div className="w-full flex justify-center text-xs text-slate-500 italic mb-2">
                 Conversion via Demande commerciale
               </div>
-            ) : canSensitiveWrite ? (
+            ) : (
               <>
                 <button className="w-full px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 mb-2 transition-colors" onClick={() => onNavigate("reservation-new", client.id)}>
                   <i className="fa-solid fa-plus mr-2"></i> Nouvelle réservation
                 </button>
-                <button type="button" className="w-full px-4 py-2 border border-rose-200 text-rose-600 font-medium text-sm rounded-lg hover:bg-rose-50 transition-colors" disabled={deletePending} onClick={() => void handleCustomerDelete()}>
+                {canSuperAdminDelete && <button type="button" className="w-full px-4 py-2 border border-rose-200 text-rose-600 font-medium text-sm rounded-lg hover:bg-rose-50 transition-colors" disabled={deletePending} onClick={() => void handleCustomerDelete()}>
                   {deletePending ? "Suppression…" : "Supprimer la fiche client"}
-                </button>
+                </button>}
               </>
-            ) : null}
+            )}
           </div>
 
           {/* Pipeline Commercial compact (prospects uniquement) */}

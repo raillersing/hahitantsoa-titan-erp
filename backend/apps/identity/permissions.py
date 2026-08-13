@@ -8,6 +8,7 @@ from apps.identity.authorization import (
     is_identity_admin_actor,
     is_logistics_override_actor,
     is_reservation_sensitive_actor,
+    is_super_admin_actor,
 )
 
 IDENTITY_ADMIN_PERMISSION_DENIED_MESSAGE = "Actor is not allowed to manage identity roles."
@@ -32,3 +33,10 @@ class HasLogisticsOverrideAccess(BasePermission):
 
     def has_permission(self, request, view) -> bool:
         return is_logistics_override_actor(actor=request.user)
+
+
+class HasSuperAdminAccess(BasePermission):
+    message = "Seul un super-administrateur peut supprimer des données métier."
+
+    def has_permission(self, request, view) -> bool:
+        return is_super_admin_actor(actor=request.user)

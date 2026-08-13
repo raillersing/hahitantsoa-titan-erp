@@ -5,7 +5,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasReservationSensitiveAccess, HasSuperAdminAccess
 from apps.inventory.models import InventoryItem
 from apps.reservations.amendments import (
     ReservationAmendmentError,
@@ -267,7 +267,7 @@ class ReservationDraftCancelAPIView(APIView):
 
 
 class ReservationDraftSoftDeleteAPIView(APIView):
-    permission_classes = [HasReservationSensitiveAccess]
+    permission_classes = [HasSuperAdminAccess]
     http_method_names = ["post", "head", "options"]
 
     def post(self, request, pk):
@@ -354,6 +354,7 @@ class ReservationDraftMarkRequiredDepositReceivedAPIView(APIView):
             marked_draft = mark_reservation_draft_required_deposit_received(
                 reservation_draft=draft,
                 actor=request.user,
+                auto_confirm=True,
             )
         except PermissionError as error:
             return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)

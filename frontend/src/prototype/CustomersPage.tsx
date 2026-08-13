@@ -7,9 +7,10 @@ import { EmptyState, LoadingSpinner } from "../components";
 interface CustomersPageProps {
   onNavigate: (scope: any, param?: string) => void;
   canSensitiveWrite?: boolean;
+  canSuperAdminDelete?: boolean;
 }
 
-export default function CustomersPage({ onNavigate, canSensitiveWrite = false }: CustomersPageProps) {
+export default function CustomersPage({ onNavigate, canSensitiveWrite = false, canSuperAdminDelete = false }: CustomersPageProps) {
   const [apiClients, setApiClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);

@@ -86,6 +86,19 @@ def authenticated_client_two(django_user_model):
     return client
 
 
+@pytest.fixture
+def staff_authenticated_client(django_user_model):
+    client = Client()
+    user = django_user_model.objects.create_user(
+        username="hahitantsoa-event-draft-super-admin",
+        password="test-password",
+        is_staff=True,
+    )
+    client.force_login(user)
+    client.test_user = user
+    return client
+
+
 def _period():
     start_at = timezone.now().replace(microsecond=0)
     return start_at, start_at + timedelta(hours=6)
@@ -500,9 +513,11 @@ def test_event_draft_update_can_restore_previously_soft_deleted_item(
     assert second_line.deleted_at is not None
 
 
-def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticated_client) -> None:
+def test_event_draft_soft_delete_hides_draft_without_inventory_write(
+    staff_authenticated_client,
+) -> None:
     start_at, end_at = _period()
-    user = authenticated_client.test_user
+    user = staff_authenticated_client.test_user
     item = _item()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
@@ -526,7 +541,7 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
     availability_count = InventoryAvailability.objects.count()
     line = draft.lines.get()
 
-    response = authenticated_client.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
+    response = staff_authenticated_client.delete(f"{EVENT_DRAFT_LIST_URL}{draft.id}/")
 
     assert response.status_code == 204
     draft.refresh_from_db()
@@ -541,10 +556,10 @@ def test_event_draft_soft_delete_hides_draft_without_inventory_write(authenticat
     assert line.created_by == user
     assert line.updated_by == user
     assert InventoryAvailability.objects.count() == availability_count
-    assert authenticated_client.get(EVENT_DRAFT_LIST_URL).json() == []
-    assert authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/").status_code == 404
+    assert staff_authenticated_client.get(EVENT_DRAFT_LIST_URL).json() == []
+    assert staff_authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/").status_code == 404
     assert (
-        authenticated_client.get(
+        staff_authenticated_client.get(
             f"{EVENT_DRAFT_LIST_URL}{draft.id}/availability-preview/"
         ).status_code
         == 404
@@ -1851,7 +1866,7 @@ def test_second_user_gets_404_for_confirmed_event_draft_mutations(
 
     assert detail_response.status_code == 404
     assert update_response.status_code == 404
-    assert delete_response.status_code == 404
+    assert delete_response.status_code == 403
 
 
 def test_second_user_cannot_list_read_update_delete_or_preview_another_users_draft(
@@ -1898,7 +1913,7 @@ def test_second_user_cannot_list_read_update_delete_or_preview_another_users_dra
     assert list_response.json() == []
     assert detail_response.status_code == 404
     assert update_response.status_code == 404
-    assert delete_response.status_code == 404
+    assert delete_response.status_code == 403
     assert preview_response.status_code == 404
     assert preflight_response.status_code == 404
     assert amendment_preflight_response.status_code == 404

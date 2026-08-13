@@ -91,7 +91,7 @@ describe('ReservationsPage', () => {
 
   it('supprime uniquement un brouillon pour un utilisateur autorisé', async () => {
     const user = userEvent.setup();
-    render(<ReservationsPage onNavigate={vi.fn()} canSensitiveWrite />);
+    render(<ReservationsPage onNavigate={vi.fn()} canSensitiveWrite canSuperAdminDelete />);
     await waitFor(() => expect(screen.getByText('LOC-2026-0089')).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: 'Supprimer' }));
