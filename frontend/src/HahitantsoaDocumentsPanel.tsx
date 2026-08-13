@@ -6,6 +6,7 @@ import {
   checkEndpointPermission,
   getHahitantsoaEventDrafts,
   getDocumentTemplates,
+  getBankProfiles,
   getHahitantsoaEventDraftDocumentInstances,
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
@@ -15,6 +16,7 @@ import type {
   HahitantsoaEventDraft,
   DocumentTemplateDefinition,
   DocumentInstance,
+  BankProfile,
 } from "./types";
 
 type HahitantsoaDocumentsState = {
@@ -47,11 +49,19 @@ function HahitantsoaDocumentsPanel() {
     previewArtifactId: "",
     previewPdfId: "",
   });
+  const [bankProfiles, setBankProfiles] = useState<BankProfile[]>([]);
+  const [bankProfileId, setBankProfileId] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
     checkEndpointPermission("/api/v1/documents/templates/", "OPTIONS", controller.signal)
       .then((allowed) => setState((prev) => ({ ...prev, canWrite: allowed })));
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void getBankProfiles("hahitantsoa", controller.signal).then(setBankProfiles).catch(() => setBankProfiles([]));
     return () => controller.abort();
   }, []);
 
@@ -106,6 +116,7 @@ function HahitantsoaDocumentsPanel() {
       await createHahitantsoaEventDraftDocumentInstance(state.selectedDraftId, {
         template_key: state.selectedTemplateKey,
         notes: state.notes,
+        ...(bankProfileId ? { bank_profile: bankProfileId } : {}),
         ...(state.selectedTemplateKey === "hahitantsoa.delivery_note.v1" && state.documentDate
           ? { document_date: state.documentDate }
           : {}),
@@ -119,6 +130,7 @@ function HahitantsoaDocumentsPanel() {
         selectedTemplateKey: "",
         loading: false,
       }));
+      setBankProfileId("");
     } catch (err) {
       setState((prev) => ({
         ...prev,
@@ -221,6 +233,17 @@ function HahitantsoaDocumentsPanel() {
               onChange={(e) => setState((prev) => ({ ...prev, notes: e.target.value }))}
               disabled={state.loading}
             />
+            <label htmlFor="hahitantsoa-bank-profile">
+              Banque à afficher dans le document
+              <select id="hahitantsoa-bank-profile" value={bankProfileId} onChange={(e) => setBankProfileId(e.target.value)} disabled={state.loading}>
+                <option value="">Banque par défaut</option>
+                {bankProfiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.bank_name} — {profile.account_code}{profile.is_default_for_documents ? " (défaut)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
             {state.selectedTemplateKey === "hahitantsoa.delivery_note.v1" && (
               <label htmlFor="hahitantsoa-delivery-date">
                 Date du bon de livraison
