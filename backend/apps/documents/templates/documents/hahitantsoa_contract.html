@@ -76,6 +76,9 @@
                 <div class="info-row"><span class="info-label">Réf Client :</span> <span class="info-val">{{ context.event_draft.customer_id|default:"DEMO-001" }}</span></div>
                 <div class="info-row"><span class="info-label">Contact / Tél :</span> <span class="info-val">{{ context.event_draft.customer_phone|default:"+261 34 12 345 67" }}</span></div>
                 <div class="info-row"><span class="info-label">Pièce d'Identité :</span> <span class="info-val">{{ context.event_draft.customer_id_type|default:"NIF" }} {{ context.event_draft.customer_id_number|default:"6003298583" }} {% if context.event_draft.customer_id_issue_place %}({{ context.event_draft.customer_id_issue_place }}){% endif %}</span></div>
+                <div class="info-row"><span class="info-label">NIF :</span> <span class="info-val">{{ context.event_draft.customer_nif|default:"Non renseigné" }}</span></div>
+                <div class="info-row"><span class="info-label">STAT :</span> <span class="info-val">{{ context.event_draft.customer_stat|default:"Non renseigné" }}</span></div>
+                <div class="info-row"><span class="info-label">RCS :</span> <span class="info-val">{{ context.event_draft.customer_rcs|default:"Non renseigné" }}</span></div>
             </div>
         </div>
     </div>

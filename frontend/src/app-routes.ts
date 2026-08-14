@@ -5,7 +5,7 @@ export const APP_SCOPES = [
   "blacklist-intervenants", "inventory", "inventory-management", "inventory-item",
   "stock-movements", "stock-preparation", "logistics-dispatch", "logistics-returns",
   "breakage-loss", "venues", "agenda-visitors", "desired-dates", "import-excel", "documents",
-  "hr-payroll", "hr", "purchasing", "procurement", "notifications", "admin", "mobile-tablet", "profile", "bank-settings",
+  "hr-payroll", "hr", "purchasing", "procurement", "notifications", "admin", "mobile-tablet", "profile", "bank-settings", "user-manual",
 ] as const;
 
 export type AppScope = (typeof APP_SCOPES)[number];

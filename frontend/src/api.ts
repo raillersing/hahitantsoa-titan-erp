@@ -1944,7 +1944,7 @@ export function updateHahitantsoaService(
 
 // ---- Notifications ----
 
-import type { SystemNotification } from "./types";
+import type { BugReport, BugReportCreatePayload, SystemNotification } from "./types";
 
 export function getNotifications(
   unreadOnly?: boolean,
@@ -1966,6 +1966,25 @@ export function markAllNotificationsRead(
   signal?: AbortSignal,
 ): Promise<{ marked_read: number }> {
   return postAuthenticatedJson("/api/v1/notifications/mark-all-read/", {}, signal);
+}
+
+export function getBugReports(signal?: AbortSignal): Promise<BugReport[]> {
+  return getAuthenticatedJson("/api/v1/notifications/bug-reports/", signal);
+}
+
+export function createBugReport(
+  payload: BugReportCreatePayload,
+  signal?: AbortSignal,
+): Promise<BugReport> {
+  return postAuthenticatedJson("/api/v1/notifications/bug-reports/", payload, signal);
+}
+
+export function updateBugReportStatus(
+  id: string,
+  status: BugReport["status"],
+  signal?: AbortSignal,
+): Promise<BugReport> {
+  return patchAuthenticatedJson(`/api/v1/notifications/bug-reports/${id}/status/`, { status }, signal);
 }
 
 export function getPaymentReminderDispatch(

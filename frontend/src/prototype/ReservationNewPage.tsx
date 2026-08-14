@@ -330,6 +330,92 @@ interface SelectedService {
   price: number;
 }
 
+export interface ReservationTotals {
+  venueAndLogisticsTotal: number;
+  packageTotal: number;
+  packageAdjustedTotal: number;
+  complementaryMaterialsTotal: number;
+  materialsTotal: number;
+  servicesTotal: number;
+  deliveryTotal: number;
+  durationTotal: number;
+  subTotalAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+}
+
+export function calculateReservationTotals({
+  domain,
+  hDetails,
+  selectedMaterials,
+  selectedServices,
+  packages,
+  catalog,
+  deliveryFee,
+  discountValue,
+  discountIsPercentage,
+}: {
+  domain: DomainType;
+  hDetails: Pick<HahitantsoaDetails, "rentalType" | "venuePrice" | "logisticsPrice" | "durationOptionPrice" | "packageMode" | "packageId">;
+  selectedMaterials: SelectedMaterial[];
+  selectedServices: SelectedService[];
+  packages: MaterialPackage[];
+  catalog: CatalogItem[];
+  deliveryFee: string;
+  discountValue: number;
+  discountIsPercentage: boolean;
+}): ReservationTotals {
+  const servicesTotal = selectedServices.reduce((sum, service) => sum + service.price, 0);
+  const parsedDeliveryFee = Number(deliveryFee);
+  const deliveryTotal = domain === "titan" && Number.isFinite(parsedDeliveryFee) ? parsedDeliveryFee : 0;
+  const durationTotal = domain === "hahitantsoa" ? (hDetails.durationOptionPrice || 0) : 0;
+  const venueAndLogisticsTotal = domain === "hahitantsoa"
+    ? (hDetails.venuePrice || 0) + (hDetails.rentalType === "Location nue + logistique" ? (hDetails.logisticsPrice || 0) : 0)
+    : 0;
+
+  const selectedById = new Map(selectedMaterials.map((material) => [material.id, material]));
+  const selectedPackage = domain === "hahitantsoa" && hDetails.packageMode === "package" && hDetails.packageId
+    ? packages.find((pkg) => pkg.id === hDetails.packageId)
+    : undefined;
+
+  let packageTotal = 0;
+  let packageDeltaTotal = 0;
+  let complementaryMaterialsTotal = 0;
+  if (selectedPackage) {
+    packageTotal = selectedPackage.price;
+    packageDeltaTotal = selectedPackage.lines.reduce((sum, packageLine) => {
+      const selected = selectedById.get(packageLine.inventory_item);
+      const itemPrice = selected?.price ?? catalog.find((item) => item.id === packageLine.inventory_item)?.price ?? 0;
+      return sum + ((selected?.quantity ?? 0) - packageLine.quantity) * itemPrice;
+    }, 0);
+    complementaryMaterialsTotal = selectedMaterials
+      .filter((material) => !selectedPackage.lines.some((line) => line.inventory_item === material.id))
+      .reduce((sum, material) => sum + material.price * material.quantity, 0);
+  } else {
+    complementaryMaterialsTotal = selectedMaterials.reduce((sum, material) => sum + material.price * material.quantity, 0);
+  }
+
+  const materialsTotal = packageDeltaTotal + complementaryMaterialsTotal;
+  const packageAdjustedTotal = packageTotal + packageDeltaTotal;
+  const subTotalAmount = venueAndLogisticsTotal + packageTotal + materialsTotal + servicesTotal + deliveryTotal + durationTotal;
+  const rawDiscount = discountIsPercentage ? subTotalAmount * (discountValue / 100) : discountValue;
+  const discountAmount = Math.min(subTotalAmount, Math.max(0, rawDiscount));
+
+  return {
+    venueAndLogisticsTotal,
+    packageTotal,
+    packageAdjustedTotal,
+    complementaryMaterialsTotal,
+    materialsTotal,
+    servicesTotal,
+    deliveryTotal,
+    durationTotal,
+    subTotalAmount,
+    discountAmount,
+    totalAmount: Math.max(0, subTotalAmount - discountAmount),
+  };
+}
+
 
 
 export default function ReservationNewPage({ onNavigate, param }: ReservationNewPageProps) {
@@ -696,49 +782,29 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         } 
       : null;
 
-  const servicesTotal = selectedServices.reduce((acc, s) => acc + s.price, 0);
-  const deliveryTotal = domain === 'titan' && deliveryFee ? parseInt(deliveryFee, 10) : 0;
-  const durationTotal = domain === 'hahitantsoa' ? (hDetails.durationOptionPrice || 0) : 0;
-  
-  let venueAndLogisticsTotal = 0;
-  if (domain === 'hahitantsoa') {
-    venueAndLogisticsTotal += hDetails.venuePrice || 0;
-    if (hDetails.rentalType === 'Location nue + logistique') {
-      venueAndLogisticsTotal += hDetails.logisticsPrice || 0;
-    }
-  }
-
-  let packageTotal = 0;
-  let materialsTotal = 0;
-  
-  if (domain === 'hahitantsoa' && hDetails.packageMode !== 'free' && hDetails.packageId) {
-    const pkg = packages.find(p => p.id === hDetails.packageId);
-    if (pkg) {
-      packageTotal = pkg.price;
-      // Calculate extra cost/discount based on qty diff
-      materialsTotal = selectedMaterials.reduce((acc, m) => {
-        const pkgArt = pkg.lines.find(a => a.inventory_item === m.id);
-        const pkgQty = pkgArt ? pkgArt.quantity : 0;
-        const diffQty = m.quantity - pkgQty;
-        return acc + (diffQty * m.price);
-      }, 0);
-      // Need to subtract items removed from package that are completely missing from selectedMaterials
-      pkg.lines.forEach(pkgArt => {
-        if (!selectedMaterials.find(m => m.id === pkgArt.inventory_item)) {
-          const catItem = catalog.find(c => c.id === pkgArt.inventory_item);
-          if (catItem) {
-            materialsTotal -= (pkgArt.quantity * catItem.price);
-          }
-        }
-      });
-    }
-  } else {
-    materialsTotal = selectedMaterials.reduce((acc, m) => acc + (m.price * m.quantity), 0);
-  }
-
-  const subTotalAmount = venueAndLogisticsTotal + packageTotal + materialsTotal + servicesTotal + deliveryTotal + durationTotal;
-  const discountAmount = discountIsPercentage ? subTotalAmount * (discountValue / 100) : discountValue;
-  const totalAmount = Math.max(0, subTotalAmount - discountAmount);
+  const {
+    venueAndLogisticsTotal,
+    packageTotal,
+    packageAdjustedTotal,
+    complementaryMaterialsTotal,
+    materialsTotal,
+    servicesTotal,
+    deliveryTotal,
+    durationTotal,
+    subTotalAmount,
+    discountAmount,
+    totalAmount,
+  } = calculateReservationTotals({
+    domain,
+    hDetails,
+    selectedMaterials,
+    selectedServices,
+    packages,
+    catalog,
+    deliveryFee,
+    discountValue,
+    discountIsPercentage,
+  });
 
   // Navigation
   const goNext = () => {
@@ -2307,17 +2373,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-2">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-700">Total Package (Ajusté) :</span>
-              <span className="text-lg font-bold text-indigo-600">{(packageTotal + materialsTotal - selectedMaterials.filter(m => {
-                const pkg = packages.find(p => p.id === hDetails.packageId);
-                return !pkg?.lines.find(a => a.inventory_item === m.id);
-              }).reduce((acc, m) => acc + m.price * m.quantity, 0)).toLocaleString('fr-FR')} Ar</span>
+              <span className="text-lg font-bold text-indigo-600">{packageAdjustedTotal.toLocaleString('fr-FR')} Ar</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-700">Total Articles complémentaires :</span>
-              <span className="text-lg font-bold text-emerald-600">{selectedMaterials.filter(m => {
-                const pkg = packages.find(p => p.id === hDetails.packageId);
-                return !pkg?.lines.find(a => a.inventory_item === m.id);
-              }).reduce((acc, m) => acc + m.price * m.quantity, 0).toLocaleString('fr-FR')} Ar</span>
+              <span className="text-lg font-bold text-emerald-600">{complementaryMaterialsTotal.toLocaleString('fr-FR')} Ar</span>
             </div>
           </div>
           

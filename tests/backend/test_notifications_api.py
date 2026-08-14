@@ -4,12 +4,13 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from apps.notifications.models import SystemNotification
+from apps.notifications.models import BugReport, SystemNotification
 
 pytestmark = pytest.mark.django_db
 
 NOTIFICATION_LIST_URL = "/api/v1/notifications/"
 NOTIFICATION_MARK_ALL_READ_URL = "/api/v1/notifications/mark-all-read/"
+BUG_REPORTS_URL = "/api/v1/notifications/bug-reports/"
 
 
 @pytest.fixture
@@ -70,6 +71,61 @@ def test_list_notifications_empty(authenticated_client):
     response = authenticated_client.get(NOTIFICATION_LIST_URL)
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_create_and_reload_bug_report(authenticated_client, user):
+    response = authenticated_client.post(
+        BUG_REPORTS_URL,
+        data={
+            "title": "Erreur de test",
+            "description": "Le bouton ne répond pas.",
+            "severity": "high",
+            "page_url": "http://127.0.0.1:5173/#help",
+            "correlation_id": "test-correlation-1",
+        },
+        content_type="application/json",
+    )
+    assert response.status_code == 201
+    assert response.json()["status"] == "new"
+    assert BugReport.objects.get().reporter == user
+
+    reloaded = authenticated_client.get(BUG_REPORTS_URL)
+    assert reloaded.status_code == 200
+    assert reloaded.json()[0]["title"] == "Erreur de test"
+
+
+def test_bug_report_list_isolated_for_regular_users(authenticated_client, user):
+    other_user = get_user_model().objects.create_user(
+        username="other-bug-user", password="test-pass"
+    )
+    BugReport.objects.create(reporter=other_user, title="Privé", description="Ne pas exposer")
+    BugReport.objects.create(reporter=user, title="Visible", description="Visible")
+
+    response = authenticated_client.get(BUG_REPORTS_URL)
+
+    assert response.status_code == 200
+    assert [item["title"] for item in response.json()] == ["Visible"]
+
+
+def test_admin_can_update_bug_report_status():
+    admin = get_user_model().objects.create_superuser(
+        username="support-admin",
+        email="support@example.test",
+        password="test-pass",
+    )
+    report = BugReport.objects.create(reporter=admin, title="À traiter", description="Erreur")
+    client = Client()
+    client.force_login(admin)
+
+    response = client.patch(
+        f"{BUG_REPORTS_URL}{report.id}/status/",
+        data='{"status":"resolved"}',
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    report.refresh_from_db()
+    assert report.status == "resolved"
 
 
 def test_list_notifications_hides_other_recipient_notifications(authenticated_client, user):

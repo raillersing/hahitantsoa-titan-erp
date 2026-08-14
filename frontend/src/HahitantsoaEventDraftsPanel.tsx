@@ -23,6 +23,7 @@ import {
   getHahitantsoaEventDraftAmendmentRequestAvailabilityPreflight,
   ApiError,
 } from "./api";
+import DocumentArtifactPreviewPanel from "./DocumentArtifactPreviewPanel";
 import type {
   Customer,
   InventoryItem,
@@ -165,6 +166,14 @@ export function HahitantsoaEventDraftsPanel({
   const [amendmentRequestsError, setAmendmentRequestsError] = useState("");
   const [newAmendmentReason, setNewAmendmentReason] = useState("");
   const [newAmendmentNotes, setNewAmendmentNotes] = useState("");
+  const [newAmendmentStartAt, setNewAmendmentStartAt] = useState("");
+  const [newAmendmentEndAt, setNewAmendmentEndAt] = useState("");
+  const [newAmendmentEventName, setNewAmendmentEventName] = useState("");
+  const [newAmendmentEventType, setNewAmendmentEventType] = useState<HahitantsoaEventType>("other");
+  const [newAmendmentVenueName, setNewAmendmentVenueName] = useState("");
+  const [newAmendmentLocationDetails, setNewAmendmentLocationDetails] = useState("");
+  const [newAmendmentServiceNotes, setNewAmendmentServiceNotes] = useState("");
+  const [amendmentDocumentId, setAmendmentDocumentId] = useState<string | null>(null);
   const [editingAmendmentId, setEditingAmendmentId] = useState<string | null>(null);
   const [editingAmendmentReason, setEditingAmendmentReason] = useState("");
   const [editingAmendmentNotes, setEditingAmendmentNotes] = useState("");
@@ -352,6 +361,8 @@ export function HahitantsoaEventDraftsPanel({
     try {
       const data = await getHahitantsoaEventDraftAmendmentRequests(draftId);
       setAmendmentRequests(data);
+      const appliedRequest = [...data].reverse().find((request) => request.status === "applied");
+      setAmendmentDocumentId(appliedRequest?.document_instance_id ?? null);
     } catch (err) {
       setAmendmentRequestsError(
         err instanceof Error ? err.message : "Échec du chargement des demandes d'avenant."
@@ -369,6 +380,13 @@ export function HahitantsoaEventDraftsPanel({
       await createHahitantsoaEventDraftAmendmentRequest(draftId, {
         reason: newAmendmentReason,
         notes: newAmendmentNotes,
+        changed_start_at: newAmendmentStartAt ? new Date(newAmendmentStartAt).toISOString() : null,
+        changed_end_at: newAmendmentEndAt ? new Date(newAmendmentEndAt).toISOString() : null,
+        changed_event_name: newAmendmentEventName,
+        changed_event_type: newAmendmentEventType,
+        changed_venue_name: newAmendmentVenueName,
+        changed_location_details: newAmendmentLocationDetails,
+        changed_service_notes: newAmendmentServiceNotes,
       });
       setNewAmendmentReason("");
       setNewAmendmentNotes("");
@@ -413,7 +431,8 @@ export function HahitantsoaEventDraftsPanel({
   const handleApplyAmendmentRequest = async (draftId: string, requestId: string) => {
     setActionState({ status: "loading" });
     try {
-      await applyHahitantsoaEventDraftAmendmentRequest(draftId, requestId);
+      const result = await applyHahitantsoaEventDraftAmendmentRequest(draftId, requestId);
+      setAmendmentDocumentId(result.amendment_request.document_instance_id);
       setActionState({ status: "success", message: "Avenant appliqué et contrat mis à jour." });
       await fetchAmendmentRequests(draftId);
       await handleViewDetails(draftId);
@@ -545,6 +564,13 @@ export function HahitantsoaEventDraftsPanel({
       setEditNotes(draft.notes);
       setEditStartAt(toDateTimeLocalValue(new Date(draft.start_at)));
       setEditEndAt(toDateTimeLocalValue(new Date(draft.end_at)));
+      setNewAmendmentStartAt(toDateTimeLocalValue(new Date(draft.start_at)));
+      setNewAmendmentEndAt(toDateTimeLocalValue(new Date(draft.end_at)));
+      setNewAmendmentEventName(draft.event_name);
+      setNewAmendmentEventType(draft.event_type ?? "other");
+      setNewAmendmentVenueName(draft.venue_name);
+      setNewAmendmentLocationDetails(draft.location_details);
+      setNewAmendmentServiceNotes(draft.service_notes);
       setEditLines(
         draft.lines.map((l) => ({
           inventory_item_id: l.inventory_item_id,
@@ -1637,6 +1663,76 @@ export function HahitantsoaEventDraftsPanel({
                     <span className="field-error-text" role="alert">{fieldErrors.notes.join(", ")}</span>
                   )}
                 </label>
+                <fieldset className="amendment-event-fields">
+                  <legend>Paramètres de l’événement à modifier</legend>
+                  <div className="form-grid form-grid--two-columns">
+                    <label>
+                      Nouvelle date et heure de début
+                      <input
+                        type="datetime-local"
+                        value={newAmendmentStartAt}
+                        onChange={(e) => setNewAmendmentStartAt(e.target.value)}
+                        disabled={isDisabled}
+                      />
+                    </label>
+                    <label>
+                      Nouvelle date et heure de fin
+                      <input
+                        type="datetime-local"
+                        value={newAmendmentEndAt}
+                        onChange={(e) => setNewAmendmentEndAt(e.target.value)}
+                        disabled={isDisabled}
+                      />
+                    </label>
+                    <label>
+                      Nom de l’événement
+                      <input
+                        type="text"
+                        value={newAmendmentEventName}
+                        onChange={(e) => setNewAmendmentEventName(e.target.value)}
+                        disabled={isDisabled}
+                      />
+                    </label>
+                    <label>
+                      Type d’événement
+                      <select
+                        value={newAmendmentEventType}
+                        onChange={(e) => setNewAmendmentEventType(e.target.value as HahitantsoaEventType)}
+                        disabled={isDisabled}
+                      >
+                        <option value="wedding">Mariage</option>
+                        <option value="engagement">Fiançailles</option>
+                        <option value="civil_wedding">Mariage civil</option>
+                        <option value="other">Autre</option>
+                      </select>
+                    </label>
+                    <label>
+                      Lieu
+                      <input
+                        type="text"
+                        value={newAmendmentVenueName}
+                        onChange={(e) => setNewAmendmentVenueName(e.target.value)}
+                        disabled={isDisabled}
+                      />
+                    </label>
+                    <label>
+                      Détails du lieu
+                      <textarea
+                        value={newAmendmentLocationDetails}
+                        onChange={(e) => setNewAmendmentLocationDetails(e.target.value)}
+                        disabled={isDisabled}
+                      />
+                    </label>
+                    <label className="form-grid__full-width">
+                      Notes de service
+                      <textarea
+                        value={newAmendmentServiceNotes}
+                        onChange={(e) => setNewAmendmentServiceNotes(e.target.value)}
+                        disabled={isDisabled}
+                      />
+                    </label>
+                  </div>
+                </fieldset>
                 <button
                   type="submit"
                   disabled={isDisabled || amendmentPreflightState.status !== "loaded" || !amendmentPreflightState.preflight.can_amend}
@@ -1652,6 +1748,9 @@ export function HahitantsoaEventDraftsPanel({
                 </button>
               </form>
             </div>
+            {amendmentDocumentId && (
+              <DocumentArtifactPreviewPanel documentInstanceId={amendmentDocumentId} />
+            )}
           </div>
         </div>
       )}

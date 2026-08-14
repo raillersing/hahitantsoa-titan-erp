@@ -13,6 +13,19 @@ class NotificationType(models.TextChoices):
     SYSTEM = "system", "system"
 
 
+class BugReportStatus(models.TextChoices):
+    NEW = "new", "Nouveau"
+    IN_PROGRESS = "in_progress", "En cours"
+    RESOLVED = "resolved", "Résolu"
+
+
+class BugReportSeverity(models.TextChoices):
+    LOW = "low", "Faible"
+    MEDIUM = "medium", "Moyenne"
+    HIGH = "high", "Élevée"
+    CRITICAL = "critical", "Critique"
+
+
 class SystemNotification(UUIDModel, TimestampedModel):
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -48,6 +61,36 @@ class SystemNotification(UUIDModel, TimestampedModel):
 
     def __str__(self) -> str:
         return f"[{self.notification_type}] {self.title}"
+
+
+class BugReport(UUIDModel, TimestampedModel):
+    reporter = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="bug_reports",
+    )
+    title = models.CharField(max_length=160)
+    description = models.TextField()
+    severity = models.CharField(
+        max_length=16,
+        choices=BugReportSeverity.choices,
+        default=BugReportSeverity.MEDIUM,
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=BugReportStatus.choices,
+        default=BugReportStatus.NEW,
+    )
+    page_url = models.CharField(max_length=512, blank=True, default="")
+    user_agent = models.TextField(blank=True, default="")
+    error_message = models.TextField(blank=True, default="")
+    correlation_id = models.CharField(max_length=64, blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.title} ({self.status})"
 
 
 class PaymentReminderDispatch(UUIDModel, TimestampedModel):

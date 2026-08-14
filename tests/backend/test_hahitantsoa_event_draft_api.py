@@ -1098,11 +1098,19 @@ def test_owner_can_apply_hahitantsoa_amendment_and_replay_is_idempotent(
     user.save(update_fields=["is_staff"])
     draft = _confirmed_draft(user=user, item=_item(kind="article"))
     _create_confirmation_truth(event_draft=draft, actor=user)
+    expected_start_at = draft.start_at + timedelta(hours=2)
+    expected_end_at = draft.end_at + timedelta(hours=3)
     request_response = authenticated_client.post(
         _amendment_request_list_url(draft.id),
         data={
             "reason": "Client requests a new date",
+            "changed_start_at": expected_start_at.isoformat(),
+            "changed_end_at": expected_end_at.isoformat(),
             "changed_event_name": "Updated event name",
+            "changed_event_type": "civil_wedding",
+            "changed_venue_name": "Updated venue",
+            "changed_location_details": "Updated location details",
+            "changed_service_notes": "Updated service notes",
             "changed_notes": "Updated operational notes",
         },
         content_type="application/json",
@@ -1120,7 +1128,13 @@ def test_owner_can_apply_hahitantsoa_amendment_and_replay_is_idempotent(
     assert payload["applied_at"]
 
     draft.refresh_from_db()
+    assert draft.start_at == expected_start_at
+    assert draft.end_at == expected_end_at
+    assert draft.event_type == "civil_wedding"
     assert draft.event_name == "Updated event name"
+    assert draft.venue_name == "Updated venue"
+    assert draft.location_details == "Updated location details"
+    assert draft.service_notes == "Updated service notes"
     assert draft.notes == "Updated operational notes"
     amendment_document = draft.document_instances.get(id=payload["document_instance_id"])
     assert amendment_document.template_key == "hahitantsoa.contract_amendment.v1"

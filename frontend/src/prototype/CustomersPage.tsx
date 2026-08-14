@@ -187,6 +187,18 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
         email: newEmail,
         phone: newPhone,
         address: newAddress,
+        birth_date: newBirthDate || null,
+        id_type: newType === "Particulier" ? newIdType : "",
+        id_number: newIdNumber,
+        id_issue_place: newIdIssuePlace,
+        id_issue_date: newIdIssueDate || null,
+        id_duplicata_date: newIdDuplicataDate || null,
+        id_duplicata_place: newIdDuplicataPlace,
+        nif: newNif,
+        stat: newStat,
+        rcs: newRcs,
+        representative_name: newRepName,
+        representative_role: newRepRole,
         notes: newNotes + (prospectNote ? `\n${prospectNote}` : ""),
         prospect_request_type: prospectRequestType || undefined,
         prospect_interest_domain: prospectDomain || undefined,
@@ -417,7 +429,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {newType === "Particulier" ? (
+                  {newType === "Particulier" && (
                     <>
                       <div className="sm:col-span-2 flex gap-4">
                         <div className="w-1/3">
@@ -455,22 +467,19 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
                         </div>
                       </div>
                     </>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">NIF</label>
-                        <input type="text" value={newNif} onChange={e => setNewNif(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="NIF" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">STAT</label>
-                        <input type="text" value={newStat} onChange={e => setNewStat(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="STAT" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">RCS</label>
-                        <input type="text" value={newRcs} onChange={e => setNewRcs(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="RCS" />
-                      </div>
-                    </>
                   )}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">NIF</label>
+                    <input type="text" value={newNif} onChange={e => setNewNif(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="NIF" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">STAT</label>
+                    <input type="text" value={newStat} onChange={e => setNewStat(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="STAT" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">RCS</label>
+                    <input type="text" value={newRcs} onChange={e => setNewRcs(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="RCS" />
+                  </div>
                 </div>
               )}
             </div>

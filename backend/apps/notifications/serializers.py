@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.notifications.models import PaymentReminderDispatch, SystemNotification
+from apps.notifications.models import BugReport, PaymentReminderDispatch, SystemNotification
 
 
 class SystemNotificationSerializer(serializers.ModelSerializer):
@@ -21,6 +21,45 @@ class SystemNotificationSerializer(serializers.ModelSerializer):
 
 class SystemNotificationMarkReadSerializer(serializers.Serializer):
     is_read = serializers.BooleanField()
+
+
+class BugReportSerializer(serializers.ModelSerializer):
+    reporter_username = serializers.CharField(source="reporter.username", read_only=True)
+
+    class Meta:
+        model = BugReport
+        fields = (
+            "id",
+            "reporter",
+            "reporter_username",
+            "title",
+            "description",
+            "severity",
+            "status",
+            "page_url",
+            "user_agent",
+            "error_message",
+            "correlation_id",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "reporter",
+            "reporter_username",
+            "status",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_description(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("La description du problème est obligatoire.")
+        return value.strip()
+
+
+class BugReportStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=("new", "in_progress", "resolved"))
 
 
 class PaymentReminderDispatchSerializer(serializers.ModelSerializer):

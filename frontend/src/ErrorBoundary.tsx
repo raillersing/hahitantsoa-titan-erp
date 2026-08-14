@@ -3,6 +3,7 @@ import React from 'react';
 type ErrorBoundaryProps = {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  onError?: (error: unknown, info: React.ErrorInfo) => void;
 };
 
 type ErrorBoundaryState = {
@@ -38,6 +39,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: unknown, info: React.ErrorInfo) {
     console.error('[ErrorBoundary] Caught render error:', error, info.componentStack);
+    this.props.onError?.(error, info);
   }
 
   handleReset = () => {
