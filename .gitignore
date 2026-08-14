@@ -18,6 +18,7 @@ graphify-out/
 .env.*
 backups/
 !.env.example
+!deploy/client/.env.client.example
 
 # Python
 .venv/
