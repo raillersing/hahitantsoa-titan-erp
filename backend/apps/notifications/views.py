@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
@@ -7,8 +9,10 @@ from rest_framework.views import APIView
 
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.identity.permissions import HasReservationSensitiveAccess
-from apps.notifications.models import PaymentReminderDispatch, SystemNotification
+from apps.notifications.models import BugReport, PaymentReminderDispatch, SystemNotification
 from apps.notifications.serializers import (
+    BugReportSerializer,
+    BugReportStatusSerializer,
     PaymentReminderDispatchCreateSerializer,
     PaymentReminderDispatchSerializer,
     SystemNotificationMarkReadSerializer,
@@ -19,6 +23,8 @@ from apps.notifications.services import (
     prepare_payment_reminder_dispatch,
 )
 from apps.reservations.models import ReservationDraft
+
+logger = logging.getLogger(__name__)
 
 
 class SystemNotificationListAPIView(generics.ListAPIView):
@@ -34,6 +40,44 @@ class SystemNotificationListAPIView(generics.ListAPIView):
         if unread_only == "true":
             qs = qs.filter(is_read=False)
         return qs
+
+
+class BugReportListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = BugReportSerializer
+
+    def get_queryset(self):
+        queryset = BugReport.objects.select_related("reporter")
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return queryset
+        return queryset.filter(reporter=self.request.user)
+
+    def perform_create(self, serializer):
+        report = serializer.save(reporter=self.request.user)
+        logger.info(
+            "bug_report_created report_id=%s reporter_id=%s severity=%s correlation_id=%s",
+            report.id,
+            self.request.user.id,
+            report.severity,
+            report.correlation_id or "-",
+        )
+
+
+class BugReportStatusAPIView(APIView):
+    http_method_names = ["patch", "head", "options"]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, id):
+        if not (request.user.is_staff or request.user.is_superuser):
+            return Response(
+                {"detail": "Accès administrateur requis."}, status=status.HTTP_403_FORBIDDEN
+            )
+        report = get_object_or_404(BugReport.objects.select_related("reporter"), pk=id)
+        serializer = BugReportStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        report.status = serializer.validated_data["status"]
+        report.save(update_fields=["status", "updated_at"])
+        return Response(BugReportSerializer(report).data)
 
 
 class SystemNotificationMarkReadAPIView(APIView):

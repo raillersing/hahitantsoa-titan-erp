@@ -1,6 +1,8 @@
 from django.urls import path
 
 from apps.notifications.views import (
+    BugReportListCreateAPIView,
+    BugReportStatusAPIView,
     PaymentReminderDispatchCreateAPIView,
     PaymentReminderDispatchDetailAPIView,
     SystemNotificationListAPIView,
@@ -9,6 +11,16 @@ from apps.notifications.views import (
 )
 
 urlpatterns = [
+    path(
+        "bug-reports/",
+        BugReportListCreateAPIView.as_view(),
+        name="bug-report-list-create",
+    ),
+    path(
+        "bug-reports/<uuid:id>/status/",
+        BugReportStatusAPIView.as_view(),
+        name="bug-report-status",
+    ),
     path(
         "payment-reminders/",
         PaymentReminderDispatchCreateAPIView.as_view(),

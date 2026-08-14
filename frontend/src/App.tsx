@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ErrorInfo } from "react";
 import { formatHash, isAppScope, parseHash, type AppRoute, type AppScope } from "./app-routes";
 import { useAuth } from "./AuthContext";
 import LoginPanel from "./LoginPanel";
@@ -22,6 +23,7 @@ import PackageBuilderPage from "./prototype/PackageBuilderPage";
 import AuditPage from "./prototype/AuditPage";
 import ReportsPage from "./prototype/ReportsPage";
 import HelpPage from "./prototype/HelpPage";
+import UserManualPage from "./prototype/UserManualPage";
 import ServicesPage from "./prototype/ServicesPage";
 import BlacklistPage from "./prototype/BlacklistPage";
 import InventoryPage from "./prototype/InventoryPage";
@@ -45,6 +47,7 @@ import HRPayrollPage from "./prototype/HRPayrollPage";
 import MobileTabletPage from "./prototype/MobileTabletPage";
 import BankSettingsPage from "./prototype/BankSettingsPage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
+import { createBugReport } from "./api";
 import { capabilitiesForUser } from "./capabilities";
 import ErrorBoundary from "./ErrorBoundary";
 
@@ -103,6 +106,18 @@ function App() {
   const activeScope = effectiveRoute.kind === "known" ? effectiveRoute.scope : "dashboard";
   const activeParam = effectiveRoute.kind === "known" ? effectiveRoute.param : undefined;
   const capabilities = state.status === "authenticated" ? capabilitiesForUser(state.user) : undefined;
+  const reportFrontendError = (error: unknown, info: ErrorInfo) => {
+    const message = error instanceof Error ? error.message : "Erreur d’affichage inattendue";
+    void createBugReport({
+      title: "Erreur d’affichage frontend",
+      description: message,
+      severity: "high",
+      page_url: window.location.href,
+      user_agent: navigator.userAgent,
+      error_message: info.componentStack || undefined,
+      correlation_id: crypto.randomUUID(),
+    }).catch(() => undefined);
+  };
   const routeFocusKey = effectiveRoute.kind === "known"
     ? `${effectiveRoute.scope}/${effectiveRoute.param ?? ""}`
     : effectiveRoute.requestedHash;
@@ -192,7 +207,8 @@ function App() {
       case "customers": return <CustomersPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "cashbox": return <CashboxPage onNavigate={navigate} />;
       case "caution": return <CautionPage onNavigate={navigate} />;
-      case "help": return <HelpPage onNavigate={navigate} />;
+      case "help": return <HelpPage onNavigate={navigate} canManageSupport={capabilities?.canManageIdentity ?? false} />;
+      case "user-manual": return <UserManualPage onNavigate={navigate} />;
       case "reservation-new": return <ReservationNewPage onNavigate={navigate} param={activeParam} />;
       case "reservation-detail":
         return activeParam?.startsWith("hahitantsoa:") ? (
@@ -256,7 +272,7 @@ function App() {
       onLogout={logout}
     >
       <section ref={routeContentRef} tabIndex={-1} className="min-w-0 outline-none" data-testid="route-content">
-        <ErrorBoundary>
+        <ErrorBoundary onError={reportFrontendError}>
           {deniedRoute ? (
             <section className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950 shadow-sm" role="alert">
               <h1 className="text-xl font-bold">Accès non autorisé</h1>

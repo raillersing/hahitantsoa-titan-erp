@@ -225,11 +225,27 @@ describe("CustomerPanel", () => {
       target: { value: "+261 34 00 000 03" },
     });
 
+    fireEvent.change(screen.getByLabelText("NIF"), {
+      target: { value: "NIF-NEW-001" },
+    });
+    fireEvent.change(screen.getByLabelText("STAT"), {
+      target: { value: "STAT-NEW-002" },
+    });
+    fireEvent.change(screen.getByLabelText("RCS"), {
+      target: { value: "RCS-NEW-003" },
+    });
+
     fireEvent.click(screen.getByText("Créer le client"));
 
     await waitFor(() => {
       expect(screen.getByText("New Client")).toBeTruthy();
     });
+    expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
+      party_type: "individual",
+      nif: "NIF-NEW-001",
+      stat: "STAT-NEW-002",
+      rcs: "RCS-NEW-003",
+    }));
   });
 
   it("disables form submit button while creating a customer", async () => {

@@ -33,6 +33,7 @@ const brandScopeByAppScope = {
   audit: "ergon",
   reports: "ergon",
   help: "ergon",
+  "user-manual": "ergon",
   reservations: "ergon",
   customer: "ergon",
   login: "ergon",
@@ -119,6 +120,7 @@ export default function AppShell({
     audit: "Audit & Sécurité",
     reports: "Reporting",
     help: "Aide & Onboarding",
+    "user-manual": "Manuel utilisateur",
     "reservation-new": "Nouvelle réservation",
     profile: "Profil utilisateur",
   };
@@ -445,6 +447,9 @@ export default function AppShell({
           </a>
           <a href="#help" onClick={(e) => { e.preventDefault(); onNavigate("help"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "help" ? "active" : ""}`}>
             <i className="fas fa-question-circle w-5 text-center"></i><span>Aide & Onboarding</span>
+          </a>
+          <a href="#user-manual" onClick={(e) => { e.preventDefault(); onNavigate("user-manual"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "user-manual" ? "active" : ""}`}>
+            <i className="fas fa-book-open w-5 text-center"></i><span>Manuel utilisateur</span>
           </a>
         </nav>
 

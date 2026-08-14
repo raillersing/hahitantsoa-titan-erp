@@ -152,7 +152,20 @@ def test_hahitantsoa_contract_contains_customer_identity_snapshot(
     draft.customer.id_type = "CIN"
     draft.customer.id_number = "101010101010"
     draft.customer.id_issue_place = "Antananarivo"
-    draft.customer.save(update_fields=["address", "id_type", "id_number", "id_issue_place"])
+    draft.customer.nif = "NIF-IND-001"
+    draft.customer.stat = "STAT-IND-002"
+    draft.customer.rcs = "RCS-IND-003"
+    draft.customer.save(
+        update_fields=[
+            "address",
+            "id_type",
+            "id_number",
+            "id_issue_place",
+            "nif",
+            "stat",
+            "rcs",
+        ]
+    )
 
     instance = create_document_instance_from_hahitantsoa_event_draft(
         event_draft=draft,
@@ -163,6 +176,27 @@ def test_hahitantsoa_contract_contains_customer_identity_snapshot(
     assert "Lot 12 Tana" in result.html_content
     assert "101010101010" in result.html_content
     assert "Antananarivo" in result.html_content
+    assert "NIF-IND-001" in result.html_content
+    assert "STAT-IND-002" in result.html_content
+    assert "RCS-IND-003" in result.html_content
+
+
+def test_titan_contract_contains_customer_company_identity_snapshot() -> None:
+    draft = _draft_with_line()
+    draft.customer.nif = "NIF-TITAN-001"
+    draft.customer.stat = "STAT-TITAN-002"
+    draft.customer.rcs = "RCS-TITAN-003"
+    draft.customer.save(update_fields=["nif", "stat", "rcs"])
+
+    instance = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.material_contract.v1",
+    )
+    result = generate_document_instance_html(document_instance=instance)
+
+    assert "NIF-TITAN-001" in result.html_content
+    assert "STAT-TITAN-002" in result.html_content
+    assert "RCS-TITAN-003" in result.html_content
 
 
 def test_generate_document_instance_html_invalid_status() -> None:

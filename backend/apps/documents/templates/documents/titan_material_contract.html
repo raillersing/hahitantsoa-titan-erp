@@ -13,6 +13,9 @@
     <p>Phone: {{ context.reservation_draft.customer.phone }}</p>
     <p>Address: {{ context.reservation_draft.customer.address }}</p>
     <p>Identity: {{ context.reservation_draft.customer.id_type }} {{ context.reservation_draft.customer.id_number }}</p>
+    <p>NIF: {{ context.reservation_draft.customer.nif }}</p>
+    <p>STAT: {{ context.reservation_draft.customer.stat }}</p>
+    <p>RCS: {{ context.reservation_draft.customer.rcs }}</p>
     <p>Window: {{ context.reservation_draft.start_at }} to {{ context.reservation_draft.end_at }}</p>
 
     <h2>Reserved Items</h2>

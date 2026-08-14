@@ -1333,6 +1333,32 @@ export type SystemNotification = {
   created_at: string;
 };
 
+export type BugReport = {
+  id: string;
+  reporter: string;
+  reporter_username: string;
+  title: string;
+  description: string;
+  severity: "low" | "medium" | "high" | "critical";
+  status: "new" | "in_progress" | "resolved";
+  page_url: string;
+  user_agent: string;
+  error_message: string;
+  correlation_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BugReportCreatePayload = {
+  title: string;
+  description: string;
+  severity?: BugReport["severity"];
+  page_url?: string;
+  user_agent?: string;
+  error_message?: string;
+  correlation_id?: string;
+};
+
 // ---- Import Excel ----
 
 export type ImportJobStatus = 'uploading' | 'mapping' | 'previewing' | 'validating' | 'importing' | 'completed' | 'failed';

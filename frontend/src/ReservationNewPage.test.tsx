@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
-import ReservationNewPage from './prototype/ReservationNewPage';
+import ReservationNewPage, { calculateReservationTotals } from './prototype/ReservationNewPage';
 import {
   getCustomers,
   getHahitantsoaVenues,
@@ -232,6 +232,43 @@ describe('ReservationNewPage', () => {
   afterEach(() => {
     expect(window.alert).not.toHaveBeenCalled();
     expect(window.confirm).not.toHaveBeenCalled();
+  });
+
+  it('calcule un total cohérent quand un package est ajusté ou retiré', () => {
+    const packageData = {
+      id: 'PKG-001',
+      name: 'Package de test',
+      description: '',
+      price: 200000,
+      is_active: true,
+      lines: [{ id: 'LINE-001', inventory_item: 'MAT-01', inventory_item_name: 'Chaise', quantity: 10, created_at: '' }],
+      created_at: '',
+      updated_at: '',
+    };
+    const selectedMaterials = [
+      { id: 'MAT-01', name: 'Chaise', price: 10000, quantity: 12 },
+      { id: 'MAT-02', name: 'Table complémentaire', price: 20000, quantity: 2 },
+    ];
+    const hDetails = {
+      rentalType: 'Location + article', venuePrice: 0, logisticsPrice: 0,
+      durationOptionPrice: 0, packageMode: 'package' as const, packageId: 'PKG-001',
+    };
+
+    const withPackage = calculateReservationTotals({
+      domain: 'hahitantsoa', hDetails, selectedMaterials, selectedServices: [],
+      packages: [packageData], catalog: [], deliveryFee: '', discountValue: 0, discountIsPercentage: false,
+    });
+    expect(withPackage.packageAdjustedTotal).toBe(220000);
+    expect(withPackage.complementaryMaterialsTotal).toBe(40000);
+    expect(withPackage.subTotalAmount).toBe(260000);
+    expect(withPackage.totalAmount).toBe(260000);
+
+    const withoutPackage = calculateReservationTotals({
+      domain: 'hahitantsoa', hDetails: { ...hDetails, packageMode: 'free' }, selectedMaterials,
+      selectedServices: [], packages: [packageData], catalog: [], deliveryFee: '', discountValue: 0, discountIsPercentage: false,
+    });
+    expect(withoutPackage.packageTotal).toBe(0);
+    expect(withoutPackage.subTotalAmount).toBe(160000);
   });
 
   it('1. la première étape affiche les deux chemins si pas de param', async () => {

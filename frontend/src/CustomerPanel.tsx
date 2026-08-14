@@ -88,9 +88,13 @@ type FicheLinkedState<T> =
 
 const INITIAL_FORM: CustomerCreatePayload = {
   display_name: "",
+  party_type: "individual",
   email: "",
   phone: "",
   address: "",
+  nif: "",
+  stat: "",
+  rcs: "",
   notes: "",
   is_active: true,
 };
@@ -507,9 +511,13 @@ function CustomerFormView({
     if (view === "edit" && customer) {
       return {
         display_name: customer.display_name,
+        party_type: customer.party_type ?? "individual",
         email: customer.email || "",
         phone: customer.phone || "",
         address: customer.address || "",
+        nif: customer.nif || "",
+        stat: customer.stat || "",
+        rcs: customer.rcs || "",
         notes: customer.notes || "",
         is_active: customer.is_active,
       };
@@ -634,6 +642,19 @@ function CustomerFormView({
           </div>
 
           <div className="form-group">
+            <label htmlFor="customer-party-type">Type de client</label>
+            <select
+              id="customer-party-type"
+              value={form.party_type ?? "individual"}
+              onChange={(e) => setField("party_type", e.target.value)}
+              disabled={isSubmitting || view === "edit"}
+            >
+              <option value="individual">Particulier</option>
+              <option value="company">Entreprise</option>
+            </select>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="customer-phone">Téléphone</label>
             <input
               id="customer-phone"
@@ -654,6 +675,42 @@ function CustomerFormView({
               rows={2}
             />
           </div>
+
+          <fieldset className="form-group">
+            <legend>Informations d’entreprise</legend>
+            <div className="customer-form-grid">
+              <label htmlFor="customer-nif">
+                NIF
+                <input
+                  id="customer-nif"
+                  type="text"
+                  value={form.nif ?? ""}
+                  onChange={(e) => setField("nif", e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </label>
+              <label htmlFor="customer-stat">
+                STAT
+                <input
+                  id="customer-stat"
+                  type="text"
+                  value={form.stat ?? ""}
+                  onChange={(e) => setField("stat", e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </label>
+              <label htmlFor="customer-rcs">
+                RCS
+                <input
+                  id="customer-rcs"
+                  type="text"
+                  value={form.rcs ?? ""}
+                  onChange={(e) => setField("rcs", e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </label>
+            </div>
+          </fieldset>
 
           <div className="form-group">
             <label htmlFor="customer-notes">Notes</label>

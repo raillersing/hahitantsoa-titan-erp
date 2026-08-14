@@ -85,11 +85,20 @@ describe('CustomersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Client Persisté' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.change(screen.getByPlaceholderText('NIF'), { target: { value: 'NIF-IND-001' } });
+    fireEvent.change(screen.getByPlaceholderText('STAT'), { target: { value: 'STAT-IND-001' } });
+    fireEvent.change(screen.getByPlaceholderText('RCS'), { target: { value: 'RCS-IND-001' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Créer le client' }));
     expect(await screen.findByText('Ando Rakoto')).toBeInTheDocument();
-    expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Client Persisté' }));
+    expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
+      display_name: 'Client Persisté',
+      party_type: 'individual',
+      nif: 'NIF-IND-001',
+      stat: 'STAT-IND-001',
+      rcs: 'RCS-IND-001',
+    }));
     expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-099');
   });
 });

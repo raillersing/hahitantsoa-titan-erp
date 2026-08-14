@@ -100,6 +100,27 @@ def test_create_preserves_contract_identity_fields(staff_authenticated_client):
     assert data["id_issue_place"] == "Antananarivo"
 
 
+def test_create_individual_preserves_company_identity_fields(staff_authenticated_client):
+    response = staff_authenticated_client.post(
+        CUSTOMER_CREATE_URL,
+        {
+            "display_name": "Particulier avec identifiants",
+            "party_type": "individual",
+            "nif": "NIF-IND-001",
+            "stat": "STAT-IND-002",
+            "rcs": "RCS-IND-003",
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["party_type"] == "individual"
+    assert data["nif"] == "NIF-IND-001"
+    assert data["stat"] == "STAT-IND-002"
+    assert data["rcs"] == "RCS-IND-003"
+
+
 def test_create_prospect_company_preserves_initial_classification(staff_authenticated_client):
     response = staff_authenticated_client.post(
         CUSTOMER_CREATE_URL,
