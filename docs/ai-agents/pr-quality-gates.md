@@ -65,6 +65,13 @@ reports the missing behavior evidence as `UNCONFIRMED`.
 This is a development-loop optimization only. Required PR CI and exact-SHA `main` CI
 still run their complete applicable gates before and after merge.
 
+The backend CI gate runs as four deterministic test-file shards with an isolated service
+database per job. A green backend gate means every shard passed; a failed shard blocks
+the policy gate. The local complete wrapper remains available for final affected-stack
+validation and does not use the CI shard shortcut. Sharding is intentionally by test
+file, not by shared database worker, so transaction-sensitive, payment, stock, and
+reservation tests keep their existing isolation model.
+
 ### Mandatory risk overrides
 
 | Risk | Minimum level and additional evidence |

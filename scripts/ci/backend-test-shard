@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+if [ "$#" -ne 2 ] || ! [[ "$1" =~ ^[1-9][0-9]*$ ]] || ! [[ "$2" =~ ^[1-9][0-9]*$ ]] || [ "$1" -gt "$2" ]; then
+  echo "Usage: scripts/ci/backend-test-shard SHARD_INDEX SHARD_COUNT" >&2
+  exit 2
+fi
+
+shard_index="$1"
+shard_count="$2"
+mapfile -t test_files < <(
+  find tests/backend -type f \
+    \( -name 'test_*.py' -o -name '*_test.py' -o -name 'tests.py' \) \
+    -print | sort
+)
+
+selected=()
+for index in "${!test_files[@]}"; do
+  if [ $((index % shard_count + 1)) -eq "$shard_index" ]; then
+    selected+=("${test_files[$index]}")
+  fi
+done
+
+if [ "${#selected[@]}" -eq 0 ]; then
+  echo "ERROR: shard $shard_index/$shard_count selected no test files." >&2
+  exit 1
+fi
+
+echo "Backend test shard $shard_index/$shard_count: ${#selected[@]} test files"
+printf '  %s\n' "${selected[@]}"
+bash scripts/ci/backend-quality "${selected[@]}" --durations=20
