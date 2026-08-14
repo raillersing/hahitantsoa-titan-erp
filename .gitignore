@@ -16,6 +16,7 @@ graphify-out/
 # Environment and secrets
 .env
 .env.*
+backups/
 !.env.example
 
 # Python
