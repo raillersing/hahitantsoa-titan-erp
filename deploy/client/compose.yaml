@@ -1,0 +1,85 @@
+name: hahitantsoa_titan_erp_client
+
+services:
+  db:
+    image: postgres:17.10-bookworm
+    env_file: .env.client
+    volumes:
+      - client_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks: [client_internal]
+
+  redis:
+    image: redis:7.4.9-alpine
+    env_file: .env.client
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+    volumes:
+      - client_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks: [client_internal]
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: deploy/client/Dockerfile.backend
+    env_file: .env.client
+    command: ["python", "backend/manage.py", "migrate", "--noinput"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [client_internal]
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: deploy/client/Dockerfile.backend
+    env_file: .env.client
+    environment:
+      DOCUMENT_PDF_GENERATOR_CLASS: apps.documents.pdf.WeasyPrintPDFGenerator
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - client_media_data:/app/backend/media
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import json, urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=2); data = json.loads(response.read().decode()); raise SystemExit(0 if response.status == 200 and data.get('status') == 'ok' else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks: [client_internal]
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: deploy/client/Dockerfile.frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${CLIENT_APP_PORT:-5173}:80"
+    restart: unless-stopped
+    networks: [client_internal]
+
+volumes:
+  client_postgres_data:
+  client_redis_data:
+  client_media_data:
+
+networks:
+  client_internal:
