@@ -41,6 +41,30 @@ Selection rules:
   must expose one required policy-gate check so skipped inapplicable jobs cannot look
   like missing validation.
 
+### Fast local loop
+
+Use `scripts/dev/erp-local-fast` during implementation to avoid repeating the full
+suite after every small edit:
+
+```sh
+scripts/dev/erp-logged-run local-fast <<'EOF'
+set -euo pipefail
+scripts/dev/erp-local-fast --base origin/main \\
+  --backend-tests tests/backend/path_or_module.py
+EOF
+```
+
+The helper verifies the diff, runs touched-scope Ruff, the explicitly selected pytest
+or Vitest targets, and a frontend production build when frontend source is changed.
+It refuses the fast lane for authentication, API contracts, migrations, payments,
+stock/reservation concurrency, dependencies, CI/tooling, or configuration changes;
+those changes must use the complete affected-stack gate. If a changed behavior has no
+test target yet, the command fails unless `--allow-no-tests` is supplied, and then
+reports the missing behavior evidence as `UNCONFIRMED`.
+
+This is a development-loop optimization only. Required PR CI and exact-SHA `main` CI
+still run their complete applicable gates before and after merge.
+
 ### Mandatory risk overrides
 
 | Risk | Minimum level and additional evidence |

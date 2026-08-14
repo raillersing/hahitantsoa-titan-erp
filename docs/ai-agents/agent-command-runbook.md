@@ -269,6 +269,26 @@ Backend validation now uses three wrappers:
   affected-stack gate
 - `scripts/dev/erp-backend-migration-guard` for migration-sensitive tasks
 
+## Fast Local Validation
+
+For a bounded implementation change, use the change-aware local loop before the
+complete gate:
+
+```sh
+scripts/dev/erp-logged-run local-fast <<'EOF'
+set -euo pipefail
+scripts/dev/erp-local-fast --base origin/main \\
+  --backend-tests tests/backend/path_or_module.py
+EOF
+```
+
+Repeat `--backend-tests` or use `--frontend-tests` for each explicit target. The
+helper automatically runs `git diff --check`, touched-scope static checks, selected
+tests, and the frontend build when applicable. It stops on mandatory-risk paths and
+directs the agent to the complete backend/frontend gate. Do not use
+`--allow-no-tests` for a claimed behavior fix unless the report explicitly records
+the resulting `UNCONFIRMED` evidence.
+
 ## Backend Productivity Report
 
 After each backend PR finalizes, add a short backend productivity report to the PR

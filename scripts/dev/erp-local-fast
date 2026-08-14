@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+cd "$REPO_ROOT"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-local-fast --base <sha-or-ref> [options]
+
+Options:
+  --base REF                 Comparison base (required)
+  --head REF                 Comparison head (default: HEAD)
+  --backend-tests TARGET     Explicit pytest target; repeatable
+  --frontend-tests TARGET    Explicit Vitest target; repeatable
+  --allow-no-tests           Run static checks when no target is supplied,
+                             but report behavior coverage as UNCONFIRMED
+  -h, --help                 Show this help
+
+Purpose:
+  Run the smallest useful local validation for a bounded change. This helper
+  never replaces PR CI or the exact-SHA main CI gate.
+USAGE
+}
+
+base_ref=""
+head_ref="HEAD"
+allow_no_tests=false
+backend_tests=()
+frontend_tests=()
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --base)
+      [ "$#" -ge 2 ] || { echo "ERROR: --base requires a value." >&2; exit 2; }
+      base_ref="$2"; shift 2 ;;
+    --head)
+      [ "$#" -ge 2 ] || { echo "ERROR: --head requires a value." >&2; exit 2; }
+      head_ref="$2"; shift 2 ;;
+    --backend-tests)
+      [ "$#" -ge 2 ] || { echo "ERROR: --backend-tests requires a target." >&2; exit 2; }
+      backend_tests+=("$2"); shift 2 ;;
+    --frontend-tests)
+      [ "$#" -ge 2 ] || { echo "ERROR: --frontend-tests requires a target." >&2; exit 2; }
+      frontend_tests+=("$2"); shift 2 ;;
+    --allow-no-tests)
+      allow_no_tests=true; shift ;;
+    -h|--help)
+      usage; exit 0 ;;
+    *)
+      echo "ERROR: unknown option: $1" >&2
+      usage >&2
+      exit 2 ;;
+  esac
+done
+
+[ -n "$base_ref" ] || { echo "ERROR: --base is required." >&2; usage >&2; exit 2; }
+git rev-parse --verify "$base_ref^{commit}" >/dev/null
+git rev-parse --verify "$head_ref^{commit}" >/dev/null
+
+mapfile -t changed_files < <(git diff --name-only --diff-filter=ACDMRTUXB "$base_ref...$head_ref")
+[ "${#changed_files[@]}" -gt 0 ] || {
+  echo "No changed files between $base_ref and $head_ref."
+  git diff --check "$base_ref...$head_ref"
+  exit 0
+}
+
+backend=false
+frontend=false
+docs_only=true
+high_risk=false
+backend_paths=()
+frontend_paths=()
+
+for path in "${changed_files[@]}"; do
+  case "$path" in
+    docs/*|.agents/skills/*|*.md|.gitignore)
+      ;;
+    backend/*|tests/backend/*|pyproject.toml|requirements*.txt)
+      backend=true; docs_only=false
+      case "$path" in backend/*) backend_paths+=("$path");; esac
+      ;;
+    frontend/*)
+      frontend=true; docs_only=false; frontend_paths+=("${path#frontend/}");
+      ;;
+    *)
+      docs_only=false; high_risk=true
+      ;;
+  esac
+
+  case "$path" in
+    backend/identity/*|backend/config/*|backend/*/migrations/*|backend/*/api.py|backend/*/urls.py|backend/*/serializers.py|frontend/*auth*|frontend/*Auth*|frontend/*api*|frontend/*Api*|pyproject.toml|requirements*.txt|frontend/package.json|frontend/package-lock.json|frontend/vite.config.*|frontend/tsconfig*.json|.github/workflows/*|scripts/ci/*|scripts/dev/erp-*)
+      high_risk=true ;;
+  esac
+done
+
+echo "Changed files: ${#changed_files[@]}"
+printf '  %s\n' "${changed_files[@]}"
+
+git diff --check "$base_ref...$head_ref"
+
+if [ "$docs_only" = true ]; then
+  echo "erp-local-fast: L0 documentation-only validation passed."
+  exit 0
+fi
+
+if [ "$high_risk" = true ]; then
+  cat >&2 <<'MSG'
+erp-local-fast: refusing the fast lane for a mandatory-risk or tooling change.
+Use the applicable complete gate (erp-backend-ci, erp-frontend-ci, or both)
+and record the risk review before pushing.
+MSG
+  exit 3
+fi
+
+if [ "$backend" = true ]; then
+  [ "${#backend_paths[@]}" -gt 0 ] || backend_paths=(backend tests/backend)
+  echo "--- backend focused Ruff ---"
+  scripts/dev/erp-backend-compose-ci run --rm backend python -m ruff check "${backend_paths[@]}"
+  if [ "${#backend_tests[@]}" -eq 0 ]; then
+    if [ "$allow_no_tests" = false ]; then
+      echo "ERROR: provide --backend-tests TARGET or explicitly use --allow-no-tests." >&2
+      exit 4
+    fi
+    echo "UNCONFIRMED: no backend behavior tests were selected."
+  else
+    echo "--- backend focused pytest ---"
+    scripts/dev/erp-backend-fast "${backend_tests[@]}" -q
+  fi
+fi
+
+if [ "$frontend" = true ]; then
+  cd "$REPO_ROOT/frontend"
+  if [ "${#frontend_tests[@]}" -eq 0 ]; then
+    if [ "$allow_no_tests" = false ]; then
+      echo "ERROR: provide --frontend-tests TARGET or explicitly use --allow-no-tests." >&2
+      exit 4
+    fi
+    echo "UNCONFIRMED: no frontend behavior tests were selected."
+  else
+    echo "--- frontend focused Vitest ---"
+    npm test -- --run "${frontend_tests[@]}"
+  fi
+  echo "--- frontend production build ---"
+  npm run build
+fi
+
+echo "erp-local-fast: focused local validation passed; PR/main CI remains mandatory."
