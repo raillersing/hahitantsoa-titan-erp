@@ -289,6 +289,11 @@ directs the agent to the complete backend/frontend gate. Do not use
 `--allow-no-tests` for a claimed behavior fix unless the report explicitly records
 the resulting `UNCONFIRMED` evidence.
 
+The GitHub backend gate uses four deterministic test-file shards, each with its own
+PostgreSQL and Redis services. This reduces wall-clock time without using shared
+database workers. The full local wrapper remains the fallback when diagnosing a
+cross-file or concurrency-sensitive failure.
+
 ## Backend Productivity Report
 
 After each backend PR finalizes, add a short backend productivity report to the PR
