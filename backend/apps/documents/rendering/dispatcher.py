@@ -14,6 +14,7 @@ DOCUMENT_TEMPLATE_PATHS: dict[str, str] = {
     "titan.invoice.v1": "documents/titan_invoice.html",
     "titan.delivery_note.v1": "documents/titan_delivery_note.html",
     "shared.payment_receipt.v1": "documents/shared_payment_receipt.html",
+    "hahitantsoa.payment_receipt.v1": "documents/hahitantsoa_payment_receipt.html",
     "shared.payment_refund_receipt.v1": "documents/shared_payment_refund_receipt.html",
     "shared.return_note.v1": "documents/shared_return_note.html",
     "shared.preparation_sheet.v1": "documents/preparation_sheet.html",

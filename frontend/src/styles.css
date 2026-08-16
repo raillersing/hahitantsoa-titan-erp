@@ -148,6 +148,19 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
   box-sizing: border-box;
 }
 
+/* Thermal receipts are printed on an 80 mm roll, not on the A4 document canvas. */
+.document-preview-shell--thermal-receipt {
+  width: 80mm !important;
+  max-width: 80mm !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.document-preview-shell--thermal-receipt .document-instance-artifact {
+  width: 80mm;
+  min-width: 80mm;
+}
+
 /* The approved source proformas use a compact sans-serif invoice grid. */
 .commercial-proforma-preview {
   width: 794px !important;

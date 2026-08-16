@@ -21,6 +21,7 @@ describe("DocumentsHubPage", () => {
         id: "doc-1",
         document_type: "proforma",
         business_scope: "titan",
+        template_key: "titan.proforma.v1",
         template_label: "Proforma Titan",
         reservation_public_reference: "RES-001",
         reservation_status: "draft",

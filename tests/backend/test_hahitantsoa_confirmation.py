@@ -150,6 +150,9 @@ def test_hahitantsoa_confirmation_succeeds_persists_state_blocks_and_audit(
     assert checklist.status == "generated"
     assert checklist.storage_path
     assert checklist.pdf_storage_path
+    assert draft.payments.get(payment_status="confirmed").receipt_document.template_key == (
+        "hahitantsoa.payment_receipt.v1"
+    )
     assert audit_event.metadata["blocked_item_count"] == 1
 
 

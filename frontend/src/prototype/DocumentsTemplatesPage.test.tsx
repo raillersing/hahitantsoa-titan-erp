@@ -58,6 +58,35 @@ describe("DocumentsTemplatesPage", () => {
     ));
   });
 
+  it("renders the Hahitantsoa payment receipt on the 80 mm thermal canvas", async () => {
+    vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([
+      {
+        key: "hahitantsoa.payment_receipt.v1",
+        business_scope: "hahitantsoa",
+        document_type: "receipt",
+        label: "Reçu de paiement Hahitantsoa",
+        version: "v1",
+        status: "active",
+        source_kind: "source_image",
+        source_reference: "recu hahitantsoa.jpeg",
+        template_path: "/templates/receipt.html",
+        preview_path: "/preview/receipt.html",
+        validated_by_client: false,
+        notes: "",
+      },
+    ]);
+    vi.spyOn(api, "getDocumentTemplatePreview").mockResolvedValue(
+      '<style>@page { size: 80mm 120mm; }</style><main>Reçu</main>',
+    );
+
+    render(<DocumentsTemplatesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: /Reçu de paiement Hahitantsoa/ }));
+
+    const frame = await screen.findByTestId("document-template-preview");
+    expect(frame).toHaveAttribute("data-paper-size", "THERMAL_80MM");
+    expect(await screen.findByText(/80 mm thermique · 1 page/)).toBeInTheDocument();
+  });
+
   it("uses the protected workflow renderer for contracts instead of catalog HTML", async () => {
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([
       {

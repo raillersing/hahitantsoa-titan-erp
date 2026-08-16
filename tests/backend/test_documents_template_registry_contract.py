@@ -44,9 +44,11 @@ def test_document_template_registry_required_fields_are_populated() -> None:
         assert template.status in {
             "validated_source_template",
             "generated_draft_template",
+            "source_backed_template",
         }
         assert template.source_kind in {
             "source_pdf",
+            "source_image",
             "generated_from_brand_style",
         }
         assert template.source_reference

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Reçu de paiement d'acompte Hahitantsoa</title>
+  <style>
+    @page { size: 80mm {{ context.payment.receipt_page_height_mm|default:"120" }}mm; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { width: 80mm; margin: 0; padding: 0; background: #fff; }
+    body {
+      color: #111;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10px;
+      line-height: 1.22;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .receipt {
+      width: 80mm;
+      padding: 4mm 3.5mm 5mm;
+      overflow-wrap: anywhere;
+    }
+    .brand {
+      display: block;
+      width: 31mm;
+      height: auto;
+      max-height: 19mm;
+      object-fit: contain;
+      margin: 0 auto 3mm;
+    }
+    h1 {
+      margin: 0 0 4mm;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .35px;
+      text-transform: uppercase;
+    }
+    .field {
+      display: grid;
+      grid-template-columns: 31mm minmax(0, 1fr);
+      gap: 2mm;
+      margin: 1.25mm 0;
+    }
+    .label { font-weight: 700; }
+    .value { min-width: 0; }
+    .section-title {
+      margin: 4mm 0 1.5mm;
+      font-weight: 700;
+      font-size: 10px;
+    }
+    .history {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 9px;
+    }
+    .history th,
+    .history td {
+      padding: 1mm 0;
+      vertical-align: top;
+      text-align: left;
+    }
+    .history th { font-weight: 700; }
+    .history th:nth-child(1), .history td:nth-child(1) { width: 25mm; }
+    .history th:nth-child(2), .history td:nth-child(2) { width: 22mm; text-align: right; }
+    .history th:nth-child(3), .history td:nth-child(3) { padding-left: 2mm; }
+    .total {
+      display: flex;
+      justify-content: space-between;
+      gap: 2mm;
+      margin-top: 2mm;
+      padding-top: 1.5mm;
+      border-top: 1px solid #111;
+      font-weight: 700;
+    }
+    .total span:last-child { text-align: right; white-space: nowrap; }
+    .rule { border-top: 1px solid #111; margin: 4mm 0 2mm; }
+    .footer { margin-top: 3mm; text-align: center; font-size: 8px; }
+    @media screen {
+      body { margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="receipt">
+    <img class="brand" src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa">
+    <h1>Reçu de paiement d'acompte</h1>
+
+    <div class="field"><span class="label">Date</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
+    <div class="field"><span class="label">Nom Client</span><span class="value">{{ context.payment.customer_display_name|default:"—" }}</span></div>
+    <div class="field"><span class="label">Date Evénement</span><span class="value">{{ context.payment.event_date_label|default:"—" }}</span></div>
+    <div class="field"><span class="label">Montant payé</span><span class="value">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
+    <div class="field"><span class="label">Mode de paiement</span><span class="value">{{ context.payment.payment_method_label|default:context.payment.payment_method|default:"—" }}</span></div>
+    <div class="field"><span class="label">Référence</span><span class="value">{{ context.payment.transaction_reference|default:"—" }}</span></div>
+
+    <div class="section-title">Historique des paiements</div>
+    <table class="history">
+      <thead><tr><th>Date</th><th>Montant</th><th>Mode</th></tr></thead>
+      <tbody>
+        {% for item in context.payment.history %}
+        <tr><td>{{ item.date_label|default:"—" }}</td><td>{{ item.amount_label|default:"—" }} Ar</td><td>{{ item.method_label|default:"—" }}</td></tr>
+        {% empty %}
+        <tr><td colspan="3">Aucun paiement confirmé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="total"><span>TOTAL ACOMPTE</span><span>{{ context.payment.total_deposit_label|default:"—" }} Ar</span></div>
+
+    <div class="rule"></div>
+    <div class="field"><span class="label">N° Proforma</span><span class="value">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
+    <div class="field"><span class="label">Montant Proforma</span><span class="value">{{ context.payment.proforma_amount_label|default:"—" }}{% if context.payment.proforma_amount_label %} Ar{% endif %}</span></div>
+    <div class="field"><span class="label">Reste à payer</span><span class="value">{{ context.payment.remaining_balance_label|default:"—" }}{% if context.payment.remaining_balance_label %} Ar{% endif %}</span></div>
+
+    <div class="footer">Document généré par Hahitantsoa</div>
+  </main>
+</body>
+</html>

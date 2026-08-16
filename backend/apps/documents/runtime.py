@@ -161,11 +161,19 @@ def generate_document_instance_html(
             code="invalid_document_status_for_generation",
         )
 
-    if document_instance.template_key == "shared.payment_receipt.v1":
+    if document_instance.template_key in {
+        "shared.payment_receipt.v1",
+        "hahitantsoa.payment_receipt.v1",
+    }:
         from apps.payments.models import Payment
 
         payment = (
-            Payment.objects.select_related("reservation_draft", "reservation_draft__customer")
+            Payment.objects.select_related(
+                "reservation_draft",
+                "reservation_draft__customer",
+                "hahitantsoa_event_draft",
+                "hahitantsoa_event_draft__customer",
+            )
             .filter(receipt_document=document_instance)
             .first()
         )
@@ -174,8 +182,14 @@ def generate_document_instance_html(
                 "Payment receipt document is not linked to a payment source.",
                 code=PAYMENT_RECEIPT_PAYMENT_NOT_FOUND,
             )
-        context = build_payment_receipt_context(payment=payment)
-        template_path = "documents/shared_payment_receipt.html"
+        context = build_payment_receipt_context(
+            payment=payment, template_key=document_instance.template_key
+        )
+        template_path = (
+            "documents/hahitantsoa_payment_receipt.html"
+            if document_instance.template_key == "hahitantsoa.payment_receipt.v1"
+            else "documents/shared_payment_receipt.html"
+        )
     elif document_instance.template_key == "shared.payment_refund_receipt.v1":
         from apps.payments.models import Payment
 
@@ -191,7 +205,9 @@ def generate_document_instance_html(
                 "Payment refund receipt document is not linked to a payment source.",
                 code="payment_refund_receipt_payment_not_found",
             )
-        context = build_payment_receipt_context(payment=payment)
+        context = build_payment_receipt_context(
+            payment=payment, template_key="shared.payment_receipt.v1"
+        )
         template_path = "documents/shared_payment_refund_receipt.html"
     elif document_instance.template_key == "shared.damage_loss_excess_invoice.v1":
         # Fetch the excess receivable linked to this document instance

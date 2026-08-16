@@ -2,8 +2,16 @@ from dataclasses import dataclass
 from typing import Literal
 
 BusinessScope = Literal["hahitantsoa", "titan", "shared"]
-TemplateStatus = Literal["validated_source_template", "generated_draft_template"]
-TemplateSourceKind = Literal["source_pdf", "generated_from_brand_style"]
+TemplateStatus = Literal[
+    "validated_source_template",
+    "generated_draft_template",
+    "source_backed_template",
+]
+TemplateSourceKind = Literal[
+    "source_pdf",
+    "source_image",
+    "generated_from_brand_style",
+]
 
 DRAFT_PLACEHOLDER_NOTE = (
     "Draft placeholder only. Template content and PDF generation are out of scope for F98."
@@ -208,6 +216,24 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         preview_path="backend/apps/documents/templates_documents/shared/recu_paiement/v1/preview.pdf",
         validated_by_client=False,
         notes=DRAFT_PLACEHOLDER_NOTE,
+    ),
+    DocumentTemplateDefinition(
+        key="hahitantsoa.payment_receipt.v1",
+        business_scope="hahitantsoa",
+        document_type="payment_receipt",
+        label="Reçu de paiement Hahitantsoa",
+        version="v1",
+        status="source_backed_template",
+        source_kind="source_image",
+        source_reference="docs/references/source/templates/recu hahitantsoa.jpeg",
+        template_path="backend/apps/documents/templates/documents/hahitantsoa_payment_receipt.html",
+        preview_path="backend/apps/documents/templates_documents/hahitantsoa/recu_paiement/v1/preview.pdf",
+        validated_by_client=False,
+        notes=(
+            "Source-backed 80 mm thermal receipt from the approved Hahitantsoa image. "
+            "PDF is generated at runtime. The proforma amount remains blank until a persisted "
+            "authoritative amount exists."
+        ),
     ),
     DocumentTemplateDefinition(
         key="shared.payment_refund_receipt.v1",

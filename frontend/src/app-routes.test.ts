@@ -26,6 +26,15 @@ describe("hash routes", () => {
     expect(formatHash("desired-dates")).toBe("#desired-dates");
   });
 
+  it("keeps the documents templates tab on the documents scope", () => {
+    expect(parseHash("#documents/templates")).toEqual({
+      kind: "known",
+      scope: "documents",
+      param: "templates",
+    });
+    expect(formatHash("documents", "templates")).toBe("#documents/templates");
+  });
+
   it("does not crash on malformed parameter encoding", () => {
     expect(parseHash("#customer/%E0%A4%A")).toEqual({
       kind: "known",
