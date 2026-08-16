@@ -669,6 +669,7 @@ export type DocumentInstanceListItem = {
   id: string;
   document_type: string;
   business_scope: string;
+  template_key: string;
   template_label: string;
   reservation_public_reference: string;
   reservation_status: string;

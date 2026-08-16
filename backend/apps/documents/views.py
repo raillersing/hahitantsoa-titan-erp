@@ -344,6 +344,22 @@ def _build_mock_preview_context(template_definition, *, party_type: str = "indiv
             "reservation_public_reference": "________________",
             "reservation_draft": reservation_context["reservation_draft"],
             "customer": mock_customer,
+            "event_date": None,
+            "event_date_label": "________________",
+            "payment_date_label": "________________",
+            "payment_method_label": "________________",
+            "transaction_reference": "________________",
+            "history": [
+                {
+                    "date_label": "________________",
+                    "amount_label": "________________",
+                    "method_label": "________________",
+                }
+            ],
+            "total_deposit_label": "________________",
+            "proforma_reference": "________________",
+            "proforma_amount_label": "________________",
+            "remaining_balance_label": "________________",
         },
         "blank_preview": True,
     }

@@ -243,7 +243,7 @@ function App() {
       case "reports": return <ReportsPage onNavigate={navigate} />;
       case "venues": return <VenuesPage />;
       case "admin": return <AdminPage onNavigate={navigate} />;
-      case "documents": return <DocumentsPage onNavigate={navigate} />;
+      case "documents": return <DocumentsPage onNavigate={navigate} param={activeParam} />;
       case "agenda-visitors": return <AgendaVisitorsPage onNavigate={navigate} />;
       case "desired-dates": return <DesiredDatesPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} currentUserId={state.user.id} />;
       case "profile": return <ProfilePage user={state.user} />;

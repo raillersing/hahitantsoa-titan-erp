@@ -24,7 +24,7 @@ const VARIABLE_MAP: Record<string, string> = {
   "document.date": "Date edition",
 };
 
-type PaperSize = "A4";
+type PaperSize = "A4" | "THERMAL_80MM";
 
 const EXCLUDED_CATALOG_TEMPLATE_KEYS = new Set(["hahitantsoa.house_rules.v1"]);
 const WORKFLOW_PREVIEW_KEYS = new Set([
@@ -36,6 +36,13 @@ const WORKFLOW_PREVIEW_KEYS = new Set([
 
 const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number }> = {
   A4: { width: 794, height: 1123 },
+  // CSS pixels at 96 dpi: 80 mm x 120 mm thermal receipt.
+  THERMAL_80MM: { width: 302, height: 454 },
+};
+
+const PAPER_LABELS: Record<PaperSize, string> = {
+  A4: "A4",
+  THERMAL_80MM: "80 mm thermique",
 };
 
 function extractVariables(html: string): string[] {
@@ -48,8 +55,8 @@ function extractVariables(html: string): string[] {
   return Array.from(found);
 }
 
-function detectPaperSize(_html: string): PaperSize {
-  // All ERP documents are emitted and previewed on the normalized A4 canvas.
+function detectPaperSize(html: string): PaperSize {
+  if (/@page\s*\{[^}]*size:\s*80mm\b/i.test(html)) return "THERMAL_80MM";
   return "A4";
 }
 
@@ -96,6 +103,7 @@ export default function DocumentsTemplatesPage() {
   const currentTemplate = previewIndex >= 0 ? templates[previewIndex] : undefined;
   const usesWorkflowPreview = Boolean(currentTemplate && WORKFLOW_PREVIEW_KEYS.has(currentTemplate.key));
   const paperDimensions = PAPER_DIMENSIONS[paperSize];
+  const paperLabel = PAPER_LABELS[paperSize];
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -309,7 +317,7 @@ export default function DocumentsTemplatesPage() {
                       {currentTemplate.label}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      {currentTemplate.document_type.replace(/_/g, " ")} · {paperSize}
+                      {currentTemplate.document_type.replace(/_/g, " ")} · {paperLabel}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -456,11 +464,11 @@ export default function DocumentsTemplatesPage() {
                   <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 text-sm lg:block lg:space-y-4">
                     <div><dt className="text-xs text-slate-500">Volet</dt><dd className="mt-1 font-semibold capitalize text-slate-900">{currentTemplate.business_scope}</dd></div>
                     <div><dt className="text-xs text-slate-500">Type</dt><dd className="mt-1 font-semibold capitalize text-slate-900">{currentTemplate.document_type.replace(/_/g, " ")}</dd></div>
-                    <div><dt className="text-xs text-slate-500">Format</dt><dd className="mt-1 font-semibold text-slate-900">{paperSize} · {pageCount} page{pageCount > 1 ? "s" : ""}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Format</dt><dd className="mt-1 font-semibold text-slate-900">{paperLabel} · {pageCount} page{pageCount > 1 ? "s" : ""}</dd></div>
                     <div><dt className="text-xs text-slate-500">Version</dt><dd className="mt-1 font-semibold text-slate-900">{currentTemplate.version || "—"}</dd></div>
                   </dl>
                   <div className="mt-5 border-t border-slate-100 pt-4">
-                    <p className="text-xs leading-5 text-slate-500">Le canvas respecte le format A4 et conserve le rendu du document source. Les variantes particulier/entreprise sont disponibles quand le modèle les prévoit.</p>
+                    <p className="text-xs leading-5 text-slate-500">Le canvas respecte le format du document source et conserve son rendu. Les variantes particulier/entreprise sont disponibles quand le modèle les prévoit.</p>
                   </div>
                 </aside>
                 </div>

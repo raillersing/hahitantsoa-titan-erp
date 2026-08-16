@@ -14,6 +14,7 @@ from apps.documents.views import (
 )
 
 SOURCE_BACKED_DOCUMENTS = (
+    ("hahitantsoa.payment_receipt.v1", "80mm", "Reçu de paiement"),
     ("hahitantsoa.liability_release.v1", "A4", "DECHARGE DE RESPONSABILITE"),
     ("hahitantsoa.delivery_note.v1", "A4", "BON DE LIVRAISON"),
     ("hahitantsoa.invoice.v1", "A4", "FACTURE"),
@@ -60,8 +61,12 @@ def test_source_backed_template_preview_renders_with_variables(template_key: str
             "show_variables": True,
         },
     )
-    assert "{{" in html
-    assert "}}" in html
+    if template_key == "hahitantsoa.payment_receipt.v1":
+        assert "________________" in html
+        assert "size: 80mm 120mm" in html
+    else:
+        assert "{{" in html
+        assert "}}" in html
 
 
 @pytest.mark.parametrize("template_key,title", CONSTRUCTED_DOCUMENTS)

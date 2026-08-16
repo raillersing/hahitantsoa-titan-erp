@@ -274,7 +274,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
           </div>
           <button
             className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition"
-            onClick={() => onNavigate("documents-templates")}
+            onClick={() => onNavigate("documents", "templates")}
           >
             <i className="fa-solid fa-plus mr-2"></i>Nouveau
           </button>
@@ -458,7 +458,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                           type="button"
                           aria-label="Ouvrir les modèles de documents"
                           title="Plus"
-                          onClick={() => onNavigate("documents-templates")}
+                          onClick={() => onNavigate("documents", "templates")}
                         >
                           <i className="fa-solid fa-ellipsis-vertical"></i>
                         </button>
@@ -537,7 +537,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                       type="button"
                       aria-label="Ouvrir les modèles de documents"
                       title="Plus"
-                      onClick={() => onNavigate("documents-templates")}
+                      onClick={() => onNavigate("documents", "templates")}
                     >
                       <i className="fa-solid fa-ellipsis-vertical"></i>
                     </button>
@@ -621,7 +621,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                 {previewLoading && <div className="flex min-h-full items-center justify-center"><LoadingSpinner size="sm" message="Chargement de l'aperçu…" /></div>}
                 {previewError && <div className="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert"><i className="fa-solid fa-circle-exclamation mr-2"></i>{previewError}</div>}
                 {previewHtml && !previewLoading && !previewError && (
-                  <div className="mx-auto min-h-full w-full max-w-[210mm] rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6">
+                  <div className={`document-preview-shell mx-auto min-h-full w-full rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-6 ${previewDoc.template_key === "hahitantsoa.payment_receipt.v1" ? "document-preview-shell--thermal-receipt" : "max-w-[210mm]"}`}>
                     <div className="document-instance-artifact" dangerouslySetInnerHTML={{ __html: previewHtml }} />
                   </div>
                 )}

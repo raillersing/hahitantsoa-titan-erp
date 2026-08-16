@@ -15,6 +15,12 @@ from django.utils import timezone
 from apps.audit.services import record_audit_event_on_commit
 from apps.billing.models import BillingRefundObligationStatus
 from apps.documents.models import DocumentInstance
+from apps.documents.payment_receipts import (
+    PAYMENT_RECEIPT_TEMPLATE_KEY as SHARED_PAYMENT_RECEIPT_TEMPLATE_KEY,
+)
+from apps.documents.payment_receipts import (
+    payment_receipt_template_key,
+)
 from apps.documents.registry import get_document_template_definition
 from apps.documents.runtime import generate_document_instance_html
 from apps.finance.models import (
@@ -48,7 +54,7 @@ from apps.payments.models import (
     PaymentStatus,
 )
 
-PAYMENT_RECEIPT_TEMPLATE_KEY = "shared.payment_receipt.v1"
+PAYMENT_RECEIPT_TEMPLATE_KEY = SHARED_PAYMENT_RECEIPT_TEMPLATE_KEY
 PAYMENT_REFUND_RECEIPT_TEMPLATE_KEY = "shared.payment_refund_receipt.v1"
 
 
@@ -214,7 +220,7 @@ def build_payment_receipt_document_instance_kwargs(
     payment: Payment,
     actor_id: object | None,
 ) -> dict[str, object]:
-    template = get_document_template_definition(PAYMENT_RECEIPT_TEMPLATE_KEY)
+    template = get_document_template_definition(payment_receipt_template_key(payment=payment))
     if template is None:
         raise PaymentLifecycleError(
             "Payment receipt template definition is missing.",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import DocumentsHubPage from "./DocumentsHubPage";
 import DocumentsTemplatesPage from "./DocumentsTemplatesPage";
 import {
@@ -10,8 +10,14 @@ import {
 
 type DocumentsTab = "hub" | "templates" | "generate";
 
-export default function DocumentsPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
-  const [activeTab, setActiveTab] = useState<DocumentsTab>("hub");
+export default function DocumentsPage({ onNavigate, param }: { onNavigate: (scope: any, param?: string) => void; param?: string }) {
+  const [activeTab, setActiveTab] = useState<DocumentsTab>(
+    param === "templates" || param === "generate" ? param : "hub",
+  );
+
+  useEffect(() => {
+    setActiveTab(param === "templates" || param === "generate" ? param : "hub");
+  }, [param]);
 
   const tabs: { key: DocumentsTab; label: string; icon: React.ReactNode }[] = [
     { key: "hub", label: "Hub documentaire", icon: <HomeIcon size={18} /> },
@@ -30,7 +36,10 @@ export default function DocumentsPage({ onNavigate }: { onNavigate: (scope: any,
             role="tab"
             aria-selected={activeTab === tab.key}
             aria-controls={`documents-panel-${tab.key}`}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setActiveTab(tab.key);
+              onNavigate("documents", tab.key === "hub" ? undefined : tab.key);
+            }}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition ${
               activeTab === tab.key
                 ? "bg-indigo-600 text-white shadow-sm"
