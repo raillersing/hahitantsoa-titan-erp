@@ -1,0 +1,145 @@
+#!/bin/bash
+# =============================================================================
+# erp-install-pdf2htmlex — Install pdf2htmlEX for ERP PDF-to-HTML replication
+# =============================================================================
+# Usage:
+#   bash scripts/dev/erp-install-pdf2htmlex
+#
+# This script installs pdf2htmlEX by trying, in order:
+#   1. System package manager (apt)
+#   2. Pre-built AppImage binary (downloaded to .tools/pdf2htmlex/)
+#   3. Docker image (pdf2html/pdf2htmlex)
+#
+# It creates a wrapper symlink at .tools/pdf2htmlex/pdf2htmlEX so the
+# erp-pdf2html script can call it consistently.
+# =============================================================================
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+TOOLS_DIR="$PROJECT_DIR/.tools/pdf2htmlex"
+APP_IMAGE="$TOOLS_DIR/pdf2htmlEX.AppImage"
+WRAPPER="$TOOLS_DIR/pdf2htmlEX"
+
+# PDFs de test (utilisés pour la validation post-install)
+TEST_PDF_DIR="$PROJECT_DIR/docs/references/source/templates/Hahitantsoa/Proforma"
+TEST_PDF="$TEST_PDF_DIR/20240109 PROFORMA HAHITANTSOA 003-24 ANDRIAMAMPIANINA Ranto.pdf"
+
+echo "=== ERP pdf2htmlEX Installer ==="
+echo "Project: $PROJECT_DIR"
+echo ""
+
+# -----------------------------------------------------------------------------
+# 0. Already installed?
+# -----------------------------------------------------------------------------
+if [ -f "$WRAPPER" ] && [ -x "$WRAPPER" ]; then
+    echo "pdf2htmlEX already installed at: $WRAPPER"
+    echo "Version:"
+    "$WRAPPER" --version 2>/dev/null || true
+    exit 0
+fi
+
+mkdir -p "$TOOLS_DIR"
+
+# -----------------------------------------------------------------------------
+# 1. Try system package manager
+# -----------------------------------------------------------------------------
+echo "Step 1/4 — Checking system package manager..."
+if command -v apt-get >/dev/null 2>&1; then
+    if apt-cache search pdf2htmlEX 2>/dev/null | grep -q pdf2htmlex; then
+        echo "  Found in apt. Installing..."
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq pdf2htmlex
+        if command -v pdf2htmlEX >/dev/null 2>&1; then
+            ln -sf "$(command -v pdf2htmlEX)" "$WRAPPER"
+            echo "  ✅ Installed via apt."
+            exit 0
+        fi
+    else
+        echo "  Not available in apt."
+    fi
+else
+    echo "  apt-get not available."
+fi
+
+# -----------------------------------------------------------------------------
+# 2. Download pre-built AppImage
+# -----------------------------------------------------------------------------
+echo ""
+echo "Step 2/4 — Downloading pre-built AppImage..."
+
+RELEASE_TAG="v0.18.8.rc1"
+APPIMAGE_URL="https://github.com/pdf2htmlEX/pdf2htmlEX/releases/download/${RELEASE_TAG}/pdf2htmlEX-0.18.8.rc1-master-20200630-Ubuntu-focal-x86_64.AppImage"
+
+echo "  URL: $APPIMAGE_URL"
+echo "  Destination: $APP_IMAGE"
+echo "  (This may take 1-2 minutes depending on connection)"
+
+if command -v curl >/dev/null 2>&1; then
+    curl -fsSL -o "$APP_IMAGE" "$APPIMAGE_URL"
+elif command -v wget >/dev/null 2>&1; then
+    wget -q -O "$APP_IMAGE" "$APPIMAGE_URL"
+else
+    echo "  ❌ Neither curl nor wget available. Cannot download."
+    exit 1
+fi
+
+chmod +x "$APP_IMAGE"
+
+# AppImage needs FUSE; if it fails we extract it instead
+echo "  Testing AppImage..."
+if "$APP_IMAGE" --version >/dev/null 2>&1; then
+    ln -sf "$APP_IMAGE" "$WRAPPER"
+    echo "  ✅ AppImage works (FUSE available)."
+    exit 0
+else
+    echo "  AppImage needs extraction (FUSE unavailable on WSL2). Extracting..."
+    cd "$TOOLS_DIR"
+    "$APP_IMAGE" --appimage-extract >/dev/null 2>&1 || true
+    # After extraction, the binary is inside squashfs-root/usr/bin/pdf2htmlEX
+    EXTRACTED_BIN="$TOOLS_DIR/squashfs-root/usr/bin/pdf2htmlEX"
+    if [ -f "$EXTRACTED_BIN" ]; then
+        ln -sf "$EXTRACTED_BIN" "$WRAPPER"
+        echo "  ✅ Extracted AppImage installed."
+        exit 0
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# 3. Fallback to Docker
+# -----------------------------------------------------------------------------
+echo ""
+echo "Step 3/4 — Falling back to Docker..."
+
+if command -v docker >/dev/null 2>&1; then
+    cat > "$WRAPPER" <> 'EOF'
+#!/bin/bash
+# Docker wrapper for pdf2htmlEX
+docker run --rm -v "$(pwd):/pdf" -w /pdf pdf2html/pdf2htmlex:latest "$@"
+EOF
+    chmod +x "$WRAPPER"
+
+    echo "  Pulling Docker image (this may take a few minutes)..."
+    if docker pull pdf2html/pdf2htmlex:latest >/dev/null 2>&1; then
+        echo "  ✅ Docker wrapper installed."
+        exit 0
+    else
+        echo "  ❌ Docker pull failed."
+        rm -f "$WRAPPER"
+    fi
+else
+    echo "  Docker not available."
+fi
+
+# -----------------------------------------------------------------------------
+# 4. Error — nothing worked
+# -----------------------------------------------------------------------------
+echo ""
+echo "❌ ERROR: Could not install pdf2htmlEX."
+echo ""
+echo "Manual options:"
+echo "  1. Install pdf2htmlex via your package manager (apt, dnf, brew, etc.)"
+echo "  2. Build from source: https://github.com/pdf2htmlEX/pdf2htmlEX"
+echo "  3. Use the Docker image: docker pull pdf2html/pdf2htmlex"
+echo ""
+exit 1
