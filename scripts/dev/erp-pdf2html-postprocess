@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+# =============================================================================
+# erp-pdf2html-postprocess — Convert pdf2htmlEX output to a Jinja/Django template
+# =============================================================================
+# Usage:
+#   python3 scripts/dev/erp-pdf2html-postprocess \
+#       --input <html_file> \
+#       --output <template.html> \
+#       [--mapping <mapping.json>] \
+#       [--extract-css]
+#
+# This script takes the raw HTML produced by pdf2htmlEX (absolute-positioned
+# text, embedded fonts, background images) and converts it into an editable
+# Jinja2/Django template by replacing known text fragments with template
+# variables.
+#
+# The raw HTML from pdf2htmlEX keeps every word at its exact PDF coordinates;
+# this script preserves those coordinates while turning static text into
+# {{ variable }} placeholders.
+# =============================================================================
+
+import argparse
+import json
+import os
+import re
+import sys
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Optional BeautifulSoup; fall back to regex if unavailable
+# ---------------------------------------------------------------------------
+try:
+    from bs4 import BeautifulSoup
+    HAS_BS4 = True
+except ImportError:
+    HAS_BS4 = False
+    print("⚠️  BeautifulSoup4 not installed. Falling back to regex mode.")
+    print("   For better accuracy, install it: .venv/bin/pip install beautifulsoup4")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Post-process pdf2htmlEX output into a Jinja/Django template"
+    )
+    parser.add_argument("--input", required=True, help="Input HTML file from pdf2htmlEX")
+    parser.add_argument("--output", required=True, help="Output template HTML file")
+    parser.add_argument(
+        "--mapping",
+        help="JSON file mapping text fragments to Jinja variables"
+    )
+    parser.add_argument(
+        "--extract-css",
+        action="store_true",
+        help="Extract inline CSS into a separate .css file"
+    )
+    parser.add_argument(
+        "--save-mapping",
+        help="Save detected text→variable mapping to a JSON file"
+    )
+    return parser.parse_args()
+
+
+def load_mapping(mapping_path: str) -> dict:
+    """Load user-provided text → variable mapping from JSON."""
+    with open(mapping_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    # Ensure keys are strings and values are Jinja expressions
+    mapping = {}
+    for k, v in data.items():
+        mapping[str(k)] = str(v)
+    return mapping
+
+
+def normalize_pdf2html_spans(html: str) -> str:
+    """Remove empty pdf2htmlEX kerning spans so text fragments become contiguous.
+
+    pdf2htmlEX injects <span class="_ _1"></span> between character groups
+    for kerning. These are invisible and safe to strip before text replacement.
+    The surrounding CSS classes on the parent <div class="t ..."> still keep
+    every word at its exact PDF coordinate.
+    """
+    cleaned = re.sub(r'<span class="_ _[0-9a-f]+"></span>', '', html)
+    return cleaned
+
+
+def add_overflow_hidden_to_t_class(html: str) -> str:
+    """Add overflow:hidden to .t class to prevent Jinja variables from overlapping.
+
+    When static text is replaced with longer Jinja variables, the text can
+    overflow its bounding box and overlap adjacent absolutely-positioned
+    elements. Adding overflow:hidden keeps every element visually isolated.
+    """
+    # Target the .t rule in the first <style> block (pdf2htmlEX base CSS)
+    pattern = r'(\.t\s*\{[^}]*?)(\})'
+    replacement = r'\1;overflow:hidden\2'
+    new_html, count = re.subn(pattern, replacement, html, count=1)
+    if count:
+        print("   Added overflow:hidden to .t CSS rule")
+    else:
+        print("   ⚠️  Could not locate .t rule to patch")
+    return new_html
+
+
+def detect_common_placeholders(html: str) -> dict:
+    """Auto-detect common Hahitantsoa proforma fields in the HTML text."""
+    placeholders = {}
+
+    # Proforma number: patterns like 003/24, 021/24, 048/24
+    for m in re.finditer(r'\b(\d{3}/\d{2,4})\b', html):
+        val = m.group(1)
+        if val not in placeholders:
+            placeholders[val] = "{{ proforma_number }}"
+
+    # Dates: dd/mm/yyyy
+    for m in re.finditer(r'\b(\d{2}/\d{2}/\d{4})\b', html):
+        val = m.group(1)
+        if val not in placeholders:
+            placeholders[val] = "{{ date }}"
+
+    # Event dates: same pattern but usually later in document
+    # (We rely on user mapping for disambiguation)
+
+    # Large amounts: "X XXX XXX,00" or "X XXX XXX,00 Ar"
+    for m in re.finditer(r'([\d\s]+,\d{2})(?:\s*Ar)?', html):
+        val = m.group(1)
+        if len(val.replace(" ", "").replace(",", "")) > 6:  # only large amounts
+            if val not in placeholders:
+                placeholders[val] = "{{ total }}"
+
+    # Amounts in words: "huit millions... Ariary"
+    for m in re.finditer(r'([a-zA-Z\s]+Ariary)', html):
+        val = m.group(1)
+        if len(val) > 20:
+            if val not in placeholders:
+                placeholders[val] = "{{ total_words }}"
+
+    return placeholders
+
+
+def replace_in_html_bs4(html: str, mapping: dict) -> str:
+    """Replace text fragments using BeautifulSoup (preserves structure).
+
+    Replacement strategy:
+    - For <div class="t"> elements with 0 or 1 kerning spans, replace at the
+      element level (clearing the span). This handles simple fields like
+      {{ proforma_number }} cleanly.
+    - For elements with multiple kerning spans (table rows with aligned
+      columns), replace at the text-node level so spans that control column
+      positioning are preserved.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    replacements_done = 0
+    for elem in soup.find_all("div", class_="t"):
+        # Count kerning spans inside this element
+        kerning_spans = elem.find_all(
+            "span", class_=re.compile(r"^_\s*_[0-9a-f]+$")
+        )
+
+        # Get full text content (concatenates all text nodes)
+        full_text = elem.get_text()
+
+        # If the element has 0 or 1 kerning spans, try replacing at element level
+        if len(kerning_spans) <= 1:
+            new_text = full_text
+            for old, new in mapping.items():
+                if old in new_text:
+                    new_text = new_text.replace(old, new)
+                    replacements_done += 1
+            if new_text != full_text:
+                # Clear element and set new text (removes any kerning span)
+                elem.clear()
+                elem.append(new_text)
+                continue
+
+        # For elements with multiple kerning spans, replace at text-node level
+        # so spans that control column alignment are preserved.
+        for tag in elem.find_all(string=True):
+            if tag.parent.name in ("script", "style"):
+                continue
+            original = str(tag)
+            new_text = original
+            for old, new in mapping.items():
+                # Use exact match (stripped) for text-node level replacements
+                # to avoid substring collisions (e.g. "0,00" inside "200 000,00")
+                if old.strip() == new_text.strip():
+                    new_text = new_text.replace(old, new)
+                    replacements_done += 1
+            if new_text != original:
+                tag.replace_with(new_text)
+
+    print(f"   Replacements made: {replacements_done}")
+    return str(soup)
+
+
+def replace_in_html_regex(html: str, mapping: dict) -> str:
+    """Fallback: replace text fragments using regex (risks breaking HTML)."""
+    # We only replace inside text content, not inside tag attributes.
+    # Simple heuristic: replace in >...text...< patterns.
+    replacements_done = 0
+
+    def replacer(match):
+        nonlocal replacements_done
+        text = match.group(1)
+        new_text = text
+        for old, new in mapping.items():
+            if old in new_text:
+                new_text = new_text.replace(old, new)
+                replacements_done += 1
+        return match.group(0).replace(text, new_text)
+
+    # Replace inside >...text...< but avoid attribute values
+    pattern = re.compile(r'>([^<>]*?)<')
+    new_html = pattern.sub(replacer, html)
+    print(f"   Replacements made: {replacements_done}")
+    return new_html
+
+
+def extract_css(html: str, output_base: str) -> str:
+    """Extract inline <style> blocks into a separate .css file."""
+    if not HAS_BS4:
+        print("   ⚠️  CSS extraction requires BeautifulSoup4. Skipping.")
+        return html
+
+    soup = BeautifulSoup(html, "html.parser")
+    styles = soup.find_all("style")
+    if not styles:
+        print("   No <style> blocks found to extract.")
+        return html
+
+    css_parts = []
+    for style in styles:
+        css_parts.append(style.get_text())
+        style.decompose()
+
+    css_path = f"{output_base}.css"
+    with open(css_path, "w", encoding="utf-8") as f:
+        f.write("\n\n".join(css_parts))
+
+    # Add link tag in head
+    head = soup.find("head")
+    if head:
+        link = soup.new_tag("link", rel="stylesheet", href=f"{os.path.basename(output_base)}.css")
+        head.append(link)
+
+    print(f"   CSS extracted to: {css_path}")
+    return str(soup)
+
+
+def main():
+    args = parse_args()
+
+    input_path = Path(args.input).resolve()
+    output_path = Path(args.output).resolve()
+
+    if not input_path.exists():
+        print(f"❌ ERROR: Input file not found: {input_path}")
+        sys.exit(1)
+
+    print("=== ERP PDF2HTML Post-Processor ===")
+    print(f"Input:  {input_path}")
+    print(f"Output: {output_path}")
+    print("")
+
+    # -----------------------------------------------------------------------
+    # Read raw HTML
+    # -----------------------------------------------------------------------
+    print("Step 1/5 — Reading raw HTML...")
+    with open(input_path, "r", encoding="utf-8") as f:
+        html = f.read()
+    print(f"   Size: {len(html):,} chars")
+
+    # -----------------------------------------------------------------------
+    # Normalize pdf2htmlEX empty kerning spans
+    # -----------------------------------------------------------------------
+    print("\nStep 2/5 — Normalizing pdf2htmlEX spans...")
+    html = normalize_pdf2html_spans(html)
+    print("   Empty kerning spans stripped")
+
+    # -----------------------------------------------------------------------
+    # Add overflow:hidden to .t class to prevent overlapping
+    # -----------------------------------------------------------------------
+    print("\nStep 3/5 — Patching CSS for overflow control...")
+    html = add_overflow_hidden_to_t_class(html)
+
+    # -----------------------------------------------------------------------
+    # Build mapping
+    # -----------------------------------------------------------------------
+    print("\nStep 4/5 — Building variable mapping...")
+    mapping = {}
+
+    # Auto-detect common placeholders
+    auto = detect_common_placeholders(html)
+    print(f"   Auto-detected: {len(auto)} entries")
+    mapping.update(auto)
+
+    # Load user-provided mapping (overrides auto-detect)
+    if args.mapping:
+        user = load_mapping(args.mapping)
+        print(f"   User mapping: {len(user)} entries")
+        mapping.update(user)
+
+    print(f"   Total mappings: {len(mapping)}")
+    if mapping:
+        for k, v in list(mapping.items())[:5]:
+            print(f"      '{k[:40]}...' → {v}")
+
+    # -----------------------------------------------------------------------
+    # Apply replacements
+    # -----------------------------------------------------------------------
+    print("\nStep 5/5 — Applying template variables...")
+    if HAS_BS4:
+        html = replace_in_html_bs4(html, mapping)
+    else:
+        html = replace_in_html_regex(html, mapping)
+
+    # -----------------------------------------------------------------------
+    # Extract CSS if requested
+    # -----------------------------------------------------------------------
+    if args.extract_css:
+        print("\nStep 5+ — Extracting CSS...")
+        output_base = str(output_path.with_suffix(""))
+        html = extract_css(html, output_base)
+    else:
+        print("\nStep 5+ — (CSS extraction skipped)")
+
+    # -----------------------------------------------------------------------
+    # Save output
+    # -----------------------------------------------------------------------
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"\n✅ Template saved: {output_path}")
+    print(f"   Size: {len(html):,} chars")
+
+    # Save mapping if requested
+    if args.save_mapping:
+        mapping_path = Path(args.save_mapping).resolve()
+        with open(mapping_path, "w", encoding="utf-8") as f:
+            json.dump(mapping, f, indent=2, ensure_ascii=False)
+        print(f"   Mapping saved: {mapping_path}")
+
+    print("\nNext steps:")
+    print("  1. Inspect the template in a browser.")
+    print("  2. Fine-tune the mapping JSON and re-run if needed.")
+    print("  3. Move the template into your Django/Jinja templates directory.")
+
+
+if __name__ == "__main__":
+    main()

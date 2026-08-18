@@ -45,3 +45,8 @@ docs/references/source/templates/**/*.pdf
 docs/references/source/templates/**/*.png
 docs/references/source/templates/**/*:Zone.Identifier
 *:Zone.Identifier
+
+# Local tool caches and generated outputs
+.tools/
+scratch/
+reports/
