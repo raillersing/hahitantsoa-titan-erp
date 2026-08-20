@@ -709,6 +709,7 @@ export type UploadedAttachment = {
   reservation_draft_id: string | null;
   hahitantsoa_event_draft_id: string | null;
   category: string;
+  label?: string;
   original_name: string;
   content_type: string;
   size_bytes: number;

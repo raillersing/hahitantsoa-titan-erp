@@ -21,7 +21,6 @@ import {
   convertProformaToContract,
   createCustomer,
   convertProspectToClient,
-  updateCustomer,
   uploadAttachment,
   createPayment,
   confirmPayment,
@@ -317,8 +316,31 @@ interface Attachment {
   id: string;
   name: string;
   category: string;
+  label?: string;
   file?: File;
   uploadedId?: string;
+}
+
+type DedicatedAttachmentCategory = "CIN" | "Passeport" | "NIF" | "STAT" | "RCS";
+
+function AttachmentMiniPreview({ attachment }: { attachment: Attachment }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!attachment.file || !attachment.file.type.startsWith("image/")) {
+      setUrl(null);
+      return;
+    }
+    const nextUrl = URL.createObjectURL(attachment.file);
+    setUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [attachment.file]);
+
+  return (
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-white text-[10px] font-bold uppercase text-slate-500" aria-label={`Aperçu de ${attachment.name}`}>
+      {url ? <img src={url} alt="" className="h-full w-full object-cover" /> : attachment.file?.type === "application/pdf" ? "PDF" : "Fichier"}
+    </span>
+  );
 }
 
 interface SelectedMaterial {
@@ -541,6 +563,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [paymentDone, setPaymentDone] = useState(false);
   const [paymentRecorded, setPaymentRecorded] = useState(false);
   const [clientAttachments, setClientAttachments] = useState<Attachment[]>([]);
+  const [dedicatedAttachments, setDedicatedAttachments] = useState<Partial<Record<DedicatedAttachmentCategory, Attachment>>>({});
   const [paymentAttachments, setPaymentAttachments] = useState<Attachment[]>([]);
 
   const isProspectProforma = param?.startsWith('prospect-proforma-') || false;
@@ -698,6 +721,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
       hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment,
       clientAttachments: clientAttachments.map(({ file: _file, ...attachment }) => attachment),
+      dedicatedAttachments: Object.fromEntries(Object.entries(dedicatedAttachments).map(([category, attachment]) => [category, attachment ? (({ file: _file, ...rest }) => rest)(attachment) : attachment])),
       paymentAttachments: paymentAttachments.map(({ file: _file, ...attachment }) => attachment),
       discountValue, discountIsPercentage
     };
@@ -708,7 +732,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (step >= 2 && (selectedClientId || newClient.name)) {
       saveDraft();
     }
-  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, paymentAttachments, discountValue, discountIsPercentage]);
+  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, discountValue, discountIsPercentage]);
 
   const restoreDraft = () => {
     const saved = localStorage.getItem("prototypeReservationDraft");
@@ -724,7 +748,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         endTime: data.tDetails?.endTime || "22:00",
       });
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
-      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment); setClientAttachments(data.clientAttachments || []); setPaymentAttachments(data.paymentAttachments || []);
+      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []);
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true);
       setShowDraftPrompt(false);
     }
@@ -746,11 +770,18 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     }
   };
 
-  const addAttachment = (type: 'client' | 'payment', category: string, fileList: FileList | null) => {
+  const addAttachment = (type: 'client' | 'payment', category: string, fileList: FileList | null, label: string) => {
     if (!fileList || !fileList.length) return;
-    const newAtt: Attachment = { id: Math.random().toString(36).substring(7), name: fileList[0].name, category, file: fileList[0] };
+    const newAtt: Attachment = { id: crypto.randomUUID(), name: fileList[0].name, category, label: label.trim() || category, file: fileList[0] };
     if (type === 'client') setClientAttachments([...clientAttachments, newAtt]);
     else setPaymentAttachments([...paymentAttachments, newAtt]);
+  };
+  const addDedicatedAttachment = (category: DedicatedAttachmentCategory, fileList: FileList | null) => {
+    if (!fileList || !fileList.length) return;
+    setDedicatedAttachments(current => ({
+      ...current,
+      [category]: { id: crypto.randomUUID(), name: fileList[0].name, category, label: category, file: fileList[0] },
+    }));
   };
   const removeAttachment = (type: 'client' | 'payment', id: string) => {
     if (type === 'client') setClientAttachments(clientAttachments.filter(a => a.id !== id));
@@ -898,6 +929,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     hahitantsoaEventDraftId?: string;
   }) => {
     const pending = [
+      ...Object.values(dedicatedAttachments).filter((attachment): attachment is Attachment => Boolean(attachment)).map(attachment => ({ attachment, target: "dedicated" as const })),
       ...clientAttachments.map(attachment => ({ attachment, target: "client" as const })),
       ...paymentAttachments.map(attachment => ({ attachment, target: "payment" as const })),
     ].filter(({ attachment }) => !attachment.uploadedId);
@@ -910,11 +942,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         customerId: scope.customerId,
         reservationDraftId: scope.reservationDraftId,
         hahitantsoaEventDraftId: scope.hahitantsoaEventDraftId,
-      });
+      }, undefined, attachment.label);
       const update = (current: Attachment[]) => current.map(item => (
         item.id === attachment.id ? { ...item, uploadedId: uploaded.id, file: undefined } : item
       ));
-      if (target === "client") setClientAttachments(update);
+      if (target === "dedicated") {
+        setDedicatedAttachments(current => Object.fromEntries(Object.entries(current).map(([category, item]) => [category, item?.id === attachment.id ? { ...item, uploadedId: uploaded.id, file: undefined } : item])) as Partial<Record<DedicatedAttachmentCategory, Attachment>>);
+      } else if (target === "client") setClientAttachments(update);
       else setPaymentAttachments(update);
     }
   };
@@ -1282,8 +1316,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   </select>
                 </div>
                 <div className="w-2/3">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Numéro</label>
-                  <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.idNumber || ''} onChange={e => setNewClient({...newClient, idNumber: e.target.value})} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Numéro et pièce jointe</label>
+                  <div className="flex items-center gap-2">
+                    <input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.idNumber || ''} onChange={e => setNewClient({...newClient, idNumber: e.target.value})} />
+                    {dedicatedAttachments[(newClient.idType || "CIN") as DedicatedAttachmentCategory] && <AttachmentMiniPreview attachment={dedicatedAttachments[(newClient.idType || "CIN") as DedicatedAttachmentCategory]!} />}
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                      <i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter
+                      <input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label={`Ajouter une pièce jointe pour ${newClient.idType || "CIN"}`} onChange={e => { addDedicatedAttachment((newClient.idType || "CIN") as DedicatedAttachmentCategory, e.target.files); e.target.value = ""; }} />
+                    </label>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1323,15 +1364,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">NIF</label>
-                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.nif || ''} onChange={e => setNewClient({...newClient, nif: e.target.value})} />
+                <div className="flex items-center gap-2"><input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.nif || ''} onChange={e => setNewClient({...newClient, nif: e.target.value})} />{dedicatedAttachments.NIF && <AttachmentMiniPreview attachment={dedicatedAttachments.NIF} />}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour NIF" onChange={e => { addDedicatedAttachment("NIF", e.target.files); e.target.value = ""; }} /></label></div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">STAT</label>
-                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.stat || ''} onChange={e => setNewClient({...newClient, stat: e.target.value})} />
+                <div className="flex items-center gap-2"><input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.stat || ''} onChange={e => setNewClient({...newClient, stat: e.target.value})} />{dedicatedAttachments.STAT && <AttachmentMiniPreview attachment={dedicatedAttachments.STAT} />}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour STAT" onChange={e => { addDedicatedAttachment("STAT", e.target.files); e.target.value = ""; }} /></label></div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">RCS</label>
-                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.rcs || ''} onChange={e => setNewClient({...newClient, rcs: e.target.value})} />
+                <div className="flex items-center gap-2"><input type="text" className="min-w-0 flex-1 border border-slate-300 rounded-lg p-2.5 text-sm" value={newClient.rcs || ''} onChange={e => setNewClient({...newClient, rcs: e.target.value})} />{dedicatedAttachments.RCS && <AttachmentMiniPreview attachment={dedicatedAttachments.RCS} />}<label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter<input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label="Ajouter une pièce jointe pour RCS" onChange={e => { addDedicatedAttachment("RCS", e.target.files); e.target.value = ""; }} /></label></div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nom et prénom du représentant</label>
@@ -1391,40 +1432,15 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
       <div className="mt-8 pt-6 border-t border-slate-100">
         <h4 className="text-md font-bold text-slate-800 mb-1">Pièces jointes client</h4>
-        <p className="text-xs text-slate-500 mb-4">Ajoutez CIN, NIF, STAT, RCS ou justificatifs selon le type de client.</p>
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-           <select id="clientCat" className="border border-slate-300 rounded-lg p-2 text-sm bg-white min-w-[150px]">
-             <option value="CIN">CIN</option>
-             <option value="NIF">NIF</option>
-             <option value="STAT">STAT</option>
-             <option value="RCS">RCS</option>
-             <option value="Logo">Logo</option>
-             <option value="Pièce jointe email">Pièce jointe email</option>
-             <option value="Autre">Autre</option>
-           </select>
-           <input type="file" id="clientFile" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" accept=".jpg,.jpeg,.png,.webp,.pdf" />
-           <input type="file" id="clientCamera" className="hidden" accept="image/*" capture="environment" onChange={(e) => {
-               const cat = (document.getElementById('clientCat') as HTMLSelectElement).value;
-               addAttachment('client', cat, e.target.files);
-               e.target.value = "";
-           }} />
-           <button 
-             className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-200 transition-colors whitespace-nowrap"
-             onClick={() => {
-               const cat = (document.getElementById('clientCat') as HTMLSelectElement).value;
-               const fileInput = document.getElementById('clientFile') as HTMLInputElement;
-               addAttachment('client', cat, fileInput.files);
-               fileInput.value = "";
-             }}
-           >
-             <i className="fa-solid fa-plus mr-1"></i> Ajouter
-           </button>
-           <button 
-             className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-medium text-sm hover:bg-indigo-100 transition-colors whitespace-nowrap md:hidden"
-             onClick={() => document.getElementById('clientCamera')?.click()}
-           >
-             <i className="fa-solid fa-camera mr-1"></i> Prendre une photo
-           </button>
+        <p className="text-xs text-slate-500 mb-4">Ajoutez les documents complémentaires du client. Les documents légaux restent attachés à leur champ ci-dessus.</p>
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <p className="mb-2 text-sm font-semibold text-slate-800">Autres pièces jointes client</p>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="text-xs font-semibold text-slate-600">Intitulé<input id="clientAttachmentLabel" className="mt-1 block rounded-lg border border-slate-300 p-2 text-sm" placeholder="Ex. justificatif domicile" /></label>
+            <label className="text-xs font-semibold text-slate-600">Type<select id="clientCat" className="mt-1 block min-w-[180px] rounded-lg border border-slate-300 bg-white p-2 text-sm"><option value="Justificatif domicile">Justificatif domicile</option><option value="Logo">Logo</option><option value="Pièce jointe email">Pièce jointe email</option><option value="Autre">Autre</option></select></label>
+            <input type="file" id="clientFile" className="text-sm file:mr-4 file:rounded-full file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:font-semibold file:text-indigo-700" accept=".jpg,.jpeg,.png,.webp,.pdf" />
+            <button type="button" className="min-h-11 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200" onClick={() => { const cat = (document.getElementById('clientCat') as HTMLSelectElement).value; const label = (document.getElementById('clientAttachmentLabel') as HTMLInputElement).value; const fileInput = document.getElementById('clientFile') as HTMLInputElement; if (!label.trim()) { showToastMsg("Indiquez l'intitulé de la pièce jointe.", "warning"); return; } addAttachment('client', cat, fileInput.files, label); fileInput.value = ""; (document.getElementById('clientAttachmentLabel') as HTMLInputElement).value = ""; }}><i className="fa-solid fa-plus mr-1" aria-hidden="true"></i> Ajouter</button>
+          </div>
         </div>
         {clientAttachments.length === 0 ? (
           <p className="text-sm text-slate-400 italic">Aucune pièce jointe enregistrée.</p>
@@ -1432,7 +1448,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <ul className="space-y-2">
             {clientAttachments.map(att => (
               <li key={att.id} className="flex justify-between items-center bg-slate-50 px-4 py-2 rounded-lg text-sm border border-slate-100">
-                <span><span className="font-semibold text-slate-700">{att.category} :</span> <span className="text-slate-600">{att.name}</span> <span className={att.uploadedId ? "text-emerald-600" : "text-amber-600"}>{att.uploadedId ? "(enregistrée)" : "(à téléverser)"}</span></span>
+                <span><span className="font-semibold text-slate-700">{att.label || att.category} :</span> <span className="text-slate-600">{att.name}</span> <span className={att.uploadedId ? "text-emerald-600" : "text-amber-600"}>{att.uploadedId ? "(enregistrée)" : "(à téléverser)"}</span></span>
                 <button className="text-red-400 hover:text-red-600" onClick={() => removeAttachment('client', att.id)} title="Supprimer">
                   <i className="fa-solid fa-trash"></i>
                 </button>
@@ -3098,6 +3114,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <h4 className="text-md font-bold text-slate-800 mb-1">Pièces jointes paiement</h4>
           <p className="text-xs text-slate-500 mb-4">Preuves de paiement, captures, reçus.</p>
           <div className="flex flex-wrap items-center gap-3 mb-4">
+             <label className="text-xs font-semibold text-slate-600">Intitulé<input id="paymentAttachmentLabel" className="mt-1 block rounded-lg border border-slate-300 p-2 text-sm" placeholder="Ex. reçu d'acompte" /></label>
              <select id="paymentCat" className="border border-slate-300 rounded-lg p-2 text-sm bg-white min-w-[200px]">
                <option value="Justificatif paiement">Justificatif paiement</option>
                <option value="Reçu">Reçu</option>
@@ -3114,8 +3131,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                onClick={() => {
                  const cat = (document.getElementById('paymentCat') as HTMLSelectElement).value;
                  const fileInput = document.getElementById('paymentFile') as HTMLInputElement;
-                 addAttachment('payment', cat, fileInput.files);
+                 const label = (document.getElementById('paymentAttachmentLabel') as HTMLInputElement).value;
+                 if (!label.trim()) { showToastMsg("Indiquez l'intitulé de la pièce jointe.", "warning"); return; }
+                 addAttachment('payment', cat, fileInput.files, label);
                  fileInput.value = "";
+                 (document.getElementById('paymentAttachmentLabel') as HTMLInputElement).value = "";
                }}
              >
                <i className="fa-solid fa-plus mr-1"></i> Ajouter
@@ -3127,7 +3147,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <ul className="space-y-2">
               {paymentAttachments.map(att => (
                 <li key={att.id} className="flex justify-between items-center bg-slate-50 px-4 py-2 rounded-lg text-sm border border-slate-100">
-                  <span><span className="font-semibold text-slate-700">{att.category} :</span> <span className="text-slate-600">{att.name}</span> <span className={att.uploadedId ? "text-emerald-600" : "text-amber-600"}>{att.uploadedId ? "(enregistrée)" : "(à téléverser)"}</span></span>
+                  <span><span className="font-semibold text-slate-700">{att.label || att.category} :</span> <span className="text-slate-600">{att.name}</span> <span className={att.uploadedId ? "text-emerald-600" : "text-amber-600"}>{att.uploadedId ? "(enregistrée)" : "(à téléverser)"}</span></span>
                   <button className="text-red-400 hover:text-red-600" onClick={() => removeAttachment('payment', att.id)} title="Supprimer">
                     <i className="fa-solid fa-trash"></i>
                   </button>
