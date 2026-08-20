@@ -66,6 +66,7 @@ def test_sensitive_user_can_upload_and_download_private_attachment(
             "customer_id": str(customer.id),
             "reservation_draft_id": str(reservation_draft.id),
             "category": "CIN",
+            "label": "Carte nationale recto-verso",
             "file": _pdf_file(),
         },
     )
@@ -74,6 +75,7 @@ def test_sensitive_user_can_upload_and_download_private_attachment(
     payload = response.json()
     attachment = UploadedAttachment.objects.get(pk=payload["id"])
     assert payload["original_name"] == "cin.pdf"
+    assert payload["label"] == "Carte nationale recto-verso"
     assert payload["content_type"] == "application/pdf"
     assert payload["customer_reference"] == customer.public_reference
     assert f"customers/{customer.public_reference}/attachments/" in attachment.file.name

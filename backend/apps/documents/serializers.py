@@ -238,6 +238,7 @@ class UploadedAttachmentSerializer(serializers.ModelSerializer):
             "reservation_draft_id",
             "hahitantsoa_event_draft_id",
             "category",
+            "label",
             "file",
             "original_name",
             "content_type",
