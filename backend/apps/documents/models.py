@@ -20,6 +20,7 @@ DOCUMENT_INSTANCE_STATUS_VALUES = [status.value for status in DocumentInstanceSt
 
 class UploadedAttachmentCategory(models.TextChoices):
     CIN = "CIN", "CIN"
+    PASSPORT = "Passeport", "Passeport"
     ADDRESS_PROOF = "Justificatif domicile", "Justificatif domicile"
     NIF = "NIF", "NIF"
     STAT = "STAT", "STAT"
@@ -74,6 +75,7 @@ class UploadedAttachment(UUIDModel, TimestampedModel, AuditableModel, SoftDelete
         max_length=64,
         choices=UploadedAttachmentCategory.choices,
     )
+    label = models.CharField(max_length=160, blank=True, default="")
     file = models.FileField(upload_to=uploaded_attachment_path, max_length=512)
     original_name = models.CharField(max_length=255)
     content_type = models.CharField(max_length=128)
