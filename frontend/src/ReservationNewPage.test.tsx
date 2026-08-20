@@ -250,7 +250,7 @@ describe('ReservationNewPage', () => {
       { id: 'MAT-02', name: 'Table complémentaire', price: 20000, quantity: 2 },
     ];
     const hDetails = {
-      rentalType: 'Location + article', venuePrice: 0, logisticsPrice: 0,
+      rentalType: 'Location + logistique', venuePrice: 0, logisticsPrice: 0,
       durationOptionPrice: 0, packageMode: 'package' as const, packageId: 'PKG-001',
     };
 
@@ -718,9 +718,9 @@ describe('ReservationNewPage', () => {
 
     // We are on details step. Choose article composition.
     await waitFor(() => {
-      expect(screen.getByText('Location + article')).toBeInTheDocument();
+      expect(screen.getByText('Location + logistique')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText('Location + article'));
+    fireEvent.click(screen.getByText('Location + logistique'));
 
     // The existing catalogue/package step is opened directly.
     // Set dates so the catalog availability API is triggered

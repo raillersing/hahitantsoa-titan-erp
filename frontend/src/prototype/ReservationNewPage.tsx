@@ -46,15 +46,17 @@ const HAHITANTSOA_EVENT_TYPES = [
 ];
 const HAHITANTSOA_RENTAL_TYPES = [
   "Location nue",
-  "Location nue + logistique",
-  "Location + article",
+  "Location + logistique",
 ];
 const HAHITANTSOA_DURATION_OPTIONS = [
   { label: "Fête de jour : Sortie J-J à 20:00", price: 0 },
   { label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30", price: 0 },
   { label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30", price: 0 },
 ];
-const HAHITANTSOA_DEFAULT_DEPOSIT = 500000;
+const HAHITANTSOA_DEFAULT_DEPOSIT = 1000000;
+const HAHITANTSOA_LOGISTICS_DEPOSIT = 1500000;
+const HAHITANTSOA_BASE_SPACE_RENTAL = 6500000;
+const HAHITANTSOA_EXCESS_GUEST_RATE = 5000;
 const HAHITANTSOA_VENUE_PRICE = 1500000;
 const HAHITANTSOA_LOGISTICS_PRICE = 500000;
 const TITAN_DEPOSIT_THRESHOLD = 200000;
@@ -217,6 +219,8 @@ interface NewClientData {
   name: string;
   phone: string;
   email: string;
+  additionalEmails: string[];
+  additionalPhones: string[];
   type: "Particulier" | "Entreprise";
   notes: string;
   civilite?: "Monsieur" | "Madame" | "";
@@ -370,7 +374,7 @@ export function calculateReservationTotals({
   const deliveryTotal = domain === "titan" && Number.isFinite(parsedDeliveryFee) ? parsedDeliveryFee : 0;
   const durationTotal = domain === "hahitantsoa" ? (hDetails.durationOptionPrice || 0) : 0;
   const venueAndLogisticsTotal = domain === "hahitantsoa"
-    ? (hDetails.venuePrice || 0) + (hDetails.rentalType === "Location nue + logistique" ? (hDetails.logisticsPrice || 0) : 0)
+    ? (hDetails.venuePrice || 0) + (hDetails.rentalType === "Location + logistique" ? (hDetails.logisticsPrice || 0) : 0)
     : 0;
 
   const selectedById = new Map(selectedMaterials.map((material) => [material.id, material]));
@@ -496,11 +500,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [clientMode, setClientMode] = useState<"existing" | "new">("existing");
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [clientSearchStr, setClientSearchStr] = useState<string>("");
-  const [newClient, setNewClient] = useState<NewClientData>({ name: "", phone: "", email: "", type: "Particulier", notes: "", civilite: "", idType: "CIN" });
+  const [newClient, setNewClient] = useState<NewClientData>({ name: "", phone: "", email: "", additionalEmails: [], additionalPhones: [], type: "Particulier", notes: "", civilite: "", idType: "CIN" });
   
   const [domain, setDomain] = useState<DomainType>(null);
   
-  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "", rentalType: "Location nue + logistique", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_VENUE_PRICE, logisticsPrice: HAHITANTSOA_LOGISTICS_PRICE });
+  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "", rentalType: "Location nue", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
+  const hahitantsoaSpaceRentalAmount = (hDetails.venuePrice || HAHITANTSOA_BASE_SPACE_RENTAL)
+    + Math.max(Number(hDetails.guests || 0) - 250, 0) * HAHITANTSOA_EXCESS_GUEST_RATE;
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
     period: "", startDate: "", startTime: "08:00", endDate: "", endTime: "22:00", pickupDate: "", returnDate: "", remarks: "",
     usageType: "Mariage", usageTypeOther: "", 
@@ -809,7 +815,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   // Navigation
   const goNext = () => {
     let nextStep = step + 1;
-    if (step === 3 && domain === 'hahitantsoa' && (hDetails.rentalType === 'Location nue' || hDetails.rentalType === 'Location nue + logistique')) {
+    if (step === 3 && domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
       nextStep = 5; // Skip catalog
     }
     setStep(nextStep);
@@ -817,7 +823,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
   const goBack = () => {
     let prevStep = step - 1;
-    if (step === 5 && domain === 'hahitantsoa' && (hDetails.rentalType === 'Location nue' || hDetails.rentalType === 'Location nue + logistique')) {
+    if (step === 5 && domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
       prevStep = 3;
     }
     setStep(Math.max(0, prevStep));
@@ -857,6 +863,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       party_type: newClient.type === "Entreprise" ? "company" : "individual",
       email: newClient.email.trim(),
       phone: newClient.phone.trim(),
+      contact_points: [
+        ...(newClient.email.trim() ? [{ kind: "email" as const, value: newClient.email.trim(), is_primary: true }] : []),
+        ...newClient.additionalEmails.filter(Boolean).map(value => ({ kind: "email" as const, value })),
+        ...(newClient.phone.trim() ? [{ kind: "phone" as const, value: newClient.phone.trim(), is_primary: true }] : []),
+        ...newClient.additionalPhones.filter(Boolean).map(value => ({ kind: "phone" as const, value })),
+      ],
       address: newClient.address?.trim() || "",
       notes: newClient.notes.trim(),
       civilite: newClient.civilite || "",
@@ -948,6 +960,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           service_notes: selectedServices.map((service) => service.name).join(", ") || undefined,
           start_at: startAt,
           end_at: endAt,
+          rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
+          guest_count: Number(hDetails.guests || 0),
+          space_rental_amount: hahitantsoaSpaceRentalAmount,
+          required_deposit_amount: hDetails.rentalType === "Location + logistique" ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT,
           notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
           lines,
         });
@@ -1069,7 +1085,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const renderStepper = () => {
     let steps = isProspectProforma ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    if (domain === 'hahitantsoa' && (hDetails.rentalType === 'Location nue' || hDetails.rentalType === 'Location nue + logistique')) {
+    if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
       steps = steps.filter(s => s !== 4);
     }
     return (
@@ -1329,6 +1345,35 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           )}
         </div>
           ) : null}
+
+      {clientMode === "new" && (
+        <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+          <h4 className="text-sm font-bold text-slate-800">Autres références de contact</h4>
+          <p className="mt-1 text-xs text-slate-500">Ajoutez autant d’e-mails ou de téléphones que nécessaire.</p>
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-600">E-mails supplémentaires</label>
+              {newClient.additionalEmails.map((value, index) => (
+                <div className="mb-2 flex gap-2" key={`email-${index}`}>
+                  <input aria-label={`E-mail supplémentaire ${index + 1}`} type="email" className="min-w-0 flex-1 rounded-lg border border-slate-300 p-2 text-sm" value={value} onChange={event => setNewClient(current => ({ ...current, additionalEmails: current.additionalEmails.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))} />
+                  <button type="button" aria-label="Supprimer cet e-mail" className="rounded-lg px-3 text-rose-600 hover:bg-rose-50" onClick={() => setNewClient(current => ({ ...current, additionalEmails: current.additionalEmails.filter((_, itemIndex) => itemIndex !== index) }))}><i className="fa-solid fa-trash" aria-hidden="true" /></button>
+                </div>
+              ))}
+              <button type="button" className="text-xs font-semibold text-indigo-700 hover:underline" onClick={() => setNewClient(current => ({ ...current, additionalEmails: [...current.additionalEmails, ""] }))}><i className="fa-solid fa-plus mr-1" aria-hidden="true" />Ajouter un e-mail</button>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-600">Téléphones supplémentaires</label>
+              {newClient.additionalPhones.map((value, index) => (
+                <div className="mb-2 flex gap-2" key={`phone-${index}`}>
+                  <input aria-label={`Téléphone supplémentaire ${index + 1}`} type="tel" className="min-w-0 flex-1 rounded-lg border border-slate-300 p-2 text-sm" value={value} onChange={event => setNewClient(current => ({ ...current, additionalPhones: current.additionalPhones.map((item, itemIndex) => itemIndex === index ? event.target.value : item) }))} />
+                  <button type="button" aria-label="Supprimer ce téléphone" className="rounded-lg px-3 text-rose-600 hover:bg-rose-50" onClick={() => setNewClient(current => ({ ...current, additionalPhones: current.additionalPhones.filter((_, itemIndex) => itemIndex !== index) }))}><i className="fa-solid fa-trash" aria-hidden="true" /></button>
+                </div>
+              ))}
+              <button type="button" className="text-xs font-semibold text-indigo-700 hover:underline" onClick={() => setNewClient(current => ({ ...current, additionalPhones: [...current.additionalPhones, ""] }))}><i className="fa-solid fa-plus mr-1" aria-hidden="true" />Ajouter un téléphone</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {clientMode === "new" && (
         <div>
@@ -1728,7 +1773,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   <span className="text-slate-600 font-medium">Ar</span>
                 </div>
               </div>
-              {hDetails.rentalType === 'Location nue + logistique' && (
+              {hDetails.rentalType === 'Location + logistique' && (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Tarif logistique</label>
                   <div className="flex items-center gap-2">
@@ -1744,7 +1789,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
             <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>
-            {(hDetails.rentalType === 'Location nue' || hDetails.rentalType === 'Location nue + logistique') ? 'Suivant (Services)' : 'Aller au catalogue / package'}
+            {hDetails.rentalType === 'Location nue' ? 'Suivant (Services)' : 'Aller au catalogue / articles et packs'}
             </button>
           </div>
         </div>
@@ -2178,10 +2223,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       </div>
     );
 
-    if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location + article' && hDetails.packageMode !== 'free') {
+    if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location + logistique' && hDetails.packageMode !== 'free') {
       return (
         <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Location + article</h3>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">Location + logistique</h3>
           <p className="text-sm text-slate-500 mb-6">Vous pouvez choisir un package, le modifier et ajouter des articles, ou ouvrir directement le catalogue.</p>
           <div className="mb-5 flex flex-wrap gap-2">
             <button
@@ -2401,7 +2446,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
         <h3 className="text-lg font-bold text-slate-800 mb-2">Catalogue Matériels</h3>
         <p className="text-sm text-slate-500 mb-6">Sélectionnez les articles souhaités.</p>
-        {domain === 'hahitantsoa' && hDetails.rentalType === 'Location + article' && (
+        {domain === 'hahitantsoa' && hDetails.rentalType === 'Location + logistique' && (
           <button type="button" className="mb-5 rounded-lg border border-indigo-300 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50" onClick={switchToPackageCatalog}>
             Revenir au choix du package
           </button>
@@ -2416,6 +2461,24 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         )}
 
         <div className="relative">
+          <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 p-3" aria-live="polite">
+            <div className="mb-2 flex items-center justify-between">
+              <h4 className="text-sm font-bold text-indigo-900">Sélection actuelle</h4>
+              <span className="text-xs font-semibold text-indigo-700">{selectedMaterials.length} article{selectedMaterials.length > 1 ? "s" : ""}</span>
+            </div>
+            {selectedMaterials.length === 0 ? (
+              <p className="text-xs text-indigo-700">Les articles sélectionnés apparaîtront ici pendant vos recherches.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {selectedMaterials.map(material => (
+                  <span key={material.id} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm">
+                    {material.name} × {material.quantity}
+                    <button type="button" className="text-rose-600 hover:text-rose-800" aria-label={`Retirer ${material.name}`} onClick={() => setSelectedMaterials(current => current.filter(item => item.id !== material.id))}><i className="fa-solid fa-xmark" aria-hidden="true" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           <div ref={catalogListRef} className="max-h-[min(55vh,520px)] overflow-y-auto scroll-smooth pr-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               {filteredCatalog.map(item => {
@@ -2802,7 +2865,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-orange-50 text-orange-800 p-4 rounded-xl border border-orange-100 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase opacity-70">Caution obligatoire (Dépôt de garantie)</p>
-          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? HAHITANTSOA_DEFAULT_DEPOSIT : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
+          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? (hDetails.rentalType === 'Location + logistique' ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT) : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
           <p className="text-xs opacity-80 mt-1">À verser en plus du total. Restituée après l'événement en l'absence de casse.</p>
         </div>
         <i className="fa-solid fa-shield-halved text-2xl opacity-50"></i>
@@ -2945,7 +3008,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const renderPaymentStep = () => {
     const activePercent = payment.percent ? parseInt(payment.percent, 10) : (domain === 'titan' ? (tDetails.advanceRate * 100) : 50);
-    const currentRequestedPayment = (totalAmount * activePercent / 100).toString();
+    const hahitantsoaDeposit = hDetails.rentalType === 'Location + logistique' ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT;
+    const currentRequestedPayment = domain === 'hahitantsoa'
+      ? hahitantsoaDeposit.toString()
+      : (totalAmount * activePercent / 100).toString();
 
     return (
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
@@ -2958,7 +3024,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <p className="text-xs text-orange-700">À régler lors du solde. Restituée après l'événement s'il n'y a pas de casse. Déduite en cas de dommages (solde restant à la charge du client si dépassement).</p>
           </div>
           <div className="font-bold text-lg text-orange-900 ml-4 whitespace-nowrap">
-            {(domain === 'hahitantsoa' ? HAHITANTSOA_DEFAULT_DEPOSIT : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar
+            {(domain === 'hahitantsoa' ? (hDetails.rentalType === 'Location + logistique' ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT) : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar
           </div>
         </div>
 
@@ -2990,17 +3056,19 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Acompte % (sur total {totalAmount.toLocaleString('fr-FR')})</label>
-              <input 
-                type="number" 
-                className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" 
-                value={payment.percent === "50" && domain === 'titan' ? (tDetails.advanceRate * 100).toString() : payment.percent} 
-                onChange={e => {
-                  const pct = e.target.value;
-                  const amt = (totalAmount * (parseInt(pct || "0", 10)) / 100).toString();
-                  setPayment({...payment, percent: pct, amount: amt});
-                }} 
-              />
+              {domain === 'hahitantsoa' ? (
+                <>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte contractuel</label>
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-2.5 text-sm font-bold text-indigo-800">
+                    {hahitantsoaDeposit.toLocaleString('fr-FR')} Ar — payable à la réservation
+                  </div>
+                </>
+              ) : (
+                <>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte % (sur total {totalAmount.toLocaleString('fr-FR')})</label>
+                  <input type="number" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={payment.percent === "50" ? (tDetails.advanceRate * 100).toString() : payment.percent} onChange={e => { const pct = e.target.value; const amt = (totalAmount * (parseInt(pct || "0", 10)) / 100).toString(); setPayment({...payment, percent: pct, amount: amt}); }} />
+                </>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

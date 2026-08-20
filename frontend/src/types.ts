@@ -33,6 +33,7 @@ export type Customer = {
   party_type?: "individual" | "company";
   email: string;
   phone: string;
+  contact_points?: CustomerContactPoint[];
   address: string;
   civilite?: string;
   birth_date?: string | null;
@@ -71,12 +72,21 @@ export type Customer = {
   last_activity_at?: string | null;
 };
 
+export type CustomerContactPoint = {
+  id?: string;
+  kind: "email" | "phone";
+  value: string;
+  label?: string;
+  is_primary?: boolean;
+};
+
 export type CustomerCreatePayload = {
   display_name: string;
   lifecycle_status?: "prospect" | "client";
   party_type?: "individual" | "company";
   email?: string;
   phone?: string;
+  contact_points?: CustomerContactPoint[];
   address?: string;
   civilite?: string;
   birth_date?: string | null;
@@ -347,6 +357,10 @@ export type HahitantsoaEventDraftCreatePayload = {
   customer_id: string;
   event_name: string;
   event_type?: HahitantsoaEventType;
+  rental_type?: "bare" | "logistics";
+  guest_count?: number;
+  space_rental_amount?: number;
+  required_deposit_amount?: number;
   venue_name?: string;
   location_details?: string;
   service_notes?: string;
@@ -386,6 +400,10 @@ export type HahitantsoaEventDraft = {
   customer_display_name: string;
   event_name: string;
   event_type?: HahitantsoaEventType;
+  rental_type?: "bare" | "logistics";
+  guest_count?: number;
+  space_rental_amount?: string;
+  required_deposit_amount?: string;
   venue_name: string;
   location_details: string;
   service_notes: string;
