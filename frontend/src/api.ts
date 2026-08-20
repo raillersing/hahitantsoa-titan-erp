@@ -1224,10 +1224,12 @@ export function uploadAttachment(
     hahitantsoaEventDraftId?: string;
   },
   signal?: AbortSignal,
+  label?: string,
 ): Promise<UploadedAttachment> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("category", category);
+  if (label?.trim()) formData.append("label", label.trim());
   if (scope.customerId) formData.append("customer_id", scope.customerId);
   if (scope.reservationDraftId) formData.append("reservation_draft_id", scope.reservationDraftId);
   if (scope.hahitantsoaEventDraftId) formData.append("hahitantsoa_event_draft_id", scope.hahitantsoaEventDraftId);

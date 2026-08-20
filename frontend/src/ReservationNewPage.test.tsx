@@ -463,18 +463,26 @@ describe('ReservationNewPage', () => {
     expect(convertProformaToContract).toHaveBeenCalledWith('DOC-T-001');
   });
 
-  it('6. la catégorie Photo a été retirée', async () => {
+  it('6. les documents officiels ont des champs dédiés et sont exclus des pièces jointes générales', async () => {
     render(<ReservationNewPage onNavigate={mockNavigate} />);
     await waitFor(() => {
       expect(screen.getByText('Comment voulez-vous commencer ?')).toBeInTheDocument();
     });
     fireEvent.click(screen.getByText('Commencer par le client'));
+    fireEvent.click(screen.getByText('Nouveau client'));
 
     // Check attachment UI
     await waitFor(() => {
       expect(screen.getByText('Pièces jointes client')).toBeInTheDocument();
     });
-    expect(screen.getByRole('option', { name: 'CIN' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/ajouter une pièce jointe pour CIN/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ex. justificatif domicile')).toBeInTheDocument();
+    const generalCategories = Array.from((document.getElementById('clientCat') as HTMLSelectElement).options).map(option => option.value);
+    expect(generalCategories).not.toContain('CIN');
+    expect(generalCategories).not.toContain('Passeport');
+    expect(generalCategories).not.toContain('NIF');
+    expect(generalCategories).not.toContain('STAT');
+    expect(generalCategories).not.toContain('RCS');
     expect(screen.queryByRole('option', { name: 'Photo' })).not.toBeInTheDocument();
   });
 
