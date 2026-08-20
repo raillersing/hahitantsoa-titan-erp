@@ -85,9 +85,9 @@ describe('CustomersPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Client Persisté' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
-    fireEvent.change(screen.getByPlaceholderText('NIF'), { target: { value: 'NIF-IND-001' } });
-    fireEvent.change(screen.getByPlaceholderText('STAT'), { target: { value: 'STAT-IND-001' } });
-    fireEvent.change(screen.getByPlaceholderText('RCS'), { target: { value: 'RCS-IND-001' } });
+    expect(screen.queryByPlaceholderText('NIF')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('STAT')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('RCS')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.click(screen.getByRole('button', { name: 'Créer le client' }));
@@ -95,10 +95,38 @@ describe('CustomersPage', () => {
     expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
       display_name: 'Client Persisté',
       party_type: 'individual',
-      nif: 'NIF-IND-001',
-      stat: 'STAT-IND-001',
-      rcs: 'RCS-IND-001',
+      nif: '',
+      stat: '',
+      rcs: '',
     }));
     expect(mockNavigate).toHaveBeenCalledWith('customer', 'CUST-099');
+  });
+
+  it('9. affiche les champs et boutons légaux uniquement pour une entreprise', async () => {
+    render(<CustomersPage onNavigate={vi.fn()} canSensitiveWrite />);
+    await screen.findByText('Ando Rakoto');
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    fireEvent.click(screen.getByText('Entreprise'));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.change(screen.getByPlaceholderText("Nom de l'entreprise"), { target: { value: 'Entreprise Test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+
+    expect(screen.getByPlaceholderText('NIF')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('STAT')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('RCS')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ajouter une pièce jointe pour NIF')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ajouter une pièce jointe pour STAT')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ajouter une pièce jointe pour RCS')).toBeInTheDocument();
+    const nifFile = new File(['nif'], 'nif.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Ajouter une pièce jointe pour NIF'), { target: { files: [nifFile] } });
+    expect(screen.getByAltText('Aperçu NIF')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    const categories = Array.from((screen.getByPlaceholderText('Intitulé de la pièce').parentElement?.querySelector('select') as HTMLSelectElement).options).map(option => option.value);
+    expect(categories).not.toContain('CIN');
+    expect(categories).not.toContain('Passeport');
+    expect(categories).not.toContain('NIF');
+    expect(categories).not.toContain('STAT');
+    expect(categories).not.toContain('RCS');
   });
 });

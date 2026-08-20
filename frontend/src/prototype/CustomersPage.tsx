@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ApiError, createCustomer, getCustomers } from "../api";
+import { ApiError, createCustomer, getCustomers, uploadAttachment } from "../api";
 import type { Customer as ApiCustomer } from "../types";
 import type { Client } from "../types";
 import { EmptyState, LoadingSpinner } from "../components";
@@ -8,6 +8,34 @@ interface CustomersPageProps {
   onNavigate: (scope: any, param?: string) => void;
   canSensitiveWrite?: boolean;
   canSuperAdminDelete?: boolean;
+}
+
+type LegalAttachmentCategory = "CIN" | "Passeport" | "NIF" | "STAT" | "RCS";
+type CustomerWizardAttachment = {
+  id: string;
+  name: string;
+  category: string;
+  label?: string;
+  status: string;
+  file: File;
+};
+
+function AttachmentMiniPreview({ attachment }: { attachment: CustomerWizardAttachment }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const isImage = attachment.file.type.startsWith("image/");
+
+  useEffect(() => {
+    if (!isImage) return;
+    const url = URL.createObjectURL(attachment.file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [attachment.file, isImage]);
+
+  return (
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50" title={attachment.name}>
+      {previewUrl ? <img src={previewUrl} alt={`Aperçu ${attachment.category}`} className="h-full w-full object-cover" /> : <i className="fa-solid fa-file-pdf text-rose-500" aria-hidden="true"></i>}
+    </span>
+  );
 }
 
 export default function CustomersPage({ onNavigate, canSensitiveWrite = false, canSuperAdminDelete = false }: CustomersPageProps) {
@@ -47,7 +75,9 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
   
   const [wizardStep, setWizardStep] = useState(1);
   const [maxWizardStep, setMaxWizardStep] = useState(1);
-  const [attachments, setAttachments] = useState<{id: string, name: string, category: string, status: string}[]>([]);
+  const [attachments, setAttachments] = useState<CustomerWizardAttachment[]>([]);
+  const [legalAttachments, setLegalAttachments] = useState<Partial<Record<LegalAttachmentCategory, CustomerWizardAttachment>>>({});
+  const [attachmentLabel, setAttachmentLabel] = useState("");
   
   // Prospect specific
   const [prospectRequestType, setProspectRequestType] = useState("Proforma demandée");
@@ -205,7 +235,22 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
         prospect_requested_date: prospectDate || null,
         prospect_budget: prospectBudget || undefined,
       });
+      const pendingAttachments = [
+        ...Object.values(legalAttachments).filter((attachment): attachment is CustomerWizardAttachment => Boolean(attachment)),
+        ...attachments,
+      ];
+      const uploadResults = await Promise.allSettled(
+        pendingAttachments.map(attachment => uploadAttachment(
+          attachment.file,
+          attachment.category,
+          { customerId: created.id },
+          undefined,
+          attachment.label || attachment.category,
+        )),
+      );
+      const uploadFailed = uploadResults.some(result => result.status === "rejected");
       setIsAdding(false);
+      if (uploadFailed) setCreateError("Le client a été créé, mais certaines pièces jointes n’ont pas pu être enregistrées.");
       await loadCustomers();
       onNavigate("customer", created.id);
     } catch (error: unknown) {
@@ -440,8 +485,19 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
                           </select>
                         </div>
                         <div className="flex-1">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">Numéro</label>
-                          <input type="text" value={newIdNumber} onChange={e => setNewIdNumber(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Numéro de la pièce" />
+                          <label className="block text-sm font-medium text-slate-700 mb-1">Numéro et pièce jointe</label>
+                          <div className="flex items-center gap-2">
+                            <input type="text" value={newIdNumber} onChange={e => setNewIdNumber(e.target.value)} className="min-w-0 flex-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Numéro de la pièce" />
+                            {legalAttachments[newIdType] && <AttachmentMiniPreview attachment={legalAttachments[newIdType]!} />}
+                            <label className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                              <i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter
+                              <input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label={`Ajouter une pièce jointe pour ${newIdType}`} onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) setLegalAttachments(current => ({ ...current, [newIdType]: { id: crypto.randomUUID(), name: file.name, category: newIdType, status: "Présent", file } }));
+                                e.target.value = "";
+                              }} />
+                            </label>
+                          </div>
                         </div>
                       </div>
                       <div>
@@ -468,18 +524,32 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
                       </div>
                     </>
                   )}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">NIF</label>
-                    <input type="text" value={newNif} onChange={e => setNewNif(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="NIF" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">STAT</label>
-                    <input type="text" value={newStat} onChange={e => setNewStat(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="STAT" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">RCS</label>
-                    <input type="text" value={newRcs} onChange={e => setNewRcs(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="RCS" />
-                  </div>
+                  {newType === "Entreprise" && (
+                    <>
+                      {(["NIF", "STAT", "RCS"] as const).map(category => {
+                        const value = category === "NIF" ? newNif : category === "STAT" ? newStat : newRcs;
+                        const setValue = category === "NIF" ? setNewNif : category === "STAT" ? setNewStat : setNewRcs;
+                        const attachment = legalAttachments[category];
+                        return (
+                          <div key={category}>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">{category}</label>
+                            <div className="flex items-center gap-2">
+                              <input type="text" value={value} onChange={e => setValue(e.target.value)} className="min-w-0 flex-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder={category} />
+                              {attachment && <AttachmentMiniPreview attachment={attachment} />}
+                              <label className="flex min-h-10 shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-dashed border-indigo-300 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                                <i className="fa-solid fa-paperclip" aria-hidden="true"></i> Ajouter
+                                <input type="file" className="sr-only" accept=".jpg,.jpeg,.png,.webp,.pdf" aria-label={`Ajouter une pièce jointe pour ${category}`} onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (file) setLegalAttachments(current => ({ ...current, [category]: { id: crypto.randomUUID(), name: file.name, category, status: "Présent", file } }));
+                                  e.target.value = "";
+                                }} />
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -604,21 +674,24 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <select id="attCategory" className="border border-slate-300 rounded-lg p-2 text-sm bg-white min-w-[150px]">
-                      <option value="CIN">CIN / Passeport</option>
-                      <option value="NIF">NIF / STAT</option>
-                      <option value="Domicile">Justificatif domicile</option>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+                    <input id="attachmentLabel" value={attachmentLabel} onChange={e => setAttachmentLabel(e.target.value)} placeholder="Intitulé de la pièce" className="border border-slate-300 rounded-lg p-2 text-sm" />
+                    <select id="attCategory" className="border border-slate-300 rounded-lg p-2 text-sm bg-white">
+                      <option value="Justificatif domicile">Justificatif domicile</option>
+                      <option value="Logo">Logo</option>
+                      <option value="Pièce jointe email">Pièce jointe email</option>
                       <option value="Autre">Autre</option>
                     </select>
-                    <input type="file" id="attFile" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                    <input type="file" id="attFile" accept=".jpg,.jpeg,.png,.webp,.pdf" className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
                     <button 
+                      disabled={!attachmentLabel.trim()}
                       className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg font-medium text-sm hover:bg-indigo-100"
                       onClick={() => {
                         const cat = (document.getElementById('attCategory') as HTMLSelectElement).value;
                         const f = document.getElementById('attFile') as HTMLInputElement;
-                        if (f.files?.length) {
-                          setAttachments([...attachments, { id: Math.random().toString(), name: f.files[0].name, category: cat, status: 'Présent' }]);
+                        if (f.files?.length && attachmentLabel.trim()) {
+                          setAttachments([...attachments, { id: crypto.randomUUID(), name: f.files[0].name, category: cat, label: attachmentLabel.trim(), status: 'Présent', file: f.files[0] }]);
+                          setAttachmentLabel("");
                           f.value = "";
                         }
                       }}
@@ -631,7 +704,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
                       {attachments.map(a => (
                         <li key={a.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
                           <div>
-                            <span className="font-semibold text-slate-700 text-sm">{a.category}</span>
+                            <span className="font-semibold text-slate-700 text-sm">{a.label}</span>
                             <span className="text-slate-500 text-xs ml-2">{a.name}</span>
                           </div>
                           <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-md font-semibold">{a.status}</span>
