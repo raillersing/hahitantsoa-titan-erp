@@ -118,11 +118,11 @@ def test_hahitantsoa_event_draft_rejects_invalid_period() -> None:
     }
 
 
-def test_hahitantsoa_event_draft_line_rejects_material_pack() -> None:
+def test_hahitantsoa_event_draft_line_accepts_material_pack() -> None:
     start_at, end_at = _period()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
-        event_name="Pack forbidden event",
+        event_name="Pack event",
         start_at=start_at,
         end_at=end_at,
     )
@@ -132,14 +132,9 @@ def test_hahitantsoa_event_draft_line_rejects_material_pack() -> None:
         quantity=1,
     )
 
-    with pytest.raises(ValidationError) as error:
-        line.full_clean()
-
-    assert error.value.message_dict == {
-        "inventory_item": [
-            "Inventory item kind is not allowed for Hahitantsoa shared event drafts."
-        ]
-    }
+    line.full_clean()
+    line.save()
+    assert HahitantsoaEventDraftLine.objects.filter(pk=line.pk).exists()
 
 
 def test_hahitantsoa_event_draft_amendment_request_line_accepts_shared_inventory_item() -> None:
@@ -165,11 +160,11 @@ def test_hahitantsoa_event_draft_amendment_request_line_accepts_shared_inventory
     assert persisted.lines.count() == 1
 
 
-def test_hahitantsoa_event_draft_amendment_request_line_rejects_material_pack() -> None:
+def test_hahitantsoa_event_draft_amendment_request_line_accepts_material_pack() -> None:
     start_at, end_at = _period()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
-        event_name="Amendment pack forbidden event",
+        event_name="Amendment pack event",
         start_at=start_at,
         end_at=end_at,
     )
@@ -180,14 +175,9 @@ def test_hahitantsoa_event_draft_amendment_request_line_rejects_material_pack() 
         quantity=1,
     )
 
-    with pytest.raises(ValidationError) as error:
-        line.full_clean()
-
-    assert error.value.message_dict == {
-        "inventory_item": [
-            "Inventory item kind is not allowed for Hahitantsoa amendment request lines."
-        ]
-    }
+    line.full_clean()
+    line.save()
+    assert HahitantsoaEventDraftAmendmentRequestLine.objects.filter(pk=line.pk).exists()
 
 
 def test_hahitantsoa_event_draft_accepts_complete_prerequisite_markers(

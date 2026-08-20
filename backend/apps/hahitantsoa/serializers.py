@@ -9,7 +9,14 @@ from apps.documents.serializers import (
     DocumentInstanceGenerateSerializer,
     DocumentInstanceSerializer,
 )
+from apps.hahitantsoa.commercial_terms import (
+    calculate_space_rental_amount,
+    default_deposit_amount,
+    get_hahitantsoa_commercial_terms,
+    get_hahitantsoa_payment_schedule,
+)
 from apps.hahitantsoa.models import (
+    HahitantsoaCommercialTerms,
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
@@ -594,9 +601,10 @@ class HahitantsoaEventDraftLineSerializer(serializers.ModelSerializer):
             "inventory_item_name",
             "inventory_item_kind",
             "quantity",
+            "unit_rental_price",
             "notes",
         )
-        read_only_fields = ("id", "inventory_item_name", "inventory_item_kind")
+        read_only_fields = ("id", "inventory_item_name", "inventory_item_kind", "unit_rental_price")
 
     def validate_inventory_item_id(self, inventory_item: InventoryItem) -> InventoryItem:
         try:
@@ -618,6 +626,32 @@ class HahitantsoaEventDraftLineSerializer(serializers.ModelSerializer):
         return quantity
 
 
+class HahitantsoaCommercialTermsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HahitantsoaCommercialTerms
+        fields = (
+            "base_space_rental_amount",
+            "included_guest_count",
+            "excess_guest_amount",
+            "bare_deposit_amount",
+            "logistics_deposit_amount",
+            "updated_at",
+        )
+        read_only_fields = ("updated_at",)
+
+
+class HahitantsoaPaymentScheduleSerializer(serializers.Serializer):
+    space_rental_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    logistics_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    deposit_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    remaining_after_deposit = serializers.DecimalField(max_digits=14, decimal_places=2)
+    first_installment_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    second_installment_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    first_installment_due_on = serializers.DateField()
+    second_installment_due_on = serializers.DateField()
+
+
 class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     customer_id = serializers.PrimaryKeyRelatedField(
         source="customer",
@@ -626,6 +660,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     customer_display_name = serializers.CharField(source="customer.display_name", read_only=True)
     lines = HahitantsoaEventDraftLineSerializer(many=True)
     prerequisite_status = serializers.SerializerMethodField()
+    payment_schedule = serializers.SerializerMethodField()
 
     class Meta:
         model = HahitantsoaEventDraft
@@ -637,6 +672,10 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "customer_display_name",
             "event_name",
             "event_type",
+            "rental_type",
+            "guest_count",
+            "space_rental_amount",
+            "required_deposit_amount",
             "venue_name",
             "location_details",
             "service_notes",
@@ -645,6 +684,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "notes",
             "lines",
             "prerequisite_status",
+            "payment_schedule",
             "created_at",
             "updated_at",
         )
@@ -655,6 +695,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "customer_display_name",
             "created_at",
             "updated_at",
+            "payment_schedule",
         )
 
     def validate(self, attrs):
@@ -673,17 +714,45 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"lines": "Each inventory item can appear only once per event draft."}
                 )
+            rental_type = attrs.get("rental_type", getattr(self.instance, "rental_type", "bare"))
+            if rental_type != "logistics" and any(
+                line["inventory_item"].kind == "material_pack" for line in lines
+            ):
+                raise serializers.ValidationError(
+                    {"lines": "Material packs require a Hahitantsoa logistics rental."}
+                )
 
         return attrs
+
+    @extend_schema_field(HahitantsoaPaymentScheduleSerializer)
+    def get_payment_schedule(self, instance):
+        return HahitantsoaPaymentScheduleSerializer(
+            get_hahitantsoa_payment_schedule(event_draft=instance)
+        ).data
 
     @transaction.atomic
     def create(self, validated_data):
         lines_data = validated_data.pop("lines")
+        terms = get_hahitantsoa_commercial_terms()
+        validated_data.setdefault(
+            "space_rental_amount",
+            calculate_space_rental_amount(
+                terms=terms, guest_count=validated_data.get("guest_count", 0)
+            ),
+        )
+        validated_data.setdefault(
+            "required_deposit_amount",
+            default_deposit_amount(
+                terms=terms,
+                rental_type=validated_data.get("rental_type", "bare"),
+            ),
+        )
         event_draft = HahitantsoaEventDraft(**validated_data)
         event_draft.full_clean()
         event_draft.save()
 
         for line_data in lines_data:
+            line_data.setdefault("unit_rental_price", line_data["inventory_item"].rental_price or 0)
             line = HahitantsoaEventDraftLine(
                 event_draft=event_draft,
                 created_by=event_draft.created_by,
@@ -744,6 +813,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                 line = existing_lines_by_item_id.get(str(inventory_item.id))
 
                 if line is None:
+                    line_data.setdefault("unit_rental_price", inventory_item.rental_price or 0)
                     line = HahitantsoaEventDraftLine(
                         event_draft=instance,
                         created_by=acting_user,

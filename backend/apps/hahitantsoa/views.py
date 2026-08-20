@@ -15,6 +15,7 @@ from apps.documents.services import (
     generate_hahitantsoa_event_draft_document_instance_html,
     get_hahitantsoa_event_draft_document_instance_or_404,
 )
+from apps.hahitantsoa.commercial_terms import get_hahitantsoa_commercial_terms
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
@@ -26,6 +27,7 @@ from apps.hahitantsoa.models import (
 from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
+    HahitantsoaCommercialTermsSerializer,
     HahitantsoaDiscoveryItemSerializer,
     HahitantsoaEventDraftAmendmentPreflightSerializer,
     HahitantsoaEventDraftAmendmentRequestApplySerializer,
@@ -120,6 +122,33 @@ class HahitantsoaSharedAvailabilityAPIView(APIView):
             end_at=end_at,
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaCommercialTermsAPIView(APIView):
+    http_method_names = ["get", "put", "patch", "head", "options"]
+
+    def get_permissions(self):
+        if self.request.method in {"PUT", "PATCH"}:
+            return [HasSuperAdminAccess()]
+        return [IsAuthenticated()]
+
+    @extend_schema(responses=HahitantsoaCommercialTermsSerializer)
+    def get(self, request):
+        terms = get_hahitantsoa_commercial_terms()
+        return Response(HahitantsoaCommercialTermsSerializer(terms).data)
+
+    @extend_schema(
+        request=HahitantsoaCommercialTermsSerializer,
+        responses=HahitantsoaCommercialTermsSerializer,
+    )
+    def patch(self, request):
+        terms = get_hahitantsoa_commercial_terms()
+        serializer = HahitantsoaCommercialTermsSerializer(terms, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(updated_by=request.user)
+        return Response(serializer.data)
+
+    put = patch
 
 
 def active_hahitantsoa_event_drafts():
