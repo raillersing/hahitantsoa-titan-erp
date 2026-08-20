@@ -582,9 +582,9 @@ def get_hahitantsoa_event_draft_prerequisite_status(
             if deposit_payment is not None
             else event_draft.required_deposit_received_at
         ),
-        satisfied_label="The required confirmed deposit amount is linked to this event draft.",
-        stale_marker_label="Deposit marker is present, but the required payment amount is missing.",
-        missing_label="The required confirmed deposit amount is missing.",
+        satisfied_label="Confirmed deposit payment is linked to this event draft.",
+        stale_marker_label="Deposit marker is present, but durable payment truth is missing.",
+        missing_label="Confirmed deposit payment truth is missing.",
     )
 
     return HahitantsoaEventDraftPrerequisiteStatus(

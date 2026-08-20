@@ -714,6 +714,13 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"lines": "Each inventory item can appear only once per event draft."}
                 )
+            rental_type = attrs.get("rental_type", getattr(self.instance, "rental_type", "bare"))
+            if rental_type != "logistics" and any(
+                line["inventory_item"].kind == "material_pack" for line in lines
+            ):
+                raise serializers.ValidationError(
+                    {"lines": "Material packs require a Hahitantsoa logistics rental."}
+                )
 
         return attrs
 
