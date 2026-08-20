@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -492,7 +493,11 @@ def _has_confirmed_required_deposit_payment(
     *,
     event_draft: HahitantsoaEventDraft,
 ) -> bool:
-    return _confirmed_required_deposit_payments(event_draft=event_draft).exists()
+    payments = _confirmed_required_deposit_payments(event_draft=event_draft)
+    if event_draft.required_deposit_amount <= Decimal("0"):
+        return payments.exists()
+    confirmed_amount = sum((payment.amount for payment in payments), Decimal("0"))
+    return confirmed_amount >= event_draft.required_deposit_amount
 
 
 def _lock_confirmed_required_deposit_payments(
@@ -569,7 +574,7 @@ def get_hahitantsoa_event_draft_prerequisite_status(
         missing_label="Generated contract truth is missing.",
     )
     deposit_status = _build_prerequisite_status_item(
-        truth_present=deposit_payment is not None,
+        truth_present=_has_confirmed_required_deposit_payment(event_draft=event_draft),
         marker_present=_is_required_deposit_received(event_draft=event_draft),
         source_id=getattr(deposit_payment, "id", None),
         recorded_at=(
@@ -577,9 +582,9 @@ def get_hahitantsoa_event_draft_prerequisite_status(
             if deposit_payment is not None
             else event_draft.required_deposit_received_at
         ),
-        satisfied_label="Confirmed deposit payment is linked to this event draft.",
-        stale_marker_label="Deposit marker is present, but durable payment truth is missing.",
-        missing_label="Confirmed deposit payment truth is missing.",
+        satisfied_label="The required confirmed deposit amount is linked to this event draft.",
+        stale_marker_label="Deposit marker is present, but the required payment amount is missing.",
+        missing_label="The required confirmed deposit amount is missing.",
     )
 
     return HahitantsoaEventDraftPrerequisiteStatus(
@@ -825,9 +830,14 @@ def mark_hahitantsoa_event_draft_required_deposit_received(
     with transaction.atomic():
         locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
         _assert_active_draft_state(event_draft=locked_event_draft)
-        if not _lock_confirmed_required_deposit_payments(event_draft=locked_event_draft):
+        locked_payments = _lock_confirmed_required_deposit_payments(event_draft=locked_event_draft)
+        confirmed_amount = sum((payment.amount for payment in locked_payments), Decimal("0"))
+        if not locked_payments or (
+            locked_event_draft.required_deposit_amount > Decimal("0")
+            and confirmed_amount < locked_event_draft.required_deposit_amount
+        ):
             raise ReservationLifecycleStateError(
-                "Hahitantsoa event draft must have a confirmed deposit payment.",
+                "Hahitantsoa event draft must have its required deposit fully confirmed.",
                 code="required_deposit_payment_truth_missing",
             )
         now = timezone.now()

@@ -26,6 +26,11 @@ class HahitantsoaEventType(models.TextChoices):
     OTHER = "other", "Autre"
 
 
+class HahitantsoaRentalType(models.TextChoices):
+    BARE = "bare", "Location nue"
+    LOGISTICS = "logistics", "Location + logistique"
+
+
 class HahitantsoaEventDraftAmendmentRequestStatus(models.TextChoices):
     DRAFT = "draft", "draft"
     APPLIED = "applied", "applied"
@@ -86,6 +91,14 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
         choices=HahitantsoaEventType.choices,
         default=HahitantsoaEventType.OTHER,
     )
+    rental_type = models.CharField(
+        max_length=16,
+        choices=HahitantsoaRentalType.choices,
+        default=HahitantsoaRentalType.BARE,
+    )
+    guest_count = models.PositiveIntegerField(default=0)
+    space_rental_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    required_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     venue_name = models.CharField(max_length=255, blank=True)
     location_details = models.TextField(blank=True)
     service_notes = models.TextField(blank=True)
@@ -101,6 +114,20 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
             models.CheckConstraint(
                 condition=models.Q(status__in=HAHITANTSOA_EVENT_DRAFT_STATUS_VALUES),
                 name="hahitantsoa_event_draft_status_allowed",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    rental_type__in=[choice.value for choice in HahitantsoaRentalType]
+                ),
+                name="hahitantsoa_event_draft_rental_type_allowed",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(space_rental_amount__gte=0),
+                name="hahitantsoa_event_draft_space_rental_amount_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(required_deposit_amount__gte=0),
+                name="hahitantsoa_event_draft_required_deposit_amount_nonnegative",
             ),
             models.CheckConstraint(
                 condition=models.Q(end_at__gt=models.F("start_at")),
@@ -166,6 +193,7 @@ class HahitantsoaEventDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, Au
         related_name="hahitantsoa_event_draft_lines",
     )
     quantity = models.PositiveIntegerField(default=1)
+    unit_rental_price = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     notes = models.TextField(blank=True)
 
     class Meta:
@@ -176,6 +204,10 @@ class HahitantsoaEventDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, Au
             models.CheckConstraint(
                 condition=models.Q(quantity__gte=1),
                 name="hahitantsoa_event_draft_line_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(unit_rental_price__gte=0),
+                name="hahitantsoa_event_draft_line_unit_rental_price_nonnegative",
             ),
             models.UniqueConstraint(
                 fields=["event_draft", "inventory_item"],
@@ -205,6 +237,42 @@ class HahitantsoaEventDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, Au
 
     def __str__(self) -> str:
         return f"{self.event_draft} - {self.inventory_item} x {self.quantity}"
+
+
+class HahitantsoaCommercialTerms(UUIDModel, TimestampedModel, AuditableModel):
+    """The single editable source of the Hahitantsoa default commercial terms."""
+
+    key = models.CharField(max_length=32, unique=True, default="default", editable=False)
+    base_space_rental_amount = models.DecimalField(max_digits=14, decimal_places=2, default=6500000)
+    included_guest_count = models.PositiveIntegerField(default=250)
+    excess_guest_amount = models.DecimalField(max_digits=14, decimal_places=2, default=5000)
+    bare_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=1000000)
+    logistics_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=1500000)
+
+    class Meta:
+        verbose_name = "Hahitantsoa commercial terms"
+        verbose_name_plural = "Hahitantsoa commercial terms"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(base_space_rental_amount__gte=0),
+                name="hahitantsoa_terms_base_space_rental_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(excess_guest_amount__gte=0),
+                name="hahitantsoa_terms_excess_guest_amount_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(bare_deposit_amount__gte=0),
+                name="hahitantsoa_terms_bare_deposit_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(logistics_deposit_amount__gte=0),
+                name="hahitantsoa_terms_logistics_deposit_nonnegative",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return "Hahitantsoa commercial terms"
 
 
 class HahitantsoaEventDraftAmendmentRequest(UUIDModel, TimestampedModel, AuditableModel):

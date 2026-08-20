@@ -4,10 +4,36 @@ from rest_framework import serializers
 
 from apps.customers.models import (
     Customer,
+    CustomerContactKind,
+    CustomerContactPoint,
     CustomerLifecycleStatus,
     CustomerPartyType,
     DesiredDateWaitlistEntry,
 )
+
+
+class CustomerContactPointSerializer(serializers.ModelSerializer):
+    kind = serializers.ChoiceField(choices=CustomerContactKind.choices)
+
+    class Meta:
+        model = CustomerContactPoint
+        fields = ("id", "kind", "value", "label", "is_primary")
+        read_only_fields = ("id",)
+
+    def validate_value(self, value: str) -> str:
+        return value.strip()
+
+    def validate(self, attrs):
+        if attrs["kind"] == CustomerContactKind.EMAIL:
+            from django.core.validators import validate_email
+
+            try:
+                validate_email(attrs["value"])
+            except DjangoValidationError as error:
+                raise serializers.ValidationError(
+                    {"value": "A valid email address is required."}
+                ) from error
+        return attrs
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -23,6 +49,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     event_count = serializers.SerializerMethodField()
     document_count = serializers.SerializerMethodField()
     last_activity_at = serializers.SerializerMethodField()
+    contact_points = CustomerContactPointSerializer(many=True, required=False)
 
     def get_reservation_count(self, obj):
         return getattr(obj, "reservation_count", 0)
@@ -58,6 +85,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "party_type",
             "email",
             "phone",
+            "contact_points",
             "address",
             "civilite",
             "birth_date",
@@ -105,6 +133,90 @@ class CustomerSerializer(serializers.ModelSerializer):
             "created_by",
             "updated_by",
         )
+
+    def validate(self, attrs):
+        contact_points = attrs.get("contact_points")
+        if contact_points is None:
+            return attrs
+
+        seen_values = set()
+        primary_by_kind = set()
+        for contact in contact_points:
+            kind = contact["kind"]
+            value = contact["value"]
+            key = (kind, value.casefold() if kind == CustomerContactKind.EMAIL else value)
+            if key in seen_values:
+                raise serializers.ValidationError(
+                    {"contact_points": "Each contact value can be entered only once per type."}
+                )
+            seen_values.add(key)
+            if contact.get("is_primary", False):
+                if kind in primary_by_kind:
+                    raise serializers.ValidationError(
+                        {"contact_points": "Only one primary contact is allowed per type."}
+                    )
+                primary_by_kind.add(kind)
+        return attrs
+
+    @staticmethod
+    def _normalise_contact_points(contact_points):
+        primary_by_kind = {
+            contact["kind"] for contact in contact_points if contact.get("is_primary", False)
+        }
+        normalised = []
+        for contact in contact_points:
+            contact = dict(contact)
+            if contact["kind"] not in primary_by_kind:
+                contact["is_primary"] = True
+                primary_by_kind.add(contact["kind"])
+            normalised.append(contact)
+        return normalised
+
+    @staticmethod
+    def _sync_legacy_contacts(customer: Customer) -> None:
+        contacts = list(customer.contact_points.all())
+        primary_values = {
+            kind: next(
+                (point.value for point in contacts if point.kind == kind and point.is_primary),
+                "",
+            )
+            for kind in CustomerContactKind.values
+        }
+        customer.email = primary_values[CustomerContactKind.EMAIL]
+        customer.phone = primary_values[CustomerContactKind.PHONE]
+
+    def _replace_contact_points(self, customer: Customer, contact_points) -> None:
+        contact_points = self._normalise_contact_points(contact_points)
+        CustomerContactPoint.objects.filter(customer=customer).delete()
+        CustomerContactPoint.objects.bulk_create(
+            [
+                CustomerContactPoint(
+                    customer=customer,
+                    created_by=customer.updated_by or customer.created_by,
+                    updated_by=customer.updated_by or customer.created_by,
+                    **contact,
+                )
+                for contact in contact_points
+            ]
+        )
+        self._sync_legacy_contacts(customer)
+
+    def create(self, validated_data):
+        contact_points = validated_data.pop("contact_points", None)
+        customer = Customer.objects.create(**validated_data)
+        if contact_points is not None:
+            self._replace_contact_points(customer, contact_points)
+            customer.save(update_fields=["email", "phone", "updated_at"])
+        return customer
+
+    def update(self, instance, validated_data):
+        contact_points = validated_data.pop("contact_points", None)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        if contact_points is not None:
+            self._replace_contact_points(instance, contact_points)
+        instance.save()
+        return instance
 
 
 class DesiredDateWaitlistEntrySerializer(serializers.ModelSerializer):

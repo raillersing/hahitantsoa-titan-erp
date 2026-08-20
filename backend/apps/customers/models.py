@@ -34,6 +34,11 @@ class CustomerPartyType(models.TextChoices):
     COMPANY = "company", "Entreprise"
 
 
+class CustomerContactKind(models.TextChoices):
+    EMAIL = "email", "E-mail"
+    PHONE = "phone", "Téléphone"
+
+
 def generate_customer_public_reference() -> str:
     return f"CLI-{uuid.uuid4().hex[:12].upper()}"
 
@@ -140,6 +145,51 @@ class Customer(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
 
     def __str__(self) -> str:
         return self.display_name
+
+
+class CustomerContactPoint(UUIDModel, TimestampedModel, AuditableModel):
+    """A reusable email address or telephone number for a customer dossier."""
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="contact_points",
+    )
+    kind = models.CharField(max_length=16, choices=CustomerContactKind.choices)
+    value = models.CharField(max_length=254)
+    label = models.CharField(max_length=64, blank=True)
+    is_primary = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["kind", "-is_primary", "created_at", "id"]
+        verbose_name = "Customer contact point"
+        verbose_name_plural = "Customer contact points"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["customer", "kind", "value"],
+                name="customer_contact_point_unique_value",
+            ),
+            models.UniqueConstraint(
+                fields=["customer", "kind"],
+                condition=models.Q(is_primary=True),
+                name="customer_contact_point_one_primary_per_kind",
+            ),
+        ]
+
+    def clean(self) -> None:
+        self.value = self.value.strip()
+        if not self.value:
+            raise ValidationError({"value": "A contact value is required."})
+        if self.kind == CustomerContactKind.EMAIL:
+            from django.core.validators import validate_email
+
+            try:
+                validate_email(self.value)
+            except ValidationError as error:
+                raise ValidationError({"value": "A valid email address is required."}) from error
+
+    def __str__(self) -> str:
+        return f"{self.customer} - {self.value}"
 
 
 class DesiredDateWaitlistEntry(UUIDModel, TimestampedModel, AuditableModel):

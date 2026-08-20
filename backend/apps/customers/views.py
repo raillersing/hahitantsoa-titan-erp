@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics, serializers, status
@@ -9,7 +9,13 @@ from rest_framework.views import APIView
 
 from apps.identity.permissions import HasReservationSensitiveAccess, HasSuperAdminAccess
 
-from .models import Customer, DesiredDateWaitlistEntry, DesiredDateWaitlistStatus, ProspectStatus
+from .models import (
+    Customer,
+    CustomerContactPoint,
+    DesiredDateWaitlistEntry,
+    DesiredDateWaitlistStatus,
+    ProspectStatus,
+)
 from .serializers import (
     CommercialTimelineEventSerializer,
     CustomerSerializer,
@@ -68,6 +74,7 @@ def active_customers():
             last_event_at=Max("hahitantsoa_event_drafts__updated_at"),
             last_document_at=Max("document_instances__updated_at"),
         )
+        .prefetch_related(Prefetch("contact_points", queryset=CustomerContactPoint.objects.all()))
         .order_by("display_name")
     )
 

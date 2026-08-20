@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.hahitantsoa.views import (
+    HahitantsoaCommercialTermsAPIView,
     HahitantsoaDiscoveryItemsAPIView,
     HahitantsoaEventDraftAmendmentPreflightAPIView,
     HahitantsoaEventDraftAmendmentRequestApplyAPIView,
@@ -27,6 +28,11 @@ from apps.hahitantsoa.views import (
 )
 
 urlpatterns = [
+    path(
+        "commercial-terms/",
+        HahitantsoaCommercialTermsAPIView.as_view(),
+        name="hahitantsoa-commercial-terms",
+    ),
     path(
         "discovery-items/",
         HahitantsoaDiscoveryItemsAPIView.as_view(),

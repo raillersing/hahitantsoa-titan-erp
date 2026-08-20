@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from apps.customers.models import Customer
 from apps.documents.models import UploadedAttachment
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
 
 ATTACHMENTS_URL = "/api/v1/documents/attachments/"
@@ -84,6 +85,34 @@ def test_sensitive_user_can_upload_and_download_private_attachment(
     assert download.status_code == 200
     assert download["Content-Type"] == "application/pdf"
     assert b"%PDF-1.7" in b"".join(download.streaming_content)
+
+
+def test_attachment_can_link_a_hahitantsoa_event_and_its_customer(
+    sensitive_client, customer, tmp_path, settings
+):
+    settings.MEDIA_ROOT = tmp_path
+    start_at = timezone.now().replace(microsecond=0)
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Dossier avec pièce jointe",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=2),
+    )
+
+    response = sensitive_client.post(
+        ATTACHMENTS_URL,
+        {
+            "customer_id": str(customer.id),
+            "hahitantsoa_event_draft_id": str(event_draft.id),
+            "category": "CIN",
+            "file": _pdf_file(),
+        },
+    )
+
+    assert response.status_code == 201
+    attachment = UploadedAttachment.objects.get(pk=response.json()["id"])
+    assert attachment.customer_id == customer.id
+    assert attachment.hahitantsoa_event_draft_id == event_draft.id
 
 
 def test_attachment_upload_rejects_mismatched_file_signature(
