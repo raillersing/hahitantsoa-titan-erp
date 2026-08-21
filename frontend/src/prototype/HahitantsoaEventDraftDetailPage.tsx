@@ -52,6 +52,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         getHahitantsoaEventDraftPayments(param),
       ]);
       setDraft(eventDraft);
+      setDepositAmount(eventDraft.required_deposit_amount || "");
       setPreflight(nextPreflight);
       setDocuments(nextDocuments);
       setPayments(nextPayments);
@@ -160,6 +161,21 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           </ul>
         </div>
       </section>
+
+      {draft.payment_schedule && (
+        <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6">
+          <h2 className="font-bold text-indigo-950">Échéancier contractuel</h2>
+          <p className="mt-1 text-sm text-indigo-800">Les paiements peuvent être enregistrés en plusieurs fois avant chaque échéance.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Acompte à la signature", draft.payment_schedule.deposit_amount, "À la réservation"],
+              ["1ère tranche", draft.payment_schedule.first_installment_amount, `Au plus tard le ${new Date(`${draft.payment_schedule.first_installment_due_on}T12:00:00Z`).toLocaleDateString("fr-FR")}`],
+              ["2ème tranche", draft.payment_schedule.second_installment_amount, `Au plus tard le ${new Date(`${draft.payment_schedule.second_installment_due_on}T12:00:00Z`).toLocaleDateString("fr-FR")}`],
+            ].map(([label, amount, due]) => <div key={label} className="rounded-xl bg-white/80 p-4"><p className="text-xs font-semibold uppercase text-indigo-600">{label}</p><p className="mt-1 text-lg font-bold text-indigo-950">{Number(amount).toLocaleString("fr-FR")} Ar</p><p className="mt-1 text-xs text-indigo-700">{due}</p></div>)}
+          </div>
+          <p className="mt-4 text-sm font-semibold text-indigo-950">Total du dossier : {Number(draft.payment_schedule.total_amount).toLocaleString("fr-FR")} Ar · Solde après acompte : {Number(draft.payment_schedule.remaining_after_deposit).toLocaleString("fr-FR")} Ar</p>
+        </section>
+      )}
 
       <PaymentWhatsAppReminderButton draftId={param || draft.id} businessScope="hahitantsoa" />
 

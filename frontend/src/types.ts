@@ -370,6 +370,32 @@ export type HahitantsoaEventDraftCreatePayload = {
   lines: HahitantsoaEventDraftLineInput[];
 };
 
+export type HahitantsoaCommercialTerms = {
+  base_space_rental_amount: string;
+  included_guest_count: number;
+  excess_guest_amount: string;
+  bare_deposit_amount: string;
+  logistics_deposit_amount: string;
+  updated_at: string;
+};
+
+export type HahitantsoaCommercialTermsUpdatePayload = Omit<
+  HahitantsoaCommercialTerms,
+  "updated_at"
+>;
+
+export type HahitantsoaPaymentSchedule = {
+  space_rental_amount: string;
+  logistics_amount: string;
+  total_amount: string;
+  deposit_amount: string;
+  remaining_after_deposit: string;
+  first_installment_amount: string;
+  second_installment_amount: string;
+  first_installment_due_on: string;
+  second_installment_due_on: string;
+};
+
 export type HahitantsoaEventDraftUpdatePayload = {
   customer_id?: string;
   event_name?: string;
@@ -404,6 +430,7 @@ export type HahitantsoaEventDraft = {
   guest_count?: number;
   space_rental_amount?: string;
   required_deposit_amount?: string;
+  payment_schedule?: HahitantsoaPaymentSchedule;
   venue_name: string;
   location_details: string;
   service_notes: string;

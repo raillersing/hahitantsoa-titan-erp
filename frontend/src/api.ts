@@ -56,6 +56,8 @@ import type {
   HahitantsoaEventDraft,
   HahitantsoaEventDraftCreatePayload,
   HahitantsoaEventDraftUpdatePayload,
+  HahitantsoaCommercialTerms,
+  HahitantsoaCommercialTermsUpdatePayload,
   HahitantsoaEventDraftAvailabilityPreview,
   HahitantsoaEventDraftConfirmationPreflight,
   HahitantsoaEventDraftAmendmentPreflight,
@@ -884,6 +886,23 @@ export function getHahitantsoaEventDrafts(
     url += `?customer=${encodeURIComponent(customerId)}`;
   }
   return getAuthenticatedJson(url, signal);
+}
+
+export function getHahitantsoaCommercialTerms(
+  signal?: AbortSignal,
+): Promise<HahitantsoaCommercialTerms> {
+  return getAuthenticatedJson("/api/v1/hahitantsoa/commercial-terms/", signal);
+}
+
+export function updateHahitantsoaCommercialTerms(
+  payload: HahitantsoaCommercialTermsUpdatePayload,
+  signal?: AbortSignal,
+): Promise<HahitantsoaCommercialTerms> {
+  return patchAuthenticatedJson(
+    "/api/v1/hahitantsoa/commercial-terms/",
+    payload,
+    signal,
+  );
 }
 
 export function getHahitantsoaEventDraft(
