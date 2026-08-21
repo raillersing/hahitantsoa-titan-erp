@@ -69,6 +69,12 @@ function highlightTemplateVariables(html: string) {
   return html.replace(/\{\{\s*[^}]+\s*\}\}/g, token => `<mark class="rounded bg-amber-100 px-1 text-amber-900 outline outline-1 outline-amber-300">${token}</mark>`);
 }
 
+function formatClientDate(value: unknown): string {
+  if (!value || typeof value !== "string") return "................................";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("fr-FR");
+}
+
 export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   type = 'proforma',
   domain = 'titan',
@@ -166,7 +172,6 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const titleText = type === 'proforma' ? 'P R O F O R M A' : type === 'facture' ? 'F A C T U R E' : 'CONTRAT';
   const typeRef = type === 'proforma' ? 'PROFORMA' : type === 'facture' ? 'FACTURE' : 'CONTRAT';
 
-  const remaining = Math.max(0, safeNumber(totalAmount, 0) - safeNumber(paidAmount, 0));
   const safeSubTotal = safeNumber(subTotalAmount, safeNumber(totalAmount, 0));
   const safeDiscount = safeNumber(discountAmount, 0);
   const safeTotal = safeNumber(totalAmount, 0);
@@ -398,18 +403,19 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <p className="text-right font-bold underline mb-8">D'UNE PART,</p>
 
             {client?.type === 'Particulier' ? (
-              <p className="mb-4">Monsieur/Madame <strong>{client.name}</strong> domicilié(e) au {client.address || '................................'}<br/>Titulaire de la CIN / Passeport N° {client.idNumber || '................................'} délivré(e) le {client.idIssueDate ? new Date(client.idIssueDate).toLocaleDateString('fr-FR') : '................................'} à {client.idIssuePlace || '................................'}<br/>Contact : {client.phone || '................................'}</p>
+              <p className="mb-4">Madame/Monsieur <strong>{client.name || '................................'}</strong> né(e) le {formatClientDate(client.birthDate)} à {client.birthPlace || '................................'}, titulaire de la {client.idType || 'Carte Nationale d’Identité/Passeport'} N° {client.idNumber || '................................'} délivrée le {formatClientDate(client.idIssueDate)} à {client.idIssuePlace || '................................'} duplicata du {formatClientDate(client.idDuplicataDate)} à {client.idDuplicataPlace || '................................'} demeurant au {client.address || '................................'}<br/>Contact : {client.phone || '................................'}<br/>{client.additionalPhones?.[0] || '................................'}<br/>Mail : {client.email || '................................'}</p>
             ) : (
               <p className="mb-4">La société <strong>{client?.name || 'Client'}</strong> domiciliée au {client?.address || '................................'}<br/>NIF : {client?.nif || '................................'}<br/>STAT : {client?.stat || '................................'}<br/>RCS : {client?.rcs || '................................'}<br/>Représentée par {client?.repFirstName || '................................'} en sa qualité de {client?.repRole || '................................'} <br/>Contact : {client?.phone || '................................'}</p>
             )}
             <p className="text-right mb-6">Ci-après dénommée « Le client »</p>
             <p className="text-right font-bold underline mb-8">D'AUTRE PART,</p>
 
+            <p className="mb-4">Pour le <VariableValue token="event.eventType" value={hDetails?.eventType || '........................'} show={showVariables} /> de : {hDetails?.mariageGroomName && hDetails?.mariageBrideName ? `${hDetails.mariageGroomName} et ${hDetails.mariageBrideName}` : (hDetails?.fiancaillesPerson1 ? `${hDetails.fiancaillesPerson1} et ${hDetails.fiancaillesPerson2}` : '........................................')}</p>
             <p className="mb-6">Le Client et le Prestataire étant dénommés ci-après les <strong>« Parties »</strong></p>
             <p className="mb-6 uppercase">IL A ETE CONVENU CE QUI SUIT :</p>
 
             <h5 className="font-bold underline mb-4">Article 1 : Objet du contrat</h5>
-            <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, situé à <VariableValue token="event.venue" value={hDetails?.venue || 'l’adresse renseignée dans la commande'} show={showVariables} /> comprenant :</p>
+            <p className="mb-4">Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, un lieu de réception situé au Lot P93M Sud Ambohipo Alasora Antananarivo comprenant :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
               <li>Une salle de réception de 600 m2 ;</li>
               <li>Huit toilettes attenantes ;</li>
@@ -455,26 +461,16 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               <li><strong>la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire ;</strong></li>
               <li><span className="line-through">le jour-J à 07 heures.</span></li>
             </ul>
-            <p className="mb-6">L’heure de fin comprend les heures de démantèlement et reprise des Lieux Loués par le Prestataire.<br/>Toute rallonge sur les heures convenues feront l’objet de facturation en sus suivant la grille du prestataire.</p>
+            <p className="mb-6">L’heure de fin comprend les heures de démantèlement et reprise des Lieux Loués par le Prestataire.<br/>Toute rallonge sur les heures convenues fera l’objet de facturation en sus suivant la grille du prestataire.</p>
 
             <h5 className="font-bold underline mb-4">Article 4 : Tarifs</h5>
             <p className="mb-4">La présente location est consentie et acceptée moyennant le prix de {formatMoneyRaw(safeTotal)} Ariary TTC.</p>
-            <ul className="list-disc pl-10 mb-4 space-y-1">
-              <li>Location du domaine : {formatMoneyRaw(hDetails?.venuePrice)} Ariary</li>
-              {hDetails?.rentalType === 'Location nue + logistique' && <li>Logistique : {formatMoneyRaw(hDetails?.logisticsPrice)} Ariary</li>}
-              {services.map((service) => <li key={service.id || service.name}>{service.name} : {formatMoneyRaw(service.price)} Ariary</li>)}
-              {materials.map((material) => <li key={material.id || material.name}>{material.quantity} × {material.name}</li>)}
-            </ul>
             <div className="pl-10 mb-4 flex flex-col gap-2">
               <div className="flex"><span className="w-48">N° Proforma :</span><span><VariableValue token="dossier.ref" value={refNumber} show={showVariables} /></span></div>
               <div className="flex"><span className="w-48">Nombre de convives :</span><span>{hDetails?.guests || '200'}</span></div>
               <div className="flex"><span className="w-48">Type de location :</span><span>
                 {hDetails?.rentalType === 'Location nue' ? '☒' : '☐'} Location nue<br/>
-                {hDetails?.rentalType === 'Location nue + logistique' ? '☒' : '☐'} Location nue + logistique<br/>
-                {hDetails?.rentalType === 'Location avec package' ? '☒' : '☐'} Location avec package
-                {hDetails?.rentalType === 'Location avec package' && hDetails?.packageId && (
-                  <span className="font-semibold text-indigo-700 ml-2">("Pack")</span>
-                )}
+                {hDetails?.rentalType === 'Location + logistique' ? '☒' : '☐'} Location + logistique
               </span></div>
               <div className="flex mt-2"><span className="w-48">Durée :</span><span>
                 {hDetails?.durationOption === 'Fête de jour : Sortie J-J à 20:00' ? '☒' : '☐'} Fête de jour : Sortie J-J à 20:00<br/>
@@ -487,8 +483,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <h5 className="font-bold underline mb-4">Article 5 : Modalités de paiement</h5>
             <p className="mb-2">La présente location est consentie et acceptée moyennant le versement d’un acompte de :</p>
             <ul className="list-disc pl-10 mb-4 space-y-1">
-              <li>Acompte prévu dans la commande : <VariableValue token="finance.depositAmount" value={formatMoneyRaw(paidAmount)} show={showVariables} /> Ariary.</li>
-              <li>Solde restant selon la commande : {formatMoneyRaw(remaining)} Ariary.</li>
+              <li>1 000 000,00 Ariary dans le cas d’une location nue ;</li>
+              <li>1 500 000,00 Ariary dans le cas d’une location nue avec logistique.</li>
             </ul>
             <p className="mb-2">Celui-ci devra être réglé le jour de la réservation de la salle, soit à la signature par le Client du présent contrat. Le client s’engage à verser le solde du montant de la location en deux tranches :</p>
             <ul className="list-disc pl-10 mb-6 space-y-1">
@@ -497,7 +493,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             </ul>
 
             <h5 className="font-bold underline mb-4">Article 6 : Remise des clés – Etat des lieux</h5>
-            <p className="mb-4">Un état des lieux d’entrée sera établi lors de la prise de possession des Lieux Loués et un des lieux de sortie sera dressé lors de la remise des clés ou à la fin du contrat. Le client est tenu de rester le temps nécessaire pour procéder à l’état des lieux. Les lieux loués devront être restitués conformément à l’état des lieux d’entrée.</p>
+            <p className="mb-4">Un état des lieux d’entrée sera établi lors de la prise de possession des Lieux Loués et un état des lieux de sortie sera dressé lors de la remise des clés ou à la fin du contrat. Le client est tenu de rester le temps nécessaire pour procéder à l’état des lieux. Les lieux loués devront être restitués conformément à l’état des lieux d’entrée.</p>
 
             <h5 className="font-bold underline mb-4">Article 7 : Dépôt de garantie</h5>
           </ContractPage>
@@ -523,27 +519,30 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <h5 className="font-bold underline mb-4">Article 10 : Annulation</h5>
             <p className="mb-4">Le Client ne pourrait annuler la location sauf pour cas de force majeure, et ne peut prévaloir un droit à remboursement.<br/>En cas de force majeur, les deux parties se rapprochent pour évaluer les éventuels remboursements sans engagement de part et d’autres.<br/>Dans le cas où le Prestataire ne pourrait respecter ses engagements pour cas de force majeure, il se réserve le droit d’annuler la réservation et de rembourser intégralement au Client les sommes qu’il a versées.</p>
 
-            <h5 className="font-bold underline mb-4">Article 11 : Sécurité incendie</h5>
+            <h5 className="font-bold underline mb-4">Article 11 : Conditions d’annulation, de report et de remboursement</h5>
+            <p className="mb-4">La réservation de la salle est ferme et définitive à compter de la signature du présent contrat et/ou du règlement convenu. Aucun report de la date de réservation ne pourra être demandé ou accordé, quelle qu’en soit la raison, sauf accord écrit et exceptionnel du Prestataire.<br/>En cas d’annulation par le Client, aucun remboursement des sommes versées ne pourra être exigé, celles-ci restant définitivement acquises au Prestataire à titre d’indemnité d’immobilisation de la salle.<br/>Le Client reconnaît expressément avoir pris connaissance et accepté ces conditions lors de la réservation.</p>
+
+            <h5 className="font-bold underline mb-4">Article 12 : Sécurité incendie</h5>
             <p className="mb-6">Le Client déclare avoir pris connaissance de la règlementation incendie relative aux Lieux Loués et notamment du plan d’évacuation <strong>(Cf Annexe).</strong></p>
 
-            <h5 className="font-bold underline mb-4">Article 12 : Assurances</h5>
+            <h5 className="font-bold underline mb-4">Article 13 : Assurances</h5>
           </ContractPage>
 
           <ContractPage pageNumber={4}>
             <p className="mb-4">Le Client fera parvenir au Prestataire un justificatif de domicile (Facture d’abonnement électricité/eau).<br/>Dans le cas où il y a des dégâts en plus sur les Lieux Loués, le Client s’engage à procéder aux réparations de ces derniers.</p>
 
-            <h5 className="font-bold underline mb-4">Article 13 : Responsabilité</h5>
+            <h5 className="font-bold underline mb-4">Article 14 : Responsabilité</h5>
             <p className="mb-4">Le prestataire décline toute responsabilité d’un éventuel accident survenu lors des festivités et ne peut être tenu responsable des vols et dégradations sur les biens du Client ou de ses convives.<br/>Il ne pourra pas non plus être tenu responsable des dommages causés aux véhicules ou au matériel situés sur le parking.<br/>Le Client est tenu d’assurer la sécurité des objets valeureux de ses convives. Le Prestataire décline toute responsabilité sur des objets valeureux non déclarés.</p>
 
-            <h5 className="font-bold underline mb-4">Article 14 : Clause résolutoire</h5>
+            <h5 className="font-bold underline mb-4">Article 15 : Clause résolutoire</h5>
             <p className="mb-4">Il est expressément convenu qu’en cas de paiement par chèque, le règlement ne sera considéré effectif qu’après l’encaissement du chèque. Dans le cas où le chèque serait sans provision, la présente clause sera appliquée et le présent contrat deviendra nul de plein droit.<br/>A défaut de production par le Client d’une attestation couvrant sa responsabilité civile dans les délais prévus à l’article 13, il sera également fait application de la présente clause. Le présent contrat sera nul.</p>
 
-            <h5 className="font-bold underline mb-4">Article 15 : Annexes</h5>
+            <h5 className="font-bold underline mb-4">Article 16 : Annexes</h5>
             <p className="mb-2">Sont annexés au présent contrat :</p>
             <ul className="list-disc pl-10 mb-16 space-y-1">
-              <li>Plan de masse et évacuation incendie</li>
               <li>Règlement intérieur</li>
-              <li>Prix de casse</li>
+              <li>Plan de masse et évacuation incendie</li>
+              <li>Proforma</li>
               <li>Liste des intervenants non autorisés</li>
             </ul>
 
@@ -558,15 +557,11 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
           <ContractPage pageNumber={5}>
             <h4 className="text-center font-bold text-[18px] mb-6 underline decoration-2 underline-offset-4">Annexe 1 : REGLEMENT INTERIEUR</h4>
-            <div className="mb-4 text-sm text-slate-600 italic">Le client et ses intervenants sont tenus de respecter les règles suivantes durant toute la durée de la location.</div>
             <ul className="list-disc pl-6 space-y-2 text-sm">
               {hahitantsoaAnnex1Rules.map((rule, idx) => (
                 <li key={idx}>{rule}</li>
               ))}
             </ul>
-            <div className="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
-              <strong>Responsabilité client :</strong> Le client déclare avoir pris connaissance du règlement intérieur et en informera l’ensemble de ses invités, traiteurs et prestataires. Tout manquement pourra entraîner des frais de nettoyage, de réparation ou des pénalités selon le contrat.
-            </div>
           </ContractPage>
 
           <ContractPage pageNumber={6}>
@@ -733,7 +728,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                   {showBreakageColumn && <td className="text-right py-1.5">0,00</td>}
                 </tr>
               )}
-              {domain === 'hahitantsoa' && hDetails?.rentalType === 'Location nue + logistique' && (
+              {domain === 'hahitantsoa' && hDetails?.rentalType === 'Location + logistique' && (
                 <tr className="border-none align-top">
                   <td className="text-left py-1.5">001</td>
                   <td className="py-1.5">Frais logistique</td>

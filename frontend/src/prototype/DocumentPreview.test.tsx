@@ -80,7 +80,7 @@ describe('DocumentPreview', () => {
 
     // Check Hahitantsoa articles and annexes
     expect(screen.getByText(/Article 1 : Objet du contrat/)).toBeInTheDocument();
-    expect(screen.getByText(/Article 15 : Annexes/)).toBeInTheDocument();
+    expect(screen.getByText(/Article 16 : Annexes/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 1 : REGLEMENT INTERIEUR/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 2 : Plan de masse et évacuation incendie/)).toBeInTheDocument();
     expect(screen.getByText(/Annexe 3 : Prix de casse/)).toBeInTheDocument();
@@ -104,6 +104,26 @@ describe('DocumentPreview', () => {
 
     expect(screen.getByText('Table')).toBeInTheDocument();
     expect(screen.queryByText('Chaise')).not.toBeInTheDocument();
+  });
+
+  it('reproduit les champs du modèle Hahitantsoa et les deux types de location', () => {
+    const { container } = render(
+      <DocumentPreview
+        type="contrat"
+        domain="hahitantsoa"
+        client={{
+          type: 'Particulier', name: 'Client modèle', address: 'Lot source', phone: '0340000000', email: 'client@example.com',
+          birthDate: '1990-02-01', birthPlace: 'Antananarivo', idType: 'CIN', idNumber: '101', idIssueDate: '2010-03-04', idIssuePlace: 'Alasora',
+          idDuplicataDate: '2015-06-07', idDuplicataPlace: 'Antananarivo', additionalPhones: ['0320000000'],
+        }}
+        hDetails={{ eventType: 'Mariage', rentalType: 'Location + logistique' }}
+      />,
+    );
+    expect(screen.getByText(/né\(e\) le 01\/02\/1990/)).toBeInTheDocument();
+    expect(screen.getByText(/Location \+ logistique/)).toBeInTheDocument();
+    expect(screen.queryByText(/Location avec package/)).not.toBeInTheDocument();
+    const text = container.textContent || '';
+    expect(text.indexOf('Pour le Mariage')).toBeLessThan(text.indexOf('Le Client et le Prestataire étant dénommés'));
   });
 
   it('renders Titan Article 2 with correct geography, usage type and venue name', () => {
