@@ -62,6 +62,7 @@ const brandScopeByAppScope = {
   "mobile-tablet": "ergon",
   profile: "ergon",
   "bank-settings": "ergon",
+  "hahitantsoa-settings": "hahitantsoa",
 } satisfies Record<StaticAppScope, BrandScope>;
 
 export function resolveBrandScope(activeScope: AppScope, activeParam?: string): BrandScope {
@@ -413,6 +414,9 @@ export default function AppShell({
           </a>
           <a href="#bank-settings" onClick={(e) => { e.preventDefault(); onNavigate("bank-settings"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "bank-settings" ? "active" : ""}`}>
             <i className="fas fa-building-columns w-5 text-center"></i><span>Coordonnées bancaires</span>
+          </a>
+          <a href="#hahitantsoa-settings" onClick={(e) => { e.preventDefault(); onNavigate("hahitantsoa-settings"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "hahitantsoa-settings" ? "active" : ""}`}>
+            <i className="fas fa-sliders w-5 text-center"></i><span>Tarifs Hahitantsoa</span>
           </a>
           <a href="#caution" onClick={(e) => { e.preventDefault(); onNavigate("caution"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "caution" ? "active" : ""}`}>
             <i className="fas fa-undo w-5 text-center"></i><span>Caution</span>

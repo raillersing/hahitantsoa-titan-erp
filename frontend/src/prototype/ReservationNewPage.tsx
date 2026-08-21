@@ -5,6 +5,7 @@ import {
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
+  getHahitantsoaCommercialTerms,
   getTitanClosedDays,
   getInventoryItems,
   getMaterialPackages,
@@ -36,6 +37,7 @@ import type {
   InventoryItemKind,
   MaterialPackage,
   TitanClosedDay,
+  HahitantsoaCommercialTerms,
 } from "../types";
 
 // Business labels used by the reservation form. All selectable data comes from the API.
@@ -75,6 +77,25 @@ function formatDateFr(dateStr: string | undefined): string {
   } catch {
     return dateStr;
   }
+}
+
+export function calculateHahitantsoaPaymentSchedule(totalAmount: number, depositAmount: number, eventDate: string) {
+  const remaining = Math.max(0, totalAmount - depositAmount);
+  const firstInstallment = Math.round((remaining / 2) * 100) / 100;
+  const secondInstallment = Math.round((remaining - firstInstallment) * 100) / 100;
+  const date = eventDate ? new Date(`${eventDate}T12:00:00Z`) : null;
+  const firstDue = date ? new Date(date) : null;
+  const secondDue = date ? new Date(date) : null;
+  if (firstDue) firstDue.setUTCMonth(firstDue.getUTCMonth() - 1);
+  if (secondDue) secondDue.setUTCDate(secondDue.getUTCDate() - 10);
+  return {
+    depositAmount,
+    remaining,
+    firstInstallment,
+    secondInstallment,
+    firstDue: firstDue ? formatIsoDate(firstDue) : "",
+    secondDue: secondDue ? formatIsoDate(secondDue) : "",
+  };
 }
 
 function toTimezoneAwareIso(date: string, time: string): string {
@@ -470,6 +491,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [loadingVenues, setLoadingVenues] = useState(true);
   const [loadingServices, setLoadingServices] = useState(true);
   const [loadingPackages, setLoadingPackages] = useState(true);
+  const [hahitantsoaTerms, setHahitantsoaTerms] = useState<HahitantsoaCommercialTerms | null>(null);
+  const [errorHahitantsoaTerms, setErrorHahitantsoaTerms] = useState<string | null>(null);
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [errorClients, setErrorClients] = useState<string | null>(null);
   const [errorVenues, setErrorVenues] = useState<string | null>(null);
@@ -516,6 +539,17 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       .then(data => { if (!cancelled) { setApiPackages(data); setErrorPackages(null); } })
       .catch(err => { if (!cancelled) setErrorPackages(err?.message || "Erreur de chargement des packages"); })
       .finally(() => { if (!cancelled) setLoadingPackages(false); });
+    getHahitantsoaCommercialTerms()
+      .then((terms) => {
+        if (!cancelled) {
+          setHahitantsoaTerms(terms);
+          setErrorHahitantsoaTerms(null);
+          setHDetails((current) => current.venuePrice === HAHITANTSOA_BASE_SPACE_RENTAL
+            ? { ...current, venuePrice: Number(terms.base_space_rental_amount) }
+            : current);
+        }
+      })
+      .catch(err => { if (!cancelled) setErrorHahitantsoaTerms(err?.message || "Les tarifs Hahitantsoa par défaut sont indisponibles."); });
     return () => { cancelled = true; };
   }, []);
 
@@ -527,8 +561,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [domain, setDomain] = useState<DomainType>(null);
   
   const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "", rentalType: "Location nue", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
-  const hahitantsoaSpaceRentalAmount = (hDetails.venuePrice || HAHITANTSOA_BASE_SPACE_RENTAL)
-    + Math.max(Number(hDetails.guests || 0) - 250, 0) * HAHITANTSOA_EXCESS_GUEST_RATE;
+  const hahitantsoaBaseSpaceRental = Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL);
+  const hahitantsoaIncludedGuests = Number(hahitantsoaTerms?.included_guest_count ?? 250);
+  const hahitantsoaExcessGuestAmount = Number(hahitantsoaTerms?.excess_guest_amount ?? HAHITANTSOA_EXCESS_GUEST_RATE);
+  const hahitantsoaSpaceRentalAmount = (hDetails.venuePrice || hahitantsoaBaseSpaceRental)
+    + Math.max(Number(hDetails.guests || 0) - hahitantsoaIncludedGuests, 0) * hahitantsoaExcessGuestAmount;
+  const hahitantsoaDepositAmount = hDetails.rentalType === "Location + logistique"
+    ? Number(hahitantsoaTerms?.logistics_deposit_amount ?? HAHITANTSOA_LOGISTICS_DEPOSIT)
+    : Number(hahitantsoaTerms?.bare_deposit_amount ?? HAHITANTSOA_DEFAULT_DEPOSIT);
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
     period: "", startDate: "", startTime: "08:00", endDate: "", endTime: "22:00", pickupDate: "", returnDate: "", remarks: "",
     usageType: "Mariage", usageTypeOther: "", 
@@ -997,7 +1037,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
           guest_count: Number(hDetails.guests || 0),
           space_rental_amount: hahitantsoaSpaceRentalAmount,
-          required_deposit_amount: hDetails.rentalType === "Location + logistique" ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT,
+          required_deposit_amount: hahitantsoaDepositAmount,
           notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
           lines,
         });
@@ -2881,7 +2921,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-orange-50 text-orange-800 p-4 rounded-xl border border-orange-100 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase opacity-70">Caution obligatoire (Dépôt de garantie)</p>
-          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? (hDetails.rentalType === 'Location + logistique' ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT) : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
+          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? hahitantsoaDepositAmount : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
           <p className="text-xs opacity-80 mt-1">À verser en plus du total. Restituée après l'événement en l'absence de casse.</p>
         </div>
         <i className="fa-solid fa-shield-halved text-2xl opacity-50"></i>
@@ -3024,7 +3064,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const renderPaymentStep = () => {
     const activePercent = payment.percent ? parseInt(payment.percent, 10) : (domain === 'titan' ? (tDetails.advanceRate * 100) : 50);
-    const hahitantsoaDeposit = hDetails.rentalType === 'Location + logistique' ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT;
+    const hahitantsoaDeposit = hahitantsoaDepositAmount;
+    const hahitantsoaSchedule = domain === "hahitantsoa"
+      ? calculateHahitantsoaPaymentSchedule(totalAmount, hahitantsoaDeposit, hDetails.startDate || hDetails.date)
+      : null;
     const currentRequestedPayment = domain === 'hahitantsoa'
       ? hahitantsoaDeposit.toString()
       : (totalAmount * activePercent / 100).toString();
@@ -3040,7 +3083,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <p className="text-xs text-orange-700">À régler lors du solde. Restituée après l'événement s'il n'y a pas de casse. Déduite en cas de dommages (solde restant à la charge du client si dépassement).</p>
           </div>
           <div className="font-bold text-lg text-orange-900 ml-4 whitespace-nowrap">
-            {(domain === 'hahitantsoa' ? (hDetails.rentalType === 'Location + logistique' ? HAHITANTSOA_LOGISTICS_DEPOSIT : HAHITANTSOA_DEFAULT_DEPOSIT) : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar
+            {(domain === 'hahitantsoa' ? hahitantsoaDeposit : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar
           </div>
         </div>
 
@@ -3052,6 +3095,18 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                <li>Solde dû <strong>{TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP} jours</strong> avant le prélèvement/livraison (soit le {new Date(new Date(tDetails.pickupDate || tDetails.startDate).getTime() - (TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR')})</li>
                <li>Dépôt de garantie Titan : <strong>{totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT.toLocaleString('fr-FR') : (totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE).toLocaleString('fr-FR')} Ar</strong></li>
              </ul>
+          </div>
+        )}
+
+        {domain === "hahitantsoa" && (
+          <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+            <h4 className="font-bold">Modalités Hahitantsoa</h4>
+            <p className="mt-1">L’acompte est dû à la signature. Le solde peut être versé progressivement avant les échéances ci-dessous.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg bg-white/70 p-3"><p className="text-xs font-semibold uppercase text-indigo-600">Acompte</p><p className="mt-1 font-bold">{hahitantsoaSchedule?.depositAmount.toLocaleString("fr-FR")} Ar</p><p className="text-xs text-indigo-700">À la réservation</p></div>
+              <div className="rounded-lg bg-white/70 p-3"><p className="text-xs font-semibold uppercase text-indigo-600">1ère tranche</p><p className="mt-1 font-bold">{hahitantsoaSchedule?.firstInstallment.toLocaleString("fr-FR")} Ar</p><p className="text-xs text-indigo-700">Au plus tard le {formatDateFr(hahitantsoaSchedule?.firstDue)}</p></div>
+              <div className="rounded-lg bg-white/70 p-3"><p className="text-xs font-semibold uppercase text-indigo-600">2ème tranche</p><p className="mt-1 font-bold">{hahitantsoaSchedule?.secondInstallment.toLocaleString("fr-FR")} Ar</p><p className="text-xs text-indigo-700">Au plus tard le {formatDateFr(hahitantsoaSchedule?.secondDue)}</p></div>
+            </div>
           </div>
         )}
 
@@ -3097,7 +3152,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 onChange={e => {
                   const amt = e.target.value;
                   const pct = ((parseInt(amt || "0", 10) / totalAmount) * 100).toFixed(1);
-                  setPayment({...payment, amount: amt, percent: pct});
+                  setPayment({...payment, amount: amt, ...(domain === "titan" ? { percent: pct } : {})});
                 }} 
               />
             </div>
@@ -3393,6 +3448,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       {errorVenues && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorVenues}</div>}
       {loadingCatalog && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Vérification de la disponibilité du catalogue...</div>}
       {errorCatalog && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorCatalog}</div>}
+      {domain === "hahitantsoa" && errorHahitantsoaTerms && <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-sm flex items-center gap-2" role="alert"><i className="fa-solid fa-triangle-exclamation"></i> {errorHahitantsoaTerms} Les valeurs affichées sont les dernières valeurs par défaut connues.</div>}
       {submitError && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2" role="alert" aria-live="assertive"><i className="fa-solid fa-triangle-exclamation"></i> Erreur de soumission : {submitError}</div>}
 
       {step > 0 && renderStepper()}

@@ -1,11 +1,12 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
-import ReservationNewPage, { calculateReservationTotals } from './prototype/ReservationNewPage';
+import ReservationNewPage, { calculateHahitantsoaPaymentSchedule, calculateReservationTotals } from './prototype/ReservationNewPage';
 import {
   getCustomers,
   getHahitantsoaVenues,
   getHahitantsoaServices,
+  getHahitantsoaCommercialTerms,
   getTitanClosedDays,
   getInventoryItems,
   getMaterialPackages,
@@ -162,6 +163,7 @@ vi.mock('./api', () => ({
   getTitanClosedDays: vi.fn(),
   getHahitantsoaVenues: vi.fn(),
   getHahitantsoaServices: vi.fn(),
+  getHahitantsoaCommercialTerms: vi.fn(),
   getInventoryItems: vi.fn(),
   getMaterialPackages: vi.fn(),
   getReservationAvailableItemPreviews: vi.fn(),
@@ -195,6 +197,14 @@ describe('ReservationNewPage', () => {
     vi.mocked(getCustomers).mockResolvedValue(mockCustomersData as any);
     vi.mocked(getHahitantsoaVenues).mockResolvedValue(mockVenuesData as any);
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
+    vi.mocked(getHahitantsoaCommercialTerms).mockResolvedValue({
+      base_space_rental_amount: '6500000.00',
+      included_guest_count: 250,
+      excess_guest_amount: '5000.00',
+      bare_deposit_amount: '1000000.00',
+      logistics_deposit_amount: '1500000.00',
+      updated_at: '2026-01-01T00:00:00Z',
+    });
     vi.mocked(getTitanClosedDays).mockResolvedValue([]);
     vi.mocked(getInventoryItems).mockResolvedValue(mockInventoryData as any);
     vi.mocked(getMaterialPackages).mockResolvedValue([
@@ -232,6 +242,17 @@ describe('ReservationNewPage', () => {
   afterEach(() => {
     expect(window.alert).not.toHaveBeenCalled();
     expect(window.confirm).not.toHaveBeenCalled();
+  });
+
+  it('calcule les deux tranches Hahitantsoa sans pourcentage d’acompte', () => {
+    expect(calculateHahitantsoaPaymentSchedule(6510000, 1000000, '2026-09-30')).toEqual({
+      depositAmount: 1000000,
+      remaining: 5510000,
+      firstInstallment: 2755000,
+      secondInstallment: 2755000,
+      firstDue: '2026-08-30',
+      secondDue: '2026-09-20',
+    });
   });
 
   it('calcule un total cohérent quand un package est ajusté ou retiré', () => {

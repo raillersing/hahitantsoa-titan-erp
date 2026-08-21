@@ -46,6 +46,7 @@ import HRPage from "./prototype/HRPage";
 import HRPayrollPage from "./prototype/HRPayrollPage";
 import MobileTabletPage from "./prototype/MobileTabletPage";
 import BankSettingsPage from "./prototype/BankSettingsPage";
+import HahitantsoaCommercialTermsPage from "./prototype/HahitantsoaCommercialTermsPage";
 import { RouteNotFoundPage } from "./prototype/RouteNotFoundPage";
 import { createBugReport } from "./api";
 import { capabilitiesForUser } from "./capabilities";
@@ -195,6 +196,7 @@ function App() {
     (effectiveRoute.scope === "audit" && capabilities && !capabilities.canViewAudit) ||
     (effectiveRoute.scope === "reservation-new" && capabilities && !capabilities.canSensitiveWrite)
     || (effectiveRoute.scope === "bank-settings" && capabilities && !capabilities.canSensitiveWrite)
+    || (effectiveRoute.scope === "hahitantsoa-settings" && capabilities && !capabilities.canSensitiveWrite)
   );
 
   const renderKnownRoute = (scope: AppScope) => {
@@ -255,6 +257,7 @@ function App() {
       case "purchasing": return <ProcurementPage onNavigate={navigate} />;
       case "mobile-tablet": return <MobileTabletPage onNavigate={navigate} />;
       case "bank-settings": return <BankSettingsPage />;
+      case "hahitantsoa-settings": return <HahitantsoaCommercialTermsPage canEdit={capabilities?.canSuperAdminDelete ?? false} />;
     }
   };
 
