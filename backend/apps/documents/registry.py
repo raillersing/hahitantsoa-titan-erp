@@ -75,7 +75,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         template_path="backend/apps/documents/templates/documents/hahitantsoa_contract.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/contrat/v1/preview.pdf",
         validated_by_client=False,
-        notes="Canonical HTML/CSS template migrated from the validated frontend contract structure. Commercial amounts, breakage prices and the Annex 2 image remain pending in the runtime context; client visual validation is still required.",  # noqa: E501
+        notes="Canonical HTML/CSS template migrated from the validated frontend contract structure. PDF is generated at runtime. Commercial amounts, breakage prices and the Annex 2 image remain pending in the runtime context; client visual validation is still required.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.invoice.v1",

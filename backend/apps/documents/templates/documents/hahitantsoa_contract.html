@@ -3,7 +3,7 @@
 <html lang="fr">
 <head>
     <meta charset="utf-8">
-    <title>Contrat de location Hahitantsoa</title>
+    <title>Contrat Hahitantsoa</title>
     <style>{% include "documents/partials/hahitantsoa_contract.css" %}</style>
 </head>
 <body class="contract-document">
@@ -28,7 +28,7 @@
         {% if context.event_draft.party_type == "company" %}
             <p>La société <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong> domiciliée au {{ context.event_draft.customer_address|default:"................................" }}<br>NIF : {{ context.event_draft.customer_nif|default:"................................" }}<br>STAT : {{ context.event_draft.customer_stat|default:"................................" }}<br>RCS : {{ context.event_draft.customer_rcs|default:"................................" }}<br>Représentée par {{ context.event_draft.customer_representative_name|default:"................................" }} en sa qualité de {{ context.event_draft.customer_representative_role|default:"................................" }}<br>Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>Mail : {{ context.event_draft.customer_email|default:"................................" }}</p>
         {% else %}
-            <p>Madame/Monsieur <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong>, titulaire de la {{ context.event_draft.customer_id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ context.event_draft.customer_id_number|default:"................................" }} délivrée le {{ context.event_draft.customer_id_issue_date|date:"d/m/Y"|default:"................................" }} à {{ context.event_draft.customer_id_issue_place|default:"................................" }}, demeurant au {{ context.event_draft.customer_address|default:"................................" }}<br>Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>Mail : {{ context.event_draft.customer_email|default:"................................" }}</p>
+            <p>Madame/Monsieur <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong>, titulaire de la {{ context.event_draft.customer_id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ context.event_draft.customer_id_number|default:"................................" }} délivrée le {{ context.event_draft.customer_id_issue_date|date:"d/m/Y"|default:"................................" }} à {{ context.event_draft.customer_id_issue_place|default:"................................" }}, demeurant au {{ context.event_draft.customer_address|default:"................................" }}<br>Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>Mail : {{ context.event_draft.customer_email|default:"................................" }}<br>NIF : {{ context.event_draft.customer_nif|default:"................................" }}<br>STAT : {{ context.event_draft.customer_stat|default:"................................" }}<br>RCS : {{ context.event_draft.customer_rcs|default:"................................" }}</p>
         {% endif %}
         <p class="text-right">Ci-après dénommée « Le client »</p>
         <p class="text-right"><strong><u>D'AUTRE PART,</u></strong></p>
