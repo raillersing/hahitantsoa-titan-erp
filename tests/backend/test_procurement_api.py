@@ -34,7 +34,10 @@ ALL_LIST_URLS = [PURCHASE_ORDER_LIST_URL, EXPENSE_LIST_URL]
 def authenticated_client(client):
     """Return a Django test client force-logged-in as a regular user."""
     user = User.objects.create_user(
-        username="procurement_test_user", password="test-pass", is_active=True
+        username="procurement_test_user",
+        password="test-pass",
+        is_active=True,
+        is_staff=True,
     )
     client.force_login(user)
     return client
@@ -45,7 +48,7 @@ def authenticated_user():
     """Return the User object used by authenticated_client."""
     user, _ = User.objects.get_or_create(
         username="procurement_test_user",
-        defaults={"password": "test-pass", "is_active": True},
+        defaults={"password": "test-pass", "is_active": True, "is_staff": True},
     )
     return user
 
@@ -184,3 +187,15 @@ class TestUnauthenticatedAccess:
         assert response.status_code in (401, 403), (
             f"Anonymous POST to {url} returned {response.status_code}"
         )
+
+
+def test_regular_authenticated_user_cannot_create_purchase_order(client):
+    user = User.objects.create_user(username="procurement-read-only", password="test-pass")
+    client.force_login(user)
+    response = client.post(
+        PURCHASE_ORDER_LIST_URL,
+        {"supplier_name": "Blocked supplier", "amount": "100.00"},
+        content_type="application/json",
+    )
+    assert response.status_code == 403
+    assert PurchaseOrder.objects.count() == 0

@@ -100,7 +100,7 @@ def test_authenticated_inventory_detail_api_remains_read_only_with_seeded_demo_d
     )
     delete_response = client.delete(detail_url)
 
-    assert post_response.status_code == 405
-    assert put_response.status_code == 405
-    assert patch_response.status_code == 405
-    assert delete_response.status_code == 405
+    assert post_response.status_code == 403
+    assert put_response.status_code == 403
+    assert patch_response.status_code == 403
+    assert delete_response.status_code == 403

@@ -20,6 +20,7 @@ def user():
     return get_user_model().objects.create_user(
         username="import-test-user",
         password="test-pass",
+        is_staff=True,
     )
 
 
@@ -284,6 +285,34 @@ def test_validate_import_job_404(authenticated_client):
     url = f"{IMPORT_JOB_LIST_URL}00000000-0000-0000-0000-000000000000/validate/"
     response = authenticated_client.post(url, content_type="application/json")
     assert response.status_code == 404
+
+
+def test_import_job_list_is_scoped_to_creator(authenticated_client, import_job, user):
+    other = get_user_model().objects.create_user(username="other-import-user")
+    ImportJob.objects.create(
+        created_by=other,
+        filename="other.csv",
+        status="mapping",
+        target_model="inventory_item",
+    )
+    response = authenticated_client.get(IMPORT_JOB_LIST_URL)
+    assert response.status_code == 200
+    assert [row["filename"] for row in response.json()] == [import_job.filename]
+
+
+def test_import_job_rejects_oversized_file(authenticated_client):
+    oversized = SimpleUploadedFile(
+        "oversized.csv",
+        b"a" * (10 * 1024 * 1024 + 1),
+        content_type="text/csv",
+    )
+    response = authenticated_client.post(
+        IMPORT_JOB_LIST_URL,
+        data={"file": oversized, "target_model": "inventory_item"},
+        format="multipart",
+    )
+    assert response.status_code == 400
+    assert "10 MB" in str(response.json())
 
 
 # --- Unauthenticated access denied (403) ---

@@ -19,6 +19,7 @@ from apps.excel_import.serializers import (
     ImportJobSerializer,
     ImportJobUploadSerializer,
 )
+from apps.identity.permissions import HasInventoryManagementAccess
 from apps.inventory.models import (
     InventoryItem,
     InventoryStockMovement,
@@ -64,6 +65,8 @@ HEADER_ALIASES = {
     "description": "description",
 }
 XLSX_NAMESPACE = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+MAX_IMPORT_ROWS = 10_000
+MAX_XLSX_MEMBER_BYTES = 50 * 1024 * 1024
 
 
 def _normalise_header(value: str) -> str:
@@ -77,6 +80,8 @@ def _normalise_header(value: str) -> str:
 def _parse_xlsx(uploaded_file) -> tuple[list[str], list[dict[str, str]]]:
     try:
         with ZipFile(uploaded_file) as archive:
+            if any(member.file_size > MAX_XLSX_MEMBER_BYTES for member in archive.infolist()):
+                raise ValueError("The XLSX file contains an oversized worksheet.")
             shared_strings: list[str] = []
             if "xl/sharedStrings.xml" in archive.namelist():
                 root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
@@ -114,6 +119,8 @@ def _parse_xlsx(uploaded_file) -> tuple[list[str], list[dict[str, str]]]:
             values[index] = raw
         if values:
             parsed_rows.append([values.get(index, "") for index in range(1, max(values) + 1)])
+            if len(parsed_rows) > MAX_IMPORT_ROWS + 1:
+                raise ValueError("The import file must not contain more than 10,000 data rows.")
 
     if not parsed_rows:
         return [], []
@@ -138,7 +145,12 @@ def _parse_upload(uploaded_file) -> tuple[list[str], list[dict[str, str]]]:
     try:
         content = uploaded_file.read().decode("utf-8-sig")
         reader = csv.DictReader(io.StringIO(content))
-        return reader.fieldnames or [], list(reader)
+        rows = []
+        for row in reader:
+            rows.append(row)
+            if len(rows) > MAX_IMPORT_ROWS:
+                raise ValueError("The import file must not contain more than 10,000 data rows.")
+        return reader.fieldnames or [], rows
     except (UnicodeDecodeError, csv.Error) as error:
         raise ValueError(f"Failed to parse CSV file: {error}") from error
 
@@ -189,7 +201,12 @@ class ImportJobListCreateAPIView(generics.ListCreateAPIView):
         )
 
     def get_queryset(self):
-        return ImportJob.objects.all()
+        return ImportJob.objects.filter(created_by=self.request.user)
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -218,12 +235,12 @@ class ImportJobListCreateAPIView(generics.ListCreateAPIView):
 
 class ImportJobMappingUpdateAPIView(APIView):
     http_method_names = ["patch", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasInventoryManagementAccess]
 
     def patch(self, request, id):
         from django.shortcuts import get_object_or_404
 
-        job = get_object_or_404(ImportJob, pk=id)
+        job = get_object_or_404(ImportJob, pk=id, created_by=request.user)
         serializer = ImportJobMappingSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         mapping = serializer.validated_data["column_mapping"]
@@ -250,12 +267,12 @@ class ImportJobMappingUpdateAPIView(APIView):
 
 class ImportJobValidateAPIView(APIView):
     http_method_names = ["post", "head", "options"]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasInventoryManagementAccess]
 
     def post(self, request, id):
         from django.shortcuts import get_object_or_404
 
-        job = get_object_or_404(ImportJob, pk=id)
+        job = get_object_or_404(ImportJob, pk=id, created_by=request.user)
         if job.target_model != "inventory_item":
             return Response(
                 {"detail": "Only inventory_item imports are supported."},

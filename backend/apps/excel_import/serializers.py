@@ -2,6 +2,9 @@ from rest_framework import serializers
 
 from apps.excel_import.models import ImportJob
 
+MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024
+ALLOWED_IMPORT_SUFFIXES = {".csv", ".txt", ".xlsx"}
+
 
 class ImportJobSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,6 +30,15 @@ class ImportJobUploadSerializer(serializers.Serializer):
         choices=[("inventory_item", "Inventory Item"), ("customer", "Customer")],
         default="inventory_item",
     )
+
+    def validate_file(self, value):
+        from pathlib import Path
+
+        if Path(value.name).suffix.casefold() not in ALLOWED_IMPORT_SUFFIXES:
+            raise serializers.ValidationError("Only CSV (UTF-8) and XLSX files are supported.")
+        if value.size > MAX_IMPORT_FILE_BYTES:
+            raise serializers.ValidationError("The import file must not exceed 10 MB.")
+        return value
 
 
 class ImportJobMappingSerializer(serializers.Serializer):
