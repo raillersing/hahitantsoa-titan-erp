@@ -1,156 +1,92 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="utf-8">
-    <title>{{ context.template.label|default:"Contrat Hahitantsoa" }}</title>
-    <style>
-        @page { size: A4; margin: 16mm; }
-        * { box-sizing: border-box; }
-        body { font-family: 'Inter', Arial, sans-serif; color: #0f172a; font-size: 9.5pt; line-height: 1.5; margin: 0; background: #ffffff; }
-
-        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; border-bottom: 2px solid #1d4d6b; padding-bottom: 12px; }
-        .header-table td { vertical-align: top; }
-        .logo-img { height: 50px; object-fit: contain; }
-
-        .doc-title { font-size: 19pt; font-weight: 800; color: #1d4d6b; text-transform: uppercase; margin: 0; letter-spacing: -0.01em; }
-        .doc-sub { font-size: 8.5pt; color: #64748b; margin-top: 2px; }
-
-        .grid-two { display: table; width: 100%; margin-bottom: 20px; }
-        .col-half { display: table-cell; width: 50%; vertical-align: top; padding-right: 10px; }
-        .col-half:last-child { padding-right: 0; padding-left: 10px; }
-
-        .party-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; height: 100%; }
-        .party-title { font-size: 8.5pt; font-weight: 700; color: #1d4d6b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px; }
-
-        .info-row { font-size: 9pt; margin-bottom: 4px; }
-        .info-label { color: #64748b; font-size: 8pt; text-transform: uppercase; font-weight: 600; display: inline-block; width: 110px; }
-        .info-val { font-weight: 700; color: #0f172a; }
-
-        h2.section-title { font-size: 11pt; font-weight: 800; color: #1d4d6b; text-transform: uppercase; border-bottom: 1.5px solid #1d4d6b; padding-bottom: 4px; margin: 24px 0 10px; letter-spacing: 0.03em; }
-
-        table.items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt; }
-        table.items-table th { background: #1d4d6b; color: #ffffff; font-weight: 700; text-transform: uppercase; font-size: 8pt; padding: 8px 10px; text-align: left; }
-        table.items-table td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-        table.items-table tr:nth-child(even) td { background: #f8fafc; }
-
-        .clause-box { background: #fafafa; border-left: 3px solid #1d4d6b; padding: 10px 14px; font-size: 8.5pt; color: #334155; margin-bottom: 16px; border-radius: 0 6px 6px 0; }
-
-        .signatures-table { width: 100%; margin-top: 35px; border-collapse: collapse; page-break-inside: avoid; }
-        .signatures-table td { width: 50%; vertical-align: top; padding: 0 12px; }
-        .sig-card { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; background: #ffffff; min-height: 95px; }
-        .sig-header { font-size: 8.5pt; font-weight: 700; color: #1d4d6b; text-transform: uppercase; margin-bottom: 45px; }
-
-        .footer-stamp { text-align: center; font-size: 8pt; color: #94a3b8; margin-top: 25px; border-top: 1px solid #f1f5f9; padding-top: 8px; }
-    </style>
+    <title>Contrat de location Hahitantsoa</title>
+    <style>{% include "documents/partials/hahitantsoa_contract.css" %}</style>
 </head>
-<body>
-    <table class="header-table">
-        <tr>
-            <td style="width: 60%;">
-                <img src="/brand/hahitantsoa-logo.png" alt="Domaine Hahitantsoa" class="logo-img" onerror="this.style.display='none'" />
-                <div class="doc-title">CONTRAT D'ÉVÉNEMENT</div>
-                <div class="doc-sub">Domaine Hahitantsoa · Contrat de prestation et d'occupation des lieux</div>
-            </td>
-            <td style="text-align: right; vertical-align: middle;">
-                <div style="font-size: 11pt; font-weight: 800; color: #1d4d6b; font-family: monospace;">{{ context.event_draft.public_reference|default:"EVT-2026-DEMO" }}</div>
-                <div style="font-size: 8.5pt; color: #64748b; margin-top: 4px;">Émis le : <strong>{% if blank_preview %}____/__/____{% else %}{% now "d/m/Y" %}{% endif %}</strong></div>
-            </td>
-        </tr>
-    </table>
-
-    <div class="grid-two">
-        <div class="col-half">
-            <div class="party-box">
-                <div class="party-title">Le Domaine (Prestataire)</div>
-                <div class="info-row"><span class="info-label">Société :</span> <span class="info-val">Domaine Hahitantsoa</span></div>
-                <div class="info-row"><span class="info-label">Adresse :</span> <span class="info-val">Lot P93M, Ambohipo Sud, Alasora</span></div>
-                <div class="info-row"><span class="info-label">Contact :</span> <span class="info-val">+261 34 61 791 44</span></div>
-                <div class="info-row"><span class="info-label">Email :</span> <span class="info-val">hahitantsoa@ergon.mg</span></div>
+<body class="contract-document">
+    <section class="contract-page">
+        <header class="contract-header">
+            <div class="brand-block">
+                <img src="{% static 'brand/ergon-logo.png' %}" alt="Ergon Group">
+                <p>ERGON GROUP SARL<br>Lot P93M Sud Ambohipo Alasora Antananarivo<br>+261 34 61 791 41 · ergon@ergon.mg</p>
             </div>
-        </div>
-        <div class="col-half">
-            <div class="party-box">
-                <div class="party-title">Le Client (Organisateur)</div>
-                <div class="info-row"><span class="info-label">Nom / Raison :</span> <span class="info-val">{{ context.event_draft.customer_display_name|default:"Mariage Rakotomalala & Rasoanaivo" }}</span></div>
-                <div class="info-row"><span class="info-label">Adresse Client :</span> <span class="info-val">{{ context.event_draft.customer_address }}</span></div>
-                <div class="info-row"><span class="info-label">Réf Client :</span> <span class="info-val">{{ context.event_draft.customer_id|default:"DEMO-001" }}</span></div>
-                <div class="info-row"><span class="info-label">Contact / Tél :</span> <span class="info-val">{{ context.event_draft.customer_phone|default:"+261 34 12 345 67" }}</span></div>
-                <div class="info-row"><span class="info-label">Pièce d'Identité :</span> <span class="info-val">{{ context.event_draft.customer_id_type|default:"NIF" }} {{ context.event_draft.customer_id_number|default:"6003298583" }} {% if context.event_draft.customer_id_issue_place %}({{ context.event_draft.customer_id_issue_place }}){% endif %}</span></div>
-                <div class="info-row"><span class="info-label">NIF :</span> <span class="info-val">{{ context.event_draft.customer_nif|default:"Non renseigné" }}</span></div>
-                <div class="info-row"><span class="info-label">STAT :</span> <span class="info-val">{{ context.event_draft.customer_stat|default:"Non renseigné" }}</span></div>
-                <div class="info-row"><span class="info-label">RCS :</span> <span class="info-val">{{ context.event_draft.customer_rcs|default:"Non renseigné" }}</span></div>
+            <div class="brand-block brand-block--right">
+                <img src="{% static 'brand/hahitantsoa-logo.png' %}" alt="Domaine Hahitantsoa">
+                <p>+261 34 61 791 44<br>hahitantsoa@ergon.mg</p>
             </div>
-        </div>
-    </div>
+        </header>
 
-    <div class="party-box" style="margin-bottom: 20px;">
-        <div class="party-title">Détails de l'Événement & Période d'Occupation</div>
-        <div class="grid-two" style="margin: 0;">
-            <div class="col-half">
-                <div class="info-row"><span class="info-label">Événement :</span> <span class="info-val">{{ context.event_draft.event_name|default:"Mariage" }}</span></div>
-                <div class="info-row"><span class="info-label">Type d'Événement :</span> <span class="info-val">{{ context.event_draft.event_type }}</span></div>
-                <div class="info-row"><span class="info-label">Lieu Réservé :</span> <span class="info-val">{{ context.event_draft.venue_name|default:"Domaine Hahitantsoa" }}</span></div>
-            </div>
-            <div class="col-half">
-                <div class="info-row"><span class="info-label">Début :</span> <span class="info-val">{{ context.event_draft.start_at|date:"d/m/Y H:i"|default:"____/__/____ __:__" }}</span></div>
-                <div class="info-row"><span class="info-label">Fin :</span> <span class="info-val">{{ context.event_draft.end_at|date:"d/m/Y H:i"|default:"____/__/____ __:__" }}</span></div>
-            </div>
-        </div>
-    </div>
+        <h1>CONTRAT DE LOCATION « HAHITANTSOA »</h1>
+        <p>Entre les soussignés :</p>
+        <p><strong>La société ERGON GROUP</strong> dont le siège social se situe au Lot P93M Sud Ambohipo Alasora Antananarivo,<br>représentée par RASOAMANANA Narindra en sa qualité de Gérante</p>
+        <p class="text-right">Ci-après dénommée « Le prestataire »</p>
+        <p class="text-right"><strong><u>D'UNE PART,</u></strong></p>
 
-    <h2 class="section-title">Prestations & Matériels Compris</h2>
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th>Désignation des Équipements / Prestations</th>
-                <th style="width: 110px;">Type</th>
-                <th style="width: 80px; text-align: center;">Quantité</th>
-                <th>Remarques & Spécifications</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for line in context.event_draft.lines %}
-            <tr>
-                <td><strong>{{ line.inventory_item_name }}</strong></td>
-                <td><span style="font-size: 8pt; text-transform: uppercase; color: #64748b;">{{ line.inventory_item_kind }}</span></td>
-                <td style="text-align: center; font-weight: 700; color: #1d4d6b;">{{ line.quantity }}</td>
-                <td>{{ line.notes|default:"Inclus" }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td><strong>____________________________</strong></td>
-                <td><span style="font-size: 8pt; text-transform: uppercase; color: #64748b;">________</span></td>
-                <td style="text-align: center; font-weight: 700; color: #1d4d6b;">_____</td>
-                <td>____________________________</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+        {% if context.event_draft.party_type == "company" %}
+            <p>La société <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong> domiciliée au {{ context.event_draft.customer_address|default:"................................" }}<br>NIF : {{ context.event_draft.customer_nif|default:"................................" }}<br>STAT : {{ context.event_draft.customer_stat|default:"................................" }}<br>RCS : {{ context.event_draft.customer_rcs|default:"................................" }}<br>Représentée par {{ context.event_draft.customer_representative_name|default:"................................" }} en sa qualité de {{ context.event_draft.customer_representative_role|default:"................................" }}<br>Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>Mail : {{ context.event_draft.customer_email|default:"................................" }}</p>
+        {% else %}
+            <p>Madame/Monsieur <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong>, titulaire de la {{ context.event_draft.customer_id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ context.event_draft.customer_id_number|default:"................................" }} délivrée le {{ context.event_draft.customer_id_issue_date|date:"d/m/Y"|default:"................................" }} à {{ context.event_draft.customer_id_issue_place|default:"................................" }}, demeurant au {{ context.event_draft.customer_address|default:"................................" }}<br>Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>Mail : {{ context.event_draft.customer_email|default:"................................" }}</p>
+        {% endif %}
+        <p class="text-right">Ci-après dénommée « Le client »</p>
+        <p class="text-right"><strong><u>D'AUTRE PART,</u></strong></p>
+        <p>Pour le {{ context.event_draft.event_type|default:"................................" }} de : {{ context.event_draft.event_name|default:"................................" }}</p>
+        <p>Le Client et le Prestataire étant dénommés ci-après les <strong>« Parties »</strong></p>
+        <p class="uppercase">IL A ETE CONVENU CE QUI SUIT :</p>
 
-    <div class="clause-box">
-        <strong>Notes de service & Consignes particulières :</strong><br>
-        {{ context.event_draft.service_notes|default:"________________________________" }}
-    </div>
+        <h2>Article 1 : Objet du contrat</h2>
+        <p>Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, un lieu de réception situé au Lot P93M Sud Ambohipo Alasora Antananarivo comprenant :</p>
+        <ul><li>Une salle de réception de 600 m2 ;</li><li>Huit toilettes attenantes ;</li><li>Une cuisine équipée de réfrigérateur et congélateur ;</li><li>Un parking intérieur et extérieur sécurisé (50 places) ;</li><li>Un salon avec salle d’eau pour les mariés ;</li><li>Un espace vert.</li></ul>
+        <p class="indent">Ci-après désignés les « Lieux Loués ».</p>
+        <p>Le client déclare parfaitement connaitre les Lieux Loués pour les avoir visités et examinés en vue des présentes, sans qu'il soit nécessaire d'en faire plus ample désignation et déclare les accepter dans l'état où ils se trouvent tels qu'ils existent, s'entendent et comportent avec leurs dépendances.</p>
+    </section>
 
-    <table class="signatures-table">
-        <tr>
-            <td>
-                <div class="sig-card">
-                    <div class="sig-header">Pour le Domaine Hahitantsoa :</div>
-                    <div style="font-size: 8pt; color: #94a3b8;">Signature & Tampon de la Direction :</div>
-                </div>
-            </td>
-            <td>
-                <div class="sig-card">
-                    <div class="sig-header">Pour le Client (Lu et Approuvé) :</div>
-                    <div style="font-size: 8pt; color: #94a3b8;">Mention « Lu et approuvé » + Signature :</div>
-                </div>
-            </td>
-        </tr>
-    </table>
+    <section class="contract-page">
+        <h2>Article 2 : Destination</h2>
+        <p>Le lieu de réception loué est destiné à accueillir les évènements suivants : {{ context.event_draft.event_type|default:"mariages, anniversaires, réceptions privées, séminaires" }}.<br>Toute autre activité en sus non mentionnée doit faire l’objet d’une annexe à titre d’avenant conclu entre les parties.</p>
+        <h2>Article 3 : Durée</h2>
+        <p>La présente location est consentie et acceptée du {{ context.event_draft.start_at|date:"d/m/Y H:i"|default:"................................" }} au {{ context.event_draft.end_at|date:"d/m/Y H:i"|default:"................................" }}.</p>
+        <p>L’heure de fin comprend les heures de démantèlement et reprise des Lieux Loués par le Prestataire.<br>Toute rallonge sur les heures convenues fera l’objet de facturation en sus suivant la grille du prestataire.</p>
+        <h2>Article 4 : Tarifs</h2>
+        <p>La présente location est consentie et acceptée moyennant le prix de <u>................................ Ariary TTC</u>.</p>
+        <p class="indent">N° Proforma : ................................<br>Nombre de convives : ................................<br>Type de location : ☐ Location nue &nbsp;&nbsp; ☐ Location + logistique<br>Durée : ................................</p>
+        <p>Une facture sera établie après la réception de la totalité du règlement. Un reçu sera établi lors de la réception des fonds pour acompte.<br>Dans le cas où le client n’aurait pas quitté les Lieux Loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50 000,00 Ariary TTC par tranche de 30 minutes.</p>
+        <h2>Article 5 : Modalités de paiement</h2>
+        <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de :</p>
+        <ul><li>1 000 000,00 Ariary dans le cas d’une location nue ;</li><li>1 500 000,00 Ariary dans le cas d’une location nue avec logistique.</li></ul>
+        <p>Celui-ci devra être réglé le jour de la réservation de la salle, soit à la signature par le Client du présent contrat. Le client s’engage à verser le solde du montant de la location en deux tranches :</p>
+        <ul><li>La première tranche (50%) 1 mois avant l’évènement au plus tard ;</li><li>La deuxième tranche (50%) 10 jours avant l’évènement au plus tard.</li></ul>
+        <h2>Article 6 : Remise des clés – Etat des lieux</h2>
+        <p>Un état des lieux d’entrée sera établi lors de la prise de possession des Lieux Loués et un état des lieux de sortie sera dressé lors de la remise des clés ou à la fin du contrat. Le client est tenu de rester le temps nécessaire pour procéder à l’état des lieux.</p>
+        <h2>Article 7 : Dépôt de garantie</h2>
+        <p>Le client verse au Prestataire à titre de dépôt de garantie, une somme de ................................ Ariary. La somme correspondant au dépôt de garantie est versée le jour du règlement du solde. Le montant sera remboursé au Client le jour de la fin de location dans le cas d’un retour sans casse.</p>
+    </section>
 
-    <div class="footer-stamp">
-        Domaine Hahitantsoa · Contrat officiel d'événement · Ergon ERP
-    </div>
+    <section class="contract-page">
+        <p>Par ailleurs, dans le cas de constatation de casse le montant du dépôt de garantie sera remboursé au Client dans les cinq jours suivant la fin de la location après déduction de toutes les sommes dont il est destiné à garantir le paiement notamment les désordres que le Client aurait causé aux locaux, aux matériels ou aux espaces verts ainsi que le nettoyage supplémentaire.</p>
+        <p>Si le montant du préjudice est supérieur au montant du dépôt de garantie, le Client s’engage à rembourser les frais supplémentaires sous 8 jours après réception d’une mise en demeure l’informant du montant de la somme due au titre de ces désordres.</p>
+        <h2>Article 8 : Obligations du Prestataire</h2><p>Le Prestataire s’engage à mettre à disposition du Client l’ensemble des éléments mentionnés dans l’article 1 du présent contrat. Il s’engage à ne pas faire entrave à la jouissance du Client pendant toute la durée de la location.</p>
+        <h2>Article 9 : Obligations du Client</h2>
+        <ul><li>Le Client prendra les Lieux Loués dans l’état où ils se trouvent au moment de l’entrée en jouissance.</li><li>Le Client ne pourra faire aucune modification dans les Lieux Loués.</li><li>Le Client s’engage à utiliser les Lieux Loués en bon père de famille.</li><li>Le Client s’engage à respecter et à faire respecter le présent contrat, le règlement intérieur et les consignes de sécurité.</li><li>Le Client s’engage à rendre les Lieux Loués vidés de leurs contenus.</li><li>Le Client octroie un droit de diffusion des vidéos et photographies lors de l’évènement pour usage Marketing sans porter atteinte à la personnalité tant des invités que du Client.</li></ul>
+        <h2>Article 10 : Annulation</h2><p>Le Client ne pourrait annuler la location sauf pour cas de force majeure, et ne peut prévaloir un droit à remboursement. En cas de force majeure, les deux parties se rapprochent pour évaluer les éventuels remboursements sans engagement de part et d’autres. Dans le cas où le Prestataire ne pourrait respecter ses engagements pour cas de force majeure, il se réserve le droit d’annuler la réservation et de rembourser intégralement au Client les sommes qu’il a versées.</p>
+        <h2>Article 11 : Conditions d’annulation, de report et de remboursement</h2><p>La réservation de la salle est ferme et définitive à compter de la signature du présent contrat et/ou du règlement convenu. Aucun report de la date de réservation ne pourra être demandé ou accordé, sauf accord écrit et exceptionnel du Prestataire. En cas d’annulation par le Client, aucun remboursement des sommes versées ne pourra être exigé.</p>
+        <h2>Article 12 : Sécurité incendie</h2><p>Le Client déclare avoir pris connaissance de la règlementation incendie relative aux Lieux Loués et notamment du plan d’évacuation <strong>(Cf Annexe).</strong></p>
+        <h2>Article 13 : Assurances</h2><p>Le Client fera parvenir au Prestataire un justificatif de domicile (Facture d’abonnement électricité/eau). Dans le cas où il y a des dégâts en plus sur les Lieux Loués, le Client s’engage à procéder aux réparations de ces derniers.</p>
+    </section>
+
+    <section class="contract-page">
+        <h2>Article 14 : Responsabilité</h2><p>Le prestataire décline toute responsabilité d’un éventuel accident survenu lors des festivités et ne peut être tenu responsable des vols et dégradations sur les biens du Client ou de ses convives. Il ne pourra pas non plus être tenu responsable des dommages causés aux véhicules ou au matériel situés sur le parking.</p>
+        <h2>Article 15 : Clause résolutoire</h2><p>Il est expressément convenu qu’en cas de paiement par chèque, le règlement ne sera considéré effectif qu’après l’encaissement du chèque. Dans le cas où le chèque serait sans provision, la présente clause sera appliquée et le présent contrat deviendra nul de plein droit. A défaut de production par le Client d’une attestation couvrant sa responsabilité civile dans les délais prévus à l’article 13, il sera également fait application de la présente clause.</p>
+        <h2>Article 16 : Annexes</h2><p>Sont annexés au présent contrat :</p><ul><li>Règlement intérieur</li><li>Plan de masse et évacuation incendie</li><li>Proforma</li><li>Liste des intervenants non autorisés</li></ul>
+        <p class="text-center signature-intro">Fait en trois exemplaires originaux</p><p class="text-right">A Antananarivo, le ................................</p>
+        <div class="signatures"><span>Le Prestataire,</span><span>Le Client,</span></div>
+    </section>
+
+    <section class="contract-page annex"><h2>Annexe 1 : REGLEMENT INTERIEUR</h2><ul><li>Interdiction de fumer à l’intérieur des locaux (chapiteau et bâtiments) ;</li><li>Puissance d’appareils en cuisine limitée à 6 000 W (hors congélateur et réfrigérateur) ;</li><li>Interdiction de toucher aux plantes du jardin ;</li><li>Accès au salon restreint aux mariés et à leurs proches ;</li><li>Les matériels sont loués propres ; ils devront être rendus de même.</li><li>Les poubelles doivent être enlevées par les soins des intervenants.</li><li>Réouverture du portail à 04h30.</li></ul></section>
+    <section class="contract-page annex"><h2>Annexe 2 : Plan de masse et évacuation incendie</h2><div class="plan-placeholder">Plan de masse et évacuation incendie — joindre l’original validé.</div></section>
+    <section class="contract-page annex"><h2>Annexe 3 : Prix de casse</h2><table><thead><tr><th>Article</th><th>Prix de casse / unité</th></tr></thead><tbody>{% for line in context.event_draft.lines %}<tr><td>{{ line.inventory_item_name }}</td><td class="text-right">{{ line.breakage_price|default:"—" }}</td></tr>{% empty %}<tr><td colspan="2">Aucun article loué n’est associé à cette commande.</td></tr>{% endfor %}</tbody></table></section>
+    <section class="contract-page annex"><h2>Annexe 4 : Liste des intervenants non autorisés</h2><p class="empty-note">Aucun intervenant non autorisé enregistré.</p><p class="annex-note">Cette liste est consultée par le prestataire et le client lors de la passation d’entrée et de sortie.</p></section>
 </body>
 </html>
