@@ -261,6 +261,16 @@ async function patchAuthenticatedJson<T>(
   return parseJsonResponse<T>(response);
 }
 
+async function deleteAuthenticated(
+  url: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await unsafeAuthenticatedRequest(url, { method: "DELETE" }, signal);
+  if (!response.ok) {
+    await parseJsonResponse<unknown>(response);
+  }
+}
+
 function buildReservationPeriodQuery(startAt: string, endAt: string): string {
   return new URLSearchParams({
     start_at: startAt,
@@ -279,6 +289,25 @@ export function getInventoryItem(
   signal?: AbortSignal,
 ): Promise<InventoryItem> {
   return getAuthenticatedJson(`/api/v1/inventory/items/${id}/`, signal);
+}
+
+export function createInventoryItem(
+  payload: Partial<InventoryItem>,
+  signal?: AbortSignal,
+): Promise<InventoryItem> {
+  return postAuthenticatedJson("/api/v1/inventory/items/", payload, signal);
+}
+
+export function updateInventoryItem(
+  id: string,
+  payload: Partial<InventoryItem>,
+  signal?: AbortSignal,
+): Promise<InventoryItem> {
+  return patchAuthenticatedJson(`/api/v1/inventory/items/${id}/`, payload, signal);
+}
+
+export function deleteInventoryItem(id: string, signal?: AbortSignal): Promise<void> {
+  return deleteAuthenticated(`/api/v1/inventory/items/${id}/`, signal);
 }
 
 export type CashboxSessionQueryParams = {

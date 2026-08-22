@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getHahitantsoaVenues, createHahitantsoaVenue, updateHahitantsoaVenue } from "../api";
+import { ApiError, getHahitantsoaVenues, createHahitantsoaVenue, updateHahitantsoaVenue } from "../api";
 import type { HahitantsoaVenue } from "../types";
 
 export default function VenuesPage() {
@@ -45,23 +45,25 @@ export default function VenuesPage() {
     if (venue) {
       setCurrentVenue({ ...venue });
     } else {
-      setCurrentVenue({ id: `v_${Date.now()}`, name: "", type: "location_event", capacity: "", active: true, note: "", price: 0 });
+      setCurrentVenue({ id: "", name: "", type: "location_event", capacity: "", active: true, note: "", price: 0 });
     }
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (modalMode === "add") {
-      setVenues([...venues, currentVenue]);
-      createHahitantsoaVenue(currentVenue).catch(() => {});
-      showToast("Espace enregistré (Ajout)");
-    } else {
-      setVenues(venues.map(v => v.id === currentVenue.id ? currentVenue : v));
-      updateHahitantsoaVenue(currentVenue.id, currentVenue).catch(() => {});
-      showToast("Espace enregistré (Modification)");
+    try {
+      const saved = modalMode === "add"
+        ? await createHahitantsoaVenue(currentVenue)
+        : await updateHahitantsoaVenue(currentVenue.id, currentVenue);
+      setVenues(current => modalMode === "add"
+        ? [...current, saved]
+        : current.map(venue => venue.id === saved.id ? saved : venue));
+      showToast(modalMode === "add" ? "Espace ajouté." : "Espace modifié.");
+      setIsModalOpen(false);
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : "La sauvegarde de l'espace a échoué.");
     }
-    setIsModalOpen(false);
   };
 
   const [deleteVenueId, setDeleteVenueId] = useState<string | null>(null);
@@ -70,25 +72,42 @@ export default function VenuesPage() {
     setDeleteVenueId(id);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (deleteVenueId) {
-      setVenues(venues.filter(v => v.id !== deleteVenueId));
-      showToast("Suppression locale en attente de confirmation par le serveur");
-      setDeleteVenueId(null);
+      try {
+        const saved = await updateHahitantsoaVenue(deleteVenueId, { active: false });
+        setVenues(current => current.map(venue => venue.id === saved.id ? saved : venue));
+        showToast("Espace désactivé.");
+        setDeleteVenueId(null);
+      } catch (error) {
+        showToast(error instanceof ApiError ? error.message : "La désactivation de l'espace a échoué.");
+      }
     }
   };
 
-  const toggleActive = (id: string) => {
-    setVenues(venues.map(v => v.id === id ? { ...v, active: !v.active } : v));
+  const toggleActive = async (id: string) => {
+    const venue = venues.find(item => item.id === id);
+    if (!venue) return;
+    try {
+      const saved = await updateHahitantsoaVenue(id, { active: !venue.active });
+      setVenues(current => current.map(item => item.id === id ? saved : item));
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : "Le changement de statut a échoué.");
+    }
   };
 
-  const setDefault = (id: string) => {
-    setVenues(venues.map(v => {
-      if (v.type === "location_event") {
-        return { ...v, isDefault: v.id === id };
-      }
-      return v;
-    }));
+  const setDefault = async (id: string) => {
+    try {
+      const updates = await Promise.all(
+        venues
+          .filter(venue => venue.type === "location_event")
+          .map(venue => updateHahitantsoaVenue(venue.id, { is_default: venue.id === id })),
+      );
+      setVenues(current => current.map(venue => updates.find(updated => updated.id === venue.id) ?? venue));
+      showToast("Local par défaut enregistré.");
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : "Le local par défaut n'a pas pu être enregistré.");
+    }
   };
 
   const locationVenues = venues.filter(v => v.type === "location_event");
@@ -137,7 +156,7 @@ export default function VenuesPage() {
                     </span>
                   </td>
                   <td className="p-4 text-center">
-                    {v.isDefault ? (
+                    {v.is_default ? (
                       <span className="text-amber-500" title="Local par défaut"><i className="fa-solid fa-star"></i></span>
                     ) : (
                       <button onClick={() => setDefault(v.id)} className="text-slate-300 hover:text-amber-500 transition-colors" title="Définir par défaut">

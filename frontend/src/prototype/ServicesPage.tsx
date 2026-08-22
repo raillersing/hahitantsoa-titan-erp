@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService } from '../api';
+import { ApiError, getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService } from '../api';
 
 const ServicesPage: React.FC = () => {
   const [services, setServices] = useState<any[]>([]);
@@ -47,28 +47,31 @@ const ServicesPage: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    showToast(`Service désactivé pour l'ID ${id}`, 'warning');
-    const updatedServices = services.map(s => s.id === id ? { ...s, active: false } : s);
-    setServices(updatedServices);
-    updateHahitantsoaService(id, { active: false }).catch(() => {});
+  const handleDelete = async (id: string) => {
+    try {
+      const saved = await updateHahitantsoaService(id, { active: false });
+      setServices(current => current.map(service => service.id === id ? saved : service));
+      showToast('Service désactivé.', 'success');
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : 'La désactivation a échoué.', 'error');
+    }
   };
 
-  const handleSave = () => {
-    if (editingId) {
-      setServices(services.map(s => s.id === editingId ? { ...s, ...formData } : s));
-      updateHahitantsoaService(editingId, formData).catch(() => {});
-      showToast('Service enregistré (Modification)', 'success');
-    } else {
-      const newId = `SRV-H${services.length + 1}`;
-      const newSrv = { id: newId, ...formData };
-      setServices([...services, newSrv]);
-      createHahitantsoaService(newSrv).catch(() => {});
-      showToast('Service enregistré (Ajout)', 'success');
+  const handleSave = async () => {
+    try {
+      const saved = editingId
+        ? await updateHahitantsoaService(editingId, formData)
+        : await createHahitantsoaService(formData);
+      setServices(current => editingId
+        ? current.map(service => service.id === editingId ? saved : service)
+        : [...current, saved]);
+      showToast(editingId ? 'Service modifié.' : 'Service ajouté.', 'success');
+      setShowForm(false);
+      setEditingId(null);
+      setFormData({ name: '', desc: '', price: 0, active: true });
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : 'La sauvegarde du service a échoué.', 'error');
     }
-    setShowForm(false);
-    setEditingId(null);
-    setFormData({ name: '', desc: '', price: 0, active: true });
   };
 
   return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getInventoryItems, ApiError } from "../api";
+import { createInventoryItem, createStockMovement, deleteInventoryItem, getInventoryItems, updateInventoryItem, ApiError } from "../api";
 import type { InventoryItem } from "../types";
 import { validateStockChange } from "./inventoryStockUtils";
 
@@ -21,6 +21,7 @@ interface DisplayItem {
   status: "OK" | "Bas" | "Rupture";
   imageUrl?: string;
   description?: string;
+  code?: string;
 }
 
 type InventoryColumn =
@@ -72,8 +73,13 @@ function toDisplayItem(item: InventoryItem): DisplayItem {
     purchasePrice: Number(item.purchase_price ?? 0),
     unitPrice: Number(item.rental_price ?? 0),
     breakagePrice: Number(item.breakage_price ?? 0),
-    status: "OK",
+    status: item.is_active === false
+      ? "Rupture"
+      : totalStock <= 0
+        ? "Rupture"
+        : "OK",
     description: item.description,
+    code: item.code,
   };
 }
 
@@ -120,6 +126,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const [stockChangeReason, setStockChangeReason] = useState("");
   const [stockError, setStockError] = useState("");
   const [isAdjustingStock, setIsAdjustingStock] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [adjustItem, setAdjustItem] = useState<any>(null);
   const [stockDelta, setStockDelta] = useState(0);
 
@@ -235,7 +242,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     setIsFormOpen(true);
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formMode === "edit" && editForm.totalStock !== originalTotalStock) {
       if (!stockChangeReason) {
@@ -251,21 +258,60 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       editForm.availableStock = validation.newAvailable;
     }
 
-    if (formMode === "create") {
-      setInventory(prev => [editForm, ...prev]);
-      setToast("Article créé avec succès.");
-    } else {
-      setInventory(prev => prev.map(i => i.id === editForm.id ? editForm : i));
-      setToast("Article mis à jour.");
+    setIsSaving(true);
+    try {
+      const kind: InventoryItem["kind"] = editForm.type === "Location" ? "material" : "article";
+      const payload = {
+        name: editForm.name,
+        kind,
+        code: editForm.id?.startsWith("NEW-") ? "" : editForm.id,
+        section: editForm.category || "",
+        rental_price: String(editForm.unitPrice || 0),
+        purchase_price: String(editForm.purchasePrice || 0),
+        breakage_price: String(editForm.breakagePrice || 0),
+        description: editForm.description || "",
+        reported_inventory_quantity: formMode === "create" ? editForm.totalStock : undefined,
+        is_active: editForm.status !== "Rupture",
+      };
+      const saved = formMode === "create"
+        ? await createInventoryItem(payload)
+        : await updateInventoryItem(editForm.id, payload);
+      if (formMode === "edit" && editForm.totalStock !== originalTotalStock) {
+        const delta = editForm.totalStock - originalTotalStock;
+        await createStockMovement({
+          inventory_item: saved.id,
+          movement_type: delta > 0 ? "adjustment_in" : "adjustment_out",
+          direction: delta > 0 ? "inbound" : "outbound",
+          quantity: Math.abs(delta),
+          source_label: stockChangeReason,
+          notes: stockChangeReason,
+        });
+      }
+      const refreshed = formMode === "edit" && editForm.totalStock !== originalTotalStock
+        ? (await getInventoryItems()).map(toDisplayItem)
+        : [toDisplayItem(saved)];
+      setInventory(prev => formMode === "create" ? [refreshed[0], ...prev] : prev.map(i => {
+        const next = refreshed.find(candidate => candidate.id === i.id);
+        return next ?? i;
+      }));
+      setToast(formMode === "create" ? "Article créé avec succès." : "Article mis à jour.");
+      setIsFormOpen(false);
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "La sauvegarde de l'article a échoué.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsFormOpen(false);
   };
 
-  const handleToggleStatus = (item: any) => {
+  const handleToggleStatus = async (item: any) => {
     const newStatus = (item.status === "OK" ? "Rupture" : "OK") as "OK" | "Bas" | "Rupture";
-    const newItem = { ...item, status: newStatus };
-    setInventory(prev => prev.map(i => i.id === item.id ? newItem : i));
-    setToast(`L'article ${item.name} est maintenant en ${newStatus === "OK" ? "Disponibilité" : "Rupture"}`);
+    try {
+      const saved = await updateInventoryItem(item.id, { is_active: newStatus === "OK" });
+      setInventory(prev => prev.map(i => i.id === item.id ? toDisplayItem(saved) : i));
+      setToast(`L'article ${item.name} est maintenant en ${newStatus === "OK" ? "Disponibilité" : "Rupture"}`);
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "Le changement de statut a échoué.");
+    }
   };
 
   const handleOpenAdjustStock = (item: any) => {
@@ -274,7 +320,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     setIsAdjustingStock(true);
   };
 
-  const handleSaveStock = (e: React.FormEvent) => {
+  const handleSaveStock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adjustItem) return;
     
@@ -291,12 +337,26 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       return;
     }
 
-    const newItem = { ...adjustItem, totalStock: newTotal, availableStock: validation.newAvailable };
-    setInventory(prev => prev.map(i => i.id === adjustItem.id ? newItem : i));
-    setToast(`Stock ajusté (${stockDelta > 0 ? '+' : ''}${stockDelta})`);
-    setIsAdjustingStock(false);
-    setStockDelta(0);
-    setStockChangeReason("");
+    setIsSaving(true);
+    try {
+      await createStockMovement({
+        inventory_item: adjustItem.id,
+        movement_type: stockDelta > 0 ? "adjustment_in" : "adjustment_out",
+        direction: stockDelta > 0 ? "inbound" : "outbound",
+        quantity: Math.abs(stockDelta),
+        source_label: stockChangeReason,
+        notes: stockChangeReason,
+      });
+      setInventory((await getInventoryItems()).map(toDisplayItem));
+      setToast(`Stock ajusté (${stockDelta > 0 ? '+' : ''}${stockDelta})`);
+      setIsAdjustingStock(false);
+      setStockDelta(0);
+      setStockChangeReason("");
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "L'ajustement du stock a échoué.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleOpenDelete = (item: any) => {
@@ -304,10 +364,19 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     setIsDeleteOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    setInventory(prev => prev.filter(i => i.id !== deleteItem.id));
-    setToast(`L'article ${deleteItem.name} a été supprimé.`);
-    setIsDeleteOpen(false);
+  const handleConfirmDelete = async () => {
+    if (!deleteItem) return;
+    setIsSaving(true);
+    try {
+      await deleteInventoryItem(deleteItem.id);
+      setInventory(prev => prev.filter(i => i.id !== deleteItem.id));
+      setToast(`L'article ${deleteItem.name} a été supprimé.`);
+      setIsDeleteOpen(false);
+    } catch (err) {
+      setToast(err instanceof ApiError ? err.message : "La suppression de l'article a échoué.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ─── Loading / Error states ───────────────────────────────────────────
@@ -637,7 +706,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               </div>
               <div className="pt-4 flex justify-end gap-3 border-t border-slate-200">
                 <button type="button" className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium" onClick={() => setIsFormOpen(false)}>Annuler</button>
-                <button type="submit" className="px-4 py-2 bg-tit-600 text-white rounded font-bold">Enregistrer</button>
+                <button type="submit" disabled={isSaving} className="px-4 py-2 bg-tit-600 text-white rounded font-bold disabled:opacity-50">{isSaving ? "Enregistrement…" : "Enregistrer"}</button>
               </div>
             </form>
           </div>
@@ -716,7 +785,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             </div>
             <div className="p-6 pt-0 flex justify-end gap-3">
               <button className="px-4 py-2 border border-slate-300 text-slate-700 rounded font-medium focus:outline-none focus:ring-2 focus:ring-slate-400" onClick={() => setIsDeleteOpen(false)} autoFocus>Annuler</button>
-              <button className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold transition-colors" onClick={handleConfirmDelete}>Supprimer l'article</button>
+              <button disabled={isSaving} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded font-bold transition-colors disabled:opacity-50" onClick={handleConfirmDelete}>{isSaving ? "Suppression…" : "Supprimer l'article"}</button>
             </div>
           </div>
         </div>

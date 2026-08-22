@@ -13,6 +13,8 @@ export type InventoryItem = {
   breakage_price?: string | null;
   reported_inventory_quantity?: number;
   reported_damaged_quantity?: number;
+  is_active?: boolean;
+  is_deleted?: boolean;
   stock_summary?: {
     reported_inventory_quantity: number;
     reported_damaged_quantity: number;
@@ -1352,6 +1354,7 @@ export type HahitantsoaVenue = {
   price?: number;
   usage?: string;
   volet?: string;
+  is_default?: boolean;
   isDefault?: boolean;
 };
 
