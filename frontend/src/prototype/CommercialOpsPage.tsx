@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AppScope } from "../App";
-import { DocumentPreview } from "./DocumentPreview";
+import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { getBillingInvoices } from "../api";
 import type { BillingInvoice, BillingInvoiceStatus } from "../types";
 import { LoadingSpinner } from "../components";
@@ -280,27 +280,15 @@ export default function CommercialOpsPage({ onNavigate }: CommercialOpsPageProps
               <i className="fa-solid fa-xmark fa-xl"></i>
             </button>
             <div className="p-8">
-              <DocumentPreview
-                type={
-                  (selectedFacture.document_instance?.document_type?.toLowerCase() as
-                    | "proforma"
-                    | "facture"
-                    | "contrat"
-                    | "recu") || "facture"
-                }
-                domain="hahitantsoa"
-                client={{
-                  name: selectedFacture.document_instance?.customer_display_name || "",
-                  phone: selectedFacture.document_instance?.customer_phone || "",
-                }}
-                date={formatDate(selectedFacture.issued_at)}
-                refNumber={
-                  selectedFacture.document_instance?.reservation_public_reference ||
-                  selectedFacture.id.slice(0, 8)
-                }
-                eventDate="—"
-                totalAmount={Number.parseFloat(selectedFacture.amount || "0")}
-              />
+              {selectedFacture.document_instance?.id ? (
+                <DocumentArtifactPreviewPanel
+                  documentInstanceId={selectedFacture.document_instance.id}
+                />
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="alert">
+                  Aucun artefact documentaire généré n’est associé à cette facture.
+                </div>
+              )}
             </div>
           </div>
         </div>

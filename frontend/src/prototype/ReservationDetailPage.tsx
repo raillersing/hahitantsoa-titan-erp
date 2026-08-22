@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AppScope } from "../App";
+import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
@@ -369,6 +370,16 @@ export default function ReservationDetailPage({
       di.template_key.startsWith("PROFORMA") &&
       di.status !== "voided",
   );
+
+  const previewArtifact = previewDoc
+    ? documentInstances.find((documentInstance) => {
+        if (!['generated', 'issued'].includes(documentInstance.status)) return false;
+        if (previewDoc === "annexes") {
+          return documentInstance.template_key === "hahitantsoa.contract.v1";
+        }
+        return documentInstance.document_type.toLowerCase() === previewDoc;
+      })
+    : undefined;
 
   const handleGenerateProforma = async () => {
     if (!draftId) return;
@@ -2123,7 +2134,9 @@ export default function ReservationDetailPage({
                 <i className="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
-            {previewDoc === "annexes" ? (
+            {previewArtifact ? (
+              <DocumentArtifactPreviewPanel documentInstanceId={previewArtifact.id} />
+            ) : previewDoc === "annexes" ? (
               <div className="space-y-8 text-sm text-slate-700 font-serif">
                 <div className="text-center mb-8 border-b pb-4">
                   <h2 className="text-2xl font-bold mb-2 uppercase">
