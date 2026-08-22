@@ -87,7 +87,7 @@ describe("DocumentsTemplatesPage", () => {
     expect(await screen.findByText(/80 mm thermique · 1 page/)).toBeInTheDocument();
   });
 
-  it("uses the protected workflow renderer for contracts instead of catalog HTML", async () => {
+  it("uses the canonical backend HTML renderer for workflow documents", async () => {
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([
       {
         key: "hahitantsoa.contract.v1",
@@ -104,20 +104,22 @@ describe("DocumentsTemplatesPage", () => {
         notes: "",
       },
     ]);
-    const previewSpy = vi.spyOn(api, "getDocumentTemplatePreview");
+    const previewSpy = vi.spyOn(api, "getDocumentTemplatePreview").mockResolvedValue(
+      '<!doctype html><html><head><style>@page{size:A4 portrait}</style></head><body>' +
+        '<section class="contract-page">CONTRAT DE LOCATION « HAHITANTSOA »</section>'.repeat(8) +
+        '</body></html>',
+    );
 
     const { container } = render(<DocumentsTemplatesPage />);
     fireEvent.click(await screen.findByRole("button", { name: /Contrat Hahitantsoa/ }));
-    previewSpy.mockClear();
 
-    expect(await screen.findByText("CONTRAT DE LOCATION « HAHITANTSOA »")).toBeInTheDocument();
-    expect(container.querySelectorAll(".contract-a4-page")).toHaveLength(8);
-    expect(screen.getByTestId("document-template-preview")).toHaveClass("overflow-visible");
-    expect(screen.queryByTitle(/Aperçu du modèle de document/)).not.toBeInTheDocument();
-    expect(previewSpy).not.toHaveBeenCalled();
+    expect(await screen.findByTitle("Aperçu du modèle de document : Contrat Hahitantsoa")).toBeInTheDocument();
+    expect(container.querySelector("iframe")).toHaveAttribute("srcdoc");
+    expect(screen.getByTestId("document-template-preview")).toHaveClass("overflow-hidden");
+    expect(previewSpy).toHaveBeenCalledWith("hahitantsoa.contract.v1", expect.anything(), false, "individual");
   });
 
-  it("uses the protected workflow renderer for proformas", async () => {
+  it("uses the canonical backend HTML renderer for proformas", async () => {
     vi.spyOn(api, "getDocumentTemplates").mockResolvedValue([
       {
         key: "titan.proforma.v1",
@@ -134,17 +136,17 @@ describe("DocumentsTemplatesPage", () => {
         notes: "",
       },
     ]);
-    const previewSpy = vi.spyOn(api, "getDocumentTemplatePreview");
+    const previewSpy = vi.spyOn(api, "getDocumentTemplatePreview").mockResolvedValue(
+      '<!doctype html><html><head><style>@page{size:A4}</style></head><body><main>P R O F O R M A</main></body></html>',
+    );
 
     render(<DocumentsTemplatesPage />);
     fireEvent.click(await screen.findByRole("button", { name: /Proforma Titan/ }));
-    previewSpy.mockClear();
 
-    expect(await screen.findByText("P R O F O R M A")).toBeInTheDocument();
-    expect(screen.getByTestId("document-template-preview")).toHaveClass("overflow-visible");
-    expect(screen.getByAltText("Watermark")).toHaveClass("commercial-proforma-watermark");
-    expect(screen.queryByTitle(/Aperçu du modèle de document/)).not.toBeInTheDocument();
-    expect(previewSpy).not.toHaveBeenCalled();
+    expect(await screen.findByTitle("Aperçu du modèle de document : Proforma Titan")).toBeInTheDocument();
+    expect(screen.getByTestId("document-template-preview")).toHaveClass("overflow-hidden");
+    expect(screen.queryByAltText("Watermark")).not.toBeInTheDocument();
+    expect(previewSpy).toHaveBeenCalledWith("titan.proforma.v1", expect.anything(), false, "individual");
   });
 
   it("navigates between document slides with buttons and keeps variables visible", async () => {
