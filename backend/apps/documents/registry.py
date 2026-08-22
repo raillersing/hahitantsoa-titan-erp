@@ -69,13 +69,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="contract",
         label="Contrat Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
+        status="source_backed_template",
         source_kind="generated_from_brand_style",
         source_reference="docs/references/source/templates/Hahitantsoa/Contrat/20240124 CONTRAT DE LOCATION HAHITANTSOA DU 26 JANVIER 2024 PWC.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_contract.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/contrat/v1/preview.pdf",
         validated_by_client=False,
-        notes=DRAFT_PLACEHOLDER_NOTE,
+        notes="Canonical HTML/CSS template migrated from the validated frontend contract structure. PDF is generated at runtime. Commercial amounts, breakage prices and the Annex 2 image remain pending in the runtime context; client visual validation is still required.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.invoice.v1",

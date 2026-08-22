@@ -35,6 +35,26 @@ CONSTRUCTED_DOCUMENTS = (
 )
 
 
+def test_hahitantsoa_contract_uses_canonical_html_css_pages_and_preserves_annex_scope() -> None:
+    definition = get_document_template_definition("hahitantsoa.contract.v1")
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+
+    assert "size: A4 portrait" in html
+    assert html.count('class="contract-page') == 8
+    assert "CONTRAT DE LOCATION « HAHITANTSOA »" in html
+    assert "Prix de casse / unité" in html
+    assert "Plan de masse et évacuation incendie — joindre l’original validé." in html
+    assert "total des préjudices" not in html.lower()
+
+
 @pytest.mark.parametrize("template_key,paper_size,title", SOURCE_BACKED_DOCUMENTS)
 def test_source_backed_template_contains_source_geometry_and_title(
     template_key: str, paper_size: str, title: str
