@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.documents.serializers import DocumentInstanceSerializer
-from apps.identity.permissions import HasReservationSensitiveAccess
+from apps.identity.permissions import HasInventoryManagementAccess, HasReservationSensitiveAccess
 from apps.inventory.models import (
     InventoryDamageLossExcessReceivable,
     InventoryItem,
@@ -47,7 +47,7 @@ def active_inventory_items():
     return InventoryItem.objects.filter(is_active=True, is_deleted=False).order_by("name")
 
 
-class InventoryItemListAPIView(generics.ListAPIView):
+class InventoryItemListAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = InventoryItemSerializer
 
@@ -64,14 +64,51 @@ class InventoryItemListAPIView(generics.ListAPIView):
             qs = qs.filter(description__icontains=description_param)
         return qs
 
+    def get_serializer_class(self):
+        return InventoryItemSerializer
 
-class InventoryItemRetrieveAPIView(generics.RetrieveAPIView):
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+
+class InventoryItemRetrieveAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = InventoryItemSerializer
     lookup_field = "pk"
 
     def get_queryset(self):
-        return active_inventory_items().prefetch_related("stock_movements")
+        # Detail writes must also be able to reactivate an inactive item that is
+        # still retained in the catalogue. Soft-deleted items remain hidden.
+        queryset = InventoryItem.objects.filter(is_deleted=False).prefetch_related(
+            "stock_movements"
+        )
+        if self.request.method.lower() in {"get", "head", "options"}:
+            return queryset.filter(is_active=True)
+        return queryset
+
+    def get_permissions(self):
+        if self.request.method.lower() in {"patch", "put", "delete"}:
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        from django.utils import timezone
+
+        instance.is_active = False
+        instance.is_deleted = True
+        instance.deleted_at = timezone.now()
+        instance.updated_by = self.request.user
+        instance.save(
+            update_fields=["is_active", "is_deleted", "deleted_at", "updated_by", "updated_at"]
+        )
 
 
 class InventoryStorageLocationListCreateAPIView(generics.ListCreateAPIView):

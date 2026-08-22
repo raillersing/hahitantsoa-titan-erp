@@ -117,6 +117,28 @@ def is_logistics_override_actor(*, actor: object | None) -> bool:
     return actor_has_application_role(actor=actor, role_slug="logistics_override")
 
 
+def is_management_or_finance_actor(*, actor: object | None) -> bool:
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+    if getattr(actor, "is_staff", False) is True:
+        return True
+    return any(
+        actor_has_application_role(actor=actor, role_slug=role)
+        for role in ("owner_manager", "manager", "accountant")
+    )
+
+
+def is_inventory_management_actor(*, actor: object | None) -> bool:
+    if not is_authenticated_active_actor(actor=actor):
+        return False
+    if getattr(actor, "is_staff", False) is True:
+        return True
+    return any(
+        actor_has_application_role(actor=actor, role_slug=role)
+        for role in ("owner_manager", "manager", "storekeeper", "logistics_manager")
+    )
+
+
 def require_logistics_override_actor(*, actor: object | None) -> None:
     if not is_logistics_override_actor(actor=actor):
         raise PermissionError(LOGISTICS_OVERRIDE_PERMISSION_DENIED_MESSAGE)

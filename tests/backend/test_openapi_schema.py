@@ -159,8 +159,6 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
     )
 
     confirmed_read_only_paths = (
-        INVENTORY_LIST_PATH,
-        detail_path,
         RESERVATION_AVAILABILITY_SUMMARY_PATH,
         RESERVATION_AVAILABLE_ITEM_PREVIEWS_PATH,
         item_availability_preview_path,
@@ -174,6 +172,9 @@ def test_openapi_schema_exposes_confirmed_read_only_mvp_paths(client) -> None:
     for path in confirmed_read_only_paths:
         assert path in paths
         _assert_get_only(paths[path])
+
+    assert set(paths[INVENTORY_LIST_PATH]) >= {"get", "post"}
+    assert set(paths[detail_path]) >= {"get", "put", "patch", "delete"}
 
     assert RESERVATION_DRAFT_DOCUMENT_INSTANCE_LIST_PATH in paths
     assert set(paths[RESERVATION_DRAFT_DOCUMENT_INSTANCE_LIST_PATH]) >= {"get", "post"}

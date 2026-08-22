@@ -55,7 +55,7 @@ from apps.hahitantsoa.services import (
     confirm_hahitantsoa_event_draft,
     mark_hahitantsoa_event_draft_required_deposit_received,
 )
-from apps.identity.permissions import HasSuperAdminAccess
+from apps.identity.permissions import HasInventoryManagementAccess, HasSuperAdminAccess
 from apps.inventory.services import InventoryStockMovementError
 from apps.reservations.confirmation import (
     ReservationConfirmationPreflightError,
@@ -850,6 +850,11 @@ class HahitantsoaVenueListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
             from apps.hahitantsoa.serializers import HahitantsoaVenueCreateSerializer
@@ -862,10 +867,19 @@ class HahitantsoaVenueListCreateAPIView(generics.ListCreateAPIView):
     def get_queryset(self):
         return HahitantsoaVenue.objects.all()
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
 
 class HahitantsoaVenueRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
     http_method_names = ["get", "patch", "head", "options"]
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method.lower() == "patch":
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
+
     lookup_field = "pk"
 
     def get_serializer_class(self):
@@ -879,12 +893,20 @@ class HahitantsoaVenueRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return HahitantsoaVenue.objects.all()
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
 
 
 class HahitantsoaServiceListCreateAPIView(generics.ListCreateAPIView):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
         if self.request.method.lower() == "post":
             from apps.hahitantsoa.serializers import HahitantsoaServiceCreateSerializer
@@ -897,10 +919,19 @@ class HahitantsoaServiceListCreateAPIView(generics.ListCreateAPIView):
     def get_queryset(self):
         return HahitantsoaService.objects.all()
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
 
 class HahitantsoaServiceRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
     http_method_names = ["get", "patch", "head", "options"]
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method.lower() == "patch":
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
+
     lookup_field = "pk"
 
     def get_serializer_class(self):
@@ -914,3 +945,6 @@ class HahitantsoaServiceRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return HahitantsoaService.objects.all()
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)

@@ -109,7 +109,7 @@ def test_inventory_item_list_rejects_post(authenticated_client) -> None:
         data={"name": "Camera", "kind": "material"},
     )
 
-    assert response.status_code == 405
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -124,7 +124,34 @@ def test_inventory_item_detail_rejects_write_methods(authenticated_client, metho
         content_type="application/json",
     )
 
-    assert response.status_code == 405
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_inventory_management_actor_can_create_update_and_soft_delete_item(
+    client, django_user_model
+) -> None:
+    user = django_user_model.objects.create_user(
+        username="inventory-admin", password="test-pass", is_staff=True
+    )
+    client.force_login(user)
+    create_response = client.post(
+        "/api/v1/inventory/items/",
+        data={"name": "Admin camera", "kind": "material", "code": "CAM-001"},
+        content_type="application/json",
+    )
+    assert create_response.status_code == 201
+    item_id = create_response.json()["id"]
+    update_response = client.patch(
+        f"/api/v1/inventory/items/{item_id}/",
+        data={"name": "Updated camera"},
+        content_type="application/json",
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["name"] == "Updated camera"
+    delete_response = client.delete(f"/api/v1/inventory/items/{item_id}/")
+    assert delete_response.status_code == 204
+    assert not InventoryItem.objects.get(pk=item_id).is_active
 
 
 @pytest.mark.django_db

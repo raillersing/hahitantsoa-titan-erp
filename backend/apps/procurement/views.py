@@ -3,6 +3,8 @@ from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.identity.permissions import HasManagementOrFinanceAccess
+
 from .models import PurchaseOrder, QuickExpense
 from .serializers import (
     PurchaseOrderCreateSerializer,
@@ -22,6 +24,11 @@ class PurchaseOrderListCreateAPIView(generics.ListCreateAPIView):
         if status_param:
             qs = qs.filter(status=status_param)
         return qs
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasManagementOrFinanceAccess()]
+        return super().get_permissions()
 
     @extend_schema(
         request=PurchaseOrderCreateSerializer,
@@ -51,6 +58,14 @@ class PurchaseOrderRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAP
     def get_queryset(self):
         return PurchaseOrder.objects.all()
 
+    def get_permissions(self):
+        if self.request.method.lower() in {"patch", "put", "delete"}:
+            return [HasManagementOrFinanceAccess()]
+        return super().get_permissions()
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
 
 class QuickExpenseListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = QuickExpenseSerializer
@@ -62,6 +77,11 @@ class QuickExpenseListCreateAPIView(generics.ListCreateAPIView):
         if category:
             qs = qs.filter(category=category)
         return qs
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasManagementOrFinanceAccess()]
+        return super().get_permissions()
 
     @extend_schema(
         request=QuickExpenseCreateSerializer,
@@ -87,3 +107,8 @@ class QuickExpenseRetrieveDestroyAPIView(generics.RetrieveDestroyAPIView):
 
     def get_queryset(self):
         return QuickExpense.objects.all()
+
+    def get_permissions(self):
+        if self.request.method.lower() == "delete":
+            return [HasManagementOrFinanceAccess()]
+        return super().get_permissions()
