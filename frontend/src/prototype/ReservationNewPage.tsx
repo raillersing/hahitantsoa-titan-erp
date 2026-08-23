@@ -25,8 +25,6 @@ import {
   uploadAttachment,
   createPayment,
   confirmPayment,
-  markReservationDraftRequiredDepositReceived,
-  markHahitantsoaEventDraftRequiredDepositReceived,
 } from "../api";
 import type {
   Customer,
@@ -333,6 +331,12 @@ interface PaymentData {
   percent: string;
 }
 
+interface RecordedPayment {
+  id: string;
+  amount: number;
+  method: string;
+}
+
 interface Attachment {
   id: string;
   name: string;
@@ -601,7 +605,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [proformaValidity, setProformaValidity] = useState<number>(15);
   const [proformaGenerated, setProformaGenerated] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
-  const [paymentRecorded, setPaymentRecorded] = useState(false);
+  const [recordedPayments, setRecordedPayments] = useState<RecordedPayment[]>([]);
   const [clientAttachments, setClientAttachments] = useState<Attachment[]>([]);
   const [dedicatedAttachments, setDedicatedAttachments] = useState<Partial<Record<DedicatedAttachmentCategory, Attachment>>>({});
   const [paymentAttachments, setPaymentAttachments] = useState<Attachment[]>([]);
@@ -763,6 +767,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       clientAttachments: clientAttachments.map(({ file: _file, ...attachment }) => attachment),
       dedicatedAttachments: Object.fromEntries(Object.entries(dedicatedAttachments).map(([category, attachment]) => [category, attachment ? (({ file: _file, ...rest }) => rest)(attachment) : attachment])),
       paymentAttachments: paymentAttachments.map(({ file: _file, ...attachment }) => attachment),
+      recordedPayments,
       discountValue, discountIsPercentage
     };
     localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
@@ -772,7 +777,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (step >= 2 && (selectedClientId || newClient.name)) {
       saveDraft();
     }
-  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, discountValue, discountIsPercentage]);
+  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage]);
 
   const restoreDraft = () => {
     const saved = localStorage.getItem("prototypeReservationDraft");
@@ -788,7 +793,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         endTime: data.tDetails?.endTime || "22:00",
       });
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
-      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []);
+      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: "50" }); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []); setRecordedPayments(data.recordedPayments || []);
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true);
       setShowDraftPrompt(false);
     }
@@ -3068,9 +3073,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     const hahitantsoaSchedule = domain === "hahitantsoa"
       ? calculateHahitantsoaPaymentSchedule(totalAmount, hahitantsoaDeposit, hDetails.startDate || hDetails.date)
       : null;
-    const currentRequestedPayment = domain === 'hahitantsoa'
-      ? hahitantsoaDeposit.toString()
-      : (totalAmount * activePercent / 100).toString();
+    const requiredPaymentAmount = domain === "hahitantsoa"
+      ? hahitantsoaDeposit
+      : totalAmount * activePercent / 100;
+    const recordedPaymentAmount = recordedPayments.reduce((sum, item) => sum + item.amount, 0);
+    const remainingRequiredPayment = Math.max(0, requiredPaymentAmount - recordedPaymentAmount);
+    const currentPaymentAmount = Number(payment.amount || 0);
 
     return (
       <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
@@ -3144,25 +3152,54 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Montant perçu (Ar)</label>
+              <label htmlFor="reservation-payment-amount" className="block text-sm font-medium text-slate-700 mb-1">Montant de ce paiement (Ar)</label>
               <input 
+                id="reservation-payment-amount"
                 type="number" 
+                min="1"
+                max={remainingRequiredPayment || undefined}
                 className="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold" 
-                value={payment.amount || currentRequestedPayment} 
+                value={payment.amount}
+                placeholder={remainingRequiredPayment.toLocaleString('fr-FR')}
                 onChange={e => {
                   const amt = e.target.value;
                   const pct = ((parseInt(amt || "0", 10) / totalAmount) * 100).toFixed(1);
                   setPayment({...payment, amount: amt, ...(domain === "titan" ? { percent: pct } : {})});
                 }} 
               />
+              <p className="mt-1 text-xs text-slate-500">Vous pouvez enregistrer plusieurs paiements avant l’échéance.</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Reste à payer</label>
+              <span className="block text-sm font-medium text-slate-700 mb-1">Reste à verser pour l’acompte requis</span>
               <div className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-slate-600">
-                {Math.max(0, totalAmount - parseInt(payment.amount || currentRequestedPayment, 10)).toLocaleString('fr-FR')} Ar
+                {Math.max(0, remainingRequiredPayment - currentPaymentAmount).toLocaleString('fr-FR')} Ar
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4" aria-live="polite">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="font-bold text-slate-800">Paiements enregistrés</h4>
+            <span className="text-sm font-semibold text-slate-600">
+              {recordedPaymentAmount.toLocaleString('fr-FR')} / {requiredPaymentAmount.toLocaleString('fr-FR')} Ar
+            </span>
+          </div>
+          {recordedPayments.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">Aucun paiement enregistré dans ce dossier.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {recordedPayments.map((item, index) => (
+                <li key={item.id} className="flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  <span>Paiement {index + 1} — {item.method}</span>
+                  <strong>{item.amount.toLocaleString('fr-FR')} Ar</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+          {remainingRequiredPayment === 0 && (
+            <p className="mt-3 text-sm font-semibold text-emerald-700">Le montant requis est atteint. Vous pouvez passer à l’aperçu du contrat.</p>
+          )}
         </div>
 
         <div className="mt-6 pt-6 border-t border-slate-100">
@@ -3216,8 +3253,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour au proforma</button>
           <button
             className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium text-sm disabled:opacity-50 shadow-md hover:bg-green-700"
+            disabled={submitting || (remainingRequiredPayment > 0 && currentPaymentAmount <= 0)}
             onClick={async () => {
               try {
+                setSubmitting(true);
+                setSubmitError(null);
                 if (activeClient?.status === "Prospect" && selectedClientId) {
                   await convertProspectToClient(selectedClientId);
                   setApiCustomers(prev => prev.map(c =>
@@ -3228,7 +3268,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   ? prospectProformaEmission
                   : await issueProspectProforma();
                 if (!emitted.draftId) throw new Error("Le brouillon de réservation est introuvable.");
-                if (!paymentRecorded) {
+                if (remainingRequiredPayment > 0) {
                   const method = payment.method === "Espèces"
                     ? "cash"
                     : payment.method === "Chèque"
@@ -3238,6 +3278,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                         : payment.method === "Virement"
                           ? "bank_transfer"
                           : "other";
+                  if (!Number.isFinite(currentPaymentAmount) || currentPaymentAmount <= 0) {
+                    throw new Error("Saisissez un montant de paiement supérieur à zéro.");
+                  }
+                  if (currentPaymentAmount > remainingRequiredPayment) {
+                    throw new Error(`Le paiement ne peut pas dépasser le reste dû de ${remainingRequiredPayment.toLocaleString('fr-FR')} Ar.`);
+                  }
                   const paymentRecord = await createPayment({
                     ...(domain === "hahitantsoa"
                       ? { hahitantsoa_event_draft: emitted.draftId }
@@ -3245,20 +3291,33 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     payment_kind: "deposit",
                     payment_method: method,
                     payment_status: "pending",
-                    amount: parseFloat(payment.amount || currentRequestedPayment).toFixed(2),
-                    notes: "Acompte confirmé depuis l’assistant de réservation.",
+                    amount: currentPaymentAmount.toFixed(2),
+                    notes: "Paiement confirmé depuis l’assistant de réservation.",
                   });
                   await confirmPayment(paymentRecord.id, {});
-                  setPaymentRecorded(true);
+                  const nextRecordedPayments = [...recordedPayments, {
+                    id: paymentRecord.id,
+                    amount: currentPaymentAmount,
+                    method: payment.method,
+                  }];
+                  const nextRecordedAmount = recordedPaymentAmount + currentPaymentAmount;
+                  setRecordedPayments(nextRecordedPayments);
+                  setPayment(current => ({ ...current, amount: "" }));
+                  if (nextRecordedAmount < requiredPaymentAmount) {
+                    showToastMsg(`Paiement enregistré. Il reste ${Math.max(0, requiredPaymentAmount - nextRecordedAmount).toLocaleString('fr-FR')} Ar à verser pour l’acompte requis.`, 'success');
+                    return;
+                  }
                 }
                 setPaymentDone(true);
                 goNext();
               } catch (err: any) {
                 setSubmitError(err?.message || "Erreur lors de la conversion du prospect en client.");
+              } finally {
+                setSubmitting(false);
               }
             }}
           >
-            Valider paiement et Aperçu Contrat
+            {remainingRequiredPayment === 0 ? "Passer à l’aperçu du contrat" : "Enregistrer le paiement"}
           </button>
         </div>
       </div>
@@ -3266,7 +3325,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   const renderContractPreviewStep = () => {
-    const paidAmount = parseInt(payment.amount || ((totalAmount * parseInt(payment.percent || "50", 10)) / 100).toString(), 10);
+    const paidAmount = recordedPayments.reduce((sum, item) => sum + item.amount, 0);
     return (
       <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm animate-fade-in relative">
         <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Contrat</h3>
@@ -3289,7 +3348,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           totalAmount={totalAmount}
           subTotalAmount={subTotalAmount}
           discountAmount={discountAmount}
-          paidAmount={parseInt(payment.amount || '0', 10)}
+          paidAmount={paidAmount}
           paymentMethod={payment.method}
           hDetails={hDetails}
           tDetails={tDetails}
@@ -3306,16 +3365,16 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 setSubmitting(true);
                 setSubmitError(null);
                 const generated = await ensureContractGenerated();
-                if (generated.draftId) {
-                  if (domain === "hahitantsoa") {
-                    await markHahitantsoaEventDraftRequiredDepositReceived(generated.draftId);
-                  } else {
-                    await markReservationDraftRequiredDepositReceived(generated.draftId);
-                  }
-                }
+                const customerId = await ensureCustomerId();
+                await uploadPendingAttachments({
+                  customerId,
+                  ...(domain === "hahitantsoa"
+                    ? { hahitantsoaEventDraftId: generated.draftId }
+                    : { reservationDraftId: generated.draftId }),
+                });
                 const msg = domain === "hahitantsoa"
-                  ? "Contrat Hahitantsoa généré avec succès"
-                  : "Contrat Titan généré avec succès";
+                  ? "Contrat Hahitantsoa préparé avec succès. Signature et confirmation restent à effectuer."
+                  : "Contrat Titan préparé avec succès. Signature et confirmation restent à effectuer.";
                 showToastMsg(msg, 'success');
                 clearDraft(false);
                 onNavigate(domain === "hahitantsoa" ? "hahitantsoa" : "titan");
@@ -3327,7 +3386,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               }
             }}
           >
-            <i className="fa-solid fa-signature mr-2"></i> Valider et Clôturer le Dossier
+            <i className="fa-solid fa-file-signature mr-2"></i> Générer le contrat et ouvrir le dossier
           </button>
         </div>
       </div>
