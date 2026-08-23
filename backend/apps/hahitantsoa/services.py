@@ -582,10 +582,7 @@ def get_hahitantsoa_event_draft_prerequisite_status(
         missing_label="Generated contract truth is missing.",
     )
     deposit_status = _build_prerequisite_status_item(
-        truth_present=(
-            _has_confirmed_required_deposit_payment(event_draft=event_draft)
-            and _is_required_deposit_received(event_draft=event_draft)
-        ),
+        truth_present=_has_confirmed_required_deposit_payment(event_draft=event_draft),
         marker_present=_is_required_deposit_received(event_draft=event_draft),
         source_id=getattr(deposit_payment, "id", None),
         recorded_at=(
