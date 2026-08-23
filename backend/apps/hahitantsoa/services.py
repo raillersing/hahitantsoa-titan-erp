@@ -29,6 +29,7 @@ from apps.reservations.confirmation import (
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
     RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
     ReservationConfirmationPreflightError,
+    ReservationLifecyclePrerequisiteError,
     ReservationLifecycleStateError,
 )
 from apps.reservations.periods import ReservationPeriod, make_reservation_period
@@ -478,6 +479,12 @@ def _lock_contract_truth_documents(
     return tuple(_contract_truth_documents(event_draft=event_draft).select_for_update())
 
 
+def _has_signed_contract_truth(*, event_draft: HahitantsoaEventDraft) -> bool:
+    return _is_contract_signed(event_draft=event_draft) and _has_contract_document_truth(
+        event_draft=event_draft
+    )
+
+
 def _confirmed_required_deposit_payments(
     *,
     event_draft: HahitantsoaEventDraft,
@@ -561,7 +568,8 @@ def get_hahitantsoa_event_draft_prerequisite_status(
     )
 
     contract_status = _build_prerequisite_status_item(
-        truth_present=contract_document is not None,
+        truth_present=contract_document is not None
+        and _is_contract_signed(event_draft=event_draft),
         marker_present=_is_contract_signed(event_draft=event_draft),
         source_id=getattr(contract_document, "id", None),
         recorded_at=(
@@ -569,12 +577,15 @@ def get_hahitantsoa_event_draft_prerequisite_status(
             if contract_document is not None
             else event_draft.contract_signed_at
         ),
-        satisfied_label="Generated contract is linked to this event draft.",
+        satisfied_label="Signed contract is linked to this event draft.",
         stale_marker_label="Contract marker is present, but durable contract truth is missing.",
         missing_label="Generated contract truth is missing.",
     )
     deposit_status = _build_prerequisite_status_item(
-        truth_present=_has_confirmed_required_deposit_payment(event_draft=event_draft),
+        truth_present=(
+            _has_confirmed_required_deposit_payment(event_draft=event_draft)
+            and _is_required_deposit_received(event_draft=event_draft)
+        ),
         marker_present=_is_required_deposit_received(event_draft=event_draft),
         source_id=getattr(deposit_payment, "id", None),
         recorded_at=(
@@ -852,26 +863,42 @@ def mark_hahitantsoa_event_draft_required_deposit_received(
                 "updated_at",
             ]
         )
-        if not _is_contract_signed(
-            event_draft=locked_event_draft
-        ) and _lock_contract_truth_documents(event_draft=locked_event_draft):
-            now = timezone.now()
-            locked_event_draft.contract_signed_at = now
-            locked_event_draft.contract_signed_by_id = actor.pk
-            locked_event_draft.updated_by = actor
-            locked_event_draft.save(
-                update_fields=[
-                    "contract_signed_at",
-                    "contract_signed_by",
-                    "updated_by",
-                    "updated_at",
-                ]
-            )
-        if auto_confirm and _is_contract_signed(event_draft=locked_event_draft):
+        if auto_confirm and _has_signed_contract_truth(event_draft=locked_event_draft):
             return confirm_hahitantsoa_event_draft(
                 event_draft=locked_event_draft,
                 actor=actor,
             ).event_draft
+        return locked_event_draft
+
+
+def mark_hahitantsoa_event_draft_contract_signed(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None,
+) -> HahitantsoaEventDraft:
+    """Record an explicit contract-signature action after a generated contract exists."""
+    attribution = capture_reservation_sensitive_actor_attribution(actor=actor)
+    with transaction.atomic():
+        locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
+        _assert_active_draft_state(event_draft=locked_event_draft)
+        if not _lock_contract_truth_documents(event_draft=locked_event_draft):
+            raise ReservationLifecyclePrerequisiteError(
+                "Hahitantsoa event draft must have a generated contract before it can be signed.",
+                code="missing_contract_document_truth",
+            )
+        if _is_contract_signed(event_draft=locked_event_draft):
+            return locked_event_draft
+        locked_event_draft.contract_signed_at = attribution.attributed_at
+        locked_event_draft.contract_signed_by_id = attribution.actor_id
+        locked_event_draft.updated_by_id = attribution.actor_id
+        locked_event_draft.save(
+            update_fields=[
+                "contract_signed_at",
+                "contract_signed_by",
+                "updated_by",
+                "updated_at",
+            ]
+        )
         return locked_event_draft
 
 
@@ -916,7 +943,7 @@ def get_hahitantsoa_event_draft_confirmation_preflight(
         )
 
     active_lines = _active_hahitantsoa_event_draft_lines(event_draft=event_draft)
-    if not active_lines:
+    if event_draft.rental_type == "logistics" and not active_lines:
         _append_blocker(
             blockers=blockers,
             blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
@@ -955,23 +982,30 @@ def get_hahitantsoa_event_draft_confirmation_preflight(
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_ACTIVE_AVAILABILITY_CONFLICT,
             )
 
-    if not _has_contract_document_truth(event_draft=event_draft):
+    if not _has_signed_contract_truth(event_draft=event_draft):
         _append_blocker(
             blockers=blockers,
             blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_SIGNED_CONTRACT,
         )
-        if _is_contract_signed(event_draft=event_draft):
+        if _is_contract_signed(event_draft=event_draft) and not _has_contract_document_truth(
+            event_draft=event_draft
+        ):
             _append_blocker(
                 blockers=blockers,
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
             )
 
-    if not _has_confirmed_required_deposit_payment(event_draft=event_draft):
+    if not (
+        _has_confirmed_required_deposit_payment(event_draft=event_draft)
+        and _is_required_deposit_received(event_draft=event_draft)
+    ):
         _append_blocker(
             blockers=blockers,
             blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DEPOSIT,
         )
-        if _is_required_deposit_received(event_draft=event_draft):
+        if _is_required_deposit_received(
+            event_draft=event_draft
+        ) and not _has_confirmed_required_deposit_payment(event_draft=event_draft):
             _append_blocker(
                 blockers=blockers,
                 blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
@@ -1000,13 +1034,14 @@ def confirm_hahitantsoa_event_draft(
         _assert_active_draft_state(event_draft=locked_event_draft)
 
         active_lines = _locked_active_hahitantsoa_event_draft_lines(event_draft=locked_event_draft)
-        if not active_lines:
+        if locked_event_draft.rental_type == "logistics" and not active_lines:
             raise ReservationLifecycleStateError(
                 "Hahitantsoa event draft must have at least one active line.",
                 code="draft_has_no_active_lines",
             )
 
-        _lock_inventory_items_for_active_lines(active_lines=active_lines)
+        if active_lines:
+            _lock_inventory_items_for_active_lines(active_lines=active_lines)
         _lock_contract_truth_documents(event_draft=locked_event_draft)
         _lock_confirmed_required_deposit_payments(event_draft=locked_event_draft)
 
@@ -1020,9 +1055,13 @@ def confirm_hahitantsoa_event_draft(
                 blockers=preflight.blockers,
             )
 
-        blocked_periods = _create_confirmation_inventory_blocks(
-            event_draft=locked_event_draft,
-            active_lines=active_lines,
+        blocked_periods = (
+            _create_confirmation_inventory_blocks(
+                event_draft=locked_event_draft,
+                active_lines=active_lines,
+            )
+            if active_lines
+            else ()
         )
         confirmed_event_draft = _persist_hahitantsoa_event_draft_confirmation(
             event_draft=locked_event_draft,

@@ -53,6 +53,7 @@ from apps.hahitantsoa.services import (
     apply_hahitantsoa_event_draft_amendment_request,
     assert_hahitantsoa_event_draft_mutable,
     confirm_hahitantsoa_event_draft,
+    mark_hahitantsoa_event_draft_contract_signed,
     mark_hahitantsoa_event_draft_required_deposit_received,
 )
 from apps.identity.permissions import HasInventoryManagementAccess, HasSuperAdminAccess
@@ -571,6 +572,37 @@ class HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView(APIView):
                 event_draft=event_draft,
                 actor=request.user,
                 auto_confirm=True,
+            )
+        except PermissionError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)
+        except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
+            return Response(
+                {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "status": marked_draft.status,
+                "public_reference": marked_draft.public_reference,
+                "event_draft": HahitantsoaEventDraftSerializer(marked_draft).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class HahitantsoaEventDraftMarkContractSignedAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
+        try:
+            marked_draft = mark_hahitantsoa_event_draft_contract_signed(
+                event_draft=event_draft,
+                actor=request.user,
             )
         except PermissionError as error:
             return Response({"detail": str(error)}, status=status.HTTP_403_FORBIDDEN)

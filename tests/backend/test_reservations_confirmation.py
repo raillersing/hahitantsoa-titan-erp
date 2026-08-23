@@ -201,6 +201,24 @@ def test_mark_required_deposit_received_persists_timestamp_and_actor(
     assert draft.required_deposit_received_by_id == actor.pk
 
 
+def test_mark_required_deposit_received_does_not_sign_contract(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+
+    mark_reservation_draft_required_deposit_received(
+        reservation_draft=draft,
+        actor=actor,
+    )
+
+    draft.refresh_from_db()
+    assert draft.required_deposit_received_at is not None
+    assert draft.contract_signed_at is None
+    assert draft.contract_signed_by_id is None
+
+
 def test_lifecycle_exceptions_subclass_value_error() -> None:
     assert issubclass(ReservationLifecycleError, ValueError)
     assert issubclass(ReservationLifecycleStateError, ReservationLifecycleError)

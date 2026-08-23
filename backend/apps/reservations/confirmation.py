@@ -503,14 +503,6 @@ def mark_reservation_draft_required_deposit_received(
             reservation_draft=locked_reservation_draft,
             attribution=attribution,
         )
-        if not _is_contract_signed(
-            reservation_draft=marked_draft
-        ) and _lock_contract_truth_documents(reservation_draft=marked_draft):
-            _persist_contract_signed_marker(
-                reservation_draft=marked_draft,
-                attribution=attribution,
-            )
-            marked_draft.refresh_from_db()
         if auto_confirm and _is_contract_signed(reservation_draft=marked_draft):
             return confirm_reservation_draft(
                 reservation_draft=marked_draft,
