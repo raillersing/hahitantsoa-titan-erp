@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getReservationDrafts, getInventoryItems } from "../api";
+import {
+  addLogisticsEventItemLine,
+  createLogisticsEvent,
+  getInventoryItems,
+  getLogisticsEvents,
+  getReservationDrafts,
+  transitionLogisticsEvent,
+} from "../api";
 import { clampQuantity } from "../utils";
-import type { ReservationDraft, InventoryItem } from "../types";
+import type { InventoryItem, LogisticsEvent, ReservationDraft } from "../types";
 
 type PrepItem = {
   articleId: string;
@@ -18,6 +25,7 @@ type Preparation = {
   dateSortie: string;
   status: "À préparer" | "Partiel" | "Prêt" | "Bloqué";
   items: PrepItem[];
+  preparationEvent: LogisticsEvent | null;
 };
 
 function formatDate(iso: string): string {
@@ -32,23 +40,31 @@ function formatDate(iso: string): string {
   }
 }
 
-function draftToPreparation(draft: ReservationDraft, inventoryMap: Map<string, InventoryItem>): Preparation {
+function draftToPreparation(
+  draft: ReservationDraft,
+  inventoryMap: Map<string, InventoryItem>,
+  preparationEvent: LogisticsEvent | null,
+): Preparation {
   const items: PrepItem[] = draft.lines.map((line) => {
     const invItem = inventoryMap.get(line.inventory_item_id);
+    const eventLine = preparationEvent?.item_lines.find((item) => item.inventory_item === line.inventory_item_id);
     return {
       articleId: line.inventory_item_id,
       name: line.inventory_item_name || invItem?.name || line.inventory_item_id,
       qtyOrdered: line.quantity,
-      qtyPrepared: 0,
-      available: 0, // TODO: real availability when stock-availability API is ready
+      qtyPrepared: Math.min(eventLine?.quantity ?? 0, line.quantity),
+      available: invItem?.stock_summary?.available_stock ?? 0,
     };
   });
 
-  // Determine status based on available vs ordered
   let status: Preparation["status"] = "À préparer";
-  if (items.every((i) => i.available >= i.qtyOrdered)) {
+  if (preparationEvent?.status === "completed") {
     status = "Prêt";
+  } else if (items.some((i) => i.available < i.qtyOrdered)) {
+    status = "Bloqué";
   } else if (items.some((i) => i.available > 0 && i.available < i.qtyOrdered)) {
+    status = "Partiel";
+  } else if (items.some((i) => i.qtyPrepared > 0)) {
     status = "Partiel";
   }
 
@@ -59,15 +75,17 @@ function draftToPreparation(draft: ReservationDraft, inventoryMap: Map<string, I
     dateSortie: formatDate(draft.start_at),
     status,
     items,
+    preparationEvent,
   };
 }
 
 export default function StockPreparationPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
-  const [filter, setFilter] = useState("À préparer");
+  const [filter, setFilter] = useState("Tous");
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
   const [preparations, setPreparations] = useState<Preparation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [busyPreparationId, setBusyPreparationId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -78,9 +96,10 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
       setLoading(true);
       setError("");
       try {
-        const [drafts, items] = await Promise.all([
+        const [drafts, items, logisticsEvents] = await Promise.all([
           getReservationDrafts(undefined, signal),
           getInventoryItems(signal).catch(() => []),
+          getLogisticsEvents(signal),
         ]);
 
         const inventoryMap = new Map<string, InventoryItem>();
@@ -88,7 +107,12 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
 
         // Only confirmed reservations are "to prepare"
         const confirmedDrafts = drafts.filter((d) => d.status === "confirmed");
-        const mapped = confirmedDrafts.map((d) => draftToPreparation(d, inventoryMap));
+        const preparationEvents = new Map(
+          logisticsEvents
+            .filter((event) => event.event_type === "preparation" && event.reservation_draft)
+            .map((event) => [event.reservation_draft!, event]),
+        );
+        const mapped = confirmedDrafts.map((d) => draftToPreparation(d, inventoryMap, preparationEvents.get(d.id) ?? null));
         setPreparations(mapped);
       } catch (err: any) {
         if (signal.aborted) return;
@@ -111,6 +135,77 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
     if (filter === "Tous") return true;
     return p.status === filter;
   });
+
+  const updatePreparedQuantity = (preparationId: string, articleId: string, value: number) => {
+    setPreparations((current) => current.map((preparation) => {
+      if (preparation.id !== preparationId || preparation.preparationEvent?.status === "completed") return preparation;
+      const items = preparation.items.map((item) => item.articleId === articleId
+        ? { ...item, qtyPrepared: clampQuantity(value, 0, Math.min(item.qtyOrdered, item.available)) }
+        : item);
+      const status: Preparation["status"] = items.some((item) => item.available < item.qtyOrdered)
+        ? "Bloqué"
+        : items.some((item) => item.qtyPrepared > 0)
+          ? "Partiel"
+          : "À préparer";
+      return { ...preparation, items, status };
+    }));
+  };
+
+  const markPreparationReady = async (preparation: Preparation) => {
+    if (preparation.preparationEvent?.status === "completed") return;
+    if (preparation.items.some((item) => item.available < item.qtyOrdered)) {
+      showToast("La préparation est bloquée : le stock disponible est insuffisant.", "error");
+      return;
+    }
+    if (preparation.items.some((item) => item.qtyPrepared < item.qtyOrdered)) {
+      showToast("Préparez la quantité commandée de chaque article avant de marquer le dossier prêt.", "warning");
+      return;
+    }
+
+    setBusyPreparationId(preparation.id);
+    try {
+      let event = preparation.preparationEvent;
+      if (!event) {
+        event = await createLogisticsEvent({
+          reservation_draft: preparation.id,
+          event_type: "preparation",
+          operation: "outbound",
+        });
+      }
+      for (const item of preparation.items) {
+        await addLogisticsEventItemLine(event.id, {
+          inventory_item_id: item.articleId,
+          quantity: item.qtyPrepared,
+          notes: "Quantité préparée depuis le volet Préparation stock.",
+        });
+      }
+      if (event.status === "planned") {
+        event = await transitionLogisticsEvent(event.id, {
+          new_status: "dispatched",
+          notes: "Préparation stock commencée.",
+        });
+      }
+      if (event.status === "dispatched") {
+        event = await transitionLogisticsEvent(event.id, {
+          new_status: "completed",
+          notes: "Préparation stock terminée.",
+        });
+      }
+      setPreparations((current) => current.map((item) => item.id === preparation.id
+        ? {
+            ...item,
+            preparationEvent: event,
+            status: "Prêt",
+            items: item.items.map((line) => ({ ...line, qtyPrepared: line.qtyOrdered })),
+          }
+        : item));
+      showToast(`${preparation.dossierRef} est maintenant prêt.`, "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible d’enregistrer la préparation.", "error");
+    } finally {
+      setBusyPreparationId(null);
+    }
+  };
 
   const filterCounts = {
     "Tous": preparations.length,
@@ -248,16 +343,13 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
                           <input
                             type="number"
                             className="w-20 text-center border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 shadow-sm font-bold focus:ring-tit-500 focus:border-tit-500 mx-auto"
-                            defaultValue={item.qtyPrepared}
+                            value={item.qtyPrepared}
                             min={0}
                             max={Math.min(item.qtyOrdered, item.available)}
+                            disabled={prep.preparationEvent?.status === "completed"}
                             onChange={(e) => {
                               const val = parseInt(e.target.value);
-                              e.target.value = clampQuantity(
-                                val,
-                                0,
-                                Math.min(item.qtyOrdered, item.available),
-                              ).toString();
+                              updatePreparedQuantity(prep.id, item.articleId, val);
                             }}
                           />
                         </td>
@@ -269,9 +361,8 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
                             <button
                               className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold rounded hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
                               title="Préparer le max possible"
-                              onClick={() =>
-                                showToast(`Quantité max préparée pour ${item.name}`, "success")
-                              }
+                              disabled={prep.preparationEvent?.status === "completed"}
+                              onClick={() => updatePreparedQuantity(prep.id, item.articleId, Math.min(item.qtyOrdered, item.available))}
                             >
                               Mettre au max
                             </button>
@@ -300,19 +391,18 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
               <div className="mt-4 flex justify-end gap-3">
                 <button
                   className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
-                  onClick={() =>
-                    showToast(`Aperçu du bon de préparation pour ${prep.dossierRef}`, "info")
-                  }
+                  type="button"
+                  disabled
+                  title="La génération du bon de préparation sera disponible après raccordement du document opérationnel."
                 >
-                  <i className="fas fa-print mr-2"></i>Bon de préparation
+                  <i className="fas fa-print mr-2"></i>Bon de préparation indisponible
                 </button>
                 <button
                   className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700"
-                  onClick={() =>
-                    showToast(`${prep.dossierRef} marqué comme PRÊT !`, "success")
-                  }
+                  disabled={busyPreparationId === prep.id || prep.preparationEvent?.status === "completed"}
+                  onClick={() => void markPreparationReady(prep)}
                 >
-                  <i className="fas fa-check mr-2"></i>Marquer comme Prêt
+                  <i className={`fas ${busyPreparationId === prep.id ? "fa-spinner fa-spin" : "fa-check"} mr-2`}></i>{prep.preparationEvent?.status === "completed" ? "Préparation enregistrée" : "Marquer comme Prêt"}
                 </button>
               </div>
             </div>

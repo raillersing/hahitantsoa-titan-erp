@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { getLogisticsEvents } from "../api";
+import {
+  completeLogisticsPassation,
+  getLogisticsEvents,
+  transitionLogisticsEvent,
+  updateLogisticsEventSignature,
+} from "../api";
 import type { LogisticsEvent } from "../types";
 
 const eventTypeLabels: Record<string, string> = {
@@ -34,6 +39,9 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("Tous");
   const [toast, setToast] = React.useState<{message: string, type: 'info'|'success'|'warning'|'error'} | null>(null);
+  const [busyEventId, setBusyEventId] = useState<string | null>(null);
+  const [signatureEvent, setSignatureEvent] = useState<LogisticsEvent | null>(null);
+  const [clientSignerName, setClientSignerName] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,6 +64,59 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
   const showToast = (message: string, type: 'info'|'success'|'warning'|'error' = 'info') => {
     setToast({message, type});
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const transitionEvent = async (event: LogisticsEvent, newStatus: "dispatched" | "completed") => {
+    setBusyEventId(event.id);
+    try {
+      const updated = await transitionLogisticsEvent(event.id, {
+        new_status: newStatus,
+        notes: newStatus === "dispatched" ? "Sortie lancée depuis le planning logistique." : "Opération logistique terminée depuis le planning logistique.",
+      });
+      setEvents((current) => current.map((item) => item.id === updated.id ? updated : item));
+      showToast(newStatus === "dispatched" ? "Sortie lancée et enregistrée." : "Opération terminée et enregistrée.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible de mettre à jour l’opération.", "error");
+    } finally {
+      setBusyEventId(null);
+    }
+  };
+
+  const saveClientSignature = async () => {
+    if (!signatureEvent || !clientSignerName.trim()) {
+      showToast("Le nom du signataire est obligatoire.", "error");
+      return;
+    }
+    setBusyEventId(signatureEvent.id);
+    try {
+      const updated = await updateLogisticsEventSignature(signatureEvent.id, {
+        signature_status: "received",
+        signed_by_client_name: clientSignerName.trim(),
+      });
+      setEvents((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setSignatureEvent(null);
+      setClientSignerName("");
+      showToast("Signature client enregistrée.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible d’enregistrer la signature.", "error");
+    } finally {
+      setBusyEventId(null);
+    }
+  };
+
+  const completePassation = async (event: LogisticsEvent) => {
+    setBusyEventId(event.id);
+    try {
+      const result = await completeLogisticsPassation(event.id, {
+        notes: "Passation finalisée depuis le planning logistique.",
+      });
+      setEvents((current) => current.map((item) => item.id === result.event.id ? result.event : item));
+      showToast("Passation finalisée : bon de livraison et sortie de stock enregistrés.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible de finaliser la passation.", "error");
+    } finally {
+      setBusyEventId(null);
+    }
   };
 
   const filteredData = events.filter(e => {
@@ -199,35 +260,39 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
                 
                 <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex gap-2">
-                    <button 
-                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium rounded-lg text-sm hover:bg-slate-200 dark:bg-slate-700"
-                      onClick={() => showToast('Ouverture modale pour ajouter des photos de l\'état', 'info')}
-                    >
-                      <i className="fas fa-camera mr-2"></i>Ajouter photos état
-                    </button>
-                    <button 
-                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium rounded-lg text-sm hover:bg-slate-200 dark:bg-slate-700"
-                      onClick={(e) => {
-                        showToast('Capture signature client...', 'info');
-                        e.currentTarget.innerHTML = '<i class="fas fa-check-circle mr-2 text-emerald-500"></i>Signé !';
-                        e.currentTarget.classList.add('text-emerald-700 dark:text-emerald-400', 'bg-emerald-50 dark:bg-emerald-900/30');
-                      }}
-                    >
-                      <i className="fas fa-signature mr-2"></i>Signature client
-                    </button>
+                    {evt.event_type === "handover" && evt.status === "completed" && evt.signature_required && !evt.signature_received && evt.signature_status !== "received" && (
+                      <button
+                        className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium rounded-lg text-sm hover:bg-slate-200 dark:hover:bg-slate-700"
+                        onClick={() => {
+                          setSignatureEvent(evt);
+                          setClientSignerName(evt.signed_by_client_name || "");
+                        }}
+                      >
+                        <i className="fas fa-signature mr-2"></i>Enregistrer la signature
+                      </button>
+                    )}
+                    {evt.event_type === "handover" && evt.status === "completed" && evt.signature_required && evt.signature_status === "received" && !evt.signature_received && (
+                      <button
+                        className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium rounded-lg text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                        disabled={busyEventId === evt.id}
+                        onClick={() => void completePassation(evt)}
+                      >
+                        <i className={`fas ${busyEventId === evt.id ? "fa-spinner fa-spin" : "fa-file-signature"} mr-2`}></i>Finaliser la passation et le BL
+                      </button>
+                    )}
+                    {evt.signature_received && (
+                      <span className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                        <i className="fas fa-check-circle mr-2"></i>BL et sortie de stock enregistrés
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-3">
-                    <button 
-                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-lg hover:bg-slate-200 dark:bg-slate-700"
-                      onClick={() => showToast('Génération PDF du Bon de Livraison...', 'info')}
-                    >
-                      <i className="fas fa-file-pdf mr-2"></i>Générer Bon de Livraison
-                    </button>
-                    <button 
+                    <button
                       className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700"
-                      onClick={() => showToast('Sortie validée avec succès !', 'success')}
+                      disabled={busyEventId === evt.id || !["planned", "dispatched"].includes(evt.status)}
+                      onClick={() => void transitionEvent(evt, evt.status === "planned" ? "dispatched" : "completed")}
                     >
-                      <i className="fas fa-check mr-2"></i>Valider la sortie
+                      <i className={`fas ${busyEventId === evt.id ? "fa-spinner fa-spin" : "fa-check"} mr-2`}></i>{evt.status === "planned" ? "Démarrer la sortie" : evt.status === "dispatched" ? "Marquer terminé" : "Opération terminée"}
                     </button>
                   </div>
                 </div>
@@ -242,6 +307,37 @@ export default function LogisticsDispatchPage({ onNavigate }: { onNavigate: (sco
           )}
         </div>
       </div>
+
+      {signatureEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="presentation">
+          <form
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-slate-800"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="signature-dialog-title"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveClientSignature();
+            }}
+          >
+            <h2 id="signature-dialog-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">Signature de la passation</h2>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Saisissez le nom figurant sur le document signé avant de finaliser le bon de livraison.</p>
+            <label className="mt-4 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="client-signer-name">Nom du signataire client</label>
+            <input
+              id="client-signer-name"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              value={clientSignerName}
+              onChange={(event) => setClientSignerName(event.target.value)}
+              autoFocus
+              required
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" className="rounded-lg px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700" onClick={() => setSignatureEvent(null)}>Annuler</button>
+              <button type="submit" className="rounded-lg bg-tit-600 px-4 py-2 font-bold text-white hover:bg-tit-700" disabled={busyEventId === signatureEvent.id}>Enregistrer</button>
+            </div>
+          </form>
+        </div>
+      )}
       
       {toast && (
         <div className={`fixed bottom-6 right-6 px-6 py-3 rounded-xl shadow-lg font-medium animate-fade-in z-50 ${
