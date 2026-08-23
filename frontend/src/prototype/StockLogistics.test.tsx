@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import InventoryPage from './InventoryPage';
 import InventoryItemPage from './InventoryItemPage';
 import StockMovementsPage from './StockMovementsPage';
@@ -12,6 +12,10 @@ import * as api from '../api';
 
 describe('Stock & Logistics Pages', () => {
   const mockNavigate = vi.fn();
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('InventoryManagementPage - renders KPIs and articles', async () => {
     vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
@@ -198,6 +202,10 @@ describe('Stock & Logistics Pages', () => {
 
   describe('BreakageLossPage', () => {
     beforeEach(() => {
+      vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([]);
+      vi.spyOn(api, 'validateDamageLossSettlement').mockResolvedValue({ id: 'set-001', settlement_status: 'validated' } as any);
+      vi.spyOn(api, 'createDamageLossSettlementExecution').mockResolvedValue({ id: 'exec-001', settlement: 'set-001', status: 'draft', excess_receivable: null } as any);
+      vi.spyOn(api, 'executeDamageLossSettlementExecution').mockResolvedValue({ id: 'exec-001', settlement: 'set-001', status: 'executed', excess_receivable: null } as any);
       vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([
         {
           id: 'set-001',
@@ -225,6 +233,17 @@ describe('Stock & Logistics Pages', () => {
       render(<BreakageLossPage onNavigate={mockNavigate} />);
       expect(await screen.findByText('Caution Disponible')).toBeDefined();
       expect(screen.getByText('Différence à payer')).toBeDefined();
+    });
+
+    it('executes the validated settlement through the backend lifecycle', async () => {
+      const validate = vi.spyOn(api, 'validateDamageLossSettlement');
+      const createExecution = vi.spyOn(api, 'createDamageLossSettlementExecution');
+      const execute = vi.spyOn(api, 'executeDamageLossSettlementExecution');
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Valider le règlement' }));
+      await waitFor(() => expect(validate).toHaveBeenCalledWith('set-001'));
+      expect(createExecution).toHaveBeenCalledWith('set-001');
+      expect(execute).toHaveBeenCalledWith('exec-001');
     });
   });
 });

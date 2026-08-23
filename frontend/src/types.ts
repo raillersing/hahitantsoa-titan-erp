@@ -1034,6 +1034,54 @@ export type InventoryDamageLossSettlement = {
   updated_by: string | null;
 };
 
+export type InventoryDamageLossExcessReceivable = {
+  id: string;
+  amount: number | string;
+  status: "pending_invoice" | "invoiced" | "cancelled";
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
+export type InventoryDamageLossSettlementExecution = {
+  id: string;
+  settlement: string;
+  status: "draft" | "executed" | "cancelled";
+  executed_at: string | null;
+  executed_by: string | null;
+  damage_loss_total_snapshot: number | string;
+  caution_available_snapshot: number | string;
+  caution_applied_snapshot: number | string;
+  refund_due_snapshot: number | string;
+  excess_due_snapshot: number | string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  refund_obligation?: { id: string; amount: number | string; status: string } | null;
+  excess_receivable: InventoryDamageLossExcessReceivable | null;
+};
+
+export type ReservationCloseoutSummary = {
+  reservation_draft_id: string;
+  status: string;
+  contract_signed: boolean;
+  deposit_received: boolean;
+  confirmed: boolean;
+  cancelled: boolean;
+  billing: { invoice_count: number; total_amount: number | string; open_amount: number | string; settled_amount: number | string };
+  payments: { payment_count: number; total_received: number | string };
+  logistics: { event_count: number; planned_count: number; dispatched_count: number; completed_count: number; cancelled_count: number; delivery_count: number; pickup_count: number; preparation_count: number; handover_count: number };
+  returns: { return_count: number; settlement_count: number; settlement_draft_count: number; settlement_validated_count: number; total_damage_loss: number | string; total_excess_due: number | string; total_refund_due: number | string };
+  financial: { total_invoiced: number | string; total_paid: number | string; total_settled: number | string; total_refunded: number | string; total_cashbox_in: number | string; total_cashbox_out: number | string; net_balance: number | string; coherence_status: string; coherence_detail: string } | null;
+  closeout_id: string | null;
+  closeout_status: "open" | "closed";
+  closed_at: string | null;
+  replayed: boolean;
+};
+
 // ---- Inventory Stock Movements (live backend — /api/v1/inventory/stock-movements/) ----
 
 export type InventoryStockMovementType =

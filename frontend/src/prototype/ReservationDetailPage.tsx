@@ -19,8 +19,10 @@ import {
   createPayment,
   confirmPayment,
   createReservationDraftAmendment,
+  closeReservationDraft,
+  getReservationDraftCloseoutSummary,
 } from "../api";
-import type { ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
+import type { ReservationCloseoutSummary, ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
 
 /* ── inline helpers ────────────────────────────────────────────────── */
 
@@ -131,6 +133,7 @@ export default function ReservationDetailPage({
       reference?: string;
     }[]
   >([]);
+  const [closeoutSummary, setCloseoutSummary] = useState<ReservationCloseoutSummary | null>(null);
 
   /* ── fetch on mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -185,6 +188,12 @@ export default function ReservationDetailPage({
           }
         } catch {
           // Non-fatal: payment loading failure does not hide the dossier.
+        }
+        try {
+          const summary = await getReservationDraftCloseoutSummary(d.id);
+          if (!cancelled) setCloseoutSummary(summary);
+        } catch {
+          // Non-fatal: closeout access may be unavailable for the current role.
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -348,6 +357,20 @@ export default function ReservationDetailPage({
         err?.message || "Erreur lors de la confirmation.",
         "error",
       );
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCloseout = async () => {
+    if (!draft || closeoutSummary?.closeout_status === "closed") return;
+    setActionLoading("closeout");
+    try {
+      const summary = await closeReservationDraft(draft.id, `reservation-closeout-${draft.id}`);
+      setCloseoutSummary(summary);
+      showToast(summary.replayed ? "Clôture déjà enregistrée, résumé rechargé." : "Dossier clôturé avec succès.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Le dossier n'est pas encore prêt pour la clôture.", "error");
     } finally {
       setActionLoading(null);
     }
@@ -997,6 +1020,32 @@ export default function ReservationDetailPage({
                 Confirmer la réservation
               </button>
             )}
+
+          {draft.status === "confirmed" && closeoutSummary && (
+            <div className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-bold text-slate-800">Clôture opérationnelle</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Logistique terminée : {closeoutSummary.logistics.completed_count}/{closeoutSummary.logistics.event_count} · Retours réglés : {closeoutSummary.returns.settlement_validated_count}/{closeoutSummary.returns.settlement_count} · Factures ouvertes : {formatMoney(closeoutSummary.billing.open_amount)}
+                  </p>
+                </div>
+                {closeoutSummary.closeout_status === "closed" ? (
+                  <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-bold text-emerald-700">Dossier clôturé</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void handleCloseout()}
+                    disabled={actionLoading === "closeout"}
+                    className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-50"
+                  >
+                    <i className={`fas ${actionLoading === "closeout" ? "fa-spinner fa-spin" : "fa-lock"} mr-2`} />Clôturer le dossier
+                  </button>
+                )}
+              </div>
+              <p className="mt-3 text-xs text-slate-500">La clôture est vérifiée et enregistrée par le backend. Si une étape manque, le bouton affichera le blocage exact sans modifier le dossier.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1266,15 +1315,9 @@ export default function ReservationDetailPage({
                   {prepStatus !== "Prêt" && (
                     <button
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700"
-                      onClick={() => {
-                        setPrepStatus("Prêt");
-                        showToast(
-                          "Marqué comme prêt.",
-                          "success",
-                        );
-                      }}
+                      onClick={() => onNavigate("stock-preparation")}
                     >
-                      Marquer comme prêt
+                      Ouvrir la préparation stock
                     </button>
                   )}
                 </div>
@@ -1417,23 +1460,18 @@ export default function ReservationDetailPage({
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Preuves visuelles (Photos avant départ)
                   </label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center text-slate-500 hover:bg-slate-50 cursor-pointer transition-colors">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center text-slate-500 opacity-70">
                     <i className="fa-solid fa-camera text-2xl mb-2 block"></i>
-                    <span className="text-sm">Ajouter une photo</span>
+                    <span className="text-sm">Ajout de photos non raccordé au backend</span>
                   </div>
                 </div>
 
                 <div className="flex justify-end">
                   <button
                     className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700"
-                    onClick={() =>
-                      showToast(
-                        "Bon de livraison généré et sortie validée.",
-                        "success",
-                      )
-                    }
+                    onClick={() => onNavigate("logistics-dispatch")}
                   >
-                    Valider la sortie / Bon de livraison
+                    Ouvrir le planning sortie / livraison
                   </button>
                 </div>
               </div>
@@ -1566,134 +1604,38 @@ export default function ReservationDetailPage({
                 <div className="flex justify-end gap-3">
                   <button
                     className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-300"
-                    onClick={() =>
-                      showToast(
-                        "État de retour provisoire sauvegardé.",
-                        "info",
-                      )
-                    }
+                    type="button"
+                    disabled
                   >
-                    Enregistrer provisoire
+                    Enregistrement provisoire indisponible
                   </button>
                   <button
                     className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700"
-                    onClick={() => {
-                      showToast("Retour validé.", "success");
-                      setActiveTab("casse");
-                    }}
+                    onClick={() => onNavigate("logistics-returns")}
                   >
-                    Valider retour & Aller à Casse
+                    Ouvrir les retours réels
                   </button>
                 </div>
               </div>
             )}
 
             {activeTab === "casse" && (
-              <div>
-                <h4 className="font-bold text-slate-800 mb-4">
-                  Casse & Pertes constatées
-                </h4>
-
-                <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 mb-6">
-                  <h5 className="font-bold text-rose-800 mb-4 border-b border-rose-200 pb-2">
-                    Facturation des préjudices
-                  </h5>
-
-                  <table className="w-full text-sm text-left mb-4">
-                    <thead>
-                      <tr className="text-rose-700 text-xs uppercase">
-                        <th className="p-2">Article concerné</th>
-                        <th className="p-2 text-center">Qté</th>
-                        <th className="p-2">Type</th>
-                        <th className="p-2 text-right">
-                          Prix de casse unitaire
-                        </th>
-                        <th className="p-2 text-right">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-rose-100">
-                        <td className="p-2 font-medium text-rose-900">
-                          Chaise Napoleon
-                        </td>
-                        <td className="p-2 text-center text-rose-900">
-                          2
-                        </td>
-                        <td className="p-2 text-rose-700">Manquant</td>
-                        <td className="p-2 text-right">60 000 Ar</td>
-                        <td className="p-2 text-right font-bold text-rose-900">
-                          120 000 Ar
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  <div className="flex justify-end mt-4">
-                    <div className="text-right">
-                      <p className="text-sm text-rose-700">
-                        Total préjudices à retenir :
-                      </p>
-                      <p className="text-2xl font-black text-rose-700">
-                        120 000 Ar
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 text-sm text-amber-800">
-                  <i className="fa-solid fa-circle-info mr-2"></i>
-                  <strong>Rappel contrat :</strong> Ce montant sera
-                  déduit du dépôt de garantie (caution). Si le préjudice
-                  est supérieur à la caution, le client est tenu de
-                  régler la différence sous 8 jours avec +100% de frais
-                  si applicable.
-                </div>
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-6">
+                <h4 className="font-bold text-rose-900">Casse & pertes constatées</h4>
+                <p className="mt-2 text-sm text-rose-800">Les montants et les articles sont chargés depuis le retour validé. Aucun montant d’exemple n’est affiché dans le dossier.</p>
+                <button type="button" className="mt-5 rounded-lg bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800" onClick={() => onNavigate("breakage-loss")}>
+                  <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir le règlement casse/perte
+                </button>
               </div>
             )}
 
             {activeTab === "caution" && (
-              <div>
-                <h4 className="font-bold text-slate-800 mb-6">
-                  Traitement Caution & Solde de fin de location
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-                    <h5 className="font-bold text-slate-700 mb-4 border-b border-slate-200 pb-2">
-                      1. Bilan Financier
-                    </h5>
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Total de la location</span>
-                        <span>{formatMoney(safeAmount)}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-600">
-                        <span>Solde location</span>
-                        <span className="text-emerald-600 font-medium">
-                          {paidAmount > 0
-                            ? "Réglé"
-                            : "En attente"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-                    <h5 className="font-bold text-slate-700 mb-4 border-b border-slate-200 pb-2">
-                      2. Pénalités et Retenues
-                    </h5>
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between text-slate-600">
-                        <span>Pénalités de retard (50%/j)</span>
-                        <span>0 Ar</span>
-                      </div>
-                      <div className="flex justify-between text-slate-600">
-                        <span>Frais de casse / perte</span>
-                        <span>0 Ar</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
+                <h4 className="font-bold text-blue-900">Caution & solde de fin de location</h4>
+                <p className="mt-2 text-sm text-blue-800">Le détail réel de la caution, de la retenue et d’une éventuelle restitution est centralisé dans l’espace Caution.</p>
+                <button type="button" className="mt-5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800" onClick={() => onNavigate("caution")}>
+                  <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir la caution réelle
+                </button>
               </div>
             )}
           </div>
@@ -1767,12 +1709,8 @@ export default function ReservationDetailPage({
               </button>
               <button
                 className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
-                onClick={() =>
-                  showToast(
-                    "À venir — nécessite raccordement API/PDF",
-                    "info",
-                  )
-                }
+                type="button"
+                disabled
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg">
@@ -1788,12 +1726,8 @@ export default function ReservationDetailPage({
               </button>
               <button
                 className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
-                onClick={() =>
-                  showToast(
-                    "À venir — nécessite raccordement API/PDF",
-                    "info",
-                  )
-                }
+                type="button"
+                disabled
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg">
@@ -1811,12 +1745,8 @@ export default function ReservationDetailPage({
               </button>
               <button
                 className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
-                onClick={() =>
-                  showToast(
-                    "À venir — nécessite raccordement API/PDF",
-                    "info",
-                  )
-                }
+                type="button"
+                disabled
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg">
