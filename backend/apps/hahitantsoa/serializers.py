@@ -706,20 +706,26 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         except ValueError as error:
             raise serializers.ValidationError({"detail": str(error)}) from error
 
-        should_validate_lines = self.instance is None or "lines" in attrs
+        should_validate_lines = self.instance is None or "lines" in attrs or "rental_type" in attrs
         if should_validate_lines:
-            lines = attrs.get("lines") or []
-            inventory_item_ids = [line["inventory_item"].id for line in lines]
+            if "lines" in attrs:
+                lines = attrs.get("lines") or []
+            elif self.instance is not None:
+                lines = list(self.instance.lines.filter(is_deleted=False))
+            else:
+                lines = []
+            inventory_item_ids = [
+                line["inventory_item"].id if isinstance(line, dict) else line.inventory_item_id
+                for line in lines
+            ]
             if len(inventory_item_ids) != len(set(inventory_item_ids)):
                 raise serializers.ValidationError(
                     {"lines": "Each inventory item can appear only once per event draft."}
                 )
             rental_type = attrs.get("rental_type", getattr(self.instance, "rental_type", "bare"))
-            if rental_type != "logistics" and any(
-                line["inventory_item"].kind == "material_pack" for line in lines
-            ):
+            if rental_type == "bare" and lines:
                 raise serializers.ValidationError(
-                    {"lines": "Material packs require a Hahitantsoa logistics rental."}
+                    {"lines": "Location nue ne peut contenir aucun article ni pack."}
                 )
 
         return attrs

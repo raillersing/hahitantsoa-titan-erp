@@ -50,6 +50,7 @@ def _confirmable_draft(*, actor, with_deposit: bool = True) -> HahitantsoaEventD
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Confirmable event",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         created_by=actor,
@@ -60,12 +61,45 @@ def _confirmable_draft(*, actor, with_deposit: bool = True) -> HahitantsoaEventD
         quantity=1,
         created_by=actor,
     )
-    _create_confirmation_truth(event_draft=draft, actor=actor, with_deposit=with_deposit)
+    _create_confirmation_truth(
+        event_draft=draft,
+        actor=actor,
+        with_deposit=with_deposit,
+        mark_prerequisites=with_deposit,
+    )
+    if not with_deposit:
+        _mark_contract_signed_for_test(event_draft=draft, actor=actor)
     return draft
 
 
+def _mark_contract_signed_for_test(*, event_draft: HahitantsoaEventDraft, actor) -> None:
+    event_draft.contract_signed_at = timezone.now()
+    event_draft.contract_signed_by = actor
+    event_draft.save(update_fields=["contract_signed_at", "contract_signed_by"])
+
+
+def _mark_prerequisites_for_test(*, event_draft: HahitantsoaEventDraft, actor) -> None:
+    now = timezone.now()
+    event_draft.contract_signed_at = now
+    event_draft.contract_signed_by = actor
+    event_draft.required_deposit_received_at = now
+    event_draft.required_deposit_received_by = actor
+    event_draft.save(
+        update_fields=[
+            "contract_signed_at",
+            "contract_signed_by",
+            "required_deposit_received_at",
+            "required_deposit_received_by",
+        ]
+    )
+
+
 def _create_confirmation_truth(
-    *, event_draft: HahitantsoaEventDraft, actor, with_deposit: bool = True
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor,
+    with_deposit: bool = True,
+    mark_prerequisites: bool = False,
 ) -> None:
     instance = create_document_instance_from_hahitantsoa_event_draft(
         event_draft=event_draft,
@@ -88,6 +122,8 @@ def _create_confirmation_truth(
         notes="Required event deposit",
     )
     confirm_payment(payment=payment, actor=actor)
+    if mark_prerequisites:
+        _mark_prerequisites_for_test(event_draft=event_draft, actor=actor)
 
 
 def test_hahitantsoa_confirmation_result_dataclass_shape() -> None:
@@ -185,12 +221,35 @@ def test_hahitantsoa_confirmation_refuses_when_availability_conflicts(django_use
     assert error_info.value.blockers == ("active_availability_conflict",)
 
 
-def test_hahitantsoa_confirmation_refuses_without_active_lines(django_user_model) -> None:
+def test_hahitantsoa_confirmation_allows_bare_rental_without_inventory_lines(
+    django_user_model,
+) -> None:
     actor = _actor(django_user_model=django_user_model)
     start_at, end_at = _period()
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
-        event_name="No lines event",
+        event_name="Bare event",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=actor,
+    )
+    _create_confirmation_truth(event_draft=draft, actor=actor, mark_prerequisites=True)
+
+    result = confirm_hahitantsoa_event_draft(event_draft=draft, actor=actor)
+
+    assert result.blocked_item_count == 0
+    draft.refresh_from_db()
+    assert draft.status == "confirmed"
+    assert not InventoryAvailability.objects.filter(hahitantsoa_event_draft=draft).exists()
+
+
+def test_hahitantsoa_confirmation_refuses_logistics_without_active_lines(django_user_model) -> None:
+    actor = _actor(django_user_model=django_user_model, username="logistics-without-lines")
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Empty logistics event",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         created_by=actor,
@@ -203,7 +262,7 @@ def test_hahitantsoa_confirmation_refuses_without_active_lines(django_user_model
     assert error_info.value.code == "draft_has_no_active_lines"
 
 
-def test_hahitantsoa_confirmation_allows_truth_without_markers(django_user_model) -> None:
+def test_hahitantsoa_confirmation_refuses_truth_without_markers(django_user_model) -> None:
     actor = _actor(django_user_model=django_user_model, username="truth-without-markers")
     draft = _confirmable_draft(actor=actor)
 
@@ -220,9 +279,10 @@ def test_hahitantsoa_confirmation_allows_truth_without_markers(django_user_model
         ]
     )
 
-    result = confirm_hahitantsoa_event_draft(event_draft=draft, actor=actor)
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
+        confirm_hahitantsoa_event_draft(event_draft=draft, actor=actor)
 
-    assert result.blocked_item_count == 1
+    assert error_info.value.blockers == ("missing_signed_contract", "missing_required_deposit")
 
 
 def test_hahitantsoa_confirmation_rejects_marker_only_without_truth(django_user_model) -> None:

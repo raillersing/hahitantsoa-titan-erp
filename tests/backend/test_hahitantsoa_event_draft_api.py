@@ -127,6 +127,7 @@ def _payload(customer: Customer, item: InventoryItem) -> dict:
         "customer_id": str(customer.id),
         "event_name": "Corporate gala",
         "event_type": "engagement",
+        "rental_type": "logistics",
         "venue_name": "City venue",
         "location_details": "Main room",
         "service_notes": "DJ and lights",
@@ -189,6 +190,31 @@ def _create_confirmation_truth(*, event_draft: HahitantsoaEventDraft, actor) -> 
         notes="API confirmation deposit",
     )
     confirm_payment(payment=payment, actor=actor)
+    now = timezone.now()
+    event_draft.contract_signed_at = now
+    event_draft.contract_signed_by = actor
+    event_draft.required_deposit_received_at = now
+    event_draft.required_deposit_received_by = actor
+    event_draft.save(
+        update_fields=[
+            "contract_signed_at",
+            "contract_signed_by",
+            "required_deposit_received_at",
+            "required_deposit_received_by",
+        ]
+    )
+
+
+def _mark_contract_signed_for_test(*, event_draft: HahitantsoaEventDraft, actor) -> None:
+    event_draft.contract_signed_at = timezone.now()
+    event_draft.contract_signed_by = actor
+    event_draft.save(update_fields=["contract_signed_at", "contract_signed_by"])
+
+
+def _mark_deposit_received_for_test(*, event_draft: HahitantsoaEventDraft, actor) -> None:
+    event_draft.required_deposit_received_at = timezone.now()
+    event_draft.required_deposit_received_by = actor
+    event_draft.save(update_fields=["required_deposit_received_at", "required_deposit_received_by"])
 
 
 def _missing_prerequisite_status():
@@ -298,15 +324,34 @@ def test_authenticated_user_can_read_event_draft_list_and_detail(authenticated_c
 def test_event_draft_rejects_material_pack_lines(authenticated_client) -> None:
     customer = _customer()
     item = _item(kind="material_pack")
+    payload = _payload(customer, item)
+    payload["rental_type"] = "bare"
 
     response = authenticated_client.post(
         EVENT_DRAFT_LIST_URL,
-        data=_payload(customer, item),
+        data=payload,
         content_type="application/json",
     )
 
     assert response.status_code == 400
     assert "lines" in response.json()
+    assert HahitantsoaEventDraft.objects.count() == 0
+
+
+def test_event_draft_rejects_article_lines_for_bare_rental(authenticated_client) -> None:
+    customer = _customer()
+    item = _item(kind="article")
+    payload = _payload(customer, item)
+    payload["rental_type"] = "bare"
+
+    response = authenticated_client.post(
+        EVENT_DRAFT_LIST_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["lines"] == ["Location nue ne peut contenir aucun article ni pack."]
     assert HahitantsoaEventDraft.objects.count() == 0
 
 
@@ -321,6 +366,7 @@ def test_event_draft_update_keeps_scope_bounded_and_no_inventory_write(
     draft = HahitantsoaEventDraft.objects.create(
         customer=customer,
         event_name="Initial event",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         notes="Initial notes",
@@ -384,6 +430,7 @@ def test_event_draft_update_can_keep_same_item_without_inventory_write(
     draft = HahitantsoaEventDraft.objects.create(
         customer=customer,
         event_name="Initial event",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         notes="Initial notes",
@@ -432,6 +479,36 @@ def test_event_draft_update_can_keep_same_item_without_inventory_write(
     assert line.notes == "Updated line"
 
 
+def test_event_draft_cannot_change_logistics_with_lines_to_bare(
+    authenticated_client,
+) -> None:
+    start_at, end_at = _period()
+    user = authenticated_client.test_user
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Rental type transition",
+        rental_type="logistics",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=draft,
+        inventory_item=_item(kind="article"),
+        quantity=1,
+        created_by=user,
+    )
+
+    response = authenticated_client.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft.id}/",
+        data={"rental_type": "bare"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["lines"] == ["Location nue ne peut contenir aucun article ni pack."]
+
+
 def test_event_draft_update_can_restore_previously_soft_deleted_item(
     authenticated_client,
 ) -> None:
@@ -443,6 +520,7 @@ def test_event_draft_update_can_restore_previously_soft_deleted_item(
     draft = HahitantsoaEventDraft.objects.create(
         customer=customer,
         event_name="Initial event",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         notes="Initial notes",
@@ -662,6 +740,7 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Preflight event",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         created_by=user,
@@ -693,9 +772,9 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
         "prerequisite_status": {
             "contract": {
                 "status": "satisfied",
-                "label": "Generated contract is linked to this event draft.",
+                "label": "Signed contract is linked to this event draft.",
                 "truth_present": True,
-                "marker_present": False,
+                "marker_present": True,
                 "source_id": str(contract_document.id),
                 "recorded_at": contract_document.created_at.isoformat().replace("+00:00", "Z"),
             },
@@ -703,7 +782,7 @@ def test_authenticated_user_can_read_event_draft_confirmation_preflight(
                 "status": "satisfied",
                 "label": "Confirmed deposit payment is linked to this event draft.",
                 "truth_present": True,
-                "marker_present": False,
+                "marker_present": True,
                 "source_id": str(deposit_payment.id),
                 "recorded_at": deposit_payment.paid_at.isoformat().replace("+00:00", "Z"),
             },
@@ -817,6 +896,7 @@ def test_event_draft_confirmation_preflight_blocks_empty_active_lines(
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Empty preflight",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         created_by=user,
@@ -858,6 +938,7 @@ def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_i
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Missing contract marker",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         created_by=user,
@@ -877,6 +958,7 @@ def test_event_draft_confirmation_preflight_blocks_when_signed_contract_marker_i
         amount="300000.00",
     )
     confirm_payment(payment=payment, actor=actor)
+    _mark_deposit_received_for_test(event_draft=draft, actor=actor)
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 
@@ -902,6 +984,7 @@ def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Missing deposit marker",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         created_by=user,
@@ -920,6 +1003,7 @@ def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_
     from apps.documents.runtime import generate_document_instance_html
 
     generate_document_instance_html(document_instance=instance, actor=actor)
+    _mark_contract_signed_for_test(event_draft=draft, actor=actor)
 
     response = authenticated_client.get(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirmation-preflight/")
 
@@ -930,6 +1014,36 @@ def test_event_draft_confirmation_preflight_blocks_when_required_deposit_marker_
     assert payload["prerequisite_status"]["contract"]["status"] == "satisfied"
     assert payload["prerequisite_status"]["deposit"]["status"] == "missing"
     assert payload["prerequisite_status"]["deposit"]["marker_present"] is False
+
+
+def test_owner_can_mark_generated_contract_as_signed(authenticated_client) -> None:
+    user = authenticated_client.test_user
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Sign contract API",
+        rental_type="bare",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=user,
+    )
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+        actor=user,
+    )
+    from apps.documents.runtime import generate_document_instance_html
+
+    generate_document_instance_html(document_instance=instance, actor=user)
+
+    response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/contract-signed/")
+
+    assert response.status_code == 200
+    draft.refresh_from_db()
+    assert draft.contract_signed_at is not None
+    assert draft.contract_signed_by_id == user.pk
 
 
 def test_second_user_cannot_access_another_users_confirmation_preflight(
@@ -1752,6 +1866,7 @@ def test_event_draft_confirm_returns_preflight_blockers_without_mutating_state(
     draft = HahitantsoaEventDraft.objects.create(
         customer=_customer(),
         event_name="Blocked confirm API",
+        rental_type="logistics",
         start_at=start_at,
         end_at=end_at,
         created_by=user,
@@ -1770,6 +1885,7 @@ def test_event_draft_confirm_returns_preflight_blockers_without_mutating_state(
     from apps.documents.runtime import generate_document_instance_html
 
     generate_document_instance_html(document_instance=instance, actor=actor)
+    _mark_contract_signed_for_test(event_draft=draft, actor=actor)
     availability_count = InventoryAvailability.objects.count()
 
     response = authenticated_client.post(f"{EVENT_DRAFT_LIST_URL}{draft.id}/confirm/")
