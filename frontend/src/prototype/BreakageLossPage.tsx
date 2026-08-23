@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { getDamageLossSettlements, validateDamageLossSettlement } from "../api";
-import type { InventoryDamageLossSettlement } from "../types";
+import {
+  createDamageLossSettlementExecution,
+  executeDamageLossSettlementExecution,
+  generateExcessReceivableInvoice,
+  getDamageLossSettlementExecutions,
+  getDamageLossSettlements,
+  validateDamageLossSettlement,
+} from "../api";
+import type { InventoryDamageLossSettlement, InventoryDamageLossSettlementExecution } from "../types";
 
 type FilterStatus = "Tous" | "À traiter" | "Retenue validée" | "Clôturé";
 
@@ -20,9 +27,12 @@ function statusBadgeClass(status: FilterStatus): string {
 export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
   const [filter, setFilter] = useState<FilterStatus>("Tous");
   const [data, setData] = useState<InventoryDamageLossSettlement[]>([]);
+  const [executions, setExecutions] = useState<InventoryDamageLossSettlementExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
+  const [busySettlementId, setBusySettlementId] = useState<string | null>(null);
+  const [busyInvoiceId, setBusyInvoiceId] = useState<string | null>(null);
 
   const showToast = (message: string, type: "info" | "success" | "warning" | "error" = "info") => {
     setToast({ message, type });
@@ -32,9 +42,15 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
   useEffect(() => {
     let cancelled = false;
     const controller = new AbortController();
-    getDamageLossSettlements(controller.signal)
-      .then((res) => {
-        if (!cancelled) setData(Array.isArray(res) ? res : []);
+    Promise.all([
+      getDamageLossSettlements(controller.signal),
+      getDamageLossSettlementExecutions(undefined, controller.signal),
+    ])
+      .then(([settlements, settlementExecutions]) => {
+        if (!cancelled) {
+          setData(Array.isArray(settlements) ? settlements : []);
+          setExecutions(Array.isArray(settlementExecutions) ? settlementExecutions : []);
+        }
       })
       .catch(() => {
         if (!cancelled) setError("Erreur lors du chargement des dossiers casse/perte.");
@@ -51,12 +67,36 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
   });
 
   const handleValidate = async (settlement: InventoryDamageLossSettlement) => {
+    if (settlement.settlement_status !== "draft" || busySettlementId) return;
+    setBusySettlementId(settlement.id);
     try {
       const updated = await validateDamageLossSettlement(settlement.id);
-      setData(data.map((d) => (d.id === settlement.id ? updated : d)));
-      showToast("Montant imputé à la caution avec succès", "success");
-    } catch {
-      showToast("Erreur lors de la validation", "error");
+      const createdExecution = await createDamageLossSettlementExecution(updated.id);
+      const executed = await executeDamageLossSettlementExecution(createdExecution.id);
+      setData((current) => current.map((d) => (d.id === settlement.id ? updated : d)));
+      setExecutions((current) => [...current.filter((item) => item.settlement !== executed.settlement), executed]);
+      showToast("Règlement validé et imputation de la caution enregistrée.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de l'exécution du règlement casse/perte.", "error");
+    } finally {
+      setBusySettlementId(null);
+    }
+  };
+
+  const handleGenerateInvoice = async (execution: InventoryDamageLossSettlementExecution) => {
+    const receivable = execution.excess_receivable;
+    if (!receivable || receivable.status !== "pending_invoice" || busyInvoiceId) return;
+    setBusyInvoiceId(execution.id);
+    try {
+      await generateExcessReceivableInvoice(receivable.id);
+      setExecutions((current) => current.map((item) => item.id === execution.id
+        ? { ...item, excess_receivable: { ...receivable, status: "invoiced" } }
+        : item));
+      showToast("Facture de différence générée et enregistrée.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible de générer la facture de différence.", "error");
+    } finally {
+      setBusyInvoiceId(null);
     }
   };
 
@@ -98,7 +138,7 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
         <div className="divide-y divide-slate-100">
           {filteredData.map((s) => {
             const label = statusLabel(s.settlement_status);
-            const firstLine = s.lines?.[0];
+            const execution = executions.find((item) => item.settlement === s.id);
             return (
               <div key={s.id} className="p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -132,7 +172,7 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 text-sm">
-                      {s.lines.map((line) => (
+                      {(s.lines ?? []).map((line) => (
                         <tr key={line.id} className="bg-white">
                           <td className="p-3 font-bold text-slate-800">{line.manual_label || "—"}</td>
                           <td className="p-3 font-bold text-red-600 text-right">{line.quantity}</td>
@@ -140,7 +180,7 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
                           <td className="p-3 font-bold text-slate-800 text-right">{line.total_amount.toLocaleString()} Ar</td>
                         </tr>
                       ))}
-                      {s.lines.length === 0 && (
+                      {(s.lines ?? []).length === 0 && (
                         <tr className="bg-white">
                           <td colSpan={4} className="p-3 text-center text-slate-400">Aucune ligne</td>
                         </tr>
@@ -152,15 +192,15 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Caution Disponible</p>
-                    <p className="text-xl font-extrabold text-slate-800 mt-1">{s.caution_available.toLocaleString()} Ar</p>
+                    <p className="text-xl font-extrabold text-slate-800 mt-1">{Number(s.caution_available ?? 0).toLocaleString()} Ar</p>
                   </div>
                   <div className="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm">
                     <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Montant Retenue</p>
-                    <p className="text-xl font-extrabold text-red-700 mt-1">{s.caution_applied.toLocaleString()} Ar</p>
+                    <p className="text-xl font-extrabold text-red-700 mt-1">{Number(s.caution_applied ?? 0).toLocaleString()} Ar</p>
                   </div>
                   <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 shadow-sm">
                     <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">Différence à payer</p>
-                    <p className="text-xl font-extrabold text-amber-700 mt-1">{s.excess_due.toLocaleString()} Ar</p>
+                    <p className="text-xl font-extrabold text-amber-700 mt-1">{Number(s.excess_due ?? 0).toLocaleString()} Ar</p>
                   </div>
                 </div>
 
@@ -175,20 +215,25 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
                   {s.settlement_status === "draft" && (
                     <button
                       className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700"
+                      disabled={busySettlementId === s.id}
                       onClick={() => handleValidate(s)}
                     >
-                      <i className="fas fa-cut mr-2" />
-                      Imputer à la caution
+                      <i className={`fas ${busySettlementId === s.id ? "fa-spinner fa-spin" : "fa-cut"} mr-2`} />
+                      {busySettlementId === s.id ? "Traitement…" : "Valider le règlement"}
                     </button>
                   )}
-                  {s.excess_due > 0 && s.settlement_status !== "cancelled" && (
+                  {execution?.excess_receivable?.status === "pending_invoice" && (
                     <button
                       className="px-4 py-2 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700"
-                      onClick={() => showToast("Génération de la facture complémentaire…", "info")}
+                      disabled={busyInvoiceId === execution.id}
+                      onClick={() => void handleGenerateInvoice(execution)}
                     >
-                      <i className="fas fa-file-invoice mr-2" />
-                      Créer facture de différence
+                      <i className={`fas ${busyInvoiceId === execution.id ? "fa-spinner fa-spin" : "fa-file-invoice"} mr-2`} />
+                      {busyInvoiceId === execution.id ? "Génération…" : "Créer facture de différence"}
                     </button>
+                  )}
+                  {execution?.excess_receivable?.status === "invoiced" && (
+                    <span className="px-4 py-2 text-sm font-semibold text-emerald-700">Facture de différence enregistrée</span>
                   )}
                 </div>
               </div>

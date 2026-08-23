@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { getReturnOperations } from "../api";
+import { getReturnOperations, validateReturnOperation } from "../api";
 import type { InventoryReturnOperation, InventoryReturnOperationLine } from "../types";
-import { titanLateReturnPenaltyRate, clampQuantity } from "../utils";
+import { titanLateReturnPenaltyRate } from "../utils";
 
 type FilterCategory = "Tous" | "En retard" | "Aujourd'hui" | "À venir";
 
@@ -38,6 +38,7 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
   const [operations, setOperations] = useState<InventoryReturnOperation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busyReturnId, setBusyReturnId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -65,16 +66,23 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleValidateReturn = async (returnOperation: InventoryReturnOperation) => {
+    if (returnOperation.status === "validated") return;
+    setBusyReturnId(returnOperation.id);
+    try {
+      const validated = await validateReturnOperation(returnOperation.id);
+      setOperations((current) => current.map((item) => item.id === validated.id ? validated : item));
+      showToast("Retour validé et mouvements de stock enregistrés.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible de valider le retour.", "error");
+    } finally {
+      setBusyReturnId(null);
+    }
+  };
+
   const filteredData = filter === "Tous"
     ? operations
     : operations.filter(r => categorizeByDate(r.created_at) === filter);
-
-  const [cleaningTasks, setCleaningTasks] = useState<Record<string, boolean>>({});
-
-  const handleCleaningTask = (itemId: string, itemName: string) => {
-    setCleaningTasks({ ...cleaningTasks, [itemId]: true });
-    showToast('Tâche de nettoyage assignée pour ' + itemName, 'info');
-  };
 
   if (loading) {
     return (
@@ -165,8 +173,8 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
                   </div>
                 </div>
                 <div>
-                  <span className="px-3 py-1 text-sm font-bold rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400">
-                    En attente de retour
+                    <span className={`px-3 py-1 text-sm font-bold rounded-full ${retour.status === "validated" ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400" : "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400"}`}>
+                    {retour.status === "validated" ? "Retour validé" : "En attente de retour"}
                   </span>
                 </div>
               </div>
@@ -184,12 +192,12 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-sm">
                     {retour.lines.map(line => (
-                      <tr key={line.id} className={`bg-white dark:bg-slate-800 ${cleaningTasks[line.id] ? 'bg-purple-50 dark:bg-purple-900/30' : ''}`}>
+                      <tr key={line.id} className={`bg-white dark:bg-slate-800 ${line.condition_status === "mixed" ? 'bg-purple-50 dark:bg-purple-900/30' : ''}`}>
                         <td className="p-3 font-bold text-slate-800 dark:text-slate-100">
                           {line.inventory_item}
-                          {cleaningTasks[line.id] && (
+                          {line.condition_status === "mixed" && (
                             <span className="ml-2 text-[10px] bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                              Nettoyage en cours
+                              Nettoyage à planifier
                             </span>
                           )}
                         </td>
@@ -198,22 +206,19 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
                           <input 
                             type="number" 
                             className="w-20 text-center border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 shadow-sm font-bold focus:ring-tit-500 focus:border-tit-500 mx-auto" 
-                            defaultValue={line.returned_quantity} 
+                            value={line.returned_quantity}
                             min={0}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              e.target.value = clampQuantity(val, 0, 9999).toString();
-                            }}
+                            readOnly
+                            disabled
                           />
                         </td>
                         <td className="p-3">
                           <select className={`border border-slate-300 dark:border-slate-600 rounded px-2 py-1 font-medium w-full ${
-                            cleaningTasks[line.id] ? "text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/50" :
                             line.condition_status === "intact" ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30" : 
                             line.condition_status === "damaged" ? "text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30" : 
                             line.condition_status === "missing" ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30" : 
                             "text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30"
-                          }`} defaultValue={line.condition_status}>
+                          }`} value={line.condition_status} disabled>
                             <option value="intact" className="text-slate-800 dark:text-slate-100">Bon état</option>
                             <option value="damaged" className="text-slate-800 dark:text-slate-100">Cassé</option>
                             <option value="missing" className="text-slate-800 dark:text-slate-100">Manquant</option>
@@ -222,18 +227,14 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
                         </td>
                         <td className="p-3">
                            {(line.condition_status === "damaged" || line.condition_status === "missing") && (
-                            <button className="text-slate-400 hover:text-red-600 dark:text-red-400 px-2" title="Signaler dans Casse & Perte" onClick={() => showToast('Article signalé en Casse/Perte', 'warning')}>
-                              <i className="fas fa-exclamation-circle"></i>
-                            </button>
+                            <span className="text-xs font-medium text-red-600 dark:text-red-400" title="La déclaration se fait depuis le bouton Casse/Perte du dossier.">
+                              <i className="fas fa-exclamation-circle mr-1"></i>À déclarer
+                            </span>
                            )}
-                           {line.condition_status === "mixed" && !cleaningTasks[line.id] && (
-                            <button 
-                              className="text-slate-400 hover:text-purple-600 dark:text-purple-400 px-2" 
-                              title="Créer une tâche de nettoyage"
-                              onClick={() => handleCleaningTask(line.id, line.inventory_item)}
-                            >
-                              <i className="fas fa-broom text-purple-500"></i>
-                            </button>
+                           {line.condition_status === "mixed" && (
+                            <span className="text-xs font-medium text-purple-600 dark:text-purple-400" title="La création de tâches de nettoyage n'est pas encore raccordée au backend.">
+                              <i className="fas fa-broom mr-1"></i>Nettoyage à planifier
+                            </span>
                            )}
                         </td>
                       </tr>
@@ -248,16 +249,13 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
                 </div>
               )}
               
-              <div className="mt-4 flex justify-between gap-3 items-center">
-                <button className="text-slate-500 dark:text-slate-400 hover:text-tit-600 dark:text-tit-400 text-sm font-medium" onClick={() => showToast('Ouverture de l\'interface d\'ajout de photos...', 'info')}>
-                  <i className="fas fa-camera mr-2"></i>Ajouter photos du retour
-                </button>
+              <div className="mt-4 flex justify-end gap-3 items-center">
                 <div className="flex gap-2">
                   <button className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-slate-200 dark:bg-slate-700" onClick={() => onNavigate("breakage-loss")}>
                     <i className="fas fa-exclamation-triangle mr-2"></i>Déclarer Casse/Perte
                   </button>
-                  <button className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700" onClick={() => showToast('Retour validé et stock mis à jour', 'success')}>
-                    <i className="fas fa-check mr-2"></i>Valider le retour
+                  <button className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 disabled:opacity-50" disabled={busyReturnId === retour.id || retour.status === "validated"} onClick={() => void handleValidateReturn(retour)}>
+                    <i className={`fas ${busyReturnId === retour.id ? "fa-spinner fa-spin" : "fa-check"} mr-2`}></i>{retour.status === "validated" ? "Retour validé" : "Valider le retour"}
                   </button>
                 </div>
               </div>

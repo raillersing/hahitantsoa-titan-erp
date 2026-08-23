@@ -24,8 +24,6 @@ import {
   uploadAttachment,
   createPayment,
   confirmPayment,
-  markReservationDraftRequiredDepositReceived,
-  markHahitantsoaEventDraftRequiredDepositReceived,
 } from './api';
 
 // ---- Shared mock data ----
@@ -180,8 +178,6 @@ vi.mock('./api', () => ({
   uploadAttachment: vi.fn(),
   createPayment: vi.fn(),
   confirmPayment: vi.fn(),
-  markReservationDraftRequiredDepositReceived: vi.fn(),
-  markHahitantsoaEventDraftRequiredDepositReceived: vi.fn(),
 }));
 
 describe('ReservationNewPage', () => {
@@ -235,8 +231,6 @@ describe('ReservationNewPage', () => {
     vi.mocked(uploadAttachment).mockResolvedValue({ id: 'ATT-001' } as any);
     vi.mocked(createPayment).mockResolvedValue({ id: 'PAY-001' } as any);
     vi.mocked(confirmPayment).mockResolvedValue({ id: 'PAY-001', payment_status: 'confirmed' } as any);
-    vi.mocked(markReservationDraftRequiredDepositReceived).mockResolvedValue({ status: 'confirmed' } as any);
-    vi.mocked(markHahitantsoaEventDraftRequiredDepositReceived).mockResolvedValue({ status: 'confirmed' } as any);
   });
 
   afterEach(() => {
@@ -465,13 +459,18 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Acompte / Paiement')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText('Valider paiement et Aperçu Contrat'));
+    const paymentProof = new File(['proof'], 'recu-acompte.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByPlaceholderText("Ex. reçu d'acompte"), { target: { value: "Reçu acompte" } });
+    fireEvent.change(document.getElementById('paymentFile')!, { target: { files: [paymentProof] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Passer à l’aperçu du contrat' }));
 
     // Contract preview
     await waitFor(() => {
       expect(screen.getByText('Aperçu Contrat')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText('Valider et Clôturer le Dossier'));
+    fireEvent.click(screen.getByText('Générer le contrat et ouvrir le dossier'));
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('titan');
@@ -482,6 +481,13 @@ describe('ReservationNewPage', () => {
       end_at: '2026-08-02T22:00:00Z',
     }));
     expect(convertProformaToContract).toHaveBeenCalledWith('DOC-T-001');
+    expect(uploadAttachment).toHaveBeenCalledWith(
+      paymentProof,
+      'Justificatif paiement',
+      expect.objectContaining({ reservationDraftId: 'DRAFT-001' }),
+      undefined,
+      'Reçu acompte',
+    );
   });
 
   it('6. les documents officiels ont des champs dédiés et sont exclus des pièces jointes générales', async () => {

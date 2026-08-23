@@ -45,6 +45,7 @@ import type {
   ReservationDraftAmendmentCreatePayload,
   ReservationDraftCreatePayload,
   ReservationDraftMutationResult,
+  ReservationCloseoutSummary,
   ReportCategory,
   ReportCategoryResponse,
   ReservationDraftUpdatePayload,
@@ -69,6 +70,7 @@ import type {
   HahitantsoaEventDraftAmendmentRequestLineUpdatePayload,
   HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
   InventoryDamageLossSettlement,
+  InventoryDamageLossSettlementExecution,
   InventoryReturnOperation,
   DocumentTemplateDefinition,
   DocumentTemplateCreatePayload,
@@ -216,11 +218,13 @@ async function postAuthenticatedJson<T>(
   url: string,
   payload: object,
   signal?: AbortSignal,
+  options?: { headers?: HeadersInit },
 ): Promise<T> {
   const response = await unsafeAuthenticatedRequest(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...options?.headers,
     },
     body: JSON.stringify(payload),
   }, signal);
@@ -1796,6 +1800,70 @@ export function validateDamageLossSettlement(
   signal?: AbortSignal,
 ): Promise<InventoryDamageLossSettlement> {
   return postAuthenticatedJson(`/api/v1/inventory/damage-loss-settlements/${id}/validate/`, {}, signal);
+}
+
+export function getDamageLossSettlementExecutions(
+  settlementId?: string,
+  signal?: AbortSignal,
+): Promise<InventoryDamageLossSettlementExecution[]> {
+  const query = settlementId ? `?settlement=${encodeURIComponent(settlementId)}` : "";
+  return getAuthenticatedJson(`/api/v1/inventory/damage-loss-settlement-executions/${query}`, signal);
+}
+
+export function createDamageLossSettlementExecution(
+  settlementId: string,
+  signal?: AbortSignal,
+): Promise<InventoryDamageLossSettlementExecution> {
+  return postAuthenticatedJson(
+    "/api/v1/inventory/damage-loss-settlement-executions/",
+    { settlement: settlementId },
+    signal,
+  );
+}
+
+export function executeDamageLossSettlementExecution(
+  executionId: string,
+  signal?: AbortSignal,
+): Promise<InventoryDamageLossSettlementExecution> {
+  return postAuthenticatedJson(
+    `/api/v1/inventory/damage-loss-settlement-executions/${executionId}/execute/`,
+    {},
+    signal,
+  );
+}
+
+export function generateExcessReceivableInvoice(
+  excessReceivableId: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/inventory/excess-receivables/${excessReceivableId}/generate-invoice/`,
+    {},
+    signal,
+  );
+}
+
+export function getReservationDraftCloseoutSummary(
+  reservationDraftId: string,
+  signal?: AbortSignal,
+): Promise<ReservationCloseoutSummary> {
+  return getAuthenticatedJson(
+    `/api/v1/reservations/drafts/${reservationDraftId}/closeout/`,
+    signal,
+  );
+}
+
+export function closeReservationDraft(
+  reservationDraftId: string,
+  idempotencyKey: string,
+  signal?: AbortSignal,
+): Promise<ReservationCloseoutSummary> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${reservationDraftId}/closeout/execute/`,
+    {},
+    signal,
+    { headers: { "Idempotency-Key": idempotencyKey } },
+  );
 }
 
 // ---- Identity / Role Management ----

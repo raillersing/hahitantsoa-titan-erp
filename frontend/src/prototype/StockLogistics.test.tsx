@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import InventoryPage from './InventoryPage';
 import InventoryItemPage from './InventoryItemPage';
 import StockMovementsPage from './StockMovementsPage';
@@ -12,6 +12,10 @@ import * as api from '../api';
 
 describe('Stock & Logistics Pages', () => {
   const mockNavigate = vi.fn();
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('InventoryManagementPage - renders KPIs and articles', async () => {
     vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
@@ -88,9 +92,24 @@ describe('Stock & Logistics Pages', () => {
       },
     ]);
     vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
-      { id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '' },
-      { id: 'MAT-02', name: 'Table rectangulaire 8 places', kind: 'material', description: '' },
+      { id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '', stock_summary: { reported_inventory_quantity: 100, reported_damaged_quantity: 0, current_stock: 100, available_stock: 100, reserved_stock: 0, out_stock: 0, return_stock: 0, damaged_lost_stock: 0 } },
+      { id: 'MAT-02', name: 'Table rectangulaire 8 places', kind: 'material', description: '', stock_summary: { reported_inventory_quantity: 100, reported_damaged_quantity: 0, current_stock: 100, available_stock: 100, reserved_stock: 0, out_stock: 0, return_stock: 0, damaged_lost_stock: 0 } },
     ]);
+    vi.spyOn(api, 'getLogisticsEvents').mockResolvedValue([]);
+    vi.spyOn(api, 'createLogisticsEvent').mockResolvedValue({
+      id: 'prep-001', event_type: 'preparation', operation: 'outbound', status: 'planned',
+      reservation_draft: 'draft-001', hahitantsoa_event_draft: null, scheduled_at: null,
+      executed_at: null, address: '', contact_name: '', contact_phone: '', notes: '',
+      signature_required: false, signature_received: false, signature_status: 'pending',
+      signature_exception_reason: '', signed_document_file: '', signed_document_hash: '',
+      signed_by_client_name: '', signed_by: null, signed_at: null, item_lines: [],
+      created_at: '', updated_at: '', created_by: null, updated_by: null,
+    } as any);
+    vi.spyOn(api, 'addLogisticsEventItemLine').mockResolvedValue({} as any);
+    vi.spyOn(api, 'transitionLogisticsEvent').mockResolvedValue({
+      id: 'prep-001', event_type: 'preparation', operation: 'outbound', status: 'completed',
+      reservation_draft: 'draft-001', item_lines: [],
+    } as any);
     render(<StockPreparationPage onNavigate={mockNavigate} />);
     expect(await screen.findByText('LOC-2026-0089')).toBeDefined();
   });
@@ -132,6 +151,16 @@ describe('Stock & Logistics Pages', () => {
       render(<LogisticsDispatchPage onNavigate={mockNavigate} />);
       expect(await screen.findByText('Livraison Titan')).toBeDefined();
     });
+
+    it('persists the dispatch transition instead of showing a local-only toast', async () => {
+      const transition = vi.spyOn(api, 'transitionLogisticsEvent').mockResolvedValue({
+        id: 'evt-001', event_type: 'delivery', operation: 'outbound', status: 'dispatched',
+      } as any);
+      render(<LogisticsDispatchPage onNavigate={mockNavigate} />);
+      await screen.findByText('Livraison Titan');
+      fireEvent.click(screen.getByRole('button', { name: 'Démarrer la sortie' }));
+      await waitFor(() => expect(transition).toHaveBeenCalledWith('evt-001', expect.objectContaining({ new_status: 'dispatched' })));
+    });
   });
 
   describe('LogisticsReturnsPage', () => {
@@ -159,10 +188,24 @@ describe('Stock & Logistics Pages', () => {
       expect(await screen.findByText('Tous')).toBeDefined();
       expect(screen.getByText(/En retard/)).toBeDefined();
     });
+
+    it('validates the return through the backend stock operation', async () => {
+      const validate = vi.spyOn(api, 'validateReturnOperation').mockResolvedValue({
+        id: 'ret-001', reservation_draft: 'LOC-2026-0087', status: 'validated', lines: [],
+      } as any);
+      render(<LogisticsReturnsPage onNavigate={mockNavigate} />);
+      await screen.findByText('Tous');
+      fireEvent.click(screen.getByRole('button', { name: 'Valider le retour' }));
+      await waitFor(() => expect(validate).toHaveBeenCalledWith('ret-001'));
+    });
   });
 
   describe('BreakageLossPage', () => {
     beforeEach(() => {
+      vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([]);
+      vi.spyOn(api, 'validateDamageLossSettlement').mockResolvedValue({ id: 'set-001', settlement_status: 'validated' } as any);
+      vi.spyOn(api, 'createDamageLossSettlementExecution').mockResolvedValue({ id: 'exec-001', settlement: 'set-001', status: 'draft', excess_receivable: null } as any);
+      vi.spyOn(api, 'executeDamageLossSettlementExecution').mockResolvedValue({ id: 'exec-001', settlement: 'set-001', status: 'executed', excess_receivable: null } as any);
       vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([
         {
           id: 'set-001',
@@ -190,6 +233,17 @@ describe('Stock & Logistics Pages', () => {
       render(<BreakageLossPage onNavigate={mockNavigate} />);
       expect(await screen.findByText('Caution Disponible')).toBeDefined();
       expect(screen.getByText('Différence à payer')).toBeDefined();
+    });
+
+    it('executes the validated settlement through the backend lifecycle', async () => {
+      const validate = vi.spyOn(api, 'validateDamageLossSettlement');
+      const createExecution = vi.spyOn(api, 'createDamageLossSettlementExecution');
+      const execute = vi.spyOn(api, 'executeDamageLossSettlementExecution');
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Valider le règlement' }));
+      await waitFor(() => expect(validate).toHaveBeenCalledWith('set-001'));
+      expect(createExecution).toHaveBeenCalledWith('set-001');
+      expect(execute).toHaveBeenCalledWith('exec-001');
     });
   });
 });
