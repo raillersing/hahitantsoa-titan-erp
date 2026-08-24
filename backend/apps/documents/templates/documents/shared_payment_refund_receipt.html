@@ -99,12 +99,13 @@
     }
 
     /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
     /* ========================================================================= */
-    .header { text-align: center; margin-bottom: 5mm; }
-    .ref { margin: 0; font-size: 12pt; font-weight: 700; }
-    .title { margin: 2mm 0; font-size: 24pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; }
-    .date { font-size: 10pt; letter-spacing: 1.2mm; }
+    .header { text-align: right; padding-right: 7mm; margin-bottom: 5mm; }
+    .header-box { display: inline-block; text-align: right; }
+    .ref { margin: 0; font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { margin: 2mm 0; font-size: 24pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; margin-right: -2.5mm; text-align: left; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
 
     /* ========================================================================= */
     /* 7. GRILLES ET INFORMATIONS                                                */
@@ -213,9 +214,17 @@
       <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
 
       <header class="header">
-        <p class="ref">RÉF. : {{ context.payment.external_reference|default:context.payment.payment_id|default:"________________" }}</p>
-        <div class="title">REÇU DE REMBOURSEMENT</div>
-        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %} &nbsp;&nbsp;·&nbsp;&nbsp; <strong>STATUT : REMBOURSÉ</strong></div>
+        <div class="header-box">
+          <div class="ref">
+            <span>RÉF. :</span>
+            <span>{{ context.payment.external_reference|default:context.payment.payment_id|default:"________________" }}</span>
+          </div>
+          <div class="title">REÇU DE REMBOURSEMENT</div>
+          <div class="date">
+            <span>DATE :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          </div>
+        </div>
       </header>
 
       <table class="document-grid">

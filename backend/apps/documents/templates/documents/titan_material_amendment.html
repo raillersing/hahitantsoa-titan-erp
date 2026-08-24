@@ -100,13 +100,14 @@
     }
 
     /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
     /* ========================================================================= */
-    .header { text-align: center; }
-    .ref { margin: 0; font-size: 12pt; font-weight: 700; }
-    .title { margin: 2mm 0; font-size: 24pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; }
-    .date { font-size: 10pt; letter-spacing: 1.2mm; }
-    .kicker { margin: 3mm 0 1mm; font-size: 9.5pt; font-style: italic; color: #555555; text-align: center; }
+    .header { text-align: right; padding-right: 7mm; }
+    .header-box { display: inline-block; text-align: right; }
+    .ref { margin: 0; font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { margin: 2mm 0; font-size: 24pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; margin-right: -2.5mm; text-align: left; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
+    .kicker { margin: 3mm 0 1mm; font-size: 9.5pt; font-style: italic; color: #555555; text-align: left; }
 
     /* ========================================================================= */
     /* 7. BLOC IDENTIFICATION CLIENT & PÉRIODE                                   */
@@ -193,10 +194,18 @@
       <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
 
       <header class="header">
-        <p class="ref">AVENANT N° : {{ context.reservation_draft.public_reference|default:"________________" }}</p>
-        <div class="title">AVENANT DE CONTRAT</div>
-        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</div>
-        <div class="kicker">Modification du contrat de location de matériels événementiels</div>
+        <div class="header-box">
+          <div class="ref">
+            <span>AVENANT N° :</span>
+            <span>{{ context.reservation_draft.public_reference|default:"________________" }}</span>
+          </div>
+          <div class="title">AVENANT DE CONTRAT</div>
+          <div class="date">
+            <span>DATE :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</span>
+          </div>
+          <div class="kicker">Modification du contrat de location de matériels événementiels</div>
+        </div>
       </header>
 
       <section class="identity">

@@ -100,12 +100,13 @@
     }
 
     /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LE BLOC TOTAUX)            */
     /* ========================================================================= */
-    .header { text-align: center; }
-    .ref { font-size: 12pt; font-weight: 700; margin: 0; }
-    .title { font-size: 27pt; line-height: 1; font-weight: 700; letter-spacing: 3.5mm; margin: 2mm 0; }
-    .date { font-size: 10pt; letter-spacing: 1.2mm; }
+    .header { text-align: right; padding-right: 7mm; }
+    .header-box { display: inline-block; text-align: right; }
+    .ref { font-size: 12pt; font-weight: 700; margin: 0; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { font-size: 27pt; line-height: 1; font-weight: 700; letter-spacing: 3.5mm; margin: 2mm 0; margin-right: -3.5mm; text-align: left; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
 
     /* ========================================================================= */
     /* 7. BLOC IDENTIFICATION CLIENT & ÉVÉNEMENT                                 */
@@ -125,9 +126,10 @@
     .items th:nth-child(2) { text-align: left; }
     .items th:nth-child(3) { width: 22mm; }
     .items th:nth-child(4) { width: 27mm; }
-    .items th:nth-child(5) { width: 24mm; }
+    .items th:nth-child(5) { width: 31mm; padding-right: 7mm; letter-spacing: 0; }
     .items td { height: 6.8mm; vertical-align: top; text-align: right; font-family: "Open Sans", "Century Gothic", sans-serif; }
     .items td:nth-child(1), .items td:nth-child(2) { text-align: left; font-family: "Century Gothic", sans-serif; }
+    .items td:nth-child(5) { padding-right: 7mm; }
     .items tbody { height: 132mm; }
 
     /* ========================================================================= */
@@ -188,9 +190,17 @@
       <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
 
       <header class="header">
-        <p class="ref">PROFORMA N° : {{ context.reservation_draft.public_reference|default:"" }}</p>
-        <div class="title">PROFORMA</div>
-        <div class="date">DATE :&nbsp;&nbsp;{% now "d/m/Y" %}</div>
+        <div class="header-box">
+          <div class="ref">
+            <span>PROFORMA N° :</span>
+            <span>{{ context.reservation_draft.public_reference|default:"" }}</span>
+          </div>
+          <div class="title">PROFORMA</div>
+          <div class="date">
+            <span>DATE :</span>
+            <span>{% now "d/m/Y" %}</span>
+          </div>
+        </div>
       </header>
 
       <section class="identity">
