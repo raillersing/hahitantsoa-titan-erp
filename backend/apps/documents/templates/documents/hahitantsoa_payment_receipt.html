@@ -4,11 +4,14 @@
   <meta charset="utf-8">
   <title>Reçu de paiement d'acompte Hahitantsoa</title>
   <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DU TICKET / REÇU THERMIQUE (80mm)                           */
+    /* ========================================================================= */
     @page { size: 80mm {{ context.payment.receipt_page_height_mm|default:"120" }}mm; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { width: 80mm; margin: 0; padding: 0; background: #fff; }
+    html, body { width: 80mm; margin: 0; padding: 0; background: #ffffff; }
     body {
-      color: #111;
+      color: #111111;
       font-family: Arial, Helvetica, sans-serif;
       font-size: 10px;
       line-height: 1.22;
@@ -20,22 +23,30 @@
       padding: 4mm 3.5mm 5mm;
       overflow-wrap: anywhere;
     }
+
+    /* ========================================================================= */
+    /* 2. LOGO HAHITANTSOA & TITRE                                               */
+    /* ========================================================================= */
     .brand {
       display: block;
-      width: 31mm;
+      width: 31mm;             /* Largeur du logo */
       height: auto;
-      max-height: 19mm;
+      max-height: 19mm;        /* Hauteur max du logo */
       object-fit: contain;
-      margin: 0 auto 3mm;
+      margin: 0 auto 3mm;      /* Centrage horizontal */
     }
     h1 {
       margin: 0 0 4mm;
       text-align: center;
       font-size: 12px;
       font-weight: 700;
-      letter-spacing: .35px;
+      letter-spacing: 0.35px;
       text-transform: uppercase;
     }
+
+    /* ========================================================================= */
+    /* 3. CHAMPS CLÉ-VALEUR DU REÇU                                              */
+    /* ========================================================================= */
     .field {
       display: grid;
       grid-template-columns: 31mm minmax(0, 1fr);
@@ -49,6 +60,10 @@
       font-weight: 700;
       font-size: 10px;
     }
+
+    /* ========================================================================= */
+    /* 4. TABLEAU HISTORIQUE & TOTAUX                                            */
+    /* ========================================================================= */
     .history {
       width: 100%;
       border-collapse: collapse;
@@ -71,11 +86,11 @@
       gap: 2mm;
       margin-top: 2mm;
       padding-top: 1.5mm;
-      border-top: 1px solid #111;
+      border-top: 1px solid #111111;
       font-weight: 700;
     }
     .total span:last-child { text-align: right; white-space: nowrap; }
-    .rule { border-top: 1px solid #111; margin: 4mm 0 2mm; }
+    .rule { border-top: 1px solid #111111; margin: 4mm 0 2mm; }
     .footer { margin-top: 3mm; text-align: center; font-size: 8px; }
     @media screen {
       body { margin: 0 auto; }
@@ -84,7 +99,7 @@
 </head>
 <body>
   <main class="receipt">
-    <img class="brand" src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa">
+    <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
     <h1>Reçu de paiement d'acompte</h1>
 
     <div class="field"><span class="label">Date</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>

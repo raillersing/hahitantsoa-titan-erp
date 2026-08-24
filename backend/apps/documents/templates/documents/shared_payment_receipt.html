@@ -7,8 +7,13 @@
 </head>
 <body>
   <div class="document-page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
     <aside class="document-side">
-      <img class="brand" src="/brand/ergon-logo.png" alt="Ergon Group">
+      <!-- Logo 1 : Ergon Group (Haut du volet) -->
+      <img class="brand" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+
       <div class="side-details">
         <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
         <strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>
@@ -18,22 +23,84 @@
         NIF : {{ bank.nif|default:"________________" }}<br>
         STAT : {{ bank.stat|default:"________________" }}
       </div>
-      <img class="ergon-mark" src="/brand/ergon-logo.png" alt="Ergon">
+
+      <!-- Logo 2 : Ergon Mark (Bas du volet) -->
+      <img class="ergon-mark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
     </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
     <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
       <header class="document-header">
-        <div><p class="eyebrow">Ergon Group</p><h1>Reçu de paiement</h1></div>
-        <div class="meta"><strong>N° Reçu : {{ context.payment.payment_id|default:"________________" }}</strong><br>Date : {{ context.payment.confirmed_at|date:"d/m/Y"|default:"____/__/__" }}<br>STATUT : PAYÉ / VALIDÉ</div>
+        <div>
+          <p class="eyebrow">Ergon Group</p>
+          <h1>Reçu de paiement</h1>
+        </div>
+        <div class="meta">
+          <strong>N° Reçu : {{ context.payment.payment_id|default:"________________" }}</strong><br>
+          Date : {{ context.payment.confirmed_at|date:"d/m/Y"|default:"____/__/__" }}<br>
+          STATUT : PAYÉ / VALIDÉ
+        </div>
       </header>
-      <table class="document-grid"><tr>
-        <td><div class="box-title">Informations client</div><div class="info-row"><span class="label">Client</span><span class="value">{{ context.payment.customer.display_name|default:context.payment.customer_display_name|default:"________________" }}</span></div><div class="info-row"><span class="label">Référence</span><span class="value">{{ context.payment.customer.customer_id|default:"________________" }}</span></div><div class="info-row"><span class="label">Téléphone</span><span class="value">{{ context.payment.customer.phone|default:"________________" }}</span></div></td>
-        <td><div class="box-title">Détails du règlement</div><div class="info-row"><span class="label">Réservation</span><span class="value">{{ context.payment.reservation_draft.public_reference|default:context.payment.reservation_public_reference|default:"________________" }}</span></div><div class="info-row"><span class="label">Type</span><span class="value">{{ context.payment.payment_kind|default:"Acompte" }}</span></div><div class="info-row"><span class="label">Mode</span><span class="value">{{ context.payment.payment_method|default:"________________" }}</span></div></td>
-      </tr></table>
-      <div class="document-banner"><span>Montant total recouvré</span><strong>{{ context.payment.amount|default:"________________" }} MGA</strong></div>
-      <table class="document-table"><thead><tr><th>Désignation</th><th>Référence transaction</th><th>Mode</th><th class="right">Montant net</th></tr></thead><tbody><tr><td><strong>{{ context.template.label|default:"Règlement d'acompte de réservation" }}</strong><br>{{ context.payment.notes|default:"____________________________" }}</td><td>{{ context.payment.external_reference|default:context.payment.payment_id|default:"________________" }}</td><td>{{ context.payment.payment_method|default:"________________" }}</td><td class="right"><strong>{{ context.payment.amount|default:"________________" }} MGA</strong></td></tr></tbody></table>
-      <div class="document-note">Paiement enregistré et validé. Ce document vaut reçu d’encaissement sous réserve de la vérification comptable.</div>
-      <div class="document-signatures"><span>Pour la société — cachet et signature</span><span>Pour le client — reçu et signature</span></div>
-      <footer class="document-footer"><span>ergon@ergon.mg</span><span>+261 34 61 791 41</span></footer>
+
+      <table class="document-grid">
+        <tr>
+          <td>
+            <div class="box-title">Informations client</div>
+            <div class="info-row"><span class="label">Client :</span><span class="value">{{ context.payment.customer.display_name|default:context.payment.customer_display_name|default:"________________" }}</span></div>
+            <div class="info-row"><span class="label">Référence :</span><span class="value">{{ context.payment.customer.customer_id|default:"________________" }}</span></div>
+            <div class="info-row"><span class="label">Téléphone :</span><span class="value">{{ context.payment.customer.phone|default:"________________" }}</span></div>
+          </td>
+          <td>
+            <div class="box-title">Détails du règlement</div>
+            <div class="info-row"><span class="label">Réservation :</span><span class="value">{{ context.payment.reservation_draft.public_reference|default:context.payment.reservation_public_reference|default:"________________" }}</span></div>
+            <div class="info-row"><span class="label">Type :</span><span class="value">{{ context.payment.payment_kind|default:"Acompte" }}</span></div>
+            <div class="info-row"><span class="label">Mode :</span><span class="value">{{ context.payment.payment_method|default:"________________" }}</span></div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="document-banner">
+        <span>Montant total recouvré</span>
+        <strong>{{ context.payment.amount|default:"________________" }} MGA</strong>
+      </div>
+
+      <table class="document-table">
+        <thead>
+          <tr>
+            <th>Désignation</th>
+            <th>Référence transaction</th>
+            <th>Mode</th>
+            <th class="right">Montant net</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>{{ context.template.label|default:"Règlement d'acompte de réservation" }}</strong><br>
+              {{ context.payment.notes|default:"____________________________" }}
+            </td>
+            <td>{{ context.payment.external_reference|default:context.payment.payment_id|default:"________________" }}</td>
+            <td>{{ context.payment.payment_method|default:"________________" }}</td>
+            <td class="right"><strong>{{ context.payment.amount|default:"________________" }} MGA</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="document-note">
+        Paiement enregistré et validé. Ce document vaut reçu d’encaissement sous réserve de la vérification comptable.
+      </div>
+
+      <div class="document-signatures">
+        <span>Pour la société — cachet et signature</span>
+        <span>Pour le client — reçu et signature</span>
+      </div>
+
+      <footer class="document-footer">
+        <span>ergon@ergon.mg</span>
+        <span>+261 34 61 791 41</span>
+      </footer>
     </main>
   </div>
 </body>

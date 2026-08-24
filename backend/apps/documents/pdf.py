@@ -92,9 +92,8 @@ class WeasyPrintPDFGenerator(DocumentPDFGenerator):
             # document brand assets explicitly for the PDF renderer so logos
             # remain part of the printable artifact.
             brand_dir = Path(settings.BASE_DIR) / "apps" / "documents" / "static" / "brand"
-            pdf_html = html_content.replace(
-                'src="/brand/',
-                f'src="{brand_dir.as_uri()}/',
+            pdf_html = html_content.replace('src="/brand/', f'src="{brand_dir.as_uri()}/').replace(
+                'src="../../static/brand/', f'src="{brand_dir.as_uri()}/'
             )
             doc = HTML(string=pdf_html)
             return doc.write_pdf()

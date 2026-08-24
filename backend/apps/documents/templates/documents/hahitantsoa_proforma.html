@@ -1,10 +1,330 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>PROFORMA Hahitantsoa</title>
-<style>
-@page{size:A4;margin:0}*{box-sizing:border-box}html,body{margin:0;width:210mm;height:297mm;font-family:Arial,sans-serif;color:#202020}.page{position:relative;width:210mm;height:297mm;overflow:hidden}.side{position:absolute;top:0;left:0;width:51mm;height:297mm;background:#e7e8e8;padding:13mm 3mm 7mm}.brand{display:block;width:34mm;height:34mm;object-fit:contain;margin:0 auto;filter:grayscale(1) contrast(2)}.side-bottom{position:absolute;left:3mm;right:3mm;bottom:7mm;font-size:7.8pt;line-height:1.2;color:#4c4c4c}.side-bottom strong{font-size:8pt;color:#292929}.ergon{display:block;width:14mm;height:14mm;object-fit:contain;margin:12mm auto 0;filter:grayscale(1);opacity:.55}
-.main{position:absolute;top:0;left:51mm;width:159mm;height:297mm;padding:7mm 3mm}.watermark{position:absolute;width:130mm;height:180mm;right:-15mm;bottom:-8mm;object-fit:contain;filter:grayscale(1);opacity:.035}.header{text-align:center;position:relative;z-index:1}.ref{font-size:10.5pt;font-weight:700;margin:0}.title{font-size:27pt;line-height:1.05;font-weight:700;letter-spacing:3.5mm;margin:2mm 0}.date{font-size:10pt;letter-spacing:1.2mm}.identity{position:relative;z-index:1;margin:4mm 0 0;font-size:9pt;letter-spacing:.7mm}.identity-row{display:grid;grid-template-columns:36mm 1fr;min-height:10mm}.identity-value{letter-spacing:0;font-size:10pt}
-.items{position:relative;z-index:1;width:100%;border-collapse:collapse;table-layout:fixed;margin-top:7mm;font-size:8.4pt}.items thead{letter-spacing:.55mm}.items th{height:9mm;text-align:right;font-size:7.5pt;white-space:nowrap}.items th:nth-child(1){width:12mm;text-align:left}.items th:nth-child(2){text-align:left}.items th:nth-child(3){width:22mm}.items th:nth-child(4){width:27mm}.items th:nth-child(5){width:24mm}.items td{height:7mm;vertical-align:top;text-align:right}.items td:nth-child(1),.items td:nth-child(2){text-align:left}.items tbody{height:132mm}
-.totals{position:absolute;z-index:2;right:10mm;bottom:59mm;width:63mm;font-size:10pt}.totals-row{display:grid;grid-template-columns:31mm 1fr;min-height:6mm;letter-spacing:.7mm}.totals-row span:last-child{text-align:right;letter-spacing:0}.total-bar{position:absolute;z-index:2;left:3mm;right:3mm;bottom:47mm;height:9mm;background:#e9e9e8;padding:2.2mm 3mm;display:flex;justify-content:space-between;font-size:10pt;letter-spacing:.8mm}.total-bar strong{letter-spacing:0}.words{position:absolute;z-index:2;left:3mm;right:3mm;bottom:37mm;height:10mm;border:1mm solid #eee;padding:1mm 2mm;display:grid;grid-template-columns:45mm 1fr;font-size:6.5pt}.words span:last-child{text-align:center;font-size:9pt}.signatures{position:absolute;z-index:2;left:16mm;right:16mm;bottom:31mm;display:flex;justify-content:space-between;font-size:7pt;color:#555}.footer{position:absolute;z-index:2;left:3mm;right:7mm;bottom:7mm;display:flex;justify-content:space-between;font-size:10pt;font-weight:700}
-</style></head><body><div class="page"><aside class="side"><img class="brand" src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa"><div class="side-bottom"><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320103 30" }}<br><br><br>{{ bank.account_holder|default:"Ergon Group SARL" }}<br>Lot P93M Ambohipo sud<br>By-pass<br>+261 34 61 791 41<br><br>NIF : 6003298583<br>STAT : 77290 11 2019 0 10215<img class="ergon" src="/brand/ergon-logo.png" alt="Ergon"></div></aside>
-<main class="main"><img class="watermark" src="/brand/hahitantsoa-logo.png" alt=""><header class="header"><p class="ref">PROFORMA N°: {{ context.event_draft.public_reference|default:"" }}</p><div class="title">PROFORMA</div><div class="date">DATE&nbsp;&nbsp;{% now "d/m/Y" %}</div></header><section class="identity"><div class="identity-row"><strong>NOM :</strong><span class="identity-value">{{ context.event_draft.customer_display_name }}</span></div><div class="identity-row"><strong>CONTACT :</strong><span class="identity-value">{{ context.event_draft.customer_phone }}</span></div><div class="identity-row"><strong>EVENEMENT du :</strong><span class="identity-value">{{ context.event_draft.start_at|date:"d/m/Y" }}</span></div></section>
-<table class="items"><thead><tr><th>QTE</th><th>DESIGNATION</th><th>P.U.</th><th>MONTANT</th><th>P. CASSE</th></tr></thead><tbody>{% for line in context.event_draft.lines %}<tr><td>{{ line.quantity|stringformat:"03d" }}</td><td>{{ line.inventory_item_name }}</td><td>{{ line.unit_price|default:"0,00" }}</td><td>{{ line.total_price|default:"0,00" }}</td><td>{{ line.breakage_price|default:"0,00" }}</td></tr>{% endfor %}</tbody></table><div class="totals"><div class="totals-row"><span>TOTAL</span><span>{{ context.event_draft.sub_total|default:"0,00" }}</span></div><div class="totals-row"><span>Remise</span><span>{{ context.event_draft.discount|default:"0,00" }}</span></div></div><div class="total-bar"><span>TOTAL A PAYER</span><strong>{{ context.event_draft.total_amount|default:"0,00" }} Ar</strong></div><div class="words"><span>Arrêtée la présente facture proforma<br>à la somme de</span><span>{{ context.event_draft.total_amount_in_words|default:"" }}</span></div><div class="signatures"><span>Le responsable</span><span>Le Client</span></div><div class="footer"><span>hahitantsoa@ergon.mg</span><span>+261 34 61 791 44</span></div></main></div></body></html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>PROFORMA Hahitantsoa</title>
+  <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+    /* ========================================================================= */
+    .side {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 51mm;             /* Largeur du volet gauche */
+      height: 297mm;           /* Hauteur pleine page A4 */
+      background: #e7e8e8;     /* Couleur de fond gris du volet */
+      padding: 14mm 3mm 7mm;
+    }
+
+    /* ========================================================================= */
+    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
+    /* ========================================================================= */
+    /* Logo Hahitantsoa (Haut du volet latéral) */
+    .brand {
+      position: absolute;
+      top: 0mm;               /* Distance depuis le haut de la page */
+      left: 55%;               /* Centrage horizontal */
+      transform: translateX(-50%);
+      width: 60mm;             /* Largeur du logo */
+      height: 60mm;            /* Hauteur du logo */
+      object-fit: contain;
+      filter: grayscale(1) contrast(2);
+    }
+
+    /* Informations bancaires (Bas du volet latéral) */
+    .side-info {
+      position: absolute;
+      left: 3mm;               /* Coordonnée X gauche des textes bancaires */
+      right: 3mm;              /* Coordonnée X droite des textes bancaires */
+      bottom: 35mm;            /* Coordonnée Y depuis le bas de la page */
+      color: #4c4c4c;
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    .side-info strong { color: #292929; font-size: 9pt; }
+
+    /* Logo Ergon Group (Bas du volet latéral) */
+    .ergon {
+      position: absolute;
+      bottom: -35mm;             /* Distance depuis le bas de la page */
+      left: 50%;               /* Centrage horizontal */
+      transform: translateX(-50%);
+      width: 40mm;             /* Largeur du logo Ergon */
+      height: 40mm;            /* Hauteur du logo Ergon */
+      object-fit: contain;
+      filter: grayscale(2);
+      opacity: 0.55;           /* Opacité du logo Ergon (0.55 = 55%) */
+    }
+
+    /* ========================================================================= */
+    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK PAGE PRINCIPALE)                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
+      left: -70mm;              /* Position horizontale depuis la gauche */
+      top: 70mm;               /* Position verticale depuis le haut */
+      width: 360mm;            /* Largeur du filigrane */
+      height: 360mm;           /* Hauteur du filigrane */
+      opacity: 0.04;          /* Opacité du filigrane (0.01 à 1.0) */
+      object-fit: cover;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* ========================================================================= */
+    .main {
+      position: absolute;
+      top: 0;
+      left: 51mm;              /* Aligné sur le bord droit du volet (51mm) */
+      width: 159mm;            /* 210mm (A4) - 51mm (Volet) = 159mm */
+      height: 297mm;
+      padding: 7mm 3mm;
+    }
+    .header, .identity, .items, .totals, .total-bar, .words, .signatures, .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========================================================================= */
+    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* ========================================================================= */
+    .header { text-align: center; }
+    .ref { margin: 0; font-size: 12pt; font-weight: 700; }
+    .title { margin: 2mm 0; font-size: 27pt; line-height: 1; letter-spacing: 3.5mm; font-weight: 700; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; }
+
+    /* ========================================================================= */
+    /* 7. BLOC IDENTIFICATION CLIENT & ÉVÉNEMENT                                 */
+    /* ========================================================================= */
+    .identity { margin-top: 4mm; font-size: 10pt; letter-spacing: 0.7mm; }
+    .identity-row { display: grid; grid-template-columns: 48mm 1fr; min-height: 8.5mm; align-items: baseline; }
+    .identity-row strong { font-size: 10pt; white-space: nowrap; }
+    .identity-value { font-size: 10pt; letter-spacing: 0; }
+
+    /* ========================================================================= */
+    /* 8. TABLEAU DES ARTICLES (5 COLONNES HAHITANTSOA)                          */
+    /* ========================================================================= */
+    .items { width: 100%; margin-top: 7mm; border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
+    .items thead { letter-spacing: 0.55mm; }
+    .items th { height: 9mm; font-size: 9pt; font-weight: 700; white-space: nowrap; text-align: right; }
+    .items th:nth-child(1) { width: 12mm; text-align: left; }  /* Colonne QTE */
+    .items th:nth-child(2) { text-align: left; }               /* Colonne DÉSIGNATION */
+    .items th:nth-child(3) { width: 22mm; }                    /* Colonne P.U. */
+    .items th:nth-child(4) { width: 27mm; }                    /* Colonne MONTANT */
+    .items th:nth-child(5) { width: 24mm; }                    /* Colonne P. CASSE */
+    .items td { height: 6.8mm; vertical-align: top; text-align: right; font-family: "Open Sans", "Century Gothic", sans-serif; }
+    .items td:nth-child(1), .items td:nth-child(2) { text-align: left; font-family: "Century Gothic", sans-serif; }
+    .items td .sub-item { padding-left: 3mm; font-size: 8pt; color: #444; }
+    .items tbody { height: 132mm; }
+
+    /* ========================================================================= */
+    /* 9. BLOC TOTAUX, REMISE & BANDEAU TOTAL A PAYER                            */
+    /* ========================================================================= */
+    .totals {
+      position: absolute;
+      right: 10mm;             /* Position X droite */
+      bottom: 59mm;            /* Position Y depuis le bas */
+      width: 63mm;
+      font-size: 10pt;
+    }
+    .totals-row { display: grid; grid-template-columns: 31mm 1fr; min-height: 6mm; letter-spacing: 0.7mm; }
+    .totals-row span:last-child { text-align: right; letter-spacing: 0; }
+
+    .total-bar {
+      position: absolute;
+      left: 3mm;
+      right: 3mm;
+      bottom: 47mm;            /* Position Y du bandeau Total */
+      height: 9mm;             /* Épaisseur du bandeau */
+      background: #e9e9e8;     /* Couleur de fond */
+      padding: 2.2mm 3mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10pt;
+      letter-spacing: 0.8mm;
+    }
+    .total-bar strong { letter-spacing: 0; font-size: 10pt; }
+
+    /* ========================================================================= */
+    /* 10. ARRÊTÉ DE COMPTE EN LETTRES                                           */
+    /* ========================================================================= */
+    .words {
+      position: absolute;
+      left: 3mm;
+      right: 3mm;
+      bottom: 35mm;            /* Position Y de la boîte d'arrêté */
+      height: 11mm;
+      border: 1mm solid #eeeeee;
+      padding: 1mm 2mm;
+      display: grid;
+      grid-template-columns: 45mm 1fr;
+      align-items: center;
+      font-size: 6.5pt;
+    }
+    .words span:last-child { text-align: center; font-size: 9pt; font-weight: 500; }
+
+    /* ========================================================================= */
+    /* 11. SIGNATURES & PIED DE PAGE                                             */
+    /* ========================================================================= */
+    .signatures {
+      position: absolute;
+      left: 16mm;
+      right: 16mm;
+      bottom: 27mm;            /* Position Y des signatures */
+      display: flex;
+      justify-content: space-between;
+      font-size: 7pt;
+      color: #555555;
+    }
+    .footer {
+      position: absolute;
+      left: 3mm;
+      right: 7mm;
+      bottom: 7mm;             /* Position Y du pied de page */
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+
+    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    @media print { .variable { background: transparent; outline: 0; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
+    <aside class="side">
+      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
+      <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
+
+      <div class="side-info">
+        <strong>BANK</strong><br>
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankName {% templatetag closevariable %}</span>{% else %}{{ bank.name|default:"BMOI MADAGASCAR" }}{% endif %}<br><br>
+        <strong>RIB</strong><br>
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"00004 00009 03319320103 30" }}{% endif %}<br><br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
+        Lot P93M Ambohipo sud<br>
+        By-pass<br>
+        +261 34 61 791 41<br><br>
+        NIF : 6003298583<br>
+        STAT : 77290 11 2019 0 10215
+
+        <!-- Logo 2 : Ergon Group (Bas du volet) -->
+        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+      </div>
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
+    <main class="main">
+      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+      <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
+
+      <header class="header">
+        <p class="ref">PROFORMA N° : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"____/__" }}{% endif %}</p>
+        <div class="title">PROFORMA</div>
+        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</div>
+      </header>
+
+      <section class="identity">
+        <div class="identity-row">
+          <strong>NOM :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name }}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>CONTACT :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_phone }}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>EVENEMENT DU :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y" }}{% endif %}</span>
+        </div>
+      </section>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th>QTE</th>
+            <th>DESIGNATION</th>
+            <th>P.U.</th>
+            <th>MONTANT</th>
+            <th>P. CASSE</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in context.event_draft.lines %}
+            <tr>
+              <td>{{ line.quantity|stringformat:"03d" }}</td>
+              <td>
+                {{ line.inventory_item_name }}
+                {% if line.notes %}<div class="sub-item">{{ line.notes }}</div>{% endif %}
+              </td>
+              <td>{{ line.unit_price|default:"0,00" }}</td>
+              <td>{{ line.total_price|default:"0,00" }}</td>
+              <td>{{ line.breakage_price|default:"0,00" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td>___</td>
+              <td>________________________________</td>
+              <td>0,00</td>
+              <td>0,00</td>
+              <td>0,00</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="totals-row">
+          <span>TOTAL</span>
+          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.totalHT {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.sub_total|default:"0,00" }}{% endif %}</span>
+        </div>
+        <div class="totals-row">
+          <span>Remise</span>
+          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.discount {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.discount|default:"0,00" }}{% endif %}</span>
+        </div>
+      </div>
+
+      <div class="total-bar">
+        <span>TOTAL A PAYER</span>
+        <strong>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.totalTTC {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.total_amount|default:"0,00" }}{% endif %} Ar</strong>
+      </div>
+
+      <div class="words">
+        <span>Arrêtée la présente facture proforma<br>à la somme de</span>
+        <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.totalInWords {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.total_amount_in_words|default:"" }}{% endif %}</span>
+      </div>
+
+      <div class="signatures">
+        <span>Le responsable</span>
+        <span>Le Client</span>
+      </div>
+
+      <div class="footer">
+        <span>hahitantsoa@ergon.mg</span>
+        <span>+261 34 61 791 44</span>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

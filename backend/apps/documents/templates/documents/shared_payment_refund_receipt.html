@@ -2,24 +2,261 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Reçu de remboursement</title>
-  <style>{% include "documents/partials/constructed_document_family.css" %}</style>
+  <title>Reçu de remboursement Hahitantsoa</title>
+  <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+    /* ========================================================================= */
+    .side {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 51mm;
+      height: 297mm;
+      background: #e7e8e8;
+      padding: 14mm 3mm 7mm;
+    }
+
+    /* ========================================================================= */
+    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
+    /* ========================================================================= */
+    /* Logo Hahitantsoa */
+    .brand {
+      position: absolute;
+      top: 0mm;
+      left: 55%;
+      transform: translateX(-50%);
+      width: 60mm;
+      height: 60mm;
+      object-fit: contain;
+      filter: grayscale(1) contrast(2);
+    }
+
+    /* Informations bancaires */
+    .side-info {
+      position: absolute;
+      left: 3mm;
+      right: 3mm;
+      bottom: 35mm;
+      color: #4c4c4c;
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    .side-info strong { color: #292929; font-size: 9pt; }
+
+    /* Logo Ergon Group */
+    .ergon {
+      position: absolute;
+      bottom: -35mm;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40mm;
+      height: 40mm;
+      object-fit: contain;
+      filter: grayscale(2);
+      opacity: 0.55;
+    }
+
+    /* ========================================================================= */
+    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK)                                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      left: -70mm;
+      top: 70mm;
+      width: 360mm;
+      height: 360mm;
+      opacity: 0.04;
+      object-fit: cover;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* ========================================================================= */
+    .main {
+      position: absolute;
+      top: 0;
+      left: 51mm;
+      width: 159mm;
+      height: 297mm;
+      padding: 7mm 3mm;
+    }
+    .header, .identity, .document-grid, .banner, .bank-section, .note, .signatures, .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========================================================================= */
+    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* ========================================================================= */
+    .header { text-align: center; margin-bottom: 5mm; }
+    .ref { margin: 0; font-size: 12pt; font-weight: 700; }
+    .title { margin: 2mm 0; font-size: 24pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; }
+
+    /* ========================================================================= */
+    /* 7. GRILLES ET INFORMATIONS                                                */
+    /* ========================================================================= */
+    .document-grid { width: 100%; border-collapse: collapse; margin-top: 6mm; margin-bottom: 6mm; }
+    .document-grid td { width: 50%; vertical-align: top; padding: 3mm; border: 0.25mm solid #c7c7c7; background: #fafafa; }
+    .document-grid td + td { border-left: 0; }
+    .box-title { margin-bottom: 2mm; padding-bottom: 1.5mm; border-bottom: 0.25mm solid #aaaaaa; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; color: #333333; }
+    .info-row { display: flex; justify-content: space-between; gap: 3mm; min-height: 6mm; font-size: 9.5pt; }
+    .info-row .label { color: #666666; }
+    .info-row .value { font-weight: 700; text-align: right; }
+
+    /* ========================================================================= */
+    /* 8. BANDEAU MONTANT REMBOURSÉ                                              */
+    /* ========================================================================= */
+    .banner {
+      margin: 8mm 0;
+      background: #e9e9e8;
+      padding: 3mm 4mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11pt;
+      letter-spacing: 0.8mm;
+    }
+    .banner strong { font-size: 12pt; letter-spacing: 0; }
+
+    /* ========================================================================= */
+    /* 9. COORDONNÉES BANCAIRES & NOTE                                           */
+    /* ========================================================================= */
+    .bank-section {
+      margin-top: 6mm;
+      border: 0.25mm solid #c7c7c7;
+      padding: 3mm 4mm;
+      background: #fafafa;
+      font-size: 9pt;
+      line-height: 1.45;
+    }
+    .bank-section strong { font-size: 9.5pt; color: #222222; }
+
+    .note {
+      margin-top: 6mm;
+      font-size: 9pt;
+      font-style: italic;
+      color: #555555;
+      line-height: 1.4;
+    }
+
+    /* ========================================================================= */
+    /* 10. SIGNATURES & PIED DE PAGE                                             */
+    /* ========================================================================= */
+    .signatures {
+      position: absolute;
+      left: 16mm;
+      right: 16mm;
+      bottom: 27mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8pt;
+      color: #444444;
+    }
+    .footer {
+      position: absolute;
+      left: 3mm;
+      right: 7mm;
+      bottom: 7mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+
+    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    @media print { .variable { background: transparent; outline: 0; } }
+  </style>
 </head>
 <body>
-  <div class="document-page">
-    <aside class="document-side">
-      <img class="brand" src="/brand/ergon-logo.png" alt="Ergon Group">
-      <div class="side-details"><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>{{ bank.account_holder|default:"Ergon Group SARL" }}<br>{{ bank.address|default:"Lot P93M Ambohipo sud — By-pass" }}<br>{{ bank.phone|default:"+261 34 61 791 41" }}<br><br>NIF : {{ bank.nif|default:"________________" }}<br>STAT : {{ bank.stat|default:"________________" }}</div>
-      <img class="ergon-mark" src="/brand/ergon-logo.png" alt="Ergon">
+  <div class="page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
+    <aside class="side">
+      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
+      <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
+
+      <div class="side-info">
+        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320103 30" }}<br><br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
+        Lot P93M Ambohipo sud<br>
+        By-pass<br>
+        +261 34 61 791 41<br><br>
+        NIF : 6003298583<br>
+        STAT : 77290 11 2019 0 10215
+
+        <!-- Logo 2 : Ergon Group (Bas du volet) -->
+        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+      </div>
     </aside>
-    <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
-      <header class="document-header"><div><p class="eyebrow">Ergon Group</p><h1>Reçu de remboursement</h1></div><div class="meta"><strong>RÉF. : {{ context.payment.external_reference|default:context.payment.payment_id|default:"________________" }}</strong><br>Date : {{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}<br>STATUT : REMBOURSÉ</div></header>
-      <table class="document-grid"><tr><td><div class="box-title">Bénéficiaire</div><div class="info-row"><span class="label">Client</span><span class="value">{{ context.payment.customer_display_name|default:"________________" }}</span></div><div class="info-row"><span class="label">Réservation</span><span class="value">{{ context.payment.reservation_public_reference|default:"________________" }}</span></div></td><td><div class="box-title">Règlement</div><div class="info-row"><span class="label">Mode</span><span class="value">{{ context.payment.payment_method|default:"________________" }}</span></div><div class="info-row"><span class="label">Date</span><span class="value">{{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}</span></div></td></tr></table>
-      <div class="document-banner"><span>Montant remboursé</span><strong>{{ context.payment.amount|default:"________________" }} MGA</strong></div>
-      <div class="document-bank"><strong>Coordonnées bancaires du remboursement</strong><br>Banque : {{ bank.name|default:"________________" }}{% if bank.branch %} — {{ bank.branch }}{% endif %}<br>Titulaire : {{ bank.account_holder|default:"________________" }} · Compte : {{ bank.account_number|default:"________________" }} · RIB : {{ bank.rib|default:"________________" }}{% if bank.iban %} · IBAN : {{ bank.iban }}{% endif %}</div>
-      <div class="document-note" style="margin-top: 6mm;">Le bénéficiaire reconnaît avoir reçu le montant indiqué ci-dessus au titre du remboursement de la réservation concernée.</div>
-      <div class="document-signatures"><span>Pour la société — cachet et signature</span><span>Le bénéficiaire — reçu et signature</span></div>
-      <footer class="document-footer"><span>ergon@ergon.mg</span><span>+261 34 61 791 41</span></footer>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
+    <main class="main">
+      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+      <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
+
+      <header class="header">
+        <p class="ref">RÉF. : {{ context.payment.external_reference|default:context.payment.payment_id|default:"________________" }}</p>
+        <div class="title">REÇU DE REMBOURSEMENT</div>
+        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %} &nbsp;&nbsp;·&nbsp;&nbsp; <strong>STATUT : REMBOURSÉ</strong></div>
+      </header>
+
+      <table class="document-grid">
+        <tr>
+          <td>
+            <div class="box-title">Bénéficiaire</div>
+            <div class="info-row"><span class="label">Client :</span><span class="value">{{ context.payment.customer_display_name|default:"________________" }}</span></div>
+            <div class="info-row"><span class="label">Réservation :</span><span class="value">{{ context.payment.reservation_public_reference|default:"________________" }}</span></div>
+          </td>
+          <td>
+            <div class="box-title">Règlement</div>
+            <div class="info-row"><span class="label">Mode :</span><span class="value">{{ context.payment.payment_method|default:"________________" }}</span></div>
+            <div class="info-row"><span class="label">Date paiement :</span><span class="value">{{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}</span></div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="banner">
+        <span>Montant remboursé</span>
+        <strong>{{ context.payment.amount|default:"________________" }} MGA</strong>
+      </div>
+
+      <div class="bank-section">
+        <strong>Coordonnées bancaires du remboursement</strong><br>
+        Banque : {{ bank.name|default:"________________" }}{% if bank.branch %} — {{ bank.branch }}{% endif %}<br>
+        Titulaire : {{ bank.account_holder|default:"________________" }} · Compte : {{ bank.account_number|default:"________________" }} · RIB : {{ bank.rib|default:"________________" }}{% if bank.iban %} · IBAN : {{ bank.iban }}{% endif %}
+      </div>
+
+      <div class="note">
+        Le bénéficiaire reconnaît avoir reçu le montant indiqué ci-dessus au titre du remboursement de la réservation concernée.
+      </div>
+
+      <div class="signatures">
+        <span>Pour la société — cachet et signature</span>
+        <span>Le bénéficiaire — reçu et signature</span>
+      </div>
+
+      <div class="footer">
+        <span>hahitantsoa@ergon.mg</span>
+        <span>+261 34 61 791 44</span>
+      </div>
     </main>
   </div>
 </body>

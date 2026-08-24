@@ -4,21 +4,32 @@
   <meta charset="utf-8">
   <title>Checking de passation</title>
   <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT CHECKING A4                                */
+    /* ========================================================================= */
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; color: #111; }
-    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-size: 11pt; line-height: 1.55; background: #e5e7eb; }
-    .page { width: 210mm; min-height: 297mm; padding: 7.5mm 10mm; margin: 0 auto; background: #fff; page-break-after: always; }
+    html, body { margin: 0; color: #111111; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-size: 11pt; line-height: 1.55; background: #e5e7eb; -webkit-print-color-adjust: exact; }
+    .page { width: 210mm; min-height: 297mm; padding: 7.5mm 10mm; margin: 0 auto; background: #ffffff; page-break-after: always; }
     .page:last-child { page-break-after: auto; }
+
+    /* ========================================================================= */
+    /* 2. TITRES ET CATÉGORIES DE PASSATION                                      */
+    /* ========================================================================= */
     h1 { margin: 0 0 7mm; font-size: 11pt; font-weight: 400; text-decoration: underline; }
     .category { margin-top: 5mm; margin-bottom: 1mm; font-size: 11pt; font-weight: 400; text-decoration: underline; }
+
+    /* ========================================================================= */
+    /* 3. LISTES ET CASES À COCHER                                               */
+    /* ========================================================================= */
     ul { margin: 0 0 2mm 8mm; padding-left: 6mm; list-style-type: square; }
     li { padding-left: 1mm; min-height: 6mm; }
-    .check { display: inline-block; width: 4mm; height: 4mm; margin-right: 2mm; border: .3mm solid #222; vertical-align: -.4mm; }
-    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; }
+    .check { display: inline-block; width: 4mm; height: 4mm; margin-right: 2mm; border: 0.3mm solid #222222; vertical-align: -0.4mm; }
+    .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     @media print {
-      body { background: #fff; }
+      body { background: #ffffff; }
       .variable { background: transparent; outline: 0; }
     }
   </style>

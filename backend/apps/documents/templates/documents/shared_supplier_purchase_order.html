@@ -1,14 +1,103 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>Bon de commande fournisseur</title><style>{% include "documents/partials/constructed_document_family.css" %}</style></head>
-<body><div class="document-page">
-  <aside class="document-side"><img class="brand" src="/brand/ergon-logo.png" alt="Ergon Group"><div class="side-details"><strong>FOURNISSEUR</strong><br>Bon de commande<br><br><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>Ergon Group SARL<br>Lot P93M Ambohipo sud<br>By-pass<br>+261 34 61 791 41</div><img class="ergon-mark" src="/brand/ergon-logo.png" alt="Ergon"></aside>
-  <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
-    <header class="document-header"><div><p class="eyebrow">Achats et approvisionnement</p><h1>Bon de commande</h1></div><div class="meta"><strong>N° : {{ context.reservation_draft.public_reference|default:"________________" }}</strong><br>Date : {% now "d/m/Y" %}</div></header>
-    <div class="document-fields"><div class="document-field"><strong>FOURNISSEUR</strong><span>{{ context.reservation_draft.supplier_name|default:"________________________" }}</span></div><div class="document-field"><strong>OBJET</strong><span>{{ context.reservation_draft.event_name|default:"________________________" }}</span></div><div class="document-field"><strong>DATE ÉVÉNEMENT</strong><span>{{ context.reservation_draft.start_at|date:"d / m / Y"|default:"____ / ____ / ______" }}</span></div></div>
-    <table class="document-table"><thead><tr><th class="center" style="width: 25mm;">Quantité</th><th>Désignation</th><th>Observation</th></tr></thead><tbody>{% for line in context.reservation_draft.lines %}<tr><td class="center">{{ line.quantity }}</td><td>{{ line.inventory_item_name }}</td><td>{{ line.notes|default:"" }}</td></tr>{% empty %}<tr class="empty-row"><td></td><td></td><td></td></tr>{% endfor %}</tbody></table>
-    <div class="document-note"><strong>Conditions / observations :</strong><br>{{ context.reservation_draft.notes|default:"________________________________________________________________________________" }}</div>
-    <div class="document-signatures"><span>Le fournisseur</span><span>Le responsable des achats</span></div>
-    <footer class="document-footer"><span>ergon@ergon.mg</span><span>+261 34 61 791 41</span></footer>
-  </main>
-</div></body></html>
+<head>
+  <meta charset="utf-8">
+  <title>Bon de commande fournisseur</title>
+  <style>{% include "documents/partials/constructed_document_family.css" %}</style>
+</head>
+<body>
+  <div class="document-page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
+    <aside class="document-side">
+      <!-- Logo 1 : Ergon Group (Haut du volet) -->
+      <img class="brand" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+
+      <div class="side-details">
+        <strong>FOURNISSEUR</strong><br>Bon de commande<br><br>
+        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>
+        Ergon Group SARL<br>
+        Lot P93M Ambohipo sud<br>
+        By-pass<br>
+        +261 34 61 791 41
+      </div>
+
+      <!-- Logo 2 : Ergon Mark (Bas du volet) -->
+      <img class="ergon-mark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
+    <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
+      <header class="document-header">
+        <div>
+          <p class="eyebrow">Achats et approvisionnement</p>
+          <h1>Bon de commande</h1>
+        </div>
+        <div class="meta">
+          <strong>N° : {{ context.reservation_draft.public_reference|default:"________________" }}</strong><br>
+          Date : {% now "d/m/Y" %}
+        </div>
+      </header>
+
+      <div class="document-fields">
+        <div class="document-field">
+          <strong>FOURNISSEUR :</strong>
+          <span>{{ context.reservation_draft.supplier_name|default:"________________________" }}</span>
+        </div>
+        <div class="document-field">
+          <strong>OBJET :</strong>
+          <span>{{ context.reservation_draft.event_name|default:"________________________" }}</span>
+        </div>
+        <div class="document-field">
+          <strong>DATE ÉVÉNEMENT :</strong>
+          <span>{{ context.reservation_draft.start_at|date:"d / m / Y"|default:"____ / ____ / ______" }}</span>
+        </div>
+      </div>
+
+      <table class="document-table">
+        <thead>
+          <tr>
+            <th class="center" style="width: 25mm;">Quantité</th>
+            <th>Désignation</th>
+            <th>Observation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in context.reservation_draft.lines %}
+            <tr>
+              <td class="center">{{ line.quantity }}</td>
+              <td>{{ line.inventory_item_name }}</td>
+              <td>{{ line.notes|default:"" }}</td>
+            </tr>
+          {% empty %}
+            <tr class="empty-row">
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="document-note">
+        <strong>Conditions / observations :</strong><br>
+        {{ context.reservation_draft.notes|default:"________________________________________________________________________________" }}
+      </div>
+
+      <div class="document-signatures">
+        <span>Le fournisseur</span>
+        <span>Le responsable des achats</span>
+      </div>
+
+      <footer class="document-footer">
+        <span>ergon@ergon.mg</span>
+        <span>+261 34 61 791 41</span>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

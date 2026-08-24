@@ -4,65 +4,236 @@
   <meta charset="utf-8">
   <title>Bon de livraison Hahitantsoa</title>
   <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { width: 210mm; height: 297mm; margin: 0; color: #111; }
-    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; }
-    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; }
-    .side { position: absolute; inset: 0 auto 0 0; width: 51mm; background: #e7e8e8; padding: 15mm 4mm 7mm; }
-    .brand { display: block; width: 28mm; height: 28mm; margin: 0 auto; object-fit: contain; filter: grayscale(1) contrast(2); }
-    .side-info { position: absolute; left: 4mm; right: 4mm; bottom: 31mm; font-size: 7.5pt; line-height: 1.25; color: #4c4c4c; }
-    .side-info strong { color: #292929; font-size: 8pt; }
-    .ergon { position: absolute; left: 19mm; bottom: 8mm; width: 14mm; height: 14mm; object-fit: contain; filter: grayscale(1); opacity: .55; }
-    .main { position: absolute; top: 0; left: 51mm; width: 159mm; height: 297mm; padding: 7mm 5mm 7mm 4mm; }
-    .header { position: relative; height: 35mm; text-align: right; }
-    .header .number { font-size: 11pt; letter-spacing: 1.2mm; }
-    .header h1 { margin: 3mm 0 1mm; font-size: 25pt; line-height: 1; letter-spacing: 1.5mm; }
-    .header .date { font-size: 10pt; letter-spacing: 1mm; }
-    .identity { font-size: 10pt; letter-spacing: 1.2mm; }
-    .identity-row { display: grid; grid-template-columns: 29mm 1fr; min-height: 10mm; align-items: baseline; }
-    .identity-value { border-bottom: .25mm solid #555; letter-spacing: 0; font-size: 10pt; }
-    .items { width: 100%; border-collapse: collapse; margin-top: 5mm; table-layout: fixed; font-size: 9pt; }
-    .items th { height: 10mm; text-align: center; font-weight: 700; }
-    .items th:first-child, .items td:first-child { width: 17mm; text-align: center; }
-    .items td { vertical-align: top; min-height: 7mm; text-align: center; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #111111; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+    /* ========================================================================= */
+    .side {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 51mm;             /* Largeur du volet */
+      height: 297mm;           /* Hauteur pleine page A4 */
+      background: #e7e8e8;     /* Fond gris */
+      padding: 15mm 4mm 7mm;
+    }
+
+    /* ========================================================================= */
+    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
+    /* ========================================================================= */
+    /* Logo Hahitantsoa (Haut du volet latéral) */
+    .brand {
+      position: absolute;
+      top: 0mm;               /* Distance depuis le haut de la page */
+      left: 55%;               /* Centrage horizontal */
+      transform: translateX(-50%);
+      width: 60mm;             /* Largeur du logo */
+      height: 60mm;            /* Hauteur du logo */
+      object-fit: contain;
+      filter: grayscale(1) contrast(2);
+    }
+
+    /* Informations bancaires (Bas du volet latéral) */
+    .side-info {
+      position: absolute;
+      left: 3mm;               /* Coordonnée X gauche des textes bancaires */
+      right: 3mm;              /* Coordonnée X droite des textes bancaires */
+      bottom: 35mm;            /* Coordonnée Y depuis le bas de la page */
+      color: #4c4c4c;
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    .side-info strong { color: #292929; font-size: 9pt; }
+
+    /* Logo Ergon Group (Bas du volet latéral) */
+    .ergon {
+      position: absolute;
+      bottom: -35mm;             /* Distance depuis le bas de la page */
+      left: 50%;               /* Centrage horizontal */
+      transform: translateX(-50%);
+      width: 40mm;             /* Largeur du logo Ergon */
+      height: 40mm;            /* Hauteur du logo Ergon */
+      object-fit: contain;
+      filter: grayscale(2);
+      opacity: 0.55;           /* Opacité du logo Ergon (0.55 = 55%) */
+    }
+
+    /* ========================================================================= */
+    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK PAGE PRINCIPALE)                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
+      left: -70mm;              /* Position horizontale depuis la gauche */
+      top: 70mm;               /* Position verticale depuis le haut */
+      width: 360mm;            /* Largeur du filigrane */
+      height: 360mm;           /* Hauteur du filigrane */
+      opacity: 0.04;          /* Opacité du filigrane (0.01 à 1.0) */
+      object-fit: cover;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* ========================================================================= */
+    .main {
+      position: absolute;
+      top: 0;
+      left: 51mm;              /* Aligné sur le bord droit du volet (51mm) */
+      width: 159mm;            /* 210mm (A4) - 51mm (Volet) = 159mm */
+      height: 297mm;
+      padding: 7mm 3mm;
+    }
+    .header, .identity, .items, .addendum, .handover, .signatures, .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========================================================================= */
+    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* ========================================================================= */
+    .header { position: relative; text-align: center; }
+    .header .number { font-size: 12pt; font-weight: 700; }
+    .header h1 { margin: 2mm 0; font-size: 25pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; }
+    .header .date { font-size: 10pt; letter-spacing: 1.2mm; }
+
+    /* ========================================================================= */
+    /* 7. BLOC IDENTIFICATION CLIENT                                             */
+    /* ========================================================================= */
+    .identity { margin-top: 4mm; font-size: 10pt; letter-spacing: 0.7mm; }
+    .identity-row { display: grid; grid-template-columns: 48mm 1fr; min-height: 8.5mm; align-items: baseline; }
+    .identity-row strong { font-size: 10pt; white-space: nowrap; }
+    .identity-value { font-size: 10pt; letter-spacing: 0; }
+
+    /* ========================================================================= */
+    /* 8. TABLEAU DES ARTICLES LIVRÉS                                            */
+    /* ========================================================================= */
+    .items { width: 100%; border-collapse: collapse; margin-top: 6mm; table-layout: fixed; font-size: 9pt; }
+    .items thead { letter-spacing: 0.55mm; }
+    .items th { height: 9mm; font-size: 9pt; font-weight: 700; text-align: left; }
+    .items th:first-child, .items td:first-child { width: 15mm; text-align: left; }
+    .items td { vertical-align: top; min-height: 7mm; text-align: left; font-family: "Century Gothic", sans-serif; }
     .items .description { padding-left: 2mm; line-height: 1.45; }
-    .addendum { margin: 8mm 0 0 8mm; font-size: 10pt; line-height: 1.45; }
+
+    /* ========================================================================= */
+    /* 9. RAJOUTS & PASSATION                                                    */
+    /* ========================================================================= */
+    .addendum { margin: 8mm 0 0 4mm; font-size: 10pt; line-height: 1.45; }
     .addendum strong { display: block; margin-bottom: 1mm; }
-    .watermark { position: absolute; z-index: -1; left: 24mm; top: 117mm; width: 132mm; height: 165mm; object-fit: contain; opacity: .06; }
-    .handover { position: absolute; left: 10mm; right: 6mm; bottom: 36mm; font-size: 8pt; line-height: 1.55; }
+    .handover { position: absolute; left: 4mm; right: 4mm; bottom: 36mm; font-size: 8.5pt; line-height: 1.55; }
     .checks { display: flex; gap: 4mm; margin-top: 1mm; }
-    .box { display: inline-block; width: 3.5mm; height: 3.5mm; border: .25mm solid #555; margin-right: 1mm; vertical-align: -.6mm; }
-    .signatures { position: absolute; left: 10mm; right: 6mm; bottom: 25mm; display: flex; justify-content: space-between; font-size: 8pt; }
-    .footer { position: absolute; left: 4mm; right: 6mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
-    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    .box { display: inline-block; width: 3.5mm; height: 3.5mm; border: 0.25mm solid #555555; margin-right: 1mm; vertical-align: -0.6mm; }
+
+    /* ========================================================================= */
+    /* 10. SIGNATURES & PIED DE PAGE                                             */
+    /* ========================================================================= */
+    .signatures { position: absolute; left: 16mm; right: 16mm; bottom: 27mm; display: flex; justify-content: space-between; font-size: 7pt; color: #555555; }
+    .footer { position: absolute; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
+
+    .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; letter-spacing: 0; }
     @media print { .variable { background: transparent; outline: 0; } }
   </style>
 </head>
 <body>
   <div class="page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
     <aside class="side">
-      <img class="brand" src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa">
-      <div class="side-info"><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320103 30" }}<br><br>Ergon Group SARL<br>Lot P93M Ambohipo sud<br>By-pass<br>+261 34 61 791 41<br><br>NIF : 6003298583<br>STAT : 77290 11 2019 010 215</div>
-      <img class="ergon" src="/brand/ergon-logo.png" alt="Ergon">
+      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
+      <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
+
+      <div class="side-info">
+        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320103 30" }}<br><br>
+        Ergon Group SARL<br>
+        Lot P93M Ambohipo sud<br>
+        By-pass<br>
+        +261 34 61 791 41<br><br>
+        NIF : 6003298583<br>
+        STAT : 77290 11 2019 0 10215
+
+        <!-- Logo 2 : Ergon Group (Bas du volet) -->
+        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+      </div>
     </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
     <main class="main">
-      <img class="watermark" src="/brand/hahitantsoa-logo.png" alt="">
+      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+      <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
+
       <header class="header">
-        <div class="number">B O N  D E  L I V R A I S O N  N° {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"____" }}{% endif %}</div>
+        <div class="number">BON DE LIVRAISON N° : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"____" }}{% endif %}</div>
         <h1>BON DE LIVRAISON</h1>
-        <div class="date">DATE {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</div>
+        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</div>
       </header>
+
       <section class="identity">
         <div class="identity-row"><strong>NOM :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"____________________________" }}{% endif %}</span></div>
-        <div class="identity-row"><strong>FACTURE</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.proforma_reference|default:"________" }}{% endif %}</span></div>
-        <div class="identity-row"><strong>LOCATION DU</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span></div>
+        <div class="identity-row"><strong>FACTURE :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.proforma_reference|default:"________" }}{% endif %}</span></div>
+        <div class="identity-row"><strong>EVENEMENT DU :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span></div>
       </section>
-      <table class="items"><thead><tr><th>QTE</th><th>DESIGNATION</th></tr></thead><tbody>{% for line in context.event_draft.lines %}<tr><td>{{ line.quantity|stringformat:"03d" }}</td><td class="description">{{ line.inventory_item_name }}{% if line.notes %}<br>{{ line.notes }}{% endif %}</td></tr>{% empty %}<tr><td>___</td><td class="description">________________________________________</td></tr>{% endfor %}</tbody></table>
-      <div class="addendum"><strong>Rajout:</strong>{% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.additions {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.delivery_additions|default:"+ ________________________________" }}{% endif %}</div>
-      <div class="handover">PASSATION (Mettre les remarques à droite)<div class="checks"><span><i class="box"></i>Cuisine</span><span><i class="box"></i>Toilettes</span><span><i class="box"></i>Jardin</span><span><i class="box"></i>Petit Salon</span><span><i class="box"></i>Salle</span></div></div>
-      <div class="signatures"><span>Signature du responsable</span><span>Le Client</span></div>
-      <div class="footer"><span>hahitantsoa@ergon.mg</span><span>+261 34 61 791 44</span></div>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th>QTE</th>
+            <th>DESIGNATION</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in context.event_draft.lines %}
+            <tr>
+              <td>{{ line.quantity|stringformat:"03d" }}</td>
+              <td class="description">{{ line.inventory_item_name }}{% if line.notes %}<br>{{ line.notes }}{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td>___</td>
+              <td class="description">________________________________________</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="addendum">
+        <strong>Rajout :</strong>
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.additions {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.delivery_additions|default:"+ ________________________________" }}{% endif %}
+      </div>
+
+      <div class="handover">
+        PASSATION (Mettre les remarques à droite)
+        <div class="checks">
+          <span><i class="box"></i>Cuisine</span>
+          <span><i class="box"></i>Toilettes</span>
+          <span><i class="box"></i>Jardin</span>
+          <span><i class="box"></i>Petit Salon</span>
+          <span><i class="box"></i>Salle</span>
+        </div>
+      </div>
+
+      <div class="signatures">
+        <span>Signature du responsable</span>
+        <span>Le Client</span>
+      </div>
+
+      <div class="footer">
+        <span>hahitantsoa@ergon.mg</span>
+        <span>+261 34 61 791 44</span>
+      </div>
     </main>
   </div>
 </body>
