@@ -1,35 +1,123 @@
+/* ========================================================================= */
+/* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+/* ========================================================================= */
 @page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; }
 html, body { width: 210mm; height: 297mm; margin: 0; }
-body { color: #202020; font-family: Arial, "DejaVu Sans", sans-serif; font-size: 8.5pt; line-height: 1.35; }
-.document-page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #fff; }
-.document-side { position: absolute; inset: 0 auto 0 0; width: 54mm; padding: 12mm 5mm 7mm; background: #e7e7e6; }
-.document-side .brand { display: block; width: 35mm; height: 35mm; margin: 0 auto; object-fit: contain; filter: grayscale(1) contrast(2); }
-.document-side .side-details { position: absolute; left: 5mm; right: 5mm; bottom: 22mm; color: #4d4d4d; font-size: 6.4pt; line-height: 1.2; }
-.document-side .side-details strong { color: #222; font-size: 6.8pt; }
-.document-side .ergon-mark { display: block; position: absolute; width: 12mm; height: 12mm; left: 21mm; bottom: 7mm; object-fit: contain; filter: grayscale(1); opacity: .6; }
-.document-main { position: absolute; inset: 0 0 0 54mm; padding: 10mm 8mm 8mm; }
-.document-main::before { content: ""; position: absolute; z-index: 0; left: 30mm; bottom: 8mm; width: 125mm; height: 175mm; background: var(--document-watermark) center/contain no-repeat; opacity: .035; filter: grayscale(1); }
+body { color: #202020; font-family: Arial, "DejaVu Sans", sans-serif; font-size: 8.5pt; line-height: 1.35; -webkit-print-color-adjust: exact; }
+.document-page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+/* ========================================================================= */
+/* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+/* ========================================================================= */
+.document-side {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 54mm;             /* Largeur du volet gauche */
+  height: 297mm;           /* Hauteur pleine page */
+  padding: 12mm 5mm 7mm;
+  background: #e7e7e6;     /* Couleur fond gris */
+}
+
+/* ========================================================================= */
+/* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
+/* ========================================================================= */
+/* Logo Brand Haut du volet */
+.document-side .brand {
+  position: absolute;
+  top: 12mm;               /* Distance depuis le haut de la page */
+  left: 50%;               /* Centrage horizontal */
+  transform: translateX(-50%);
+  width: 44mm;             /* Largeur du logo du haut */
+  height: 44mm;            /* Hauteur du logo du haut */
+  object-fit: contain;
+  filter: grayscale(1) contrast(2);
+}
+
+/* Informations bancaires et entreprise */
+.document-side .side-details {
+  position: absolute;
+  left: 5mm;               /* Coordonnée X gauche */
+  right: 5mm;              /* Coordonnée X droite */
+  bottom: 25mm;            /* Coordonnée Y depuis le bas */
+  color: #4d4d4d;
+  font-size: 6.4pt;
+  line-height: 1.2;
+}
+.document-side .side-details strong { color: #222222; font-size: 6.8pt; }
+
+/* Logo Ergon Bas du volet */
+.document-side .ergon-mark {
+  position: absolute;
+  bottom: 6mm;             /* Distance depuis le bas */
+  left: 50%;               /* Centrage horizontal */
+  transform: translateX(-50%);
+  width: 32mm;             /* Largeur du logo Ergon */
+  height: 16mm;            /* Hauteur du logo Ergon */
+  object-fit: contain;
+  filter: grayscale(1);
+  opacity: 0.6;            /* Opacité (60%) */
+}
+
+/* ========================================================================= */
+/* 4. ZONE PRINCIPALE & FILIGRANE (WATERMARK)                                */
+/* ========================================================================= */
+.document-main {
+  position: absolute;
+  top: 0;
+  left: 54mm;              /* Aligné sur le bord droit du volet (54mm) */
+  width: 156mm;            /* 210mm (A4) - 54mm = 156mm */
+  height: 297mm;
+  padding: 10mm 8mm 8mm;
+}
+.document-main::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  /* --- Coordonnées de positionnement et dimensions du filigrane --- */
+  left: 15mm;              /* Coordonnée X gauche du filigrane */
+  top: 60mm;               /* Coordonnée Y haut du filigrane */
+  width: 140mm;            /* Largeur du filigrane */
+  height: 140mm;           /* Hauteur du filigrane */
+  background: var(--document-watermark) center/contain no-repeat;
+  opacity: 0.045;          /* Opacité du filigrane (0.01 à 1.0) */
+  filter: grayscale(1);
+  pointer-events: none;
+}
 .document-main > * { position: relative; z-index: 1; }
-.document-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: .25mm solid #777; padding-bottom: 4mm; margin-bottom: 6mm; }
+
+/* ========================================================================= */
+/* 5. EN-TÊTE DU DOCUMENT (TITRE, RÉF, DATE)                                 */
+/* ========================================================================= */
+.document-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.25mm solid #777777; padding-bottom: 4mm; margin-bottom: 6mm; }
 .document-header h1 { margin: 0; font-size: 18pt; letter-spacing: 1.7mm; font-weight: 700; text-transform: uppercase; }
-.document-header .eyebrow { margin: 0 0 2mm; font-size: 7pt; font-weight: 700; letter-spacing: .7mm; text-transform: uppercase; }
+.document-header .eyebrow { margin: 0 0 2mm; font-size: 7pt; font-weight: 700; letter-spacing: 0.7mm; text-transform: uppercase; }
 .document-header .meta { text-align: right; font-size: 7pt; line-height: 1.6; }
 .document-header .meta strong { font-size: 8pt; }
-.document-kicker { margin: 0 0 5mm; color: #555; font-size: 7pt; font-weight: 700; letter-spacing: .7mm; text-transform: uppercase; }
+.document-kicker { margin: 0 0 5mm; color: #555555; font-size: 7pt; font-weight: 700; letter-spacing: 0.7mm; text-transform: uppercase; }
+
+/* ========================================================================= */
+/* 6. GRILLE CLIENT / ÉVÉNEMENT & CHAMPS                                     */
+/* ========================================================================= */
 .document-grid { width: 100%; border-collapse: collapse; margin-bottom: 6mm; }
-.document-grid td { width: 50%; vertical-align: top; padding: 3mm; border: .2mm solid #c7c7c7; background: #fafafa; }
+.document-grid td { width: 50%; vertical-align: top; padding: 3mm; border: 0.2mm solid #c7c7c7; background: #fafafa; }
 .document-grid td + td { border-left: 0; }
-.box-title { margin-bottom: 2mm; padding-bottom: 1.5mm; border-bottom: .2mm solid #aaa; color: #444; font-size: 7pt; font-weight: 700; letter-spacing: .6mm; text-transform: uppercase; }
+.box-title { margin-bottom: 2mm; padding-bottom: 1.5mm; border-bottom: 0.2mm solid #aaaaaa; color: #444444; font-size: 7pt; font-weight: 700; letter-spacing: 0.6mm; text-transform: uppercase; }
 .info-row { display: flex; justify-content: space-between; gap: 3mm; min-height: 5mm; }
-.info-row .label { color: #666; }
+.info-row .label { color: #666666; }
 .info-row .value { font-weight: 700; text-align: right; }
+
 .document-fields { margin-bottom: 6mm; }
-.document-field { display: grid; grid-template-columns: 34mm 1fr; min-height: 7mm; align-items: baseline; border-bottom: .2mm solid #777; }
-.document-field strong { font-size: 7pt; letter-spacing: .6mm; }
+.document-field { display: grid; grid-template-columns: 34mm 1fr; min-height: 7mm; align-items: baseline; border-bottom: 0.2mm solid #777777; }
+.document-field strong { font-size: 7pt; letter-spacing: 0.6mm; }
+
+/* ========================================================================= */
+/* 7. TABLEAU DES ARTICLES / MATÉRIELS                                       */
+/* ========================================================================= */
 .document-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 5mm 0 7mm; }
-.document-table th { height: 8mm; padding: 1mm; border-bottom: .35mm solid #555; color: #333; font-size: 7pt; letter-spacing: .55mm; text-align: left; text-transform: uppercase; }
-.document-table td { min-height: 7mm; padding: 1.5mm 1mm; border-bottom: .2mm solid #aaa; vertical-align: top; font-size: 7.5pt; }
+.document-table th { height: 8mm; padding: 1mm; border-bottom: 0.35mm solid #555555; color: #333333; font-size: 7pt; letter-spacing: 0.55mm; text-align: left; text-transform: uppercase; }
+.document-table td { min-height: 7mm; padding: 1.5mm 1mm; border-bottom: 0.2mm solid #aaaaaa; vertical-align: top; font-size: 7.5pt; }
 .document-table th, .document-table td, .document-table .right { text-align: center; }
 .document-table-excluded th:nth-child(1), .document-table-excluded td:nth-child(1) { text-align: center; }
 .document-table-excluded th:nth-child(2), .document-table-excluded td:nth-child(2) { text-align: left; }
@@ -37,14 +125,22 @@ body { color: #202020; font-family: Arial, "DejaVu Sans", sans-serif; font-size:
 .document-table .center { text-align: center; }
 .document-table .right { text-align: right; }
 .document-table .empty-row td { height: 65mm; }
+
+/* ========================================================================= */
+/* 8. TOTAUX, BANDEAUX & COORDONNÉES BANCAIRES                               */
+/* ========================================================================= */
 .document-total { width: 66mm; margin: 3mm 0 5mm auto; }
-.document-total .total-row { display: flex; justify-content: space-between; min-height: 6mm; letter-spacing: .45mm; }
-.document-total .total-row.final { margin-top: 1mm; padding: 2mm; border: .2mm solid #777; background: #e7e7e6; font-weight: 700; }
-.document-banner { display: flex; justify-content: space-between; align-items: center; min-height: 10mm; margin: 4mm 0 2mm; padding: 2.5mm 3mm; background: #e7e7e6; border: .2mm solid #c7c7c7; font-size: 8pt; font-weight: 700; letter-spacing: .6mm; text-transform: uppercase; }
-.document-note { min-height: 14mm; padding: 2mm 3mm; border: .2mm solid #c7c7c7; font-size: 7.2pt; }
-.document-bank { margin-top: 5mm; padding: 3mm; border: .2mm solid #c7c7c7; background: #fafafa; font-size: 7pt; }
+.document-total .total-row { display: flex; justify-content: space-between; min-height: 6mm; letter-spacing: 0.45mm; }
+.document-total .total-row.final { margin-top: 1mm; padding: 2mm; border: 0.2mm solid #777777; background: #e7e7e6; font-weight: 700; }
+.document-banner { display: flex; justify-content: space-between; align-items: center; min-height: 10mm; margin: 4mm 0 2mm; padding: 2.5mm 3mm; background: #e7e7e6; border: 0.2mm solid #c7c7c7; font-size: 8pt; font-weight: 700; letter-spacing: 0.6mm; text-transform: uppercase; }
+.document-note { min-height: 14mm; padding: 2mm 3mm; border: 0.2mm solid #c7c7c7; font-size: 7.2pt; }
+.document-bank { margin-top: 5mm; padding: 3mm; border: 0.2mm solid #c7c7c7; background: #fafafa; font-size: 7pt; }
+
+/* ========================================================================= */
+/* 9. SIGNATURES & PIED DE PAGE                                              */
+/* ========================================================================= */
 .document-signatures { display: flex; justify-content: space-between; gap: 18mm; margin: 18mm 10mm 0; font-size: 7pt; }
-.document-signatures span { flex: 1; padding-top: 2mm; border-top: .2mm solid #777; text-align: center; }
-.document-footer { position: absolute; left: 8mm; right: 8mm; bottom: 7mm; display: flex; justify-content: space-between; color: #555; font-size: 7pt; font-weight: 700; }
-.document-variable { background: #fff0b3; outline: .2mm solid #d6a700; padding: 0 .3mm; font-family: monospace; }
+.document-signatures span { flex: 1; padding-top: 2mm; border-top: 0.2mm solid #777777; text-align: center; }
+.document-footer { position: absolute; left: 8mm; right: 8mm; bottom: 7mm; display: flex; justify-content: space-between; color: #555555; font-size: 7pt; font-weight: 700; }
+.document-variable { background: #fff0b3; outline: 0.2mm solid #d6a700; padding: 0 0.3mm; font-family: monospace; }
 @media print { .document-variable { background: transparent; outline: 0; } }

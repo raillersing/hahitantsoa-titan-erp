@@ -437,13 +437,13 @@ def test_document_instance_create_supports_logistics_note_templates(
             "titan.delivery_note.v1",
             "Bon de livraison Titan",
             "backend/apps/documents/templates_documents/titan/bl/v1/template.html",
-            "Delivered Items",
+            "BON DE LIVRAISON",
         ),
         (
             "shared.return_note.v1",
             "Bon de retour",
             "backend/apps/documents/templates_documents/shared/bon_retour/v1/template.html",
-            "Article / matériel",
+            "BON DE RETOUR",
         ),
     ),
 )

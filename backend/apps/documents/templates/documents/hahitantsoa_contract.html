@@ -1,4 +1,3 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -10,11 +9,11 @@
     <section class="contract-page">
         <header class="contract-header">
             <div class="brand-block">
-                <img src="{% static 'brand/ergon-logo.png' %}" alt="Ergon Group">
+                <img src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
                 <p>ERGON GROUP SARL<br>Lot P93M Sud Ambohipo Alasora Antananarivo<br>+261 34 61 791 41 · ergon@ergon.mg</p>
             </div>
             <div class="brand-block brand-block--right">
-                <img src="{% static 'brand/hahitantsoa-logo.png' %}" alt="Domaine Hahitantsoa">
+                <img src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Domaine Hahitantsoa">
                 <p>+261 34 61 791 44<br>hahitantsoa@ergon.mg</p>
             </div>
         </header>

@@ -4,56 +4,100 @@
   <meta charset="utf-8">
   <title>Avenant de contrat Hahitantsoa</title>
   <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; width: 210mm; height: 297mm; color: #000; }
-    body { font-family: "Times New Roman", "Liberation Serif", serif; }
-    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; padding: 6mm 23mm 0; }
+    html, body { margin: 0; width: 210mm; height: 297mm; color: #000000; }
+    body { font-family: "Times New Roman", "Liberation Serif", serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; padding: 6mm 23mm 0; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. EN-TÊTE : LOGOS ERGON GROUP & HAHITANTSOA                              */
+    /* ========================================================================= */
     .header { height: 67mm; position: relative; font-family: Arial, sans-serif; }
     .brand { position: absolute; top: 0; width: 50mm; text-align: center; font-family: Calibri, Arial, sans-serif; font-size: 9pt; font-style: italic; line-height: 1.25; }
+
+    /* Coordonnées Logo Ergon (Gauche) */
     .brand.ergon { left: 0; }
+    .brand.ergon img { width: 27mm; height: 27mm; display: block; margin: 0 auto 5mm; object-fit: contain; }
+
+    /* Coordonnées Logo Hahitantsoa (Droite) */
     .brand.hahitantsoa { right: 0; }
-    .brand img { display: block; margin: 0 auto 5mm; width: 29mm; height: 29mm; object-fit: contain; }
-    .brand.ergon img { width: 27mm; }
+    .brand.hahitantsoa img { width: 29mm; height: 29mm; display: block; margin: 0 auto 5mm; object-fit: contain; }
+
     .brand-contact { white-space: nowrap; }
     .title { position: absolute; top: 52mm; left: 0; right: 0; margin: 0; text-align: center; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-size: 13pt; font-weight: 700; text-decoration: underline; }
-    .watermark { position: absolute; z-index: 0; width: 105mm; height: 145mm; left: 53mm; top: 80mm; object-fit: contain; opacity: .12; }
+
+    /* ========================================================================= */
+    /* 3. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK)                                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
+      left: 53mm;              /* Coordonnée X */
+      top: 80mm;               /* Coordonnée Y */
+      width: 105mm;            /* Largeur */
+      height: 145mm;           /* Hauteur */
+      opacity: 0.12;           /* Opacité */
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 4. CONTENU & MODIFICATIONS                                                */
+    /* ========================================================================= */
     .content { position: relative; z-index: 1; font-size: 10pt; line-height: 1.18; }
     .content p { margin: 0 0 3.5mm; }
     .parties { margin-bottom: 3.5mm; }
     .party-indent { margin-left: 3mm; }
     .source-line { white-space: pre-wrap; }
-    .dotted { letter-spacing: .25mm; }
+    .dotted { letter-spacing: 0.25mm; }
     .modifications { margin-top: 2mm; }
     .field-list { margin: 0 0 3.5mm 13mm; }
     .field-list div { min-height: 4.5mm; }
-    .options { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16mm; row-gap: .5mm; margin-left: 15mm; font-size: 9.5pt; line-height: 1.2; }
+    .options { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16mm; row-gap: 0.5mm; margin-left: 15mm; font-size: 9.5pt; line-height: 1.2; }
     .option { min-height: 4.5mm; white-space: nowrap; }
-    .box { display: inline-block; width: 3.2mm; height: 3.2mm; margin-right: 1.5mm; border: .3mm solid #000; vertical-align: -.45mm; }
-    .box.checked::after { content: "×"; display: block; margin: -1.4mm 0 0 .25mm; font-size: 14pt; line-height: 1; }
+    .box { display: inline-block; width: 3.2mm; height: 3.2mm; margin-right: 1.5mm; border: 0.3mm solid #000000; vertical-align: -0.45mm; }
+    .box.checked::after { content: "×"; display: block; margin: -1.4mm 0 0 0.25mm; font-size: 14pt; line-height: 1; }
+
+    /* ========================================================================= */
+    /* 5. SIGNATURES & PIED DE PAGE                                              */
+    /* ========================================================================= */
     .closing { position: absolute; left: 23mm; right: 23mm; top: 217mm; text-align: right; font-size: 10pt; line-height: 1.8; }
     .signatures { position: absolute; left: 37mm; right: 37mm; top: 242mm; display: flex; justify-content: space-between; font-size: 10pt; }
-    .footer { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; height: 30mm; border-top: .25mm solid #777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; text-align: center; font-family: Arial, sans-serif; color: #999; font-size: 7.5pt; line-height: 1.4; }
-    .footer strong { color: #888; }
-    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    .footer { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; height: 30mm; border-top: 0.25mm solid #777777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; text-align: center; font-family: Arial, sans-serif; color: #999999; font-size: 7.5pt; line-height: 1.4; }
+    .footer strong { color: #888888; }
+
+    .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; letter-spacing: 0; }
     @media print { .variable { background: transparent; outline: 0; } }
   </style>
 </head>
 <body>
   <div class="page">
+    <!-- ===================================================================== -->
+    <!-- EN-TÊTE : LOGO ERGON & LOGO HAHITANTSOA                               -->
+    <!-- ===================================================================== -->
     <header class="header">
+      <!-- Logo 1 : Ergon Group (Gauche) -->
       <div class="brand ergon">
-        <img src="/brand/ergon-logo.png" alt="Ergon Group">
+        <img src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
         <div class="brand-contact">ergon@ergon.mg<br>+261 34 61 791 41</div>
       </div>
+
+      <!-- Logo 2 : Hahitantsoa (Droite) -->
       <div class="brand hahitantsoa">
-        <img src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa">
+        <img src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
         <div class="brand-contact">hahitantsoa@ergon.mg<br>+261 34 61 791 44</div>
       </div>
+
       <h1 class="title">AVENANT DE CONTRAT</h1>
     </header>
 
-    <img class="watermark" src="/brand/ergon-logo.png" alt="">
+    <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+    <img class="watermark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="">
 
     <main class="content">
       {% if show_variables %}

@@ -1,14 +1,265 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>Bon de retour</title><style>{% include "documents/partials/constructed_document_family.css" %}</style></head>
-<body><div class="document-page">
-  <aside class="document-side"><img class="brand" src="/brand/ergon-logo.png" alt="Ergon Group"><div class="side-details"><strong>DOCUMENT INTERNE</strong><br>Retour et contrôle du matériel<br><br><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>Ergon Group SARL<br>+261 34 61 791 41</div><img class="ergon-mark" src="/brand/ergon-logo.png" alt="Ergon"></aside>
-  <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
-    <header class="document-header"><div><p class="eyebrow">Mouvement de stock</p><h1>Bon de retour</h1></div><div class="meta"><strong>RÉF. : {{ context.reservation_draft.public_reference|default:"________________" }}</strong><br>Date : {% now "d/m/Y" %}</div></header>
-    <div class="document-fields"><div class="document-field"><strong>CLIENT</strong><span>{{ context.reservation_draft.customer.display_name|default:"________________________" }}</span></div><div class="document-field"><strong>PÉRIODE</strong><span>{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }} — {{ context.reservation_draft.end_at|date:"d/m/Y"|default:"____/__/__" }}</span></div></div>
-    <table class="document-table"><thead><tr><th>Article / matériel</th><th class="center" style="width: 24mm;">Qté prévue</th><th class="center" style="width: 25mm;">Qté retournée</th><th style="width: 42mm;">État / observations</th></tr></thead><tbody>{% for line in context.reservation_draft.lines %}<tr><td>{{ line.inventory_item_name }}</td><td class="center">{{ line.quantity }}</td><td class="center">________</td><td>{{ line.notes|default:"" }}</td></tr>{% empty %}<tr class="empty-row"><td></td><td></td><td></td><td></td></tr>{% endfor %}</tbody></table>
-    <div class="document-note"><strong>Observations générales :</strong><br>{{ context.reservation_draft.notes|default:"________________________________________________________________________________" }}</div>
-    <div class="document-signatures"><span>Responsable du retour</span><span>Client — signature</span></div>
-    <footer class="document-footer"><span>ergon@ergon.mg</span><span>+261 34 61 791 41</span></footer>
-  </main>
-</div></body></html>
+<head>
+  <meta charset="utf-8">
+  <title>Bon de retour Hahitantsoa</title>
+  <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+    /* ========================================================================= */
+    .side {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 51mm;
+      height: 297mm;
+      background: #e7e8e8;
+      padding: 14mm 3mm 7mm;
+    }
+
+    /* ========================================================================= */
+    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
+    /* ========================================================================= */
+    /* Logo Hahitantsoa */
+    .brand {
+      position: absolute;
+      top: 0mm;
+      left: 55%;
+      transform: translateX(-50%);
+      width: 60mm;
+      height: 60mm;
+      object-fit: contain;
+      filter: grayscale(1) contrast(2);
+    }
+
+    /* Informations bancaires */
+    .side-info {
+      position: absolute;
+      left: 3mm;
+      right: 3mm;
+      bottom: 35mm;
+      color: #4c4c4c;
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    .side-info strong { color: #292929; font-size: 9pt; }
+
+    /* Logo Ergon Group */
+    .ergon {
+      position: absolute;
+      bottom: -35mm;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40mm;
+      height: 40mm;
+      object-fit: contain;
+      filter: grayscale(2);
+      opacity: 0.55;
+    }
+
+    /* ========================================================================= */
+    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK)                                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      left: -70mm;
+      top: 70mm;
+      width: 360mm;
+      height: 360mm;
+      opacity: 0.04;
+      object-fit: cover;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* ========================================================================= */
+    .main {
+      position: absolute;
+      top: 0;
+      left: 51mm;
+      width: 159mm;
+      height: 297mm;
+      padding: 7mm 3mm;
+    }
+    .header, .identity, .items, .observations, .signatures, .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========================================================================= */
+    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* ========================================================================= */
+    .header { text-align: center; }
+    .ref { margin: 0; font-size: 12pt; font-weight: 700; }
+    .title { margin: 2mm 0; font-size: 25pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; }
+
+    /* ========================================================================= */
+    /* 7. BLOC IDENTIFICATION CLIENT & PÉRIODE                                   */
+    /* ========================================================================= */
+    .identity { margin-top: 4mm; font-size: 10pt; letter-spacing: 0.7mm; }
+    .identity-row { display: grid; grid-template-columns: 36mm 1fr; min-height: 9.5mm; align-items: baseline; }
+    .identity-row strong { font-size: 10pt; }
+    .identity-value { font-size: 10pt; letter-spacing: 0; }
+
+    /* ========================================================================= */
+    /* 8. TABLEAU DES ARTICLES RETOURNÉS                                         */
+    /* ========================================================================= */
+    .items { width: 100%; margin-top: 6mm; border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
+    .items thead { letter-spacing: 0.55mm; }
+    .items th { height: 9mm; font-size: 9pt; font-weight: 700; text-align: left; }
+    .items th.center { text-align: center; }
+    .items td { height: 7mm; vertical-align: top; text-align: left; font-family: "Century Gothic", sans-serif; }
+    .items td.center { text-align: center; }
+    .items tbody { height: 120mm; }
+
+    /* ========================================================================= */
+    /* 9. OBSERVATIONS & REMARQUES                                               */
+    /* ========================================================================= */
+    .observations {
+      position: absolute;
+      left: 3mm;
+      right: 3mm;
+      bottom: 45mm;
+      border: 0.25mm solid #c7c7c7;
+      padding: 3mm 4mm;
+      background: #fafafa;
+      font-size: 8.5pt;
+      line-height: 1.4;
+    }
+    .observations strong { display: block; margin-bottom: 1.5mm; font-size: 9pt; color: #333333; }
+
+    /* ========================================================================= */
+    /* 10. SIGNATURES & PIED DE PAGE                                             */
+    /* ========================================================================= */
+    .signatures {
+      position: absolute;
+      left: 16mm;
+      right: 16mm;
+      bottom: 27mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8pt;
+      color: #555555;
+    }
+    .footer {
+      position: absolute;
+      left: 3mm;
+      right: 7mm;
+      bottom: 7mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+
+    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    @media print { .variable { background: transparent; outline: 0; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
+    <aside class="side">
+      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
+      <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
+
+      <div class="side-info">
+        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320103 30" }}<br><br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
+        Lot P93M Ambohipo sud<br>
+        By-pass<br>
+        +261 34 61 791 41<br><br>
+        NIF : 6003298583<br>
+        STAT : 77290 11 2019 0 10215
+
+        <!-- Logo 2 : Ergon Group (Bas du volet) -->
+        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+      </div>
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
+    <main class="main">
+      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+      <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
+
+      <header class="header">
+        <p class="ref">BON DE RETOUR N° : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"____/__" }}{% endif %}</p>
+        <div class="title">BON DE RETOUR</div>
+        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</div>
+      </header>
+
+      <section class="identity">
+        <div class="identity-row">
+          <strong>CLIENT :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"________________________" }}{% endif %}</span>
+        </div>
+        <div class="identity-row">
+          <strong>PÉRIODE :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }} — {{ context.reservation_draft.end_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+        </div>
+      </section>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th>Article / Matériel</th>
+            <th class="center" style="width: 24mm;">Qté prévue</th>
+            <th class="center" style="width: 25mm;">Qté retour</th>
+            <th style="width: 45mm;">État / observations</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in context.reservation_draft.lines %}
+            <tr>
+              <td>{{ line.inventory_item_name }}</td>
+              <td class="center">{{ line.quantity }}</td>
+              <td class="center">________</td>
+              <td>{{ line.notes|default:"" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td>________________________________________</td>
+              <td class="center">___</td>
+              <td class="center">________</td>
+              <td>________________________</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="observations">
+        <strong>Observations générales & contrôle matériel :</strong>
+        {{ context.reservation_draft.notes|default:"Matériel retourné et vérifié conforme sauf mention contraire ci-dessus." }}
+      </div>
+
+      <div class="signatures">
+        <span>Responsable du retour</span>
+        <span>Le Client</span>
+      </div>
+
+      <div class="footer">
+        <span>hahitantsoa@ergon.mg</span>
+        <span>+261 34 61 791 44</span>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

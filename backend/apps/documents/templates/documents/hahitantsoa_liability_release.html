@@ -4,43 +4,84 @@
   <meta charset="utf-8">
   <title>Décharge de responsabilité</title>
   <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { width: 210mm; height: 297mm; margin: 0; color: #111; }
-    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; }
-    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; padding: 12mm 23mm 7mm; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #111111; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; padding: 12mm 23mm 7mm; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. EN-TÊTE : LOGOS ERGON GROUP & HAHITANTSOA                              */
+    /* ========================================================================= */
     .header { height: 77mm; position: relative; }
     .brand { position: absolute; top: 0; width: 52mm; text-align: center; font-size: 9pt; font-style: italic; line-height: 1.35; }
+
+    /* Coordonnées Logo Ergon (Gauche) */
     .brand.ergon { left: 0; }
+    .brand.ergon img { width: 31mm; height: 31mm; display: block; margin: 0 auto 6mm; object-fit: contain; }
+
+    /* Coordonnées Logo Hahitantsoa (Droite) */
     .brand.hahitantsoa { right: 0; }
-    .brand img { display: block; width: 31mm; height: 31mm; object-fit: contain; margin: 0 auto 6mm; }
-    .brand.hahitantsoa img { filter: grayscale(1) contrast(2); }
-    .watermark { position: absolute; z-index: 0; left: 49mm; top: 80mm; width: 105mm; height: 145mm; object-fit: contain; opacity: .12; }
+    .brand.hahitantsoa img { width: 31mm; height: 31mm; display: block; margin: 0 auto 6mm; object-fit: contain; filter: grayscale(1) contrast(2); }
+
+    /* ========================================================================= */
+    /* 3. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK)                                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
+      left: 49mm;              /* Coordonnée X */
+      top: 80mm;               /* Coordonnée Y */
+      width: 105mm;            /* Largeur */
+      height: 145mm;           /* Hauteur */
+      opacity: 0.12;           /* Opacité */
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 4. CONTENU & TEXTE DE DÉCHARGE                                            */
+    /* ========================================================================= */
     .content { position: relative; z-index: 1; font-size: 10pt; line-height: 1.9; text-align: justify; }
     .content h1 { margin: 0 0 13mm; text-align: center; font-size: 11pt; font-weight: 700; text-decoration: underline; }
     .content p { margin: 0 0 4mm; text-indent: 13mm; }
     .content p:first-of-type { text-indent: 0; }
     .content .date { margin-top: 22mm; text-align: right; text-indent: 0; }
-    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; }
-    .footer { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; height: 30mm; border-top: .25mm solid #777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; text-align: center; color: #999; font-size: 7.5pt; line-height: 1.4; }
-    .footer strong { color: #888; }
+    .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; }
+
+    /* ========================================================================= */
+    /* 5. PIED DE PAGE                                                           */
+    /* ========================================================================= */
+    .footer { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; height: 30mm; border-top: 0.25mm solid #777777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; text-align: center; color: #999999; font-size: 7.5pt; line-height: 1.4; }
+    .footer strong { color: #888888; }
     @media print { .variable { background: transparent; outline: 0; } }
   </style>
 </head>
 <body>
   <div class="page">
+    <!-- ===================================================================== -->
+    <!-- EN-TÊTE : LOGO ERGON & LOGO HAHITANTSOA                               -->
+    <!-- ===================================================================== -->
     <header class="header">
+      <!-- Logo 1 : Ergon Group (Gauche) -->
       <div class="brand ergon">
-        <img src="/brand/ergon-logo.png" alt="Ergon Group">
+        <img src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
         ergon@ergon.mg<br>+261 34 61 791 41
       </div>
+
+      <!-- Logo 2 : Hahitantsoa (Droite) -->
       <div class="brand hahitantsoa">
-        <img src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa">
+        <img src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
         hahitantsoa@ergon.mg<br>+261 34 61 791 44
       </div>
     </header>
 
-    <img class="watermark" src="/brand/ergon-logo.png" alt="">
+    <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+    <img class="watermark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="">
 
     <main class="content">
       <h1>DECHARGE DE RESPONSABILITE</h1>

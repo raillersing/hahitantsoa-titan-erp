@@ -190,7 +190,7 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
   top: 65% !important;
   left: 70% !important;
   /* The source PDFs use a page-spanning watermark in the main column. */
-  width: 180% !important;
+  width: 270% !important;
   max-width: none !important;
   height: auto !important;
   opacity: 0.035 !important;
@@ -438,9 +438,10 @@ input:focus,select:focus,textarea:focus { outline:none;border-color:#14b8a6; }
 .commercial-proforma-preview .proforma-items td:nth-child(n+3) { padding-right: 8px !important; }
 
 .commercial-proforma-hahitantsoa .proforma-watermark {
-  width: 491px !important;
-  right: -57px !important;
-  bottom: -30px !important;
+  width: 1100px !important;
+  right: -220px !important;
+  bottom: -150px !important;
+  opacity: 0.045 !important;
 }
 
 .commercial-proforma-titan .proforma-watermark {

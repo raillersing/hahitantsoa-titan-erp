@@ -1,15 +1,109 @@
 <!doctype html>
 <html lang="fr">
-<head><meta charset="utf-8"><title>Facture d'excédent de perte et de dommage</title><style>{% include "documents/partials/constructed_document_family.css" %}</style></head>
-<body><div class="document-page">
-  <aside class="document-side"><img class="brand" src="/brand/ergon-logo.png" alt="Ergon Group"><div class="side-details"><strong>FACTURATION</strong><br>Perte, dommage et excédent<br><br><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>{{ bank.account_holder|default:"Ergon Group SARL" }}<br>{{ bank.address|default:"Lot P93M Ambohipo sud — By-pass" }}<br>{{ bank.phone|default:"+261 34 61 791 41" }}</div><img class="ergon-mark" src="/brand/ergon-logo.png" alt="Ergon"></aside>
-  <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
-    <header class="document-header"><div><p class="eyebrow">Règlement des dommages</p><h1>Facture de perte</h1></div><div class="meta"><strong>N° : {{ context.excess_receivable.excess_receivable_id|default:"________________" }}</strong><br>Date : {% now "d/m/Y" %}<br>STATUT : À RECOUVRER</div></header>
-    <table class="document-grid"><tr><td><div class="box-title">Client facturé</div><div class="info-row"><span class="label">Client</span><span class="value">{{ context.excess_receivable.customer_display_name|default:"________________" }}</span></div><div class="info-row"><span class="label">Réservation</span><span class="value">{{ context.excess_receivable.reservation_public_reference|default:"________________" }}</span></div><div class="info-row"><span class="label">Statut</span><span class="value">{{ context.excess_receivable.reservation_status|default:"________________" }}</span></div></td><td><div class="box-title">Règlement et solde</div><div class="info-row"><span class="label">Montant dégâts</span><span class="value">{{ context.excess_receivable.amount|default:"________________" }} Ar</span></div><div class="info-row"><span class="label">Caution initiale</span><span class="value">{{ context.excess_receivable.deposit_amount|default:"________________" }} Ar</span></div><div class="info-row"><span class="label">Solde</span><span class="value">EXCÉDENT À RECOUVRER</span></div></td></tr></table>
-    <table class="document-table"><thead><tr><th class="center" style="width: 12mm;">N°</th><th>Désignation de la perte / remise en état</th><th class="center" style="width: 22mm;">Quantité</th><th class="right" style="width: 35mm;">Montant imputé</th></tr></thead><tbody><tr><td class="center">1</td><td><strong>Frais de réparation / remplacement du matériel endommagé</strong><br>Imputation constatée lors du retour d’inventaire — Réservation {{ context.excess_receivable.reservation_public_reference|default:"________________" }}</td><td class="center">1</td><td class="right"><strong>{{ context.excess_receivable.amount|default:"________________" }} Ar</strong></td></tr></tbody></table>
-    <div class="document-total"><div class="total-row"><span>Frais de remise en état</span><span>{{ context.excess_receivable.amount|default:"________________" }} Ar</span></div><div class="total-row"><span>Caution appliquée</span><span>- {{ context.excess_receivable.deposit_amount|default:"________________" }} Ar</span></div><div class="total-row final"><span>Reste à payer</span><span>{{ context.excess_receivable.amount|default:"________________" }} Ar</span></div></div>
-    <div class="document-bank"><strong>Coordonnées bancaires pour règlement</strong><br>Banque : {{ bank.name|default:"________________" }}{% if bank.branch %} — {{ bank.branch }}{% endif %} · Titulaire : {{ bank.account_holder|default:"________________" }}<br>Compte : {{ bank.account_number|default:"________________" }} · RIB : {{ bank.rib|default:"________________" }}{% if bank.iban %} · IBAN : {{ bank.iban }}{% endif %}</div>
-    <div class="document-signatures"><span>Pour la direction financière</span><span>Le client — reçu et signature</span></div>
-    <footer class="document-footer"><span>ergon@ergon.mg</span><span>+261 34 61 791 41</span></footer>
-  </main>
-</div></body></html>
+<head>
+  <meta charset="utf-8">
+  <title>Facture d'excédent de perte et de dommage</title>
+  <style>{% include "documents/partials/constructed_document_family.css" %}</style>
+</head>
+<body>
+  <div class="document-page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
+    <aside class="document-side">
+      <!-- Logo 1 : Ergon Group (Haut du volet) -->
+      <img class="brand" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+
+      <div class="side-details">
+        <strong>FACTURATION</strong><br>Perte, dommage et excédent<br><br>
+        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
+        {{ bank.address|default:"Lot P93M Ambohipo sud — By-pass" }}<br>
+        {{ bank.phone|default:"+261 34 61 791 41" }}
+      </div>
+
+      <!-- Logo 2 : Ergon Mark (Bas du volet) -->
+      <img class="ergon-mark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
+    <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
+      <header class="document-header">
+        <div>
+          <p class="eyebrow">Règlement des dommages</p>
+          <h1>Facture de perte</h1>
+        </div>
+        <div class="meta">
+          <strong>N° : {{ context.excess_receivable.excess_receivable_id|default:"________________" }}</strong><br>
+          Date : {% now "d/m/Y" %}<br>
+          STATUT : À RECOUVRER
+        </div>
+      </header>
+
+      <table class="document-grid">
+        <tr>
+          <td>
+            <div class="box-title">Client facturé</div>
+            <div class="info-row"><span class="label">Client :</span><span class="value">{{ context.excess_receivable.customer_display_name|default:"________________" }}</span></div>
+            <div class="info-row"><span class="label">Réservation :</span><span class="value">{{ context.excess_receivable.reservation_public_reference|default:"________________" }}</span></div>
+            <div class="info-row"><span class="label">Statut :</span><span class="value">{{ context.excess_receivable.reservation_status|default:"________________" }}</span></div>
+          </td>
+          <td>
+            <div class="box-title">Règlement et solde</div>
+            <div class="info-row"><span class="label">Montant dégâts :</span><span class="value">{{ context.excess_receivable.amount|default:"________________" }} Ar</span></div>
+            <div class="info-row"><span class="label">Caution initiale :</span><span class="value">{{ context.excess_receivable.deposit_amount|default:"________________" }} Ar</span></div>
+            <div class="info-row"><span class="label">Solde :</span><span class="value">EXCÉDENT À RECOUVRER</span></div>
+          </td>
+        </tr>
+      </table>
+
+      <table class="document-table">
+        <thead>
+          <tr>
+            <th class="center" style="width: 12mm;">N°</th>
+            <th>Désignation de la perte / remise en état</th>
+            <th class="center" style="width: 22mm;">Quantité</th>
+            <th class="right" style="width: 35mm;">Montant imputé</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="center">1</td>
+            <td>
+              <strong>Frais de réparation / remplacement du matériel endommagé</strong><br>
+              Imputation constatée lors du retour d’inventaire — Réservation {{ context.excess_receivable.reservation_public_reference|default:"________________" }}
+            </td>
+            <td class="center">1</td>
+            <td class="right"><strong>{{ context.excess_receivable.amount|default:"________________" }} Ar</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="document-total">
+        <div class="total-row"><span>Frais de remise en état</span><span>{{ context.excess_receivable.amount|default:"________________" }} Ar</span></div>
+        <div class="total-row"><span>Caution appliquée</span><span>- {{ context.excess_receivable.deposit_amount|default:"________________" }} Ar</span></div>
+        <div class="total-row final"><span>Reste à payer</span><span>{{ context.excess_receivable.amount|default:"________________" }} Ar</span></div>
+      </div>
+
+      <div class="document-bank">
+        <strong>Coordonnées bancaires pour règlement</strong><br>
+        Banque : {{ bank.name|default:"________________" }}{% if bank.branch %} — {{ bank.branch }}{% endif %} · Titulaire : {{ bank.account_holder|default:"________________" }}<br>
+        Compte : {{ bank.account_number|default:"________________" }} · RIB : {{ bank.rib|default:"________________" }}{% if bank.iban %} · IBAN : {{ bank.iban }}{% endif %}
+      </div>
+
+      <div class="document-signatures">
+        <span>Pour la direction financière</span>
+        <span>Le client — reçu et signature</span>
+      </div>
+
+      <footer class="document-footer">
+        <span>ergon@ergon.mg</span>
+        <span>+261 34 61 791 41</span>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

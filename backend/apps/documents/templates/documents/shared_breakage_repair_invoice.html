@@ -4,52 +4,269 @@
   <meta charset="utf-8">
   <title>Facture casse et remise en état</title>
   <style>
-  @page { size: A4; margin: 0; }
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-  html, body { width: 210mm; height: 297mm; margin: 0; color: #292929; }
-    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; }
-  .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; }
-    .side { position: absolute; inset: 0 auto 0 0; width: 42mm; background: #e7e7e6; padding: 25mm 4mm 6mm; }
-    .brand { display: block; width: 21mm; height: 21mm; object-fit: contain; margin: 0 auto; filter: grayscale(1) contrast(2); }
-    .side-info { position: absolute; left: 3.5mm; right: 3.5mm; bottom: 23mm; font-size: 7pt; line-height: 1.2; color: #4d4d4d; }
-    .side-info strong { color: #222; font-size: 7.5pt; }
-    .ergon { position: absolute; left: 16mm; bottom: 5mm; width: 10mm; height: 10mm; object-fit: contain; filter: grayscale(1); opacity: .6; }
-  .main { position: absolute; top: 0; left: 42mm; width: 168mm; height: 297mm; padding: 8mm 5mm 5mm; }
-    .watermark { position: absolute; z-index: 0; right: -4mm; bottom: 5mm; width: 75mm; height: 75mm; object-fit: contain; opacity: .04; }
-    .header, .identity, .items, .total, .amount-words, .settlement, .observations, .signatures, .footer-line, .footer { position: relative; z-index: 1; }
-    .header { text-align: right; }
-    .number { font-size: 8.5pt; font-weight: 700; }
-    .title { margin: 2mm 0 1mm; font-size: 16pt; line-height: 1.05; }
-    .date { font-size: 8pt; letter-spacing: 2mm; }
-    .identity { margin-top: 7mm; font-size: 8pt; font-weight: 700; letter-spacing: 1.2mm; }
-    .row { display: grid; grid-template-columns: 19mm 1fr; min-height: 7mm; align-items: baseline; }
-    .row.two { grid-template-columns: 19mm 36mm 25mm 1fr; }
-    .value { border-bottom: .25mm solid #444; letter-spacing: 0; font-weight: 400; padding-bottom: 1mm; }
-    .items { width: 100%; margin-top: 6mm; border-collapse: collapse; table-layout: fixed; font-size: 7.5pt; }
-    .items th { height: 9mm; font-size: 7.7pt; }
-    .items th:first-child { width: 38mm; }
-    .items th:nth-child(2) { width: 11mm; }
-    .items th:nth-child(3) { width: 14mm; }
-    .items th:nth-child(4) { width: 20mm; }
-    .items th, .items td { text-align: center; }
-    .items td { height: 8mm; border-bottom: .2mm solid #bbb; border-right: .2mm solid #777; padding: 1mm 2mm; vertical-align: top; }
-    .items td:last-child { border-right: 0; text-align: center; }
-    .category { font-weight: 700; }
-    .total { position: absolute; right: 6mm; top: 153mm; font-size: 11pt; }
-    .amount-words { position: absolute; left: 16mm; right: 6mm; top: 163mm; text-align: center; font-size: 8pt; }
-    .amount-words strong { font-size: 9pt; }
-    .settlement { position: absolute; right: 9mm; top: 176mm; width: 49mm; font-size: 8.5pt; line-height: 1.5; }
-    .settlement span { display: inline-block; min-width: 24mm; border-bottom: .25mm solid #333; }
-    .observations { position: absolute; left: 5mm; top: 177mm; width: 47mm; font-size: 7.5pt; }
-    .ob-box { height: 8mm; border: .25mm solid #999; margin-top: 2mm; padding: 1mm; color: #999; }
-    .signatures { position: absolute; left: 5mm; right: 8mm; top: 191mm; display: flex; justify-content: space-between; font-size: 7pt; }
-    .footer-line { position: absolute; left: 5mm; right: 8mm; top: 198mm; border-bottom: .25mm solid #777; }
-    .footer { position: absolute; left: 5mm; right: 8mm; top: 202mm; display: flex; justify-content: space-between; font-size: 9pt; font-weight: 700; }
-    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #292929; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+    /* ========================================================================= */
+    .side {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 51mm;             /* Largeur du volet */
+      height: 297mm;           /* Hauteur pleine page */
+      background: #e7e8e8;     /* Fond gris */
+      padding: 14mm 3mm 7mm;
+    }
+
+    /* ========================================================================= */
+    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
+    /* ========================================================================= */
+    /* Logo Hahitantsoa (Haut du volet latéral) */
+    .brand {
+      position: absolute;
+      top: 0mm;               /* Distance depuis le haut de la page */
+      left: 55%;               /* Centrage horizontal */
+      transform: translateX(-50%);
+      width: 60mm;             /* Largeur du logo */
+      height: 60mm;            /* Hauteur du logo */
+      object-fit: contain;
+      filter: grayscale(1) contrast(2);
+    }
+
+    /* Informations bancaires (Bas du volet latéral) */
+    .side-info {
+      position: absolute;
+      left: 3mm;               /* Coordonnée X gauche des textes bancaires */
+      right: 3mm;              /* Coordonnée X droite des textes bancaires */
+      bottom: 35mm;            /* Coordonnée Y depuis le bas de la page */
+      color: #4c4c4c;
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    .side-info strong { color: #292929; font-size: 9pt; }
+
+    /* Logo Ergon Group (Bas du volet latéral) */
+    .ergon {
+      position: absolute;
+      bottom: -35mm;             /* Distance depuis le bas de la page */
+      left: 50%;               /* Centrage horizontal */
+      transform: translateX(-50%);
+      width: 40mm;             /* Largeur du logo Ergon */
+      height: 40mm;            /* Hauteur du logo Ergon */
+      object-fit: contain;
+      filter: grayscale(2);
+      opacity: 0.55;           /* Opacité du logo Ergon (0.55 = 55%) */
+    }
+
+    /* ========================================================================= */
+    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK PAGE PRINCIPALE)                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
+      left: -70mm;              /* Position horizontale depuis la gauche */
+      top: 70mm;               /* Position verticale depuis le haut */
+      width: 360mm;            /* Largeur du filigrane */
+      height: 360mm;           /* Hauteur du filigrane */
+      opacity: 0.04;          /* Opacité du filigrane (0.01 à 1.0) */
+      object-fit: cover;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* ========================================================================= */
+    .main {
+      position: absolute;
+      top: 0;
+      left: 51mm;              /* Aligné sur le bord droit du volet (51mm) */
+      width: 159mm;            /* 210mm (A4) - 51mm (Volet) = 159mm */
+      height: 297mm;
+      padding: 7mm 3mm;
+    }
+    .header, .identity, .items, .total, .amount-words, .settlement, .observations, .signatures, .footer-line, .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========================================================================= */
+    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* ========================================================================= */
+    .header { text-align: center; }
+    .number { font-size: 12pt; font-weight: 700; }
+    .title { margin: 2mm 0 1mm; font-size: 20pt; line-height: 1.05; font-weight: 700; letter-spacing: 2mm; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; }
+
+    /* ========================================================================= */
+    /* 7. BLOC IDENTIFICATION CLIENT & DOSSIER                                   */
+    /* ========================================================================= */
+    .identity { margin-top: 4mm; font-size: 10pt; font-weight: 700; letter-spacing: 0.7mm; }
+    .row { display: grid; grid-template-columns: 24mm 1fr; min-height: 8mm; align-items: baseline; }
+    .row.two { grid-template-columns: 24mm 32mm 44mm 1fr; }
+    .row span { white-space: nowrap; }
+    .value { border-bottom: 0.25mm solid #444444; letter-spacing: 0; font-weight: 400; padding-bottom: 0.5mm; font-size: 10pt; }
+
+    /* ========================================================================= */
+    /* 8. TABLEAU DES ARTICLES & LIGNES DE CASSE                                 */
+    /* ========================================================================= */
+    .items { width: 100%; margin-top: 5mm; border-collapse: collapse; table-layout: fixed; font-size: 8pt; }
+    .items th { height: 8mm; font-size: 8.5pt; font-weight: 700; text-align: center; }
+    .items th:first-child { width: 44mm; text-align: left; }
+    .items th:nth-child(2) { width: 12mm; }
+    .items th:nth-child(3) { width: 15mm; }
+    .items th:nth-child(4) { width: 22mm; }
+    .items th:nth-child(5) { width: 25mm; }
+    .items td { height: 7mm; border-bottom: 0.2mm solid #bbbbbb; border-right: 0.2mm solid #777777; padding: 1mm 2mm; vertical-align: top; text-align: center; }
+    .items td:first-child { text-align: left; }
+    .items td:last-child { border-right: 0; text-align: right; }
+    .category { font-weight: 700; background: #f4f4f4; }
+
+    /* ========================================================================= */
+    /* 9. BLOC TOTAUX, RÈGLEMENT ET OBSERVATIONS                                 */
+    /* ========================================================================= */
+    .total { position: absolute; right: 6mm; top: 153mm; font-size: 11pt; font-weight: 700; }
+    .amount-words { position: absolute; left: 6mm; right: 6mm; top: 163mm; text-align: center; font-size: 8.5pt; }
+    .amount-words strong { font-size: 9.5pt; }
+    .settlement { position: absolute; right: 6mm; top: 176mm; width: 55mm; font-size: 8.5pt; line-height: 1.5; }
+    .settlement span { display: inline-block; min-width: 24mm; border-bottom: 0.25mm solid #333333; }
+    .observations { position: absolute; left: 6mm; top: 176mm; width: 55mm; font-size: 8pt; }
+    .ob-box { height: 10mm; border: 0.25mm solid #999999; margin-top: 2mm; padding: 1mm; color: #999999; }
+
+    /* ========================================================================= */
+    /* 10. SIGNATURES & PIED DE PAGE                                             */
+    /* ========================================================================= */
+    .signatures { position: absolute; left: 10mm; right: 10mm; top: 202mm; display: flex; justify-content: space-between; font-size: 7pt; color: #555555; }
+    .footer-line { position: absolute; left: 3mm; right: 7mm; bottom: 12mm; border-bottom: 0.25mm solid #777777; }
+    .footer { position: absolute; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
+
+    .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; letter-spacing: 0; }
     @media print { .variable { background: transparent; outline: 0; } }
   </style>
 </head>
 <body>
-  <div class="page"><aside class="side"><img class="brand" src="/brand/hahitantsoa-logo.png" alt="Hahitantsoa"><div class="side-info"><strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br><strong>RIB</strong><br>{% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"" }}{% endif %}<br><br>Ergon Group SARL<br>Lot P93M Ambohipo sud<br>By-pass<br>+261 34 61 791 41<br><br>NIF : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.nif {% templatetag closevariable %}</span>{% else %}{{ bank.nif|default:"" }}{% endif %}<br>STAT : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.stat {% templatetag closevariable %}</span>{% else %}{{ bank.stat|default:"" }}{% endif %}</div><img class="ergon" src="/brand/ergon-logo.png" alt="Ergon"></aside><main class="main"><img class="watermark" src="/brand/hahitantsoa-logo.png" alt=""><header class="header"><div class="number">Facture casse N°: {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.breakageInvoiceNumber {% templatetag closevariable %}</span>{% else %}____{% endif %}</div><div class="title">DETAILS DE CASSE<br>ET REMISE EN ETAT</div><div class="date">DATE {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}__ / __ / ____{% endif %}</div></header><section class="identity"><div class="row"><span>NOM</span><span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:context.reservation_draft.customer_display_name }}{% endif %}</span></div><div class="row"><span>CONTACT</span><span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:context.reservation_draft.customer_phone }}{% endif %}</span></div><div class="row two"><span>DOSSIER</span><span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"________" }}{% endif %}</span><span>LOCATION du</span><span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span></div></section><table class="items"><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th>Prix unitaire</th><th>Montant</th></tr></thead><tbody><tr><td class="category">CASSE / PERTE MATERIEL</td><td></td><td></td><td></td><td></td></tr>{% for line in context.reservation_draft.lines %}<tr><td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td><td>{{ line.quantity }}</td><td>{{ line.unit|default:"U" }}</td><td>{{ line.unit_price|default:"" }}</td><td>{{ line.total_price|default:"" }}</td></tr>{% endfor %}<tr><td class="category">LOCAL / REMISE EN ETAT</td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td class="category">NETTOYAGE / AUTRES FRAIS</td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td></tr></tbody></table><div class="total">TOTAL : Ar&nbsp; {{ context.reservation_draft.total_amount|default:"________" }}</div><div class="amount-words">Arrêtée la présente facture à la somme de<br><strong>{{ context.reservation_draft.total_amount_in_words|default:"................................................ Ariary" }}</strong></div><div class="observations"><strong>OBSERVATIONS / JUSTIFICATIFS</strong><div class="ob-box">Photos / constat / devis</div></div><div class="settlement">Caution : Ar <span></span><br>Déduction : Ar <span></span><br>Reste à payer : Ar <span></span><br>Échéance : <span></span></div><div class="signatures"><span>Signature du responsable</span><span>Signature du client</span></div><div class="footer-line"></div><div class="footer"><span>hahitantsoa@ergon.mg</span><span>+261 34 61 791 44</span></div></main></div>
+  <div class="page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
+    <aside class="side">
+      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
+      <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
+
+      <div class="side-info">
+        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
+        <strong>RIB</strong><br>{% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"00004 00009 03319320103 30" }}{% endif %}<br><br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
+        Lot P93M Ambohipo sud<br>
+        By-pass<br>
+        +261 34 61 791 41<br><br>
+        NIF : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.nif {% templatetag closevariable %}</span>{% else %}{{ bank.nif|default:"6003298583" }}{% endif %}<br>
+        STAT : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.stat {% templatetag closevariable %}</span>{% else %}{{ bank.stat|default:"77290 11 2019 0 10215" }}{% endif %}
+
+        <!-- Logo 2 : Ergon Group (Bas du volet) -->
+        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+      </div>
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
+    <main class="main">
+      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+      <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
+
+      <header class="header">
+        <div class="number">Facture casse N° : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.breakageInvoiceNumber {% templatetag closevariable %}</span>{% else %}____{% endif %}</div>
+        <div class="title">DETAILS DE CASSE<br>ET REMISE EN ETAT</div>
+        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}__ / __ / ____{% endif %}</div>
+      </header>
+
+      <section class="identity">
+        <div class="row">
+          <span>NOM :</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:context.reservation_draft.customer_display_name }}{% endif %}</span>
+        </div>
+        <div class="row">
+          <span>CONTACT :</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:context.reservation_draft.customer_phone }}{% endif %}</span>
+        </div>
+        <div class="row two">
+          <span>DOSSIER :</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"________" }}{% endif %}</span>
+          <span>EVENEMENT DU :</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+        </div>
+      </section>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th>Désignation</th>
+            <th>Qté</th>
+            <th>Unité</th>
+            <th>Prix unitaire</th>
+            <th>Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="category">CASSE / PERTE MATERIEL</td><td></td><td></td><td></td><td></td></tr>
+          {% for line in context.reservation_draft.lines %}
+            <tr>
+              <td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td>
+              <td>{{ line.quantity }}</td>
+              <td>{{ line.unit|default:"U" }}</td>
+              <td>{{ line.unit_price|default:"" }}</td>
+              <td>{{ line.total_price|default:"" }}</td>
+            </tr>
+          {% endfor %}
+          <tr><td class="category">LOCAL / REMISE EN ETAT</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td class="category">NETTOYAGE / AUTRES FRAIS</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td></td><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+
+      <div class="total">TOTAL : Ar&nbsp; {{ context.reservation_draft.total_amount|default:"________" }}</div>
+
+      <div class="amount-words">
+        Arrêtée la présente facture à la somme de<br>
+        <strong>{{ context.reservation_draft.total_amount_in_words|default:"................................................ Ariary" }}</strong>
+      </div>
+
+      <div class="observations">
+        <strong>OBSERVATIONS / JUSTIFICATIFS</strong>
+        <div class="ob-box">Photos / constat / devis</div>
+      </div>
+
+      <div class="settlement">
+        Caution : Ar <span></span><br>
+        Déduction : Ar <span></span><br>
+        Reste à payer : Ar <span></span><br>
+        Échéance : <span></span>
+      </div>
+
+      <div class="signatures">
+        <span>Signature du responsable</span>
+        <span>Signature du client</span>
+      </div>
+
+      <div class="footer-line"></div>
+      <div class="footer">
+        <span>hahitantsoa@ergon.mg</span>
+        <span>+261 34 61 791 44</span>
+      </div>
+    </main>
+  </div>
 </body>
 </html>
