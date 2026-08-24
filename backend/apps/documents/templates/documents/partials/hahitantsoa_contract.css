@@ -100,19 +100,17 @@ li { margin: 1.2mm 0; }
 .contract-page--page4 li { margin: 0.6mm 0; font-size: 9.5pt; }
 
 /* Spécificités Page Avenant (1 page compacte) */
-.contract-page--amendment { padding: 8mm 16mm 6mm; }
-.contract-page--amendment h1 { margin: 0 0 3.5mm; font-size: 12.5pt; }
-.contract-page--amendment p { margin: 0 0 1.8mm; font-size: 9pt; line-height: 1.25; }
-.contract-page--amendment ul { margin: 0 0 1.8mm; padding-left: 6mm; }
-.contract-page--amendment li { margin: 0.3mm 0; font-size: 9pt; }
-.contract-page--amendment .signatures { margin-top: 2.5mm; }
+.contract-page--amendment { padding: 6mm 16mm 6mm; }
+.contract-page--amendment h1 { margin: 0 0 3mm; font-size: 12pt; }
+.contract-page--amendment p { margin: 0 0 1.6mm; font-size: 8.5pt; line-height: 1.22; }
+.contract-page--amendment ul { margin: 0 0 1.6mm; padding-left: 6mm; }
+.contract-page--amendment li { margin: 0.2mm 0; font-size: 8.5pt; }
+.contract-page--amendment .signatures { margin-top: 2mm; }
 .contract-page--amendment .signature-space { height: 16mm; min-height: 16mm; }
-.contract-page--amendment .signature-intro { margin-top: 2mm; margin-bottom: 0.8mm; font-size: 9pt; }
-.contract-page--amendment .contract-header { height: 36mm; margin-bottom: 3mm; }
-.contract-page--amendment .brand-block img { height: 24mm; }
+.contract-page--amendment .signature-intro { margin-top: 2mm; margin-bottom: 0.8mm; font-size: 8.5pt; }
 
 /* Options et cases à cocher pour l'avenant */
-.options { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; row-gap: 0.5mm; margin: 1mm 0 2mm 6mm; font-size: 8.5pt; line-height: 1.25; position: relative; z-index: 1; }
+.options { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; row-gap: 0.5mm; margin: 1mm 0 1.5mm 6mm; font-size: 8pt; line-height: 1.2; position: relative; z-index: 1; }
 .option { min-height: 4mm; white-space: nowrap; }
 .box { display: inline-block; width: 3mm; height: 3mm; margin-right: 1.5mm; border: 0.25mm solid #000000; vertical-align: -0.35mm; }
 .box.checked::after { content: "×"; display: block; margin: -1.4mm 0 0 0.2mm; font-size: 13pt; line-height: 1; }
