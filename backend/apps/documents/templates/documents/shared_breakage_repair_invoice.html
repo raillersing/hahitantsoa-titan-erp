@@ -100,12 +100,13 @@
     }
 
     /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
     /* ========================================================================= */
-    .header { text-align: center; }
-    .number { font-size: 12pt; font-weight: 700; }
-    .title { margin: 2mm 0 1mm; font-size: 20pt; line-height: 1.05; font-weight: 700; letter-spacing: 2mm; }
-    .date { font-size: 10pt; letter-spacing: 1.2mm; }
+    .header { text-align: right; padding-right: 6mm; }
+    .header-box { display: inline-block; text-align: right; }
+    .number { font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { margin: 2mm 0 1mm; font-size: 20pt; line-height: 1.05; font-weight: 700; letter-spacing: 2mm; margin-right: -2mm; text-align: left; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
 
     /* ========================================================================= */
     /* 7. BLOC IDENTIFICATION CLIENT & DOSSIER                                   */
@@ -185,9 +186,17 @@
       <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
 
       <header class="header">
-        <div class="number">Facture casse N° : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.breakageInvoiceNumber {% templatetag closevariable %}</span>{% else %}____{% endif %}</div>
-        <div class="title">DETAILS DE CASSE<br>ET REMISE EN ETAT</div>
-        <div class="date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}__ / __ / ____{% endif %}</div>
+        <div class="header-box">
+          <div class="number">
+            <span>Facture casse N° :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.breakageInvoiceNumber {% templatetag closevariable %}</span>{% else %}____{% endif %}</span>
+          </div>
+          <div class="title">DETAILS DE CASSE<br>ET REMISE EN ETAT</div>
+          <div class="date">
+            <span>DATE :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}__ / __ / ____{% endif %}</span>
+          </div>
+        </div>
       </header>
 
       <section class="identity">

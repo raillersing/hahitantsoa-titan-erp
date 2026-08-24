@@ -100,12 +100,13 @@
     }
 
     /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE                                                 */
+    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
     /* ========================================================================= */
-    .header { text-align: center; }
-    .number { font-size: 12pt; font-weight: 700; }
-    .title { margin: 2mm 0 1mm; font-size: 25pt; letter-spacing: 2.5mm; font-weight: 700; }
-    .document-date { font-size: 10pt; letter-spacing: 1.2mm; }
+    .header { text-align: right; padding-right: 7mm; }
+    .header-box { display: inline-block; text-align: right; }
+    .number { font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { margin: 2mm 0 1mm; font-size: 25pt; letter-spacing: 2.5mm; font-weight: 700; margin-right: -2.5mm; text-align: left; }
+    .document-date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
 
     /* ========================================================================= */
     /* 7. BLOC IDENTIFICATION CLIENT                                             */
@@ -170,9 +171,17 @@
       <span class="sr-only">Référence réservation : {{ context.reservation_draft.public_reference }}</span>
 
       <header class="header">
-        <div class="number">BON DE LIVRAISON N° : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"__________" }}{% endif %}</div>
-        <div class="title">BON DE LIVRAISON</div>
-        <div class="document-date">DATE :&nbsp;&nbsp;{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</div>
+        <div class="header-box">
+          <div class="number">
+            <span>BON DE LIVRAISON N° :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"__________" }}{% endif %}</span>
+          </div>
+          <div class="title">BON DE LIVRAISON</div>
+          <div class="document-date">
+            <span>DATE :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          </div>
+        </div>
       </header>
 
       <section class="identity">
