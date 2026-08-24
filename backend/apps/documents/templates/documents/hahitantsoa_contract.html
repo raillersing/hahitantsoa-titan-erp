@@ -30,26 +30,34 @@
                 <p>La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> domiciliée au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
                 NIF : <span class="variable">{% templatetag openvariable %} client.nif {% templatetag closevariable %}</span><br>
                 STAT : <span class="variable">{% templatetag openvariable %} client.stat {% templatetag closevariable %}</span><br>
+                RCS : <span class="variable">{% templatetag openvariable %} client.rcs {% templatetag closevariable %}</span><br>
                 Représentée par <span class="variable">{% templatetag openvariable %} client.representativeName {% templatetag closevariable %}</span> en sa qualité de <span class="variable">{% templatetag openvariable %} client.representativeRole {% templatetag closevariable %}</span><br>
                 Contact : <span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span><br>
                 Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span></p>
             {% else %}
                 <p>Madame/Monsieur <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> né(e) le <span class="variable">{% templatetag openvariable %} client.birthDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.birthPlace {% templatetag closevariable %}</span>, titulaire de la <span class="variable">{% templatetag openvariable %} client.idType {% templatetag closevariable %}</span> N° <span class="variable">{% templatetag openvariable %} client.idNumber {% templatetag closevariable %}</span> Délivrée le <span class="variable">{% templatetag openvariable %} client.idIssueDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.idIssuePlace {% templatetag closevariable %}</span> duplicata du <span class="variable">{% templatetag openvariable %} client.idDuplicateDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.idDuplicatePlace {% templatetag closevariable %}</span> demeurant au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
                 Contact : <span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span><br>
-                Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span></p>
+                Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span><br>
+                NIF : <span class="variable">{% templatetag openvariable %} client.nif {% templatetag closevariable %}</span><br>
+                STAT : <span class="variable">{% templatetag openvariable %} client.stat {% templatetag closevariable %}</span><br>
+                RCS : <span class="variable">{% templatetag openvariable %} client.rcs {% templatetag closevariable %}</span></p>
             {% endif %}
         {% else %}
             {% if context.event_draft.party_type == "company" %}
                 <p>La société <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong> domiciliée au {{ context.event_draft.customer_address|default:"................................" }}<br>
                 NIF : {{ context.event_draft.customer_nif|default:"................................" }}<br>
                 STAT : {{ context.event_draft.customer_stat|default:"................................" }}<br>
+                RCS : {{ context.event_draft.customer_rcs|default:"................................" }}<br>
                 Représentée par {{ context.event_draft.customer_representative_name|default:"................................" }} en sa qualité de {{ context.event_draft.customer_representative_role|default:"................................" }}<br>
                 Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>
                 Mail : {{ context.event_draft.customer_email|default:"................................" }}</p>
             {% else %}
                 <p>Madame/Monsieur <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong> né(e) le {{ context.event_draft.customer_birth_date|date:"d/m/Y"|default:"........" }} à {{ context.event_draft.customer_birth_place|default:"........" }}, titulaire de la {{ context.event_draft.customer_id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ context.event_draft.customer_id_number|default:"................................" }} Délivrée le {{ context.event_draft.customer_id_issue_date|date:"d/m/Y"|default:"........" }} à {{ context.event_draft.customer_id_issue_place|default:"........" }} {% if context.event_draft.customer_id_duplicate_date %}duplicata du {{ context.event_draft.customer_id_duplicate_date|date:"d/m/Y" }} à {{ context.event_draft.customer_id_duplicate_place }}{% endif %} demeurant au {{ context.event_draft.customer_address|default:"................................" }}<br>
                 Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>
-                Mail : {{ context.event_draft.customer_email|default:"................................" }}</p>
+                Mail : {{ context.event_draft.customer_email|default:"................................" }}<br>
+                NIF : {{ context.event_draft.customer_nif|default:"................................" }}<br>
+                STAT : {{ context.event_draft.customer_stat|default:"................................" }}<br>
+                RCS : {{ context.event_draft.customer_rcs|default:"................................" }}</p>
             {% endif %}
         {% endif %}
 
@@ -401,7 +409,7 @@
         <ul class="breakage-list">
             {% if context.event_draft.lines %}
                 {% for line in context.event_draft.lines %}
-                    <li>• {{ line.inventory_item_name|default:line.designation }} : Ar {{ line.breakage_price|default:"—" }}/u ;</li>
+                    <li>• {{ line.inventory_item_name }} : Ar {{ line.breakage_price|default:"—" }}/u ;</li>
                 {% endfor %}
             {% else %}
                 <li>• Table : Ar 500 000,00/u ;</li>
