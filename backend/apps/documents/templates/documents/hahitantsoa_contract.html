@@ -51,7 +51,10 @@
             {% else %}
                 <p>Madame/Monsieur <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong> né(e) le {{ context.event_draft.customer_birth_date|date:"d/m/Y"|default:"........" }} à {{ context.event_draft.customer_birth_place|default:"........" }}, titulaire de la {{ context.event_draft.customer_id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ context.event_draft.customer_id_number|default:"................................" }} Délivrée le {{ context.event_draft.customer_id_issue_date|date:"d/m/Y"|default:"........" }} à {{ context.event_draft.customer_id_issue_place|default:"........" }} {% if context.event_draft.customer_id_duplicate_date %}duplicata du {{ context.event_draft.customer_id_duplicate_date|date:"d/m/Y" }} à {{ context.event_draft.customer_id_duplicate_place }}{% endif %} demeurant au {{ context.event_draft.customer_address|default:"................................" }}<br>
                 Contact : {{ context.event_draft.customer_phone|default:"................................" }}<br>
-                Mail : {{ context.event_draft.customer_email|default:"................................" }}</p>
+                Mail : {{ context.event_draft.customer_email|default:"................................" }}{% if context.event_draft.customer_nif %}<br>
+                NIF : {{ context.event_draft.customer_nif }}{% endif %}{% if context.event_draft.customer_stat %}<br>
+                STAT : {{ context.event_draft.customer_stat }}{% endif %}{% if context.event_draft.customer_rcs %}<br>
+                RCS : {{ context.event_draft.customer_rcs }}{% endif %}</p>
             {% endif %}
         {% endif %}
 
