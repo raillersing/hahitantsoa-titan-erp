@@ -109,6 +109,13 @@ li { margin: 1.2mm 0; }
 .contract-page--amendment .signature-space { height: 16mm; min-height: 16mm; }
 .contract-page--amendment .signature-intro { margin-top: 2mm; margin-bottom: 0.8mm; font-size: 8.5pt; }
 
+/* Spécificités Page Décharge de responsabilité */
+.contract-page--liability-release { padding: 12mm 16mm 24mm; }
+.contract-page--liability-release h1 { margin: 0 0 10mm; font-size: 13.5pt; }
+.contract-page--liability-release p { margin: 0 0 5mm; font-size: 10pt; line-height: 1.65; text-align: justify; }
+.contract-page--liability-release .signature-date { margin-top: 8mm; margin-bottom: 4mm; }
+.contract-page--liability-release .signature-space { height: 26mm; min-height: 26mm; }
+
 /* Options et cases à cocher pour l'avenant */
 .options { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; row-gap: 0.5mm; margin: 1mm 0 1.5mm 6mm; font-size: 8pt; line-height: 1.2; position: relative; z-index: 1; }
 .option { min-height: 4mm; white-space: nowrap; }

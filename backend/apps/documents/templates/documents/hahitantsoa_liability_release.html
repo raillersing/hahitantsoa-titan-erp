@@ -1,105 +1,70 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <title>Décharge de responsabilité</title>
-  <style>
-    /* ========================================================================= */
-    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
-    /* ========================================================================= */
-    @page { size: A4; margin: 0; }
-    * { box-sizing: border-box; }
-    html, body { width: 210mm; height: 297mm; margin: 0; color: #111111; }
-    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
-    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; padding: 12mm 23mm 7mm; background: #ffffff; }
-
-    /* ========================================================================= */
-    /* 2. EN-TÊTE : LOGOS ERGON GROUP & HAHITANTSOA                              */
-    /* ========================================================================= */
-    .header { height: 77mm; position: relative; }
-    .brand { position: absolute; top: 0; width: 52mm; text-align: center; font-size: 9pt; font-style: italic; line-height: 1.35; }
-
-    /* Coordonnées Logo Ergon (Gauche) */
-    .brand.ergon { left: 0; }
-    .brand.ergon img { width: 31mm; height: 31mm; display: block; margin: 0 auto 6mm; object-fit: contain; }
-
-    /* Coordonnées Logo Hahitantsoa (Droite) */
-    .brand.hahitantsoa { right: 0; }
-    .brand.hahitantsoa img { width: 31mm; height: 31mm; display: block; margin: 0 auto 6mm; object-fit: contain; filter: grayscale(1) contrast(2); }
-
-    /* ========================================================================= */
-    /* 3. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK)                                   */
-    /* ========================================================================= */
-    .watermark {
-      position: absolute;
-      z-index: 0;
-      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
-      left: 49mm;              /* Coordonnée X */
-      top: 80mm;               /* Coordonnée Y */
-      width: 105mm;            /* Largeur */
-      height: 145mm;           /* Hauteur */
-      opacity: 0.12;           /* Opacité */
-      object-fit: contain;
-      pointer-events: none;
-    }
-
-    /* ========================================================================= */
-    /* 4. CONTENU & TEXTE DE DÉCHARGE                                            */
-    /* ========================================================================= */
-    .content { position: relative; z-index: 1; font-size: 10pt; line-height: 1.9; text-align: justify; }
-    .content h1 { margin: 0 0 13mm; text-align: center; font-size: 11pt; font-weight: 700; text-decoration: underline; }
-    .content p { margin: 0 0 4mm; text-indent: 13mm; }
-    .content p:first-of-type { text-indent: 0; }
-    .content .date { margin-top: 22mm; text-align: right; text-indent: 0; }
-    .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; }
-
-    /* ========================================================================= */
-    /* 5. PIED DE PAGE                                                           */
-    /* ========================================================================= */
-    .footer { position: absolute; left: 23mm; right: 23mm; bottom: 7mm; height: 30mm; border-top: 0.25mm solid #777777; padding-top: 2mm; display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; text-align: center; color: #999999; font-size: 7.5pt; line-height: 1.4; }
-    .footer strong { color: #888888; }
-    @media print { .variable { background: transparent; outline: 0; } }
-  </style>
+    <meta charset="utf-8">
+    <title>Décharge de responsabilité</title>
+    <style>{% include "documents/partials/hahitantsoa_contract.css" %}</style>
 </head>
-<body>
-  <div class="page">
-    <!-- ===================================================================== -->
-    <!-- EN-TÊTE : LOGO ERGON & LOGO HAHITANTSOA                               -->
-    <!-- ===================================================================== -->
-    <header class="header">
-      <!-- Logo 1 : Ergon Group (Gauche) -->
-      <div class="brand ergon">
-        <img src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
-        ergon@ergon.mg<br>+261 34 61 791 41
-      </div>
+<body class="contract-document">
+    <section class="contract-page contract-page--liability-release">
+        <img class="watermark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="">
+        <header class="contract-header">
+            <div class="brand-block">
+                <img src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+                <p>ergon@ergon.mg<br>+261 34 61 791 41</p>
+            </div>
+            <div class="brand-block brand-block--right">
+                <img src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Domaine Hahitantsoa">
+                <p>hahitantsoa@ergon.mg<br>+261 34 61 791 44</p>
+            </div>
+        </header>
 
-      <!-- Logo 2 : Hahitantsoa (Droite) -->
-      <div class="brand hahitantsoa">
-        <img src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
-        hahitantsoa@ergon.mg<br>+261 34 61 791 44
-      </div>
-    </header>
+        <h1>DECHARGE DE RESPONSABILITE</h1>
 
-    <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
-    <img class="watermark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="">
+        <p>Je soussigné(e), {% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"................................................................................................" }}{% endif %},</p>
 
-    <main class="content">
-      <h1>DECHARGE DE RESPONSABILITE</h1>
-      <p>Je soussigné(e),
-        {% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"................................................................................................" }}{% endif %},</p>
-      <p>décharge par la présente lettre, ERGON Group, de toute responsabilité lors de l’événement du
-        {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"................................" }}{% endif %}
-        au domaine HAHITANTSOA sis au Lot P93M Sud Ambohipo Alasora.</p>
-      <p>Je renonce à faire valoir toute revendication, de quelque nature qu'elle soit, en particulier en cas d'accident, blessure, vol, dégâts sur les biens personnels ou autres se produisant lors de la durée de mon contrat. Je reconnais avoir pris connaissance du règlement intérieur de cet établissement.</p>
-      <p>Je suis informé(e) qu'il m'appartient de souscrire personnellement une assurance maladie/accident et responsabilité civile. Je me porte également garant(e) financier en cas de dégradation que je pourrais occasionner durant les festivités. Le refus de signer cette décharge de responsabilité réserve le droit à l’hôte d’annuler le contrat.</p>
-      <p class="date">Fait à Antananarivo, le
-        {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</p>
-    </main>
+        <p>décharge par la présente lettre, ERGON Group, de toute responsabilité lors de l’événement du {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"................................" }}{% endif %} au domaine HAHITANTSOA sis au Lot P93M Sud Ambohipo Alasora.</p>
 
-    <footer class="footer">
-      <div>Ergon Group SARL<br>Lot P93M Ambohipo Sud Alasora Bypass<br><br><strong>ergon@ergon.mg<br>+261 34 61 791 41</strong></div>
-      <div>NIF: 6003298583<br>STAT: 77290 11 2019 010 215<br><br><strong>hahitantsoa@ergon.mg<br>+261 34 61 791 44</strong></div>
-    </footer>
-  </div>
+        <p>Je renonce à faire valoir toute revendication, de quelque nature qu'elle soit, en particulier en cas d'accident, blessure, vol, dégâts sur les biens personnels ou autres se produisant lors de la durée de mon contrat. Je reconnais avoir pris connaissance du règlement intérieur de cet établissement.</p>
+
+        <p>Je suis informé(e) qu'il m'appartient de souscrire personnellement une assurance maladie/accident et responsabilité civile. Je me porte également garant(e) financier en cas de dégradation que je pourrais occasionner durant les festivités. Le refus de signer cette décharge de responsabilité réserve le droit à l’hôte d’annuler le contrat.</p>
+
+        <p class="text-right signature-date">Fait à Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</p>
+
+        <div class="signatures">
+            <div class="signature-block">
+                <strong>Le Déclarant / Le Client,</strong>
+                <p><small>(Signature précédée de la mention manuscrite « Lu et approuvé »)</small></p>
+                <div class="signature-space"></div>
+            </div>
+            <div class="signature-block">
+                <strong>Pour ERGON GROUP,</strong>
+                <div class="signature-space"></div>
+            </div>
+        </div>
+
+        <footer class="contract-footer">
+            <div class="contract-footer-col contract-footer-col--left">
+                <div class="contract-footer-meta">
+                    Ergon Group SARL<br>
+                    Lot P93M Ambohipo Sud Alasora Bypass
+                </div>
+                <div class="contract-footer-contact">
+                    ergon@ergon.mg<br>
+                    +261 34 61 791 41
+                </div>
+            </div>
+            <div class="contract-footer-col contract-footer-col--right">
+                <div class="contract-footer-meta">
+                    NIF: 6003298583<br>
+                    STAT: 77290 11 2019 010 215
+                </div>
+                <div class="contract-footer-contact">
+                    hahitantsoa@ergon.mg<br>
+                    +261 34 61 791 44
+                </div>
+            </div>
+        </footer>
+    </section>
 </body>
 </html>
