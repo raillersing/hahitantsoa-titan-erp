@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 from django.template.loader import render_to_string
 
@@ -60,12 +58,16 @@ def test_source_backed_template_contains_source_geometry_and_title(
 ) -> None:
     definition = get_document_template_definition(template_key)
     assert definition is not None
-    template_path = Path(definition.template_path)
-    assert template_path.exists()
-
-    source = template_path.read_text(encoding="utf-8")
-    assert f"size: {paper_size}" in source
-    assert title in source
+    html = render_to_string(
+        _resolve_preview_template_path(template_key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+    assert f"size: {paper_size}" in html
+    assert title in html
 
 
 @pytest.mark.parametrize("template_key,_,__", SOURCE_BACKED_DOCUMENTS)
