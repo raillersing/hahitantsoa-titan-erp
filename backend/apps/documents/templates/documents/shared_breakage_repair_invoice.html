@@ -9,7 +9,7 @@
     /* ========================================================================= */
     @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
-    html, body { width: 210mm; height: 297mm; margin: 0; color: #292929; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
     body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
     .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
 
@@ -29,7 +29,7 @@
     /* ========================================================================= */
     /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
     /* ========================================================================= */
-    /* Logo Hahitantsoa (Haut du volet latéral) */
+    /* Logo de la marque (Haut du volet latéral) */
     .brand {
       position: absolute;
       top: 0mm;               /* Distance depuis le haut de la page */
@@ -56,7 +56,7 @@
     /* Logo Ergon Group (Bas du volet latéral) */
     .ergon {
       position: absolute;
-      bottom: -35mm;             /* Distance depuis le bas de la page */
+      bottom: -35mm;           /* Distance depuis le bas de la page */
       left: 50%;               /* Centrage horizontal */
       transform: translateX(-50%);
       width: 40mm;             /* Largeur du logo Ergon */
@@ -72,12 +72,11 @@
     .watermark {
       position: absolute;
       z-index: 0;
-      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
       left: -70mm;              /* Position horizontale depuis la gauche */
       top: 70mm;               /* Position verticale depuis le haut */
       width: 360mm;            /* Largeur du filigrane */
       height: 360mm;           /* Hauteur du filigrane */
-      opacity: 0.04;          /* Opacité du filigrane (0.01 à 1.0) */
+      opacity: 0.04;          /* Opacité du filigrane */
       object-fit: cover;
       filter: grayscale(1);
       pointer-events: none;
@@ -100,55 +99,56 @@
     }
 
     /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
+    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LE BLOC TOTAUX)            */
     /* ========================================================================= */
     .header { text-align: right; padding-right: 6mm; }
     .header-box { display: inline-block; text-align: right; }
-    .number { font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
-    .title { margin: 2mm 0 1mm; font-size: 20pt; line-height: 1.05; font-weight: 700; letter-spacing: 2mm; margin-right: -2mm; text-align: left; }
-    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
+    .number { font-size: 11pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { margin: 2mm 0 1mm; font-size: 19pt; line-height: 1.05; font-weight: 700; letter-spacing: 1.8mm; margin-right: -1.8mm; text-align: left; }
+    .date { font-size: 9.5pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
 
     /* ========================================================================= */
     /* 7. BLOC IDENTIFICATION CLIENT & DOSSIER                                   */
     /* ========================================================================= */
-    .identity { margin-top: 4mm; font-size: 10pt; font-weight: 700; letter-spacing: 0.7mm; }
-    .row { display: grid; grid-template-columns: 24mm 1fr; min-height: 8mm; align-items: baseline; }
-    .row.two { grid-template-columns: 24mm 32mm 44mm 1fr; }
+    .identity { margin-top: 4mm; font-size: 9.5pt; font-weight: 700; letter-spacing: 0.7mm; }
+    .row { display: grid; grid-template-columns: 26mm 1fr; min-height: 7.5mm; align-items: baseline; }
+    .row.two { grid-template-columns: 26mm 34mm 44mm 1fr; }
     .row span { white-space: nowrap; }
-    .value { border-bottom: 0.25mm solid #444444; letter-spacing: 0; font-weight: 400; padding-bottom: 0.5mm; font-size: 10pt; }
+    .value { border-bottom: 0.25mm solid #444444; letter-spacing: 0; font-weight: 400; padding-bottom: 0.5mm; font-size: 9.5pt; }
 
     /* ========================================================================= */
     /* 8. TABLEAU DES ARTICLES & LIGNES DE CASSE                                 */
     /* ========================================================================= */
-    .items { width: 100%; margin-top: 5mm; border-collapse: collapse; table-layout: fixed; font-size: 8pt; }
+    .items { width: 100%; margin-top: 5mm; border-collapse: collapse; table-layout: fixed; font-size: 8.5pt; }
     .items th { height: 8mm; font-size: 8.5pt; font-weight: 700; text-align: center; }
-    .items th:first-child { width: 44mm; text-align: left; }
+    .items th:first-child { width: 50mm; text-align: left; }
     .items th:nth-child(2) { width: 12mm; }
-    .items th:nth-child(3) { width: 15mm; }
-    .items th:nth-child(4) { width: 22mm; }
-    .items th:nth-child(5) { width: 25mm; }
-    .items td { height: 7mm; border-bottom: 0.2mm solid #bbbbbb; border-right: 0.2mm solid #777777; padding: 1mm 2mm; vertical-align: top; text-align: center; }
+    .items th:nth-child(3) { width: 14mm; }
+    .items th:nth-child(4) { width: 24mm; text-align: right; }
+    .items th:nth-child(5) { width: 28mm; text-align: right; padding-right: 2mm; }
+    .items td { height: 6.8mm; border-bottom: 0.2mm solid #bbbbbb; border-right: 0.2mm solid #777777; padding: 1mm 2mm; vertical-align: top; text-align: center; }
     .items td:first-child { text-align: left; }
-    .items td:last-child { border-right: 0; text-align: right; }
-    .category { font-weight: 700; background: #f4f4f4; }
+    .items td:nth-child(4) { text-align: right; }
+    .items td:last-child { border-right: 0; text-align: right; padding-right: 2mm; }
+    .category { font-weight: 700; background: #f4f4f4; text-transform: uppercase; font-size: 8pt; letter-spacing: 0.4mm; }
 
     /* ========================================================================= */
     /* 9. BLOC TOTAUX, RÈGLEMENT ET OBSERVATIONS                                 */
     /* ========================================================================= */
-    .total { position: absolute; right: 6mm; top: 153mm; font-size: 11pt; font-weight: 700; }
-    .amount-words { position: absolute; left: 6mm; right: 6mm; top: 163mm; text-align: center; font-size: 8.5pt; }
+    .total { position: absolute; right: 6mm; top: 153mm; font-size: 11pt; font-weight: 700; letter-spacing: 0.5mm; }
+    .amount-words { position: absolute; left: 6mm; right: 6mm; top: 163mm; text-align: center; font-size: 8.5pt; line-height: 1.35; }
     .amount-words strong { font-size: 9.5pt; }
-    .settlement { position: absolute; right: 6mm; top: 176mm; width: 55mm; font-size: 8.5pt; line-height: 1.5; }
+    .settlement { position: absolute; right: 6mm; top: 176mm; width: 60mm; font-size: 8.5pt; line-height: 1.5; }
     .settlement span { display: inline-block; min-width: 24mm; border-bottom: 0.25mm solid #333333; }
-    .observations { position: absolute; left: 6mm; top: 176mm; width: 55mm; font-size: 8pt; }
-    .ob-box { height: 10mm; border: 0.25mm solid #999999; margin-top: 2mm; padding: 1mm; color: #999999; }
+    .observations { position: absolute; left: 6mm; top: 176mm; width: 65mm; font-size: 8pt; }
+    .ob-box { height: 12mm; border: 0.25mm solid #999999; margin-top: 2mm; padding: 1.5mm; color: #777777; font-size: 7.5pt; }
 
     /* ========================================================================= */
     /* 10. SIGNATURES & PIED DE PAGE                                             */
     /* ========================================================================= */
-    .signatures { position: absolute; left: 10mm; right: 10mm; top: 202mm; display: flex; justify-content: space-between; font-size: 7pt; color: #555555; }
+    .signatures { position: absolute; left: 10mm; right: 10mm; top: 204mm; display: flex; justify-content: space-between; font-size: 8pt; color: #444444; }
     .footer-line { position: absolute; left: 3mm; right: 7mm; bottom: 12mm; border-bottom: 0.25mm solid #777777; }
-    .footer { position: absolute; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
+    .footer { position: absolute; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 9.5pt; font-weight: 700; }
 
     .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; letter-spacing: 0; }
     @media print { .variable { background: transparent; outline: 0; } }
@@ -160,7 +160,7 @@
     <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
     <!-- ===================================================================== -->
     <aside class="side">
-      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
+      <!-- Logo 1 : Marque (Haut du volet) -->
       <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
 
       <div class="side-info">
@@ -189,12 +189,12 @@
         <div class="header-box">
           <div class="number">
             <span>Facture casse N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.breakageInvoiceNumber {% templatetag closevariable %}</span>{% else %}____{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.breakageInvoiceNumber {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.public_reference|default:"____" }}{% else %}{{ context.reservation_draft.public_reference|default:"____" }}{% endif %}{% endif %}</span>
           </div>
           <div class="title">DETAILS DE CASSE<br>ET REMISE EN ETAT</div>
           <div class="date">
             <span>DATE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}__ / __ / ____{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</span>
           </div>
         </div>
       </header>
@@ -202,17 +202,17 @@
       <section class="identity">
         <div class="row">
           <span>NOM :</span>
-          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"________________________" }}{% endif %}</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.customer_display_name|default:"________________________" }}{% else %}{{ context.reservation_draft.customer.display_name|default:"________________________" }}{% endif %}{% endif %}</span>
         </div>
         <div class="row">
           <span>CONTACT :</span>
-          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:"________________________" }}{% endif %}</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.customer_phone|default:"________________________" }}{% else %}{{ context.reservation_draft.customer.phone|default:"________________________" }}{% endif %}{% endif %}</span>
         </div>
         <div class="row two">
           <span>DOSSIER :</span>
-          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"________" }}{% endif %}</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.public_reference|default:"________" }}{% else %}{{ context.reservation_draft.public_reference|default:"________" }}{% endif %}{% endif %}</span>
           <span>EVENEMENT DU :</span>
-          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}{% endif %}</span>
         </div>
       </section>
 
@@ -227,30 +227,46 @@
           </tr>
         </thead>
         <tbody>
-          <tr><td class="category">CASSE / PERTE MATERIEL</td><td></td><td></td><td></td><td></td></tr>
-          {% for line in context.reservation_draft.lines %}
-            <tr>
-              <td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td>
-              <td>{{ line.quantity }}</td>
-              <td>{{ line.unit|default:"U" }}</td>
-              <td>{{ line.unit_price|default:"" }}</td>
-              <td>{{ line.total_price|default:"" }}</td>
-            </tr>
-          {% endfor %}
-          <tr><td class="category">LOCAL / REMISE EN ETAT</td><td></td><td></td><td></td><td></td></tr>
+          <tr><td class="category" colspan="5">CASSE / PERTE MATERIEL</td></tr>
+          {% if context.event_draft %}
+            {% for line in context.event_draft.lines %}
+              <tr>
+                <td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td>
+                <td>{{ line.quantity }}</td>
+                <td>{{ line.unit|default:"Pcs" }}</td>
+                <td>{{ line.unit_price|default:"" }}</td>
+                <td>{{ line.total_price|default:"" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td></td><td></td><td></td><td></td><td></td></tr>
+              <tr><td></td><td></td><td></td><td></td><td></td></tr>
+            {% endfor %}
+          {% else %}
+            {% for line in context.reservation_draft.lines %}
+              <tr>
+                <td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td>
+                <td>{{ line.quantity }}</td>
+                <td>{{ line.unit|default:"Pcs" }}</td>
+                <td>{{ line.unit_price|default:"" }}</td>
+                <td>{{ line.total_price|default:"" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td></td><td></td><td></td><td></td><td></td></tr>
+              <tr><td></td><td></td><td></td><td></td><td></td></tr>
+            {% endfor %}
+          {% endif %}
+          <tr><td class="category" colspan="5">LOCAL / REMISE EN ETAT</td></tr>
           <tr><td></td><td></td><td></td><td></td><td></td></tr>
-          <tr><td></td><td></td><td></td><td></td><td></td></tr>
-          <tr><td class="category">NETTOYAGE / AUTRES FRAIS</td><td></td><td></td><td></td><td></td></tr>
-          <tr><td></td><td></td><td></td><td></td><td></td></tr>
+          <tr><td class="category" colspan="5">NETTOYAGE / AUTRES FRAIS</td></tr>
           <tr><td></td><td></td><td></td><td></td><td></td></tr>
         </tbody>
       </table>
 
-      <div class="total">TOTAL : Ar&nbsp; {{ context.reservation_draft.total_amount|default:"________" }}</div>
+      <div class="total">TOTAL : Ar&nbsp; {% if context.event_draft %}{{ context.event_draft.total_amount|default:"________" }}{% else %}{{ context.reservation_draft.total_amount|default:"________" }}{% endif %}</div>
 
       <div class="amount-words">
         Arrêtée la présente facture à la somme de<br>
-        <strong>{{ context.reservation_draft.total_amount_in_words|default:"................................................ Ariary" }}</strong>
+        <strong>{% if context.event_draft %}{{ context.event_draft.total_amount_in_words|default:"................................................ Ariary" }}{% else %}{{ context.reservation_draft.total_amount_in_words|default:"................................................ Ariary" }}{% endif %}</strong>
       </div>
 
       <div class="observations">
