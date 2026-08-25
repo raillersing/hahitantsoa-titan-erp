@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from apps.inventory.models import InventoryDamageLossExcessReceivable
 
 
-EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY = "shared.damage_loss_excess_invoice.v1"
+EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY = "shared.breakage_repair_invoice.v1"
 UNKNOWN_EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY = "unknown_excess_receivable_invoice_template_key"
 
 
@@ -72,6 +72,7 @@ class ExcessReceivableContext:
 class ExcessReceivableInvoiceContext:
     template: ExcessReceivableInvoiceTemplateContext
     excess_receivable: ExcessReceivableContext
+    reservation_draft: object = None
 
 
 def build_excess_receivable_invoice_context(
@@ -92,6 +93,17 @@ def build_excess_receivable_invoice_context(
     )
     customer = reservation_draft.customer if reservation_draft is not None else None
 
+    from apps.documents.commercial import build_reservation_draft_commercial_document_context
+
+    reservation_context = (
+        build_reservation_draft_commercial_document_context(
+            reservation_draft=reservation_draft,
+            template_key=EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY,
+        ).reservation_draft
+        if reservation_draft is not None
+        else None
+    )
+
     return ExcessReceivableInvoiceContext(
         template=ExcessReceivableInvoiceTemplateContext.from_definition(template_definition),
         excess_receivable=ExcessReceivableContext(
@@ -104,4 +116,5 @@ def build_excess_receivable_invoice_context(
             customer_phone=customer.phone if customer is not None else "",
             customer_address=customer.address if customer is not None else "",
         ),
+        reservation_draft=reservation_context,
     )

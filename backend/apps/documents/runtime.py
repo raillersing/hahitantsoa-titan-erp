@@ -13,7 +13,6 @@ from apps.documents.excess_receivable import build_excess_receivable_invoice_con
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
 from apps.documents.rendering import resolve_document_template_path
-from apps.inventory.models import InventoryDamageLossExcessReceivable
 
 
 class DocumentRuntimeGenerationError(ValueError):
@@ -162,6 +161,7 @@ def generate_document_instance_html(
         )
 
     if document_instance.template_key in {
+        "titan.payment_receipt.v1",
         "shared.payment_receipt.v1",
         "hahitantsoa.payment_receipt.v1",
     }:
@@ -188,6 +188,8 @@ def generate_document_instance_html(
         template_path = (
             "documents/hahitantsoa_payment_receipt.html"
             if document_instance.template_key == "hahitantsoa.payment_receipt.v1"
+            else "documents/titan_payment_receipt.html"
+            if document_instance.template_key == "titan.payment_receipt.v1"
             else "documents/shared_payment_receipt.html"
         )
     elif document_instance.template_key == "shared.payment_refund_receipt.v1":
@@ -206,28 +208,10 @@ def generate_document_instance_html(
                 code="payment_refund_receipt_payment_not_found",
             )
         context = build_payment_receipt_context(
-            payment=payment, template_key="shared.payment_receipt.v1"
+            payment=payment, template_key="shared.payment_refund_receipt.v1"
         )
         template_path = "documents/shared_payment_refund_receipt.html"
-    elif document_instance.template_key == "shared.damage_loss_excess_invoice.v1":
-        # Fetch the excess receivable linked to this document instance
-        excess_receivable = (
-            InventoryDamageLossExcessReceivable.objects.select_related(
-                "settlement_execution__settlement__return_operation__reservation_draft__customer"
-            )
-            .filter(settlement_execution__settlement__document_instance=document_instance)
-            .first()
-        )
 
-        if excess_receivable is None:
-            raise DocumentRuntimeGenerationError(
-                "Excess receivable document is not linked to an excess receivable source.",
-                code="EXCESS_RECEIVABLE_DOCUMENT_NOT_LINKED",
-            )
-
-        # Build context for excess receivable invoice
-        context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
-        template_path = "documents/shared_damage_loss_excess_invoice.html"
     elif document_instance.template_key in {
         "hahitantsoa.proforma.v1",
     }:
@@ -279,7 +263,28 @@ def generate_document_instance_html(
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_preparation_sheet.html"
     elif document_instance.template_key == "shared.breakage_repair_invoice.v1":
-        context = _reservation_document_context(document_instance=document_instance)
+        if document_instance.reservation_draft is not None:
+            context = _reservation_document_context(document_instance=document_instance)
+        elif document_instance.hahitantsoa_event_draft is not None:
+            context = _build_hahitantsoa_contract_runtime_context(
+                document_instance=document_instance
+            )
+        else:
+            from apps.inventory.models import InventoryDamageLossExcessReceivable
+
+            excess_receivable = (
+                InventoryDamageLossExcessReceivable.objects.select_related(
+                    "settlement_execution__settlement__return_operation__reservation_draft__customer"
+                )
+                .filter(settlement_execution__settlement__document_instance=document_instance)
+                .first()
+            )
+            if excess_receivable is not None:
+                context = build_excess_receivable_invoice_context(
+                    excess_receivable=excess_receivable
+                )
+            else:
+                context = _reservation_document_context(document_instance=document_instance)
         template_path = "documents/shared_breakage_repair_invoice.html"
     else:
         context = _reservation_document_context(document_instance=document_instance)

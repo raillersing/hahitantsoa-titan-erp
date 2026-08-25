@@ -204,18 +204,21 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         notes="Draft HTML reconstructed from the nested Titan contract PDF; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
-        key="shared.payment_receipt.v1",
-        business_scope="shared",
+        key="titan.payment_receipt.v1",
+        business_scope="titan",
         document_type="payment_receipt",
-        label="Recu de paiement",
+        label="Reçu de paiement Titan",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/Document_B_Presentation_Metier_Evenementiel_v3.4.pdf",
-        template_path="backend/apps/documents/templates/documents/shared_payment_receipt.html",
-        preview_path="backend/apps/documents/templates_documents/shared/recu_paiement/v1/preview.pdf",
+        status="source_backed_template",
+        source_kind="source_image",
+        source_reference="docs/references/source/templates/recu hahitantsoa.jpeg",
+        template_path="backend/apps/documents/templates/documents/titan_payment_receipt.html",
+        preview_path="backend/apps/documents/templates_documents/titan/recu_paiement/v1/preview.pdf",
         validated_by_client=False,
-        notes=DRAFT_PLACEHOLDER_NOTE,
+        notes=(
+            "Source-backed 80 mm thermal receipt adapted for Titan from the approved "
+            "image structure. PDF is generated at runtime."
+        ),
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.payment_receipt.v1",
@@ -327,7 +330,7 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
     ),
     DocumentTemplateDefinition(
         key="shared.breakage_repair_invoice.v1",
-        label="Facture casse et remise en etat",
+        label="Détails des casses",
         business_scope="shared",
         document_type="breakage_repair_invoice",
         version="v1",
@@ -338,23 +341,6 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         preview_path="docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf",
         validated_by_client=True,
         notes="Validated source template for breakage and repair invoice documents.",
-    ),
-    DocumentTemplateDefinition(
-        key="shared.damage_loss_excess_invoice.v1",
-        label="Facture d'excédent de perte et de dommage",
-        business_scope="shared",
-        document_type="damage_loss_excess_invoice",
-        version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/Document_A_CDC_Technique_Evenementiel_v3.4.pdf",
-        template_path="backend/apps/documents/templates/documents/shared_damage_loss_excess_invoice.html",
-        preview_path="backend/apps/documents/templates_documents/shared/damage_loss_excess_invoice/v1/preview.pdf",
-        validated_by_client=False,
-        notes=(
-            "Draft placeholder only. Built from available casse/loss references; exact original "
-            "excess-loss source is not present."
-        ),
     ),
 )
 

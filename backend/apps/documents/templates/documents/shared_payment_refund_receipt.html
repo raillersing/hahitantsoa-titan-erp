@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Reçu de remboursement Hahitantsoa</title>
+  <title>Reçu de remboursement</title>
   <style>
     /* ========================================================================= */
     /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
@@ -26,10 +26,6 @@
       padding: 14mm 3mm 7mm;
     }
 
-    /* ========================================================================= */
-    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
-    /* ========================================================================= */
-    /* Logo Hahitantsoa */
     .brand {
       position: absolute;
       top: 0mm;
@@ -41,7 +37,6 @@
       filter: grayscale(1) contrast(2);
     }
 
-    /* Informations bancaires */
     .side-info {
       position: absolute;
       left: 3mm;
@@ -53,7 +48,6 @@
     }
     .side-info strong { color: #292929; font-size: 9pt; }
 
-    /* Logo Ergon Group */
     .ergon {
       position: absolute;
       bottom: -35mm;
@@ -67,7 +61,7 @@
     }
 
     /* ========================================================================= */
-    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK)                                   */
+    /* 3. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK)                                   */
     /* ========================================================================= */
     .watermark {
       position: absolute;
@@ -83,7 +77,7 @@
     }
 
     /* ========================================================================= */
-    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* 4. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
     /* ========================================================================= */
     .main {
       position: absolute;
@@ -93,79 +87,79 @@
       height: 297mm;
       padding: 7mm 3mm;
     }
-    .header, .identity, .document-grid, .banner, .bank-section, .note, .signatures, .footer {
+    .header, .identity, .items, .total-bar, .words, .observations, .signatures, .footer {
       position: relative;
       z-index: 1;
     }
 
     /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
+    /* 5. EN-TÊTE : TITRE & DATE                                                 */
     /* ========================================================================= */
-    .header { text-align: right; padding-right: 7mm; margin-bottom: 5mm; }
+    .header { text-align: right; padding-right: 7mm; }
     .header-box { display: inline-block; text-align: right; }
-    .ref { margin: 0; font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
-    .title { margin: 2mm 0; font-size: 24pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; margin-right: -2.5mm; text-align: left; }
+    .ref { font-size: 11pt; font-weight: 700; margin: 0; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { font-size: 22pt; line-height: 1; font-weight: 700; letter-spacing: 2mm; margin: 2mm 0; margin-right: -2mm; text-align: left; }
     .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
 
     /* ========================================================================= */
-    /* 7. GRILLES ET INFORMATIONS                                                */
+    /* 6. BLOC IDENTIFICATION BÉNÉFICIAIRE & RÈGLEMENT                            */
     /* ========================================================================= */
-    .document-grid { width: 100%; border-collapse: collapse; margin-top: 6mm; margin-bottom: 6mm; }
-    .document-grid td { width: 50%; vertical-align: top; padding: 3mm; border: 0.25mm solid #c7c7c7; background: #fafafa; }
-    .document-grid td + td { border-left: 0; }
-    .box-title { margin-bottom: 2mm; padding-bottom: 1.5mm; border-bottom: 0.25mm solid #aaaaaa; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; color: #333333; }
-    .info-row { display: flex; justify-content: space-between; gap: 3mm; min-height: 6mm; font-size: 9.5pt; }
-    .info-row .label { color: #666666; }
-    .info-row .value { font-weight: 700; text-align: right; }
+    .identity { margin-top: 5mm; font-size: 10pt; letter-spacing: 0.5mm; }
+    .identity-row { display: grid; grid-template-columns: 48mm 1fr; min-height: 8mm; align-items: baseline; }
+    .identity-row strong { font-size: 10pt; white-space: nowrap; }
+    .identity-value { letter-spacing: 0; font-size: 10pt; }
 
     /* ========================================================================= */
-    /* 8. BANDEAU MONTANT REMBOURSÉ                                              */
+    /* 7. TABLEAU DU REMBOURSEMENT                                               */
     /* ========================================================================= */
-    .banner {
-      margin: 8mm 0;
-      background: #e9e9e8;
-      padding: 3mm 4mm;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 7mm; font-size: 9.5pt; }
+    .items thead { letter-spacing: 0.55mm; border-bottom: 0.25mm solid #333333; }
+    .items th { height: 8mm; text-align: right; font-size: 9pt; font-weight: 700; white-space: nowrap; }
+    .items th:nth-child(1) { text-align: left; }
+    .items th:nth-child(2) { width: 35mm; padding-right: 7mm; text-align: right; }
+    .items td { height: 7mm; vertical-align: top; text-align: right; font-family: "Open Sans", "Century Gothic", sans-serif; padding-top: 2mm; }
+    .items td:nth-child(1) { text-align: left; font-family: "Century Gothic", sans-serif; }
+    .items td:nth-child(2) { padding-right: 7mm; }
+
+    /* ========================================================================= */
+    /* 8. BANDEAU TOTAL & MONTANT EN LETTRES                                     */
+    /* ========================================================================= */
+    .total-bar {
+      margin-top: 6mm;
+      padding-right: 7mm;
+      text-align: right;
       font-size: 11pt;
-      letter-spacing: 0.8mm;
+      font-weight: 700;
     }
-    .banner strong { font-size: 12pt; letter-spacing: 0; }
 
-    /* ========================================================================= */
-    /* 9. COORDONNÉES BANCAIRES & NOTE                                           */
-    /* ========================================================================= */
-    .bank-section {
+    .words {
       margin-top: 6mm;
-      border: 0.25mm solid #c7c7c7;
-      padding: 3mm 4mm;
-      background: #fafafa;
+      padding-right: 7mm;
       font-size: 9pt;
-      line-height: 1.45;
+      line-height: 1.35;
     }
-    .bank-section strong { font-size: 9.5pt; color: #222222; }
 
-    .note {
-      margin-top: 6mm;
-      font-size: 9pt;
-      font-style: italic;
-      color: #555555;
+    .observations {
+      margin-top: 8mm;
+      padding-right: 7mm;
+      font-size: 9.5pt;
       line-height: 1.4;
     }
+    .observations strong { display: block; margin-bottom: 1.5mm; font-size: 9.5pt; }
+    .obs-content { min-height: 16mm; border: 0.25mm solid #cbd5e1; padding: 2.5mm; background: #fafafa; border-radius: 1mm; }
 
     /* ========================================================================= */
-    /* 10. SIGNATURES & PIED DE PAGE                                             */
+    /* 9. SIGNATURES & PIED DE PAGE                                              */
     /* ========================================================================= */
     .signatures {
       position: absolute;
-      left: 16mm;
-      right: 16mm;
-      bottom: 27mm;
+      left: 3mm;
+      right: 7mm;
+      bottom: 22mm;
       display: flex;
       justify-content: space-between;
-      font-size: 8pt;
-      color: #444444;
+      font-size: 9.5pt;
+      font-weight: 700;
     }
     .footer {
       position: absolute;
@@ -177,18 +171,12 @@
       font-size: 10pt;
       font-weight: 700;
     }
-
-    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
-    @media print { .variable { background: transparent; outline: 0; } }
   </style>
 </head>
 <body>
   <div class="page">
-    <!-- ===================================================================== -->
-    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
-    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE -->
     <aside class="side">
-      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
       <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
 
       <div class="side-info">
@@ -198,68 +186,84 @@
         Lot P93M Ambohipo sud<br>
         By-pass<br>
         +261 34 61 791 41<br><br>
-        NIF : 6003298583<br>
-        STAT : 77290 11 2019 0 10215
-
-        <!-- Logo 2 : Ergon Group (Bas du volet) -->
-        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+        NIF : {{ bank.nif|default:"6003298583" }}<br>
+        STAT : {{ bank.stat|default:"77290 11 2019 010 215" }}
       </div>
+
+      <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
     </aside>
 
-    <!-- ===================================================================== -->
-    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
-    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE -->
     <main class="main">
-      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
       <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
 
       <header class="header">
         <div class="header-box">
           <div class="ref">
-            <span>RÉF. :</span>
-            <span>{{ context.payment.external_reference|default:context.payment.payment_id|default:"________________" }}</span>
+            <span>REÇU DE REMBOURSEMENT N° :</span>
+            <span>{{ context.payment.external_reference|default:context.payment.payment_id|default:"__________" }}</span>
           </div>
           <div class="title">REÇU DE REMBOURSEMENT</div>
           <div class="date">
             <span>DATE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+            <span>{% if context.payment.paid_at %}{{ context.payment.paid_at|date:"d/m/Y" }}{% else %}{% now "d/m/Y" %}{% endif %}</span>
           </div>
         </div>
       </header>
 
-      <table class="document-grid">
-        <tr>
-          <td>
-            <div class="box-title">Bénéficiaire</div>
-            <div class="info-row"><span class="label">Client :</span><span class="value">{{ context.payment.customer_display_name|default:"________________" }}</span></div>
-            <div class="info-row"><span class="label">Réservation :</span><span class="value">{{ context.payment.reservation_public_reference|default:"________________" }}</span></div>
-          </td>
-          <td>
-            <div class="box-title">Règlement</div>
-            <div class="info-row"><span class="label">Mode :</span><span class="value">{{ context.payment.payment_method|default:"________________" }}</span></div>
-            <div class="info-row"><span class="label">Date paiement :</span><span class="value">{{ context.payment.paid_at|date:"d/m/Y"|default:"____/__/__" }}</span></div>
-          </td>
-        </tr>
+      <section class="identity">
+        <div class="identity-row">
+          <strong>BÉNÉFICIAIRE :</strong>
+          <span class="identity-value">{{ context.payment.customer_display_name|default:"________________________" }}</span>
+        </div>
+        <div class="identity-row">
+          <strong>DOSSIER / RÉFÉRENCE :</strong>
+          <span class="identity-value">{{ context.payment.reservation_public_reference|default:"__________" }}</span>
+        </div>
+        <div class="identity-row">
+          <strong>MODE DE RÈGLEMENT :</strong>
+          <span class="identity-value">{{ context.payment.payment_method_label|default:context.payment.payment_method|default:"Virement bancaire" }}</span>
+        </div>
+      </section>
+
+      <table class="items" aria-label="Détail du remboursement">
+        <thead>
+          <tr>
+            <th>Désignation / Motif</th>
+            <th>Montant</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{ context.payment.notes|default:"Remboursement caution / solde de règlement" }}</td>
+            <td>Ar&nbsp; {{ context.payment.amount|default:"________" }}</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
       </table>
 
-      <div class="banner">
-        <span>Montant remboursé</span>
-        <strong>{{ context.payment.amount|default:"________________" }} MGA</strong>
+      <div class="total-bar">
+        TOTAL REMBOURSÉ : Ar&nbsp; {{ context.payment.amount|default:"________" }}
       </div>
 
-      <div class="bank-section">
-        <strong>Coordonnées bancaires du remboursement</strong><br>
-        Banque : {{ bank.name|default:"________________" }}{% if bank.branch %} — {{ bank.branch }}{% endif %}<br>
-        Titulaire : {{ bank.account_holder|default:"________________" }} · Compte : {{ bank.account_number|default:"________________" }} · RIB : {{ bank.rib|default:"________________" }}{% if bank.iban %} · IBAN : {{ bank.iban }}{% endif %}
+      <div class="words">
+        Arrêté le présent reçu de remboursement à la somme de :<br>
+        <strong>{{ context.payment.amount_in_words|default:"................................................ Ariary" }}</strong>
       </div>
 
-      <div class="note">
-        Le bénéficiaire reconnaît avoir reçu le montant indiqué ci-dessus au titre du remboursement de la réservation concernée.
+      <div class="observations">
+        <strong>OBSERVATIONS :</strong>
+        <div class="obs-content">
+          Le bénéficiaire reconnaît avoir reçu le montant indiqué ci-dessus au titre du remboursement du dossier concerné, pour solde de tout compte.
+        </div>
       </div>
 
       <div class="signatures">
-        <span>Pour la société — cachet et signature</span>
-        <span>Le bénéficiaire — reçu et signature</span>
+        <span>Pour la société</span>
+        <span>Le Bénéficiaire — Bon pour accord</span>
       </div>
 
       <div class="footer">

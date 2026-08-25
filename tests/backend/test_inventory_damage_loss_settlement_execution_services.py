@@ -35,7 +35,7 @@ def _confirmed_caution_payment(actor, reservation_draft, paid_at, amount: Decima
     receipt = DocumentInstance.objects.create(
         reservation_draft=reservation_draft,
         customer=reservation_draft.customer,
-        template_key="shared.payment_receipt.v1",
+        template_key="titan.payment_receipt.v1",
         template_version="v1",
         template_label="Recu de caution",
         business_scope="shared",
