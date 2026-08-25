@@ -105,7 +105,7 @@ def test_sensitive_user_can_create_confirm_and_authenticated_user_can_list_payme
     confirm_payload = confirm_response.json()
     assert confirm_payload["payment_status"] == PaymentStatus.CONFIRMED
     assert Decimal(confirm_payload["amount"]) == Decimal("250000.00")
-    assert confirm_payload["receipt_document"]["template_key"] == "shared.payment_receipt.v1"
+    assert confirm_payload["receipt_document"]["template_key"] == "titan.payment_receipt.v1"
     assert confirm_payload["receipt_document"]["status"] == DocumentInstanceStatus.GENERATED
 
 

@@ -48,7 +48,7 @@ def sensitive_client(sensitive_user):
 
 def _generated_receipt_document():
     return DocumentInstance.objects.create(
-        template_key="shared.payment_receipt.v1",
+        template_key="titan.payment_receipt.v1",
         template_version="v1",
         template_label="Recu de paiement",
         business_scope="shared",

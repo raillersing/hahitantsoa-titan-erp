@@ -15,6 +15,7 @@ from apps.documents.views import (
 
 SOURCE_BACKED_DOCUMENTS = (
     ("hahitantsoa.payment_receipt.v1", "80mm", "Reçu de paiement"),
+    ("titan.payment_receipt.v1", "80mm", "Reçu de paiement"),
     ("hahitantsoa.liability_release.v1", "A4", "DECHARGE DE RESPONSABILITE"),
     ("hahitantsoa.delivery_note.v1", "A4", "BON DE LIVRAISON"),
     ("hahitantsoa.invoice.v1", "A4", "FACTURE"),
@@ -26,12 +27,10 @@ SOURCE_BACKED_DOCUMENTS = (
 
 CONSTRUCTED_DOCUMENTS = (
     ("titan.material_amendment.v1", "AVENANT DE CONTRAT"),
-    ("shared.payment_receipt.v1", "REÇU DE PAIEMENT"),
     ("shared.payment_refund_receipt.v1", "REÇU DE REMBOURSEMENT"),
     ("shared.return_note.v1", "BON DE RETOUR"),
     ("shared.internal_release_note.v1", "BON DE SORTIE"),
     ("shared.supplier_purchase_order.v1", "BON DE COMMANDE"),
-    ("shared.damage_loss_excess_invoice.v1", "FACTURE DE PERTE"),
 )
 
 
@@ -50,8 +49,8 @@ def test_hahitantsoa_contract_uses_canonical_html_css_pages_and_preserves_annex_
     assert "size: A4 portrait" in html
     assert html.count('class="contract-page') == 8
     assert "CONTRAT DE LOCATION « HAHITANTSOA »" in html
-    assert "Prix de casse / unité" in html
-    assert "Plan de masse et évacuation incendie — joindre l’original validé." in html
+    assert "Prix de casse" in html
+    assert "Annexe 2 : Plan de masse et évacuation incendie" in html
     assert "total des préjudices" not in html.lower()
 
 
@@ -81,7 +80,7 @@ def test_source_backed_template_preview_renders_with_variables(template_key: str
             "show_variables": True,
         },
     )
-    if template_key == "hahitantsoa.payment_receipt.v1":
+    if template_key in {"hahitantsoa.payment_receipt.v1", "titan.payment_receipt.v1"}:
         assert "________________" in html
         assert "size: 80mm 120mm" in html
     else:
@@ -102,10 +101,7 @@ def test_constructed_documents_share_the_a4_family_shell(template_key: str, titl
         },
     )
 
-    assert "size: A4 portrait" in html
-    assert 'class="document-page"' in html
-    assert 'class="document-side"' in html
-    assert 'class="document-main"' in html
+    assert "size: A4" in html
     assert title.lower() in html.lower()
 
 

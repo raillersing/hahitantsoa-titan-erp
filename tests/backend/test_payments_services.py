@@ -129,7 +129,7 @@ def test_confirm_payment_generates_and_links_receipt_document(
     assert payment.receipt_document_id == receipt_document.id
     assert payment.confirmed_by_id == actor.id
     assert payment.paid_at is not None
-    assert receipt_document.template_key == "shared.payment_receipt.v1"
+    assert receipt_document.template_key == "titan.payment_receipt.v1"
     assert receipt_document.status == DocumentInstanceStatus.GENERATED
     assert receipt_document.content_checksum
     assert receipt_document.storage_path.endswith(".html")

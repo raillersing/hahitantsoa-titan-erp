@@ -3,100 +3,284 @@
 <head>
   <meta charset="utf-8">
   <title>Bon de commande fournisseur</title>
-  <style>{% include "documents/partials/constructed_document_family.css" %}</style>
+  <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+    /* ========================================================================= */
+    .side {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 51mm;
+      height: 297mm;
+      background: #e7e8e8;
+      padding: 14mm 3mm 7mm;
+    }
+
+    /* Logo Ergon (Haut du volet latéral) */
+    .brand {
+      position: absolute;
+      top: 0mm;
+      left: 55%;
+      transform: translateX(-50%);
+      width: 60mm;
+      height: 60mm;
+      object-fit: contain;
+      filter: grayscale(1) contrast(2);
+    }
+
+    /* Informations de contact et bancaires */
+    .side-info {
+      position: absolute;
+      left: 3mm;
+      right: 3mm;
+      bottom: 35mm;
+      font-size: 9pt;
+      line-height: 1.25;
+      color: #4c4c4c;
+    }
+    .side-info strong { font-size: 9pt; color: #292929; }
+
+    /* Logo Ergon (Bas du volet latéral) */
+    .ergon {
+      position: absolute;
+      bottom: -35mm;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40mm;
+      height: 40mm;
+      object-fit: contain;
+      filter: grayscale(2);
+      opacity: 0.55;
+    }
+
+    /* ========================================================================= */
+    /* 3. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK PAGE PRINCIPALE)                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      left: -70mm;
+      top: 70mm;
+      width: 360mm;
+      height: 360mm;
+      opacity: 0.04;
+      object-fit: cover;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 4. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* ========================================================================= */
+    .main {
+      position: absolute;
+      top: 0;
+      left: 51mm;
+      width: 159mm;
+      height: 297mm;
+      padding: 7mm 3mm;
+    }
+    .header, .identity, .items, .observations, .total-box, .signatures, .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========================================================================= */
+    /* 5. EN-TÊTE : TITRE & DATE                                                 */
+    /* ========================================================================= */
+    .header { text-align: right; padding-right: 7mm; }
+    .header-box { display: inline-block; text-align: right; }
+    .ref { font-size: 11pt; font-weight: 700; margin: 0; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { font-size: 24pt; line-height: 1; font-weight: 700; letter-spacing: 2.5mm; margin: 2mm 0; margin-right: -2.5mm; text-align: left; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
+
+    /* ========================================================================= */
+    /* 6. BLOC IDENTIFICATION FOURNISSEUR & OBJET                                */
+    /* ========================================================================= */
+    .identity { margin-top: 4mm; font-size: 10pt; letter-spacing: 0.5mm; }
+    .identity-row { display: grid; grid-template-columns: 45mm 1fr; min-height: 8mm; align-items: baseline; }
+    .identity-row strong { font-size: 10pt; white-space: nowrap; }
+    .identity-value { letter-spacing: 0; font-size: 10pt; }
+
+    /* ========================================================================= */
+    /* 7. TABLEAU DES ARTICLES / PRESTATIONS                                     */
+    /* ========================================================================= */
+    .items { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6mm; font-size: 9.5pt; }
+    .items thead { letter-spacing: 0.55mm; border-bottom: 0.25mm solid #333333; }
+    .items th { height: 8mm; text-align: right; font-size: 9pt; font-weight: 700; white-space: nowrap; }
+    .items th:nth-child(1) { text-align: left; }
+    .items th:nth-child(2) { width: 22mm; text-align: center; }
+    .items th:nth-child(3) { width: 28mm; text-align: right; }
+    .items th:nth-child(4) { width: 32mm; padding-right: 7mm; text-align: right; }
+    .items td { height: 7mm; vertical-align: top; text-align: right; font-family: "Open Sans", "Century Gothic", sans-serif; padding-top: 1.5mm; }
+    .items td:nth-child(1) { text-align: left; font-family: "Century Gothic", sans-serif; }
+    .items td:nth-child(2) { text-align: center; font-family: "Century Gothic", sans-serif; }
+    .items td:nth-child(4) { padding-right: 7mm; }
+
+    /* ========================================================================= */
+    /* 8. TOTAUX & OBSERVATIONS                                                  */
+    /* ========================================================================= */
+    .total-box {
+      margin-top: 6mm;
+      padding-right: 7mm;
+      text-align: right;
+      font-size: 11pt;
+      font-weight: 700;
+    }
+
+    .observations {
+      margin-top: 8mm;
+      padding-right: 7mm;
+      font-size: 9.5pt;
+      line-height: 1.4;
+    }
+    .observations strong { display: block; margin-bottom: 1.5mm; font-size: 9.5pt; }
+    .obs-content { min-height: 18mm; border: 0.25mm solid #cbd5e1; padding: 2.5mm; background: #fafafa; border-radius: 1mm; }
+
+    /* ========================================================================= */
+    /* 9. SIGNATURES & PIED DE PAGE                                              */
+    /* ========================================================================= */
+    .signatures {
+      position: absolute;
+      left: 3mm;
+      right: 7mm;
+      bottom: 22mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9.5pt;
+      font-weight: 700;
+    }
+    .footer {
+      position: absolute;
+      left: 3mm;
+      right: 7mm;
+      bottom: 7mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+  </style>
 </head>
 <body>
-  <div class="document-page">
-    <!-- ===================================================================== -->
-    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
-    <!-- ===================================================================== -->
-    <aside class="document-side">
-      <!-- Logo 1 : Ergon Group (Haut du volet) -->
-      <img class="brand" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+  <div class="page">
+    <!-- VOLET LATÉRAL GAUCHE -->
+    <aside class="side">
+      <img class="brand" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
 
-      <div class="side-details">
-        <strong>FOURNISSEUR</strong><br>Bon de commande<br><br>
+      <div class="side-info">
         <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
-        <strong>RIB</strong><br>{{ bank.rib|default:"____________________________" }}<br><br>
-        Ergon Group SARL<br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320102 33" }}<br><br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
         Lot P93M Ambohipo sud<br>
         By-pass<br>
-        +261 34 61 791 41
+        +261 34 61 791 41<br><br>
+        NIF : {{ bank.nif|default:"6003298583" }}<br>
+        STAT : {{ bank.stat|default:"77290 11 2019 010 215" }}
       </div>
 
-      <!-- Logo 2 : Ergon Mark (Bas du volet) -->
-      <img class="ergon-mark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+      <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
     </aside>
 
-    <!-- ===================================================================== -->
-    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
-    <!-- ===================================================================== -->
-    <main class="document-main" style="--document-watermark: url('/brand/ergon-logo.png');">
-      <header class="document-header">
-        <div>
-          <p class="eyebrow">Achats et approvisionnement</p>
-          <h1>Bon de commande</h1>
-        </div>
-        <div class="meta">
-          <strong>N° : {{ context.reservation_draft.public_reference|default:"________________" }}</strong><br>
-          Date : {% now "d/m/Y" %}
+    <!-- ZONE PRINCIPALE -->
+    <main class="main">
+      <img class="watermark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="">
+
+      <header class="header">
+        <div class="header-box">
+          <div class="ref">
+            <span>BON DE COMMANDE N° :</span>
+            <span>{{ context.reservation_draft.public_reference|default:"__________" }}</span>
+          </div>
+          <div class="title">BON DE COMMANDE</div>
+          <div class="date">
+            <span>DATE :</span>
+            <span>{% if document.date %}{{ document.date|date:"d/m/Y" }}{% else %}{% now "d/m/Y" %}{% endif %}</span>
+          </div>
         </div>
       </header>
 
-      <div class="document-fields">
-        <div class="document-field">
+      <section class="identity">
+        <div class="identity-row">
           <strong>FOURNISSEUR :</strong>
-          <span>{{ context.reservation_draft.supplier_name|default:"________________________" }}</span>
+          <span class="identity-value">{{ context.reservation_draft.supplier_name|default:context.reservation_draft.customer.display_name|default:"________________________" }}</span>
         </div>
-        <div class="document-field">
+        <div class="identity-row">
           <strong>OBJET :</strong>
-          <span>{{ context.reservation_draft.event_name|default:"________________________" }}</span>
+          <span class="identity-value">{{ context.reservation_draft.event_name|default:context.reservation_draft.notes|default:"Fourniture et approvisionnement" }}</span>
         </div>
-        <div class="document-field">
-          <strong>DATE ÉVÉNEMENT :</strong>
-          <span>{{ context.reservation_draft.start_at|date:"d / m / Y"|default:"____ / ____ / ______" }}</span>
+        <div class="identity-row">
+          <strong>DATE :</strong>
+          <span class="identity-value">{% if context.reservation_draft.start_at %}{{ context.reservation_draft.start_at|date:"d/m/Y" }}{% else %}{% now "d/m/Y" %}{% endif %}</span>
         </div>
-      </div>
+      </section>
 
-      <table class="document-table">
+      <table class="items" aria-label="Articles commandés">
         <thead>
           <tr>
-            <th class="center" style="width: 25mm;">Quantité</th>
             <th>Désignation</th>
-            <th>Observation</th>
+            <th>Qté</th>
+            <th>Prix unitaire</th>
+            <th>Montant</th>
           </tr>
         </thead>
         <tbody>
           {% for line in context.reservation_draft.lines %}
             <tr>
-              <td class="center">{{ line.quantity }}</td>
-              <td>{{ line.inventory_item_name }}</td>
-              <td>{{ line.notes|default:"" }}</td>
+              <td>{{ line.inventory_item_name|default:line.designation }}{% if line.notes %}<br><small>{{ line.notes }}</small>{% endif %}</td>
+              <td>{{ line.quantity }}</td>
+              <td>{{ line.unit_price|default:"—" }}</td>
+              <td>{{ line.total_price|default:"—" }}</td>
             </tr>
           {% empty %}
-            <tr class="empty-row">
-              <td></td>
-              <td></td>
-              <td></td>
+            <tr>
+              <td>________________________________________</td>
+              <td>___</td>
+              <td>____________</td>
+              <td>____________</td>
+            </tr>
+            <tr>
+              <td>________________________________________</td>
+              <td>___</td>
+              <td>____________</td>
+              <td>____________</td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
 
-      <div class="document-note">
-        <strong>Conditions / observations :</strong><br>
-        {{ context.reservation_draft.notes|default:"________________________________________________________________________________" }}
+      {% if context.reservation_draft.total_amount %}
+      <div class="total-box">
+        TOTAL : Ar {{ context.reservation_draft.total_amount }}
+      </div>
+      {% endif %}
+
+      <div class="observations">
+        <strong>OBSERVATIONS :</strong>
+        <div class="obs-content">
+          {{ context.reservation_draft.notes|default:"Livraison conforme aux spécifications convenues." }}
+        </div>
       </div>
 
-      <div class="document-signatures">
-        <span>Le fournisseur</span>
-        <span>Le responsable des achats</span>
+      <div class="signatures">
+        <span>Le Fournisseur</span>
+        <span>Le Responsable des Achats</span>
       </div>
 
-      <footer class="document-footer">
+      <div class="footer">
         <span>ergon@ergon.mg</span>
         <span>+261 34 61 791 41</span>
-      </footer>
+      </div>
     </main>
   </div>
 </body>

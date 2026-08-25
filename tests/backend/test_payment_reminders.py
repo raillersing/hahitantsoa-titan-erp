@@ -21,7 +21,7 @@ pytestmark = pytest.mark.django_db
 
 def _receipt() -> DocumentInstance:
     return DocumentInstance.objects.create(
-        template_key="shared.payment_receipt.v1",
+        template_key="titan.payment_receipt.v1",
         template_version="v1",
         template_label="Reçu de paiement",
         business_scope="shared",

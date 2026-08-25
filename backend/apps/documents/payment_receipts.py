@@ -14,7 +14,8 @@ if TYPE_CHECKING:
     from apps.payments.models import Payment
 
 
-PAYMENT_RECEIPT_TEMPLATE_KEY = "shared.payment_receipt.v1"
+PAYMENT_RECEIPT_TEMPLATE_KEY = "titan.payment_receipt.v1"
+TITAN_PAYMENT_RECEIPT_TEMPLATE_KEY = "titan.payment_receipt.v1"
 HAHITANTSOA_PAYMENT_RECEIPT_TEMPLATE_KEY = "hahitantsoa.payment_receipt.v1"
 UNKNOWN_PAYMENT_RECEIPT_TEMPLATE_KEY = "unknown_payment_receipt_template_key"
 PAYMENT_METHOD_LABELS = {
@@ -86,11 +87,11 @@ def _template_context(definition: DocumentTemplateDefinition) -> PaymentReceiptT
 
 
 def payment_receipt_template_key(*, payment: Payment) -> str:
-    """Select the Hahitantsoa receipt only for Hahitantsoa event payments."""
+    """Select the Hahitantsoa receipt for Hahitantsoa event payments, Titan receipt for Titan."""
 
     if payment.hahitantsoa_event_draft_id is not None:
         return HAHITANTSOA_PAYMENT_RECEIPT_TEMPLATE_KEY
-    return PAYMENT_RECEIPT_TEMPLATE_KEY
+    return TITAN_PAYMENT_RECEIPT_TEMPLATE_KEY
 
 
 def _format_amount(value: Decimal | None) -> str:

@@ -228,10 +228,9 @@
       <table class="items">
         <thead>
           <tr>
-            <th>Article / Matériel</th>
+            <th>Article</th>
             <th class="center" style="width: 25mm;">Quantité</th>
-            <th>Destination / Observation</th>
-            <th class="center" style="width: 18mm;">Sorti</th>
+            <th style="width: 55mm;">Observation</th>
           </tr>
         </thead>
         <tbody>
@@ -240,14 +239,17 @@
               <td>{{ line.inventory_item_name }}</td>
               <td class="center">{{ line.quantity }}</td>
               <td>{{ line.notes|default:"" }}</td>
-              <td class="center">&#x2611;</td>
             </tr>
           {% empty %}
             <tr>
               <td>________________________________________</td>
               <td class="center">___</td>
               <td>________________________</td>
-              <td class="center">&#x2610;</td>
+            </tr>
+            <tr>
+              <td>________________________________________</td>
+              <td class="center">___</td>
+              <td>________________________</td>
             </tr>
           {% endfor %}
         </tbody>

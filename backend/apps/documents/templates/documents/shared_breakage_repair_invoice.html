@@ -202,11 +202,11 @@
       <section class="identity">
         <div class="row">
           <span>NOM :</span>
-          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:context.reservation_draft.customer_display_name }}{% endif %}</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"________________________" }}{% endif %}</span>
         </div>
         <div class="row">
           <span>CONTACT :</span>
-          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:context.reservation_draft.customer_phone }}{% endif %}</span>
+          <span class="value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:"________________________" }}{% endif %}</span>
         </div>
         <div class="row two">
           <span>DOSSIER :</span>

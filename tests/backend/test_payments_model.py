@@ -47,7 +47,7 @@ def _hahitantsoa_event_draft() -> HahitantsoaEventDraft:
 
 def _generated_receipt_document() -> DocumentInstance:
     return DocumentInstance.objects.create(
-        template_key="shared.payment_receipt.v1",
+        template_key="titan.payment_receipt.v1",
         template_version="v1",
         template_label="Recu de paiement",
         business_scope="shared",

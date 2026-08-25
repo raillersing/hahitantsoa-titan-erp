@@ -364,28 +364,10 @@ def _build_mock_preview_context(template_definition, *, party_type: str = "indiv
         "blank_preview": True,
     }
 
-    excess_context = {
-        "template": {
-            "label": template_definition.label,
-            "key": template_definition.key,
-        },
-        "excess_receivable": {
-            "excess_receivable_id": "________________",
-            "customer_display_name": mock_customer["display_name"],
-            "reservation_public_reference": "________________",
-            "reservation_status": "________________",
-            "amount": "________________",
-            "deposit_amount": "________________",
-        },
-        "blank_preview": True,
-    }
-
     # Select context based on template key or business scope
     key_upper = template_definition.key.upper()
     if "PAYMENT" in key_upper or "RECET" in key_upper or "RECU" in key_upper:
         return payment_context
-    elif "DAMAGE_LOSS_EXCESS" in key_upper:
-        return excess_context
     elif template_definition.business_scope == "hahitantsoa":
         return event_context
     elif template_definition.business_scope == "titan":
