@@ -564,3 +564,36 @@ def test_hahitantsoa_amendment_smart_options_rendering() -> None:
     # Generic unselected checkboxes should not appear
     assert "Ciel étoilé" not in html_custom
     assert "Piste lumineuse" not in html_custom
+
+
+def test_titan_contract_and_amendment_dynamic_material_lines() -> None:
+    for key in ("titan.material_contract.v1", "titan.material_amendment.v1"):
+        definition = get_document_template_definition(key)
+        assert definition is not None
+        template_path = _resolve_preview_template_path(definition.key)
+        bank = _build_preview_bank(definition)
+
+        # 1. Real custom lines test
+        context = _build_mock_preview_context(definition)
+        context["reservation_draft"]["lines"] = [
+            {"quantity": 10, "inventory_item_name": "TENTE MODULAIRE 10X10", "notes": ""},
+            {"quantity": 80, "inventory_item_name": "CHAISES NAPOLEON", "notes": "or"},
+        ]
+
+        html_real = render_to_string(
+            template_path,
+            {"context": context, "bank": bank, "show_variables": False},
+        )
+        assert "10 x TENTE MODULAIRE 10X10" in html_real
+        assert "80 x CHAISES NAPOLEON — or" in html_real
+        assert "150 x CHAISES TRANSPARENTES" not in html_real
+        assert "150 x COUSSINS" not in html_real
+
+        # 2. Variable inspection mode
+        html_vars = render_to_string(
+            template_path,
+            {"context": context, "bank": bank, "show_variables": True},
+        )
+        assert "{{ lines.quantity }}" in html_vars
+        assert "{{ lines.designation }}" in html_vars
+        assert "150 x CHAISES TRANSPARENTES" not in html_vars
