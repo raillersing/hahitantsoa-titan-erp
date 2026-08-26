@@ -143,9 +143,9 @@ def _build_hahitantsoa_contract_runtime_context(
                     "quantity": line.quantity,
                     "notes": line.notes,
                     "breakage_price": (
-                        f"{line.inventory_item.breakage_price:,.2f}"
-                        .replace(",", " ")
-                        .replace(".", ",")
+                        f"{line.inventory_item.breakage_price:,.2f}".replace(",", " ").replace(
+                            ".", ","
+                        )
                         if getattr(line.inventory_item, "breakage_price", None)
                         else None
                     ),

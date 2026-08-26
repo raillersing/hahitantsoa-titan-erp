@@ -644,7 +644,4 @@ def test_hahitantsoa_contract_annexe3_breakage_table() -> None:
     assert '<td class="text-right">—</td>' in html
 
     # 3. Informative note at the bottom
-    assert (
-        "Note : le local ou les matériels qui ne figurent pas dans la liste"
-        in html
-    )
+    assert "Note : le local ou les matériels qui ne figurent pas dans la liste" in html
