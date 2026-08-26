@@ -228,7 +228,7 @@
       <table class="items">
         <thead>
           <tr>
-            <th>Article</th>
+            <th>Désignation</th>
             <th class="center" style="width: 25mm;">Quantité</th>
             <th style="width: 55mm;">Observation</th>
           </tr>
@@ -239,17 +239,6 @@
               <td>{{ line.inventory_item_name }}</td>
               <td class="center">{{ line.quantity }}</td>
               <td>{{ line.notes|default:"" }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td>________________________________________</td>
-              <td class="center">___</td>
-              <td>________________________</td>
-            </tr>
-            <tr>
-              <td>________________________________________</td>
-              <td class="center">___</td>
-              <td>________________________</td>
             </tr>
           {% endfor %}
         </tbody>
