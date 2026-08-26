@@ -7,6 +7,7 @@ gate="$SCRIPT_DIR/erp-ci-policy-gate"
 repo_root="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 workflow="$repo_root/.github/workflows/ci.yml"
 worktree_preflight="$SCRIPT_DIR/erp-worktree-preflight"
+root_finalizer="$SCRIPT_DIR/erp-pr-finalize-from-root"
 tmp_root="$(mktemp -d)"
 trap 'rm -rf "$tmp_root"' EXIT
 
@@ -166,5 +167,21 @@ grep -Fq 'needs.classify-changes.outputs.frontend' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.tooling' "$workflow"
 grep -Fq '[backend|frontend|agent-tools|agent-ci|agent-docs]' "$worktree_preflight"
 grep -Fq 'repairing ownership of generated worktree artifacts' "$SCRIPT_DIR/erp-worktree-clean-after-merge"
+grep -Fq -- '--task-worktree and --task-branch must be provided together' "$root_finalizer"
+grep -Fq 'Task cleanup was not requested; preserving the PR worktree and branch.' "$root_finalizer"
+if grep -Fq 'TASK_BRANCH="$pr_head_branch"' "$root_finalizer"; then
+  echo "FAIL: root finalizer still enables implicit task-branch cleanup"
+  exit 1
+fi
+for incomplete_cleanup_option in \
+  '--task-worktree /tmp/perf01-test-worktree' \
+  '--task-branch agent-ci/perf01-test-branch'; do
+  if output="$(bash "$root_finalizer" 1 $incomplete_cleanup_option 2>&1)"; then
+    echo "FAIL: root finalizer accepted incomplete cleanup options: $incomplete_cleanup_option"
+    exit 1
+  fi
+  printf '%s\n' "$output" | grep -Fq \
+    -- '--task-worktree and --task-branch must be provided together'
+done
 
 echo "ERP CI policy tests: PASS"
