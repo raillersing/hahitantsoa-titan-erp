@@ -20,7 +20,6 @@ DOCUMENT_TEMPLATE_PATHS: dict[str, str] = {
     "shared.preparation_sheet.v1": "documents/preparation_sheet.html",
     "shared.internal_release_note.v1": "documents/shared_internal_release_note.html",
     "shared.supplier_purchase_order.v1": "documents/shared_supplier_purchase_order.html",
-    "shared.breakage_repair_invoice.v1": "documents/shared_breakage_repair_invoice.html",
     "hahitantsoa.breakage_repair_invoice.v1": "documents/hahitantsoa_breakage_repair_invoice.html",
     "titan.breakage_repair_invoice.v1": "documents/titan_breakage_repair_invoice.html",
 }

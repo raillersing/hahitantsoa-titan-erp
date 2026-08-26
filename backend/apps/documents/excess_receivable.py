@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from apps.inventory.models import InventoryDamageLossExcessReceivable
 
 
-EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY = "shared.breakage_repair_invoice.v1"
+EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY = "titan.breakage_repair_invoice.v1"
 UNKNOWN_EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY = "unknown_excess_receivable_invoice_template_key"
 
 

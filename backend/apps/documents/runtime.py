@@ -262,13 +262,9 @@ def generate_document_instance_html(
             )
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_preparation_sheet.html"
-    elif document_instance.template_key == "shared.breakage_repair_invoice.v1":
+    elif document_instance.template_key == "titan.breakage_repair_invoice.v1":
         if document_instance.reservation_draft is not None:
             context = _reservation_document_context(document_instance=document_instance)
-        elif document_instance.hahitantsoa_event_draft is not None:
-            context = _build_hahitantsoa_contract_runtime_context(
-                document_instance=document_instance
-            )
         else:
             from apps.inventory.models import InventoryDamageLossExcessReceivable
 
@@ -285,7 +281,15 @@ def generate_document_instance_html(
                 )
             else:
                 context = _reservation_document_context(document_instance=document_instance)
-        template_path = "documents/shared_breakage_repair_invoice.html"
+        template_path = "documents/titan_breakage_repair_invoice.html"
+    elif document_instance.template_key == "hahitantsoa.breakage_repair_invoice.v1":
+        if document_instance.hahitantsoa_event_draft is not None:
+            context = _build_hahitantsoa_contract_runtime_context(
+                document_instance=document_instance
+            )
+        else:
+            context = _reservation_document_context(document_instance=document_instance)
+        template_path = "documents/hahitantsoa_breakage_repair_invoice.html"
     else:
         context = _reservation_document_context(document_instance=document_instance)
         template_path = context.template.template_path

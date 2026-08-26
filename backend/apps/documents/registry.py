@@ -356,20 +356,6 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         validated_by_client=True,
         notes="Template officiel Détails de casse pour les locations Titan selon la charte proforma.",  # noqa: E501
     ),
-    DocumentTemplateDefinition(
-        key="shared.breakage_repair_invoice.v1",
-        label="Détails des casses",
-        business_scope="shared",
-        document_type="breakage_repair_invoice",
-        version="v1",
-        status="validated_source_template",
-        source_kind="source_pdf",
-        source_reference="docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf",
-        template_path="backend/apps/documents/templates/documents/shared_breakage_repair_invoice.html",
-        preview_path="docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf",
-        validated_by_client=True,
-        notes="Validated source template for breakage and repair invoice documents.",
-    ),
 )
 
 

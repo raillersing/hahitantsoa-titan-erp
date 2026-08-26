@@ -37,6 +37,7 @@ services:
     volumes:
       - media_data:/app/backend/media
       - ./backend:/app/backend
+      - ./tests:/app/tests
     healthcheck:
       test:
         [

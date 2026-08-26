@@ -21,7 +21,6 @@ SOURCE_BACKED_DOCUMENTS = (
     ("titan.invoice.v1", "A4", "FACTURE"),
     ("hahitantsoa.breakage_repair_invoice.v1", "A4", "DETAILS DE CASSE"),
     ("titan.breakage_repair_invoice.v1", "A4", "DETAILS DE CASSE"),
-    ("shared.breakage_repair_invoice.v1", "A4", "DETAILS DE CASSE"),
     ("hahitantsoa.preparation_sheet.v1", "A4", "Checking de passation"),
 )
 
@@ -110,7 +109,7 @@ def test_constructed_documents_share_the_a4_family_shell(template_key: str, titl
 
 
 def test_breakage_preview_does_not_expose_placeholder_bank_tokens() -> None:
-    definition = get_document_template_definition("shared.breakage_repair_invoice.v1")
+    definition = get_document_template_definition("hahitantsoa.breakage_repair_invoice.v1")
     assert definition is not None
     html = render_to_string(
         _resolve_preview_template_path(definition.key),
