@@ -8,6 +8,13 @@ COMPOSE_FILE="$REPO_ROOT/compose.agent-ci.yaml"
 # isolated when several agents validate backend changes concurrently.
 WORKTREE_FINGERPRINT="$(printf '%s' "$REPO_ROOT" | sha256sum | cut -c1-12)"
 COMPOSE_PROJECT="hahitantsoa_titan_erp_agent_ci_${WORKTREE_FINGERPRINT}"
+# Share the dependency image across worktrees while keeping their containers,
+# networks, and database volumes isolated by COMPOSE_PROJECT.
+BACKEND_IMAGE_FINGERPRINT="$(
+  cd "$REPO_ROOT"
+  sha256sum backend/Dockerfile pyproject.toml | sha256sum | cut -c1-12
+)"
+export ERP_AGENT_BACKEND_IMAGE="hahitantsoa_titan_erp_agent_ci_backend:${BACKEND_IMAGE_FINGERPRINT}"
 
 cd "$REPO_ROOT"
 
@@ -29,6 +36,8 @@ Examples:
 
 Notes:
   This wrapper always uses compose.agent-ci.yaml.
+  Backend images are shared across worktrees when their Dockerfile and Python
+  dependency manifest are identical.
   It injects only versioned non-secret CI/dev values.
   It is intended for agent-safe local backend validation.
 USAGE
