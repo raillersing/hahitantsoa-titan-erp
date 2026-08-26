@@ -68,14 +68,19 @@
 
         <h2>Article 1 : Objet du contrat</h2>
         <p>Le présent contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
-        <ul>
-            {% for line in draft.lines %}
-                <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</li>
-            {% empty %}
-                <li>150 x CHAISES TRANSPARENTES</li>
-                <li>150 x COUSSINS BEIGES</li>
-            {% endfor %}
-        </ul>
+        {% if show_variables %}
+            <ul>
+                <li><span class="variable">{% templatetag openvariable %} lines.quantity {% templatetag closevariable %} x {% templatetag openvariable %} lines.designation {% templatetag closevariable %}</span></li>
+            </ul>
+        {% else %}
+            <ul>
+                {% for line in draft.lines %}
+                    <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</li>
+                {% empty %}
+                    <li>…………………………………………………………………………………………………</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         <p class="indent">Ci-après désignés les « Matériels Loués ».</p>
         <p>Le client déclare parfaitement connaitre les Matériels loués pour les avoir examinés en vue des présentes, sans qu’il soit nécessaire d’en faire plus ample désignation et déclare les accepter dans l’état où ils se trouvent tels qu’ils existent.</p>
 

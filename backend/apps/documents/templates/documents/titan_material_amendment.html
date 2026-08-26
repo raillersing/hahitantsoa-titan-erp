@@ -47,14 +47,19 @@
         <p>Il sera alors convenu un prélèvement des matériels du {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.pickupDate {% templatetag closevariable %}</span>{% else %}{{ draft.pickup_at|date:"d/m/Y"|default:draft.start_at|date:"d/m/Y"|default:"………………" }}{% endif %} ; pour une restitution au {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.returnDate {% templatetag closevariable %}</span>{% else %}{{ draft.return_at|date:"d/m/Y"|default:draft.end_at|date:"d/m/Y"|default:"………………" }}{% endif %}.</p>
 
         <p>Le contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
-        <ul>
-            {% for line in draft.lines %}
-                <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</li>
-            {% empty %}
-                <li>150 x CHAISES TRANSPARENTES</li>
-                <li>150 x COUSSINS BLANCS</li>
-            {% endfor %}
-        </ul>
+        {% if show_variables %}
+            <ul>
+                <li><span class="variable">{% templatetag openvariable %} lines.quantity {% templatetag closevariable %} x {% templatetag openvariable %} lines.designation {% templatetag closevariable %}</span></li>
+            </ul>
+        {% else %}
+            <ul>
+                {% for line in draft.lines %}
+                    <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</li>
+                {% empty %}
+                    <li>…………………………………………………………………………………………………</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
 
         <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% else %}<strong>{{ draft.total_amount|default:"………………………………" }}</strong>{% endif %} Ariary TTC.</p>
         <p class="indent">
