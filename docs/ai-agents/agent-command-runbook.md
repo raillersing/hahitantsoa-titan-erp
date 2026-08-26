@@ -751,8 +751,10 @@ stop until fixed.
 The `CI` workflow always runs `Classify changes` and `CI policy gate`.
 
 - Documentation and agent-governance-only changes run neither application stack.
-- Backend or frontend changes run the affected full stack.
-- Authentication/API trust-boundary changes and CI/test-infrastructure changes run both.
+- Backend or frontend application changes run the affected full stack.
+- Backend-only or frontend-only CI helpers run their affected stack plus tooling checks.
+- Agent orchestration and CI policy helpers run tooling checks without unrelated application stacks.
+- Authentication/API trust-boundary changes, shared test infrastructure, and CI workflow changes run both stacks.
 - Unknown paths, empty diffs, and invalid Git ranges fail closed by selecting both.
 - `CI policy gate` accepts `SKIPPED` only for a stack the classifier explicitly did not
   select.

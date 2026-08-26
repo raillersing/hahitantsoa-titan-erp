@@ -66,6 +66,8 @@ require_tooling() {
   tooling=true
   if [ "$level" = L0 ]; then level=L1; fi
 }
+require_backend_tooling() { require_backend; require_tooling; }
+require_frontend_tooling() { require_frontend; require_tooling; }
 require_both() { backend=true; frontend=true; level=L4; }
 require_ci_critical() { require_both; require_tooling; }
 
@@ -91,9 +93,15 @@ while IFS= read -r path; do
       require_backend; add_reason "backend-dependency" ;;
     frontend/package.json|frontend/package-lock.json|frontend/vite.config.*|frontend/tsconfig*.json)
       require_frontend; add_reason "frontend-toolchain" ;;
-    .github/workflows/*|scripts/ci/*|compose.agent-ci.yaml|scripts/dev/erp-backend-*|scripts/dev/erp-frontend-*|scripts/dev/erp-ci-*|scripts/dev/erp-agent-scope-guard|scripts/dev/erp-worktree-preflight|scripts/dev/erp-pr-*-finalize|scripts/dev/erp-pr-finalize-from-root)
-      require_ci_critical; add_reason "ci-or-test-infrastructure" ;;
-    scripts/dev/erp-logged-run|scripts/dev/test-erp-logged-run)
+    .github/workflows/*)
+      require_ci_critical; add_reason "ci-workflow" ;;
+    scripts/ci/backend-*|compose.agent-ci.yaml|scripts/dev/erp-backend-*)
+      require_backend_tooling; add_reason "backend-ci-tooling" ;;
+    scripts/ci/frontend-*|scripts/dev/erp-frontend-*)
+      require_frontend_tooling; add_reason "frontend-ci-tooling" ;;
+    scripts/ci/*)
+      require_ci_critical; add_reason "shared-test-infrastructure" ;;
+    scripts/dev/erp-ci-*|scripts/dev/test-erp-ci-policy|scripts/dev/erp-agent-scope-guard|scripts/dev/erp-worktree-preflight|scripts/dev/erp-pr-*-finalize|scripts/dev/erp-pr-finalize-from-root|scripts/dev/erp-logged-run|scripts/dev/test-erp-logged-run)
       require_tooling; add_reason "agent-tools" ;;
     docs/*|.agents/skills/*|AGENTS.md|CLAUDE.md|.github/copilot-instructions.md|*.md|scripts/dev/erp-graphify-update|.gitignore)
       add_reason "governance-or-docs" ;;
