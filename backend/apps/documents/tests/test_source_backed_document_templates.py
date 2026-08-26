@@ -151,7 +151,7 @@ def test_hahitantsoa_and_titan_breakage_invoices_expose_brand_and_bank() -> None
             "show_variables": False,
         },
     )
-    assert "titan-logo.png" in titan_html
+    assert "titan-rental-logo.png" in titan_html
     assert "00004 00009 03319320102 33" in titan_html
     assert "titan@ergon.mg" in titan_html
     assert "DETAILS DE CASSE" in titan_html
