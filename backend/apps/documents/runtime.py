@@ -130,6 +130,12 @@ def _build_hahitantsoa_contract_runtime_context(
             "customer_rcs": document_instance.customer_rcs,
             "customer_representative_name": document_instance.customer_representative_name,
             "customer_representative_role": document_instance.customer_representative_role,
+            "rental_type": linked_event_draft.rental_type,
+            "rental_type_display": linked_event_draft.get_rental_type_display(),
+            "guest_count": linked_event_draft.guest_count,
+            "required_deposit_amount": linked_event_draft.required_deposit_amount,
+            "space_rental_amount": linked_event_draft.space_rental_amount,
+            "proforma_reference": linked_event_draft.public_reference,
             "lines": tuple(
                 {
                     "inventory_item_name": line.inventory_item.name,
