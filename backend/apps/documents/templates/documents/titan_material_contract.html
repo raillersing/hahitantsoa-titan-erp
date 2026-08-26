@@ -138,11 +138,15 @@
         <p>Un état des Matériels sera établi à l’enlèvement à contrario d’un état dressé à la remise des dits matériels à la fin du contrat. Le client est tenu de rester le temps nécessaire pour procéder à l’état des Matériels. Chaque article devra être restitué à l’état lors de la prise de possession.</p>
 
         <h2>Article 7 : Dépôt de garantie</h2>
-        <p>Le client verse au Prestataire à titre de dépôt de garantie :</p>
-        <ul>
-            <li>100 000,00 Ariary (Cent mille Ariary) pour les locations de moins de 200 000,00 Ariary (Deux cent mille Ariary) ;</li>
-            <li>50% du montant total pour les locations de plus de 200 000,00 Ariary.</li>
-        </ul>
+        {% if draft.caution_amount and draft.caution_amount != "0,00" and draft.caution_amount != "0" %}
+            <p>Le client verse au Prestataire à titre de dépôt de garantie la somme de <strong>{{ draft.caution_amount }} Ariary</strong>.</p>
+        {% else %}
+            <p>Le client verse au Prestataire à titre de dépôt de garantie :</p>
+            <ul>
+                <li>100 000,00 Ariary (Cent mille Ariary) pour les locations de moins de 200 000,00 Ariary (Deux cent mille Ariary) ;</li>
+                <li>50% du montant total pour les locations de plus de 200 000,00 Ariary.</li>
+            </ul>
+        {% endif %}
         <p>La somme correspondant au dépôt de garantie est versée le jour du règlement de solde du contrat.</p>
         <p>Le montant du dépôt de garantie sera remboursé au Client le jour de la fin de location dans le cas d’un retour sans casse.</p>
 
