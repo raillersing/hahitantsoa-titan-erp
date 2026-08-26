@@ -362,3 +362,19 @@ def test_shared_return_and_release_notes_use_designation_column() -> None:
             },
         )
         assert "Désignation" in html
+
+
+def test_delivery_notes_use_qte_and_designation_columns() -> None:
+    for key in ("titan.delivery_note.v1", "hahitantsoa.delivery_note.v1"):
+        definition = get_document_template_definition(key)
+        assert definition is not None
+        html = render_to_string(
+            _resolve_preview_template_path(definition.key),
+            {
+                "context": _build_mock_preview_context(definition),
+                "bank": _build_preview_bank(definition),
+                "show_variables": False,
+            },
+        )
+        assert "<th>QTE</th>" in html
+        assert "<th>DESIGNATION</th>" in html
