@@ -67,7 +67,8 @@ def test_titan_material_contract_uses_canonical_html_css_pages() -> None:
 
     assert "size: A4 portrait" in html
     assert html.count('class="contract-page') == 3
-    assert "CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS « TITAN RENTAL »" in html
+    assert "CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS" in html
+    assert "« TITAN RENTAL »" in html
     assert "Article 1 : Objet du contrat" in html
     assert "Article 12 : Transport" in html
     assert "titan-rental-logo.png" in html
