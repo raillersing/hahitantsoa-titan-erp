@@ -39,6 +39,7 @@ def _reservation_document_context(*, document_instance: DocumentInstance):
     customer = replace(
         context.reservation_draft.customer,
         display_name=document_instance.customer_display_name,
+        party_type=document_instance.customer_party_type,
         email=document_instance.customer_email,
         phone=document_instance.customer_phone,
         address=document_instance.customer_address,

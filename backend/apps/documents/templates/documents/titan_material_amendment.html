@@ -1,273 +1,103 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <title>Avenant de contrat Titan</title>
-  <style>
-    /* ========================================================================= */
-    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
-    /* ========================================================================= */
-    @page { size: A4; margin: 0; }
-    * { box-sizing: border-box; }
-    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
-    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
-    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
-
-    /* ========================================================================= */
-    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
-    /* ========================================================================= */
-    .side {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 51mm;             /* Largeur du volet gauche */
-      height: 297mm;           /* Hauteur pleine page */
-      background: #e7e8e8;     /* Fond gris */
-      padding: 14mm 3mm 7mm;
-    }
-
-    /* ========================================================================= */
-    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
-    /* ========================================================================= */
-    /* Logo Titan (Haut du volet latéral) */
-    .brand {
-      position: absolute;
-      top: 0mm;               /* Distance depuis le haut de la page */
-      left: 55%;               /* Centrage horizontal */
-      transform: translateX(-50%);
-      width: 60mm;             /* Largeur du logo Titan */
-      height: 60mm;            /* Hauteur du logo Titan */
-      object-fit: contain;
-      filter: grayscale(1) contrast(2);
-    }
-
-    /* Informations bancaires (Bas du volet latéral) */
-    .side-info {
-      position: absolute;
-      left: 3mm;               /* Coordonnée X gauche */
-      right: 3mm;              /* Coordonnée X droite */
-      bottom: 35mm;            /* Coordonnée Y depuis le bas */
-      font-size: 9pt;
-      line-height: 1.25;
-      color: #4c4c4c;
-    }
-    .side-info strong { color: #292929; font-size: 9pt; }
-
-    /* Logo Ergon Group (Bas du volet latéral) */
-    .ergon {
-      position: absolute;
-      bottom: -35mm;             /* Distance depuis le bas de la page */
-      left: 50%;               /* Centrage horizontal */
-      transform: translateX(-50%);
-      width: 40mm;             /* Largeur du logo Ergon */
-      height: 40mm;            /* Hauteur du logo Ergon */
-      object-fit: contain;
-      filter: grayscale(2);
-      opacity: 0.55;           /* Opacité du logo Ergon (55%) */
-    }
-
-    /* ========================================================================= */
-    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK PAGE PRINCIPALE)                   */
-    /* ========================================================================= */
-    .watermark {
-      position: absolute;
-      z-index: 0;
-      /* --- Coordonnées de positionnement et dimensions du filigrane --- */
-      left: -70mm;              /* Position horizontale depuis la gauche */
-      top: 70mm;               /* Position verticale depuis le haut */
-      width: 360mm;            /* Largeur du filigrane */
-      height: 360mm;           /* Hauteur du filigrane */
-      opacity: 0.04;          /* Opacité du filigrane (0.01 à 1.0) */
-      object-fit: cover;
-      filter: grayscale(1);
-      pointer-events: none;
-    }
-
-    /* ========================================================================= */
-    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
-    /* ========================================================================= */
-    .main {
-      position: absolute;
-      top: 0;
-      left: 51mm;              /* Aligné sur le bord droit du volet (51mm) */
-      width: 159mm;            /* 210mm (A4) - 51mm (Volet) = 159mm */
-      height: 297mm;
-      padding: 7mm 3mm;
-    }
-    .header, .identity, .kicker, .items, .totals, .note, .signatures, .footer {
-      position: relative;
-      z-index: 1;
-    }
-
-    /* ========================================================================= */
-    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
-    /* ========================================================================= */
-    .header { text-align: right; padding-right: 7mm; }
-    .header-box { display: inline-block; text-align: right; }
-    .ref { margin: 0; font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
-    .title { margin: 2mm 0; font-size: 24pt; line-height: 1; letter-spacing: 2.5mm; font-weight: 700; margin-right: -2.5mm; text-align: left; }
-    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
-    .kicker { margin: 3mm 0 1mm; font-size: 9.5pt; font-style: italic; color: #555555; text-align: left; }
-
-    /* ========================================================================= */
-    /* 7. BLOC IDENTIFICATION CLIENT & PÉRIODE                                   */
-    /* ========================================================================= */
-    .identity { margin-top: 3mm; font-size: 9.5pt; letter-spacing: 0.7mm; }
-    .identity-row { display: grid; grid-template-columns: 36mm 1fr; min-height: 8mm; align-items: baseline; }
-    .identity-row strong { font-size: 9.5pt; }
-    .identity-value { font-size: 9.5pt; letter-spacing: 0; }
-
-    /* ========================================================================= */
-    /* 8. TABLEAU DES ARTICLES MODIFIÉS                                          */
-    /* ========================================================================= */
-    .items { width: 100%; margin-top: 5mm; border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
-    .items thead { letter-spacing: 0.55mm; }
-    .items th { height: 8.5mm; font-size: 9pt; font-weight: 700; text-align: left; }
-    .items th.center { text-align: center; width: 22mm; }
-    .items th.right { text-align: right; width: 28mm; }
-    .items td { height: 6.8mm; vertical-align: top; text-align: left; font-family: "Century Gothic", sans-serif; }
-    .items td.center { text-align: center; }
-    .items td.right { text-align: right; }
-    .items tbody { height: 95mm; }
-
-    /* ========================================================================= */
-    /* 9. BLOC TOTAL & NOTE                                                      */
-    /* ========================================================================= */
-    .totals {
-      margin-top: 4mm;
-      border-top: 0.25mm solid #c7c7c7;
-      padding-top: 2mm;
-      display: flex;
-      justify-content: space-between;
-      font-size: 11pt;
-      font-weight: 700;
-    }
-    .note {
-      margin-top: 4mm;
-      font-size: 8.5pt;
-      color: #555555;
-      line-height: 1.4;
-      border: 0.25mm solid #e0e0e0;
-      background: #fafafa;
-      padding: 2.5mm 3.5mm;
-    }
-
-    /* ========================================================================= */
-    /* 10. SIGNATURES & PIED DE PAGE                                             */
-    /* ========================================================================= */
-    .signatures { position: absolute; left: 16mm; right: 16mm; bottom: 27mm; display: flex; justify-content: space-between; font-size: 8pt; color: #555555; }
-    .footer { position: absolute; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
-
-    .variable { background: #fff0b3; outline: 0.2mm solid #d6a700; padding: 0 0.3mm; font-family: monospace; font-size: 0.9em; letter-spacing: 0; }
-    @media print { .variable { background: transparent; outline: 0; } }
-  </style>
+    <meta charset="utf-8">
+    <title>Avenant de contrat Titan Rental</title>
+    <style>{% include "documents/partials/hahitantsoa_contract.css" %}</style>
 </head>
-<body>
-  <div class="page">
-    <!-- ===================================================================== -->
-    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
-    <!-- ===================================================================== -->
-    <aside class="side">
-      <!-- Logo 1 : Titan Rental (Haut du volet) -->
-      <img class="brand" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
+<body class="contract-document">
+{% with draft=context.reservation_draft %}
+{% with customer=draft.customer|default:draft %}
+    <section class="contract-page contract-page--amendment">
+        <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
+        <header class="contract-header">
+            <div class="brand-block">
+                <img src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+                <p>ergon@ergon.mg<br>+261 34 61 791 41</p>
+            </div>
+            <div class="brand-block brand-block--right">
+                <img src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
+                <p>titan@ergon.mg<br>+261 34 61 791 42</p>
+            </div>
+        </header>
 
-      <div class="side-info">
-        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
-        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320102 33" }}<br><br>
-        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
-        Lot P93M Ambohipo sud<br>
-        By-pass<br>
-        +261 34 61 791 41<br><br>
-        NIF : 6003298583<br>
-        STAT : 77290 11 2019 0 10215
+        <h1>AVENANT DE CONTRAT « TITAN RENTAL »</h1>
 
-        <!-- Logo 2 : Ergon Group (Bas du volet) -->
-        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
-      </div>
-    </aside>
+        <p>Entre les soussignés :</p>
+        <p><strong>La société ERGON GROUP</strong>, ci-après dénommée « Le prestataire », et</p>
 
-    <!-- ===================================================================== -->
-    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
-    <!-- ===================================================================== -->
-    <main class="main">
-      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
-      <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
+        {% if show_variables %}
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
+                <p>La société <span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, ci-après dénommée « Le client », représentée par <span class="variable">{% templatetag openvariable %} client.representativeName {% templatetag closevariable %}</span>, <span class="variable">{% templatetag openvariable %} client.representativeRole {% templatetag closevariable %}</span></p>
+            {% else %}
+                <p><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, ci-après dénommée « Le client »</p>
+            {% endif %}
+        {% else %}
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
+                <p>La société {{ customer.display_name|default:"................................" }}, ci-après dénommée « Le client », représentée par {{ customer.representative_name|default:"................................" }}, {{ customer.representative_role|default:"................................" }}</p>
+            {% else %}
+                <p>{{ customer.display_name|default:"................................" }}, ci-après dénommée « Le client »</p>
+            {% endif %}
+        {% endif %}
 
-      <header class="header">
-        <div class="header-box">
-          <div class="ref">
-            <span>AVENANT N° :</span>
-            <span>{{ context.reservation_draft.public_reference|default:"________________" }}</span>
-          </div>
-          <div class="title">AVENANT DE CONTRAT</div>
-          <div class="date">
-            <span>DATE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</span>
-          </div>
-          <div class="kicker">Modification du contrat de location de matériels événementiels</div>
+        <p class="uppercase"><strong>Les modifications sont les suivantes :</strong></p>
+
+        <p>La présente location est consentie et acceptée du {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startDate {% templatetag closevariable %}</span>{% else %}{{ draft.start_at|date:"d/m/Y"|default:"………………" }}{% endif %}.</p>
+
+        <p>Il sera alors convenu un prélèvement des matériels du {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.pickupDate {% templatetag closevariable %}</span>{% else %}{{ draft.pickup_at|date:"d/m/Y"|default:draft.start_at|date:"d/m/Y"|default:"………………" }}{% endif %} ; pour une restitution au {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.returnDate {% templatetag closevariable %}</span>{% else %}{{ draft.return_at|date:"d/m/Y"|default:draft.end_at|date:"d/m/Y"|default:"………………" }}{% endif %}.</p>
+
+        <p>Le contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
+        <ul>
+            {% for line in draft.lines %}
+                <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</li>
+            {% empty %}
+                <li>150 x CHAISES TRANSPARENTES</li>
+                <li>150 x COUSSINS BLANCS</li>
+            {% endfor %}
+        </ul>
+
+        <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% else %}<strong>{{ draft.total_amount|default:"………………………………" }}</strong>{% endif %} Ariary TTC.</p>
+        <p class="indent">
+            N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ draft.proforma_reference|default:draft.public_reference|default:"………" }}{% endif %}
+        </p>
+
+        <p class="text-center signature-intro">Fait en trois exemplaires originaux</p>
+        <p class="text-right">A Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</p>
+        <div class="signatures">
+            <div class="signature-block">
+                <strong>Le Prestataire,</strong>
+                <div class="signature-space"></div>
+            </div>
+            <div class="signature-block">
+                <strong>Le Client,</strong>
+                <div class="signature-space"></div>
+            </div>
         </div>
-      </header>
 
-      <section class="identity">
-        <div class="identity-row">
-          <strong>CLIENT :</strong>
-          <span class="identity-value">{{ context.reservation_draft.customer.display_name|default:"________________________" }}</span>
-        </div>
-        <div class="identity-row">
-          <strong>PÉRIODE :</strong>
-          <span class="identity-value">{{ context.reservation_draft.start_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }} — {{ context.reservation_draft.end_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }}</span>
-        </div>
-        <div class="identity-row">
-          <strong>RETRAIT / RETOUR :</strong>
-          <span class="identity-value">{{ context.reservation_draft.pickup_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }} — {{ context.reservation_draft.return_at|date:"d/m/Y H:i"|default:"____/__/__ __:__" }}</span>
-        </div>
-      </section>
-
-      <table class="items">
-        <thead>
-          <tr>
-            <th class="center">Quantité</th>
-            <th>Désignation</th>
-            <th class="right">Prix</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for line in context.reservation_draft.lines %}
-            <tr>
-              <td class="center">{{ line.quantity }}</td>
-              <td>{{ line.inventory_item_name }}</td>
-              <td class="right">{{ line.total_price|default:"" }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td class="center">___</td>
-              <td>________________________________________</td>
-              <td class="right">________</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <div class="totals">
-        <span>Total location</span>
-        <span>{{ context.reservation_draft.total_amount|default:"________________" }} Ar</span>
-      </div>
-
-      <div class="note">
-        Proforma / réservation de référence : {{ context.reservation_draft.public_reference|default:"________________" }}<br>
-        Les autres clauses du contrat initial restent inchangées.
-      </div>
-
-      <div class="signatures">
-        <span>Le Prestataire</span>
-        <span>Le Client</span>
-      </div>
-
-      <div class="footer">
-        <span>titan@ergon.mg</span>
-        <span>+261 34 61 791 42</span>
-      </div>
-    </main>
-  </div>
+        <footer class="contract-footer">
+            <div class="contract-footer-col contract-footer-col--left">
+                <div class="contract-footer-meta">
+                    Ergon Group SARL<br>
+                    Lot P93M Ambohipo Sud Alasora Bypass
+                </div>
+                <div class="contract-footer-contact">
+                    ergon@ergon.mg<br>
+                    +261 34 61 791 41
+                </div>
+            </div>
+            <div class="contract-footer-col contract-footer-col--right">
+                <div class="contract-footer-meta">
+                    NIF: 6003298583<br>
+                    STAT: 77290 11 2019 010 215
+                </div>
+                <div class="contract-footer-contact">
+                    titan@ergon.mg<br>
+                    +261 34 61 791 42
+                </div>
+            </div>
+        </footer>
+    </section>
+{% endwith %}
+{% endwith %}
 </body>
 </html>
