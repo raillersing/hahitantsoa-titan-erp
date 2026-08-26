@@ -199,31 +199,31 @@
         </div>
       </header>
 
-      <section class="identity">
-        <div class="identity-row">
-          <strong>DESTINATION / CLIENT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{% if context.reservation_draft %}{{ context.reservation_draft.customer.display_name|default:context.reservation_draft.customer_display_name|default:"________________________" }}{% else %}{{ context.event_draft.customer_display_name|default:"________________________" }}{% endif %}{% endif %}</span>
-        </div>
-        <div class="identity-row">
-          <strong>DATE ÉVÉNEMENT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{% if context.reservation_draft %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}{% endif %}</span>
-        </div>
-        <div class="identity-row">
-          <strong>OBSERVATIONS :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.notes {% templatetag closevariable %}</span>{% else %}{% if context.reservation_draft %}{{ context.reservation_draft.notes|default:"Préparation interne du matériel" }}{% else %}{{ context.event_draft.notes|default:"Préparation interne du matériel" }}{% endif %}{% endif %}</span>
-        </div>
-      </section>
+      {% if context.reservation_draft %}
+        <section class="identity">
+          <div class="identity-row">
+            <strong>DESTINATION / CLIENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"________________________" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>DATE ÉVÉNEMENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>OBSERVATIONS :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.notes {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.notes|default:"Préparation interne du matériel" }}{% endif %}</span>
+          </div>
+        </section>
 
-      <table class="items">
-        <thead>
-          <tr>
-            <th style="width: 50%;">Article</th>
-            <th class="center" style="width: 18%;">Qté</th>
-            <th style="width: 32%;">Observations</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if context.reservation_draft %}
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width: 50%;">Article</th>
+              <th class="center" style="width: 18%;">Qté</th>
+              <th style="width: 32%;">Observations</th>
+            </tr>
+          </thead>
+          <tbody>
             {% for line in context.reservation_draft.lines %}
               <tr>
                 <td>{{ line.inventory_item_name }}</td>
@@ -247,7 +247,33 @@
                 <td>________________________</td>
               </tr>
             {% endfor %}
-          {% else %}
+          </tbody>
+        </table>
+      {% else %}
+        <section class="identity">
+          <div class="identity-row">
+            <strong>DESTINATION / CLIENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"________________________" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>DATE ÉVÉNEMENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>OBSERVATIONS :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.notes {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.notes|default:"Préparation interne du matériel" }}{% endif %}</span>
+          </div>
+        </section>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width: 50%;">Article</th>
+              <th class="center" style="width: 18%;">Qté</th>
+              <th style="width: 32%;">Observations</th>
+            </tr>
+          </thead>
+          <tbody>
             {% for line in context.event_draft.lines %}
               <tr>
                 <td>{{ line.inventory_item_name }}</td>
@@ -271,9 +297,9 @@
                 <td>________________________</td>
               </tr>
             {% endfor %}
-          {% endif %}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      {% endif %}
 
       <div class="signatures">
         <span>Le Préparateur</span>
