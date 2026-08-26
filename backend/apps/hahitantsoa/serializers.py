@@ -635,6 +635,10 @@ class HahitantsoaCommercialTermsSerializer(serializers.ModelSerializer):
             "excess_guest_amount",
             "bare_deposit_amount",
             "logistics_deposit_amount",
+            "night_option_1_amount",
+            "night_option_2_amount",
+            "night_security_amount",
+            "caution_amount",
             "updated_at",
         )
         read_only_fields = ("updated_at",)
@@ -904,16 +908,27 @@ class HahitantsoaVenueCreateSerializer(serializers.ModelSerializer):
 
 
 class HahitantsoaServiceSerializer(serializers.ModelSerializer):
+    category_display = serializers.CharField(source="get_category_display", read_only=True)
+    pricing_type_display = serializers.CharField(source="get_pricing_type_display", read_only=True)
+
     class Meta:
         model = HahitantsoaService
         fields = (
             "id",
             "name",
+            "category",
+            "category_display",
+            "pricing_type",
+            "pricing_type_display",
             "desc",
             "price",
+            "unit_label",
+            "image_url",
+            "features",
+            "is_external_fee",
             "active",
         )
-        read_only_fields = ("id",)
+        read_only_fields = ("id", "category_display", "pricing_type_display")
 
 
 class HahitantsoaServiceCreateSerializer(serializers.ModelSerializer):
@@ -922,8 +937,14 @@ class HahitantsoaServiceCreateSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "category",
+            "pricing_type",
             "desc",
             "price",
+            "unit_label",
+            "image_url",
+            "features",
+            "is_external_fee",
             "active",
         )
         read_only_fields = ("id",)

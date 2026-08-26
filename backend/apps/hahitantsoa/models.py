@@ -248,6 +248,10 @@ class HahitantsoaCommercialTerms(UUIDModel, TimestampedModel, AuditableModel):
     excess_guest_amount = models.DecimalField(max_digits=14, decimal_places=2, default=5000)
     bare_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=1000000)
     logistics_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=1500000)
+    night_option_1_amount = models.DecimalField(max_digits=14, decimal_places=2, default=300000)
+    night_option_2_amount = models.DecimalField(max_digits=14, decimal_places=2, default=500000)
+    night_security_amount = models.DecimalField(max_digits=14, decimal_places=2, default=120000)
+    caution_amount = models.DecimalField(max_digits=14, decimal_places=2, default=500000)
 
     class Meta:
         verbose_name = "Hahitantsoa commercial terms"
@@ -268,6 +272,22 @@ class HahitantsoaCommercialTerms(UUIDModel, TimestampedModel, AuditableModel):
             models.CheckConstraint(
                 condition=models.Q(logistics_deposit_amount__gte=0),
                 name="hahitantsoa_terms_logistics_deposit_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(night_option_1_amount__gte=0),
+                name="hahitantsoa_terms_night_option_1_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(night_option_2_amount__gte=0),
+                name="hahitantsoa_terms_night_option_2_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(night_security_amount__gte=0),
+                name="hahitantsoa_terms_night_security_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(caution_amount__gte=0),
+                name="hahitantsoa_terms_caution_amount_nonnegative",
             ),
         ]
 
@@ -401,14 +421,44 @@ class HahitantsoaVenue(UUIDModel, TimestampedModel, AuditableModel):
         return self.name
 
 
+class HahitantsoaServiceCategory(models.TextChoices):
+    DRAPERY = "drapery", "Draperie & Voilage"
+    STARRY_SKY = "starry_sky", "Ciel étoilé"
+    SCENOGRAPHY = "scenography", "Piste & Scénographie"
+    SPECIAL_EFFECTS = "special_effects", "Effets spéciaux"
+    TECHNICAL_FACILITY = "technical_facility", "Prestations techniques & Aménagement"
+    OTHER = "other", "Autre prestation"
+
+
+class HahitantsoaServicePricingType(models.TextChoices):
+    FLAT_FEE = "flat_fee", "Forfait"
+    PER_LINE = "per_line", "À la ligne"
+    PER_UNIT = "per_unit", "Unitaire"
+    ON_QUOTE = "on_quote", "Sur devis"
+
+
 class HahitantsoaService(UUIDModel, TimestampedModel, AuditableModel):
     name = models.CharField(max_length=255)
+    category = models.CharField(
+        max_length=32,
+        choices=HahitantsoaServiceCategory.choices,
+        default=HahitantsoaServiceCategory.OTHER,
+    )
+    pricing_type = models.CharField(
+        max_length=16,
+        choices=HahitantsoaServicePricingType.choices,
+        default=HahitantsoaServicePricingType.FLAT_FEE,
+    )
     desc = models.TextField(blank=True, default="")
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit_label = models.CharField(max_length=64, blank=True, default="")
+    image_url = models.CharField(max_length=512, blank=True, default="")
+    features = models.JSONField(default=list, blank=True)
+    is_external_fee = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["name", "id"]
+        ordering = ["category", "name", "id"]
         verbose_name = "Hahitantsoa service"
         verbose_name_plural = "Hahitantsoa services"
 
