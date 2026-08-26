@@ -286,7 +286,6 @@
           </tr>
         </thead>
         <tbody>
-          <tr class="category-row"><td colspan="5">CASSE</td></tr>
           {% for line in context.event_draft.lines %}
             <tr>
               <td>{{ line.quantity }}</td>
@@ -304,14 +303,6 @@
               <td>0,00</td>
             </tr>
           {% endfor %}
-          <tr class="category-row"><td colspan="5">RAJOUT</td></tr>
-          <tr>
-            <td>___</td>
-            <td>________________________________</td>
-            <td>Pcs</td>
-            <td>0,00</td>
-            <td>0,00</td>
-          </tr>
         </tbody>
       </table>
 
