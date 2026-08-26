@@ -187,11 +187,11 @@
       position: absolute;
       left: 16mm;
       right: 16mm;
-      bottom: 27mm;            /* Position Y des signatures */
+      bottom: 25mm;            /* Position Y des signatures */
       display: flex;
       justify-content: space-between;
-      font-size: 7pt;
-      color: #555555;
+      font-size: 8.5pt;
+      color: #333333;
     }
     .footer {
       position: absolute;
@@ -245,7 +245,7 @@
         <div class="header-box">
           <div class="ref">
             <span>FACTURE N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"____/__" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">FACTURE</div>
           <div class="date">
@@ -291,14 +291,6 @@
               <td>{{ line.unit_price|default:"0,00" }}</td>
               <td>{{ line.total_price|default:"0,00" }}</td>
               <td>{{ line.breakage_price|default:"0,00" }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td>___</td>
-              <td>________________________________</td>
-              <td>0,00</td>
-              <td>0,00</td>
-              <td>0,00</td>
             </tr>
           {% endfor %}
         </tbody>

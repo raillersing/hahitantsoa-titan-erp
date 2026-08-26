@@ -180,20 +180,20 @@
         <div class="header-box">
           <div class="number">
             <span>BON DE LIVRAISON N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"____" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"...." }}{% endif %}</span>
           </div>
           <h1>BON DE LIVRAISON</h1>
           <div class="date">
             <span>DATE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
           </div>
         </div>
       </header>
 
       <section class="identity">
-        <div class="identity-row"><strong>NOM :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"____________________________" }}{% endif %}</span></div>
-        <div class="identity-row"><strong>FACTURE :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.proforma_reference|default:"________" }}{% endif %}</span></div>
-        <div class="identity-row"><strong>EVENEMENT DU :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span></div>
+        <div class="identity-row"><strong>NOM :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"............................" }}{% endif %}</span></div>
+        <div class="identity-row"><strong>FACTURE :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.proforma_reference|default:"........" }}{% endif %}</span></div>
+        <div class="identity-row"><strong>EVENEMENT DU :</strong><span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span></div>
       </section>
 
       <table class="items">
@@ -208,11 +208,6 @@
             <tr>
               <td>{{ line.quantity|stringformat:"03d" }}</td>
               <td class="description">{{ line.inventory_item_name }}{% if line.notes %}<br>{{ line.notes }}{% endif %}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td>___</td>
-              <td class="description">________________________________________</td>
             </tr>
           {% endfor %}
         </tbody>

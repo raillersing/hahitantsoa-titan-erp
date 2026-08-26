@@ -140,26 +140,26 @@
     }
 
     .observations {
-      margin-top: 8mm;
+      margin-top: 6mm;
       padding-right: 7mm;
-      font-size: 9.5pt;
+      font-size: 9pt;
       line-height: 1.4;
     }
-    .observations strong { display: block; margin-bottom: 1.5mm; font-size: 9.5pt; }
-    .obs-content { min-height: 16mm; border: 0.25mm solid #cbd5e1; padding: 2.5mm; background: #fafafa; border-radius: 1mm; }
+    .observations strong { display: block; margin-bottom: 1.5mm; font-size: 9pt; }
+    .obs-content { min-height: 14mm; border: 0.25mm solid #cbd5e1; padding: 2mm 3mm; background: #fafafa; border-radius: 1mm; font-size: 8.5pt; }
 
     /* ========================================================================= */
     /* 9. SIGNATURES & PIED DE PAGE                                              */
     /* ========================================================================= */
     .signatures {
       position: absolute;
-      left: 3mm;
-      right: 7mm;
-      bottom: 22mm;
+      left: 16mm;
+      right: 16mm;
+      bottom: 25mm;
       display: flex;
       justify-content: space-between;
-      font-size: 9.5pt;
-      font-weight: 700;
+      font-size: 8.5pt;
+      color: #333333;
     }
     .footer {
       position: absolute;
@@ -201,7 +201,7 @@
         <div class="header-box">
           <div class="ref">
             <span>REÇU DE REMBOURSEMENT N° :</span>
-            <span>{{ context.payment.external_reference|default:context.payment.payment_id|default:"__________" }}</span>
+            <span>{{ context.payment.external_reference|default:context.payment.payment_id|default:".........." }}</span>
           </div>
           <div class="title">REÇU DE REMBOURSEMENT</div>
           <div class="date">
@@ -214,11 +214,11 @@
       <section class="identity">
         <div class="identity-row">
           <strong>BÉNÉFICIAIRE :</strong>
-          <span class="identity-value">{{ context.payment.customer_display_name|default:"________________________" }}</span>
+          <span class="identity-value">{{ context.payment.customer_display_name|default:"........................" }}</span>
         </div>
         <div class="identity-row">
           <strong>DOSSIER / RÉFÉRENCE :</strong>
-          <span class="identity-value">{{ context.payment.reservation_public_reference|default:"__________" }}</span>
+          <span class="identity-value">{{ context.payment.reservation_public_reference|default:".........." }}</span>
         </div>
         <div class="identity-row">
           <strong>MODE DE RÈGLEMENT :</strong>
@@ -236,7 +236,7 @@
         <tbody>
           <tr>
             <td>{{ context.payment.notes|default:"Remboursement caution / solde de règlement" }}</td>
-            <td>Ar&nbsp; {{ context.payment.amount|default:"________" }}</td>
+            <td>Ar&nbsp; {{ context.payment.amount|default:"........" }}</td>
           </tr>
           <tr>
             <td></td>
@@ -246,7 +246,7 @@
       </table>
 
       <div class="total-bar">
-        TOTAL REMBOURSÉ : Ar&nbsp; {{ context.payment.amount|default:"________" }}
+        TOTAL REMBOURSÉ : Ar&nbsp; {{ context.payment.amount|default:"........" }}
       </div>
 
       <div class="words">

@@ -151,7 +151,7 @@
     /* ========================================================================= */
     /* 11. SIGNATURES & PIED DE PAGE                                             */
     /* ========================================================================= */
-    .signatures { position: absolute; z-index: 2; left: 16mm; right: 16mm; bottom: 27mm; display: flex; justify-content: space-between; font-size: 7pt; color: #555; }
+    .signatures { position: absolute; z-index: 2; left: 16mm; right: 16mm; bottom: 25mm; display: flex; justify-content: space-between; font-size: 8.5pt; color: #333333; }
     .footer { position: absolute; z-index: 2; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
 
     .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
@@ -168,8 +168,10 @@
       <img class="brand" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
 
       <div class="side-info">
-        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
-        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320102 33" }}<br><br>
+        <strong>BANK</strong><br>
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankName {% templatetag closevariable %}</span>{% else %}{{ bank.name|default:"BMOI MADAGASCAR" }}{% endif %}<br><br>
+        <strong>RIB</strong><br>
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"00004 00009 03319320102 33" }}{% endif %}<br><br>
         {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
         Lot P93M Ambohipo sud<br>
         By-pass<br>
@@ -193,7 +195,7 @@
         <div class="header-box">
           <div class="ref">
             <span>PROFORMA N° :</span>
-            <span>{{ context.reservation_draft.public_reference|default:"" }}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">PROFORMA</div>
           <div class="date">
@@ -204,9 +206,9 @@
       </header>
 
       <section class="identity">
-        <div class="identity-row"><strong>NOM :</strong><span class="identity-value">{{ context.reservation_draft.customer.display_name|default:"" }}</span></div>
-        <div class="identity-row"><strong>CONTACT :</strong><span class="identity-value">{{ context.reservation_draft.customer.phone|default:"" }}</span></div>
-        <div class="identity-row"><strong>LOCATION DU :</strong><span class="identity-value">{{ context.reservation_draft.start_at|date:"d/m/Y" }}</span></div>
+        <div class="identity-row"><strong>NOM :</strong><span class="identity-value">{{ context.reservation_draft.customer.display_name|default:"........................" }}</span></div>
+        <div class="identity-row"><strong>CONTACT :</strong><span class="identity-value">{{ context.reservation_draft.customer.phone|default:"........................" }}</span></div>
+        <div class="identity-row"><strong>LOCATION DU :</strong><span class="identity-value">{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"../../...." }}</span></div>
       </section>
 
       <table class="items">

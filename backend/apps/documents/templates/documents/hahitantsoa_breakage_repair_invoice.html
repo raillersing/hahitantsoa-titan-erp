@@ -188,8 +188,8 @@
       bottom: 25mm;
       display: flex;
       justify-content: space-between;
-      font-size: 8pt;
-      color: #555555;
+      font-size: 8.5pt;
+      color: #333333;
     }
     .footer {
       position: absolute;
@@ -221,8 +221,8 @@
         Lot P93M Ambohipo sud<br>
         By-pass<br>
         +261 34 61 791 41<br><br>
-        NIF : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.nif {% templatetag closevariable %}</span>{% else %}{{ bank.nif|default:"6003298583" }}{% endif %}<br>
-        STAT : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.stat {% templatetag closevariable %}</span>{% else %}{{ bank.stat|default:"77290 11 2019 0 10215" }}{% endif %}
+        NIF : 6003298583<br>
+        STAT : 77290 11 2019 0 10215
 
         <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
       </div>
@@ -236,7 +236,7 @@
         <div class="header-box">
           <div class="ref">
             <span>RÉFÉRENCE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"____/__" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">DETAILS DE CASSE</div>
           <div class="date">
@@ -261,7 +261,7 @@
         </div>
         <div class="identity-row">
           <strong>EVENEMENT DU :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
         </div>
       </section>
 
@@ -284,14 +284,6 @@
               <td>{{ line.unit_price|default:"0,00" }}</td>
               <td>{{ line.total_price|default:"0,00" }}</td>
             </tr>
-          {% empty %}
-            <tr>
-              <td>___</td>
-              <td>________________________________</td>
-              <td>Pcs</td>
-              <td>0,00</td>
-              <td>0,00</td>
-            </tr>
           {% endfor %}
         </tbody>
       </table>
@@ -311,7 +303,7 @@
         </div>
         <div class="totals-row">
           <span>Échéance :</span>
-          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.dueDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.due_date|date:"d/m/Y"|default:"__/__/____" }}{% endif %}</span>
+          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.dueDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.due_date|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
         </div>
       </div>
 
