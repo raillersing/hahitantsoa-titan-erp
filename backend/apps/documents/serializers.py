@@ -14,7 +14,10 @@ from apps.documents.models import (
     UploadedAttachmentCategory,
 )
 from apps.documents.registry import DocumentTemplateDefinition
-from apps.documents.services import get_supported_reservation_draft_document_template_keys
+from apps.documents.services import (
+    get_document_instance_contract_warnings,
+    get_supported_reservation_draft_document_template_keys,
+)
 from apps.finance.models import FinanceBankProfile
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
@@ -82,6 +85,11 @@ class TitanProformaDraftPreviewSerializer(serializers.Serializer):
 
 
 class DocumentInstanceSerializer(serializers.ModelSerializer):
+    contract_warnings = serializers.SerializerMethodField()
+
+    def get_contract_warnings(self, instance: DocumentInstance) -> list[dict[str, str]]:
+        return get_document_instance_contract_warnings(document_instance=instance)
+
     class Meta:
         model = DocumentInstance
         fields = (
@@ -107,6 +115,7 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "customer_party_type",
             "customer_email",
             "customer_phone",
+            "customer_contact_points_snapshot",
             "customer_address",
             "customer_civilite",
             "customer_birth_date",
@@ -149,6 +158,7 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "notes",
             "amendment_sequence",
             "amendment_source_document_id",
+            "contract_warnings",
             "created_at",
             "updated_at",
         )

@@ -3,9 +3,11 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from apps.customers.models import Customer
+from apps.customers.models import Customer, CustomerContactPoint
 from apps.documents.commercial import CommercialDocumentContextError
 from apps.documents.models import DocumentInstance
+from apps.documents.runtime import generate_document_instance_html
+from apps.documents.serializers import DocumentInstanceSerializer
 from apps.documents.services import (
     create_document_instance_from_reservation_draft,
     get_reservation_draft_commercial_document_context_service,
@@ -36,11 +38,11 @@ def _item(*, name: str = "Pack video", kind: str = "material_pack") -> Inventory
     )
 
 
-def _draft() -> ReservationDraft:
+def _draft(*, customer: Customer | None = None) -> ReservationDraft:
     start_at = timezone.now().replace(microsecond=0) + timedelta(days=1)
     end_at = start_at + timedelta(hours=3)
     return ReservationDraft.objects.create(
-        customer=_customer(),
+        customer=customer or _customer(),
         start_at=start_at,
         end_at=end_at,
         notes="Service draft",
@@ -174,3 +176,67 @@ def test_document_preparation_snapshots_the_default_bank(django_user_model) -> N
     document.refresh_from_db()
     assert document.bank_rib == "RIB-ORIGINAL"
     assert DocumentInstance.objects.filter(pk=document.pk).exists()
+
+
+def test_titan_contract_snapshots_and_renders_all_customer_contacts() -> None:
+    customer = _customer()
+    CustomerContactPoint.objects.create(
+        customer=customer,
+        kind="email",
+        value="commercial@example.test",
+        label="Commercial",
+        is_primary=True,
+    )
+    CustomerContactPoint.objects.create(
+        customer=customer,
+        kind="email",
+        value="accounting@example.test",
+        label="Comptabilité",
+    )
+    CustomerContactPoint.objects.create(
+        customer=customer,
+        kind="phone",
+        value="+261340000011",
+        label="WhatsApp",
+        is_primary=True,
+    )
+    document = create_document_instance_from_reservation_draft(
+        reservation_draft=_draft(customer=customer),
+        template_key="titan.material_contract.v1",
+    )
+
+    assert document.customer_contact_points_snapshot == [
+        {"kind": "email", "value": "commercial@example.test", "label": "Commercial"},
+        {"kind": "phone", "value": "+261340000011", "label": "WhatsApp"},
+        {"kind": "email", "value": "accounting@example.test", "label": "Comptabilité"},
+        {"kind": "email", "value": "service@example.test", "label": ""},
+        {"kind": "phone", "value": "+261340000010", "label": ""},
+    ]
+
+    CustomerContactPoint.objects.filter(
+        customer=customer,
+        value="commercial@example.test",
+    ).update(value="changed@example.test")
+    result = generate_document_instance_html(document_instance=document)
+
+    assert "commercial@example.test" in result.html_content
+    assert "accounting@example.test" in result.html_content
+    assert "+261340000011" in result.html_content
+    assert "service@example.test" in result.html_content
+    assert "+261340000010" in result.html_content
+    assert "changed@example.test" not in result.html_content
+
+
+def test_titan_contract_missing_identity_fields_are_non_blocking_warnings() -> None:
+    document = create_document_instance_from_reservation_draft(
+        reservation_draft=_draft(),
+        template_key="titan.material_contract.v1",
+    )
+
+    warnings = DocumentInstanceSerializer(document).data["contract_warnings"]
+
+    assert {warning["field"] for warning in warnings} >= {
+        "customer_birth_date",
+        "customer_id_number",
+        "customer_id_issue_date",
+    }

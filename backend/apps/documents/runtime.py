@@ -8,7 +8,10 @@ from django.core.files.storage import default_storage
 from django.db import transaction
 from django.template.loader import render_to_string
 
-from apps.documents.commercial import build_reservation_draft_commercial_document_context
+from apps.documents.commercial import (
+    CommercialDocumentCustomerContactPointContext,
+    build_reservation_draft_commercial_document_context,
+)
 from apps.documents.excess_receivable import build_excess_receivable_invoice_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
@@ -36,12 +39,31 @@ def _reservation_document_context(*, document_instance: DocumentInstance):
         reservation_draft=document_instance.reservation_draft,
         template_key=document_instance.template_key,
     )
+    contact_points = tuple(
+        CommercialDocumentCustomerContactPointContext(
+            kind=contact_point.get("kind", ""),
+            value=contact_point.get("value", ""),
+            label=contact_point.get("label", ""),
+        )
+        for contact_point in document_instance.customer_contact_points_snapshot
+        if contact_point.get("kind") in {"email", "phone"} and contact_point.get("value")
+    )
+    if not contact_points:
+        contact_points = tuple(
+            CommercialDocumentCustomerContactPointContext(kind=kind, value=value, label="")
+            for kind, value in (
+                ("phone", document_instance.customer_phone),
+                ("email", document_instance.customer_email),
+            )
+            if value
+        )
     customer = replace(
         context.reservation_draft.customer,
         display_name=document_instance.customer_display_name,
         party_type=document_instance.customer_party_type,
         email=document_instance.customer_email,
         phone=document_instance.customer_phone,
+        contact_points=contact_points,
         address=document_instance.customer_address,
         civilite=document_instance.customer_civilite,
         birth_date=document_instance.customer_birth_date,

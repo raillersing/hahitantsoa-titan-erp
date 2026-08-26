@@ -67,12 +67,20 @@ class CommercialDocumentTemplateContext:
 
 
 @dataclass(frozen=True)
+class CommercialDocumentCustomerContactPointContext:
+    kind: str
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
 class CommercialDocumentCustomerContext:
     customer_id: object
     display_name: str
     party_type: str
     email: str
     phone: str
+    contact_points: tuple[CommercialDocumentCustomerContactPointContext, ...]
     address: str
     civilite: str
     birth_date: object | None
@@ -160,6 +168,34 @@ def _build_customer_context(
     reservation_draft: ReservationDraft,
 ) -> CommercialDocumentCustomerContext:
     customer = reservation_draft.customer
+    contact_points = [
+        CommercialDocumentCustomerContactPointContext(
+            kind=contact_point.kind,
+            value=contact_point.value,
+            label=contact_point.label or "",
+        )
+        for contact_point in sorted(
+            customer.contact_points.all(),
+            key=lambda contact_point: (
+                not contact_point.is_primary,
+                contact_point.kind,
+                contact_point.created_at,
+                contact_point.id,
+            ),
+        )
+    ]
+    for kind, value in (("email", customer.email), ("phone", customer.phone)):
+        if value and not any(
+            contact_point.kind == kind and contact_point.value == value
+            for contact_point in contact_points
+        ):
+            contact_points.append(
+                CommercialDocumentCustomerContactPointContext(
+                    kind=kind,
+                    value=value,
+                    label="",
+                )
+            )
 
     return CommercialDocumentCustomerContext(
         customer_id=reservation_draft.customer_id,
@@ -167,6 +203,7 @@ def _build_customer_context(
         party_type=customer.party_type,
         email=customer.email or "",
         phone=customer.phone or "",
+        contact_points=tuple(contact_points),
         address=customer.address or "",
         civilite=customer.civilite or "",
         birth_date=customer.birth_date,
