@@ -32,11 +32,11 @@
     /* Logo Hahitantsoa (Haut du volet latéral) */
     .brand {
       position: absolute;
-      top: 0mm;               /* Distance depuis le haut de la page */
-      left: 55%;               /* Centrage horizontal */
+      top: 4mm;               /* Distance depuis le haut de la page */
+      left: 50%;               /* Centrage horizontal parfait */
       transform: translateX(-50%);
-      width: 60mm;             /* Largeur du logo */
-      height: 60mm;            /* Hauteur du logo */
+      width: 44mm;             /* Largeur ajustée à la largeur du volet (51mm) */
+      height: 44mm;            /* Hauteur ajustée */
       object-fit: contain;
       filter: grayscale(1) contrast(2);
     }
@@ -218,10 +218,6 @@
         </tbody>
       </table>
 
-      <div class="addendum">
-        <strong>Rajout :</strong>
-        {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.additions {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.delivery_additions|default:"+ ________________________________" }}{% endif %}
-      </div>
 
       <div class="handover">
         PASSATION (Mettre les remarques à droite)

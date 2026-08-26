@@ -73,7 +73,7 @@ html, body { margin: 0; padding: 0; width: 210mm; background: #ffffff; color: #1
 /* 3. TYPOGRAPHIE & ARTICLES DU CONTRAT                                      */
 /* ========================================================================= */
 h1, h2, p, ul, table, .signatures, .plan-container, .breakage-list, .empty-note, .annex-note { position: relative; z-index: 1; }
-h1 { font-size: 14pt; text-align: center; text-decoration: underline; margin: 0 0 7mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
+h1 { font-size: 14pt; text-align: center; margin: 0 0 7mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
 h2 { font-size: 10.5pt; text-decoration: underline; margin: 5mm 0 2.5mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
 p { margin: 0 0 3.5mm; }
 ul { margin: 0 0 4mm; padding-left: 8mm; }
