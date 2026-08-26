@@ -30,6 +30,7 @@ CONSTRUCTED_DOCUMENTS = (
     ("shared.return_note.v1", "BON DE RETOUR"),
     ("shared.internal_release_note.v1", "BON DE SORTIE"),
     ("shared.supplier_purchase_order.v1", "BON DE COMMANDE"),
+    ("shared.preparation_sheet.v1", "BON DE PRÉPARATION"),
 )
 
 
@@ -324,3 +325,25 @@ def test_catalog_previews_do_not_contain_seeded_demo_customer_data() -> None:
             },
         )
         assert not any(marker in html for marker in demo_markers), definition.key
+
+
+def test_shared_preparation_sheet_uses_proforma_format_and_columns() -> None:
+    definition = get_document_template_definition("shared.preparation_sheet.v1")
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+
+    assert "size: A4" in html
+    assert "BON DE PRÉPARATION" in html
+    assert "Article" in html
+    assert "Qté" in html
+    assert "Observations" in html
+    assert "Le Préparateur" in html
+    assert "Contrôle Départ" in html
+    assert "ergon-logo.png" in html
