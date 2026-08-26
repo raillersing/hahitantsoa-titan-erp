@@ -414,3 +414,66 @@ def test_refund_receipt_and_supplier_po_use_uppercase_columns() -> None:
     assert "<th>MONTANT</th>" in po_html
     assert "TOTAL COMMANDE" in po_html
     assert "OBSERVATIONS" not in po_html
+
+
+def test_contracts_render_smart_civilite_gender_and_identity_document_choice() -> None:
+    import datetime
+
+    for template_key in ("hahitantsoa.contract.v1", "titan.material_contract.v1"):
+        definition = get_document_template_definition(template_key)
+        assert definition is not None
+        template_path = _resolve_preview_template_path(definition.key)
+        bank = _build_preview_bank(definition)
+
+        # 1. Test Monsieur + né + CIN
+        context_m_cin = _build_mock_preview_context(definition, party_type="individual")
+        target_dict = (
+            context_m_cin["reservation_draft"]["customer"]
+            if "reservation_draft" in context_m_cin
+            else context_m_cin["event_draft"]
+        )
+        civ_key = "customer_civilite" if "customer_civilite" in target_dict else "civilite"
+        id_type_key = "customer_id_type" if "customer_id_type" in target_dict else "id_type"
+        dup_date_key = (
+            "customer_id_duplicata_date"
+            if "customer_id_duplicata_date" in target_dict
+            else "id_duplicata_date"
+        )
+        dup_place_key = (
+            "customer_id_duplicata_place"
+            if "customer_id_duplicata_place" in target_dict
+            else "id_duplicata_place"
+        )
+        target_dict[civ_key] = "Monsieur"
+        target_dict[id_type_key] = "CIN"
+        target_dict[dup_date_key] = datetime.date(2023, 5, 12)
+        target_dict[dup_place_key] = "Antananarivo"
+
+        html_m = render_to_string(
+            template_path,
+            {"context": context_m_cin, "bank": bank, "show_variables": False},
+        )
+        assert "Monsieur " in html_m
+        assert " né le " in html_m
+        assert "titulaire de la Carte Nationale d’Identité" in html_m
+        assert "duplicata du 12/05/2023 à Antananarivo" in html_m
+
+        # 2. Test Madame + née + Passeport
+        context_f_pass = _build_mock_preview_context(definition, party_type="individual")
+        target_dict_f = (
+            context_f_pass["reservation_draft"]["customer"]
+            if "reservation_draft" in context_f_pass
+            else context_f_pass["event_draft"]
+        )
+        civ_f_key = "customer_civilite" if "customer_civilite" in target_dict_f else "civilite"
+        id_f_key = "customer_id_type" if "customer_id_type" in target_dict_f else "id_type"
+        target_dict_f[civ_f_key] = "Madame"
+        target_dict_f[id_f_key] = "Passeport"
+
+        html_f = render_to_string(
+            template_path,
+            {"context": context_f_pass, "bank": bank, "show_variables": False},
+        )
+        assert "Madame " in html_f
+        assert " née le " in html_f
+        assert "titulaire du Passeport" in html_f
