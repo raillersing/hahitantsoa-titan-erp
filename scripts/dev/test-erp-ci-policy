@@ -159,6 +159,7 @@ git -C "$preflight_repo" add docs/runbooks/example.md
 
 grep -Fq 'name: Classify changes' "$workflow"
 grep -Fq 'name: CI policy gate' "$workflow"
+grep -Fq 'workflow_dispatch:' "$workflow"
 grep -Fq 'if: always()' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.backend' "$workflow"
 grep -Fq 'needs.classify-changes.outputs.frontend' "$workflow"
