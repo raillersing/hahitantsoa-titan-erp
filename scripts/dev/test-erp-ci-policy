@@ -8,6 +8,8 @@ repo_root="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 workflow="$repo_root/.github/workflows/ci.yml"
 worktree_preflight="$SCRIPT_DIR/erp-worktree-preflight"
 root_finalizer="$SCRIPT_DIR/erp-pr-finalize-from-root"
+backend_compose="$SCRIPT_DIR/erp-backend-compose-ci"
+agent_compose="$repo_root/compose.agent-ci.yaml"
 tmp_root="$(mktemp -d)"
 trap 'rm -rf "$tmp_root"' EXIT
 
@@ -184,6 +186,9 @@ grep -Fq '[backend|frontend|agent-tools|agent-ci|agent-docs]' "$worktree_preflig
 grep -Fq 'repairing ownership of generated worktree artifacts' "$SCRIPT_DIR/erp-worktree-clean-after-merge"
 grep -Fq -- '--task-worktree and --task-branch must be provided together' "$root_finalizer"
 grep -Fq 'Task cleanup was not requested; preserving the PR worktree and branch.' "$root_finalizer"
+grep -Fq 'sha256sum backend/Dockerfile pyproject.toml' "$backend_compose"
+grep -Fq 'export ERP_AGENT_BACKEND_IMAGE=' "$backend_compose"
+grep -Fq 'image: ${ERP_AGENT_BACKEND_IMAGE:-hahitantsoa_titan_erp_agent_ci_backend:local}' "$agent_compose"
 if grep -Fq 'TASK_BRANCH="$pr_head_branch"' "$root_finalizer"; then
   echo "FAIL: root finalizer still enables implicit task-branch cleanup"
   exit 1

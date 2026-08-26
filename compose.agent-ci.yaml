@@ -38,6 +38,7 @@ services:
       - erp_agent_ci_internal
 
   backend:
+    image: ${ERP_AGENT_BACKEND_IMAGE:-hahitantsoa_titan_erp_agent_ci_backend:local}
     build:
       context: .
       dockerfile: backend/Dockerfile
