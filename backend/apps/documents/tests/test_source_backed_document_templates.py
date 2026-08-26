@@ -410,3 +410,5 @@ def test_refund_receipt_and_supplier_po_use_uppercase_columns() -> None:
     assert "<th>QTE</th>" in po_html
     assert "<th>P.U.</th>" in po_html
     assert "<th>MONTANT</th>" in po_html
+    assert "TOTAL COMMANDE" in po_html
+    assert "OBSERVATIONS" not in po_html
