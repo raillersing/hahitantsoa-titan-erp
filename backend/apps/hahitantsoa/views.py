@@ -949,7 +949,14 @@ class HahitantsoaServiceListCreateAPIView(generics.ListCreateAPIView):
         return HahitantsoaServiceSerializer
 
     def get_queryset(self):
-        return HahitantsoaService.objects.all()
+        queryset = HahitantsoaService.objects.all()
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category=category)
+        active = self.request.query_params.get("active")
+        if active is not None:
+            queryset = queryset.filter(active=active.lower() in ("true", "1"))
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
