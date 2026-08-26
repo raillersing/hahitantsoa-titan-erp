@@ -2041,8 +2041,27 @@ export function updateHahitantsoaVenue(
   return patchAuthenticatedJson(`/api/v1/hahitantsoa/venues/${id}/`, payload, signal);
 }
 
-export function getHahitantsoaServices(signal?: AbortSignal): Promise<HahitantsoaService[]> {
-  return getAuthenticatedJson("/api/v1/hahitantsoa/services/", signal);
+export function getHahitantsoaServices(
+  optionsOrSignal?: { category?: string; active?: boolean; signal?: AbortSignal } | AbortSignal,
+): Promise<HahitantsoaService[]> {
+  let signal: AbortSignal | undefined;
+  const params = new URLSearchParams();
+
+  if (optionsOrSignal instanceof AbortSignal) {
+    signal = optionsOrSignal;
+  } else if (optionsOrSignal) {
+    signal = optionsOrSignal.signal;
+    if (optionsOrSignal.category) {
+      params.set("category", optionsOrSignal.category);
+    }
+    if (optionsOrSignal.active !== undefined) {
+      params.set("active", String(optionsOrSignal.active));
+    }
+  }
+
+  const query = params.toString();
+  const url = query ? `/api/v1/hahitantsoa/services/?${query}` : "/api/v1/hahitantsoa/services/";
+  return getAuthenticatedJson(url, signal);
 }
 
 export function createHahitantsoaService(

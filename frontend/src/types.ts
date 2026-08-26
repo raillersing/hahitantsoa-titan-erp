@@ -378,6 +378,10 @@ export type HahitantsoaCommercialTerms = {
   excess_guest_amount: string;
   bare_deposit_amount: string;
   logistics_deposit_amount: string;
+  night_option_1_amount: string;
+  night_option_2_amount: string;
+  night_security_amount: string;
+  caution_amount: string;
   updated_at: string;
 };
 
@@ -1419,12 +1423,47 @@ export type HahitantsoaVenue = {
   isDefault?: boolean;
 };
 
+export type HahitantsoaServiceCategory =
+  | 'drapery'
+  | 'starry_sky'
+  | 'scenography'
+  | 'special_effects'
+  | 'technical_facility'
+  | 'other';
+
+export type HahitantsoaServicePricingType =
+  | 'flat_fee'
+  | 'per_line'
+  | 'per_unit'
+  | 'on_quote';
+
 export type HahitantsoaService = {
   id: string;
   name: string;
+  category: HahitantsoaServiceCategory;
+  category_display?: string;
+  pricing_type: HahitantsoaServicePricingType;
+  pricing_type_display?: string;
   desc: string;
   price: number;
+  unit_label?: string;
+  image_url?: string;
+  features?: string[];
+  is_external_fee?: boolean;
   active: boolean;
+};
+
+export type HahitantsoaServiceCreatePayload = {
+  name: string;
+  category?: HahitantsoaServiceCategory;
+  pricing_type?: HahitantsoaServicePricingType;
+  desc?: string;
+  price?: number;
+  unit_label?: string;
+  image_url?: string;
+  features?: string[];
+  is_external_fee?: boolean;
+  active?: boolean;
 };
 
 // ---- Notifications ----
