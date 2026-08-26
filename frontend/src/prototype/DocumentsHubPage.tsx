@@ -17,7 +17,7 @@ const DOCUMENT_TYPES = [
   { key: "invoice", label: "Facture" },
   { key: "contract", label: "Contrat" },
   { key: "delivery_note", label: "BL" },
-  { key: "breakage_loss", label: "Casse" },
+  { key: "breakage_repair_invoice", label: "Casse" },
   { key: "amendment", label: "Avenant" },
   { key: "receipt", label: "Décharge" },
 ] as const;
@@ -61,7 +61,7 @@ function typeBadge(type: string): { icon: string; bg: string; text: string; labe
   if (t === "invoice" || t === "facture") return { icon: "F", bg: "bg-emerald-100", text: "text-emerald-700", label: "Facture" };
   if (t === "contract" || t === "contrat") return { icon: "C", bg: "bg-indigo-100", text: "text-indigo-700", label: "Contrat" };
   if (t === "delivery_note" || t === "bl") return { icon: "B", bg: "bg-amber-100", text: "text-amber-700", label: "BL" };
-  if (t === "breakage_loss" || t === "casse") return { icon: "X", bg: "bg-red-100", text: "text-red-700", label: "Casse" };
+  if (t === "breakage_loss" || t === "casse" || t === "breakage_repair_invoice") return { icon: "X", bg: "bg-red-100", text: "text-red-700", label: "Casse" };
   if (t === "amendment" || t === "avenant") return { icon: "A", bg: "bg-violet-100", text: "text-violet-700", label: "Avenant" };
   if (t === "receipt" || t === "decharge") return { icon: "D", bg: "bg-slate-100", text: "text-slate-700", label: "Décharge" };
   return { icon: "?", bg: "bg-slate-100", text: "text-slate-700", label: type };
