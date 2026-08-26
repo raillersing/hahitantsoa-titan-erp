@@ -263,7 +263,7 @@ def _build_mock_preview_context(template_definition, *, party_type: str = "indiv
             "civilite": "Madame/Monsieur",
             "birth_date": None,
             "birth_place": "................",
-            "id_type": "Carte Nationale d’Identité",
+            "id_type": "Carte Nationale d’Identité/Passeport",
             "id_number": "................",
             "id_issue_date": None,
             "id_issue_place": "................",
