@@ -424,22 +424,51 @@
             <img src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Domaine Hahitantsoa">
         </header>
 
-        <h2>Annexe 3 : Prix de casse</h2>
-        <ul class="breakage-list">
-            {% if context.event_draft.lines %}
-                {% for line in context.event_draft.lines %}
-                    <li>• {{ line.inventory_item_name }} : Ar {{ line.breakage_price|default:"—" }}/u ;</li>
-                {% endfor %}
-            {% else %}
-                <li>• Table : Ar 500 000,00/u ;</li>
-                <li>• Chaise : Ar 300 000,00/u ;</li>
-                <li>• Coussin : Ar 50 000,00/U ;</li>
-                <li>• Couvert argenté : Ar 15 000,00/u ;</li>
-                <li>• Couvert rose gold : Ar 25 000,00/u ;</li>
-                <li>• Couvert doré : Ar 25 000,00/U ;</li>
-                <li>• Badge : Ar 2 000,00/U</li>
-            {% endif %}
-        </ul>
+        <h2><u>Annexe 3 : Prix de casse</u></h2>
+        <table class="breakage-table">
+            <thead>
+                <tr>
+                    <th class="text-left">Article</th>
+                    <th class="text-center">Qté commandée</th>
+                    <th class="text-right">Prix de casse / u</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if context.event_draft.lines %}
+                    {% for line in context.event_draft.lines %}
+                        <tr>
+                            <td>{{ line.inventory_item_name }}</td>
+                            <td class="text-center">{{ line.quantity }}</td>
+                            <td class="text-right">{% if line.breakage_price %}Ar {{ line.breakage_price }}{% else %}—{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                {% elif show_variables %}
+                    <tr>
+                        <td><span class="variable">{% templatetag openvariable %} lines.designation {% templatetag closevariable %}</span></td>
+                        <td class="text-center"><span class="variable">{% templatetag openvariable %} lines.quantity {% templatetag closevariable %}</span></td>
+                        <td class="text-right"><span class="variable">{% templatetag openvariable %} lines.breakagePrice {% templatetag closevariable %}</span></td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td>Chaise argentée</td>
+                        <td class="text-center">250</td>
+                        <td class="text-right">—</td>
+                    </tr>
+                    <tr>
+                        <td>Table ronde</td>
+                        <td class="text-center">30</td>
+                        <td class="text-right">—</td>
+                    </tr>
+                    <tr>
+                        <td>Assiette lotus creuse</td>
+                        <td class="text-center">250</td>
+                        <td class="text-right">—</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <p class="breakage-note"><em>Note : le local ou les matériels qui ne figurent pas dans la liste des commandes peuvent également faire l’objet de casse, réparation ou remplacement selon constat.</em></p>
 
         <footer class="contract-footer">
             <div class="contract-footer-col contract-footer-col--left">
