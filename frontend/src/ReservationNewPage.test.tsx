@@ -90,6 +90,16 @@ const mockServicesData = [
     price: 300000,
     active: true,
   },
+  {
+    id: 'SRV-003',
+    name: 'Guinguette linéaire',
+    desc: 'Guirlande guinguette linéaire blanc chaud',
+    category: 'starry_sky',
+    pricing_type: 'per_line',
+    unit_label: 'ligne',
+    price: 100000,
+    active: true,
+  },
 ];
 
 const mockCatalogData = [
@@ -924,5 +934,47 @@ describe('ReservationNewPage', () => {
       expect(generateReservationDraftDocumentInstancePdf).toHaveBeenCalledTimes(2);
     });
     expect(screen.getByRole('status')).toHaveTextContent('Proforma émise avec succès');
+  });
+
+  it('18. Hahitantsoa applique automatiquement le tarif de prolongation nocturne et permet la sélection par catégorie', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    await waitFor(() => {
+      expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Commencer par le volet'));
+    fireEvent.click(screen.getByText('Hahitantsoa'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('client-select-CUST-001')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    // Details step: Select Option Nuit 1 (22h30)
+    await screen.findByText('Formule Horaire & Prolongation Nocturne (2026)');
+    const night1Radio = screen.getByLabelText(/Option 1/i);
+    fireEvent.click(night1Radio);
+
+    // Expected automated calculation: 300 000 (option) + 120 000 (securite) = 420 000 Ar
+    expect(screen.getByDisplayValue('420000')).toBeInTheDocument();
+
+    // Proceed to Services
+    fireEvent.click(screen.getByText('Suivant (Services)'));
+    await screen.findByText('Services Hahitantsoa');
+
+    // Filter by Ciels Étoilés
+    const starrySkyTab = screen.getByRole('button', { name: /Ciels Étoilés/i });
+    fireEvent.click(starrySkyTab);
+    expect(screen.getByText('Guinguette linéaire')).toBeInTheDocument();
+    expect(screen.queryByText('Traiteur')).not.toBeInTheDocument();
+
+    // Select Guinguette linéaire
+    const selectBtn = screen.getByText('Guinguette linéaire').closest('.rounded-xl')!.querySelector('button')!;
+    fireEvent.click(selectBtn);
+
+    // Verify subtotal update
+    expect(screen.getByText(/Total des Prestations Hahitantsoa/i)).toBeInTheDocument();
+    expect(screen.getByText('100 000 Ar')).toBeInTheDocument();
   });
 });

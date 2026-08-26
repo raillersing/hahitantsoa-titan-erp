@@ -379,6 +379,11 @@ interface SelectedService {
   id: string;
   name: string;
   price: number;
+  quantity?: number;
+  unit_label?: string;
+  category?: string;
+  pricing_type?: string;
+  image_url?: string;
 }
 
 export interface ReservationTotals {
@@ -516,8 +521,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   // Derived: mapped catalog items
   const catalog: CatalogItem[] = availableCatalogItems;
   // Derived: mapped services (API → local format)
-  const hahitantsoaServices: { id: string; name: string; desc: string; price: number; active: boolean }[] =
-    apiServices.map(s => ({ id: s.id, name: s.name, desc: s.desc, price: s.price, active: s.active }));
+  const hahitantsoaServices: HahitantsoaService[] = apiServices;
   const packages = apiPackages.filter((pkg) => pkg.is_active);
 
   // ---- Fetch clients, venues, services on mount ----
@@ -573,6 +577,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const hahitantsoaDepositAmount = hDetails.rentalType === "Location + logistique"
     ? Number(hahitantsoaTerms?.logistics_deposit_amount ?? HAHITANTSOA_LOGISTICS_DEPOSIT)
     : Number(hahitantsoaTerms?.bare_deposit_amount ?? HAHITANTSOA_DEFAULT_DEPOSIT);
+  const hahitantsoaCautionAmount = Number(hahitantsoaTerms?.caution_amount ?? 500000);
   const [tDetails, setTDetails] = useState<TitanDetails>({ 
     period: "", startDate: "", startTime: "08:00", endDate: "", endTime: "22:00", pickupDate: "", returnDate: "", remarks: "",
     usageType: "Mariage", usageTypeOther: "", 
@@ -598,6 +603,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   
   const [selectedMaterials, setSelectedMaterials] = useState<SelectedMaterial[]>([]);
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>([]);
+  const [serviceCategoryFilter, setServiceCategoryFilter] = useState<string>("all");
   const [deliveryFee, setDeliveryFee] = useState<string>("");
 
   const [payment, setPayment] = useState<PaymentData>({ method: "Espèces", amount: "", percent: "50" });
@@ -1767,46 +1773,62 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
-              <h4 className="font-bold text-slate-800 mb-4">Durée (Option horaire)</h4>
+              <h4 className="font-bold text-slate-800 mb-1">Formule Horaire & Prolongation Nocturne (2026)</h4>
+              <p className="text-xs text-slate-500 mb-4">Les options de nuit incluent automatiquement le forfait de sécurité nocturne obligatoire.</p>
             </div>
             <div className="md:col-span-2 space-y-2">
-              {HAHITANTSOA_DURATION_OPTIONS.map(opt => (
-                <div key={opt.label} className={`border p-3 rounded-lg transition-colors ${hDetails.durationOption === opt.label ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-indigo-400'}`}>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="radio" name="durationOption" value={opt.label} checked={hDetails.durationOption === opt.label} onChange={(e) => {
-                      const updates: any = { durationOption: e.target.value, durationOptionPrice: 0 };
-                      
-                      const startDate = hDetails.startDate || new Date().toISOString().split('T')[0];
-                      if (!hDetails.startDate) updates.startDate = startDate;
-                      
-                      let endDate = startDate;
-                      if (e.target.value.includes('20:00')) {
-                        updates.endTime = '20:00';
-                      } else if (e.target.value.includes('22:30')) {
-                        updates.endTime = '22:30';
-                      } else if (e.target.value.includes('03:30')) {
-                        updates.endTime = '03:30';
-                        const d = new Date(startDate);
-                        d.setDate(d.getDate() + 1);
-                        endDate = d.toISOString().split('T')[0];
-                      }
-                      updates.endDate = endDate;
-                      setHDetails({...hDetails, ...updates});
-                    }} className="w-4 h-4 text-indigo-600" />
-                    <span className={`font-medium text-sm ${hDetails.durationOption === opt.label ? 'text-indigo-700' : 'text-slate-800'}`}>{opt.label}</span>
-                  </label>
-                  {hDetails.durationOption === opt.label && (
-                    <div className="mt-3 ml-7">
-                      <label className="block text-xs font-medium text-indigo-800 mb-1">Tarif (si facturé en supplément) :</label>
-                      <div className="flex items-center gap-2 max-w-xs">
-                        <input type="number" className="flex-1 border border-indigo-200 rounded p-1.5 text-sm" value={hDetails.durationOptionPrice || ''} onChange={e => setHDetails({...hDetails, durationOptionPrice: parseInt(e.target.value || '0', 10)})} placeholder="Ex: 50000" />
-                        <span className="text-sm font-bold text-indigo-600">Ar</span>
+              {HAHITANTSOA_DURATION_OPTIONS.map(opt => {
+                const isNight1 = opt.label.includes('22:30');
+                const isNight2 = opt.label.includes('03:30');
+                const night1Total = Number(hahitantsoaTerms?.night_option_1_amount ?? 300000) + Number(hahitantsoaTerms?.night_security_amount ?? 120000);
+                const night2Total = Number(hahitantsoaTerms?.night_option_2_amount ?? 500000) + Number(hahitantsoaTerms?.night_security_amount ?? 120000);
+                const suggestedPrice = isNight1 ? night1Total : isNight2 ? night2Total : 0;
+
+                return (
+                  <div key={opt.label} className={`border p-3 rounded-lg transition-colors ${hDetails.durationOption === opt.label ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-indigo-400'}`}>
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input type="radio" name="durationOption" value={opt.label} checked={hDetails.durationOption === opt.label} onChange={(e) => {
+                        const updates: any = { durationOption: e.target.value, durationOptionPrice: suggestedPrice };
+
+                        const startDate = hDetails.startDate || new Date().toISOString().split('T')[0];
+                        if (!hDetails.startDate) updates.startDate = startDate;
+
+                        let endDate = startDate;
+                        if (e.target.value.includes('20:00')) {
+                          updates.endTime = '20:00';
+                        } else if (e.target.value.includes('22:30')) {
+                          updates.endTime = '22:30';
+                        } else if (e.target.value.includes('03:30')) {
+                          updates.endTime = '03:30';
+                          const d = new Date(startDate);
+                          d.setDate(d.getDate() + 1);
+                          endDate = d.toISOString().split('T')[0];
+                        }
+                        updates.endDate = endDate;
+                        setHDetails({...hDetails, ...updates});
+                      }} className="w-4 h-4 mt-0.5 text-indigo-600" />
+                      <div className="flex-1">
+                        <span className={`font-medium text-sm block ${hDetails.durationOption === opt.label ? 'text-indigo-700' : 'text-slate-800'}`}>{opt.label}</span>
+                        <span className="text-xs text-slate-500">
+                          {isNight1 ? `+${Number(hahitantsoaTerms?.night_option_1_amount ?? 300000).toLocaleString('fr-FR')} Ar + Sécurité nuit obligatoire (${Number(hahitantsoaTerms?.night_security_amount ?? 120000).toLocaleString('fr-FR')} Ar)` :
+                           isNight2 ? `+${Number(hahitantsoaTerms?.night_option_2_amount ?? 500000).toLocaleString('fr-FR')} Ar + Sécurité nuit obligatoire (${Number(hahitantsoaTerms?.night_security_amount ?? 120000).toLocaleString('fr-FR')} Ar)` :
+                           'Inclus dans le tarif de base du chapiteau'}
+                        </span>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              <p className="text-xs text-slate-500 mt-2"><i className="fa-solid fa-info-circle mr-1"></i>Cette option pré-remplira l'heure de fin de l'événement.</p>
+                    </label>
+                    {hDetails.durationOption === opt.label && (
+                      <div className="mt-3 ml-7">
+                        <label className="block text-xs font-medium text-indigo-800 mb-1">Montant facturé pour cette formule horaire :</label>
+                        <div className="flex items-center gap-2 max-w-xs">
+                          <input type="number" className="flex-1 border border-indigo-200 rounded p-1.5 text-sm bg-white" value={hDetails.durationOptionPrice || ''} onChange={e => setHDetails({...hDetails, durationOptionPrice: parseInt(e.target.value || '0', 10)})} placeholder="0" />
+                          <span className="text-sm font-bold text-indigo-600">Ar</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <p className="text-xs text-slate-500 mt-2"><i className="fa-solid fa-info-circle mr-1"></i>Cette option pré-remplira l'heure de fin et ajustera automatiquement le tarif horaire.</p>
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
@@ -2609,49 +2631,217 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (domain === 'hahitantsoa') {
       const handleServiceToggle = (srv: any) => {
         const existing = selectedServices.find(s => s.id === srv.id);
-        if (existing) setSelectedServices(selectedServices.filter(s => s.id !== srv.id));
-        else setSelectedServices([...selectedServices, { id: srv.id, name: srv.name, price: srv.price }]);
+        if (existing) {
+          setSelectedServices(selectedServices.filter(s => s.id !== srv.id));
+        } else {
+          setSelectedServices([
+            ...selectedServices,
+            {
+              id: srv.id,
+              name: srv.name,
+              price: Number(srv.price) || 0,
+              quantity: 1,
+              unit_label: srv.unit_label || "",
+              category: srv.category,
+              pricing_type: srv.pricing_type,
+              image_url: srv.image_url,
+            },
+          ]);
+        }
       };
+
+      const handleQuantityChange = (srvId: string, basePrice: number, nextQty: number) => {
+        const qty = Math.max(1, nextQty);
+        setSelectedServices(selectedServices.map(s => s.id === srvId ? { ...s, quantity: qty, price: basePrice * qty } : s));
+      };
+
+      const serviceCategories = [
+        { key: 'all', label: 'Toutes', icon: 'fa-layer-group' },
+        { key: 'drapery', label: 'Draperie', icon: 'fa-ribbon' },
+        { key: 'starry_sky', label: 'Ciels Étoilés', icon: 'fa-star' },
+        { key: 'scenography', label: 'Piste LED', icon: 'fa-gem' },
+        { key: 'special_effects', label: 'Effets Spéciaux', icon: 'fa-wand-magic-sparkles' },
+        { key: 'technical_facility', label: 'Technique & Sol', icon: 'fa-wrench' },
+      ];
+
+      const displayedServices = hahitantsoaServices
+        .filter(s => s.active !== false)
+        .filter(s => serviceCategoryFilter === 'all' || s.category === serviceCategoryFilter);
+
       return (
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Services Hahitantsoa</h3>
-          <p className="text-sm text-slate-500 mb-6">Ajoutez les services événementiels souhaités (Traiteur, Déco, etc.)</p>
-          
-          <div className="space-y-3 mb-6">
-            {hahitantsoaServices.filter(s => s.active !== false).map(srv => {
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm animate-fade-in space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">Services Hahitantsoa</h3>
+              <p className="text-xs text-slate-500">Catalogue des Prestations & Scénographies 2026 : sélectionnez les options pour l'événement.</p>
+            </div>
+            <span className="text-xs font-bold px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full self-start sm:self-auto">
+              {selectedServices.length} prestation(s) sélectionnée(s)
+            </span>
+          </div>
+
+          {/* Category Pills */}
+          <div className="flex flex-wrap gap-2">
+            {serviceCategories.map(cat => {
+              const active = serviceCategoryFilter === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => setServiceCategoryFilter(cat.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                    active ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <i className={`fa-solid ${cat.icon}`}></i>
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Services Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayedServices.map(srv => {
               const selected = selectedServices.find(s => s.id === srv.id);
               const isSelected = !!selected;
+              const unitPrice = Number(srv.price) || 0;
+              const isMultiUnit = srv.pricing_type === 'per_line' || srv.pricing_type === 'per_unit';
+
               return (
-                <div key={srv.id} className={`p-4 border rounded-xl transition-colors ${isSelected ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200 hover:border-slate-300'}`}>
-                  <label className="flex items-start justify-between cursor-pointer">
-                    <div className="flex items-start gap-3">
-                      <input type="checkbox" className="w-5 h-5 mt-0.5 text-indigo-600 rounded" checked={isSelected} onChange={() => handleServiceToggle(srv)} />
-                      <div>
-                        <span className="font-medium text-slate-800 block">{srv.name}</span>
-                        <span className="text-xs text-slate-500">{srv.desc}</span>
+                <div
+                  key={srv.id}
+                  className={`rounded-xl border transition-all flex flex-col justify-between overflow-hidden ${
+                    isSelected ? 'border-indigo-600 bg-indigo-50/20 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  {/* Photo or Banner */}
+                  <div className="h-28 w-full bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                    {srv.image_url ? (
+                      <img src={srv.image_url} alt={srv.name} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }} />
+                    ) : (
+                      <div className="text-slate-300 text-center">
+                        <i className={`fa-solid ${
+                          srv.category === 'drapery' ? 'fa-ribbon' :
+                          srv.category === 'starry_sky' ? 'fa-star' :
+                          srv.category === 'scenography' ? 'fa-gem' :
+                          srv.category === 'special_effects' ? 'fa-wand-magic-sparkles' :
+                          'fa-wrench'
+                        } text-3xl opacity-40`}></i>
                       </div>
+                    )}
+                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-white/90 text-slate-700 shadow-xs">
+                      {srv.category_display || srv.category || 'Hahitantsoa'}
+                    </span>
+                    {srv.is_external_fee && (
+                      <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500 text-white">
+                        Droit externe
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-bold text-slate-800 text-sm">{srv.name}</h4>
+                        <button
+                          type="button"
+                          onClick={() => handleServiceToggle(srv)}
+                          className={`w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs transition-colors ${
+                            isSelected ? 'bg-indigo-600 text-white' : 'border border-slate-300 text-transparent hover:border-indigo-400'
+                          }`}
+                        >
+                          <i className="fa-solid fa-check"></i>
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{srv.desc}</p>
+
+                      {Array.isArray(srv.features) && srv.features.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {srv.features.map((feat: string, idx: number) => (
+                            <span key={idx} className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                              {feat}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </label>
-                  {isSelected && (
-                    <div className="mt-3 ml-8 flex items-center gap-2">
-                      <label className="text-sm font-medium text-slate-700">Prix :</label>
-                      <input 
-                        type="number" 
-                        className="w-32 border border-slate-300 rounded-lg p-1.5 text-sm"
-                        value={selected.price || ''} 
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value || '0', 10);
-                          setSelectedServices(selectedServices.map(s => s.id === srv.id ? { ...s, price: val } : s));
-                        }}
-                      />
-                      <span className="text-sm font-bold text-slate-600">Ar</span>
+
+                    {/* Price & Selection controls */}
+                    <div className="border-t border-slate-100 pt-2">
+                      <div className="flex items-baseline justify-between text-xs mb-1">
+                        <span className="text-slate-500 font-medium">
+                          {srv.pricing_type === 'on_quote' ? 'Tarification :' :
+                           srv.pricing_type === 'per_line' ? 'Tarif unitaire :' :
+                           srv.pricing_type === 'per_unit' ? `Tarif / ${srv.unit_label || 'u'} :` : 'Forfait :'}
+                        </span>
+                        <span className="font-bold text-slate-900">
+                          {srv.pricing_type === 'on_quote' ? 'Sur devis' :
+                           srv.pricing_type === 'per_line' ? `${unitPrice.toLocaleString('fr-FR')} Ar / ligne` :
+                           srv.pricing_type === 'per_unit' ? `${unitPrice.toLocaleString('fr-FR')} Ar / ${srv.unit_label || 'u'}` :
+                           `${unitPrice.toLocaleString('fr-FR')} Ar`}
+                        </span>
+                      </div>
+
+                      {isSelected && (
+                        <div className="mt-2 pt-2 border-t border-indigo-100 space-y-2 bg-indigo-50/60 p-2.5 rounded-lg">
+                          {isMultiUnit && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-semibold text-slate-700">Nombre de {srv.unit_label || 'ligne'}s :</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100"
+                                  onClick={() => handleQuantityChange(srv.id, unitPrice, (selected.quantity || 1) - 1)}
+                                >
+                                  -
+                                </button>
+                                <span className="w-8 text-center font-bold text-slate-900">{selected.quantity || 1}</span>
+                                <button
+                                  type="button"
+                                  className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100"
+                                  onClick={() => handleQuantityChange(srv.id, unitPrice, (selected.quantity || 1) + 1)}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700">Total retenu :</span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                className="w-24 border border-slate-300 rounded p-1 text-right text-xs bg-white font-bold"
+                                value={selected.price || ''}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value || '0', 10);
+                                  setSelectedServices(selectedServices.map(s => s.id === srv.id ? { ...s, price: val } : s));
+                                }}
+                              />
+                              <span className="font-bold text-slate-600 text-[11px]">Ar</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
           </div>
-          
+
+          {/* Subtotal banner */}
+          <div className="bg-indigo-50/80 p-4 rounded-xl border border-indigo-100 flex justify-between items-center">
+            <div>
+              <span className="font-bold text-indigo-950 text-sm block">Total des Prestations Hahitantsoa :</span>
+              <span className="text-xs text-indigo-700">{selectedServices.length} prestation(s) ajoutée(s) au devis</span>
+            </div>
+            <span className="text-xl font-black text-indigo-700">{servicesTotal.toLocaleString('fr-FR')} Ar</span>
+          </div>
+
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
             <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
             <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Vérifier le résumé</button>
@@ -2923,10 +3113,21 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         </div>
       </div>
 
+      {domain === 'hahitantsoa' && (
+        <div className="bg-emerald-50 text-emerald-900 p-4 rounded-xl border border-emerald-100 flex items-center justify-between mb-4">
+          <div>
+            <p className="text-xs font-semibold uppercase opacity-70">Acompte à la réservation (Validation)</p>
+            <p className="text-lg font-bold">{hahitantsoaDepositAmount.toLocaleString('fr-FR')} Ar</p>
+            <p className="text-xs opacity-80 mt-1">Acompte minimum requis ({hDetails.rentalType === "Location + logistique" ? "Location + logistique" : "Location nue"}).</p>
+          </div>
+          <i className="fa-solid fa-file-signature text-2xl opacity-50"></i>
+        </div>
+      )}
+
       <div className="bg-orange-50 text-orange-800 p-4 rounded-xl border border-orange-100 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase opacity-70">Caution obligatoire (Dépôt de garantie)</p>
-          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? hahitantsoaDepositAmount : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
+          <p className="text-lg font-bold">{(domain === 'hahitantsoa' ? hahitantsoaCautionAmount : (totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT : totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE)).toLocaleString('fr-FR')} Ar</p>
           <p className="text-xs opacity-80 mt-1">À verser en plus du total. Restituée après l'événement en l'absence de casse.</p>
         </div>
         <i className="fa-solid fa-shield-halved text-2xl opacity-50"></i>
