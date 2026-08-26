@@ -518,3 +518,49 @@ def test_hahitantsoa_contract_smart_rental_type_and_deposit() -> None:
     assert "accèderont aux locaux la veille à 15 heures 30" in html_logistics
     assert "veuillez rayer" not in html_logistics
     assert "Utilisation de nuit Option 1" in html_logistics
+
+
+def test_titan_material_contract_smart_caution_amount() -> None:
+    definition = get_document_template_definition("titan.material_contract.v1")
+    assert definition is not None
+    template_path = _resolve_preview_template_path(definition.key)
+    bank = _build_preview_bank(definition)
+
+    context = _build_mock_preview_context(definition)
+    context["reservation_draft"]["caution_amount"] = "450 000,00"
+
+    html = render_to_string(
+        template_path,
+        {"context": context, "bank": bank, "show_variables": False},
+    )
+    assert "dépôt de garantie la somme de <strong>450 000,00 Ariary</strong>." in html
+    assert "pour les locations de moins de 200 000,00 Ariary" not in html
+
+
+def test_hahitantsoa_amendment_smart_options_rendering() -> None:
+    html_custom = render_to_string(
+        "documents/hahitantsoa_contract_amendment.html",
+        {
+            "context": {
+                "event_draft": {
+                    "party_type": "individual",
+                    "customer_display_name": "Razafy Pierre",
+                    "public_reference": "EVT-2026-DEMO",
+                    "proforma_reference": "HAH N°/24.109",
+                    "rental_type": "bare",
+                    "duration_option": "Nuit Option 1",
+                    "access_schedule": "same_day",
+                    "service_notes": "Installation estrade et sono",
+                }
+            },
+            "show_variables": False,
+        },
+    )
+    assert "accèderont aux locaux le jour-J à 07 heures." in html_custom
+    assert "veuillez rayer" not in html_custom
+    assert "Type : Location nue" in html_custom
+    assert "Formule horaire : Nuit Option 1" in html_custom
+    assert "Installation estrade et sono" in html_custom
+    # Generic unselected checkboxes should not appear
+    assert "Ciel étoilé" not in html_custom
+    assert "Piste lumineuse" not in html_custom

@@ -42,32 +42,58 @@
 
         <p>La présente location est consentie et acceptée du {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"………………" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startTime {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"H:i"|default:"……" }}{% endif %} heures au {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endDate {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.end_at|date:"d/m/Y"|default:"………………" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endTime {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.end_at|date:"H:i"|default:"……" }}{% endif %} heures.</p>
 
-        <p>Les intervenants du client peuvent accéder aux locaux (veuillez rayer les mentions inutiles) :</p>
-        <ul>
-            <li>la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire ;</li>
-            <li>le jour-J à 07 heures.</li>
-        </ul>
+        {% if context.event_draft.access_schedule == "day_before" %}
+            <p>Les intervenants du client accèderont aux locaux la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire.</p>
+        {% elif context.event_draft.access_schedule == "same_day" or context.event_draft.access_schedule == "day_of" %}
+            <p>Les intervenants du client accèderont aux locaux le jour-J à 07 heures.</p>
+        {% else %}
+            <p>Les intervenants du client peuvent accéder aux locaux selon les modalités suivantes :</p>
+            <ul>
+                <li>la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire ;</li>
+                <li>le jour-J à 07 heures.</li>
+            </ul>
+        {% endif %}
 
         <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% else %}<strong>{{ context.event_draft.total_amount|default:"………………………………" }}</strong>{% endif %} Ariary TTC.</p>
         <p class="indent">
             N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.proforma_reference|default:context.event_draft.public_reference|default:"………" }}{% endif %}<br>
             Nombre de convives : {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.guestCount {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.guest_count|default:"…………" }}{% endif %}<br>
-            Type de location : {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.rentalType {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.rental_type|default:"…………………………" }}{% endif %}
+            Type de location : {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.rentalType {% templatetag closevariable %}</span>{% else %}{% if context.event_draft.rental_type == "bare" or context.event_draft.rental_type == "Location nue" %}Location nue{% elif context.event_draft.rental_type == "logistics" or context.event_draft.rental_type == "Location + logistique" or context.event_draft.rental_type == "Location nue + logistique" %}Location nue + logistique{% else %}{{ context.event_draft.rental_type_display|default:context.event_draft.rental_type|default:"…………………………" }}{% endif %}{% endif %}
         </p>
 
-        <div class="options">
-            <div class="option"><span class="box"></span>Utilisation de nuit</div><div></div>
-            <div class="option"><span class="box"></span>Location nue</div><div class="option"><span class="box"></span>Location nue + logistique</div>
-            <div class="option"><span class="box"></span>Fête de jour : Sortie J-J à 20:00</div><div class="option"><span class="box"></span>Utilisation de nuit - Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30</div>
-            <div class="option"><span class="box"></span>Utilisation de nuit - Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30</div><div></div>
-            <div class="option"><span class="box"></span>Carrelage</div><div class="option"><span class="box"></span>Voilage ………………………………</div>
-            <div class="option"><span class="box"></span>Gazon synthétique</div><div class="option"><span class="box"></span>Rideau</div>
-            <div class="option"><span class="box"></span>Parquet</div><div></div>
-            <div class="option"><span class="box"></span>Effets spéciaux ……………………</div><div class="option"><span class="box"></span>Autre : …………………………………</div>
-            <div class="option"><span class="box"></span>Ciel étoilé</div><div></div>
-            <div class="option"><span class="box"></span>Piste lumineuse</div><div></div>
-            <div class="option"><span class="box"></span>Décoration ……………………………</div><div></div>
-        </div>
+        {% if context.event_draft.lines %}
+            <div class="options">
+                {% for line in context.event_draft.lines %}
+                    <div class="option"><span class="box">✔</span> {{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} ({{ line.notes }}){% endif %}</div>
+                {% endfor %}
+            </div>
+        {% elif show_variables %}
+            <div class="options">
+                <div class="option"><span class="box"></span>Utilisation de nuit</div><div></div>
+                <div class="option"><span class="box"></span>Location nue</div><div class="option"><span class="box"></span>Location nue + logistique</div>
+                <div class="option"><span class="box"></span>Fête de jour : Sortie J-J à 20:00</div><div class="option"><span class="box"></span>Utilisation de nuit - Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30</div>
+                <div class="option"><span class="box"></span>Utilisation de nuit - Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30</div><div></div>
+                <div class="option"><span class="box"></span>Carrelage</div><div class="option"><span class="box"></span>Voilage ………………………………</div>
+                <div class="option"><span class="box"></span>Gazon synthétique</div><div class="option"><span class="box"></span>Rideau</div>
+                <div class="option"><span class="box"></span>Parquet</div><div></div>
+                <div class="option"><span class="box"></span>Effets spéciaux ……………………</div><div class="option"><span class="box"></span>Autre : …………………………………</div>
+                <div class="option"><span class="box"></span>Ciel étoilé</div><div></div>
+                <div class="option"><span class="box"></span>Piste lumineuse</div><div></div>
+                <div class="option"><span class="box"></span>Décoration ……………………………</div><div></div>
+            </div>
+        {% else %}
+            <div class="options">
+                {% if context.event_draft.rental_type %}
+                    <div class="option"><span class="box">✔</span> Type : {% if context.event_draft.rental_type == "bare" or context.event_draft.rental_type == "Location nue" %}Location nue{% else %}Location nue + logistique{% endif %}</div>
+                {% endif %}
+                {% if context.event_draft.duration_option %}
+                    <div class="option"><span class="box">✔</span> Formule horaire : {{ context.event_draft.duration_option }}</div>
+                {% endif %}
+                {% if context.event_draft.service_notes %}
+                    <div class="option"><span class="box">✔</span> {{ context.event_draft.service_notes }}</div>
+                {% endif %}
+            </div>
+        {% endif %}
 
         <p class="text-center signature-intro">Fait en trois exemplaires originaux</p>
         <p class="text-right">A Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</p>
