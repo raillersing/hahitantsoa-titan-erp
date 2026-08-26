@@ -393,6 +393,8 @@ def test_refund_receipt_and_supplier_po_use_uppercase_columns() -> None:
     )
     assert "<th>DESIGNATION / MOTIF</th>" in receipt_html
     assert "<th>MONTANT</th>" in receipt_html
+    assert "TOTAL REMBOURSÉ" in receipt_html
+    assert "OBSERVATIONS" not in receipt_html
 
     po_def = get_document_template_definition("shared.supplier_purchase_order.v1")
     assert po_def is not None
