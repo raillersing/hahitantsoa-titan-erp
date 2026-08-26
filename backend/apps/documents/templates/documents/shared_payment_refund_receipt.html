@@ -224,11 +224,11 @@
           <span class="identity-value">{{ context.payment.customer_display_name|default:"........................" }}</span>
         </div>
         <div class="identity-row">
-          <strong>DOSSIER / RÉFÉRENCE :</strong>
+          <strong>N° PROFORMA:</strong>
           <span class="identity-value">{{ context.payment.reservation_public_reference|default:".........." }}</span>
         </div>
         <div class="identity-row">
-          <strong>MODE DE RÈGLEMENT :</strong>
+          <strong>MODE DE PAYEMENT:</strong>
           <span class="identity-value">{{ context.payment.payment_method_label|default:context.payment.payment_method|default:"Virement bancaire" }}</span>
         </div>
       </section>

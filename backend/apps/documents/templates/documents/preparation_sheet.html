@@ -201,8 +201,8 @@
       {% if context.reservation_draft %}
         <section class="identity">
           <div class="identity-row">
-            <strong>DESTINATION / CLIENT :</strong>
-            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"........................" }}{% endif %}</span>
+            <strong>N° FACTURE :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"........................" }}{% endif %}</span>
           </div>
           <div class="identity-row">
             <strong>DATE ÉVÉNEMENT :</strong>
@@ -235,8 +235,8 @@
       {% else %}
         <section class="identity">
           <div class="identity-row">
-            <strong>DESTINATION / CLIENT :</strong>
-            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"........................" }}{% endif %}</span>
+            <strong>N° FACTURE :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"........................" }}{% endif %}</span>
           </div>
           <div class="identity-row">
             <strong>DATE ÉVÉNEMENT :</strong>
