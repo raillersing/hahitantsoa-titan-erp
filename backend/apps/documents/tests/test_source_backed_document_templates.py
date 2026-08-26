@@ -341,9 +341,9 @@ def test_shared_preparation_sheet_uses_proforma_format_and_columns() -> None:
 
     assert "size: A4" in html
     assert "BON DE PRÉPARATION" in html
-    assert "Désignation" in html
-    assert "Qté" in html
-    assert "Observations" in html
+    assert ">DESIGNATION<" in html
+    assert ">QTE<" in html
+    assert ">OBSERVATIONS<" in html
     assert "Le Préparateur" in html
     assert "Contrôle Départ" in html
     assert "ergon-logo.png" in html
@@ -361,7 +361,7 @@ def test_shared_return_and_release_notes_use_designation_column() -> None:
                 "show_variables": False,
             },
         )
-        assert "Désignation" in html
+        assert "<th>DESIGNATION</th>" in html
 
 
 def test_delivery_notes_use_qte_and_designation_columns() -> None:
@@ -378,3 +378,33 @@ def test_delivery_notes_use_qte_and_designation_columns() -> None:
         )
         assert "<th>QTE</th>" in html
         assert "<th>DESIGNATION</th>" in html
+
+
+def test_refund_receipt_and_supplier_po_use_uppercase_columns() -> None:
+    receipt_def = get_document_template_definition("shared.payment_refund_receipt.v1")
+    assert receipt_def is not None
+    receipt_html = render_to_string(
+        _resolve_preview_template_path(receipt_def.key),
+        {
+            "context": _build_mock_preview_context(receipt_def),
+            "bank": _build_preview_bank(receipt_def),
+            "show_variables": False,
+        },
+    )
+    assert "<th>DESIGNATION / MOTIF</th>" in receipt_html
+    assert "<th>MONTANT</th>" in receipt_html
+
+    po_def = get_document_template_definition("shared.supplier_purchase_order.v1")
+    assert po_def is not None
+    po_html = render_to_string(
+        _resolve_preview_template_path(po_def.key),
+        {
+            "context": _build_mock_preview_context(po_def),
+            "bank": _build_preview_bank(po_def),
+            "show_variables": False,
+        },
+    )
+    assert "<th>DESIGNATION</th>" in po_html
+    assert "<th>QTE</th>" in po_html
+    assert "<th>P.U.</th>" in po_html
+    assert "<th>MONTANT</th>" in po_html
