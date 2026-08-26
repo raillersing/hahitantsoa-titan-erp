@@ -393,6 +393,12 @@ export default function ReservationDetailPage({
       di.template_key.startsWith("PROFORMA") &&
       di.status !== "voided",
   );
+  const titanContractInstance = documentInstances.find(
+    (documentInstance) =>
+      documentInstance.template_key === "titan.material_contract.v1" ||
+      documentInstance.template_key === "titan.material_amendment.v1",
+  );
+  const contractWarnings = titanContractInstance?.contract_warnings ?? [];
 
   const previewArtifact = previewDoc
     ? documentInstances.find((documentInstance) => {
@@ -1223,6 +1229,24 @@ export default function ReservationDetailPage({
                     </div>
                     <i className="fa-solid fa-eye text-slate-400 hover:text-amber-600"></i>
                   </button>
+                  {contractWarnings.length > 0 && (
+                    <div
+                      className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                      role="status"
+                    >
+                      <p className="font-bold">
+                        Informations contractuelles à compléter
+                      </p>
+                      <p className="mt-1 text-xs">
+                        Le contrat reste générable. Complétez ces informations dès que possible.
+                      </p>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                        {contractWarnings.map((warning) => (
+                          <li key={warning.code}>{warning.message}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <button
                     onClick={() => setPreviewDoc("facture")}
                     className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
