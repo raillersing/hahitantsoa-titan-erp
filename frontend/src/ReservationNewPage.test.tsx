@@ -199,6 +199,10 @@ describe('ReservationNewPage', () => {
       excess_guest_amount: '5000.00',
       bare_deposit_amount: '1000000.00',
       logistics_deposit_amount: '1500000.00',
+      night_option_1_amount: '300000.00',
+      night_option_2_amount: '500000.00',
+      night_security_amount: '120000.00',
+      caution_amount: '500000.00',
       updated_at: '2026-01-01T00:00:00Z',
     });
     vi.mocked(getTitanClosedDays).mockResolvedValue([]);
