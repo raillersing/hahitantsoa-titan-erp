@@ -88,7 +88,7 @@ bash "$SCRIPT_DIR/erp-worktree-list-validated"
 
 echo
 echo "==== ORCHESTRATOR CHECK ===="
-bash "$SCRIPT_DIR/erp-orchestrator-state-check"
+bash "$SCRIPT_DIR/erp-orchestrator-state-check" --task-start-embedded
 
 echo
 echo "==== TASK QUEUE VALIDATION ===="

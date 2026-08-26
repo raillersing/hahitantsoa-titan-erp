@@ -452,9 +452,11 @@ scripts/dev/erp-logged-run frontend-preflight <<'EOF'
 set -euo pipefail
 
 scripts/dev/erp-worktree-preflight frontend
-scripts/dev/erp-agent-scope-guard frontend
 EOF
 ```
+
+Passing a profile to `erp-worktree-preflight` already runs the matching scope guard;
+do not invoke the guard a second time in the same preflight.
 
 Standard frontend validation (F152B — wrapped):
 
@@ -893,7 +895,6 @@ scripts/dev/erp-logged-run task-resume-backend <<'EOF'
 set -euo pipefail
 
 scripts/dev/erp-worktree-preflight backend
-scripts/dev/erp-agent-scope-guard backend
 scripts/dev/erp-backend-compose-ci config --quiet
 EOF
 ```
@@ -905,7 +906,6 @@ scripts/dev/erp-logged-run task-resume-frontend <<'EOF'
 set -euo pipefail
 
 scripts/dev/erp-worktree-preflight frontend
-scripts/dev/erp-agent-scope-guard frontend
 EOF
 ```
 
