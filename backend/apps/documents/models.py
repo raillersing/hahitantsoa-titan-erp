@@ -165,6 +165,7 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     customer_party_type = models.CharField(max_length=16, blank=True)
     customer_email = models.EmailField(blank=True)
     customer_phone = models.CharField(max_length=64, blank=True)
+    customer_contact_points_snapshot = models.JSONField(default=list, blank=True)
     customer_address = models.TextField(blank=True)
     customer_civilite = models.CharField(max_length=16, blank=True)
     customer_birth_date = models.DateField(null=True, blank=True)

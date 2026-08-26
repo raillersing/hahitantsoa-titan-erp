@@ -41,12 +41,10 @@
                 STAT : <span class="variable">{% templatetag openvariable %} client.stat {% templatetag closevariable %}</span><br>
                 RCS : <span class="variable">{% templatetag openvariable %} client.rcs {% templatetag closevariable %}</span><br>
                 Représentée par <span class="variable">{% templatetag openvariable %} client.representativeName {% templatetag closevariable %}</span> en sa qualité de <span class="variable">{% templatetag openvariable %} client.representativeRole {% templatetag closevariable %}</span><br>
-                Contact : <span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span><br>
-                Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span></p>
+                Contacts : <span class="variable">{% templatetag openvariable %} client.contacts {% templatetag closevariable %}</span></p>
             {% else %}
                 <p>Madame/Monsieur <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> né(e) le <span class="variable">{% templatetag openvariable %} client.birthDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.birthPlace {% templatetag closevariable %}</span>, titulaire de la <span class="variable">{% templatetag openvariable %} client.idType {% templatetag closevariable %}</span> N° <span class="variable">{% templatetag openvariable %} client.idNumber {% templatetag closevariable %}</span> Délivrée le <span class="variable">{% templatetag openvariable %} client.idIssueDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.idIssuePlace {% templatetag closevariable %}</span> duplicata du <span class="variable">{% templatetag openvariable %} client.idDuplicateDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.idDuplicatePlace {% templatetag closevariable %}</span> demeurant au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
-                Contact : <span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span><br>
-                Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span></p>
+                Contacts : <span class="variable">{% templatetag openvariable %} client.contacts {% templatetag closevariable %}</span></p>
             {% endif %}
         {% else %}
             {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
@@ -55,12 +53,10 @@
                 STAT : {{ customer.stat|default:"................................" }}<br>
                 RCS : {{ customer.rcs|default:"................................" }}<br>
                 Représentée par {{ customer.representative_name|default:"................................" }} en sa qualité de {{ customer.representative_role|default:"Gérant(e)" }}<br>
-                Contact : {{ customer.phone|default:"................................" }}<br>
-                Mail : {{ customer.email|default:"................................" }}</p>
+                Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{{ customer.phone|default:customer.email|default:"................................" }}{% endfor %}</p>
             {% else %}
                 <p>{{ customer.civilite|default:"Madame/Monsieur" }} <strong>{{ customer.display_name|default:"................................" }}</strong> né(e) le {{ customer.birth_date|date:"d/m/Y"|default:"........" }} à {{ customer.birth_place|default:"........" }}, titulaire de la {{ customer.id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ customer.id_number|default:"................................" }} Délivrée le {{ customer.id_issue_date|date:"d/m/Y"|default:"........" }} à {{ customer.id_issue_place|default:"........" }} {% if customer.id_duplicata_date %}duplicata du {{ customer.id_duplicata_date|date:"d/m/Y" }} à {{ customer.id_duplicata_place }}{% endif %} demeurant au {{ customer.address|default:"................................" }}<br>
-                Contact : {{ customer.phone|default:"................................" }}<br>
-                Mail : {{ customer.email|default:"................................" }}</p>
+                Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{{ customer.phone|default:customer.email|default:"................................" }}{% endfor %}</p>
             {% endif %}
         {% endif %}
 

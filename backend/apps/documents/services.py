@@ -29,6 +29,10 @@ from apps.reservations.models import ReservationDraft
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
 HAHITANTSOA_PROFORMA_TEMPLATE_KEY = "hahitantsoa.proforma.v1"
 DEFAULT_PROFORMA_VALIDITY_DAYS = 15
+TITAN_CONTRACT_TEMPLATE_KEYS = {
+    "titan.material_contract.v1",
+    "titan.material_amendment.v1",
+}
 HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
 CONTRACT_TEMPLATE_KEY_BY_PROFORMA_SCOPE = {
     "hahitantsoa": HAHITANTSOA_CONTRACT_TEMPLATE_KEY,
@@ -254,7 +258,7 @@ def active_reservation_drafts_for_commercial_document_context():
     return (
         ReservationDraft.objects.filter(is_deleted=False)
         .select_related("customer")
-        .prefetch_related("lines__inventory_item")
+        .prefetch_related("customer__contact_points", "lines__inventory_item")
         .order_by("-created_at", "public_reference")
     )
 
@@ -387,6 +391,14 @@ def commercial_document_context_to_document_instance_kwargs(
         "customer_party_type": context.reservation_draft.customer.party_type,
         "customer_email": context.reservation_draft.customer.email,
         "customer_phone": context.reservation_draft.customer.phone,
+        "customer_contact_points_snapshot": [
+            {
+                "kind": contact_point.kind,
+                "value": contact_point.value,
+                "label": contact_point.label,
+            }
+            for contact_point in context.reservation_draft.customer.contact_points
+        ],
         "customer_address": context.reservation_draft.customer.address,
         "customer_civilite": context.reservation_draft.customer.civilite,
         "customer_birth_date": context.reservation_draft.customer.birth_date,
@@ -419,6 +431,51 @@ def commercial_document_context_to_document_instance_kwargs(
         "document_date": document_date,
         "notes": notes,
     }
+
+
+def get_document_instance_contract_warnings(
+    *, document_instance: DocumentInstance
+) -> list[dict[str, str]]:
+    """Return non-blocking missing-identity warnings for Titan contract documents."""
+    if document_instance.template_key not in TITAN_CONTRACT_TEMPLATE_KEYS:
+        return []
+
+    warnings: list[dict[str, str]] = []
+
+    def add_warning(field: str, label: str) -> None:
+        warnings.append({"field": field, "label": label})
+
+    if not document_instance.customer_display_name:
+        add_warning("customer_display_name", "Nom ou raison sociale")
+    if not document_instance.customer_address:
+        add_warning("customer_address", "Adresse ou siège social")
+    if not document_instance.customer_contact_points_snapshot and not (
+        document_instance.customer_email or document_instance.customer_phone
+    ):
+        add_warning("customer_contacts", "Au moins un téléphone ou une adresse e-mail")
+
+    if document_instance.customer_party_type == "company":
+        fields = (
+            ("customer_nif", "NIF"),
+            ("customer_stat", "STAT"),
+            ("customer_rcs", "RCS"),
+            ("customer_representative_name", "Nom du représentant"),
+            ("customer_representative_role", "Fonction du représentant"),
+        )
+    else:
+        fields = (
+            ("customer_birth_date", "Date de naissance"),
+            ("customer_birth_place", "Lieu de naissance"),
+            ("customer_id_type", "Type de pièce d'identité"),
+            ("customer_id_number", "Numéro de pièce d'identité"),
+            ("customer_id_issue_date", "Date de délivrance"),
+            ("customer_id_issue_place", "Lieu de délivrance"),
+        )
+    for field, label in fields:
+        if not getattr(document_instance, field):
+            add_warning(field, label)
+
+    return warnings
 
 
 def hahitantsoa_event_draft_document_instance_kwargs(
