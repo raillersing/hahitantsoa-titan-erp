@@ -768,12 +768,14 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 );
               })}
               {services.map(s => {
+                const sQty = safeNumber(s.quantity, 1);
                 const sPrice = safeNumber(s.price, 0);
+                const sUnit = sQty > 1 ? Math.round(sPrice / sQty) : sPrice;
                 return (
                   <tr key={s.id || s.name || Math.random()} className="border-none align-top">
-                    <td className="text-left py-1.5">001</td>
+                    <td className="text-left py-1.5">{sQty.toString().padStart(3, '0')}</td>
                     <td className="py-1.5">{s.name || 'Service'}</td>
-                    <td className="text-right py-1.5">{formatMoneyRaw(sPrice)}</td>
+                    <td className="text-right py-1.5">{formatMoneyRaw(sUnit)}</td>
                     <td className="text-right py-1.5">{formatMoneyRaw(sPrice)}</td>
                     {showBreakageColumn && <td className="text-right py-1.5">0,00</td>}
                   </tr>
