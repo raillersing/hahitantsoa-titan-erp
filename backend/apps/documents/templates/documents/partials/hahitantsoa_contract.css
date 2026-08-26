@@ -128,6 +128,11 @@ li { margin: 1.2mm 0; }
 .breakage-list { list-style-type: none; padding-left: 4mm; margin: 6mm 0; font-size: 11pt; line-height: 2; }
 .breakage-list li { margin: 2.5mm 0; }
 
+.breakage-table { width: 100%; border-collapse: collapse; margin: 6mm 0 6mm; font-size: 10pt; position: relative; z-index: 1; }
+.breakage-table th { padding: 3mm 2mm; font-weight: 700; font-family: "Times New Roman", "Liberation Serif", serif; border-bottom: 0.25mm solid #cbd5e1; }
+.breakage-table td { padding: 3.5mm 2mm; border-bottom: 0.15mm solid #f1f5f9; font-family: "Times New Roman", "Liberation Serif", serif; }
+.breakage-note { margin-top: 6mm; font-size: 9.5pt; color: #333333; font-style: italic; line-height: 1.45; position: relative; z-index: 1; }
+
 .empty-note { margin-top: 30mm; text-align: center; color: #666666; }
 .annex-note { margin-top: 10mm; text-align: center; color: #555555; font-style: italic; }
 

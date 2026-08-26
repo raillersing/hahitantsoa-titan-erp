@@ -597,3 +597,54 @@ def test_titan_contract_and_amendment_dynamic_material_lines() -> None:
         assert "{{ lines.quantity }}" in html_vars
         assert "{{ lines.designation }}" in html_vars
         assert "150 x CHAISES TRANSPARENTES" not in html_vars
+
+
+def test_hahitantsoa_contract_annexe3_breakage_table() -> None:
+    definition = get_document_template_definition("hahitantsoa.contract.v1")
+    assert definition is not None
+    template_path = _resolve_preview_template_path(definition.key)
+    bank = _build_preview_bank(definition)
+
+    context = _build_mock_preview_context(definition)
+    context["event_draft"]["lines"] = [
+        {
+            "inventory_item_name": "Chaise argentée",
+            "quantity": 250,
+            "breakage_price": "25 000,00",
+            "notes": "",
+        },
+        {
+            "inventory_item_name": "Table ronde",
+            "quantity": 30,
+            "breakage_price": None,
+            "notes": "",
+        },
+    ]
+
+    html = render_to_string(
+        template_path,
+        {"context": context, "bank": bank, "show_variables": False},
+    )
+
+    # 1. Table structure and headers
+    assert "<u>Annexe 3 : Prix de casse</u>" in html
+    assert '<th class="text-left">Article</th>' in html
+    assert '<th class="text-center">Qté commandée</th>' in html
+    assert '<th class="text-right">Prix de casse / u</th>' in html
+    assert "Total potentiel" not in html
+    assert "évaluer selon le constat" not in html
+    assert "à évaluer selon constat" not in html
+
+    # 2. Dynamic client lines
+    assert "<td>Chaise argentée</td>" in html
+    assert '<td class="text-center">250</td>' in html
+    assert '<td class="text-right">Ar 25 000,00</td>' in html
+    assert "<td>Table ronde</td>" in html
+    assert '<td class="text-center">30</td>' in html
+    assert '<td class="text-right">—</td>' in html
+
+    # 3. Informative note at the bottom
+    assert (
+        "Note : le local ou les matériels qui ne figurent pas dans la liste"
+        in html
+    )
