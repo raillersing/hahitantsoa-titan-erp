@@ -113,6 +113,10 @@ class CommercialDocumentReservationContext:
     lines: tuple[CommercialDocumentLineContext, ...]
     created_at: datetime
     updated_at: datetime
+    total_amount: str = ""
+    proforma_reference: str = ""
+    pickup_at: datetime | None = None
+    return_at: datetime | None = None
 
 
 @dataclass(frozen=True)

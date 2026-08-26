@@ -53,6 +53,44 @@ def test_hahitantsoa_contract_uses_canonical_html_css_pages_and_preserves_annex_
     assert "total des préjudices" not in html.lower()
 
 
+def test_titan_material_contract_uses_canonical_html_css_pages() -> None:
+    definition = get_document_template_definition("titan.material_contract.v1")
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+
+    assert "size: A4 portrait" in html
+    assert html.count('class="contract-page') == 3
+    assert "CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS « TITAN RENTAL »" in html
+    assert "Article 1 : Objet du contrat" in html
+    assert "Article 12 : Transport" in html
+    assert "titan-rental-logo.png" in html
+
+
+def test_titan_material_amendment_uses_canonical_html_css_amendment_page() -> None:
+    definition = get_document_template_definition("titan.material_amendment.v1")
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+
+    assert "size: A4 portrait" in html
+    assert html.count('class="contract-page contract-page--amendment') == 1
+    assert "AVENANT DE CONTRAT « TITAN RENTAL »" in html
+    assert "titan-rental-logo.png" in html
+
+
 @pytest.mark.parametrize("template_key,paper_size,title", SOURCE_BACKED_DOCUMENTS)
 def test_source_backed_template_contains_source_geometry_and_title(
     template_key: str, paper_size: str, title: str

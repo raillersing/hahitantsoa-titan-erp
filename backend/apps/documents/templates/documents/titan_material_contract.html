@@ -1,34 +1,256 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="utf-8">
-    <title>{{ context.template.label }}</title>
+    <title>Contrat de location Titan Rental</title>
+    <style>{% include "documents/partials/hahitantsoa_contract.css" %}</style>
 </head>
-<body>
-    <h1>{{ context.template.label }}</h1>
-    <p>Reference: {{ context.reservation_draft.public_reference }}</p>
-    <p>Customer: {{ context.reservation_draft.customer.display_name }}</p>
-    <p>Customer ID: {{ context.reservation_draft.customer.customer_id }}</p>
-    <p>Email: {{ context.reservation_draft.customer.email }}</p>
-    <p>Phone: {{ context.reservation_draft.customer.phone }}</p>
-    <p>Address: {{ context.reservation_draft.customer.address }}</p>
-    <p>Identity: {{ context.reservation_draft.customer.id_type }} {{ context.reservation_draft.customer.id_number }}</p>
-    <p>NIF: {{ context.reservation_draft.customer.nif }}</p>
-    <p>STAT: {{ context.reservation_draft.customer.stat }}</p>
-    <p>RCS: {{ context.reservation_draft.customer.rcs }}</p>
-    <p>Window: {{ context.reservation_draft.start_at }} to {{ context.reservation_draft.end_at }}</p>
+<body class="contract-document">
+{% with draft=context.reservation_draft %}
+{% with customer=draft.customer|default:draft %}
+    <!-- ===================================================================== -->
+    <!-- PAGE 1 : EN-TÊTE, PARTIES, ARTICLE 1 (OBJET DU CONTRAT)               -->
+    <!-- ===================================================================== -->
+    <section class="contract-page">
+        <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
+        <header class="contract-header">
+            <div class="brand-block">
+                <img src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+                <p>ergon@ergon.mg<br>+261 34 61 791 41</p>
+            </div>
+            <div class="brand-block brand-block--right">
+                <img src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
+                <p>titan@ergon.mg<br>+261 34 61 791 42</p>
+            </div>
+        </header>
 
-    <h2>Reserved Items</h2>
-    <ul>
-    {% for line in context.reservation_draft.lines %}
-        <li>
-            {{ line.quantity }} x {{ line.inventory_item_name }}
-            ({{ line.inventory_item_kind }}){% if line.notes %} - {{ line.notes }}{% endif %}
-        </li>
-    {% endfor %}
-    </ul>
+        <h1>CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS « TITAN RENTAL »</h1>
 
-    <p>Contract generated from reservation-linked backend truth.</p>
-    <p>Notes: {{ context.reservation_draft.notes }}</p>
+        <p>Entre les soussignés :</p>
+        <p><strong>La société ERGON GROUP</strong>, dont le siège social se situe au Lot P93M Sud Ambohipo Alasora Antananarivo 10301, représentée par RASOAMANANA Narindra en sa qualité de Gérante</p>
+        <p class="text-right">Ci-après dénommée « Le prestataire »</p>
+        <p class="text-right"><strong><u>D'UNE PART,</u></strong></p>
+
+        <span class="sr-only">Contrat materiel Titan ({{ draft.public_reference }}). Contract generated from reservation-linked backend truth.</span>
+
+        {% if show_variables %}
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
+                <p>La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> domiciliée au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
+                NIF : <span class="variable">{% templatetag openvariable %} client.nif {% templatetag closevariable %}</span><br>
+                STAT : <span class="variable">{% templatetag openvariable %} client.stat {% templatetag closevariable %}</span><br>
+                RCS : <span class="variable">{% templatetag openvariable %} client.rcs {% templatetag closevariable %}</span><br>
+                Représentée par <span class="variable">{% templatetag openvariable %} client.representativeName {% templatetag closevariable %}</span> en sa qualité de <span class="variable">{% templatetag openvariable %} client.representativeRole {% templatetag closevariable %}</span><br>
+                Contact : <span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span><br>
+                Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span></p>
+            {% else %}
+                <p>Madame/Monsieur <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> né(e) le <span class="variable">{% templatetag openvariable %} client.birthDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.birthPlace {% templatetag closevariable %}</span>, titulaire de la <span class="variable">{% templatetag openvariable %} client.idType {% templatetag closevariable %}</span> N° <span class="variable">{% templatetag openvariable %} client.idNumber {% templatetag closevariable %}</span> Délivrée le <span class="variable">{% templatetag openvariable %} client.idIssueDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.idIssuePlace {% templatetag closevariable %}</span> duplicata du <span class="variable">{% templatetag openvariable %} client.idDuplicateDate {% templatetag closevariable %}</span> à <span class="variable">{% templatetag openvariable %} client.idDuplicatePlace {% templatetag closevariable %}</span> demeurant au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
+                Contact : <span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span><br>
+                Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span></p>
+            {% endif %}
+        {% else %}
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
+                <p>La société <strong>{{ customer.display_name|default:"................................" }}</strong> domiciliée au {{ customer.address|default:"................................" }}<br>
+                NIF : {{ customer.nif|default:"................................" }}<br>
+                STAT : {{ customer.stat|default:"................................" }}<br>
+                RCS : {{ customer.rcs|default:"................................" }}<br>
+                Représentée par {{ customer.representative_name|default:"................................" }} en sa qualité de {{ customer.representative_role|default:"................................" }}<br>
+                Contact : {{ customer.phone|default:"................................" }}<br>
+                Mail : {{ customer.email|default:"................................" }}</p>
+            {% else %}
+                <p>Madame/Monsieur <strong>{{ customer.display_name|default:"................................" }}</strong> né(e) le {{ customer.birth_date|date:"d/m/Y"|default:"........" }} à {{ customer.birth_place|default:"........" }}, titulaire de la {{ customer.id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ customer.id_number|default:"................................" }} Délivrée le {{ customer.id_issue_date|date:"d/m/Y"|default:"........" }} à {{ customer.id_issue_place|default:"........" }} {% if customer.id_duplicata_date %}duplicata du {{ customer.id_duplicata_date|date:"d/m/Y" }} à {{ customer.id_duplicata_place }}{% endif %} demeurant au {{ customer.address|default:"................................" }}<br>
+                Contact : {{ customer.phone|default:"................................" }}<br>
+                Mail : {{ customer.email|default:"................................" }}{% if customer.nif %}<br>
+                NIF : {{ customer.nif }}{% endif %}{% if customer.stat %}<br>
+                STAT : {{ customer.stat }}{% endif %}{% if customer.rcs %}<br>
+                RCS : {{ customer.rcs }}{% endif %}</p>
+            {% endif %}
+        {% endif %}
+
+        <p class="text-right">Ci-après dénommée « Le client »</p>
+        <p class="text-right"><strong><u>D'AUTRE PART,</u></strong></p>
+
+        <p>Le Client et le Prestataire étant dénommés ci-après les « Parties »</p>
+        <p class="uppercase"><strong>IL A ETE CONVENU CE QUI SUIT :</strong></p>
+
+        <h2>Article 1 : Objet du contrat</h2>
+        <p>Le présent contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
+        <ul>
+            {% for line in draft.lines %}
+                <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</li>
+            {% empty %}
+                <li>150 x CHAISES TRANSPARENTES</li>
+                <li>150 x COUSSINS BEIGES</li>
+            {% endfor %}
+        </ul>
+        <p class="indent">Ci-après désignés les « Matériels Loués ».</p>
+        <p>Le client déclare parfaitement connaitre les Matériels loués pour les avoir examinés en vue des présentes, sans qu’il soit nécessaire d’en faire plus ample désignation et déclare les accepter dans l’état où ils se trouvent tels qu’ils existent.</p>
+
+        <footer class="contract-footer">
+            <div class="contract-footer-col contract-footer-col--left">
+                <div class="contract-footer-meta">
+                    Ergon Group SARL<br>
+                    Lot P93M Ambohipo Sud Alasora Bypass
+                </div>
+                <div class="contract-footer-contact">
+                    ergon@ergon.mg<br>
+                    +261 34 61 791 41
+                </div>
+            </div>
+            <div class="contract-footer-col contract-footer-col--right">
+                <div class="contract-footer-meta">
+                    NIF: 6003298583<br>
+                    STAT: 77290 11 2019 010 215
+                </div>
+                <div class="contract-footer-contact">
+                    titan@ergon.mg<br>
+                    +261 34 61 791 42
+                </div>
+            </div>
+        </footer>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PAGE 2 : ARTICLES 2 À 7                                               -->
+    <!-- ===================================================================== -->
+    <section class="contract-page">
+        <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
+        <header class="contract-subpage-header">
+            <img src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
+        </header>
+
+        <h2>Article 2 : Destination</h2>
+        <p>Les matériels loués sont destinés à usage dans le cadre des évènements suivants : mariages, anniversaires, réceptions privées, séminaires.</p>
+        <p>Toute autre activité en sus non mentionnée doit faire l’objet d’une annexe à titre d’avenant conclu entre les parties.</p>
+        <p>Le lieu de destination devant être mentionné par le Client.</p>
+
+        <h2>Article 3 : Durée</h2>
+        <p>La présente location est consentie et acceptée du {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startDate {% templatetag closevariable %}</span>{% else %}{{ draft.start_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startTime {% templatetag closevariable %}</span>{% else %}{{ draft.start_at|date:"H:i"|default:"……" }}{% endif %} heures au {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endDate {% templatetag closevariable %}</span>{% else %}{{ draft.end_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endTime {% templatetag closevariable %}</span>{% else %}{{ draft.end_at|date:"H:i"|default:"……" }}{% endif %} heures.</p>
+        <p>Il sera alors convenu un prélèvement des matériels du {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.pickupDate {% templatetag closevariable %}</span>{% else %}{{ draft.pickup_at|date:"d/m/Y"|default:draft.start_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.pickupTime {% templatetag closevariable %}</span>{% else %}{{ draft.pickup_at|date:"H:i"|default:"09:00" }}{% endif %} heures, pour une restitution au {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.returnDate {% templatetag closevariable %}</span>{% else %}{{ draft.return_at|date:"d/m/Y"|default:draft.end_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.returnTime {% templatetag closevariable %}</span>{% else %}{{ draft.return_at|date:"H:i"|default:"09:00" }}{% endif %} heures.</p>
+
+        <h2>Article 4 : Tarifs</h2>
+        <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% else %}<strong>{{ draft.total_amount|default:"...................." }}</strong>{% endif %} Ariary TTC.</p>
+        <p class="indent">N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ draft.proforma_reference|default:draft.public_reference|default:"................" }}{% endif %}</p>
+        <p>Une facture sera établie après la réception de la totalité du règlement.</p>
+        <p>Un reçu sera établi lors de la réception des fonds pour acompte.</p>
+        <p>Dans le cas où le client n’aurait pas rendu les Matériels loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50 % du montant total de la facture par jour de non remise des Matériels Loués.</p>
+        <p>Dans le cas où il y a préjudice causé par la rallonge de retour des Matériels loués, le Client est tenu de prendre en charge tous les frais liés au démantèlement avec la somme supplémentaire de 100% pour réparation de dommage.</p>
+
+        <h2>Article 5 : Modalités de paiement</h2>
+        <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de 25 % de la somme totale due.</p>
+        <p>Celui-ci devra être réglé le jour de la réservation des matériels, soit à la signature par le Client du présent contrat.</p>
+        <p>Le client s’engage à verser le solde du montant de la location cinq jours avant l’enlèvement des Matériels Loués au plus tard.</p>
+
+        <h2>Article 6 : Etat des Matériels</h2>
+        <p>Un état des Matériels sera établi à l’enlèvement à contrario d’un état dressé à la remise des dits matériels à la fin du contrat. Le client est tenu de rester le temps nécessaire pour procéder à l’état des Matériels. Chaque article devra être restitué à l’état lors de la prise de possession.</p>
+
+        <h2>Article 7 : Dépôt de garantie</h2>
+        <p>Le client verse au Prestataire à titre de dépôt de garantie :</p>
+        <ul>
+            <li>100 000,00 Ariary (Cent mille Ariary) pour les locations de moins de 200 000,00 Ariary (Deux cent mille Ariary) ;</li>
+            <li>50% du montant total pour les locations de plus de 200 000,00 Ariary.</li>
+        </ul>
+        <p>La somme correspondant au dépôt de garantie est versée le jour du règlement de solde du contrat.</p>
+        <p>Le montant du dépôt de garantie sera remboursé au Client le jour de la fin de location dans le cas d’un retour sans casse.</p>
+
+        <footer class="contract-footer">
+            <div class="contract-footer-col contract-footer-col--left">
+                <div class="contract-footer-meta">
+                    Ergon Group SARL<br>
+                    Lot P93M Ambohipo Sud Alasora Bypass
+                </div>
+                <div class="contract-footer-contact">
+                    ergon@ergon.mg<br>
+                    +261 34 61 791 41
+                </div>
+            </div>
+            <div class="contract-footer-col contract-footer-col--right">
+                <div class="contract-footer-meta">
+                    NIF: 6003298583<br>
+                    STAT: 77290 11 2019 010 215
+                </div>
+                <div class="contract-footer-contact">
+                    titan@ergon.mg<br>
+                    +261 34 61 791 42
+                </div>
+            </div>
+        </footer>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- PAGE 3 : ARTICLES 8 À 12, SIGNATURES                                  -->
+    <!-- ===================================================================== -->
+    <section class="contract-page">
+        <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
+        <header class="contract-subpage-header">
+            <img src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
+        </header>
+
+        <p>Par ailleurs, en cas de casse il sera alloué au Prestataire cinq jours de délai pour traitement et restitution du dépôt de garantie après déduction de toutes les sommes dont il est destiné à garantir le paiement notamment les casses et préjudices causés par le Client à l’usage des articles de location.</p>
+        <p>Si le montant du préjudice est supérieur au montant du dépôt de garantie, le Client s’engage à rembourser les frais supplémentaires sous 8 jours après réception d’une mise en demeure l’informant du montant de la somme due au titre de ces désagréments.</p>
+
+        <h2>Article 8 : Obligations du Prestataire</h2>
+        <p>Le Prestataire s’engage à mettre à disposition du Client l’ensemble des éléments mentionnés dans l’article 1 du présent contrat.</p>
+        <p>Il s’engage à ne pas faire entrave à la jouissance du Client pendant toute la durée de la location.</p>
+
+        <h2>Article 9 : Obligations du Client</h2>
+        <ul>
+            <li>Le Client prendra les Matériels Loués dans l’état où ils se trouvent au moment de l’entrée en jouissance, sans pouvoir exiger du Prestataire toute forme de modifications en sus ;</li>
+            <li>Le Client ne pourra faire aucune modification sur les Matériels Loués ;</li>
+            <li>Le Client s’engage à utiliser les Matériels Loués en bon père de famille ;</li>
+            <li>Le Client s’engage à respecter et à faire respecter par toutes les personnes présentes lors de l’évènement le bon usage en bon père de famille des Matériels Loués ;</li>
+            <li>Le Client s’engage à rendre les Matériels loués lavés et séchés.</li>
+        </ul>
+
+        <h2>Article 10 : Annulation</h2>
+        <p>Le preneur ne pourrait annuler la location sauf pour cas de force majeure, et ne peut prévaloir un droit à remboursement.</p>
+        <p>En cas de force majeure, les deux parties se rapprochent pour évaluer les éventuels remboursements sans engagement de part et d’autre.</p>
+        <p>Dans le cas où le Prestataire ne pourrait respecter ses engagements pour cas de force majeure, il se réserve le droit d’annuler la réservation et de rembourser intégralement au Client les sommes qu’il a versées.</p>
+
+        <h2>Article 11 : Clause résolutoire</h2>
+        <p>Il est expressément convenu qu’en cas de paiement par chèque, le règlement ne sera considéré effectif qu’après l’encaissement du chèque.</p>
+        <p>Dans le cas où le chèque serait sans provision, la présente clause sera appliquée et le présent contrat deviendra nul de plein droit.</p>
+
+        <h2>Article 12 : Transport</h2>
+        <p>Un véhicule fourgon est exigé pour le transport des matériels.</p>
+
+        <p class="text-center signature-intro">Fait en trois exemplaires originaux</p>
+        <p class="text-right">A Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</p>
+
+        <div class="signatures">
+            <div class="signature-block">
+                <strong>Le Prestataire,</strong>
+                <div class="signature-space"></div>
+            </div>
+            <div class="signature-block">
+                <strong>Le Client,</strong>
+                <div class="signature-space"></div>
+            </div>
+        </div>
+
+        <footer class="contract-footer">
+            <div class="contract-footer-col contract-footer-col--left">
+                <div class="contract-footer-meta">
+                    Ergon Group SARL<br>
+                    Lot P93M Ambohipo Sud Alasora Bypass
+                </div>
+                <div class="contract-footer-contact">
+                    ergon@ergon.mg<br>
+                    +261 34 61 791 41
+                </div>
+            </div>
+            <div class="contract-footer-col contract-footer-col--right">
+                <div class="contract-footer-meta">
+                    NIF: 6003298583<br>
+                    STAT: 77290 11 2019 010 215
+                </div>
+                <div class="contract-footer-contact">
+                    titan@ergon.mg<br>
+                    +261 34 61 791 42
+                </div>
+            </div>
+        </footer>
+    </section>
+{% endwith %}
+{% endwith %}
 </body>
 </html>
