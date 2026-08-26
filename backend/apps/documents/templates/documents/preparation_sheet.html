@@ -1,1 +1,316 @@
-{% include "documents/hahitantsoa_preparation_sheet.html" %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Bon de préparation interne</title>
+  <style>
+    /* ========================================================================= */
+    /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
+    /* ========================================================================= */
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { width: 210mm; height: 297mm; margin: 0; color: #202020; }
+    body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; -webkit-print-color-adjust: exact; }
+    .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #ffffff; }
+
+    /* ========================================================================= */
+    /* 2. VOLET LATÉRAL GAUCHE (SIDEBAR BANQUE & LOGOS)                          */
+    /* ========================================================================= */
+    .side {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 51mm;             /* Largeur du volet gauche */
+      height: 297mm;           /* Hauteur pleine page A4 */
+      background: #e7e8e8;     /* Couleur de fond gris du volet */
+      padding: 14mm 3mm 7mm;
+    }
+
+    /* ========================================================================= */
+    /* 3. LOGOS : COORDONNÉES DE POSITIONNEMENT ET TAILLE                        */
+    /* ========================================================================= */
+    /* Logo Ergon (Haut du volet latéral) */
+    .brand {
+      position: absolute;
+      top: 4mm;               /* Distance depuis le haut de la page */
+      left: 50%;               /* Centrage horizontal parfait */
+      transform: translateX(-50%);
+      width: 44mm;             /* Largeur ajustée au volet de 51mm */
+      height: 44mm;            /* Hauteur ajustée */
+      object-fit: contain;
+      filter: grayscale(1) contrast(2);
+    }
+
+    /* Informations bancaires et coordonnées (Bas du volet latéral) */
+    .side-info {
+      position: absolute;
+      left: 3mm;               /* Coordonnée X gauche des textes bancaires */
+      right: 3mm;              /* Coordonnée X droite des textes bancaires */
+      bottom: 35mm;            /* Coordonnée Y depuis le bas de la page */
+      color: #4c4c4c;
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    .side-info strong { color: #292929; font-size: 9pt; }
+
+    /* Logo Ergon Group (Bas du volet latéral) */
+    .ergon {
+      position: absolute;
+      bottom: -35mm;             /* Distance depuis le bas de la page */
+      left: 50%;               /* Centrage horizontal */
+      transform: translateX(-50%);
+      width: 40mm;             /* Largeur du logo Ergon */
+      height: 40mm;            /* Hauteur du logo Ergon */
+      object-fit: contain;
+      filter: grayscale(2);
+      opacity: 0.55;           /* Opacité du logo Ergon (0.55 = 55%) */
+    }
+
+    /* ========================================================================= */
+    /* 4. FILIGRANE D'ARRIÈRE-PLAN (WATERMARK PAGE PRINCIPALE)                   */
+    /* ========================================================================= */
+    .watermark {
+      position: absolute;
+      z-index: 0;
+      left: -70mm;              /* Position horizontale depuis la gauche */
+      top: 70mm;               /* Position verticale depuis le haut */
+      width: 360mm;            /* Largeur du filigrane */
+      height: 360mm;           /* Hauteur du filigrane */
+      opacity: 0.04;          /* Opacité du filigrane (0.01 à 1.0) */
+      object-fit: cover;
+      filter: grayscale(1);
+      pointer-events: none;
+    }
+
+    /* ========================================================================= */
+    /* 5. ZONE DE CONTENU PRINCIPALE (DROITE)                                    */
+    /* ========================================================================= */
+    .main {
+      position: absolute;
+      top: 0;
+      left: 51mm;              /* Aligné sur le bord droit du volet (51mm) */
+      width: 159mm;            /* 210mm (A4) - 51mm (Volet) = 159mm */
+      height: 297mm;
+      padding: 7mm 3mm;
+    }
+    .header, .identity, .items, .signatures, .footer {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ========================================================================= */
+    /* 6. EN-TÊTE : TITRE & DATE (ALIGNÉ À DROITE SUR LA LIGNE DE RÉFÉRENCE)     */
+    /* ========================================================================= */
+    .header { text-align: right; padding-right: 7mm; }
+    .header-box { display: inline-block; text-align: right; }
+    .ref { margin: 0; font-size: 12pt; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; }
+    .title { margin: 2mm 0; font-size: 21pt; line-height: 1; letter-spacing: 2.2mm; font-weight: 700; margin-right: -2.2mm; text-align: left; }
+    .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
+
+    /* ========================================================================= */
+    /* 7. BLOC IDENTIFICATION                                                    */
+    /* ========================================================================= */
+    .identity { margin-top: 4mm; font-size: 10pt; letter-spacing: 0.7mm; }
+    .identity-row { display: grid; grid-template-columns: 44mm 1fr; min-height: 8.5mm; align-items: baseline; }
+    .identity-row strong { font-size: 10pt; white-space: nowrap; }
+    .identity-value { font-size: 10pt; letter-spacing: 0; }
+
+    /* ========================================================================= */
+    /* 8. TABLEAU DES ARTICLES (ARTICLE, QTÉ, OBSERVATIONS)                      */
+    /* ========================================================================= */
+    .items { width: 100%; margin-top: 6mm; border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
+    .items thead { letter-spacing: 0.55mm; border-bottom: 0.35mm solid #333333; }
+    .items th { height: 8mm; font-size: 9pt; font-weight: 700; text-align: left; }
+    .items th.center { text-align: center; }
+    .items td { height: 7mm; vertical-align: top; text-align: left; font-family: "Century Gothic", sans-serif; padding: 1.5mm 1mm; }
+    .items td.center { text-align: center; }
+    .items tbody tr { border-bottom: 0.2mm solid #eeeeee; }
+
+    /* ========================================================================= */
+    /* 9. SIGNATURES & PIED DE PAGE                                              */
+    /* ========================================================================= */
+    .signatures {
+      position: absolute;
+      left: 16mm;
+      right: 16mm;
+      bottom: 27mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5pt;
+      color: #333333;
+    }
+    .footer {
+      position: absolute;
+      left: 3mm;
+      right: 7mm;
+      bottom: 7mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+
+    .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
+    @media print { .variable { background: transparent; outline: 0; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
+    <aside class="side">
+      <!-- Logo 1 : Ergon Group (Haut du volet) -->
+      <img class="brand" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon Group">
+
+      <div class="side-info">
+        <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320102 33" }}<br><br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
+        Lot P93M Ambohipo sud<br>
+        By-pass<br>
+        +261 34 61 791 41<br><br>
+        NIF : 6003298583<br>
+        STAT : 77290 11 2019 0 10215
+
+        <!-- Logo 2 : Ergon Group (Bas du volet) -->
+        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
+      </div>
+    </aside>
+
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
+    <main class="main">
+      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
+      <img class="watermark" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="">
+
+      <header class="header">
+        <div class="header-box">
+          <div class="ref">
+            <span>BON DE PRÉPARATION N° :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{% if context.reservation_draft %}{{ context.reservation_draft.public_reference|default:"____/__" }}{% else %}{{ context.event_draft.public_reference|default:"____/__" }}{% endif %}{% endif %}</span>
+          </div>
+          <div class="title">BON DE PRÉPARATION</div>
+          <div class="date">
+            <span>DATE :</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% if document.date %}{{ document.date|date:"d/m/Y" }}{% else %}{% now "d/m/Y" %}{% endif %}{% endif %}</span>
+          </div>
+        </div>
+      </header>
+
+      {% if context.reservation_draft %}
+        <section class="identity">
+          <div class="identity-row">
+            <strong>DESTINATION / CLIENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"________________________" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>DATE ÉVÉNEMENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>OBSERVATIONS :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.notes {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.notes|default:"Préparation interne du matériel" }}{% endif %}</span>
+          </div>
+        </section>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width: 50%;">Article</th>
+              <th class="center" style="width: 18%;">Qté</th>
+              <th style="width: 32%;">Observations</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in context.reservation_draft.lines %}
+              <tr>
+                <td>{{ line.inventory_item_name }}</td>
+                <td class="center">{{ line.quantity }}</td>
+                <td>{{ line.notes|default:"" }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td>____________________________________</td>
+                <td class="center">___</td>
+                <td>________________________</td>
+              </tr>
+              <tr>
+                <td>____________________________________</td>
+                <td class="center">___</td>
+                <td>________________________</td>
+              </tr>
+              <tr>
+                <td>____________________________________</td>
+                <td class="center">___</td>
+                <td>________________________</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <section class="identity">
+          <div class="identity-row">
+            <strong>DESTINATION / CLIENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"________________________" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>DATE ÉVÉNEMENT :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          </div>
+          <div class="identity-row">
+            <strong>OBSERVATIONS :</strong>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.notes {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.notes|default:"Préparation interne du matériel" }}{% endif %}</span>
+          </div>
+        </section>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width: 50%;">Article</th>
+              <th class="center" style="width: 18%;">Qté</th>
+              <th style="width: 32%;">Observations</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in context.event_draft.lines %}
+              <tr>
+                <td>{{ line.inventory_item_name }}</td>
+                <td class="center">{{ line.quantity }}</td>
+                <td>{{ line.notes|default:"" }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td>____________________________________</td>
+                <td class="center">___</td>
+                <td>________________________</td>
+              </tr>
+              <tr>
+                <td>____________________________________</td>
+                <td class="center">___</td>
+                <td>________________________</td>
+              </tr>
+              <tr>
+                <td>____________________________________</td>
+                <td class="center">___</td>
+                <td>________________________</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+
+      <div class="signatures">
+        <span>Le Préparateur</span>
+        <span>Contrôle Départ</span>
+      </div>
+
+      <div class="footer">
+        <span>logistique@ergon.mg</span>
+        <span>+261 34 61 791 41</span>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
