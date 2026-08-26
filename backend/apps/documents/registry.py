@@ -329,6 +329,34 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         notes="Draft HTML reconstructed from the nested supplier purchase-order PDF; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
     ),
     DocumentTemplateDefinition(
+        key="hahitantsoa.breakage_repair_invoice.v1",
+        label="Détails des casses",
+        business_scope="hahitantsoa",
+        document_type="breakage_repair_invoice",
+        version="v1",
+        status="validated_source_template",
+        source_kind="source_pdf",
+        source_reference="docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf",
+        template_path="backend/apps/documents/templates/documents/hahitantsoa_breakage_repair_invoice.html",
+        preview_path="docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf",
+        validated_by_client=True,
+        notes="Template officiel Détails de casse pour les événements Hahitantsoa selon la charte proforma.",  # noqa: E501
+    ),
+    DocumentTemplateDefinition(
+        key="titan.breakage_repair_invoice.v1",
+        label="Détails des casses",
+        business_scope="titan",
+        document_type="breakage_repair_invoice",
+        version="v1",
+        status="validated_source_template",
+        source_kind="source_pdf",
+        source_reference="docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf",
+        template_path="backend/apps/documents/templates/documents/titan_breakage_repair_invoice.html",
+        preview_path="docs/references/source/templates/Template_Facture_Casse_Remise_Etat_style_fidele_v5.pdf",
+        validated_by_client=True,
+        notes="Template officiel Détails de casse pour les locations Titan selon la charte proforma.",  # noqa: E501
+    ),
+    DocumentTemplateDefinition(
         key="shared.breakage_repair_invoice.v1",
         label="Détails des casses",
         business_scope="shared",

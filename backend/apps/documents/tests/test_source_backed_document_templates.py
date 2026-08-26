@@ -19,6 +19,8 @@ SOURCE_BACKED_DOCUMENTS = (
     ("hahitantsoa.invoice.v1", "A4", "FACTURE"),
     ("titan.delivery_note.v1", "A4", "BON DE LIVRAISON"),
     ("titan.invoice.v1", "A4", "FACTURE"),
+    ("hahitantsoa.breakage_repair_invoice.v1", "A4", "DETAILS DE CASSE"),
+    ("titan.breakage_repair_invoice.v1", "A4", "DETAILS DE CASSE"),
     ("shared.breakage_repair_invoice.v1", "A4", "DETAILS DE CASSE"),
     ("hahitantsoa.preparation_sheet.v1", "A4", "Checking de passation"),
 )
@@ -122,6 +124,38 @@ def test_breakage_preview_does_not_expose_placeholder_bank_tokens() -> None:
     assert "00004 00009 03319320103 30" in html
     assert "{{rib}}" not in html
     assert "{{iban}}" not in html
+
+
+def test_hahitantsoa_and_titan_breakage_invoices_expose_brand_and_bank() -> None:
+    hahi_def = get_document_template_definition("hahitantsoa.breakage_repair_invoice.v1")
+    assert hahi_def is not None
+    hahi_html = render_to_string(
+        _resolve_preview_template_path(hahi_def.key),
+        {
+            "context": _build_mock_preview_context(hahi_def),
+            "bank": _build_preview_bank(hahi_def),
+            "show_variables": False,
+        },
+    )
+    assert "hahitantsoa-logo.png" in hahi_html
+    assert "00004 00009 03319320103 30" in hahi_html
+    assert "hahitantsoa@ergon.mg" in hahi_html
+    assert "DETAILS DE CASSE" in hahi_html
+
+    titan_def = get_document_template_definition("titan.breakage_repair_invoice.v1")
+    assert titan_def is not None
+    titan_html = render_to_string(
+        _resolve_preview_template_path(titan_def.key),
+        {
+            "context": _build_mock_preview_context(titan_def),
+            "bank": _build_preview_bank(titan_def),
+            "show_variables": False,
+        },
+    )
+    assert "titan-logo.png" in titan_html
+    assert "00004 00009 03319320102 33" in titan_html
+    assert "titan@ergon.mg" in titan_html
+    assert "DETAILS DE CASSE" in titan_html
 
 
 def test_checking_preview_exposes_two_source_pages_without_internal_overflow() -> None:

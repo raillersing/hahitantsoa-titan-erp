@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>Détails de casse</title>
+  <title>Détails de casse Titan</title>
   <style>
     /* ========================================================================= */
     /* 1. PARAMÈTRES DE PAGE & FORMAT A4                                         */
@@ -105,7 +105,7 @@
     .date { font-size: 10pt; letter-spacing: 1.2mm; display: flex; justify-content: space-between; align-items: baseline; }
 
     /* ========================================================================= */
-    /* 7. BLOC IDENTIFICATION CLIENT & ÉVÉNEMENT / LOCATION                      */
+    /* 7. BLOC IDENTIFICATION CLIENT & LOCATION                                  */
     /* ========================================================================= */
     .identity { margin-top: 4mm; font-size: 10pt; letter-spacing: 0.7mm; }
     .identity-row { display: grid; grid-template-columns: 48mm 1fr; min-height: 7.5mm; align-items: baseline; }
@@ -220,23 +220,19 @@
   <div class="page">
     <!-- VOLET LATÉRAL GAUCHE -->
     <aside class="side">
-      {% if context.reservation_draft and not context.event_draft %}
-        <img class="brand" src="/brand/titan-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-logo.png';}" alt="Titan">
-      {% else %}
-        <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
-      {% endif %}
+      <img class="brand" src="/brand/titan-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-logo.png';}" alt="Titan">
 
       <div class="side-info">
         <strong>BANK</strong><br>
         {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankName {% templatetag closevariable %}</span>{% else %}{{ bank.name|default:"BMOI MADAGASCAR" }}{% endif %}<br><br>
         <strong>RIB</strong><br>
-        {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"00004 00009 03319320103 30" }}{% endif %}<br><br>
-        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
+        {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"00004 00009 03319320102 33" }}{% endif %}<br><br>
+        {{ bank.account_holder|default:"ERGON GROUP SARL" }}<br>
         Lot P93M Ambohipo sud<br>
         By-pass<br>
         +261 34 61 791 41<br><br>
         NIF : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.nif {% templatetag closevariable %}</span>{% else %}{{ bank.nif|default:"6003298583" }}{% endif %}<br>
-        STAT : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.stat {% templatetag closevariable %}</span>{% else %}{{ bank.stat|default:"77290 11 2019 0 10215" }}{% endif %}
+        STAT : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.stat {% templatetag closevariable %}</span>{% else %}{{ bank.stat|default:"77290 11 2019 010 215" }}{% endif %}
 
         <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
       </div>
@@ -244,17 +240,13 @@
 
     <!-- ZONE PRINCIPALE DU DOCUMENT -->
     <main class="main">
-      {% if context.reservation_draft and not context.event_draft %}
-        <img class="watermark" src="/brand/titan-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-logo.png';}" alt="">
-      {% else %}
-        <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
-      {% endif %}
+      <img class="watermark" src="/brand/titan-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-logo.png';}" alt="">
 
       <header class="header">
         <div class="header-box">
           <div class="ref">
             <span>RÉFÉRENCE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.public_reference|default:"____/__" }}{% else %}{{ context.reservation_draft.public_reference|default:"____/__" }}{% endif %}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"____/__" }}{% endif %}</span>
           </div>
           <div class="title">DETAILS DE CASSE</div>
           <div class="date">
@@ -267,19 +259,19 @@
       <section class="identity">
         <div class="identity-row">
           <strong>NOM :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.customer_display_name|default:"" }}{% else %}{{ context.reservation_draft.customer.display_name|default:context.excess_receivable.customer_display_name|default:"" }}{% endif %}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:context.excess_receivable.customer_display_name|default:"" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>CONTACT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.customer_phone|default:"" }}{% else %}{{ context.reservation_draft.customer.phone|default:context.excess_receivable.customer_phone|default:"" }}{% endif %}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:context.excess_receivable.customer_phone|default:"" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>DOSSIER :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.public_reference|default:"" }}{% else %}{{ context.reservation_draft.public_reference|default:context.excess_receivable.reservation_public_reference|default:"" }}{% endif %}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:context.excess_receivable.reservation_public_reference|default:"" }}{% endif %}</span>
         </div>
         <div class="identity-row">
-          <strong>DATE :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"" }}{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"" }}{% endif %}{% endif %}</span>
+          <strong>DATE LOCATION :</strong>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"" }}{% endif %}</span>
         </div>
       </section>
 
@@ -295,43 +287,23 @@
         </thead>
         <tbody>
           <tr class="category-row"><td colspan="5">CASSE</td></tr>
-          {% if context.event_draft %}
-            {% for line in context.event_draft.lines %}
-              <tr>
-                <td>{{ line.quantity }}</td>
-                <td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td>
-                <td>{{ line.unit|default:"Pcs" }}</td>
-                <td>{{ line.unit_price|default:"0,00" }}</td>
-                <td>{{ line.total_price|default:"0,00" }}</td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td>___</td>
-                <td>________________________________</td>
-                <td>Pcs</td>
-                <td>0,00</td>
-                <td>0,00</td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            {% for line in context.reservation_draft.lines %}
-              <tr>
-                <td>{{ line.quantity }}</td>
-                <td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td>
-                <td>{{ line.unit|default:"Pcs" }}</td>
-                <td>{{ line.unit_price|default:"0,00" }}</td>
-                <td>{{ line.total_price|default:"0,00" }}</td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td>___</td>
-                <td>________________________________</td>
-                <td>Pcs</td>
-                <td>0,00</td>
-                <td>0,00</td>
-              </tr>
-            {% endfor %}
-          {% endif %}
+          {% for line in context.reservation_draft.lines %}
+            <tr>
+              <td>{{ line.quantity }}</td>
+              <td>{{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</td>
+              <td>{{ line.unit|default:"Pcs" }}</td>
+              <td>{{ line.unit_price|default:"0,00" }}</td>
+              <td>{{ line.total_price|default:"0,00" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td>___</td>
+              <td>________________________________</td>
+              <td>Pcs</td>
+              <td>0,00</td>
+              <td>0,00</td>
+            </tr>
+          {% endfor %}
           <tr class="category-row"><td colspan="5">RAJOUT</td></tr>
           <tr>
             <td>___</td>
@@ -346,30 +318,30 @@
       <div class="totals">
         <div class="totals-row">
           <span>TOTAL :</span>
-          <span>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} total.amount {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.total_amount|default:"0,00" }}{% else %}{{ context.reservation_draft.total_amount|default:"0,00" }}{% endif %}{% endif %}</span>
+          <span>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} total.amount {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.total_amount|default:"0,00" }}{% endif %}</span>
         </div>
         <div class="totals-row">
           <span>Caution :</span>
-          <span>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.caution {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.caution_amount|default:"0,00" }}{% else %}{{ context.reservation_draft.caution_amount|default:"0,00" }}{% endif %}{% endif %}</span>
+          <span>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.caution {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.caution_amount|default:"0,00" }}{% endif %}</span>
         </div>
         <div class="totals-row">
           <span>Reste à payer :</span>
-          <span>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.remaining_due|default:"0,00" }}{% else %}{{ context.reservation_draft.remaining_due|default:"0,00" }}{% endif %}{% endif %}</span>
+          <span>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.remaining_due|default:"0,00" }}{% endif %}</span>
         </div>
         <div class="totals-row">
           <span>Échéance :</span>
-          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.dueDate {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.due_date|date:"d/m/Y"|default:"__/__/____" }}{% else %}{{ context.reservation_draft.due_date|date:"d/m/Y"|default:"__/__/____" }}{% endif %}{% endif %}</span>
+          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.dueDate {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.due_date|date:"d/m/Y"|default:"__/__/____" }}{% endif %}</span>
         </div>
       </div>
 
       <div class="total-bar">
         <span>TOTAL À PAYER</span>
-        <strong>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.remaining_due|default:"0,00" }}{% else %}{{ context.reservation_draft.remaining_due|default:"0,00" }}{% endif %}{% endif %}</strong>
+        <strong>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.remaining_due|default:"0,00" }}{% endif %}</strong>
       </div>
 
       <div class="words">
         <span>Arrêtée la présente facture<br>à la somme de</span>
-        <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} total.words {% templatetag closevariable %}</span>{% else %}{% if context.event_draft %}{{ context.event_draft.total_amount_in_words|default:"................................................" }}{% else %}{{ context.reservation_draft.total_amount_in_words|default:"................................................" }}{% endif %}{% endif %} Ariary</span>
+        <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} total.words {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.total_amount_in_words|default:"................................................" }}{% endif %} Ariary</span>
       </div>
 
       <div class="signatures">
@@ -378,11 +350,7 @@
       </div>
 
       <div class="footer">
-        {% if context.reservation_draft and not context.event_draft %}
-          <span>titan@ergon.mg</span>
-        {% else %}
-          <span>hahitantsoa@ergon.mg</span>
-        {% endif %}
+        <span>titan@ergon.mg</span>
         <span>+261 34 61 791 44</span>
       </div>
     </main>
