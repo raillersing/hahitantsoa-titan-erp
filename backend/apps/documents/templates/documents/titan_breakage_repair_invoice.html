@@ -286,7 +286,6 @@
           </tr>
         </thead>
         <tbody>
-          <tr class="category-row"><td colspan="5">CASSE</td></tr>
           {% if context.excess_receivable %}
             {% for line in context.excess_receivable.lines %}
               <tr>
@@ -324,14 +323,6 @@
               </tr>
             {% endfor %}
           {% endif %}
-          <tr class="category-row"><td colspan="5">RAJOUT</td></tr>
-          <tr>
-            <td>___</td>
-            <td>________________________________</td>
-            <td>Pcs</td>
-            <td>0,00</td>
-            <td>0,00</td>
-          </tr>
         </tbody>
       </table>
 
