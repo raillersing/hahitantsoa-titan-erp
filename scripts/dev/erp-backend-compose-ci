@@ -4,7 +4,10 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/compose.agent-ci.yaml"
-COMPOSE_PROJECT="hahitantsoa_titan_erp_agent_ci"
+# A stable project per worktree keeps Compose volumes and Django's test database
+# isolated when several agents validate backend changes concurrently.
+WORKTREE_FINGERPRINT="$(printf '%s' "$REPO_ROOT" | sha256sum | cut -c1-12)"
+COMPOSE_PROJECT="hahitantsoa_titan_erp_agent_ci_${WORKTREE_FINGERPRINT}"
 
 cd "$REPO_ROOT"
 
