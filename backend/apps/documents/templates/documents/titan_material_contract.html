@@ -34,8 +34,8 @@
         <span class="sr-only">Contrat materiel Titan ({{ draft.public_reference }}). Contract generated from reservation-linked backend truth.</span>
 
         {% if show_variables %}
-            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
-                <p>La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> domiciliée au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                <p>La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong>, dont le siège social est situé au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
                 NIF : <span class="variable">{% templatetag openvariable %} client.nif {% templatetag closevariable %}</span><br>
                 STAT : <span class="variable">{% templatetag openvariable %} client.stat {% templatetag closevariable %}</span><br>
                 RCS : <span class="variable">{% templatetag openvariable %} client.rcs {% templatetag closevariable %}</span><br>
@@ -48,21 +48,18 @@
                 Mail : <span class="variable">{% templatetag openvariable %} client.email {% templatetag closevariable %}</span></p>
             {% endif %}
         {% else %}
-            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
-                <p>La société <strong>{{ customer.display_name|default:"................................" }}</strong> domiciliée au {{ customer.address|default:"................................" }}<br>
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                <p>La société <strong>{{ customer.display_name|default:"................................" }}</strong>, dont le siège social est situé au {{ customer.address|default:"................................" }}<br>
                 NIF : {{ customer.nif|default:"................................" }}<br>
                 STAT : {{ customer.stat|default:"................................" }}<br>
                 RCS : {{ customer.rcs|default:"................................" }}<br>
-                Représentée par {{ customer.representative_name|default:"................................" }} en sa qualité de {{ customer.representative_role|default:"................................" }}<br>
+                Représentée par {{ customer.representative_name|default:"................................" }} en sa qualité de {{ customer.representative_role|default:"Gérant(e)" }}<br>
                 Contact : {{ customer.phone|default:"................................" }}<br>
                 Mail : {{ customer.email|default:"................................" }}</p>
             {% else %}
-                <p>Madame/Monsieur <strong>{{ customer.display_name|default:"................................" }}</strong> né(e) le {{ customer.birth_date|date:"d/m/Y"|default:"........" }} à {{ customer.birth_place|default:"........" }}, titulaire de la {{ customer.id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ customer.id_number|default:"................................" }} Délivrée le {{ customer.id_issue_date|date:"d/m/Y"|default:"........" }} à {{ customer.id_issue_place|default:"........" }} {% if customer.id_duplicata_date %}duplicata du {{ customer.id_duplicata_date|date:"d/m/Y" }} à {{ customer.id_duplicata_place }}{% endif %} demeurant au {{ customer.address|default:"................................" }}<br>
+                <p>{{ customer.civilite|default:"Madame/Monsieur" }} <strong>{{ customer.display_name|default:"................................" }}</strong> né(e) le {{ customer.birth_date|date:"d/m/Y"|default:"........" }} à {{ customer.birth_place|default:"........" }}, titulaire de la {{ customer.id_type|default:"Carte Nationale d’Identité/Passeport" }} N° {{ customer.id_number|default:"................................" }} Délivrée le {{ customer.id_issue_date|date:"d/m/Y"|default:"........" }} à {{ customer.id_issue_place|default:"........" }} {% if customer.id_duplicata_date %}duplicata du {{ customer.id_duplicata_date|date:"d/m/Y" }} à {{ customer.id_duplicata_place }}{% endif %} demeurant au {{ customer.address|default:"................................" }}<br>
                 Contact : {{ customer.phone|default:"................................" }}<br>
-                Mail : {{ customer.email|default:"................................" }}{% if customer.nif %}<br>
-                NIF : {{ customer.nif }}{% endif %}{% if customer.stat %}<br>
-                STAT : {{ customer.stat }}{% endif %}{% if customer.rcs %}<br>
-                RCS : {{ customer.rcs }}{% endif %}</p>
+                Mail : {{ customer.email|default:"................................" }}</p>
             {% endif %}
         {% endif %}
 
@@ -222,7 +219,13 @@
                 <div class="signature-space"></div>
             </div>
             <div class="signature-block">
-                <strong>Le Client,</strong>
+                {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                    <strong>Pour la société {{ customer.display_name|default:"" }},</strong><br>
+                    <span class="signature-subtitle">{{ customer.representative_name|default:"Le représentant légal" }}</span>
+                {% else %}
+                    <strong>Le Client,</strong><br>
+                    <span class="signature-subtitle">{{ customer.display_name|default:"" }}</span>
+                {% endif %}
                 <div class="signature-space"></div>
             </div>
         </div>
