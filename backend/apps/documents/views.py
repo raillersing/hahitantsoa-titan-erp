@@ -405,10 +405,7 @@ def _build_preview_bank(template_definition) -> dict[str, str]:
             "nif": "6003298583",
             "stat": "77290 11 2019 010 215",
         }
-    if (
-        template_definition.business_scope == "hahitantsoa"
-        or template_definition.key == "shared.breakage_repair_invoice.v1"
-    ):
+    if template_definition.business_scope == "hahitantsoa":
         return {
             "name": "BMOI MADAGASCAR",
             "branch": "Antananarivo",

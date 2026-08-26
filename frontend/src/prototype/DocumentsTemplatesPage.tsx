@@ -25,7 +25,10 @@ const VARIABLE_MAP: Record<string, string> = {
 
 type PaperSize = "A4" | "THERMAL_80MM";
 
-const EXCLUDED_CATALOG_TEMPLATE_KEYS = new Set(["hahitantsoa.house_rules.v1"]);
+const EXCLUDED_CATALOG_TEMPLATE_KEYS = new Set([
+  "hahitantsoa.house_rules.v1",
+  "shared.breakage_repair_invoice.v1",
+]);
 const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number }> = {
   A4: { width: 794, height: 1123 },
   // CSS pixels at 96 dpi: 80 mm x 120 mm thermal receipt.
