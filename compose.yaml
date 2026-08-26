@@ -36,8 +36,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - media_data:/app/backend/media
-      - ./backend/apps/documents/templates:/app/backend/apps/documents/templates
-      - ./backend/apps/documents/static:/app/backend/apps/documents/static
+      - ./backend:/app/backend
     healthcheck:
       test:
         [
