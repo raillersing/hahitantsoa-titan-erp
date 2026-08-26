@@ -213,6 +213,28 @@ describe('ReservationDetailPage', () => {
     expect(mockConfirmReservationDraft).toHaveBeenCalledWith('draft-loc-089');
   });
 
+  it('affiche les avertissements contractuels Titan sans bloquer le dossier', async () => {
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([
+      {
+        id: 'contract-1',
+        template_key: 'titan.material_contract.v1',
+        contract_warnings: [
+          {
+            code: 'missing_customer_birth_date',
+            message: 'La date de naissance du client est à compléter.',
+          },
+        ],
+      },
+    ]);
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    expect(screen.getByText('Informations contractuelles à compléter')).toBeInTheDocument();
+    expect(screen.getByText('La date de naissance du client est à compléter.')).toBeInTheDocument();
+    expect(screen.getByText('Le contrat reste générable. Complétez ces informations dès que possible.')).toBeInTheDocument();
+  });
+
   it('4. Loading then draft rendered: customer name and dates visible', async () => {
     render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
 

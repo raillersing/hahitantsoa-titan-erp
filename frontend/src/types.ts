@@ -647,6 +647,17 @@ export type DocumentTemplateVersionCreatePayload = {
   status?: "draft" | "active" | "archived";
 };
 
+export type DocumentInstanceContractWarning = {
+  code: string;
+  message: string;
+};
+
+export type DocumentInstanceCustomerContactPointSnapshot = {
+  kind: string;
+  value: string;
+  label: string;
+};
+
 export type DocumentInstance = {
   id: string;
   reservation_draft: string | null;
@@ -684,6 +695,8 @@ export type DocumentInstance = {
   customer_rcs?: string;
   customer_representative_name?: string;
   customer_representative_role?: string;
+  customer_contact_points_snapshot?: DocumentInstanceCustomerContactPointSnapshot[];
+  contract_warnings?: DocumentInstanceContractWarning[];
   proforma_validity_days?: number | null;
   document_date?: string | null;
   issued_at?: string | null;
