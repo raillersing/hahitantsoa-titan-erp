@@ -259,19 +259,19 @@
       <section class="identity">
         <div class="identity-row">
           <strong>NOM :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer_display_name }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:context.excess_receivable.customer_display_name|default:"" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>CONTACT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer_phone }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:context.excess_receivable.customer_phone|default:"" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>DOSSIER :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:context.excess_receivable.reservation_public_reference|default:"" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>DATE LOCATION :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"" }}{% endif %}</span>
         </div>
       </section>
 
@@ -336,7 +336,7 @@
 
       <div class="total-bar">
         <span>TOTAL À PAYER</span>
-        <strong>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.remaining_due|default:context.reservation_draft.total_amount|default:"0,00" }}{% endif %}</strong>
+        <strong>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.remaining_due|default:"0,00" }}{% endif %}</strong>
       </div>
 
       <div class="words">

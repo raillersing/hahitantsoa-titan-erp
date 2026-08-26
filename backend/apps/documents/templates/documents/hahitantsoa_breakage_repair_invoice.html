@@ -336,7 +336,7 @@
 
       <div class="total-bar">
         <span>TOTAL À PAYER</span>
-        <strong>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.remaining_due|default:context.event_draft.total_amount|default:"0,00" }}{% endif %}</strong>
+        <strong>Ar {% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.remainingDue {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.remaining_due|default:"0,00" }}{% endif %}</strong>
       </div>
 
       <div class="words">
