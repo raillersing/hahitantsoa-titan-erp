@@ -18,8 +18,8 @@ Usage:
   scripts/dev/erp-pr-finalize-from-root <pr-number-or-url> [options]
 
 Options:
-  --task-worktree <path>     Remove this task worktree after main CI succeeds.
-  --task-branch <branch>     Delete this local and remote branch after worktree removal.
+  --task-worktree <path>     Remove this task worktree after main CI succeeds. Requires --task-branch.
+  --task-branch <branch>     Delete this local and remote branch. Requires --task-worktree.
   --allow <path>             Allow one changed file path. Repeat as needed.
   --allowlist-file <file>    Read allowed changed file paths from a newline-delimited file.
   --help                     Show this help.
@@ -36,7 +36,7 @@ Purpose:
   - syncing main with fetch plus pull --ff-only
   - waiting for the post-merge main CI run tied to the merged HEAD
   - removing the optional task worktree only after main CI succeeds
-  - deleting the optional local and remote branch only after worktree removal
+  - deleting the optional local and remote branch only when cleanup was explicitly requested
   - pruning stale worktree metadata
   - printing final git status, worktree list, and open PRs
 
@@ -104,6 +104,11 @@ fi
 if [ -n "$TASK_BRANCH" ]; then
   require_option_value "--task-branch" "$TASK_BRANCH"
 fi
+if { [ -n "$TASK_WORKTREE" ] && [ -z "$TASK_BRANCH" ]; } || \
+   { [ -z "$TASK_WORKTREE" ] && [ -n "$TASK_BRANCH" ]; }; then
+  echo "ERROR: --task-worktree and --task-branch must be provided together"
+  exit 2
+fi
 if [ -n "$ALLOWLIST_FILE" ]; then
   require_option_value "--allowlist-file" "$ALLOWLIST_FILE"
 fi
@@ -158,10 +163,6 @@ pr_title="$(gh pr view "$PR_REF" --json title --jq '.title')"
 if [ "$pr_base_branch" != "main" ]; then
   echo "ERROR: PR #$pr_number does not target main"
   exit 1
-fi
-
-if [ -z "$TASK_BRANCH" ]; then
-  TASK_BRANCH="$pr_head_branch"
 fi
 
 if [ "$pr_state" != "OPEN" ] && [ "$pr_state" != "MERGED" ]; then
@@ -346,6 +347,8 @@ if [ -n "$TASK_BRANCH" ]; then
   else
     echo "INFO: Remote branch already absent or unavailable for deletion check: $TASK_BRANCH"
   fi
+else
+  echo "INFO: Task cleanup was not requested; preserving the PR worktree and branch."
 fi
 
 git worktree prune
