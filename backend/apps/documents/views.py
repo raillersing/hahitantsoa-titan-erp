@@ -227,29 +227,54 @@ def _resolve_preview_template_path(template_key: str) -> str | None:
 def _build_mock_preview_context(template_definition, *, party_type: str = "individual") -> dict:
     """Build a blank, non-persistent context for a catalogue preview."""
     party_type = "company" if party_type == "company" else "individual"
-    mock_customer = {
-        "customer_id": "________________",
-        "public_reference": "________________",
-        "display_name": "________________________",
-        "party_type": party_type,
-        "email": "________________________",
-        "phone": "________________________",
-        "address": "________________________________",
-        "civilite": "________________",
-        "birth_date": None,
-        "birth_place": "",
-        "id_type": "________________",
-        "id_number": "________________",
-        "id_issue_date": None,
-        "id_issue_place": "________________",
-        "id_duplicata_date": None,
-        "id_duplicata_place": "",
-        "nif": "________________",
-        "stat": "________________",
-        "rcs": "________________",
-        "representative_name": "________________________",
-        "representative_role": "________________",
-    }
+    if party_type == "company":
+        mock_customer = {
+            "customer_id": "________________",
+            "public_reference": "________________",
+            "display_name": "________________________",
+            "party_type": "company",
+            "email": "contact@entreprise.mg",
+            "phone": "+261 34 00 000 00",
+            "address": "Siège social ________________________",
+            "civilite": "",
+            "birth_date": None,
+            "birth_place": "",
+            "id_type": "",
+            "id_number": "",
+            "id_issue_date": None,
+            "id_issue_place": "",
+            "id_duplicata_date": None,
+            "id_duplicata_place": "",
+            "nif": "________________",
+            "stat": "________________",
+            "rcs": "________________",
+            "representative_name": "________________________",
+            "representative_role": "Gérant(e)",
+        }
+    else:
+        mock_customer = {
+            "customer_id": "________________",
+            "public_reference": "________________",
+            "display_name": "________________________",
+            "party_type": "individual",
+            "email": "client@example.com",
+            "phone": "+261 34 00 000 00",
+            "address": "Lot ________________________________",
+            "civilite": "Madame/Monsieur",
+            "birth_date": None,
+            "birth_place": "________________",
+            "id_type": "Carte Nationale d’Identité",
+            "id_number": "________________",
+            "id_issue_date": None,
+            "id_issue_place": "________________",
+            "id_duplicata_date": None,
+            "id_duplicata_place": "",
+            "nif": "",
+            "stat": "",
+            "rcs": "",
+            "representative_name": "",
+            "representative_role": "",
+        }
 
     mock_lines: list[dict[str, object]] = []
 

@@ -91,6 +91,77 @@ def test_titan_material_amendment_uses_canonical_html_css_amendment_page() -> No
     assert "titan-rental-logo.png" in html
 
 
+def test_titan_material_contract_distinguishes_individual_and_company() -> None:
+    definition = get_document_template_definition("titan.material_contract.v1")
+    assert definition is not None
+    template_path = _resolve_preview_template_path(definition.key)
+    bank = _build_preview_bank(definition)
+
+    # Individual variant
+    html_indiv = render_to_string(
+        template_path,
+        {
+            "context": _build_mock_preview_context(definition, party_type="individual"),
+            "bank": bank,
+            "show_variables": False,
+        },
+    )
+    assert "Madame/Monsieur" in html_indiv
+    assert "Carte Nationale d’Identité" in html_indiv
+    assert "NIF :" not in html_indiv
+    assert "STAT :" not in html_indiv
+    assert "RCS :" not in html_indiv
+    assert "Le Client," in html_indiv
+
+    # Company variant
+    html_company = render_to_string(
+        template_path,
+        {
+            "context": _build_mock_preview_context(definition, party_type="company"),
+            "bank": bank,
+            "show_variables": False,
+        },
+    )
+    assert "La société" in html_company
+    assert "NIF :" in html_company
+    assert "STAT :" in html_company
+    assert "RCS :" in html_company
+    assert "Pour la société" in html_company
+
+
+def test_titan_material_amendment_distinguishes_individual_and_company() -> None:
+    definition = get_document_template_definition("titan.material_amendment.v1")
+    assert definition is not None
+    template_path = _resolve_preview_template_path(definition.key)
+    bank = _build_preview_bank(definition)
+
+    # Individual variant
+    html_indiv = render_to_string(
+        template_path,
+        {
+            "context": _build_mock_preview_context(definition, party_type="individual"),
+            "bank": bank,
+            "show_variables": False,
+        },
+    )
+    assert "Madame/Monsieur" in html_indiv
+    assert "demeurant au" in html_indiv
+    assert "Le Client," in html_indiv
+
+    # Company variant
+    html_company = render_to_string(
+        template_path,
+        {
+            "context": _build_mock_preview_context(definition, party_type="company"),
+            "bank": bank,
+            "show_variables": False,
+        },
+    )
+    assert "La société" in html_company
+    assert "dont le siège social est situé" in html_company
+    assert "Pour la société" in html_company
+
+
 @pytest.mark.parametrize("template_key,paper_size,title", SOURCE_BACKED_DOCUMENTS)
 def test_source_backed_template_contains_source_geometry_and_title(
     template_key: str, paper_size: str, title: str

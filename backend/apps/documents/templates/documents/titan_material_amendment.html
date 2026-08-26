@@ -27,16 +27,16 @@
         <p><strong>La société ERGON GROUP</strong>, ci-après dénommée « Le prestataire », et</p>
 
         {% if show_variables %}
-            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
-                <p>La société <span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, ci-après dénommée « Le client », représentée par <span class="variable">{% templatetag openvariable %} client.representativeName {% templatetag closevariable %}</span>, <span class="variable">{% templatetag openvariable %} client.representativeRole {% templatetag closevariable %}</span></p>
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                <p>La société <span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, dont le siège social est situé au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span>, ci-après dénommée « Le client », représentée par <span class="variable">{% templatetag openvariable %} client.representativeName {% templatetag closevariable %}</span>, <span class="variable">{% templatetag openvariable %} client.representativeRole {% templatetag closevariable %}</span></p>
             {% else %}
-                <p><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, ci-après dénommée « Le client »</p>
+                <p>{{ customer.civilite|default:"Madame/Monsieur" }} <span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>, demeurant au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span>, ci-après dénommé(e) « Le client »</p>
             {% endif %}
         {% else %}
-            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" %}
-                <p>La société {{ customer.display_name|default:"................................" }}, ci-après dénommée « Le client », représentée par {{ customer.representative_name|default:"................................" }}, {{ customer.representative_role|default:"................................" }}</p>
+            {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                <p>La société <strong>{{ customer.display_name|default:"................................" }}</strong>, dont le siège social est situé au {{ customer.address|default:"................................" }}, ci-après dénommée « Le client », représentée par {{ customer.representative_name|default:"................................" }}, {{ customer.representative_role|default:"Gérant(e)" }}</p>
             {% else %}
-                <p>{{ customer.display_name|default:"................................" }}, ci-après dénommée « Le client »</p>
+                <p>{{ customer.civilite|default:"Madame/Monsieur" }} <strong>{{ customer.display_name|default:"................................" }}</strong>, demeurant au {{ customer.address|default:"................................" }}, ci-après dénommé(e) « Le client »</p>
             {% endif %}
         {% endif %}
 
@@ -69,7 +69,13 @@
                 <div class="signature-space"></div>
             </div>
             <div class="signature-block">
-                <strong>Le Client,</strong>
+                {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                    <strong>Pour la société {{ customer.display_name|default:"" }},</strong><br>
+                    <span class="signature-subtitle">{{ customer.representative_name|default:"Le représentant légal" }}</span>
+                {% else %}
+                    <strong>Le Client,</strong><br>
+                    <span class="signature-subtitle">{{ customer.display_name|default:"" }}</span>
+                {% endif %}
                 <div class="signature-space"></div>
             </div>
         </div>
