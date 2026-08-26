@@ -188,8 +188,8 @@
       bottom: 25mm;
       display: flex;
       justify-content: space-between;
-      font-size: 8pt;
-      color: #555555;
+      font-size: 8.5pt;
+      color: #333333;
     }
     .footer {
       position: absolute;
@@ -208,8 +208,11 @@
 </head>
 <body>
   <div class="page">
-    <!-- VOLET LATÉRAL GAUCHE -->
+    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
+    <!-- ===================================================================== -->
     <aside class="side">
+      <!-- Logo 1 : Titan Rental (Haut du volet) -->
       <img class="brand" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
 
       <div class="side-info">
@@ -217,26 +220,30 @@
         {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankName {% templatetag closevariable %}</span>{% else %}{{ bank.name|default:"BMOI MADAGASCAR" }}{% endif %}<br><br>
         <strong>RIB</strong><br>
         {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.bankRib {% templatetag closevariable %}</span>{% else %}{{ bank.rib|default:"00004 00009 03319320102 33" }}{% endif %}<br><br>
-        {{ bank.account_holder|default:"ERGON GROUP SARL" }}<br>
+        {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
         Lot P93M Ambohipo sud<br>
         By-pass<br>
         +261 34 61 791 41<br><br>
-        NIF : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.nif {% templatetag closevariable %}</span>{% else %}{{ bank.nif|default:"6003298583" }}{% endif %}<br>
-        STAT : {% if show_variables %}<span class="variable">{% templatetag openvariable %} company.stat {% templatetag closevariable %}</span>{% else %}{{ bank.stat|default:"77290 11 2019 010 215" }}{% endif %}
+        NIF : 6003298583<br>
+        STAT : 77290 11 2019 0 10215
 
+        <!-- Logo 2 : Ergon Group (Bas du volet) -->
         <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
       </div>
     </aside>
 
-    <!-- ZONE PRINCIPALE DU DOCUMENT -->
+    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
+    <!-- ===================================================================== -->
     <main class="main">
+      <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
       <img class="watermark" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="">
 
       <header class="header">
         <div class="header-box">
           <div class="ref">
             <span>RÉFÉRENCE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"____/__" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">DETAILS DE CASSE</div>
           <div class="date">
@@ -249,19 +256,19 @@
       <section class="identity">
         <div class="identity-row">
           <strong>NOM :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.customer_display_name|default:"" }}{% else %}{{ context.reservation_draft.customer.display_name|default:"" }}{% endif %}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.customer_display_name|default:"........................" }}{% else %}{{ context.reservation_draft.customer.display_name|default:"........................" }}{% endif %}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>CONTACT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.customer_phone|default:"" }}{% else %}{{ context.reservation_draft.customer.phone|default:"" }}{% endif %}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.customer_phone|default:"........................" }}{% else %}{{ context.reservation_draft.customer.phone|default:"........................" }}{% endif %}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>DOSSIER :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.reservation_public_reference|default:"" }}{% else %}{{ context.reservation_draft.public_reference|default:"" }}{% endif %}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.reservation_public_reference|default:".........." }}{% else %}{{ context.reservation_draft.public_reference|default:".........." }}{% endif %}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>DATE LOCATION :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
         </div>
       </section>
 
@@ -285,14 +292,6 @@
                 <td>{{ line.unit_price|default:"0,00" }}</td>
                 <td>{{ line.total_price|default:"0,00" }}</td>
               </tr>
-            {% empty %}
-              <tr>
-                <td>___</td>
-                <td>________________________________</td>
-                <td>Pcs</td>
-                <td>0,00</td>
-                <td>0,00</td>
-              </tr>
             {% endfor %}
           {% else %}
             {% for line in context.reservation_draft.lines %}
@@ -302,14 +301,6 @@
                 <td>{{ line.unit|default:"Pcs" }}</td>
                 <td>{{ line.unit_price|default:"0,00" }}</td>
                 <td>{{ line.total_price|default:"0,00" }}</td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td>___</td>
-                <td>________________________________</td>
-                <td>Pcs</td>
-                <td>0,00</td>
-                <td>0,00</td>
               </tr>
             {% endfor %}
           {% endif %}
@@ -331,7 +322,7 @@
         </div>
         <div class="totals-row">
           <span>Échéance :</span>
-          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.dueDate {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.due_date|date:"d/m/Y"|default:"__/__/____" }}{% else %}{{ context.reservation_draft.due_date|date:"d/m/Y"|default:"__/__/____" }}{% endif %}{% endif %}</span>
+          <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} settlement.dueDate {% templatetag closevariable %}</span>{% else %}{% if context.excess_receivable %}{{ context.excess_receivable.due_date|date:"d/m/Y"|default:"../../...." }}{% else %}{{ context.reservation_draft.due_date|date:"d/m/Y"|default:"../../...." }}{% endif %}{% endif %}</span>
         </div>
       </div>
 

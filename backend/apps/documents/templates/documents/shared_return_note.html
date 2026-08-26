@@ -133,7 +133,7 @@
       position: absolute;
       left: 3mm;
       right: 3mm;
-      bottom: 45mm;
+      bottom: 52mm;
       border: 0.25mm solid #c7c7c7;
       padding: 3mm 4mm;
       background: #fafafa;
@@ -149,11 +149,11 @@
       position: absolute;
       left: 16mm;
       right: 16mm;
-      bottom: 27mm;
+      bottom: 25mm;
       display: flex;
       justify-content: space-between;
-      font-size: 8pt;
-      color: #555555;
+      font-size: 8.5pt;
+      color: #333333;
     }
     .footer {
       position: absolute;
@@ -172,31 +172,25 @@
 </head>
 <body>
   <div class="page">
-    <!-- ===================================================================== -->
-    <!-- VOLET LATÉRAL GAUCHE : LOGOS ET COORDONNÉES BANCAIRES                 -->
-    <!-- ===================================================================== -->
+    <!-- VOLET LATÉRAL GAUCHE -->
     <aside class="side">
-      <!-- Logo 1 : Hahitantsoa (Haut du volet) -->
       <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
 
       <div class="side-info">
         <strong>BANK</strong><br>{{ bank.name|default:"BMOI MADAGASCAR" }}<br><br>
-        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320103 30" }}<br><br>
+        <strong>RIB</strong><br>{{ bank.rib|default:"00004 00009 03319320102 33" }}<br><br>
         {{ bank.account_holder|default:"Ergon Group SARL" }}<br>
         Lot P93M Ambohipo sud<br>
         By-pass<br>
-        +261 34 61 791 41<br><br>
+        +261 34 61 791 44<br><br>
         NIF : 6003298583<br>
         STAT : 77290 11 2019 0 10215
-
-        <!-- Logo 2 : Ergon Group (Bas du volet) -->
-        <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
       </div>
+
+      <img class="ergon" src="/brand/ergon-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/ergon-logo.png';}" alt="Ergon">
     </aside>
 
-    <!-- ===================================================================== -->
-    <!-- ZONE PRINCIPALE DU DOCUMENT                                           -->
-    <!-- ===================================================================== -->
+    <!-- ZONE PRINCIPALE -->
     <main class="main">
       <!-- Logo 3 : Filigrane d'arrière-plan (Watermark) -->
       <img class="watermark" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="">
@@ -205,7 +199,7 @@
         <div class="header-box">
           <div class="ref">
             <span>BON DE RETOUR N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"____/__" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">BON DE RETOUR</div>
           <div class="date">
@@ -218,11 +212,11 @@
       <section class="identity">
         <div class="identity-row">
           <strong>CLIENT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"________________________" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"........................" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>PÉRIODE :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }} — {{ context.reservation_draft.end_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"../../...." }} — {{ context.reservation_draft.end_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
         </div>
       </section>
 
@@ -240,7 +234,7 @@
             <tr>
               <td>{{ line.inventory_item_name }}</td>
               <td class="center">{{ line.quantity }}</td>
-              <td class="center">________</td>
+              <td class="center">........</td>
               <td>{{ line.notes|default:"" }}</td>
             </tr>
           {% endfor %}

@@ -195,7 +195,7 @@ def test_source_backed_template_preview_renders_with_variables(template_key: str
         },
     )
     if template_key in {"hahitantsoa.payment_receipt.v1", "titan.payment_receipt.v1"}:
-        assert "________________" in html
+        assert "................" in html
         assert "size: 80mm 120mm" in html
     else:
         assert "{{" in html
@@ -295,8 +295,8 @@ def test_catalog_preview_context_is_blank_and_supports_party_variants() -> None:
     assert individual["event_draft"]["party_type"] == "individual"
     assert company["event_draft"]["party_type"] == "company"
     assert individual["event_draft"]["lines"] == []
-    assert individual["event_draft"]["customer_display_name"].startswith("_")
-    assert company["event_draft"]["customer_display_name"].startswith("_")
+    assert individual["event_draft"]["customer_display_name"].startswith(".")
+    assert company["event_draft"]["customer_display_name"].startswith(".")
 
 
 def test_catalog_previews_do_not_contain_seeded_demo_customer_data() -> None:

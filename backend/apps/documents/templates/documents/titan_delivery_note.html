@@ -128,7 +128,7 @@
     /* ========================================================================= */
     /* 9. SIGNATURES & PIED DE PAGE                                              */
     /* ========================================================================= */
-    .signatures { position: absolute; left: 16mm; right: 16mm; bottom: 27mm; display: flex; justify-content: space-between; font-size: 7pt; color: #555555; }
+    .signatures { position: absolute; left: 16mm; right: 16mm; bottom: 25mm; display: flex; justify-content: space-between; font-size: 8.5pt; color: #333333; }
     .footer { position: absolute; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
 
     .variable { background: #fff0b3; outline: 0.2mm solid #d6a700; padding: 0 0.3mm; font-family: monospace; font-size: 0.9em; letter-spacing: 0; }
@@ -174,12 +174,12 @@
         <div class="header-box">
           <div class="number">
             <span>BON DE LIVRAISON N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"__________" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.number {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:".........." }}{% endif %}</span>
           </div>
           <div class="title">BON DE LIVRAISON</div>
           <div class="document-date">
             <span>DATE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{{ document.date|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
           </div>
         </div>
       </header>
@@ -187,15 +187,15 @@
       <section class="identity">
         <div class="identity-row">
           <strong>NOM :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"__________________________" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:".........................." }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>FACTURE :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.proforma_reference|default:"__________" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.invoiceNumber {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.proforma_reference|default:".........." }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>LOCATION DU :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"____/__/__" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
         </div>
       </section>
 
@@ -211,11 +211,6 @@
             <tr>
               <td>{{ line.quantity|stringformat:"03d" }}</td>
               <td>{{ line.inventory_item_name }}{% if line.notes %}<br>{{ line.notes }}{% endif %}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td>_____</td>
-              <td>____________________________</td>
             </tr>
           {% endfor %}
         </tbody>

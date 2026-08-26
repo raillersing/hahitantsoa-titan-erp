@@ -150,7 +150,7 @@
     /* ========================================================================= */
     /* 11. SIGNATURES & PIED DE PAGE                                             */
     /* ========================================================================= */
-    .signatures { position: absolute; left: 16mm; right: 16mm; bottom: 27mm; display: flex; justify-content: space-between; font-size: 7pt; color: #555555; }
+    .signatures { position: absolute; left: 16mm; right: 16mm; bottom: 25mm; display: flex; justify-content: space-between; font-size: 8.5pt; color: #333333; }
     .footer { position: absolute; left: 3mm; right: 7mm; bottom: 7mm; display: flex; justify-content: space-between; font-size: 10pt; font-weight: 700; }
 
     .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; letter-spacing: 0; }
@@ -194,7 +194,7 @@
         <div class="header-box">
           <div class="ref">
             <span>FACTURE N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}/____/__{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"../..../.." }}{% endif %}</span>
           </div>
           <div class="title">FACTURE</div>
           <div class="date">
@@ -207,15 +207,15 @@
       <section class="identity">
         <div class="identity-row">
           <strong>NOM :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}______________________{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"......................" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>CONTACT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}______________________{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.phone|default:"......................" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>LOCATION DU :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}____/__/__{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
         </div>
       </section>
 
@@ -235,13 +235,6 @@
               <td>{{ line.inventory_item_name }}</td>
               <td>{{ line.unit_price|default:"" }}</td>
               <td>{{ line.total_price|default:"" }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td>___</td>
-              <td>________________</td>
-              <td>_____</td>
-              <td>_____</td>
             </tr>
           {% endfor %}
         </tbody>
