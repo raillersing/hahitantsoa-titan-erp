@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.common.catalog_images import validate_catalog_image_url
 from apps.material_package.models import MaterialPackage, MaterialPackageLine
 
 
@@ -54,6 +55,12 @@ class MaterialPackageCreateSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_image_url(self, value: str) -> str:
+        try:
+            return validate_catalog_image_url(value)
+        except ValueError as error:
+            raise serializers.ValidationError(str(error)) from error
 
     def create(self, validated_data):
         lines_data = validated_data.pop("lines", [])

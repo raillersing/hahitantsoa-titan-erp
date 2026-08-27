@@ -130,6 +130,10 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+# Local catalogue images are submitted as base64 data URLs; reserve room for the
+# 10 MiB source file plus its encoding and JSON envelope.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 15 * 1024 * 1024
+
 APP_VERSION = "0.1.0"
 
 SPECTACULAR_SETTINGS = {
