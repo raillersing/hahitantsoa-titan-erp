@@ -27,6 +27,16 @@ def authenticated_client(client, django_user_model):
     user = django_user_model.objects.create_user(
         username="material-package-tester",
         password="test-password",
+        is_staff=True,
+    )
+    client.force_login(user)
+    return client
+
+
+@pytest.fixture
+def regular_authenticated_client(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        username="regular-material-package-user", password="test-password"
     )
     client.force_login(user)
     return client
@@ -85,6 +95,24 @@ def test_unauthenticated_update_returns_403(client):
 def test_unauthenticated_delete_returns_403(client):
     pkg = _create_package("Delete Package")
     response = client.delete(f"{MATERIAL_PACKAGE_LIST_URL}{pkg.id}/")
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("method", ["post", "patch", "delete"])
+def test_regular_authenticated_user_cannot_mutate_packages(regular_authenticated_client, method):
+    package = _create_package("Protected Package")
+    if method == "post":
+        response = regular_authenticated_client.post(
+            MATERIAL_PACKAGE_LIST_URL, {"name": "Not allowed"}, content_type="application/json"
+        )
+    elif method == "patch":
+        response = regular_authenticated_client.patch(
+            f"{MATERIAL_PACKAGE_LIST_URL}{package.id}/",
+            {"name": "Not allowed"},
+            content_type="application/json",
+        )
+    else:
+        response = regular_authenticated_client.delete(f"{MATERIAL_PACKAGE_LIST_URL}{package.id}/")
     assert response.status_code == 403
 
 
@@ -198,6 +226,36 @@ def test_create_and_retrieve_package_with_image_url(authenticated_client):
     get_res = authenticated_client.get(f"{MATERIAL_PACKAGE_LIST_URL}{pkg_id}/")
     assert get_res.status_code == 200
     assert get_res.json()["image_url"] == data_url
+
+
+@pytest.mark.parametrize(
+    "image_url",
+    [
+        "/brand/packages/ceremonie.webp",
+        "https://cdn.example.test/packages/ceremonie.webp",
+        "data:image/svg+xml;base64,PHN2Zy8+",
+    ],
+)
+def test_create_package_preserves_supported_image_forms(authenticated_client, image_url):
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL,
+        {"name": "Pack image compatible", "image_url": image_url},
+        content_type="application/json",
+    )
+    assert response.status_code == 201
+    assert response.json()["image_url"] == image_url
+
+
+@pytest.mark.parametrize(
+    "image_url", ["javascript:alert(1)", "data:text/html;base64,PGgxPk5vPC9oMT4="]
+)
+def test_create_package_rejects_unsupported_image_url(authenticated_client, image_url):
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL,
+        {"name": "Pack image invalide", "image_url": image_url},
+        content_type="application/json",
+    )
+    assert response.status_code == 400
 
 
 def test_create_package_missing_name_returns_400(authenticated_client):

@@ -139,3 +139,22 @@ def test_hahitantsoa_service_accepts_data_url_image(staff_client) -> None:
     # Verify retrieval
     srv = HahitantsoaService.objects.get(id=created_id)
     assert srv.image_url == data_url
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "image_url", ["javascript:alert(1)", "data:text/html;base64,PGgxPk5vPC9oMT4="]
+)
+def test_hahitantsoa_service_rejects_unsupported_image_url(staff_client, image_url) -> None:
+    response = staff_client.post(
+        "/api/v1/hahitantsoa/services/",
+        {
+            "name": "Service image invalide",
+            "category": "drapery",
+            "pricing_type": "flat_fee",
+            "price": "850000.00",
+            "image_url": image_url,
+        },
+        format="json",
+    )
+    assert response.status_code == 400

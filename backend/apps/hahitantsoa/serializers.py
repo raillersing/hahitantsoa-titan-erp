@@ -3,6 +3,7 @@ from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.common.catalog_images import validate_catalog_image_url
 from apps.customers.models import Customer
 from apps.documents.serializers import (
     DocumentInstanceCreateSerializer,
@@ -948,6 +949,12 @@ class HahitantsoaServiceCreateSerializer(serializers.ModelSerializer):
             "active",
         )
         read_only_fields = ("id",)
+
+    def validate_image_url(self, value: str) -> str:
+        try:
+            return validate_catalog_image_url(value)
+        except ValueError as error:
+            raise serializers.ValidationError(str(error)) from error
 
 
 __all__ = [

@@ -1,6 +1,7 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
+from apps.identity.permissions import HasInventoryManagementAccess
 from apps.material_package.models import MaterialPackage
 from apps.material_package.serializers import (
     MaterialPackageCreateSerializer,
@@ -10,6 +11,11 @@ from apps.material_package.serializers import (
 
 class MaterialPackageListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method.lower() == "post":
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -23,6 +29,11 @@ class MaterialPackageListCreateAPIView(generics.ListCreateAPIView):
 class MaterialPackageRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     lookup_field = "pk"
+
+    def get_permissions(self):
+        if self.request.method.lower() in {"put", "patch", "delete"}:
+            return [HasInventoryManagementAccess()]
+        return super().get_permissions()
 
     def get_serializer_class(self):
         if self.request.method in ("PUT", "PATCH"):
