@@ -105,6 +105,7 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
     external_reference = models.CharField(max_length=255, blank=True)
     source_label = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
+    deposit_recording_idempotency_key = models.CharField(max_length=128, blank=True)
     confirmed_at = models.DateTimeField(null=True, blank=True)
     confirmed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -189,6 +190,22 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
                     )
                 ),
                 name="payment_single_refund_obligation_link",
+            ),
+            models.UniqueConstraint(
+                fields=["reservation_draft", "deposit_recording_idempotency_key"],
+                condition=(
+                    models.Q(reservation_draft__isnull=False)
+                    & ~models.Q(deposit_recording_idempotency_key="")
+                ),
+                name="payment_titan_deposit_recording_idempotency_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["hahitantsoa_event_draft", "deposit_recording_idempotency_key"],
+                condition=(
+                    models.Q(hahitantsoa_event_draft__isnull=False)
+                    & ~models.Q(deposit_recording_idempotency_key="")
+                ),
+                name="payment_hahitantsoa_deposit_recording_idempotency_unique",
             ),
         ]
 

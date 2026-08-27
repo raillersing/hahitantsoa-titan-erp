@@ -31,6 +31,7 @@ from apps.finance.models import (
     FinancialJournalDirection,
 )
 from apps.finance.services import record_financial_journal_entry
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import (
     InventoryCautionRefundObligation,
     InventoryCautionRefundObligationStatus,
@@ -53,6 +54,7 @@ from apps.payments.models import (
     PaymentReconciliationLineStatus,
     PaymentStatus,
 )
+from apps.reservations.models import ReservationDraft, ReservationDraftStatus
 
 PAYMENT_RECEIPT_TEMPLATE_KEY = SHARED_PAYMENT_RECEIPT_TEMPLATE_KEY
 PAYMENT_REFUND_RECEIPT_TEMPLATE_KEY = "shared.payment_refund_receipt.v1"
@@ -76,6 +78,9 @@ GATEWAY_SANDBOX_DISABLED = "gateway_sandbox_disabled"
 INVALID_RECONCILIATION = "invalid_payment_reconciliation"
 PAYMENT_FINANCE_ACCOUNT_MISSING = "payment_finance_account_missing"
 PAYMENT_FINANCE_ACCOUNT_SELECTION_REQUIRED = "payment_finance_account_selection_required"
+DEPOSIT_RECORDING_IDEMPOTENCY_KEY_REQUIRED = "deposit_recording_idempotency_key_required"
+DEPOSIT_RECORDING_IDEMPOTENCY_CONFLICT = "deposit_recording_idempotency_conflict"
+DEPOSIT_RECORDING_INVALID_STATE = "deposit_recording_invalid_state"
 
 
 class PaymentReconciliationError(ValueError):
@@ -190,6 +195,85 @@ def _record_confirmed_payment_finance_entry(*, payment: Payment, actor) -> None:
 class PaymentConfirmationResult:
     payment: Payment
     receipt_document: DocumentInstance
+
+
+@dataclass(frozen=True)
+class DepositRecordingResult:
+    payment: Payment
+    reservation_draft: ReservationDraft | None
+    hahitantsoa_event_draft: HahitantsoaEventDraft | None
+    replayed: bool
+
+
+def _assert_matching_deposit_recording(
+    *,
+    payment: Payment,
+    payment_method: str,
+    amount: Decimal,
+    external_reference: str,
+    notes: str,
+) -> None:
+    if (
+        payment.payment_kind != PaymentKind.DEPOSIT
+        or payment.payment_method != payment_method
+        or payment.amount != amount
+        or payment.external_reference != external_reference
+        or payment.notes != notes
+    ):
+        raise PaymentLifecycleError(
+            "This idempotency key was already used with different deposit details.",
+            code=DEPOSIT_RECORDING_IDEMPOTENCY_CONFLICT,
+        )
+
+
+def _record_reservation_draft_deposit_marker(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None,
+) -> ReservationDraft:
+    if reservation_draft.status == ReservationDraftStatus.CONFIRMED:
+        if (
+            reservation_draft.required_deposit_received_at is None
+            or reservation_draft.required_deposit_received_by_id is None
+        ):
+            raise PaymentLifecycleError(
+                "Confirmed reservation draft is missing its required deposit marker.",
+                code=DEPOSIT_RECORDING_INVALID_STATE,
+            )
+        return reservation_draft
+
+    from apps.reservations.confirmation import mark_reservation_draft_required_deposit_received
+
+    return mark_reservation_draft_required_deposit_received(
+        reservation_draft=reservation_draft,
+        actor=actor,
+        auto_confirm=True,
+    )
+
+
+def _record_hahitantsoa_event_draft_deposit_marker(
+    *,
+    hahitantsoa_event_draft: HahitantsoaEventDraft,
+    actor: object | None,
+) -> HahitantsoaEventDraft:
+    if hahitantsoa_event_draft.status == "confirmed":
+        if (
+            hahitantsoa_event_draft.required_deposit_received_at is None
+            or hahitantsoa_event_draft.required_deposit_received_by_id is None
+        ):
+            raise PaymentLifecycleError(
+                "Confirmed Hahitantsoa event draft is missing its required deposit marker.",
+                code=DEPOSIT_RECORDING_INVALID_STATE,
+            )
+        return hahitantsoa_event_draft
+
+    from apps.hahitantsoa.services import mark_hahitantsoa_event_draft_required_deposit_received
+
+    return mark_hahitantsoa_event_draft_required_deposit_received(
+        event_draft=hahitantsoa_event_draft,
+        actor=actor,
+        auto_confirm=True,
+    )
 
 
 @dataclass(frozen=True)
@@ -441,6 +525,138 @@ def confirm_payment(
     return PaymentConfirmationResult(
         payment=payment,
         receipt_document=receipt_document,
+    )
+
+
+@transaction.atomic
+def record_confirmed_deposit(
+    *,
+    actor: object | None,
+    payment_method: str,
+    amount: Decimal,
+    idempotency_key: str,
+    reservation_draft: ReservationDraft | None = None,
+    hahitantsoa_event_draft: HahitantsoaEventDraft | None = None,
+    paid_at=None,
+    external_reference: str = "",
+    notes: str = "",
+) -> DepositRecordingResult:
+    """Create, confirm and record one deposit as one replay-safe transaction."""
+    normalized_key = (idempotency_key or "").strip()
+    if not normalized_key:
+        raise PaymentLifecycleError(
+            "Deposit recording requires an idempotency key.",
+            code=DEPOSIT_RECORDING_IDEMPOTENCY_KEY_REQUIRED,
+        )
+    if bool(reservation_draft) == bool(hahitantsoa_event_draft):
+        raise PaymentLifecycleError(
+            "Deposit recording requires exactly one business draft.",
+            code=DEPOSIT_RECORDING_INVALID_STATE,
+        )
+
+    if reservation_draft is not None:
+        locked_reservation_draft = ReservationDraft.objects.select_for_update().get(
+            pk=reservation_draft.pk
+        )
+        payment = (
+            Payment.objects.select_for_update()
+            .filter(
+                reservation_draft=locked_reservation_draft,
+                deposit_recording_idempotency_key=normalized_key,
+            )
+            .first()
+        )
+        replayed = payment is not None
+        if payment is None:
+            payment = create_payment(
+                actor=actor,
+                reservation_draft=locked_reservation_draft,
+                payment_kind=PaymentKind.DEPOSIT,
+                payment_method=payment_method,
+                payment_status=PaymentStatus.PENDING,
+                amount=amount,
+                external_reference=external_reference,
+                notes=notes,
+                deposit_recording_idempotency_key=normalized_key,
+            )
+        else:
+            _assert_matching_deposit_recording(
+                payment=payment,
+                payment_method=payment_method,
+                amount=amount,
+                external_reference=external_reference,
+                notes=notes,
+            )
+
+        if payment.payment_status == PaymentStatus.PENDING:
+            payment = confirm_payment(payment=payment, actor=actor, paid_at=paid_at).payment
+        elif payment.payment_status not in {PaymentStatus.CONFIRMED, PaymentStatus.RECONCILED}:
+            raise PaymentLifecycleError(
+                "A deposit recording cannot resume a cancelled or failed payment.",
+                code=DEPOSIT_RECORDING_INVALID_STATE,
+            )
+
+        marked_reservation_draft = _record_reservation_draft_deposit_marker(
+            reservation_draft=locked_reservation_draft,
+            actor=actor,
+        )
+        return DepositRecordingResult(
+            payment=payment,
+            reservation_draft=marked_reservation_draft,
+            hahitantsoa_event_draft=None,
+            replayed=replayed,
+        )
+
+    locked_hahitantsoa_event_draft = HahitantsoaEventDraft.objects.select_for_update().get(
+        pk=hahitantsoa_event_draft.pk
+    )
+    payment = (
+        Payment.objects.select_for_update()
+        .filter(
+            hahitantsoa_event_draft=locked_hahitantsoa_event_draft,
+            deposit_recording_idempotency_key=normalized_key,
+        )
+        .first()
+    )
+    replayed = payment is not None
+    if payment is None:
+        payment = create_payment(
+            actor=actor,
+            hahitantsoa_event_draft=locked_hahitantsoa_event_draft,
+            payment_kind=PaymentKind.DEPOSIT,
+            payment_method=payment_method,
+            payment_status=PaymentStatus.PENDING,
+            amount=amount,
+            external_reference=external_reference,
+            notes=notes,
+            deposit_recording_idempotency_key=normalized_key,
+        )
+    else:
+        _assert_matching_deposit_recording(
+            payment=payment,
+            payment_method=payment_method,
+            amount=amount,
+            external_reference=external_reference,
+            notes=notes,
+        )
+
+    if payment.payment_status == PaymentStatus.PENDING:
+        payment = confirm_payment(payment=payment, actor=actor, paid_at=paid_at).payment
+    elif payment.payment_status not in {PaymentStatus.CONFIRMED, PaymentStatus.RECONCILED}:
+        raise PaymentLifecycleError(
+            "A deposit recording cannot resume a cancelled or failed payment.",
+            code=DEPOSIT_RECORDING_INVALID_STATE,
+        )
+
+    marked_hahitantsoa_event_draft = _record_hahitantsoa_event_draft_deposit_marker(
+        hahitantsoa_event_draft=locked_hahitantsoa_event_draft,
+        actor=actor,
+    )
+    return DepositRecordingResult(
+        payment=payment,
+        reservation_draft=None,
+        hahitantsoa_event_draft=marked_hahitantsoa_event_draft,
+        replayed=replayed,
     )
 
 

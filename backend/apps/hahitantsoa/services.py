@@ -848,6 +848,8 @@ def mark_hahitantsoa_event_draft_required_deposit_received(
                 "Hahitantsoa event draft must have its required deposit fully confirmed.",
                 code="required_deposit_payment_truth_missing",
             )
+        if _is_required_deposit_received(event_draft=locked_event_draft):
+            return locked_event_draft
         now = timezone.now()
         locked_event_draft.required_deposit_received_at = now
         locked_event_draft.required_deposit_received_by_id = actor.pk

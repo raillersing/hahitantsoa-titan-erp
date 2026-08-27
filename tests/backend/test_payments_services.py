@@ -18,10 +18,12 @@ from apps.finance.models import (
 )
 from apps.finance.services import create_finance_account
 from apps.hahitantsoa.models import HahitantsoaEventDraft
+from apps.hahitantsoa.services import ReservationLifecycleStateError
 from apps.notifications.models import SystemNotification
 from apps.notifications.services import create_payment_confirmation_notification
-from apps.payments.models import PaymentKind, PaymentMethod, PaymentStatus
+from apps.payments.models import Payment, PaymentKind, PaymentMethod, PaymentStatus
 from apps.payments.services import (
+    DEPOSIT_RECORDING_IDEMPOTENCY_CONFLICT,
     INVALID_PAYMENT_CANCEL_STATE,
     INVALID_PAYMENT_CONFIRMATION_STATE,
     INVALID_PAYMENT_RECONCILE_STATE,
@@ -30,6 +32,7 @@ from apps.payments.services import (
     confirm_payment,
     create_payment,
     reconcile_payment,
+    record_confirmed_deposit,
 )
 from apps.reservations.models import ReservationDraft
 
@@ -92,6 +95,164 @@ def test_create_payment_persists_generic_pending_payment(django_user_model) -> N
     assert payment.created_by_id == actor.id
     assert payment.payment_status == PaymentStatus.PENDING
     assert payment.receipt_document_id is None
+
+
+def test_record_confirmed_deposit_is_atomic_and_replay_safe_for_titan(
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="deposit-recording-titan",
+        password="test-pass",
+        is_staff=True,
+    )
+    draft = _reservation_draft()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        first = record_confirmed_deposit(
+            actor=actor,
+            reservation_draft=draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("125000.00"),
+            external_reference="DEP-TITAN-001",
+            notes="Titan deposit",
+            idempotency_key="deposit-titan-001",
+        )
+
+    draft.refresh_from_db()
+    assert first.replayed is False
+    assert first.payment.payment_status == PaymentStatus.CONFIRMED
+    assert draft.required_deposit_received_at is not None
+    assert draft.required_deposit_received_by_id == actor.id
+
+    with django_capture_on_commit_callbacks(execute=True):
+        replay = record_confirmed_deposit(
+            actor=actor,
+            reservation_draft=draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("125000.00"),
+            external_reference="DEP-TITAN-001",
+            notes="Titan deposit",
+            idempotency_key="deposit-titan-001",
+        )
+
+    assert replay.replayed is True
+    assert replay.payment.id == first.payment.id
+    assert (
+        Payment.objects.filter(
+            reservation_draft=draft,
+            payment_kind=PaymentKind.DEPOSIT,
+        ).count()
+        == 1
+    )
+
+
+def test_record_confirmed_deposit_rejects_key_reused_with_different_amount(
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="deposit-recording-conflict",
+        password="test-pass",
+        is_staff=True,
+    )
+    draft = _reservation_draft()
+    with django_capture_on_commit_callbacks(execute=True):
+        record_confirmed_deposit(
+            actor=actor,
+            reservation_draft=draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("125000.00"),
+            idempotency_key="deposit-titan-conflict",
+        )
+
+    with pytest.raises(PaymentLifecycleError) as error_info:
+        record_confirmed_deposit(
+            actor=actor,
+            reservation_draft=draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("126000.00"),
+            idempotency_key="deposit-titan-conflict",
+        )
+
+    assert error_info.value.code == DEPOSIT_RECORDING_IDEMPOTENCY_CONFLICT
+    assert (
+        Payment.objects.filter(
+            reservation_draft=draft,
+            payment_kind=PaymentKind.DEPOSIT,
+        ).count()
+        == 1
+    )
+
+
+def test_record_confirmed_deposit_is_replay_safe_for_hahitantsoa(
+    django_user_model,
+    django_capture_on_commit_callbacks,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="deposit-recording-hahitantsoa",
+        password="test-pass",
+        is_staff=True,
+    )
+    event_draft = _hahitantsoa_event_draft(actor=actor)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        first = record_confirmed_deposit(
+            actor=actor,
+            hahitantsoa_event_draft=event_draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("225000.00"),
+            idempotency_key="deposit-hahitantsoa-001",
+        )
+        replay = record_confirmed_deposit(
+            actor=actor,
+            hahitantsoa_event_draft=event_draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("225000.00"),
+            idempotency_key="deposit-hahitantsoa-001",
+        )
+
+    event_draft.refresh_from_db()
+    assert first.replayed is False
+    assert replay.replayed is True
+    assert replay.payment.id == first.payment.id
+    assert event_draft.required_deposit_received_at is not None
+    assert (
+        Payment.objects.filter(
+            hahitantsoa_event_draft=event_draft,
+            payment_kind=PaymentKind.DEPOSIT,
+        ).count()
+        == 1
+    )
+
+
+def test_record_confirmed_deposit_rolls_back_when_required_amount_is_not_reached(
+    django_user_model,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="deposit-recording-rollback",
+        password="test-pass",
+        is_staff=True,
+    )
+    event_draft = _hahitantsoa_event_draft(actor=actor)
+    event_draft.required_deposit_amount = Decimal("225000.00")
+    event_draft.save(update_fields=["required_deposit_amount", "updated_at"])
+
+    with pytest.raises(ReservationLifecycleStateError) as error_info:
+        record_confirmed_deposit(
+            actor=actor,
+            hahitantsoa_event_draft=event_draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("100000.00"),
+            idempotency_key="deposit-hahitantsoa-rollback",
+        )
+
+    event_draft.refresh_from_db()
+    assert error_info.value.code == "required_deposit_payment_truth_missing"
+    assert event_draft.required_deposit_received_at is None
+    assert event_draft.required_deposit_received_by_id is None
+    assert not Payment.objects.filter(hahitantsoa_event_draft=event_draft).exists()
+    assert not DocumentInstance.objects.filter(hahitantsoa_event_draft=event_draft).exists()
 
 
 def test_confirm_payment_generates_and_links_receipt_document(

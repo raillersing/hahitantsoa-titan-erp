@@ -121,6 +121,38 @@ class PaymentConfirmSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
 
 
+class DepositRecordingSerializer(serializers.Serializer):
+    reservation_draft = serializers.PrimaryKeyRelatedField(
+        queryset=ReservationDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    hahitantsoa_event_draft = serializers.PrimaryKeyRelatedField(
+        queryset=HahitantsoaEventDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
+    payment_method = serializers.ChoiceField(
+        choices=Payment._meta.get_field("payment_method").choices
+    )
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
+    paid_at = serializers.DateTimeField(required=False)
+    external_reference = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    idempotency_key = serializers.CharField(max_length=128)
+
+    def validate(self, attrs):
+        reservation_draft = attrs.get("reservation_draft")
+        hahitantsoa_event_draft = attrs.get("hahitantsoa_event_draft")
+        if bool(reservation_draft) == bool(hahitantsoa_event_draft):
+            raise serializers.ValidationError(
+                "Provide exactly one reservation draft or Hahitantsoa event draft."
+            )
+        if not attrs["idempotency_key"].strip():
+            raise serializers.ValidationError({"idempotency_key": "This field must not be blank."})
+        return attrs
+
+
 class ReconciliationCsvPreviewSerializer(serializers.Serializer):
     account_id = serializers.UUIDField()
     csv_content = serializers.CharField(trim_whitespace=False, max_length=2_000_000)

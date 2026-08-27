@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.payments.views import (
+    DepositRecordingAPIView,
     GatewayPaymentCallbackAPIView,
     GatewayPaymentInitiateAPIView,
     PaymentCancelAPIView,
@@ -16,6 +17,7 @@ from apps.payments.views import (
 )
 
 urlpatterns = [
+    path("deposits/record/", DepositRecordingAPIView.as_view(), name="payment-deposit-record"),
     path(
         "reminder/whatsapp/",
         PaymentReminderWhatsAppAPIView.as_view(),
