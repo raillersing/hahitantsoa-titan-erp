@@ -28,8 +28,9 @@ Load when a backend change touches serializers, routes, error handling, or anyth
 
 ## Commands / wrappers to run
 
-- `scripts/dev/erp-backend-fast`
-- `scripts/dev/erp-backend-ci`
+- focused API-contract pytest through `scripts/dev/erp-backend-fast`
+- `scripts/dev/erp-backend-ci` only after an explicit full-suite escalation under
+  `pr-quality-gates.md`
 
 ## Hard stops
 

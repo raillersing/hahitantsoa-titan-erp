@@ -28,8 +28,9 @@ Load when a backend change touches payment, refund, receipt, settlement, or retr
 
 ## Commands / wrappers to run
 
-- `scripts/dev/erp-backend-ci`
 - focused payment pytest through `scripts/dev/erp-backend-fast`
+- `scripts/dev/erp-backend-ci` only after an explicit full-suite escalation under
+  `pr-quality-gates.md`
 
 ## Hard stops
 

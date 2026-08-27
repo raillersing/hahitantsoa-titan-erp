@@ -27,7 +27,8 @@ pass before opening a PR.
 - [ ] Agent scope guard passes for the active profile
 - [ ] No host Python — use `scripts/dev/erp-backend-compose-ci` or `scripts/ci/backend-quality` for backend validation
 - [ ] Validation level `L0`–`L4` and its evidence are recorded
-- [ ] Full backend CI is required only by `L3`, `L4`, or a mandatory risk override
+- [ ] Full backend CI is not a normal local gate; use it only for an explicit
+  escalation reason recorded under `pr-quality-gates.md`
 - [ ] Complete backend claims include an explicit Django check because
   `erp-backend-ci` does not currently run it
 - [ ] No unchanged green suite is repeated without an impact or failure reason

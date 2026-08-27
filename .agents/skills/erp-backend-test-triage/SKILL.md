@@ -13,7 +13,8 @@ level, then widen only for demonstrated impact or a mandatory risk override.
 - [ ] Identify the smallest relevant pytest target for the changed backend slice
 - [ ] Reproduce the failure with `scripts/dev/erp-backend-fast`
 - [ ] Record the selected level from `docs/ai-agents/pr-quality-gates.md`
-- [ ] Use `scripts/dev/erp-backend-ci` for `L3`/`L4` or a mandatory risk override
+- [ ] Escalate to `scripts/dev/erp-backend-ci` only for a documented cross-cutting
+  failure, test/runtime infrastructure change, phase checkpoint, or human request
 - [ ] Widen from focused tests only when dependencies, failures, or risk require it
 - [ ] Stop if the failure looks cross-cutting, contract-heavy, or migration-sensitive
 - [ ] Keep pytest targets explicit and short
@@ -32,8 +33,8 @@ Load when choosing backend tests, debugging a failing slice, or deciding whether
 ## Commands / wrappers to run
 
 - `scripts/dev/erp-backend-fast tests/backend/path_or_module.py -q`
-- `scripts/dev/erp-backend-ci` for `L3`/`L4` or a mandatory risk override; never pass a
-  focused pytest target when claiming a complete backend suite
+- `scripts/dev/erp-backend-ci` only for a documented local full-suite escalation;
+  never pass a focused pytest target when claiming a complete backend suite
 
 ## Hard stops
 
