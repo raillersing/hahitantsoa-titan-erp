@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-backend-test-db-template prepare <template-db> <test-db>
+  scripts/dev/erp-backend-test-db-template drop <test-db>
+
+Purpose:
+  Keep a migration-fingerprinted PostgreSQL template database per isolated
+  Compose instance, then clone a fresh pytest database from it.
+
+Notes:
+  - Template databases retain migrated schema and data-migration seed data.
+  - Test databases are disposable and are dropped by the caller after testing.
+  - Names must contain only lowercase letters, digits, and underscores.
+USAGE
+}
+
+command_name="${1:-}"
+template_db="${2:-}"
+test_db="${3:-}"
+
+if [ "$command_name" = "help" ] || [ "$command_name" = "--help" ] || [ "$command_name" = "-h" ]; then
+  usage
+  exit 0
+fi
+
+if [ "$command_name" = "prepare" ]; then
+  [ -n "$template_db" ] && [ -n "$test_db" ] || { usage >&2; exit 2; }
+elif [ "$command_name" = "drop" ]; then
+  test_db="$template_db"
+  [ -n "$test_db" ] || { usage >&2; exit 2; }
+else
+  usage >&2
+  exit 2
+fi
+
+for database_name in "$template_db" "$test_db"; do
+  if [ -n "$database_name" ] && ! [[ "$database_name" =~ ^[a-z][a-z0-9_]*$ ]]; then
+    echo "ERROR: database names must contain only lowercase letters, digits, and underscores." >&2
+    exit 2
+  fi
+done
+
+if [ "$command_name" = "prepare" ] && ! [[ "$template_db" =~ ^erp_test_template_[a-f0-9]{12}$ ]]; then
+  echo "ERROR: template database names must use the erp_test_template_<fingerprint> format." >&2
+  exit 2
+fi
+
+if ! [[ "$test_db" =~ ^test_[a-z0-9_]*$ ]]; then
+  echo "ERROR: disposable test database names must start with test_." >&2
+  exit 2
+fi
+
+cd "$REPO_ROOT"
+
+psql_admin() {
+  scripts/dev/erp-backend-compose-ci exec -T db \
+    psql -U titan -d postgres -v ON_ERROR_STOP=1 "$@"
+}
+
+psql_database() {
+  local database_name="$1"
+  shift
+  scripts/dev/erp-backend-compose-ci exec -T db \
+    psql -U titan -d "$database_name" -v ON_ERROR_STOP=1 "$@"
+}
+
+drop_database() {
+  local database_name="$1"
+  psql_admin -c "DROP DATABASE IF EXISTS \"$database_name\" WITH (FORCE)" >/dev/null
+}
+
+if [ "$command_name" = "drop" ]; then
+  drop_database "$test_db"
+  exit 0
+fi
+
+scripts/dev/erp-backend-compose-ci up -d --wait db redis >/dev/null
+
+template_exists="$(psql_admin -tAc "SELECT 1 FROM pg_database WHERE datname = '$template_db'")"
+if [ "$template_exists" = "1" ]; then
+  template_ready="$(psql_database "$template_db" -tAc "SELECT to_regclass('public.erp_agent_ci_template_metadata') IS NOT NULL")"
+  if [ "$template_ready" != "t" ]; then
+    echo "Discarding incomplete test database template: $template_db"
+    drop_database "$template_db"
+    template_exists=""
+  fi
+fi
+
+if [ "$template_exists" != "1" ]; then
+  echo "Creating migrated test database template: $template_db"
+  psql_admin -c "CREATE DATABASE \"$template_db\"" >/dev/null
+  scripts/dev/erp-backend-compose-ci run --rm -e "POSTGRES_DB=$template_db" backend \
+    python backend/manage.py migrate --noinput
+  psql_database "$template_db" -c \
+    "CREATE TABLE erp_agent_ci_template_metadata (template_name text PRIMARY KEY)" >/dev/null
+  psql_database "$template_db" -c \
+    "INSERT INTO erp_agent_ci_template_metadata (template_name) VALUES ('$template_db')" >/dev/null
+fi
+
+drop_database "$test_db"
+psql_admin -c "CREATE DATABASE \"$test_db\" WITH TEMPLATE \"$template_db\"" >/dev/null
+echo "Prepared fresh test database $test_db from $template_db"
