@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.hahitantsoa.models import (
@@ -9,6 +10,8 @@ from apps.hahitantsoa.models import (
     HahitantsoaServiceCategory,
     HahitantsoaServicePricingType,
 )
+
+User = get_user_model()
 
 
 class AuthenticatedUser:
@@ -22,6 +25,14 @@ class AuthenticatedUser:
 def auth_client():
     client = APIClient()
     client.force_authenticate(user=AuthenticatedUser())
+    return client
+
+
+@pytest.fixture
+def staff_client(db):
+    user = User.objects.create_user(username="staff_catalog", password="p", is_staff=True)
+    client = APIClient()
+    client.force_authenticate(user=user)
     return client
 
 
@@ -107,3 +118,24 @@ def test_hahitantsoa_commercial_terms_extended_fields(auth_client) -> None:
     assert Decimal(str(payload["night_option_2_amount"])) == Decimal("500000.00")
     assert Decimal(str(payload["night_security_amount"])) == Decimal("120000.00")
     assert Decimal(str(payload["caution_amount"])) == Decimal("500000.00")
+
+
+@pytest.mark.django_db
+def test_hahitantsoa_service_accepts_data_url_image(staff_client) -> None:
+    # A base64 data URL generated from a local file exceeds 512 characters
+    data_url = "data:image/jpeg;base64," + ("A" * 2000)
+    payload = {
+        "name": "Service avec photo locale",
+        "category": "drapery",
+        "pricing_type": "flat_fee",
+        "price": "850000.00",
+        "image_url": data_url,
+        "features": ["Test photo locale", "HD"],
+    }
+    response = staff_client.post("/api/v1/hahitantsoa/services/", payload, format="json")
+    assert response.status_code == 201
+    created_id = response.json()["id"]
+
+    # Verify retrieval
+    srv = HahitantsoaService.objects.get(id=created_id)
+    assert srv.image_url == data_url
