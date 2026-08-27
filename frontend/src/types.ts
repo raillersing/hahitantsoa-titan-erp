@@ -479,6 +479,22 @@ export type HahitantsoaEventDraftConfirmationPreflight = {
   blockers: string[];
   active_line_count: number;
   unavailable_line_count: number;
+  prerequisite_status: HahitantsoaEventDraftPrerequisiteStatus;
+};
+
+export type HahitantsoaEventDraftPrerequisiteStatusItem = {
+  status: string;
+  label: string;
+  truth_present: boolean;
+  marker_present: boolean;
+  source_id: string | null;
+  recorded_at: string | null;
+};
+
+export type HahitantsoaEventDraftPrerequisiteStatus = {
+  contract: HahitantsoaEventDraftPrerequisiteStatusItem;
+  deposit: HahitantsoaEventDraftPrerequisiteStatusItem;
+  ready_for_confirmation: boolean;
 };
 
 export type HahitantsoaEventDraftAmendmentPreflight = {
@@ -828,6 +844,26 @@ export type PaymentConfirmPayload = {
   paid_at?: string;
   external_reference?: string;
   notes?: string;
+};
+
+export type DepositRecordingPayload = {
+  reservation_draft?: string | null;
+  hahitantsoa_event_draft?: string | null;
+  payment_method: PaymentMethod;
+  amount: string;
+  paid_at?: string;
+  external_reference?: string;
+  notes?: string;
+  idempotency_key: string;
+};
+
+export type DepositRecordingResult = {
+  payment: Payment;
+  replayed: boolean;
+  reservation_draft_id?: string;
+  reservation_draft_status?: string;
+  hahitantsoa_event_draft_id?: string;
+  hahitantsoa_event_draft_status?: string;
 };
 
 export type PaymentActionPayload = {

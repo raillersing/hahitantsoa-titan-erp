@@ -85,6 +85,8 @@ import type {
   AuditEventQueryParams,
   Payment,
   BankProfile,
+  DepositRecordingPayload,
+  DepositRecordingResult,
   BankProfileCreatePayload,
   BankProfileUpdatePayload,
   PaymentWhatsAppReminder,
@@ -1028,6 +1030,17 @@ export function markHahitantsoaEventDraftRequiredDepositReceived(
   );
 }
 
+export function markHahitantsoaEventDraftContractSigned(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<{ status: string; public_reference: string; event_draft: HahitantsoaEventDraft }> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/contract-signed/`,
+    {},
+    signal,
+  );
+}
+
 export function getHahitantsoaEventDraftAmendmentRequests(
   draftId: string,
   signal?: AbortSignal,
@@ -1502,6 +1515,13 @@ export function createPayment(
   signal?: AbortSignal,
 ): Promise<Payment> {
   return postAuthenticatedJson('/api/v1/payments/', payload, signal);
+}
+
+export function recordConfirmedDeposit(
+  payload: DepositRecordingPayload,
+  signal?: AbortSignal,
+): Promise<DepositRecordingResult> {
+  return postAuthenticatedJson('/api/v1/payments/deposits/record/', payload, signal);
 }
 
 export function getPayment(
