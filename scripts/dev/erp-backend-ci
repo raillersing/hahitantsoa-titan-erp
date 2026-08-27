@@ -17,12 +17,13 @@ Purpose:
 Steps:
   1. Run the backend scope guard
   2. With pytest arguments, run the focused backend-quality gate
-  3. Without arguments, run Ruff once and the full pytest suite in four isolated shards
+  3. Without arguments, run Ruff once and the full pytest suite in isolated shards
   4. Run the backend migration guard once
 
 Notes:
   - Pass pytest arguments to forward them to the backend test step.
-  - The complete gate uses four deterministic test-file shards in parallel.
+  - The complete gate uses four deterministic test-file shards in parallel by default.
+  - ERP_BACKEND_CI_SHARDS may set the local shard count from 1 to 4.
   - Every shard has its own Compose project, PostgreSQL database, and Redis service.
   - This script never mutates code or dependency manifests intentionally.
   - It never reads, sources, or prints .env files.
@@ -54,7 +55,11 @@ echo "============================================================"
 if [ "$#" -gt 0 ]; then
   scripts/dev/erp-backend-compose-ci run --rm backend bash scripts/ci/backend-quality "$@"
 else
-  shard_count=4
+  shard_count="${ERP_BACKEND_CI_SHARDS:-4}"
+  if ! [[ "$shard_count" =~ ^[1-4]$ ]]; then
+    echo "ERROR: ERP_BACKEND_CI_SHARDS must be an integer from 1 to 4." >&2
+    exit 2
+  fi
   shard_tmp=""
   cleanup() {
     local shard
