@@ -16,12 +16,14 @@ Purpose:
 
 Steps:
   1. Run the backend scope guard
-  2. Run Ruff format and lint checks through backend-quality
-  3. Run focused or default pytest through backend-quality
-  4. Run the backend migration guard
+  2. With pytest arguments, run the focused backend-quality gate
+  3. Without arguments, run Ruff once and the full pytest suite in four isolated shards
+  4. Run the backend migration guard once
 
 Notes:
   - Pass pytest arguments to forward them to the backend test step.
+  - The complete gate uses four deterministic test-file shards in parallel.
+  - Every shard has its own Compose project, PostgreSQL database, and Redis service.
   - This script never mutates code or dependency manifests intentionally.
   - It never reads, sources, or prints .env files.
 USAGE
@@ -49,7 +51,94 @@ echo ""
 echo "============================================================"
 echo "erp-backend-ci backend quality"
 echo "============================================================"
-scripts/dev/erp-backend-compose-ci run --rm backend bash scripts/ci/backend-quality "$@"
+if [ "$#" -gt 0 ]; then
+  scripts/dev/erp-backend-compose-ci run --rm backend bash scripts/ci/backend-quality "$@"
+else
+  shard_count=4
+  shard_tmp=""
+  cleanup() {
+    local shard
+    for shard in $(seq 1 "$shard_count"); do
+      ERP_AGENT_CI_INSTANCE="shard-$shard" \
+        scripts/dev/erp-backend-compose-ci down --remove-orphans >/dev/null 2>&1 || true
+    done
+    scripts/dev/erp-backend-compose-ci down --remove-orphans >/dev/null 2>&1 || true
+    if [ -n "$shard_tmp" ] && [ -d "$shard_tmp" ]; then
+      rm -rf -- "$shard_tmp"
+    fi
+  }
+  trap cleanup EXIT
+  trap 'exit 130' INT TERM
+
+  scripts/dev/erp-backend-compose-ci run --rm backend bash -c '
+    set -Eeuo pipefail
+    python -m ruff format --check backend tests
+    python -m ruff check backend tests
+  '
+
+  mapfile -t test_files < <(
+    find tests/backend -type f \
+      \( -name 'test_*.py' -o -name '*_test.py' -o -name 'tests.py' \) \
+      -print | sort
+  )
+  if [ "${#test_files[@]}" -lt "$shard_count" ]; then
+    echo "ERROR: full backend gate requires at least $shard_count test files." >&2
+    exit 1
+  fi
+
+  shard_tmp="$(mktemp -d)"
+  shard_pids=()
+  declare -a shard_weights
+  for shard in $(seq 1 "$shard_count"); do
+    shard_weights[$shard]=0
+    : >"$shard_tmp/files-$shard.txt"
+  done
+
+  # ponytail: approximate collection weight from test functions, then greedily
+  # assign the heaviest file to the currently lightest shard.
+  while IFS=$'\t' read -r weight test_file; do
+    lightest_shard=1
+    for shard in $(seq 2 "$shard_count"); do
+      if [ "${shard_weights[$shard]}" -lt "${shard_weights[$lightest_shard]}" ]; then
+        lightest_shard="$shard"
+      fi
+    done
+    printf '%s\n' "$test_file" >>"$shard_tmp/files-$lightest_shard.txt"
+    shard_weights[$lightest_shard]=$((shard_weights[lightest_shard] + weight))
+  done < <(
+    for test_file in "${test_files[@]}"; do
+      weight="$(awk '/^[[:space:]]*def test_/ { count++ } END { print count + 0 }' "$test_file")"
+      printf '%s\t%s\n' "$weight" "$test_file"
+    done | sort -nr
+  )
+
+  for shard in $(seq 1 "$shard_count"); do
+    mapfile -t selected <"$shard_tmp/files-$shard.txt"
+    echo "Starting backend test shard $shard/$shard_count: ${#selected[@]} files, estimated weight ${shard_weights[$shard]}"
+    (
+      export ERP_AGENT_CI_INSTANCE="shard-$shard"
+      scripts/dev/erp-backend-compose-ci run --rm backend \
+        python -m pytest "${selected[@]}" --durations=20
+    ) >"$shard_tmp/shard-$shard.log" 2>&1 &
+    shard_pids+=("$!")
+  done
+
+  shard_status=0
+  for shard in $(seq 1 "$shard_count"); do
+    pid="${shard_pids[$((shard - 1))]}"
+    if wait "$pid"; then
+      echo "Backend test shard $shard/$shard_count: PASS"
+    else
+      echo "Backend test shard $shard/$shard_count: FAIL" >&2
+      shard_status=1
+    fi
+    cat "$shard_tmp/shard-$shard.log"
+  done
+  if [ "$shard_status" -ne 0 ]; then
+    echo "ERROR: at least one backend test shard failed." >&2
+    exit "$shard_status"
+  fi
+fi
 
 echo ""
 echo "============================================================"

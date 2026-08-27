@@ -7,7 +7,13 @@ COMPOSE_FILE="$REPO_ROOT/compose.agent-ci.yaml"
 # A stable project per worktree keeps Compose volumes and Django's test database
 # isolated when several agents validate backend changes concurrently.
 WORKTREE_FINGERPRINT="$(printf '%s' "$REPO_ROOT" | sha256sum | cut -c1-12)"
-COMPOSE_PROJECT="hahitantsoa_titan_erp_agent_ci_${WORKTREE_FINGERPRINT}"
+INSTANCE_NAME="${ERP_AGENT_CI_INSTANCE:-default}"
+if ! [[ "$INSTANCE_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  echo "ERROR: ERP_AGENT_CI_INSTANCE must contain only letters, digits, underscores, or hyphens." >&2
+  exit 2
+fi
+INSTANCE_FINGERPRINT="$(printf '%s' "$INSTANCE_NAME" | sha256sum | cut -c1-8)"
+COMPOSE_PROJECT="hahitantsoa_titan_erp_agent_ci_${WORKTREE_FINGERPRINT}_${INSTANCE_FINGERPRINT}"
 # Share the dependency image across worktrees while keeping their containers,
 # networks, and database volumes isolated by COMPOSE_PROJECT.
 BACKEND_IMAGE_FINGERPRINT="$(
@@ -38,6 +44,8 @@ Notes:
   This wrapper always uses compose.agent-ci.yaml.
   Backend images are shared across worktrees when their Dockerfile and Python
   dependency manifest are identical.
+  ERP_AGENT_CI_INSTANCE may select an additional isolated Compose project inside
+  one worktree, for example when local test shards run concurrently.
   It injects only versioned non-secret CI/dev values.
   It is intended for agent-safe local backend validation.
 USAGE
