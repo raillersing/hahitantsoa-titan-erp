@@ -6,10 +6,12 @@ REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 cd "$REPO_ROOT"
 
+TASK_START_EMBEDDED=0
+
 print_usage() {
   cat <<'USAGE'
 Usage:
-  scripts/dev/erp-orchestrator-state-check
+  scripts/dev/erp-orchestrator-state-check [--task-start-embedded]
 
 Purpose:
   Print the current orchestrator baseline without mutating the repository:
@@ -21,6 +23,8 @@ Purpose:
   - changed-path hygiene for .env and secret-like filenames
 
 Notes:
+  --task-start-embedded skips PR, CI, and worktree output already emitted by
+  erp-agent-task-start while preserving required-document and status checks.
   This helper never reads, prints, copies, sources, or creates any .env file.
 USAGE
 }
@@ -31,6 +35,9 @@ case "${1:-}" in
     exit 0
     ;;
   "")
+    ;;
+  --task-start-embedded)
+    TASK_START_EMBEDDED=1
     ;;
   *)
     echo "ERROR: unexpected argument '$1'"
@@ -43,37 +50,43 @@ echo "============================================================"
 echo "ORCHESTRATOR STATE CHECK"
 echo "============================================================"
 echo "REPO_ROOT: $REPO_ROOT"
-echo "CURRENT_BRANCH: $(git branch --show-current 2>/dev/null || true)"
-echo "CURRENT_HEAD: $(git rev-parse HEAD)"
-echo
 
-MAIN_HEAD="$(git rev-parse origin/main 2>/dev/null || git rev-parse HEAD)"
-echo "MAIN_HEAD: $MAIN_HEAD"
-echo
+if [ "$TASK_START_EMBEDDED" -eq 0 ]; then
+  echo "CURRENT_BRANCH: $(git branch --show-current 2>/dev/null || true)"
+  echo "CURRENT_HEAD: $(git rev-parse HEAD)"
+  echo
 
-echo "WORKTREES:"
-git worktree list
-echo
+  MAIN_HEAD="$(git rev-parse origin/main 2>/dev/null || git rev-parse HEAD)"
+  echo "MAIN_HEAD: $MAIN_HEAD"
+  echo
 
-echo "OPEN_PRS:"
-if command -v gh >/dev/null 2>&1; then
-  gh pr list --state open --json number,title,headRefName,baseRefName,url \
-    --jq '.[] | "#\(.number) \(.headRefName) -> \(.baseRefName) | \(.title) | \(.url)"' \
-    2>/dev/null || echo "(unable to query open PRs)"
+  echo "WORKTREES:"
+  git worktree list
+  echo
+
+  echo "OPEN_PRS:"
+  if command -v gh >/dev/null 2>&1; then
+    gh pr list --state open --json number,title,headRefName,baseRefName,url \
+      --jq '.[] | "#\(.number) \(.headRefName) -> \(.baseRefName) | \(.title) | \(.url)"' \
+      2>/dev/null || echo "(unable to query open PRs)"
+  else
+    echo "(gh not installed)"
+  fi
+  echo
+
+  echo "LAST_GREEN_MAIN_CI:"
+  if command -v gh >/dev/null 2>&1; then
+    gh run list --branch main --event push --limit 10 --json databaseId,headSha,conclusion,displayTitle \
+      --jq '.[] | select(.conclusion == "success") | "run=\(.databaseId) sha=\(.headSha) title=\(.displayTitle)"' \
+      2>/dev/null | head -n 1 || echo "(unable to query main CI)"
+  else
+    echo "(gh not installed)"
+  fi
+  echo
 else
-  echo "(gh not installed)"
+  echo "MODE: task-start-embedded (duplicate remote and worktree queries skipped)"
+  echo
 fi
-echo
-
-echo "LAST_GREEN_MAIN_CI:"
-if command -v gh >/dev/null 2>&1; then
-  gh run list --branch main --event push --limit 10 --json databaseId,headSha,conclusion,displayTitle \
-    --jq '.[] | select(.conclusion == "success") | "run=\(.databaseId) sha=\(.headSha) title=\(.displayTitle)"' \
-    2>/dev/null | head -n 1 || echo "(unable to query main CI)"
-else
-  echo "(gh not installed)"
-fi
-echo
 
 echo "REQUIRED_DOCS:"
 required_docs=(
