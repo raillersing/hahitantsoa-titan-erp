@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ApiError, getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService } from '../api';
 import type { HahitantsoaService, HahitantsoaServiceCategory, HahitantsoaServicePricingType } from '../types';
 
@@ -39,6 +39,11 @@ const ServicesPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'warning' | 'error' } | null>(null);
 
+  const [imageSourceMode, setImageSourceMode] = useState<'file' | 'url'>('file');
+  const [localFileName, setLocalFileName] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const initialForm = {
     name: '',
     category: 'drapery' as HahitantsoaServiceCategory,
@@ -52,6 +57,33 @@ const ServicesPage: React.FC = () => {
     active: true,
   };
   const [formData, setFormData] = useState(initialForm);
+
+  const handleLocalFileChange = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showToast('Veuillez sélectionner un fichier image valide (JPG, PNG, WebP, SVG).', 'warning');
+      return;
+    }
+
+    try {
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Image trop volumineuse (> 10 Mo). Veuillez choisir une image plus légère.', 'warning');
+        return;
+      }
+
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Erreur de lecture du fichier local'));
+        reader.readAsDataURL(file);
+      });
+
+      setFormData((prev) => ({ ...prev, image_url: dataUrl }));
+      setLocalFileName(file.name);
+      showToast(`Image "${file.name}" chargée avec succès.`, 'success');
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors du chargement de l'image.", 'error');
+    }
+  };
 
   useEffect(() => {
     let isSubscribed = true;
@@ -82,6 +114,9 @@ const ServicesPage: React.FC = () => {
   };
 
   const handleEdit = (service: HahitantsoaService) => {
+    const isUrl = (service.image_url || '').startsWith('http') || (service.image_url || '').startsWith('/');
+    setImageSourceMode(isUrl ? 'url' : 'file');
+    setLocalFileName(service.image_url?.startsWith('data:') ? 'Image locale importée' : '');
     setFormData({
       name: service.name,
       category: service.category || 'other',
@@ -124,9 +159,9 @@ const ServicesPage: React.FC = () => {
       name: formData.name.trim(),
       category: formData.category,
       pricing_type: formData.pricing_type,
-      price: Number(formData.price) || 0,
-      unit_label: formData.unit_label.trim(),
       desc: formData.desc.trim(),
+      price: formData.price,
+      unit_label: formData.unit_label.trim(),
       image_url: formData.image_url.trim(),
       features,
       is_external_fee: formData.is_external_fee,
@@ -146,6 +181,7 @@ const ServicesPage: React.FC = () => {
       setShowForm(false);
       setEditingId(null);
       setFormData(initialForm);
+      setLocalFileName('');
     } catch (error) {
       showToast(error instanceof ApiError ? error.message : 'La sauvegarde a échoué.', 'error');
     }
@@ -211,6 +247,8 @@ const ServicesPage: React.FC = () => {
           onClick={() => {
             setEditingId(null);
             setFormData(initialForm);
+            setImageSourceMode('file');
+            setLocalFileName('');
             setShowForm(true);
           }}
           className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-semibold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2 self-start md:self-auto"
@@ -299,7 +337,7 @@ const ServicesPage: React.FC = () => {
                 <input
                   type="text"
                   className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:border-indigo-500"
-                  value={formData.name}
+                  value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="ex: Voilage cascade, Flocon centré classique, Piste lumineuse LED"
                 />
@@ -353,28 +391,144 @@ const ServicesPage: React.FC = () => {
                   type="text"
                   placeholder="ex: ligne, unité, pièce"
                   className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                  value={formData.unit_label}
+                  value={formData.unit_label || ''}
                   onChange={(e) => setFormData({ ...formData, unit_label: e.target.value })}
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">URL de la photo ou aperçu visuel</label>
-                <input
-                  type="text"
-                  placeholder="https://... ou /brand/services/voilage.jpg"
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                />
-                {formData.image_url && (
-                  <div className="mt-2 rounded-lg border border-slate-200 overflow-hidden w-full h-32 bg-slate-100 relative">
-                    <img
-                      src={formData.image_url}
-                      alt="Prévisualisation"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+              {/* Image selection: Fichier local OU Lien URL */}
+              <div className="md:col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">Photo ou visuel de la prestation</label>
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setImageSourceMode('file')}
+                      className={`px-2.5 py-1 rounded font-semibold transition-colors flex items-center gap-1.5 ${
+                        imageSourceMode === 'file' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <i className="fa-solid fa-folder-open text-xs"></i>
+                      <span>Fichier local</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageSourceMode('url')}
+                      className={`px-2.5 py-1 rounded font-semibold transition-colors flex items-center gap-1.5 ${
+                        imageSourceMode === 'url' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <i className="fa-solid fa-link text-xs"></i>
+                      <span>Lien URL</span>
+                    </button>
+                  </div>
+                </div>
+
+                {imageSourceMode === 'file' ? (
+                  /* Zone sélection de fichier local */
+                  <div className="space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      id="service-image-file"
+                      aria-label="Sélectionner une photo locale"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleLocalFileChange(f);
+                        e.target.value = '';
+                      }}
+                      className="hidden"
                     />
+
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDragging(true);
+                      }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        const f = e.dataTransfer.files?.[0];
+                        if (f) handleLocalFileChange(f);
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
+                        isDragging
+                          ? 'border-indigo-500 bg-indigo-50/50'
+                          : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1.5 text-slate-500">
+                        <i className="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500"></i>
+                        <div className="text-xs font-semibold text-slate-700">
+                          Cliquez pour parcourir vos fichiers ou glissez-déposez une photo ici
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          Formats acceptés : JPG, PNG, WebP, SVG (depuis votre ordinateur)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Zone saisie d'URL */
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="https://... ou /brand/services/voilage.jpg"
+                      className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
+                      value={formData.image_url || ''}
+                      onChange={(e) => {
+                        setFormData({ ...formData, image_url: e.target.value });
+                        setLocalFileName('');
+                      }}
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">Saisissez l'adresse web complète ou un chemin d'actif.</p>
+                  </div>
+                )}
+
+                {/* Aperçu interactif avec actions */}
+                {formData.image_url && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            formData.image_url.startsWith('data:')
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}
+                        >
+                          {formData.image_url.startsWith('data:') ? '📁 Fichier local' : '🌐 URL web'}
+                        </span>
+                        {localFileName && (
+                          <span className="text-xs font-medium text-slate-700 truncate max-w-xs">{localFileName}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, image_url: '' });
+                          setLocalFileName('');
+                        }}
+                        className="text-xs text-rose-500 hover:text-rose-700 font-semibold flex items-center gap-1"
+                      >
+                        <i className="fa-solid fa-trash-can"></i>
+                        <span>Retirer</span>
+                      </button>
+                    </div>
+
+                    <div className="h-36 rounded-lg overflow-hidden border border-slate-100 bg-slate-100 relative">
+                      <img
+                        src={formData.image_url}
+                        alt="Aperçu prestation"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -384,7 +538,7 @@ const ServicesPage: React.FC = () => {
                 <textarea
                   rows={2}
                   className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                  value={formData.desc}
+                  value={formData.desc || ''}
                   onChange={(e) => setFormData({ ...formData, desc: e.target.value })}
                   placeholder="Atmosphère, rendu esthétique, détails de pose..."
                 />
@@ -398,7 +552,7 @@ const ServicesPage: React.FC = () => {
                   type="text"
                   placeholder="ex: Disponible en blanc, Blanc chaud / blanc froid, 30 kVA"
                   className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                  value={formData.features_raw}
+                  value={formData.features_raw || ''}
                   onChange={(e) => setFormData({ ...formData, features_raw: e.target.value })}
                 />
               </div>
