@@ -452,7 +452,7 @@ class HahitantsoaService(UUIDModel, TimestampedModel, AuditableModel):
     desc = models.TextField(blank=True, default="")
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     unit_label = models.CharField(max_length=64, blank=True, default="")
-    image_url = models.CharField(max_length=512, blank=True, default="")
+    image_url = models.TextField(blank=True, default="")
     features = models.JSONField(default=list, blank=True)
     is_external_fee = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
