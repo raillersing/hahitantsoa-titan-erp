@@ -19,13 +19,21 @@ reviewer or orchestrator phase changed.
 | `L0 — governance/docs` | Markdown, agent skills, reports, copy, or ignored evidence with no executable/config change | scope guard, relevant document/skill/link validator, `git diff --check`; no backend/frontend application suite |
 | `L1 — focused` | Isolated backend function/view/serializer or frontend component behavior | affected focused tests, touched-language lint/type check, and frontend build when shipped frontend source changes |
 | `L2 — subsystem` | Several files in one bounded backend app or frontend journey | focused subsystem tests plus applicable Django check, migration check, frontend build, or targeted Playwright journey |
-| `L3 — full affected stack` | Cross-cutting framework/config/dependency change or mandatory risk override | complete backend or frontend local gate for each affected stack; backend runtime changes also require explicit Django check |
-| `L4 — cross-boundary` | Approved backend/frontend contract or end-to-end workflow change | complete gates for both affected stacks plus targeted E2E/Playwright proof |
+| `L3 — risk-directed` | Security, migration, finance, stock, concurrency, configuration, or other mandatory-risk change | focused tests for each changed risk, applicable specialist review/guard, and explicit Django check for backend runtime changes |
+| `L4 — cross-boundary` | Approved backend/frontend contract or end-to-end workflow change | focused gates for both changed sides plus targeted E2E/Playwright proof |
 
 Selection rules:
 
 - Start with `L1` during implementation; widen only when changed dependencies or a
   failure demonstrate broader impact.
+- A complete local backend or frontend suite is not a default pre-PR gate at any level.
+  Do not run it solely because a change is high risk: use the focused tests and
+  specialist guard that prove that risk, then rely on required path-aware PR CI for
+  complete-stack coverage.
+- Escalate to a complete local affected-stack suite only for a changed test/CI/runtime
+  infrastructure, an unresolved cross-cutting failure after focused reproduction, an
+  approved phase integration checkpoint, or an explicit human request. Record the
+  reason in the PR body; convenience or reassurance is not a reason.
 - `L0` never runs application suites solely for reassurance.
 - A frontend source change requires a production build, but not every Playwright suite.
 - Run Playwright only for the changed journey, browser-only behavior, responsive/layout
@@ -56,33 +64,33 @@ EOF
 
 The helper verifies the diff, runs touched-scope Ruff, the explicitly selected pytest
 or Vitest targets, and a frontend production build when frontend source is changed.
-It refuses the fast lane for authentication, API contracts, migrations, payments,
-stock/reservation concurrency, dependencies, CI/tooling, or configuration changes;
-those changes must use the complete affected-stack gate. If a changed behavior has no
-test target yet, the command fails unless `--allow-no-tests` is supplied, and then
-reports the missing behavior evidence as `UNCONFIRMED`.
+For a guarded risk that the helper intentionally refuses, run the named focused tests
+through the stack-specific fast wrapper plus the applicable specialist guard; do not
+substitute a complete local suite. If a changed behavior has no test target yet, the
+command fails unless `--allow-no-tests` is supplied, and then reports the missing
+behavior evidence as `UNCONFIRMED`.
 
 This is a development-loop optimization only. Required PR CI and exact-SHA `main` CI
 still run their complete applicable gates before and after merge.
 
 The backend CI gate runs as four deterministic test-file shards with an isolated service
 database per job. A green backend gate means every shard passed; a failed shard blocks
-the policy gate. The local complete wrapper remains available for final affected-stack
-validation and does not use the CI shard shortcut. Sharding is intentionally by test
+the policy gate. The local complete wrapper remains an explicit escalation tool and
+does not use the CI shard shortcut. Sharding is intentionally by test
 file, not by shared database worker, so transaction-sensitive, payment, stock, and
 reservation tests keep their existing isolation model.
 
 ### Mandatory risk overrides
 
-| Risk | Minimum level and additional evidence |
+| Risk | Minimum level and additional focused evidence |
 |---|---|
-| Authentication, session, CSRF, authorization, tenant/object isolation, secrets | `L3` backend; add affected frontend gate and targeted E2E when browser auth behavior changes |
-| Model or migration change | `L3` backend plus migration guard and migration/data-integrity review |
-| Payment, refund, receipt, cashbox, financial calculation or idempotency | `L3` backend plus payment/idempotency and transaction review |
-| Stock, reservation availability, confirmation, allocation, or competing writes | `L3` backend plus transaction/concurrency and rollback evidence |
+| Authentication, session, CSRF, authorization, tenant/object isolation, secrets | `L3` backend; add focused authorization tests, affected frontend gate, and targeted E2E when browser auth behavior changes |
+| Model or migration change | `L3` backend plus migration guard, migration/data-integrity review, and changed-model tests |
+| Payment, refund, receipt, cashbox, financial calculation or idempotency | `L3` backend plus focused financial/replay tests and payment/idempotency and transaction review |
+| Stock, reservation availability, confirmation, allocation, or competing writes | `L3` backend plus focused transaction/concurrency and rollback evidence |
 | Public API contract used by frontend | `L4` unless the change is proven backward-compatible and frontend-neutral by contract tests and independent review |
-| Dependency, compiler, bundler, Django settings, test infrastructure, or CI wrapper | `L3` for every affected stack |
-| Sensitive upload or private document access | `L3` affected stack plus security and authorization review |
+| Dependency, compiler, bundler, Django settings, test infrastructure, or CI wrapper | `L3` focused checks for every affected stack; a complete local suite is allowed only when the change itself prevents targeted qualification |
+| Sensitive upload or private document access | `L3` affected stack plus focused security/authorization tests and review |
 
 These overrides may increase validation, never decrease trust-boundary, data-loss,
 financial, migration, or concurrency proof.

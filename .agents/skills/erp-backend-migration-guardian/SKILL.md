@@ -30,7 +30,9 @@ Load when models, fields, constraints, indexes, or migration files change, or wh
 ## Commands / wrappers to run
 
 - `scripts/dev/erp-backend-migration-guard`
-- `scripts/dev/erp-backend-ci`
+- focused changed-model and migration behavior tests through `scripts/dev/erp-backend-fast`
+- `scripts/dev/erp-backend-ci` only after an explicit full-suite escalation under
+  `pr-quality-gates.md`
 
 ## Hard stops
 

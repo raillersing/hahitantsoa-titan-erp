@@ -265,8 +265,8 @@ must be treated as pending repository capability.
 Backend validation now uses three wrappers:
 
 - `scripts/dev/erp-backend-fast` for focused slice validation
-- `scripts/dev/erp-backend-ci` for `L3` full-backend local quality or an explicit full
-  affected-stack gate
+- `scripts/dev/erp-backend-ci` only for an explicit local full-suite escalation or a
+  phase integration checkpoint; it is not the normal response to an `L3` risk
 - `scripts/dev/erp-backend-migration-guard` for migration-sensitive tasks
 
 ## Fast Local Validation
@@ -402,7 +402,7 @@ scripts/dev/erp-backend-fast tests/backend/test_identity_api.py -q
 EOF
 ```
 
-Full affected-backend validation (`L3`/`L4` or risk override):
+Explicit local full-backend escalation (not the default for `L3`/`L4`):
 
 ```sh
 scripts/dev/erp-logged-run backend-ci <<'EOF'
@@ -427,7 +427,7 @@ EOF
 
 Use the smallest specialist skill that matches the backend risk:
 
-- `erp-backend-test-triage` for focused test selection, failure reproduction, and escalation to full backend CI
+- `erp-backend-test-triage` for focused test selection, failure reproduction, and documented local full-suite escalation only when necessary
 - `erp-backend-migration-guardian` for migrations, schema drift, and non-destructive validation
 - `erp-backend-auth-permission-auditor` for DRF permissions, object-level access, and sensitive actions
 - `erp-backend-transaction-concurrency` for atomicity, locking, race conditions, and rollback behavior

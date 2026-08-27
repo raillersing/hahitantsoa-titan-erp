@@ -12,8 +12,8 @@ Standardize backend readiness after implementation and independent review, befor
 - [ ] Confirm focused tests selected by the proportional matrix are green
 - [ ] Run `scripts/dev/erp-backend-migration-guard` only for model/migration risk
 - [ ] Run an explicit Django check for backend runtime changes
-- [ ] Run `scripts/dev/erp-backend-ci` without pytest targets only for `L3`, `L4`, or a
-  mandatory risk override
+- [ ] Run `scripts/dev/erp-backend-ci` without pytest targets only for an explicit
+  local full-suite escalation, phase integration checkpoint, or human request
 - [ ] Run `scripts/dev/erp-agent-scope-guard backend`
 - [ ] Confirm independent-review findings are resolved and the reviewed diff is unchanged
 - [ ] Hand off the PR and exact-SHA lifecycle to `erp-ci-workflow`
@@ -33,7 +33,7 @@ Load when backend implementation and independent review are ready for the PR gat
 - `scripts/dev/erp-backend-fast`
 - `scripts/dev/erp-backend-migration-guard` when migration-sensitive
 - explicit Django check when backend runtime code changes
-- `scripts/dev/erp-backend-ci` without targets for `L3`/`L4` or a risk override
+- `scripts/dev/erp-backend-ci` without targets only for an explicit escalation
 - `scripts/dev/erp-agent-scope-guard backend`
 
 ## Hard stops

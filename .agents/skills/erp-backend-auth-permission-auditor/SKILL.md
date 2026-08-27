@@ -28,8 +28,9 @@ Load when a backend change touches reads, writes, permissions, filters, or sensi
 
 ## Commands / wrappers to run
 
-- `scripts/dev/erp-backend-ci`
 - focused auth/permission pytest through `scripts/dev/erp-backend-fast`
+- `scripts/dev/erp-backend-ci` only after an explicit full-suite escalation under
+  `pr-quality-gates.md`
 
 ## Hard stops
 
