@@ -99,4 +99,65 @@ describe("ServicesPage", () => {
     expect(screen.getByText("Catégorie")).toBeInTheDocument();
     expect(screen.getByText("Tarif Officiel")).toBeInTheDocument();
   });
+
+  it("supports selecting an image via local file with preview and removal", async () => {
+    render(<ServicesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Voilage centré")).toBeInTheDocument();
+    });
+
+    // Open modal
+    fireEvent.click(screen.getByRole("button", { name: /Nouvelle Prestation/i }));
+    expect(screen.getByText("Ajouter une prestation au catalogue")).toBeInTheDocument();
+
+    // Verify Local File mode is active by default
+    expect(screen.getByText(/Glissez-déposez une photo ici/i)).toBeInTheDocument();
+
+    // Mock FileReader in jsdom
+    vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) {
+      Object.defineProperty(this, 'result', { value: 'data:image/png;base64,dGVzdA==', configurable: true });
+      this.onload?.({} as ProgressEvent<FileReader>);
+    });
+
+    // Select a mock file
+    const file = new File(["dummy image content"], "photo_test.png", { type: "image/png" });
+    const fileInput = screen.getByLabelText("Sélectionner une photo locale");
+
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    // Verify preview and local file badge appear
+    await waitFor(() => {
+      expect(screen.getByText("📁 Fichier local")).toBeInTheDocument();
+      expect(screen.getByText("photo_test.png")).toBeInTheDocument();
+    });
+
+    // Remove photo
+    const removeBtn = screen.getByRole("button", { name: /Retirer/i });
+    fireEvent.click(removeBtn);
+    expect(screen.queryByText("photo_test.png")).not.toBeInTheDocument();
+  });
+
+  it("supports entering an external image URL with preview", async () => {
+    render(<ServicesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Voilage centré")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Nouvelle Prestation/i }));
+
+    // Switch to URL mode
+    const urlTab = screen.getByRole("button", { name: /Lien URL/i });
+    fireEvent.click(urlTab);
+
+    // Enter URL
+    const urlInput = screen.getByPlaceholderText(/https:\/\/... ou \/brand\/services\/voilage.jpg/i);
+    fireEvent.change(urlInput, { target: { value: "https://example.com/sceno.jpg" } });
+
+    // Verify URL badge and preview
+    await waitFor(() => {
+      expect(screen.getByText("🌐 URL web")).toBeInTheDocument();
+    });
+  });
 });
