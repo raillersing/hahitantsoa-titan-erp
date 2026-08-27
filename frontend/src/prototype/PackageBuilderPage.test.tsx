@@ -223,4 +223,51 @@ describe('PackageBuilderPage', () => {
       );
     });
   });
+
+  it("8. Modifie le brouillon détaillé puis enregistre les valeurs éditées", async () => {
+    render(<PackageBuilderPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Chargement des packages…')).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByDisplayValue('Pack complet pour 100 personnes'), {
+      target: { value: 'Pack cérémonie mis à jour' },
+    });
+    fireEvent.change(screen.getByDisplayValue('500000'), {
+      target: { value: '575000' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Enregistrer$/i }));
+
+    await waitFor(() => {
+      expect(mockUpdateMaterialPackage).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({
+          name: 'Package Standard 100 pax',
+          description: 'Pack cérémonie mis à jour',
+          price: 575000,
+          lines: [{ inventory_item: 'inv-1', quantity: 100 }],
+        }),
+      );
+    });
+  });
+
+  it("9. Réinitialise le brouillon lors du changement de pack", async () => {
+    render(<PackageBuilderPage />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Chargement des packages…')).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByDisplayValue('Pack complet pour 100 personnes'), {
+      target: { value: 'Brouillon du premier pack' },
+    });
+    fireEvent.click(screen.getAllByText('Package VIP')[0]);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Pack premium pour événements')).toBeInTheDocument();
+    });
+    expect(screen.queryByDisplayValue('Brouillon du premier pack')).not.toBeInTheDocument();
+  });
 });
