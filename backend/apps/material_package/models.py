@@ -12,6 +12,7 @@ class MaterialPackage(UUIDModel, TimestampedModel, AuditableModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default="")
     price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    image_url = models.TextField(blank=True, default="")
     is_active = models.BooleanField(default=True)
 
     class Meta:
