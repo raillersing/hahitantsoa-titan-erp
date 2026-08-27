@@ -1541,6 +1541,7 @@ export type MaterialPackage = {
   name: string;
   description: string;
   price: number;
+  image_url?: string;
   is_active: boolean;
   lines: MaterialPackageLine[];
   created_at: string;
@@ -1551,6 +1552,7 @@ export type MaterialPackageCreatePayload = {
   name: string;
   description?: string;
   price?: number;
+  image_url?: string;
   is_active?: boolean;
   lines?: Array<{ inventory_item: string; quantity: number }>;
 };
@@ -1559,6 +1561,7 @@ export type MaterialPackageUpdatePayload = {
   name?: string;
   description?: string;
   price?: number;
+  image_url?: string;
   is_active?: boolean;
   lines?: Array<{ inventory_item: string; quantity: number }>;
 };
