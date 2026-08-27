@@ -25,6 +25,7 @@ Notes:
   - The complete gate uses four deterministic test-file shards in parallel by default.
   - ERP_BACKEND_CI_SHARDS may set the local shard count from 1 to 4.
   - Every shard has its own Compose project, PostgreSQL database, and Redis service.
+  - Shards clone a fresh database from a migration-fingerprinted local template.
   - This script never mutates code or dependency manifests intentionally.
   - It never reads, sources, or prints .env files.
 USAGE
@@ -61,9 +62,20 @@ else
     exit 2
   fi
   shard_tmp=""
+  migration_fingerprint="$(
+    find backend/apps -path '*/migrations/*.py' -type f -print0 \
+      | sort -z \
+      | xargs -0 sha256sum \
+      | sha256sum \
+      | cut -c1-12
+  )"
+  template_database="erp_test_template_${migration_fingerprint}"
+  test_database="test_titan"
   cleanup() {
     local shard
     for shard in $(seq 1 "$shard_count"); do
+      ERP_AGENT_CI_INSTANCE="shard-$shard" \
+        scripts/dev/erp-backend-test-db-template drop "$test_database" >/dev/null 2>&1 || true
       ERP_AGENT_CI_INSTANCE="shard-$shard" \
         scripts/dev/erp-backend-compose-ci down --remove-orphans >/dev/null 2>&1 || true
     done
@@ -117,13 +129,22 @@ else
     done | sort -nr
   )
 
+  # Build or clone databases before the parallel test phase. Template creation
+  # runs migrations and can exceed local Docker resources when four shards do it
+  # simultaneously; a clone from an existing template remains inexpensive.
+  for shard in $(seq 1 "$shard_count"); do
+    echo "Preparing backend test database for shard $shard/$shard_count"
+    ERP_AGENT_CI_INSTANCE="shard-$shard" \
+      scripts/dev/erp-backend-test-db-template prepare "$template_database" "$test_database"
+  done
+
   for shard in $(seq 1 "$shard_count"); do
     mapfile -t selected <"$shard_tmp/files-$shard.txt"
     echo "Starting backend test shard $shard/$shard_count: ${#selected[@]} files, estimated weight ${shard_weights[$shard]}"
     (
       export ERP_AGENT_CI_INSTANCE="shard-$shard"
       scripts/dev/erp-backend-compose-ci run --rm backend \
-        python -m pytest "${selected[@]}" --durations=20
+        python -m pytest "${selected[@]}" --reuse-db --durations=20
     ) >"$shard_tmp/shard-$shard.log" 2>&1 &
     shard_pids+=("$!")
   done
