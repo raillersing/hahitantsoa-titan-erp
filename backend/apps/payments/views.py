@@ -18,6 +18,7 @@ from .models import PaymentReconciliationImport
 from .permissions import IsAuthenticatedPaymentBoundary
 from .reminders import build_hahitantsoa_payment_reminder, build_reservation_payment_reminder
 from .serializers import (
+    DepositRecordingSerializer,
     GatewayPaymentCallbackSerializer,
     GatewayPaymentInitiateSerializer,
     PaymentConfirmSerializer,
@@ -40,6 +41,7 @@ from .services import (
     create_refund_payment,
     initiate_mobile_money_payment,
     process_gateway_callback,
+    record_confirmed_deposit,
     stage_reconciliation_csv,
 )
 
@@ -122,6 +124,43 @@ class PaymentListCreateAPIView(ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         payment = create_payment(actor=request.user, **serializer.validated_data)
         return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
+
+
+class DepositRecordingAPIView(APIView):
+    """Record one confirmed deposit and its draft prerequisite atomically."""
+
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=DepositRecordingSerializer,
+        responses={
+            200: OpenApiResponse(description="Confirmed deposit recording or idempotent replay."),
+            400: OpenApiResponse(description="Deposit recording failed."),
+        },
+    )
+    def post(self, request):
+        serializer = DepositRecordingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            result = record_confirmed_deposit(actor=request.user, **serializer.validated_data)
+        except PaymentLifecycleError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = {
+            "payment": PaymentSerializer(result.payment).data,
+            "replayed": result.replayed,
+        }
+        if result.reservation_draft is not None:
+            payload["reservation_draft_id"] = str(result.reservation_draft.id)
+            payload["reservation_draft_status"] = result.reservation_draft.status
+        if result.hahitantsoa_event_draft is not None:
+            payload["hahitantsoa_event_draft_id"] = str(result.hahitantsoa_event_draft.id)
+            payload["hahitantsoa_event_draft_status"] = result.hahitantsoa_event_draft.status
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 class PaymentReminderWhatsAppAPIView(APIView):

@@ -8,13 +8,14 @@ from tests.backend.test_payments_refund import _pending_refund_obligation
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstanceStatus
 from apps.hahitantsoa.models import HahitantsoaEventDraft
-from apps.payments.models import PaymentStatus
+from apps.payments.models import Payment, PaymentStatus
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
 
 PAYMENT_LIST_URL = "/api/v1/payments/"
 PAYMENT_REFUND_CREATE_URL = "/api/v1/payments/refund/"
+PAYMENT_DEPOSIT_RECORD_URL = "/api/v1/payments/deposits/record/"
 
 
 @pytest.fixture
@@ -67,6 +68,60 @@ def test_payment_list_requires_authentication(client) -> None:
     response = client.get(PAYMENT_LIST_URL)
 
     assert response.status_code in {401, 403}
+
+
+def test_deposit_recording_requires_authentication(client) -> None:
+    response = client.post(
+        PAYMENT_DEPOSIT_RECORD_URL,
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code in {401, 403}
+
+
+def test_deposit_recording_requires_sensitive_access(authenticated_client) -> None:
+    response = authenticated_client.post(
+        PAYMENT_DEPOSIT_RECORD_URL,
+        data={},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_sensitive_user_can_record_and_replay_titan_deposit_atomically(sensitive_client) -> None:
+    customer = Customer.objects.create(display_name="Deposit recording API customer")
+    start_at = timezone.now().replace(microsecond=0)
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=4),
+    )
+    payload = {
+        "reservation_draft": str(draft.id),
+        "payment_method": "cash",
+        "amount": "125000.00",
+        "idempotency_key": "deposit-api-titan-001",
+    }
+
+    first_response = sensitive_client.post(
+        PAYMENT_DEPOSIT_RECORD_URL,
+        data=payload,
+        content_type="application/json",
+    )
+    replay_response = sensitive_client.post(
+        PAYMENT_DEPOSIT_RECORD_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert first_response.status_code == 200
+    assert replay_response.status_code == 200
+    assert first_response.json()["replayed"] is False
+    assert replay_response.json()["replayed"] is True
+    assert replay_response.json()["payment"]["id"] == first_response.json()["payment"]["id"]
+    assert Payment.objects.filter(reservation_draft=draft, payment_kind="deposit").count() == 1
 
 
 def test_sensitive_user_can_create_confirm_and_authenticated_user_can_list_payment(
