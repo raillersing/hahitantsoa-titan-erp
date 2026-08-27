@@ -176,7 +176,28 @@ def test_create_package_default_values(authenticated_client):
     data = response.json()
     assert data["description"] == ""
     assert Decimal(data["price"]) == Decimal("0.00")
+    assert data["image_url"] == ""
     assert data["is_active"] is True
+
+
+def test_create_and_retrieve_package_with_image_url(authenticated_client):
+    data_url = "data:image/png;base64," + ("B" * 1500)
+    payload = {
+        "name": "Pack avec photo",
+        "description": "Pack complet avec image",
+        "price": "450000.00",
+        "image_url": data_url,
+    }
+    response = authenticated_client.post(
+        MATERIAL_PACKAGE_LIST_URL, payload, content_type="application/json"
+    )
+    assert response.status_code == 201
+    pkg_id = response.json()["id"]
+
+    # Verify detail retrieval
+    get_res = authenticated_client.get(f"{MATERIAL_PACKAGE_LIST_URL}{pkg_id}/")
+    assert get_res.status_code == 200
+    assert get_res.json()["image_url"] == data_url
 
 
 def test_create_package_missing_name_returns_400(authenticated_client):
