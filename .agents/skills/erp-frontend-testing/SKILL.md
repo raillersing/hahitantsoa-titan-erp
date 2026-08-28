@@ -1,6 +1,6 @@
 ---
 name: erp-frontend-testing
-description: Select proportionate frontend evidence for changed behavior: user-centric component tests, real-contract journeys, and deterministic visual or print regression when source fidelity matters. Use when authoring or reviewing frontend tests; builds and mocks alone do not prove a workflow.
+description: "Select proportionate frontend evidence for changed behavior: user-centric component tests, real-contract journeys, and deterministic visual or print regression when source fidelity matters. Use when authoring or reviewing frontend tests; builds and mocks alone do not prove a workflow."
 ---
 
 # ERP Frontend Testing
@@ -27,6 +27,26 @@ and the approved source, then test only the changed risk.
    page: page size, page count, breaks, margins, header/footer, logo, typography,
    colours, wording, and variable placement.
 
+## Reservation lifecycle acceptance
+
+For an explicit lifecycle audit, a phase checkpoint, or a change to a cross-screen
+persisted transition, use `erp-reservation-lifecycle-audit` and add the relevant
+real-backend browser journey. A bounded component correction uses focused component
+and contract evidence first; do not rerun an entire lifecycle merely because it is
+adjacent to one of these domains. Browser fixtures must be self-provisioning and
+must not depend on a hard-coded user that may be absent from the mounted database.
+
+For the transition under test, assert the outgoing request, persisted API response,
+visible state, and a browser reload. Compare assistant totals with the generated
+HTML/PDF and closeout totals when commercial values or documents changed. Verify
+stock before dispatch, after dispatch, and after validated return when stock changed.
+Mocked component coverage remains useful, but cannot qualify this journey.
+
+Before accepting component coverage, trace the production route in `App.tsx` and
+`AppShell.tsx`. Tests for an orphan operational panel do not prove the routed
+prototype page. A success toast, local state change, or modified DOM label without
+an observed API write and persisted reload is a failed test outcome.
+
 ## Required test notes
 
 For each changed behavior, record the level used, fixture/source, command, and
@@ -43,5 +63,7 @@ proved live behavior.
   sensitive data or writes.
 - Reuse the repository's existing test runner and fixtures before adding a test
   library, global mock, or screenshot framework.
+- Fail the test setup explicitly when its authenticated fixture cannot be
+  provisioned; a login failure must not masquerade as a business-journey result.
 - Do not approve a visual replica from textual HTML, a unit test, or a successful
   PDF generation alone. Inspect the rendered result against the approved source.
