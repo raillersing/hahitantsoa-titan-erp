@@ -2099,6 +2099,14 @@ export function updateHahitantsoaService(
   return patchAuthenticatedJson(`/api/v1/hahitantsoa/services/${id}/`, payload, signal);
 }
 
+export function deleteHahitantsoaService(
+  id: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  return deleteAuthenticated(`/api/v1/hahitantsoa/services/${id}/`, signal);
+}
+
+
 // ---- Notifications ----
 
 import type { BugReport, BugReportCreatePayload, SystemNotification } from "./types";

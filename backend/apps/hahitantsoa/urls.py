@@ -22,7 +22,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView,
     HahitantsoaEventDraftRetrieveUpdateAPIView,
     HahitantsoaServiceListCreateAPIView,
-    HahitantsoaServiceRetrieveUpdateAPIView,
+    HahitantsoaServiceRetrieveUpdateDestroyAPIView,
     HahitantsoaSharedAvailabilityAPIView,
     HahitantsoaVenueListCreateAPIView,
     HahitantsoaVenueRetrieveUpdateAPIView,
@@ -157,7 +157,7 @@ urlpatterns = [
     ),
     path(
         "services/<uuid:pk>/",
-        HahitantsoaServiceRetrieveUpdateAPIView.as_view(),
+        HahitantsoaServiceRetrieveUpdateDestroyAPIView.as_view(),
         name="hahitantsoa-service-detail",
     ),
 ]
