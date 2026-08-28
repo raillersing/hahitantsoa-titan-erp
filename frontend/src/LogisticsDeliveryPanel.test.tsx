@@ -347,6 +347,50 @@ describe("LogisticsDeliveryPanel", () => {
     expect(await screen.findByText("Bon de livraison généré.")).toBeInTheDocument();
   });
 
+  it("creates a persisted return from a completed outbound event", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([
+      { ...MOCK_EVENT, status: "completed", executed_at: "2026-06-15T09:00:00Z" },
+    ]);
+    vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
+    const createdReturn = {
+      id: "return-1",
+      reservation_draft: "rd-1111",
+      hahitantsoa_event_draft: null,
+      logistics_event: "del-1",
+      document_instance: null,
+      status: "draft",
+      notes: "Retour initialisé",
+      lines: [],
+    } as any;
+    const createReturnSpy = vi.spyOn(api, "createReturnOperation").mockResolvedValue(createdReturn);
+
+    render(<LogisticsDeliveryPanel />);
+    const startReturnButton = await screen.findByRole("button", { name: "Démarrer le retour" });
+    await waitFor(() => expect(startReturnButton).toBeEnabled());
+    fireEvent.click(startReturnButton);
+
+    await waitFor(() => {
+      expect(createReturnSpy).toHaveBeenCalledWith({
+        reservation_draft: "rd-1111",
+        logistics_event: "del-1",
+        document_instance: null,
+        idempotency_key: "return-del-1",
+        notes: "Retour initialisé depuis la sortie logistique del-1.",
+        lines: [{
+          inventory_item: "item-1",
+          expected_quantity: 3,
+          returned_quantity: 3,
+          damaged_quantity: 0,
+          missing_quantity: 0,
+          condition_status: "intact",
+          notes: "Fragile",
+        }],
+      });
+    });
+    expect(await screen.findByTestId("return-operation-created")).toHaveTextContent("à contrôler");
+  });
+
   it("restores an existing delivery note when selecting an event", async () => {
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_HANDOVER_EVENT]);
     vi.spyOn(api, "getReservationDraftDocumentInstances").mockResolvedValue([

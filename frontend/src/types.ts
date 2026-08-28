@@ -1031,6 +1031,8 @@ export type InventoryReturnOperationLine = {
 export type InventoryReturnOperation = {
   id: string;
   reservation_draft: string | null;
+  hahitantsoa_event_draft: string | null;
+  logistics_event: string | null;
   document_instance: string | null;
   status: ReturnOperationStatus;
   notes: string;
@@ -1041,6 +1043,26 @@ export type InventoryReturnOperation = {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
+};
+
+export type InventoryReturnOperationLineCreatePayload = {
+  inventory_item: string;
+  expected_quantity: number;
+  returned_quantity: number;
+  damaged_quantity?: number;
+  missing_quantity?: number;
+  condition_status: InventoryReturnOperationLine["condition_status"];
+  notes?: string;
+};
+
+export type InventoryReturnOperationCreatePayload = {
+  reservation_draft?: string | null;
+  hahitantsoa_event_draft?: string | null;
+  logistics_event?: string | null;
+  document_instance?: string | null;
+  notes?: string;
+  idempotency_key?: string;
+  lines: InventoryReturnOperationLineCreatePayload[];
 };
 
 // ---- Damage & Loss ----

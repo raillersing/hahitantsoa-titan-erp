@@ -5,6 +5,7 @@ import {
   addLogisticsEventItemLine,
   checkEndpointPermission,
   completeLogisticsPassation,
+  createReturnOperation,
   createLogisticsEvent,
   createReservationDraftDocumentInstance,
   getDocumentInstancePdfBlob,
@@ -15,6 +16,7 @@ import {
   getHahitantsoaEventDraftDocumentInstances,
   getHahitantsoaEventDrafts,
   getReservationDraftDocumentInstances,
+  getReturnOperations,
   getTitanClosedDays,
   getReservationDrafts,
   generateReservationDraftDocumentInstance,
@@ -23,7 +25,7 @@ import {
   transitionLogisticsEvent,
 } from "./api";
 import HandoverSignaturePanel from "./HandoverSignaturePanel";
-import type { HahitantsoaEventDraft, InventoryItem, LogisticsEvent, LogisticsEventItemLine, ReservationDraft, TitanClosedDay } from "./types";
+import type { HahitantsoaEventDraft, InventoryItem, InventoryReturnOperation, LogisticsEvent, LogisticsEventItemLine, ReservationDraft, TitanClosedDay } from "./types";
 
 const STATUS_LABELS: Record<LogisticsEvent["status"], string> = {
   planned: "Planifié",
@@ -136,6 +138,8 @@ export function LogisticsDeliveryPanel({
     loading: false,
     error: null,
   });
+  const [returnOperation, setReturnOperation] = useState<InventoryReturnOperation | null>(null);
+  const [returnActionLoading, setReturnActionLoading] = useState(false);
   const [preparationState, setPreparationState] = useState<PreparationState>({
     documentInstanceId: null,
     loading: false,
@@ -373,6 +377,10 @@ export function LogisticsDeliveryPanel({
   }, [loadItemLines, selectedEventId]);
 
   useEffect(() => {
+    setReturnOperation(null);
+  }, [selectedEventId]);
+
+  useEffect(() => {
     setPassationState({ documentInstanceId: null, loading: true, error: null });
     if (selectedEvent) {
       void loadPassationDocument(selectedEvent);
@@ -465,6 +473,59 @@ export function LogisticsDeliveryPanel({
         loading: false,
         error: err instanceof Error ? err.message : "Échec de la finalisation de la remise.",
       });
+    }
+  };
+
+  const handleStartReturn = async () => {
+    if (
+      !selectedEvent ||
+      selectedEvent.operation !== "outbound" ||
+      selectedEvent.status !== "completed" ||
+      itemLines.length === 0 ||
+      !canWrite ||
+      returnActionLoading
+    ) {
+      return;
+    }
+
+    setReturnActionLoading(true);
+    setError(null);
+    try {
+      const existing = (await getReturnOperations()).find(
+        (operation) => operation.logistics_event === selectedEvent.id,
+      );
+      if (existing) {
+        setReturnOperation(existing);
+        return;
+      }
+
+      if (!selectedEvent.reservation_draft && !selectedEvent.hahitantsoa_event_draft) {
+        throw new Error("Le dossier source de cette sortie logistique est introuvable.");
+      }
+
+      const created = await createReturnOperation({
+        ...(selectedEvent.reservation_draft
+          ? { reservation_draft: selectedEvent.reservation_draft }
+          : { hahitantsoa_event_draft: selectedEvent.hahitantsoa_event_draft }),
+        logistics_event: selectedEvent.id,
+        document_instance: passationState.documentInstanceId,
+        idempotency_key: `return-${selectedEvent.id}`,
+        notes: `Retour initialisé depuis la sortie logistique ${selectedEvent.id}.`,
+        lines: itemLines.map((line) => ({
+          inventory_item: line.inventory_item,
+          expected_quantity: line.quantity,
+          returned_quantity: line.quantity,
+          damaged_quantity: 0,
+          missing_quantity: 0,
+          condition_status: "intact" as const,
+          notes: line.notes,
+        })),
+      });
+      setReturnOperation(created);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Échec de l'initialisation du retour.");
+    } finally {
+      setReturnActionLoading(false);
     }
   };
 
@@ -926,6 +987,25 @@ export function LogisticsDeliveryPanel({
                   ) : null}
                   {preparationState.error ? (
                     <p className="ops-preview-note" role="alert">{preparationState.error}</p>
+                  ) : null}
+                  {selectedEvent.operation === "outbound" && selectedEvent.status === "completed" ? (
+                    <div className="ops-preview-note">
+                      {returnOperation ? (
+                        <p data-testid="return-operation-created">
+                          Retour {returnOperation.status === "validated" ? "validé" : "à contrôler"} — {returnOperation.id.slice(0, 8)}
+                        </p>
+                      ) : (
+                        <button
+                          className="ops-button-secondary"
+                          type="button"
+                          disabled={!canWrite || returnActionLoading || itemLines.length === 0}
+                          onClick={() => void handleStartReturn()}
+                        >
+                          {returnActionLoading ? "Initialisation..." : "Démarrer le retour"}
+                        </button>
+                      )}
+                      {itemLines.length === 0 ? <p className="ops-section-helper">Ajoutez les articles sortis avant de démarrer le retour.</p> : null}
+                    </div>
                   ) : null}
                 </section>
 

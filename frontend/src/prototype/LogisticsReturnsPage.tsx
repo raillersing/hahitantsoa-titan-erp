@@ -147,7 +147,14 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="font-extrabold text-lg text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                    <span className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer" onClick={() => onNavigate("reservation-detail", retour.reservation_draft ?? undefined)}>
+                    <span className="text-tit-600 dark:text-tit-400 hover:underline cursor-pointer" onClick={() => onNavigate(
+                      "reservation-detail",
+                      retour.reservation_draft
+                        ? `titan:${retour.reservation_draft}`
+                        : retour.hahitantsoa_event_draft
+                          ? `hahitantsoa:${retour.hahitantsoa_event_draft}`
+                          : undefined,
+                    )}>
                       {retour.reservation_draft || retour.id}
                     </span>
                   </h3>

@@ -72,6 +72,7 @@ import type {
   InventoryDamageLossSettlement,
   InventoryDamageLossSettlementExecution,
   InventoryReturnOperation,
+  InventoryReturnOperationCreatePayload,
   DocumentTemplateDefinition,
   DocumentTemplateCreatePayload,
   DocumentTemplateVersion,
@@ -1799,6 +1800,13 @@ export function getReturnOperations(
   signal?: AbortSignal,
 ): Promise<InventoryReturnOperation[]> {
   return getAuthenticatedJson('/api/v1/inventory/return-operations/', signal);
+}
+
+export function createReturnOperation(
+  payload: InventoryReturnOperationCreatePayload,
+  signal?: AbortSignal,
+): Promise<InventoryReturnOperation> {
+  return postAuthenticatedJson('/api/v1/inventory/return-operations/', payload, signal);
 }
 
 export function validateReturnOperation(
