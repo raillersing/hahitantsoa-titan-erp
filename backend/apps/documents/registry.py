@@ -388,6 +388,22 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
 )
 
 
+def get_active_database_template_version(template_key: str):
+    """Return a usable active DB version, or None for the source-backed fallback."""
+    from apps.documents.models import DocumentTemplateVersion
+
+    return (
+        DocumentTemplateVersion.objects.filter(
+            template__code=template_key,
+            template__status="active",
+            status="active",
+        )
+        .exclude(body_html="")
+        .select_related("template")
+        .first()
+    )
+
+
 def list_document_template_definitions() -> tuple[DocumentTemplateDefinition, ...]:
     return DOCUMENT_TEMPLATE_REGISTRY
 
