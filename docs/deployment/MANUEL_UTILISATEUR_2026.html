@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manuel Utilisateur Officiel 2026 — Ergon ERP (Hahitantsoa & Titan Rental)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        code, pre { font-family: 'JetBrains Mono', monospace; }
+        @media print {
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white pb-24">
+
+    <!-- Top Banner / Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-50 backdrop-blur-md no-print">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-brand-600 to-amber-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-book-open text-white text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl font-extrabold tracking-tight text-white">ERGON ERP</span>
+                        <span class="px-2 py-0.5 text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full">Guide Utilisateur 2026</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium">Manuel Opérationnel & Métier — Hahitantsoa & Titan Rental</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="window.print()" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-print text-amber-400"></i>
+                    <span>Imprimer / PDF</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 space-y-12">
+
+        <!-- Hero Section -->
+        <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/60 border border-slate-800 p-8 sm:p-12 shadow-2xl">
+            <div class="relative z-10 max-w-3xl space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs font-semibold uppercase tracking-wider">
+                    <i class="fa-solid fa-compass"></i> Manuel d'Exploitation Quotidienne
+                </div>
+                <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                    Manuel d'Utilisation Ergon ERP
+                </h1>
+                <p class="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Ce guide complet détaille l'ensemble des parcours métier : création de client, devis, tunnel de confirmation à 5 prérequis, gestion des packs et services 2026, logistique terrain, retours d'inventaire, constat de casse, restitution de caution et encaissement de caisse avec impression de tickets thermiques 80 mm.
+                </p>
+            </div>
+        </section>
+
+        <!-- Table of Contents & Content Grid -->
+        <div class="grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
+            
+            <!-- Sticky Navigation Sidebar -->
+            <aside class="no-print h-fit rounded-2xl border border-slate-800 bg-slate-950/80 p-4 lg:sticky lg:top-28 space-y-1">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-500 px-3 py-2">Sommaire du Manuel</p>
+                <a href="#sec-1" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-rocket w-4 text-center text-indigo-400"></i> 1. Bien démarrer
+                </a>
+                <a href="#sec-2" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-users w-4 text-center text-indigo-400"></i> 2. Clients & Rendez-vous
+                </a>
+                <a href="#sec-3" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-champagne-glasses w-4 text-center text-indigo-400"></i> 3. Hahitantsoa 2026
+                </a>
+                <a href="#sec-4" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-truck w-4 text-center text-indigo-400"></i> 4. Titan Rental
+                </a>
+                <a href="#sec-5" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-boxes-packing w-4 text-center text-indigo-400"></i> 5. Packages Commerciaux
+                </a>
+                <a href="#sec-6" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-lock w-4 text-center text-emerald-400"></i> 6. Tunnel de Confirmation
+                </a>
+                <a href="#sec-7" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-truck-ramp-box w-4 text-center text-cyan-400"></i> 7. Logistique & Sortie
+                </a>
+                <a href="#sec-8" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-rotate-left w-4 text-center text-amber-400"></i> 8. Retours, Casse & Caution
+                </a>
+                <a href="#sec-9" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-cash-register w-4 text-center text-emerald-400"></i> 9. Caisse & Tickets 80mm
+                </a>
+                <a href="#sec-10" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-file-signature w-4 text-center text-purple-400"></i> 10. Avenants Contrat
+                </a>
+                <a href="#sec-11" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-chart-pie w-4 text-center text-brand-400"></i> 11. Planning & Audit
+                </a>
+                <a href="#sec-12" class="flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white transition">
+                    <i class="fa-solid fa-headset w-4 text-center text-rose-400"></i> 12. Support & Aide
+                </a>
+            </aside>
+
+            <!-- Main Manual Content -->
+            <div class="space-y-10">
+
+                <!-- Section 1 -->
+                <section id="sec-1" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg">1</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Bien Démarrer & Navigation</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        L'application Ergon ERP est accessible sur le réseau d'agence via <code class="text-brand-400">http://hahitantsoa-erp.local</code>. Elle réunit sous une même interface sécurisée l'ensemble des activités de location de matériel et de gestion de la salle de réception.
+                    </p>
+                    <ul class="list-disc pl-5 space-y-2 text-sm text-slate-300">
+                        <li><strong>Menu Latéral</strong> : Accédez en un clic aux espaces clients, réservations, packages, plannings, stocks, caisse et rapports.</li>
+                        <li><strong>Profil & Rôles</strong> : Cliquez sur votre avatar en haut à droite pour consulter vos permissions actives (Super-Admin, Opérateur commercial, Caissier, Logisticien) et vous déconnecter en fin de journée.</li>
+                    </ul>
+                </section>
+
+                <!-- Section 2 -->
+                <section id="sec-2" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg">2</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Clients, Contacts Multiples & Rendez-vous</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        L'espace <strong>Clients & Prospects</strong> (<code>#customers</code>) est le point d'entrée de toute relation commerciale :
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                            <strong class="text-white block mb-1">Particuliers</strong>
+                            <p class="text-slate-400">Nom, Prénom, CIN / Passeport (avec téléversement de la pièce d'identité), téléphones et adresse.</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                            <strong class="text-white block mb-1">Entreprises & Associations</strong>
+                            <p class="text-slate-400">Raison sociale, NIF, STAT, RCS, et représentant légal mandaté pour la signature.</p>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-300">
+                        Vous pouvez également enregistrer les souhaits de dates en liste d'attente (<code>#desired-dates</code>) et planifier les visites de salle dans l'agenda des visiteurs (<code>#agenda-visitors</code>).
+                    </p>
+                </section>
+
+                <!-- Section 3 -->
+                <section id="sec-3" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg">3</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Parcours Réservation Hahitantsoa (Barème 2026)</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Le parcours <strong>Hahitantsoa</strong> intègre rigoureusement les barèmes officiels 2026 :
+                    </p>
+                    <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs sm:text-sm space-y-2">
+                        <div class="flex justify-between border-b border-slate-800 pb-1">
+                            <span class="text-slate-400">Forfait de base Location Nue (jusqu'à 250 pax) :</span>
+                            <strong class="text-white">6 500 000 Ar TTC</strong>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-800 pb-1">
+                            <span class="text-slate-400">Invités supplémentaires (> 250 pax) :</span>
+                            <strong class="text-white">+5 000 Ar TTC / pax</strong>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-800 pb-1">
+                            <span class="text-slate-400">Horaires de jour :</span>
+                            <strong class="text-white">Accès 15h30/23h30 ou 07h00 — Libération 20h00</strong>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-800 pb-1">
+                            <span class="text-slate-400">Option Nuit 1 (Fin 21h00 / Sortie 22h30) :</span>
+                            <strong class="text-indigo-300">+300 000 Ar</strong>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-800 pb-1">
+                            <span class="text-slate-400">Option Nuit 2 (Fin 00h00 / Sortie 03h30) :</span>
+                            <strong class="text-indigo-300">+500 000 Ar</strong>
+                        </div>
+                        <div class="flex justify-between border-b border-slate-800 pb-1">
+                            <span class="text-slate-400">Sécurité de Nuit (Obligatoire dès option nuit) :</span>
+                            <strong class="text-rose-400">+120 000 Ar</strong>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Caution de Garantie (Obligatoire) :</span>
+                            <strong class="text-emerald-400">500 000 Ar</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 4 -->
+                <section id="sec-4" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-lg">4</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Titan Rental (Location Pure de Matériel)</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Le volet <strong>Titan Rental</strong> est strictement limité à la location d'équipements (chaises, tables, vaisselle, tentes, sono, éclairage).
+                    </p>
+                    <div class="p-4 rounded-xl bg-amber-950/30 border border-amber-800/40 text-xs sm:text-sm text-amber-300">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                        <strong>Règle d'or :</strong> Titan n'expose aucune prestation de salle ou traiteur. Les créneaux d'opération sont planifiés entre 06h00 et 22h00 ouvrés.
+                    </div>
+                </section>
+
+                <!-- Section 5 -->
+                <section id="sec-5" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-lg">5</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Packages Commerciaux & Offres Clé en Main</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        L'écran <strong>Packages</strong> (<code>#packages</code>) vous permet de composer des packs d'articles :
+                    </p>
+                    <ul class="list-disc pl-5 space-y-1 text-sm text-slate-300">
+                        <li><strong>Photos locales ou URLs</strong> : Téléversez des photos de mise en ambiance.</li>
+                        <li><strong>Calculateur de remise</strong> : Visualisez la valeur au détail vs votre prix forfaitaire et l'avantage client.</li>
+                        <li><strong>3 Modes de vue</strong> : Grille visuelle, Fiches détaillées, Tableau de bord.</li>
+                    </ul>
+                </section>
+
+                <!-- Section 6 -->
+                <section id="sec-6" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg">6</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Le Tunnel de Confirmation à 5 Prérequis</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Une réservation ne peut être confirmée qu'après respect des 5 étapes cumulatives :
+                    </p>
+                    <div class="space-y-2 text-xs sm:text-sm">
+                        <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">1</span>
+                            <span><strong>Contrat Généré</strong> : Le contrat A4 et ses annexes sont générés depuis le dossier.</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">2</span>
+                            <span><strong>Contrat Signé</strong> : La signature formelle du client est actée.</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">3</span>
+                            <span><strong>Acompte Encaissé</strong> : Le premier versement est enregistré et validé en caisse.</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">4</span>
+                            <span><strong>Disponibilité Revalidée</strong> : Absence garantie de double réservation concurrente.</span>
+                        </div>
+                        <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">5</span>
+                            <span><strong>Autorisation & Audit</strong> : Confirmation transactionnelle avec trace nominative.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 7 & 8 -->
+                <section id="sec-7" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-lg">7</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Logistique, Préparation & Retours de Stock</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Le cycle logistique assure le suivi sans faille de l'inventaire :
+                    </p>
+                    <ol class="list-decimal pl-5 space-y-2 text-sm text-slate-300">
+                        <li><strong>Préparation de Stock (<code>#stock-preparation</code>)</strong> : Rassemblement du matériel avant le départ.</li>
+                        <li><strong>Bon de Livraison (<code>#logistics-dispatch</code>)</strong> : Émission du BL contradictoire et sortie effective du stock.</li>
+                        <li><strong>Pointage des Retours (<code>#logistics-returns</code>)</strong> : Constat contradictoire au retour (Intact, Cassé, Manquant).</li>
+                    </ol>
+                </section>
+
+                <!-- Section 8 -->
+                <section id="sec-8" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-lg">8</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Constat de Casse & Restitution de Caution</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        En cas d'avarie constatée au retour :
+                    </p>
+                    <ol class="list-decimal pl-5 space-y-2 text-sm text-slate-300">
+                        <li><strong>Facture de Casse (<code>#breakage-loss</code>)</strong> : Valorisation selon la grille d'indemnisation officielle (Annexe 3).</li>
+                        <li><strong>Restitution de Caution (<code>#caution</code>)</strong> : Déduction de la casse sur la caution de 500 000 Ar et remboursement du reliquat avec reçu justificatif.</li>
+                    </ol>
+                </section>
+
+                <!-- Section 9 -->
+                <section id="sec-9" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg">9</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Caisse & Impression Thermique 80 mm (XPrinter)</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        L'espace <strong>Caisse</strong> (<code>#cashbox</code>) gère les fonds et les encaissements :
+                    </p>
+                    <ul class="list-disc pl-5 space-y-2 text-sm text-slate-300">
+                        <li><strong>Ouverture / Clôture</strong> : Saisie du fond de caisse initial et contrôle d'écart en fin de journée.</li>
+                        <li><strong>Impression Reçu 80 mm</strong> : Cliquez sur <em>« Imprimer le reçu 80mm »</em> pour sortir instantanément le ticket thermique sur l'imprimante de caisse XPrinter.</li>
+                    </ul>
+                </section>
+
+                <!-- Section 10, 11, 12 -->
+                <section id="sec-10" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-4">
+                    <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-lg">10</div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Avenants, Planning & Journal d'Audit</h2>
+                    </div>
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Pour piloter l'activité et assurer la conformité :
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                            <strong class="text-white block mb-1">Avenants</strong>
+                            <p class="text-slate-400">Modification contractuelle avec préflight de disponibilité jusqu'au jour J.</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                            <strong class="text-white block mb-1">Planning (#planning)</strong>
+                            <p class="text-slate-400">Vue mensuelle, hebdomadaire et journalière des occupations de salle et de matériel.</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+                            <strong class="text-white block mb-1">Audit (#audit)</strong>
+                            <p class="text-slate-400">Journal infalsifiable retraçant chaque écriture sensible et confirmation.</p>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-20 border-t border-slate-800 py-8 text-center text-xs text-slate-500">
+        <p>Ergon ERP (Hahitantsoa & Titan Rental) • Manuel Utilisateur Officiel 2026</p>
+    </footer>
+</body>
+</html>
