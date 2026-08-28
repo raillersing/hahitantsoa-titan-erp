@@ -3,6 +3,7 @@ from pathlib import Path
 from apps.documents.registry import (
     DOCUMENT_TEMPLATE_REGISTRY,
     get_document_template_definition,
+    get_document_template_workflow_usage,
     list_document_template_definitions,
 )
 
@@ -55,6 +56,7 @@ def test_document_template_registry_required_fields_are_populated() -> None:
         assert template.template_path
         assert template.preview_path
         assert template.notes
+        assert get_document_template_workflow_usage(template.key)
 
 
 def test_document_template_registry_lookup_contract() -> None:
@@ -63,6 +65,13 @@ def test_document_template_registry_lookup_contract() -> None:
     assert templates == DOCUMENT_TEMPLATE_REGISTRY
     assert get_document_template_definition("titan.proforma.v1") is not None
     assert get_document_template_definition("shared.unknown.v1") is None
+
+
+def test_document_template_workflow_usage_is_explicit_and_read_only() -> None:
+    assert get_document_template_workflow_usage("titan.proforma.v1") == (
+        "Titan · réservation · proforma",
+    )
+    assert get_document_template_workflow_usage("shared.unknown.v1") == ()
 
 
 def test_validated_source_templates_have_documented_source_pdf_references() -> None:

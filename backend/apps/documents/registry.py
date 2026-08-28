@@ -34,6 +34,35 @@ class DocumentTemplateDefinition:
     notes: str
 
 
+# This is deliberately kept beside the runtime template registry.  It describes
+# where a registered template is used; it does not make catalogue-only entries
+# executable and it does not replace the workflow services' validation.
+DOCUMENT_TEMPLATE_WORKFLOW_USAGE: dict[str, tuple[str, ...]] = {
+    "hahitantsoa.delivery_note.v1": ("Hahitantsoa · jour J · livraison",),
+    "hahitantsoa.contract_amendment.v1": ("Hahitantsoa · modification du contrat",),
+    "hahitantsoa.contract.v1": ("Hahitantsoa · réservation · contrat",),
+    "hahitantsoa.invoice.v1": ("Hahitantsoa · clôture · facture finale",),
+    "hahitantsoa.proforma.v1": ("Hahitantsoa · réservation · proforma",),
+    "hahitantsoa.house_rules.v1": ("Catalogue uniquement · raccordement à prévoir",),
+    "hahitantsoa.liability_release.v1": ("Hahitantsoa · jour J · décharge",),
+    "titan.delivery_note.v1": ("Titan · jour J · sortie du matériel",),
+    "titan.proforma.v1": ("Titan · réservation · proforma",),
+    "titan.invoice.v1": ("Titan · clôture · facture finale",),
+    "titan.material_amendment.v1": ("Titan · modification de réservation",),
+    "titan.material_contract.v1": ("Titan · réservation · contrat matériel",),
+    "titan.payment_receipt.v1": ("Titan · paiement · reçu",),
+    "hahitantsoa.payment_receipt.v1": ("Hahitantsoa · paiement · reçu",),
+    "shared.payment_refund_receipt.v1": ("Tous domaines · remboursement · reçu",),
+    "shared.return_note.v1": ("Titan · retour · bon de retour",),
+    "shared.preparation_sheet.v1": ("Titan · préparation · fiche de préparation",),
+    "hahitantsoa.preparation_sheet.v1": ("Hahitantsoa · préparation · fiche de passation",),
+    "shared.internal_release_note.v1": ("Stock · mouvement interne · bon de sortie",),
+    "shared.supplier_purchase_order.v1": ("Achats · commande fournisseur",),
+    "hahitantsoa.breakage_repair_invoice.v1": ("Hahitantsoa · casse/perte · règlement",),
+    "titan.breakage_repair_invoice.v1": ("Titan · casse/perte · règlement",),
+}
+
+
 DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
     DocumentTemplateDefinition(
         key="hahitantsoa.delivery_note.v1",
@@ -361,6 +390,12 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
 
 def list_document_template_definitions() -> tuple[DocumentTemplateDefinition, ...]:
     return DOCUMENT_TEMPLATE_REGISTRY
+
+
+def get_document_template_workflow_usage(template_key: str) -> tuple[str, ...]:
+    """Return the documented workflow touchpoints for a registered template."""
+
+    return DOCUMENT_TEMPLATE_WORKFLOW_USAGE.get(template_key, ())
 
 
 def get_document_template_definition(template_key: str) -> DocumentTemplateDefinition | None:
