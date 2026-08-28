@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.template import Context, Template
 from django.template.loader import render_to_string
 
 from apps.documents.commercial import (
@@ -15,6 +16,7 @@ from apps.documents.commercial import (
 from apps.documents.excess_receivable import build_excess_receivable_invoice_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
+from apps.documents.registry import get_active_database_template_version
 from apps.documents.rendering import resolve_document_template_path
 
 
@@ -343,10 +345,20 @@ def generate_document_instance_html(
         "iban": document_instance.bank_iban,
         "swift_bic": document_instance.bank_swift_bic,
     }
-    html_content = render_to_string(
-        template_path,
-        {"context": context, "bank": bank, "document": {"date": document_instance.document_date}},
-    )
+    render_context = {
+        "context": context,
+        "bank": bank,
+        "document": {"date": document_instance.document_date},
+    }
+    database_version = get_active_database_template_version(document_instance.template_key)
+    if database_version is not None:
+        html_content = Template(
+            f"<style>{database_version.css}</style>"
+            f"{database_version.header_html}{database_version.body_html}"
+            f"{database_version.footer_html}"
+        ).render(Context(render_context))
+    else:
+        html_content = render_to_string(template_path, render_context)
 
     if not html_content or not html_content.strip():
         raise DocumentRuntimeGenerationError(
