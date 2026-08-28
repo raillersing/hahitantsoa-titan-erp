@@ -45,9 +45,7 @@ class DocumentTemplateDefinitionSerializer(serializers.Serializer):
         if isinstance(instance, dict):
             return super().to_representation(instance)
         representation = asdict(instance)
-        representation["workflow_usage"] = list(
-            get_document_template_workflow_usage(instance.key)
-        )
+        representation["workflow_usage"] = list(get_document_template_workflow_usage(instance.key))
         return super().to_representation(representation)
 
 
