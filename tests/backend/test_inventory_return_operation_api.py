@@ -1,6 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 
 import pytest
+from django.db import close_old_connections
 from django.utils import timezone
 
 from apps.customers.models import Customer
@@ -14,7 +17,10 @@ from apps.inventory.models import (
     InventoryStockMovement,
     InventoryStockMovementType,
 )
-from apps.inventory.services import create_inventory_stock_movement
+from apps.inventory.services import (
+    create_inventory_return_operation,
+    create_inventory_stock_movement,
+)
 from apps.logistics.models import LogisticsEvent, LogisticsEventType
 from apps.reservations.models import ReservationDraft
 
@@ -276,6 +282,50 @@ def test_return_operation_supports_hahitantsoa_and_replays_idempotently(sensitiv
         f"{RETURN_OPERATION_LIST_URL}?hahitantsoa_event_draft={event_draft.id}"
     )
     assert [item["id"] for item in response.json()] == [first.json()["id"]]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_hahitantsoa_return_replay_creates_one_operation() -> None:
+    event_draft = _hahitantsoa_event_draft()
+    item = _inventory_item("Concurrent Hahitantsoa return item")
+    start_together = Barrier(2)
+
+    def create_once() -> str:
+        close_old_connections()
+        try:
+            worker_event_draft = HahitantsoaEventDraft.objects.get(pk=event_draft.pk)
+            worker_item = InventoryItem.objects.get(pk=item.pk)
+            start_together.wait()
+            return str(
+                create_inventory_return_operation(
+                    hahitantsoa_event_draft=worker_event_draft,
+                    idempotency_key="return-hahitantsoa-concurrent-001",
+                    lines=[
+                        {
+                            "inventory_item": worker_item,
+                            "expected_quantity": 1,
+                            "returned_quantity": 1,
+                            "damaged_quantity": 0,
+                            "missing_quantity": 0,
+                            "condition_status": "intact",
+                        }
+                    ],
+                ).id
+            )
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        operation_ids = list(executor.map(lambda _: create_once(), range(2)))
+
+    assert len(set(operation_ids)) == 1
+    assert (
+        InventoryReturnOperation.objects.filter(
+            hahitantsoa_event_draft=event_draft,
+            idempotency_key="return-hahitantsoa-concurrent-001",
+        ).count()
+        == 1
+    )
 
 
 def test_return_operation_rejects_mixed_business_dossiers(sensitive_client) -> None:
