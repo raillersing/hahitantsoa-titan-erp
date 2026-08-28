@@ -95,7 +95,7 @@ def test_authenticated_user_can_create_draft(authenticated_client) -> None:
     assert payload["status"] == "draft"
     assert payload["customer_id"] == str(customer.id)
     assert payload["customer_display_name"] == customer.display_name
-    assert payload["public_reference"].startswith("RD-")
+    assert payload["public_reference"].startswith("T-")
     assert len(payload["lines"]) == 1
     assert payload["lines"][0]["inventory_item_id"] == str(item.id)
     assert payload["lines"][0]["inventory_item_name"] == item.name
