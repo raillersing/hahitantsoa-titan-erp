@@ -169,6 +169,8 @@ describe('Stock & Logistics Pages', () => {
         {
           id: 'ret-001',
           reservation_draft: 'LOC-2026-0087',
+          hahitantsoa_event_draft: null,
+          logistics_event: null,
           document_instance: null,
           status: 'draft',
           notes: '',
@@ -203,6 +205,24 @@ describe('Stock & Logistics Pages', () => {
   describe('BreakageLossPage', () => {
     beforeEach(() => {
       vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([]);
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([
+        {
+          id: 'LOC-2026-0087',
+          reservation_draft: 'rd-001',
+          hahitantsoa_event_draft: null,
+          logistics_event: null,
+          document_instance: null,
+          status: 'draft',
+          notes: '',
+          validated_at: null,
+          validated_by: null,
+          lines: [],
+          created_at: '',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
       vi.spyOn(api, 'validateDamageLossSettlement').mockResolvedValue({ id: 'set-001', settlement_status: 'validated' } as any);
       vi.spyOn(api, 'createDamageLossSettlementExecution').mockResolvedValue({ id: 'exec-001', settlement: 'set-001', status: 'draft', excess_receivable: null } as any);
       vi.spyOn(api, 'executeDamageLossSettlementExecution').mockResolvedValue({ id: 'exec-001', settlement: 'set-001', status: 'executed', excess_receivable: null } as any);

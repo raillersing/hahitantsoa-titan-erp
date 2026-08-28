@@ -5,9 +5,10 @@ import {
   generateExcessReceivableInvoice,
   getDamageLossSettlementExecutions,
   getDamageLossSettlements,
+  getReturnOperations,
   validateDamageLossSettlement,
 } from "../api";
-import type { InventoryDamageLossSettlement, InventoryDamageLossSettlementExecution } from "../types";
+import type { InventoryDamageLossSettlement, InventoryDamageLossSettlementExecution, InventoryReturnOperation } from "../types";
 
 type FilterStatus = "Tous" | "À traiter" | "Retenue validée" | "Clôturé";
 
@@ -28,6 +29,7 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
   const [filter, setFilter] = useState<FilterStatus>("Tous");
   const [data, setData] = useState<InventoryDamageLossSettlement[]>([]);
   const [executions, setExecutions] = useState<InventoryDamageLossSettlementExecution[]>([]);
+  const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
@@ -45,11 +47,13 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
     Promise.all([
       getDamageLossSettlements(controller.signal),
       getDamageLossSettlementExecutions(undefined, controller.signal),
+      getReturnOperations(controller.signal),
     ])
-      .then(([settlements, settlementExecutions]) => {
+      .then(([settlements, settlementExecutions, operations]) => {
         if (!cancelled) {
           setData(Array.isArray(settlements) ? settlements : []);
           setExecutions(Array.isArray(settlementExecutions) ? settlementExecutions : []);
+          setReturnOperations(Array.isArray(operations) ? operations : []);
         }
       })
       .catch(() => {
@@ -156,7 +160,17 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
                       <span className="text-slate-400 text-sm font-normal">•</span>
                       <span
                         className="text-tit-600 hover:underline cursor-pointer"
-                        onClick={() => onNavigate("reservation-detail", s.return_operation)}
+                        onClick={() => {
+                          const source = returnOperations.find((operation) => operation.id === s.return_operation);
+                          onNavigate(
+                            "reservation-detail",
+                            source?.reservation_draft
+                              ? `titan:${source.reservation_draft}`
+                              : source?.hahitantsoa_event_draft
+                                ? `hahitantsoa:${source.hahitantsoa_event_draft}`
+                                : undefined,
+                          );
+                        }}
                       >
                         {s.return_operation ? String(s.return_operation).slice(0, 8) : "—"}
                       </span>

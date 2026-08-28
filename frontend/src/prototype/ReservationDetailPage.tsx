@@ -1351,14 +1351,10 @@ export default function ReservationDetailPage({
                     <button
                       type="button"
                       className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
-                      onClick={() => {
-                        if (materials[0]) setPrepQty1(materials[0].quantity);
-                        if (materials[1]) setPrepQty2(materials[1].quantity);
-                        showToast("Tous les articles ont été marqués comme préparés.", "success");
-                      }}
+                      onClick={() => onNavigate("stock-preparation")}
                     >
                       <i className="fa-solid fa-check-double"></i>
-                      <span>Tout marquer prêt (100%)</span>
+                      <span>Ouvrir la préparation réelle</span>
                     </button>
                     {prepStatus !== "Prêt" && (
                       <button
@@ -1535,15 +1531,10 @@ export default function ReservationDetailPage({
                   <button
                     type="button"
                     className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
-                    onClick={() => {
-                      if (materials[0]) setReturnQty1(materials[0].quantity);
-                      if (materials[1]) setReturnQty2(materials[1].quantity);
-                      setReturnStatus("Bon état");
-                      showToast("Tous les articles ont été marqués retournés en bon état (100% conforme).", "success");
-                    }}
+                    onClick={() => onNavigate("logistics-returns")}
                   >
                     <i className="fa-solid fa-circle-check"></i>
-                    <span>Tout retourné 100% conforme</span>
+                    <span>Ouvrir le retour réel</span>
                   </button>
                 </div>
 

@@ -8,6 +8,8 @@ import type { InventoryReturnOperation } from "./types";
 const MOCK_OPERATION: InventoryReturnOperation = {
   id: "ret-1",
   reservation_draft: "rd-1111",
+  hahitantsoa_event_draft: null,
+  logistics_event: null,
   document_instance: null,
   status: "draft",
   notes: "Client return inspection",
