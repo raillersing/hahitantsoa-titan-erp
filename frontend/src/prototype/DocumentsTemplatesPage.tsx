@@ -265,6 +265,11 @@ export default function DocumentsTemplatesPage() {
                 </div>
                 <h3 className="mb-1 font-semibold text-slate-900 text-sm group-hover:text-indigo-700">{template.label}</h3>
                 <p className="text-xs text-slate-500 capitalize">{template.document_type.replace(/_/g, " ")}</p>
+                {template.workflow_usage?.[0] && (
+                  <p className="mt-2 line-clamp-2 text-xs font-medium text-indigo-700">
+                    {template.workflow_usage[0]}
+                  </p>
+                )}
                 <div className="mt-3 flex items-center gap-2">
                   {template.validated_by_client && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
@@ -410,6 +415,16 @@ export default function DocumentsTemplatesPage() {
                     <div><dt className="text-xs text-slate-500">Format</dt><dd className="mt-1 font-semibold text-slate-900">{paperLabel} · {pageCount} page{pageCount > 1 ? "s" : ""}</dd></div>
                     <div><dt className="text-xs text-slate-500">Version</dt><dd className="mt-1 font-semibold text-slate-900">{currentTemplate.version || "—"}</dd></div>
                   </dl>
+                  <div className="mt-5 border-t border-slate-100 pt-4">
+                    <h5 className="text-xs font-bold uppercase tracking-wide text-slate-500">Utilisé dans</h5>
+                    {currentTemplate.workflow_usage?.length ? (
+                      <ul className="mt-2 space-y-2 text-xs leading-5 text-slate-700">
+                        {currentTemplate.workflow_usage.map((usage) => <li key={usage}>{usage}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-xs leading-5 text-slate-500">Aucun parcours raccordé.</p>
+                    )}
+                  </div>
                   <div className="mt-5 border-t border-slate-100 pt-4">
                     <p className="text-xs leading-5 text-slate-500">Le canvas respecte le format du document source et conserve son rendu. Les variantes particulier/entreprise sont disponibles quand le modèle les prévoit.</p>
                   </div>
