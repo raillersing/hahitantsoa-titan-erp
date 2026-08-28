@@ -319,6 +319,7 @@ def _build_mock_preview_context(template_definition, *, party_type: str = "indiv
             "caution_amount": "0,00",
             "remaining_due": "0,00",
             "due_date": None,
+            "proforma_reference": "................",
         },
         "blank_preview": True,
     }

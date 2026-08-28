@@ -301,6 +301,15 @@ def test_catalog_preview_context_is_blank_and_supports_party_variants() -> None:
     assert company["event_draft"]["customer_display_name"].startswith(".")
 
 
+def test_titan_catalog_preview_context_supplies_contract_proforma_reference() -> None:
+    definition = get_document_template_definition("titan.material_contract.v1")
+    assert definition is not None
+
+    context = _build_mock_preview_context(definition)
+
+    assert context["reservation_draft"]["proforma_reference"] == "................"
+
+
 def test_catalog_previews_do_not_contain_seeded_demo_customer_data() -> None:
     demo_markers = (
         "ETS Ravinala",
