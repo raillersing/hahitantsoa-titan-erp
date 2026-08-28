@@ -468,15 +468,66 @@ export default function CustomerDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Colonne de gauche: Actions et Infos Rapides */}
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col items-center text-center">
-            <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold mb-4 ${client.colorClass}`}>
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col items-center text-center shadow-xs">
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold mb-3 ${client.colorClass}`}>
               {client.initials}
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">{client.name}</h3>
 
-            <div className="flex items-center gap-2 mt-2 mb-6">
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-2 mb-4">
               <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">{client.type}</span>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${client.status === 'Prospect' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>{client.status}</span>
+              {client.status === 'Client' && (
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                  totalPaid >= 10000000 || reservations.length >= 3
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                    : reservations.length >= 1
+                    ? 'bg-indigo-100 text-indigo-800'
+                    : 'bg-emerald-50 text-emerald-700'
+                }`}>
+                  {totalPaid >= 10000000 || reservations.length >= 3
+                    ? '👑 VIP Partenaire'
+                    : reservations.length >= 1
+                    ? '💎 Client Régulier'
+                    : '🌟 Nouveau Client'}
+                </span>
+              )}
+            </div>
+
+            {/* Quick Contact Bar */}
+            <div className="flex items-center gap-2 mb-4 w-full justify-center">
+              {client.phone && (
+                <>
+                  <a
+                    href={`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 py-1.5 px-2 bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                    title="Contacter sur WhatsApp"
+                  >
+                    <i className="fa-brands fa-whatsapp text-sm"></i>
+                    <span>WhatsApp</span>
+                  </a>
+                  <a
+                    href={`tel:${client.phone}`}
+                    className="py-1.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                    title="Appeler"
+                  >
+                    <i className="fa-solid fa-phone text-xs"></i>
+                    <span>Appel</span>
+                  </a>
+                </>
+              )}
+              {client.email && (
+                <a
+                  href={`mailto:${client.email}`}
+                  className="py-1.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                  title="Envoyer un email"
+                >
+                  <i className="fa-solid fa-envelope text-xs"></i>
+                  <span>Email</span>
+                </a>
+              )}
             </div>
 
             {client.status === 'Prospect' ? (
@@ -485,8 +536,9 @@ export default function CustomerDetailPage({
               </div>
             ) : (
               <>
-                <button className="w-full px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 mb-2 transition-colors" onClick={() => onNavigate("reservation-new", client.id)}>
-                  <i className="fa-solid fa-plus mr-2"></i> Nouvelle réservation
+                <button className="w-full px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 mb-2 transition-colors flex items-center justify-center gap-2" onClick={() => onNavigate("reservation-new", client.id)}>
+                  <i className="fa-solid fa-plus"></i>
+                  <span>Nouvelle réservation</span>
                 </button>
                 {canSuperAdminDelete && <button type="button" className="w-full px-4 py-2 border border-rose-200 text-rose-600 font-medium text-sm rounded-lg hover:bg-rose-50 transition-colors" disabled={deletePending} onClick={() => void handleCustomerDelete()}>
                   {deletePending ? "Suppression…" : "Supprimer la fiche client"}
