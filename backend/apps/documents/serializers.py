@@ -42,10 +42,10 @@ class DocumentTemplateDefinitionSerializer(serializers.Serializer):
     workflow_usage = serializers.ListField(child=serializers.CharField())
 
     def to_representation(self, instance: DocumentTemplateDefinition):
-        if isinstance(instance, dict):
-            return super().to_representation(instance)
-        representation = asdict(instance)
-        representation["workflow_usage"] = list(get_document_template_workflow_usage(instance.key))
+        representation = dict(instance) if isinstance(instance, dict) else asdict(instance)
+        representation["workflow_usage"] = list(
+            get_document_template_workflow_usage(representation["key"])
+        )
         return super().to_representation(representation)
 
 
