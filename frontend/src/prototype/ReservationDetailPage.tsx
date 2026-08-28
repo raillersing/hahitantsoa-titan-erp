@@ -1347,14 +1347,28 @@ export default function ReservationDetailPage({
                       {prepStatus}
                     </span>
                   </div>
-                  {prepStatus !== "Prêt" && (
+                  <div className="flex items-center gap-2">
                     <button
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700"
-                      onClick={() => onNavigate("stock-preparation")}
+                      type="button"
+                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                      onClick={() => {
+                        if (materials[0]) setPrepQty1(materials[0].quantity);
+                        if (materials[1]) setPrepQty2(materials[1].quantity);
+                        showToast("Tous les articles ont été marqués comme préparés.", "success");
+                      }}
                     >
-                      Ouvrir la préparation stock
+                      <i className="fa-solid fa-check-double"></i>
+                      <span>Tout marquer prêt (100%)</span>
                     </button>
-                  )}
+                    {prepStatus !== "Prêt" && (
+                      <button
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700"
+                        onClick={() => onNavigate("stock-preparation")}
+                      >
+                        Ouvrir la préparation stock
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <table className="w-full text-sm text-left border-collapse">
                   <thead>
@@ -1514,9 +1528,24 @@ export default function ReservationDetailPage({
 
             {activeTab === "retour" && (
               <div>
-                <h4 className="font-bold text-slate-800 mb-4">
-                  Retour / Restitution
-                </h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-slate-800">
+                    Retour / Restitution
+                  </h4>
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                    onClick={() => {
+                      if (materials[0]) setReturnQty1(materials[0].quantity);
+                      if (materials[1]) setReturnQty2(materials[1].quantity);
+                      setReturnStatus("Bon état");
+                      showToast("Tous les articles ont été marqués retournés en bon état (100% conforme).", "success");
+                    }}
+                  >
+                    <i className="fa-solid fa-circle-check"></i>
+                    <span>Tout retourné 100% conforme</span>
+                  </button>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <div>
