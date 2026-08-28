@@ -70,6 +70,7 @@ import type {
   HahitantsoaEventDraftAmendmentRequestLineUpdatePayload,
   HahitantsoaEventDraftAmendmentRequestAvailabilityPreview,
   InventoryDamageLossSettlement,
+  InventoryDamageLossSettlementCreatePayload,
   InventoryDamageLossSettlementExecution,
   InventoryReturnOperation,
   InventoryReturnOperationCreatePayload,
@@ -1821,6 +1822,13 @@ export function getDamageLossSettlements(
   signal?: AbortSignal,
 ): Promise<InventoryDamageLossSettlement[]> {
   return getAuthenticatedJson('/api/v1/inventory/damage-loss-settlements/', signal);
+}
+
+export function createDamageLossSettlement(
+  payload: InventoryDamageLossSettlementCreatePayload,
+  signal?: AbortSignal,
+): Promise<InventoryDamageLossSettlement> {
+  return postAuthenticatedJson('/api/v1/inventory/damage-loss-settlements/', payload, signal);
 }
 
 export function validateDamageLossSettlement(
