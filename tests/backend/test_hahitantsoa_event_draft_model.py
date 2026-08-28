@@ -65,7 +65,7 @@ def test_hahitantsoa_event_draft_can_be_persisted_with_shared_inventory_lines() 
     persisted = HahitantsoaEventDraft.objects.get(pk=draft.pk)
     assert persisted.status == "draft"
     assert persisted.event_type == "other"
-    assert persisted.public_reference.startswith("HED-")
+    assert persisted.public_reference.startswith("H-")
     assert persisted.lines.count() == 1
 
 

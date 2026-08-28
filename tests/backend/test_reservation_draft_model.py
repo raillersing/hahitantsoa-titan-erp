@@ -46,7 +46,7 @@ def test_reservation_draft_can_be_persisted() -> None:
     draft.save()
 
     assert draft.status == ReservationDraftStatus.DRAFT
-    assert draft.public_reference.startswith("RD-")
+    assert draft.public_reference.startswith("T-")
     assert draft.is_deleted is False
 
 

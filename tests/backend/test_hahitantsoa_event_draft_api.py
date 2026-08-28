@@ -260,7 +260,7 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert payload["status"] == "draft"
     assert payload["customer_id"] == str(customer.id)
     assert payload["customer_display_name"] == customer.display_name
-    assert payload["public_reference"].startswith("HED-")
+    assert payload["public_reference"].startswith("H-")
     assert payload["event_name"] == "Corporate gala"
     assert payload["event_type"] == "engagement"
     assert payload["lines"][0]["inventory_item_id"] == str(item.id)
