@@ -202,7 +202,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
   };
   const goPrevStep = () => setWizardStep(s => s - 1);
 
-  const handleCreate = async (e?: React.FormEvent) => {
+  const handleCreate = async (e?: React.FormEvent, redirectToQuote = false) => {
     if (e) e.preventDefault();
     if (!newName && !newRepName) return;
 
@@ -252,7 +252,11 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
       setIsAdding(false);
       if (uploadFailed) setCreateError("Le client a été créé, mais certaines pièces jointes n’ont pas pu être enregistrées.");
       await loadCustomers();
-      onNavigate("customer", created.id);
+      if (redirectToQuote) {
+        onNavigate("reservation-new", created.id);
+      } else {
+        onNavigate("customer", created.id);
+      }
     } catch (error: unknown) {
       if (error instanceof ApiError && error.status === 403) setCreateError("Vous n’êtes pas autorisé à créer un client.");
       else if (error instanceof ApiError && error.status === 400) setCreateError("Les informations saisies sont invalides. Vérifiez le nom et les coordonnées.");
@@ -797,9 +801,29 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
               <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm disabled:opacity-50" onClick={goNextStep} disabled={!newName && wizardStep === 2}>
                 Continuer
               </button>
+            ) : isProspect ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm flex items-center gap-1.5 disabled:opacity-50"
+                  onClick={() => void handleCreate(undefined, true)}
+                  disabled={isCreating}
+                >
+                  <i className="fa-solid fa-file-invoice"></i>
+                  <span>{isCreating ? "Enregistrement…" : "Enregistrer & Émettre Devis"}</span>
+                </button>
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-sm disabled:opacity-50"
+                  onClick={() => void handleCreate(undefined, false)}
+                  disabled={isCreating}
+                >
+                  {isCreating ? "Enregistrement…" : "Enregistrer le prospect"}
+                </button>
+              </div>
             ) : (
               <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm disabled:opacity-50" onClick={() => void handleCreate()} disabled={isCreating}>
-                {isCreating ? "Enregistrement…" : isProspect ? "Enregistrer le prospect" : "Créer le client"}
+                {isCreating ? "Enregistrement…" : "Créer le client"}
               </button>
             )}
           </div>

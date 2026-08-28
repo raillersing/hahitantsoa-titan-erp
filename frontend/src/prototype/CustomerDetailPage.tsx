@@ -111,7 +111,20 @@ function summarizeCommercialTimeline(events: CommercialTimelineEvent[]): Commerc
   };
 }
 
-export default function CustomerDetailPage({ onNavigate, param, onBack, returnContext, canSensitiveWrite = false, canSuperAdminDelete = false }: CustomerDetailPageProps) {
+const PROSPECT_STATUS_LABELS: Record<string, string> = {
+  new: "Nouveau",
+  contact_attempted: "Tentative de contact",
+  contacted: "Contacté",
+  qualified: "Qualifié",
+  proforma_sent: "Proforma envoyée",
+  to_recall: "À relancer",
+  converted: "Converti",
+  disqualified: "Non qualifié",
+  lost: "Perdu",
+};
+
+export default function CustomerDetailPage({
+ onNavigate, param, onBack, returnContext, canSensitiveWrite = false, canSuperAdminDelete = false }: CustomerDetailPageProps) {
   const clientId = param || "CUST-001";
   const emptyClient: Client = { id: clientId, initials: "…", name: "", email: "", phone: "", type: "Particulier", status: "Client", colorClass: "bg-slate-100 text-slate-600" };
   const [client, setClient] = useState<Client>(emptyClient);
@@ -412,15 +425,42 @@ export default function CustomerDetailPage({ onNavigate, param, onBack, returnCo
       </div>
 
       {client.status === 'Prospect' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3 mb-6">
-          <i className="fa-solid fa-circle-info text-blue-500 mt-0.5"></i>
-          <div>
-            <h4 className="font-semibold text-blue-800 text-sm">Prospect : ce contact a demandé un tarif, une disponibilité ou une visite, mais n'a pas encore confirmé de réservation.</h4>
-            <ul className="text-sm text-blue-700 mt-2 space-y-1">
-              <li>• Demande actuelle : {reqType}</li>
-              <li>• Volet d'intérêt : Hahitantsoa / Indécis</li>
-              <li>• Date souhaitée : Août 2026</li>
-            </ul>
+        <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-blue-500/10 border border-amber-200/80 rounded-2xl p-6 shadow-xs mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  Piste Commerciale
+                </span>
+                <span className="text-xs text-slate-600 font-semibold">
+                  {client.prospectStatus ? (PROSPECT_STATUS_LABELS[client.prospectStatus] || client.prospectStatus) : "Nouveau"}
+                </span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">Opportunité Commerciale & Devis</h3>
+              <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
+                Ce contact a demandé un devis, une disponibilité ou une visite. Établissez une simulation tarifaire / facture proforma ou convertissez-le en réservation ferme.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => onNavigate("reservation-new", client.id)}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-2"
+              >
+                <i className="fa-solid fa-file-invoice"></i>
+                <span>Établir un Devis / Proforma</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowConversionAssistant(true)}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-2"
+              >
+                <i className="fa-solid fa-file-signature"></i>
+                <span>Convertir en Réservation</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
