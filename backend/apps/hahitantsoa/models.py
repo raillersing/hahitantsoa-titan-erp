@@ -59,11 +59,13 @@ def generate_hahitantsoa_event_draft_public_reference() -> str:
             try:
                 num_str = latest.public_reference.split("-")[1].split("/")[0]
                 next_num = int(num_str) + 1
-            except (IndexError, ValueError):
+            except IndexError, ValueError:
                 next_num = HahitantsoaEventDraft.objects.filter(created_at__year=year).count() + 1
         else:
             next_num = 1
-        while HahitantsoaEventDraft.objects.filter(public_reference=f"H-{next_num:03d}/{year}").exists():
+        while HahitantsoaEventDraft.objects.filter(
+            public_reference=f"H-{next_num:03d}/{year}"
+        ).exists():
             next_num += 1
         return f"H-{next_num:03d}/{year}"
     except Exception:

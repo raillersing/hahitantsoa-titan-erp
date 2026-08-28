@@ -43,7 +43,7 @@ def generate_reservation_draft_public_reference() -> str:
             try:
                 num_str = latest.public_reference.split("-")[1].split("/")[0]
                 next_num = int(num_str) + 1
-            except (IndexError, ValueError):
+            except IndexError, ValueError:
                 next_num = ReservationDraft.objects.filter(created_at__year=year).count() + 1
         else:
             next_num = 1
