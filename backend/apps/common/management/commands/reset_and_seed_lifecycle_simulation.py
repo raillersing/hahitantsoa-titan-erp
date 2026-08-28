@@ -83,10 +83,10 @@ class Command(BaseCommand):
         hahitantsoa_count = 0
 
         titan_documents = {
-            "T-001/2026": ("T-001/2026", ("PF",)),
-            "T-002/2026": ("T-002/2026", ("PF", "CT")),
-            "T-003/2026": ("T-003/2026", ("PF", "CT")),
-            "T-004/2026": ("T-004/2026", ("CT",)),
+            "RD-DEMO-TITAN-001": ("T-001/2026", ("PF",)),
+            "RD-DEMO-TITAN-002": ("T-002/2026", ("PF", "CT")),
+            "RD-DEMO-TITAN-003": ("T-003/2026", ("PF", "CT")),
+            "RD-DEMO-TITAN-004": ("T-004/2026", ("CT",)),
         }
         for draft in ReservationDraft.objects.filter(is_deleted=False).order_by("public_reference"):
             scenario = titan_documents.get(draft.public_reference)
@@ -114,7 +114,7 @@ class Command(BaseCommand):
                 titan_count += 1
 
         event = HahitantsoaEventDraft.objects.filter(
-            public_reference="H-001/2026", is_deleted=False
+            public_reference="ED-DEMO-HAH-001", is_deleted=False
         ).first()
         if event is not None:
             root = "H-001/2026"

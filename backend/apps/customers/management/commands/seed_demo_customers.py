@@ -5,35 +5,28 @@ from apps.customers.models import Customer
 
 DEMO_CUSTOMERS = (
     {
-        "display_name": "Orange Madagascar S.A.",
-        "email": "contact@orange.example.test",
-        "phone": "+261 34 00 000 00",
-        "address": "Antananarivo",
-        "notes": "Prospect entreprise pour la simulation Titan.",
-    },
-    {
-        "display_name": "Hanta Rasoanirina",
+        "display_name": "Client demo Hahitantsoa",
         "email": "hahitantsoa.client@example.test",
         "phone": "+261 34 00 000 01",
         "address": "Antananarivo",
         "notes": "F99 demo customer for Hahitantsoa event workflows.",
     },
     {
-        "display_name": "Andry Rakotomalala",
+        "display_name": "Client demo Titan",
         "email": "titan.client@example.test",
         "phone": "+261 34 00 000 02",
         "address": "Antananarivo",
         "notes": "F99 demo customer for Titan material rental workflows.",
     },
     {
-        "display_name": "Agence Blue Event SARL",
+        "display_name": "SARL Event Plus",
         "email": "contact@eventplus.test",
         "phone": "+261 34 00 000 11",
         "address": "Ambatonakanga, Antananarivo",
         "notes": "Client professionnel organisant des evenements d'entreprise.",
     },
     {
-        "display_name": "Faly Ranaivo",
+        "display_name": "Mairie d'Analakely",
         "email": "mairie.analakely@example.test",
         "phone": "+261 34 00 000 22",
         "address": "Analakely, Antananarivo",
