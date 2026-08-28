@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guide de Paramétrage & Configuration — Ergon ERP (Hahitantsoa & Titan)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                        rpi: {
+                            500: '#c51a4a',
+                            600: '#a2153c',
+                            700: '#801030',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        code, pre { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white pb-24">
+
+    <!-- Top Banner / Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-brand-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-sliders text-white text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl font-extrabold tracking-tight text-white">ERGON ERP</span>
+                        <span class="px-2 py-0.5 text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 rounded-full">Manuel Administrateur</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium">Guide Exhaustif de Paramétrage & Configuration 2026</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="DEPLOIEMENT_RASPBERRY_PI_5.html" class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:text-white hover:border-slate-700 transition">
+                    <i class="fa-solid fa-server text-brand-400"></i>
+                    <span>Tuto Déploiement RPi5</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 space-y-12">
+
+        <!-- Hero Section -->
+        <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/60 border border-slate-800 p-8 sm:p-12 shadow-2xl">
+            <div class="relative z-10 max-w-3xl space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs font-semibold uppercase tracking-wider">
+                    <i class="fa-solid fa-gear"></i> Administration & Gouvernance
+                </div>
+                <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                    Paramétrage Intégral d'Ergon ERP
+                </h1>
+                <p class="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Ce guide rassemble toutes les configurations nécessaires pour initialiser et exploiter l'application en agence : <strong>gestion des utilisateurs et des rôles RBAC</strong>, <strong>barèmes tarifaires Hahitantsoa 2026</strong>, <strong>comptes bancaires et sessions de caisse</strong>, <strong>catalogue matériel et packs</strong>, et <strong>optimisation PostgreSQL pour Raspberry Pi 5 16 Go</strong>.
+                </p>
+                <div class="pt-4 flex flex-wrap gap-4 text-sm font-semibold">
+                    <a href="#utilisateurs" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white transition-all duration-200 shadow-lg shadow-brand-600/30 flex items-center gap-2">
+                        <span>1. Utilisateurs & Permissions</span>
+                        <i class="fa-solid fa-arrow-down"></i>
+                    </a>
+                    <a href="#baremes" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 flex items-center gap-2">
+                        <span>2. Barèmes 2026</span>
+                    </a>
+                    <a href="#finance" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 flex items-center gap-2">
+                        <span>3. Finance & Caisse</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Summary Navigation Cards -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <a href="#utilisateurs" class="p-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-brand-500/50 transition flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-users-gear"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-base">Utilisateurs & Rôles</h3>
+                    <p class="text-xs text-slate-400 mt-1">Super-admin, commerciaux, caissiers, logisticiens.</p>
+                </div>
+                <div class="text-xs text-indigo-400 font-semibold mt-4 flex items-center gap-1">Configurer <i class="fa-solid fa-arrow-right text-[10px]"></i></div>
+            </a>
+
+            <a href="#baremes" class="p-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-amber-500/50 transition flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-tags"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-base">Barèmes Métier 2026</h3>
+                    <p class="text-xs text-slate-400 mt-1">Forfait 250 pax, nuits, sécurité, caution 500k.</p>
+                </div>
+                <div class="text-xs text-amber-400 font-semibold mt-4 flex items-center gap-1">Configurer <i class="fa-solid fa-arrow-right text-[10px]"></i></div>
+            </a>
+
+            <a href="#finance" class="p-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/50 transition flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-cash-register"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-base">Banques & Caisses</h3>
+                    <p class="text-xs text-slate-400 mt-1">Comptes BNI/BOA, MVola, sessions de caisse.</p>
+                </div>
+                <div class="text-xs text-emerald-400 font-semibold mt-4 flex items-center gap-1">Configurer <i class="fa-solid fa-arrow-right text-[10px]"></i></div>
+            </a>
+
+            <a href="#postgres" class="p-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-cyan-500/50 transition flex flex-col justify-between">
+                <div>
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-lg mb-3">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-base">Tuning PostgreSQL</h3>
+                    <p class="text-xs text-slate-400 mt-1">Optimisation mémoire pour RPi5 16Go RAM & NVMe.</p>
+                </div>
+                <div class="text-xs text-cyan-400 font-semibold mt-4 flex items-center gap-1">Configurer <i class="fa-solid fa-arrow-right text-[10px]"></i></div>
+            </a>
+        </section>
+
+        <!-- Section 1: Users & RBAC -->
+        <section id="utilisateurs" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-indigo-500/20 text-indigo-400 font-black text-xl flex items-center justify-center">1</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Gestion des Utilisateurs, Rôles & Permissions (RBAC)</h2>
+                    <p class="text-sm text-slate-400">Contrôle d'accès strict selon le modèle de sécurité Ergon ERP</p>
+                </div>
+            </div>
+
+            <!-- Roles Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs sm:text-sm border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800 bg-slate-900/60 text-slate-300 uppercase tracking-wider font-bold">
+                            <th class="py-3 px-4">Rôle Applicatif</th>
+                            <th class="py-3 px-4">Identifiant Technique (Slug)</th>
+                            <th class="py-3 px-4">Périmètre & Droits Autorisés</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 text-slate-300">
+                        <tr>
+                            <td class="py-3.5 px-4 font-bold text-white"><i class="fa-solid fa-crown text-amber-400 mr-2"></i> Super-Administrateur</td>
+                            <td class="py-3.5 px-4 font-mono text-indigo-400">is_superuser / is_staff</td>
+                            <td class="py-3.5 px-4">Accès total sans restriction : configuration système, suppression protégée, audit, gestion des comptes.</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3.5 px-4 font-bold text-white"><i class="fa-solid fa-user-shield text-purple-400 mr-2"></i> Admin des Identités</td>
+                            <td class="py-3.5 px-4 font-mono text-indigo-400">identity_admin</td>
+                            <td class="py-3.5 px-4">Création et modification des comptes collaborateurs, attribution et révocation des rôles.</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3.5 px-4 font-bold text-white"><i class="fa-solid fa-file-signature text-emerald-400 mr-2"></i> Opérateur Commercial Sensible</td>
+                            <td class="py-3.5 px-4 font-mono text-indigo-400">reservation_sensitive_operator</td>
+                            <td class="py-3.5 px-4">Signature des contrats, validation de l'acompte, <strong>confirmation formelle des réservations</strong> et journal d'audit.</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3.5 px-4 font-bold text-white"><i class="fa-solid fa-truck-ramp-box text-cyan-400 mr-2"></i> Opérateur Logistique & Stock</td>
+                            <td class="py-3.5 px-4 font-mono text-indigo-400">logistics_operator</td>
+                            <td class="py-3.5 px-4">Préparation des matériels, signature du Bon de Livraison (BL), pointage des retours et déclaration des casses.</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3.5 px-4 font-bold text-white"><i class="fa-solid fa-coins text-amber-400 mr-2"></i> Caissier / Finance</td>
+                            <td class="py-3.5 px-4 font-mono text-indigo-400">cashbox_operator</td>
+                            <td class="py-3.5 px-4">Ouverture/clôture de session de caisse, encaissement des acomptes, émission des reçus thermiques 80 mm, restitution caution.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- CLI Commands for Users -->
+            <div class="space-y-3">
+                <h4 class="font-bold text-white text-sm">Commandes d'administration des comptes :</h4>
+                <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto">
+                    <button onclick="copyCode(this)" class="absolute right-3 top-3 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Copier</button>
+                    <pre><code># 1. Créer un nouvel utilisateur
+docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml exec backend python backend/manage.py shell -c "
+from django.contrib.auth import get_user_model
+from apps.identity.models import ApplicationRole, UserRoleAssignment
+User = get_user_model()
+
+# Création du compte utilisateur
+user, created = User.objects.get_or_create(username='commercial1', email='commercial@hahitantsoa.mg')
+if created:
+    user.set_password('MotDePasseCommercial2026!')
+    user.save()
+    print('Utilisateur créé avec succès !')
+
+# Attribution du rôle Opérateur Commercial Sensible
+role = ApplicationRole.objects.get(slug='reservation_sensitive_operator')
+UserRoleAssignment.objects.get_or_create(user=user, role=role)
+print(f'Rôle {role.name} assigné !')
+"
+
+# 2. Réinitialiser le mot de passe d'un utilisateur existant
+docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml exec backend python backend/manage.py changepassword commercial1</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Hahitantsoa 2026 Commercial Terms -->
+        <section id="baremes" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-amber-500/20 text-amber-400 font-black text-xl flex items-center justify-center">2</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Paramétrage des Barèmes Métier Hahitantsoa 2026</h2>
+                    <p class="text-sm text-slate-400">Configuration des forfaits de salle, options de prolongation nocturne et cautions obligatoires</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-building text-amber-400"></i> A. Location Nue (Fête de Jour)</h4>
+                    <ul class="space-y-2 text-xs sm:text-sm text-slate-300">
+                        <li class="flex justify-between border-b border-slate-800/60 pb-1.5">
+                            <span class="text-slate-400">Forfait de base (jusqu'à 250 pers) :</span>
+                            <strong class="text-white">6 500 000 Ar TTC</strong>
+                        </li>
+                        <li class="flex justify-between border-b border-slate-800/60 pb-1.5">
+                            <span class="text-slate-400">Invité supplémentaire (> 250) :</span>
+                            <strong class="text-white">+5 000 Ar / pers</strong>
+                        </li>
+                        <li class="flex justify-between border-b border-slate-800/60 pb-1.5">
+                            <span class="text-slate-400">Accès préparatifs (J-1 ou Jour J) :</span>
+                            <strong class="text-white">15h30 / 23h30 ou 07h00</strong>
+                        </li>
+                        <li class="flex justify-between">
+                            <span class="text-slate-400">Libération complète des lieux :</span>
+                            <strong class="text-white">20h00</strong>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-moon text-indigo-400"></i> B. Options de Prolongation Nocturne</h4>
+                    <ul class="space-y-2 text-xs sm:text-sm text-slate-300">
+                        <li class="flex justify-between border-b border-slate-800/60 pb-1.5">
+                            <span class="text-slate-400">Option Nuit 1 (Fin 21h00 / Sortie 22h30) :</span>
+                            <strong class="text-indigo-300">+300 000 Ar</strong>
+                        </li>
+                        <li class="flex justify-between border-b border-slate-800/60 pb-1.5">
+                            <span class="text-slate-400">Option Nuit 2 (Fin 00h00 / Sortie 03h30) :</span>
+                            <strong class="text-indigo-300">+500 000 Ar</strong>
+                        </li>
+                        <li class="flex justify-between border-b border-slate-800/60 pb-1.5">
+                            <span class="text-slate-400">Sécurité de Nuit (Obligatoire dès Option 1/2) :</span>
+                            <strong class="text-rose-400">+120 000 Ar</strong>
+                        </li>
+                        <li class="flex justify-between">
+                            <span class="text-slate-400">Caution de Garantie (Obligatoire) :</span>
+                            <strong class="text-emerald-400">500 000 Ar</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Command to seed or update commercial terms -->
+            <div class="space-y-3">
+                <h4 class="font-bold text-white text-sm">Commande d'initialisation des barèmes 2026 en base :</h4>
+                <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto">
+                    <button onclick="copyCode(this)" class="absolute right-3 top-3 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Copier</button>
+                    <pre><code>docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml exec backend python backend/manage.py shell -c "
+from apps.hahitantsoa.models import HahitantsoaCommercialTerms
+terms, _ = HahitantsoaCommercialTerms.objects.get_or_create(pk=1)
+terms.bare_rental_rate = 6500000
+terms.included_guest_count = 250
+terms.excess_guest_amount = 5000
+terms.night_option_1_amount = 300000
+terms.night_option_2_amount = 500000
+terms.night_security_amount = 120000
+terms.bare_deposit_amount = 500000
+terms.save()
+print('Barèmes Hahitantsoa 2026 configurés avec succès !')
+"</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Finance, Banks & Cashbox -->
+        <section id="finance" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 font-black text-xl flex items-center justify-center">3</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Configuration Financière, Banques & Caisse</h2>
+                    <p class="text-sm text-slate-400">Paramétrage des comptes de règlement bancaires, Mobile Money et sessions de caisse</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-300 leading-relaxed">
+                <p>
+                    Les coordonnées bancaires et numéros de compte Mobile Money apparaissent automatiquement en bas des <strong>Factures Proformas</strong> et des <strong>Contrats</strong> pour orienter les virements des clients.
+                </p>
+
+                <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-emerald-300 overflow-x-auto">
+                    <button onclick="copyCode(this)" class="absolute right-3 top-3 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Copier</button>
+                    <pre><code># Initialisation des comptes bancaires de l'agence
+docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml exec backend python backend/manage.py shell -c "
+from apps.finance.models import BankAccount
+
+comptes = [
+    {'bank_name': 'BNI Madagascar', 'account_number': '00005 00001 12345678901 23', 'account_holder': 'HAHITANTSOA SARL', 'is_active': True},
+    {'bank_name': 'BOA Madagascar', 'account_number': '00009 01000 98765432101 45', 'account_holder': 'HAHITANTSOA SARL', 'is_active': True},
+    {'bank_name': 'MVola (Telma)', 'account_number': '034 00 000 00', 'account_holder': 'HAHITANTSOA SARL', 'is_active': True},
+    {'bank_name': 'Orange Money', 'account_number': '032 00 000 00', 'account_holder': 'HAHITANTSOA SARL', 'is_active': True},
+]
+
+for c in comptes:
+    acc, created = BankAccount.objects.get_or_create(bank_name=c['bank_name'], defaults=c)
+    if not created:
+        for k, v in c.items(): setattr(acc, k, v)
+        acc.save()
+
+print('Comptes bancaires et Mobile Money configurés avec succès !')
+"</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Catalog & Packages -->
+        <section id="catalogue" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-cyan-500/20 text-cyan-400 font-black text-xl flex items-center justify-center">4</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Catalogue Matériel & Formules de Packs</h2>
+                    <p class="text-sm text-slate-400">Import des articles de location Titan et création des packages commerciaux</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                    <strong>1. Import initial du catalogue :</strong> Vous pouvez charger la liste de votre inventaire de matériel soit depuis l'écran <strong>« Import Excel » (<code>#import-excel</code>)</strong>, soit via la commande de pré-remplissage :
+                </p>
+                <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200">
+                    <button onclick="copyCode(this)" class="absolute right-3 top-3 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Copier</button>
+                    <pre><code>docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml exec backend python backend/manage.py seed_demo_inventory</code></pre>
+                </div>
+
+                <p>
+                    <strong>2. Création des Packs Clé en main :</strong> Rendez-vous sur l'écran <strong>« Packs » (<code>#packages</code>)</strong> pour composer vos lots (ex: <em>Pack Réception Prestige 100 pax</em>, <em>Pack Éclairage Guinguette</em>). Vous pouvez y glisser-déposer des photos locales, définir la tarification forfaitaire et visualiser l'avantage client calculé automatiquement.
+                </p>
+            </div>
+        </section>
+
+        <!-- Section 5: PostgreSQL 17 Tuning for RPi5 16GB -->
+        <section id="postgres" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-teal-500/20 text-teal-400 font-black text-xl flex items-center justify-center">5</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Tuning Haute Performance PostgreSQL 17 (RPi 5 16 Go + NVMe)</h2>
+                    <p class="text-sm text-slate-400">Optimisation des paramètres mémoire PostgreSQL pour exploiter les 16 Go de RAM</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-300 leading-relaxed">
+                <p>
+                    Grâce aux <strong>16 Go de RAM</strong> et au <strong>SSD NVMe</strong>, vous pouvez attribuer une mémoire cache généreuse à PostgreSQL pour rendre toutes les requêtes (planning, rapports, vérification des stocks) instantanées :
+                </p>
+
+                <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-teal-300 overflow-x-auto">
+                    <button onclick="copyCode(this)" class="absolute right-3 top-3 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Copier</button>
+                    <pre><code># Paramètres recommandés pour PostgreSQL 17 sur Raspberry Pi 5 16Go
+shared_buffers = 3GB                  # Cache principal en RAM
+work_mem = 64MB                       # Mémoire allouée par opération de tri
+maintenance_work_mem = 512MB          # Mémoire pour les index et vacuum
+effective_cache_size = 10GB           # Estimation de la mémoire disponible
+random_page_cost = 1.1                # Optimisé pour SSD NVMe ultra-rapide
+effective_io_concurrency = 200        # Entrées/Sorties parallèles sur SSD
+max_worker_processes = 4              # 4 Cœurs CPU Broadcom
+max_parallel_workers = 4</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Checklist -->
+        <section class="rounded-2xl bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-clipboard-check text-emerald-400"></i>
+                        <span>Checklist de Configuration Initiale</span>
+                    </h2>
+                    <p class="text-sm text-slate-400">Assurez-vous d'avoir complété chaque étape avant la première utilisation</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition">
+                    <input type="checkbox" class="w-5 h-5 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-800">
+                    <span class="text-slate-200">Comptes utilisateurs créés avec rôles assignés</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition">
+                    <input type="checkbox" class="w-5 h-5 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-800">
+                    <span class="text-slate-200">Barèmes Hahitantsoa 2026 enregistrés en base</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition">
+                    <input type="checkbox" class="w-5 h-5 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-800">
+                    <span class="text-slate-200">Comptes bancaires et numéros Mobile Money saisis</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition">
+                    <input type="checkbox" class="w-5 h-5 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-800">
+                    <span class="text-slate-200">Catalogue de matériel importé</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition">
+                    <input type="checkbox" class="w-5 h-5 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-800">
+                    <span class="text-slate-200">Packs commerciaux et photos configurés</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition">
+                    <input type="checkbox" class="w-5 h-5 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-800">
+                    <span class="text-slate-200">Test d'ouverture et clôture de session de caisse</span>
+                </label>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-20 border-t border-slate-800 py-8 text-center text-xs text-slate-500">
+        <p>Ergon ERP (Hahitantsoa & Titan Rental) • Guide de Configuration Administrateur 2026</p>
+    </footer>
+
+    <!-- Copy to clipboard script -->
+    <script>
+        function copyCode(btn) {
+            const pre = btn.parentElement.querySelector('pre');
+            const code = pre.innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.innerText;
+                btn.innerText = 'Copié !';
+                btn.classList.add('bg-emerald-600', 'text-white');
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.classList.remove('bg-emerald-600', 'text-white');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -5,96 +5,365 @@ type UserManualPageProps = { onNavigate: (scope: AppScope, param?: string) => vo
 type ManualSection = { id: string; title: string; icon: string; content: React.ReactNode };
 
 const available = "Disponible dans l’application";
-const configured = "Selon les droits et les paramètres de l’entreprise";
+const validated2026 = "Conforme Barèmes & Processus 2026";
 
 export default function UserManualPage({ onNavigate }: UserManualPageProps) {
   const [activeSection, setActiveSection] = useState("start");
+
   const sections = useMemo<ManualSection[]>(() => [
     {
       id: "start",
-      title: "Bien démarrer",
+      title: "1. Bien démarrer & Navigation",
       icon: "fa-rocket",
-      content: <>
-        <p>Connectez-vous avec votre compte, puis utilisez le menu latéral pour accéder aux espaces métier. Le tableau de bord donne accès au planning, aux clients, aux deux volets commerciaux et aux opérations.</p>
-        <ol className="mt-4 list-decimal space-y-2 pl-5"><li>Vérifiez le nom de l’utilisateur et l’état « En ligne » dans le menu utilisateur.</li><li>Choisissez un espace dans le menu latéral.</li><li>Utilisez le bouton « Retour » ou le fil de navigation lorsqu’une fiche est ouverte.</li><li>Déconnectez-vous depuis le menu utilisateur en fin de session.</li></ol>
-        <Info title="Compte de test" tone="amber">L’environnement de test utilise actuellement <strong>admin / admin</strong>. Ce mot de passe doit être remplacé avant tout déploiement réel.</Info>
-      </>,
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            Bienvenue sur <strong>Ergon ERP</strong>, la plateforme unifiée de gestion opérationnelle pour <strong>Hahitantsoa</strong> (domaine événementiel & salle) et <strong>Titan Rental</strong> (location de matériel).
+          </p>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li><strong>Authentification</strong> : Connectez-vous avec votre identifiant et votre mot de passe attribué.</li>
+            <li><strong>Menu latéral</strong> : Naviguez facilement entre les espaces commerciaux (Réservations, Clients, Packs, Services), opérationnels (Planning, Préparation, Livraison, Retours, Casse & Caution) et financiers (Caisse, Facturation).</li>
+            <li><strong>Rôles & Habilitations</strong> : Selon votre rôle (Super-Admin, Commercial, Caissier, Logisticien), certaines actions sensibles (confirmation, encaissement, clôture) sont automatiquement filtrées et protégées.</li>
+            <li><strong>Indicateur d'état</strong> : Le badge en haut à droite indique l'état de la connexion en direct avec le serveur d'agence.</li>
+          </ol>
+          <Info title="Recommandation de sécurité" tone="amber">
+            Ne partagez jamais vos identifiants. Chaque validation financière et confirmation contractuelle est durablement tracée et auditée sous votre nom.
+          </Info>
+        </>
+      ),
     },
     {
       id: "clients",
-      title: "Clients et prospects",
+      title: "2. Clients, Contacts & Rendez-vous",
       icon: "fa-users",
-      content: <><p>Ouvrez <strong>Clients & Prospects</strong> pour rechercher, créer et consulter une fiche client.</p><ol className="mt-4 list-decimal space-y-2 pl-5"><li>Créez un client en choisissant <strong>Particulier</strong> ou <strong>Entreprise</strong>.</li><li>Renseignez les coordonnées et, pour une entreprise, les identifiants NIF, STAT, RCS et le représentant.</li><li>Ouvrez la fiche pour consulter l’historique, les réservations, documents, paiements et relances.</li><li>Depuis la fiche, démarrez une réservation : le volet sera choisi ensuite.</li></ol><Info title="Données importantes" tone="blue">Les informations d’entreprise sont conservées dans la fiche et peuvent être reprises dans les contrats et documents.</Info></>,
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            L'espace <strong>Clients & Prospects</strong> (<code>#customers</code>) centralise la gestion de vos contacts particuliers et entreprises.
+          </p>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li><strong>Création d'un client</strong> : Choisissez le type <em>Particulier</em> (Nom, Prénom, CIN, Téléphones) ou <em>Entreprise / Association</em> (Raison sociale, NIF, STAT, RCS, Représentant légal).</li>
+            <li><strong>Pièces jointes & Identité</strong> : Téléversez les copies de cartes d'identité (CIN) ou passeports du signataire directement sur la fiche.</li>
+            <li><strong>Points de contact multiples</strong> : Enregistrez plusieurs numéros de téléphone et emails avec leurs libellés (ex : Conjoint, Organisateur, Assistant).</li>
+            <li><strong>Liste d'attente & Visites</strong> : Enregistrez les dates souhaitées (<code>#desired-dates</code>) et planifiez les rendez-vous de visite de salle dans l'agenda des visiteurs (<code>#agenda-visitors</code>).</li>
+          </ol>
+          <Info title="Continuité contractuelle" tone="blue">
+            Les coordonnées et identifiants fiscaux saisis sur la fiche client sont automatiquement réinjectés dans les factures proformas et les contrats officiels.
+          </Info>
+        </>
+      ),
     },
     {
       id: "hahitantsoa",
-      title: "Réservation Hahitantsoa",
+      title: "3. Réservations Hahitantsoa (Salle & Événement)",
       icon: "fa-champagne-glasses",
-      content: <><p>Le parcours Hahitantsoa couvre les événements, la location du lieu, la logistique, les articles et les services.</p><ol className="mt-4 list-decimal space-y-2 pl-5"><li>Choisissez le client, puis <strong>Hahitantsoa</strong>.</li><li>Renseignez le type d’événement, les dates et heures via le calendrier, le lieu et le nombre d’invités.</li><li>Choisissez l’un des deux types : <strong>Location nue</strong> ou <strong>Location + logistique</strong>.</li><li>Avec la logistique, sélectionnez directement les articles ou construisez un pack personnalisable, puis ajoutez les services nécessaires.</li><li>Contrôlez le résumé et le montant total, puis générez le proforma.</li><li>Après acompte et validation du contrat, le dossier devient une réservation confirmée selon les contrôles métier.</li></ol><Info title="Documents associés" tone="green">Le contrat Hahitantsoa peut être accompagné de la décharge de responsabilité et, dans le workflow logistique, de la checklist manuelle.</Info></>,
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            Le parcours <strong>Hahitantsoa</strong> (<code>#hahitantsoa</code>) gère l'organisation complète des réceptions au domaine selon le barème officiel 2026.
+          </p>
+          <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-2 text-xs sm:text-sm text-slate-800">
+            <p className="font-bold text-indigo-900">Règles Tarifaires Officielles 2026 :</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><strong>Forfait Location Nue de base</strong> : <strong>6 500 000 Ar TTC</strong> incluant jusqu'à 250 invités.</li>
+              <li><strong>Dépassement d'invités</strong> : <strong>+5 000 Ar TTC</strong> par personne supplémentaire au-delà de 250.</li>
+              <li><strong>Horaires de jour</strong> : Accès préparatifs J-1 (15h30 ou 23h30) ou Jour J (07h00) — Libération impérative à <strong>20h00</strong>.</li>
+              <li><strong>Option Nuit 1</strong> : <strong>+300 000 Ar</strong> (Fin de réception 21h00, libération 22h30).</li>
+              <li><strong>Option Nuit 2</strong> : <strong>+500 000 Ar</strong> (Fin de réception 00h00, libération 03h30).</li>
+              <li><strong>Sécurité de Nuit</strong> : <strong>+120 000 Ar</strong> (Automatiquement ajoutée dès qu'une option nuit est cochée).</li>
+              <li><strong>Caution de garantie</strong> : <strong>500 000 Ar</strong> (Obligatoire, restituée après état des lieux de retour).</li>
+            </ul>
+          </div>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li>Ouvrez l'assistant de nouvelle réservation (<code>#reservation-new</code>) et sélectionnez <strong>Hahitantsoa</strong>.</li>
+            <li>Renseignez le client, la date, le type d'événement (Mariage, Fiançailles, Anniversaire, Banquet d'entreprise) et le nombre d'invités.</li>
+            <li>Sélectionnez les prestations de scénographie 2026 souhaitées (Draperie, Voilage, Ciel étoilé, etc.).</li>
+            <li>Le calculateur dynamique affiche en temps réel le total TTC, le montant de l'acompte requis et la caution.</li>
+          </ol>
+        </>
+      ),
     },
     {
       id: "titan",
-      title: "Réservation Titan",
+      title: "4. Titan Rental (Location Pure de Matériel)",
       icon: "fa-truck",
-      content: <><p>Titan est le volet de location de matériels et articles.</p><ol className="mt-4 list-decimal space-y-2 pl-5"><li>Choisissez le client, puis <strong>Titan</strong>.</li><li>Renseignez la période, l’usage, la destination et les informations de livraison ou retrait.</li><li>Sélectionnez les articles disponibles dans le catalogue.</li><li>Contrôlez les dates de livraison/retrait et de retour/récupération proposées.</li><li>Générez le proforma, enregistrez l’acompte puis générez le contrat.</li></ol><Info title="Règle Titan" tone="blue">Les opérations sont prévues entre 06h00 et 22h00, hors dimanches et jours fériés. Le système propose alors le jour ouvré précédent ou suivant selon l’opération.</Info></>,
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            Le parcours <strong>Titan Rental</strong> (<code>#titan</code>) est exclusivement dédié à la location de matériels événementiels (chaises, tables, vaisselle, tentes, sono, éclairage).
+          </p>
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs sm:text-sm text-amber-900 space-y-1">
+            <p className="font-bold"><i className="fa-solid fa-shield-halved mr-1"></i> Frontière Métier Inviolable :</p>
+            <p>Titan Rental n'expose <strong>JAMAIS</strong> de salles, lieux de réception, services traiteur ou prestations événementielles. Il accepte uniquement les articles individuels et les packs de matériel.</p>
+          </div>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li>Sélectionnez <strong>Titan Rental</strong> dans l'assistant de réservation.</li>
+            <li>Définissez les dates de mise à disposition et de restitution du matériel.</li>
+            <li>Sélectionnez les articles du catalogue ou choisissez un <strong>Pack de matériel prêt à l'emploi</strong>.</li>
+            <li>Spécifiez le mode logistique (Livraison par Titan ou Retrait client au dépôt).</li>
+            <li>Générez la facture proforma et planifiez les opérations de sortie de stock.</li>
+          </ol>
+        </>
+      ),
+    },
+    {
+      id: "packages",
+      title: "5. Packages Commerciaux & Offres Clé en main",
+      icon: "fa-boxes-packing",
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            Le <strong>Générateur de Packages</strong> (<code>#packages</code>) vous permet de concevoir des formules attractives combinant plusieurs articles avec une remise forfaitaire.
+          </p>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li><strong>Photos & Visuels</strong> : Glissez-déposez une photo locale ou saisissez une URL d'image pour illustrer le pack.</li>
+            <li><strong>Calculateur de remise</strong> : Le système compare automatiquement la somme au détail des articles avec votre tarif forfaitaire et affiche l'économie réalisée par le client.</li>
+            <li><strong>3 Modes de vue</strong> : Visualisez vos packs sous forme de <em>Cartes Visuelles</em> (pour la présentation client), de <em>Fiches Détaillées</em> ou de <em>Tableau de Gestion</em>.</li>
+            <li><strong>Duplication rapide</strong> : Dupliquez un pack existant en un clic pour créer rapidement une variante (ex : déclinaison 100 pax / 200 pax).</li>
+          </ol>
+        </>
+      ),
+    },
+    {
+      id: "confirmation",
+      title: "6. Tunnel de Confirmation à 5 Prérequis",
+      icon: "fa-lock",
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            Pour garantir une sécurité juridique et financière totale, une réservation en statut <em>Option / Devis</em> ne peut être convertie en <strong>Réservation Confirmée</strong> qu'après validation stricte des <strong>5 prérequis cumulatifs</strong> :
+          </p>
+          <div className="mt-4 space-y-2">
+            {[
+              ["1. Contrat Officiel Généré", "Le contrat A4 avec ses Annexes 1, 2 et 3 doit être créé depuis le dossier."],
+              ["2. Contrat Signé par le Client", "L'accord formel du client doit être enregistré et daté dans l'application."],
+              ["3. Acompte Obligatoire Encaissé", "L'acompte d'engagement doit être validé par la caisse ou le compte bancaire."],
+              ["4. Disponibilité Revalidée", "Le système revérifie automatiquement en temps réel l'absence de conflit sur la salle et les matériels."],
+              ["5. Autorisation & Audit Backend", "Un opérateur habilité valide la confirmation finale avec enregistrement d'une trace d'audit inviolable."],
+            ].map(([title, desc], index) => (
+              <div key={index} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs sm:text-sm">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 font-bold text-xs">{index + 1}</div>
+                <div>
+                  <strong className="text-slate-900">{title}</strong>
+                  <p className="text-slate-600 mt-0.5">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "logistics",
+      title: "7. Logistique, Préparation & Sortie de Stock",
+      icon: "fa-truck-ramp-box",
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            La gestion opérationnelle du matériel s'effectue via les écrans de logistique :
+          </p>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li><strong>Préparation de Stock (<code>#stock-preparation</code>)</strong> : L'équipe dépôt prépare et rassemble les articles selon le bon de préparation.</li>
+            <li><strong>Bon de Livraison (BL) (<code>#logistics-dispatch</code>)</strong> : Dès le départ du camion ou la mise à disposition au client, le BL est émis et signé contradictoirement.</li>
+            <li><strong>Mouvement de stock effectif</strong> : La sortie de stock comptable et physique s'opère formellement à l'émission du BL.</li>
+          </ol>
+        </>
+      ),
+    },
+    {
+      id: "returns",
+      title: "8. Retours, Constat de Casse & Cautions",
+      icon: "fa-rotate-left",
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            À la fin de l'événement ou de la période de location, la clôture matérielle et financière se déroule en 3 étapes :
+          </p>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li><strong>Pointage des Retours (<code>#logistics-returns</code>)</strong> : L'agent de réception pointe chaque article retourné et ventile les quantités : <em>Intact</em>, <em>Cassé / Détérioré</em>, ou <em>Manquant</em>.</li>
+            <li><strong>Règlement de Casse (<code>#breakage-loss</code>)</strong> : En cas de détérioration, la facture de casse est automatiquement valorisée selon la grille tarifaire officielle (Annexe 3 du contrat).</li>
+            <li><strong>Restitution de Caution (<code>#caution</code>)</strong> : La caution de 500 000 Ar est débloquée : le montant de la casse éventuelle est déduit, et le reliquat est remboursé au client avec émission du reçu justificatif.</li>
+          </ol>
+        </>
+      ),
+    },
+    {
+      id: "cashbox",
+      title: "9. Caisse, Facturation & Tickets 80 mm",
+      icon: "fa-cash-register",
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            L'espace financier garantit une gestion étanche de la trésorerie et des justificatifs comptables :
+          </p>
+          <ul className="mt-4 list-disc space-y-2 pl-5 text-slate-700">
+            <li><strong>Sessions de Caisse (<code>#cashbox</code>)</strong> : Ouverture de session chaque matin avec fond de caisse, encaissements au fil de l'eau, et clôture de caisse avec contrôle d'écart en fin de journée.</li>
+            <li><strong>Reçus Thermiques 80 mm (XPrinter)</strong> : Pour chaque acompte ou règlement en espèces/chèque/virement, imprimez instantanément le reçu thermique conforme 80 mm.</li>
+            <li><strong>Facturation Légale (<code>#billing</code>)</strong> : Suivi des factures proformas, factures d'acomptes intermédiaires et facture finale de solde.</li>
+          </ul>
+        </>
+      ),
     },
     {
       id: "amendments",
-      title: "Avenants",
+      title: "10. Avenants & Modifications de Contrat",
       icon: "fa-file-signature",
-      content: <><p>Une réservation peut être amendée jusqu’au jour J lorsque le métier l’autorise.</p><ol className="mt-4 list-decimal space-y-2 pl-5"><li>Ouvrez la réservation depuis le volet ou la liste globale.</li><li>Choisissez « Créer un avenant ».</li><li>Indiquez le motif, les nouvelles dates/heures, les informations d’événement et les articles concernés.</li><li>Vérifiez le préflight de disponibilité et le résumé.</li><li>Créez l’avenant puis consultez son document généré.</li></ol><p className="mt-4">Les changements acceptés doivent être repris dans les étapes aval du workflow : contrat, documents, opérations logistiques et disponibilité.</p></>,
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            Toute modification convenue avec le client avant le jour J (changement d'horaire, ajout d'invités, options de nuit, articles supplémentaires) doit faire l'objet d'un <strong>Avenant Contractuel</strong> :
+          </p>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li>Ouvrez le dossier de réservation concerné.</li>
+            <li>Cliquez sur <strong>« Créer un avenant »</strong>.</li>
+            <li>Saisissez les ajustements souhaités. Le système exécute un <em>préflight de disponibilité</em> pour vérifier que les ressources supplémentaires sont bien libres.</li>
+            <li>Générez l'avenant A4 à faire signer au client et recalculez l'échéancier financier.</li>
+          </ol>
+        </>
+      ),
     },
     {
-      id: "documents",
-      title: "Documents et modèles",
-      icon: "fa-file-lines",
-      content: <><p>La page <strong>Documents & Modèles</strong> permet de consulter les modèles vierges et leurs variables.</p><ul className="mt-4 list-disc space-y-2 pl-5"><li>Cliquez sur un document pour afficher son aperçu.</li><li>Utilisez les boutons pour afficher ou masquer les variables.</li><li>Naviguez entre les documents avec les contrôles de présentation.</li><li>Les documents générés depuis une réservation restent rattachés au dossier.</li><li>Les coordonnées bancaires utilisées dans les documents proviennent de la banque sélectionnée et configurée.</li></ul><Info title="Fidélité documentaire" tone="green">Les contrats et proformas validés doivent être générés depuis leur parcours métier afin de conserver leurs modèles et leur mise en forme.</Info></>,
-    },
-    {
-      id: "operations",
-      title: "Stock et logistique",
-      icon: "fa-boxes-stacked",
-      content: <><p>Les opérations logistiques se consultent dans les espaces de préparation, livraison, retour et mouvements de stock.</p><ul className="mt-4 list-disc space-y-2 pl-5"><li>Le bon de préparation sert à organiser la sortie interne.</li><li>Le bon de livraison matérialise la sortie opérationnelle.</li><li>Pour Hahitantsoa, la checklist manuelle accompagne le bon de livraison.</li><li>Le retour permet de renseigner l’état des articles et les éventuelles pertes ou casses.</li><li>La disponibilité est recalculée à partir des mouvements réels, pas uniquement de l’aperçu commercial.</li></ul><Info title="Point de contrôle" tone="amber">La sortie de stock ne doit pas être considérée comme effectuée avant l’émission du bon de livraison selon le volet concerné.</Info></>,
-    },
-    {
-      id: "finance",
-      title: "Finance, caisse et banques",
-      icon: "fa-coins",
-      content: <><p>Utilisez <strong>Facturation & Paiements</strong> pour suivre les paiements liés aux dossiers, <strong>Caisse</strong> pour les opérations de caisse et <strong>Coordonnées bancaires</strong> pour les profils bancaires.</p><ul className="mt-4 list-disc space-y-2 pl-5"><li>Enregistrez le paiement avec son mode et son montant.</li><li>Confirmez le paiement lorsque la preuve est contrôlée.</li><li>Vérifiez son apparition dans le résumé financier.</li><li>Ouvrez une caisse utilisateur avant les opérations qui l’exigent, puis clôturez-la avec son rapprochement.</li><li>Configurez une banque par volet et choisissez la banque par défaut pour les documents.</li></ul><Info title="Sécurité financière" tone="blue">Les passerelles de paiement externes ne sont pas utilisées dans l’application. Les paiements sont enregistrés et confirmés par un utilisateur autorisé.</Info></>,
-    },
-    {
-      id: "other",
-      title: "Autres espaces",
-      icon: "fa-layer-group",
-      content: <><div className="grid gap-3 sm:grid-cols-2">{[
-        ["Planning", "Consulter les dates et disponibilités opérationnelles."], ["Reporting", "Lire les indicateurs et rapports disponibles."], ["Audit & Sécurité", "Consulter les événements d’audit selon vos droits."], ["Personnel & Paie", "Consulter l’espace RH ; les règles doivent être paramétrées par le DRH."], ["Achats & Fournisseurs", "Suivre les commandes et dépenses d’approvisionnement."], ["Notifications", "Consulter les notifications générées par le système."],
-      ].map(([title, text]) => <div key={title} className="rounded-xl border border-slate-200 p-4"><h4 className="font-semibold text-slate-800">{title}</h4><p className="mt-1 text-sm text-slate-600">{text}</p></div>)}</div><Info title="Droits d’accès" tone="amber">Certains menus, créations, validations et suppressions dépendent des autorisations attribuées à l’utilisateur.</Info></>,
+      id: "audit",
+      title: "11. Planning, Reporting & Journal d'Audit",
+      icon: "fa-chart-pie",
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            Outils de pilotage et de contrôle pour la direction et les managers :
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {[
+              ["Planning Général (#planning)", "Visualisation globale du calendrier des événements, des disponibilités de la salle et des réservations de matériel."],
+              ["Rapports & KPI (#reporting)", "Suivi du chiffre d'affaires mensuel, du taux d'occupation de la salle, du volume de matériel loué et des encaissements."],
+              ["Journal d'Audit (#audit)", "Historique exhaustif et horodaté de toutes les modifications, suppressions et confirmations sensibles avec nom de l'opérateur."],
+              ["Ressources Humaines & Paie (#hr)", "Suivi du personnel d'agence et des fiches d'activité selon les règles paramétrées."],
+            ].map(([title, desc], i) => (
+              <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <h4 className="font-bold text-slate-900 text-sm">{title}</h4>
+                <p className="mt-1 text-xs text-slate-600 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      ),
     },
     {
       id: "support",
-      title: "Aide et signalement",
+      title: "12. Aide, Raccourcis & Signalements",
       icon: "fa-headset",
-      content: <><p>Depuis <strong>Aide & Support</strong>, consultez ce manuel ou signalez un problème.</p><ol className="mt-4 list-decimal space-y-2 pl-5"><li>Décrivez précisément ce qui était attendu et ce qui s’est produit.</li><li>Choisissez une gravité réaliste.</li><li>Envoyez le signalement.</li><li>Suivez son statut après rechargement de la page.</li></ol><p className="mt-4">Les erreurs d’affichage frontend sont également enregistrées automatiquement lorsque l’écran de récupération est déclenché.</p><button type="button" onClick={() => onNavigate("help")} className="mt-4 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">Ouvrir Aide & Support</button></>,
+      content: (
+        <>
+          <p className="text-slate-700 leading-relaxed">
+            En cas de difficulté ou de comportement inattendu lors de votre utilisation :
+          </p>
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-slate-700">
+            <li>Consultez la rubrique correspondante de ce manuel utilisateur.</li>
+            <li>Ouvrez l'écran <strong>Aide & Support (<code>#help</code>)</strong> pour transmettre un signalement détaillé à l'administrateur technique.</li>
+            <li>En cas de coupure réseau temporaire, l'application vous avertit par un bandeau d'alerte et reprend automatiquement dès la reconnexion au serveur d'agence.</li>
+          </ol>
+          <button
+            type="button"
+            onClick={() => onNavigate("help")}
+            className="mt-4 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition"
+          >
+            Ouvrir l'Espace Aide & Support
+          </button>
+        </>
+      ),
     },
   ], [onNavigate]);
 
   const current = sections.find((section) => section.id === activeSection) ?? sections[0];
 
-  return <div className="page active space-y-6">
-    <header className="rounded-2xl bg-slate-900 p-6 text-white shadow-lg">
-      <p className="text-xs font-bold uppercase tracking-widest text-indigo-300">Guide opérationnel</p>
-      <h1 className="mt-2 text-2xl font-bold">Manuel utilisateur Hahitantsoa / Titan</h1>
-      <p className="mt-2 max-w-3xl text-sm text-slate-300">Ce manuel décrit les parcours actuellement disponibles dans l’application. Les actions restent contrôlées par les droits et les validations du backend.</p>
-      <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-200">{available}</span><span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-200">{configured}</span></div>
-    </header>
-    <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <nav aria-label="Sections du manuel" className="h-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-6">{sections.map((section) => <button key={section.id} type="button" onClick={() => setActiveSection(section.id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium ${activeSection === section.id ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-50"}`}><i className={`fa-solid ${section.icon} w-5 text-center`} aria-hidden="true"></i>{section.title}</button>)}</nav>
-      <article className="min-h-[520px] rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-start gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xl text-indigo-600"><i className={`fa-solid ${current.icon}`} aria-hidden="true"></i></div><div><p className="text-xs font-bold uppercase tracking-widest text-indigo-600">Section {sections.indexOf(current) + 1} / {sections.length}</p><h2 className="mt-1 text-2xl font-bold text-slate-900">{current.title}</h2></div></div><div className="prose prose-slate mt-8 max-w-none text-sm leading-6">{current.content}</div><div className="mt-10 flex justify-between border-t border-slate-100 pt-4"><button type="button" disabled={sections.indexOf(current) === 0} onClick={() => setActiveSection(sections[Math.max(0, sections.indexOf(current) - 1)].id)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">← Précédent</button><button type="button" disabled={sections.indexOf(current) === sections.length - 1} onClick={() => setActiveSection(sections[Math.min(sections.length - 1, sections.indexOf(current) + 1)].id)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Suivant →</button></div></article>
+  return (
+    <div className="page active space-y-6">
+      <header className="rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 p-6 sm:p-8 text-white shadow-xl border border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-indigo-400">Documentation Officielle</p>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold">Manuel Utilisateur Ergon ERP</h1>
+            <p className="mt-2 max-w-3xl text-xs sm:text-sm text-slate-300">
+              Guide complet des fonctionnalités, parcours métier, règles de confirmation et processus opérationnels pour Hahitantsoa et Titan Rental.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-300">{available}</span>
+            <span className="rounded-full bg-indigo-500/20 border border-indigo-500/30 px-3 py-1 text-xs font-bold text-indigo-300">{validated2026}</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <nav aria-label="Sections du manuel" className="h-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:sticky lg:top-6 space-y-1">
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => setActiveSection(section.id)}
+              className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-xs sm:text-sm font-semibold transition ${
+                activeSection === section.id
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <i className={`fa-solid ${section.icon} w-5 text-center`} aria-hidden="true"></i>
+              <span className="truncate">{section.title}</span>
+            </button>
+          ))}
+        </nav>
+
+        <article className="min-h-[560px] rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-start gap-4 border-b border-slate-100 pb-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-xl text-indigo-600">
+                <i className={`fa-solid ${current.icon}`} aria-hidden="true"></i>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-indigo-600">
+                  Section {sections.indexOf(current) + 1} / {sections.length}
+                </p>
+                <h2 className="mt-1 text-xl sm:text-2xl font-bold text-slate-900">{current.title}</h2>
+              </div>
+            </div>
+
+            <div className="mt-6 text-sm leading-relaxed">{current.content}</div>
+          </div>
+
+          <div className="mt-10 flex justify-between border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              disabled={sections.indexOf(current) === 0}
+              onClick={() => setActiveSection(sections[Math.max(0, sections.indexOf(current) - 1)].id)}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              ← Précédent
+            </button>
+            <button
+              type="button"
+              disabled={sections.indexOf(current) === sections.length - 1}
+              onClick={() => setActiveSection(sections[Math.min(sections.length - 1, sections.indexOf(current) + 1)].id)}
+              className="rounded-xl bg-indigo-600 px-5 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              Suivant →
+            </button>
+          </div>
+        </article>
+      </div>
     </div>
-  </div>;
+  );
 }
 
 function Info({ title, tone, children }: { title: string; tone: "blue" | "green" | "amber"; children: React.ReactNode }) {
-  const colors = { blue: "border-blue-200 bg-blue-50 text-blue-900", green: "border-emerald-200 bg-emerald-50 text-emerald-900", amber: "border-amber-200 bg-amber-50 text-amber-900" };
-  return <div className={`mt-5 rounded-xl border p-4 ${colors[tone]}`}><p className="font-semibold">{title}</p><p className="mt-1 text-sm">{children}</p></div>;
+  const colors = {
+    blue: "border-blue-200 bg-blue-50 text-blue-900",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    amber: "border-amber-200 bg-amber-50 text-amber-900",
+  };
+  return (
+    <div className={`mt-5 rounded-xl border p-4 ${colors[tone]}`}>
+      <p className="font-bold text-xs sm:text-sm">{title}</p>
+      <p className="mt-1 text-xs sm:text-sm leading-relaxed">{children}</p>
+    </div>
+  );
 }
+

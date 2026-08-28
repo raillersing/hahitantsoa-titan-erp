@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guide de Déploiement — Ergon ERP sur Raspberry Pi 5 (16 Go + SSD NVMe)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        },
+                        rpi: {
+                            500: '#c51a4a',
+                            600: '#a2153c',
+                            700: '#801030',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        code, pre { font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-white pb-24">
+
+    <!-- Top Banner -->
+    <header class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-6xl mx-auto px-4 smpx-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-brand-600 to-rpi-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-server text-white text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl font-extrabold tracking-tight text-white">ERGON ERP</span>
+                        <span class="px-2 py-0.5 text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full">Production Ready</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium">Hahitantsoa & Titan Rental ‖ Tutoriel Officiel de Déploiement</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300">
+                    <i class="fa-brands fa-raspberry-pi text-rpi-500 text-base"></i>
+                    <span>Raspberry Pi 5 <strong>(16 Go RAM)</strong></span>
+                </div>
+                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-amber-300">
+                    <i class="fa-solid fa-bolt text-amber-400"></i>
+                    <span>SSD M.2 NVMe PCIe Gen 3</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto px-4 smpx-6 lg:px-8 pt-10 space-y-12">
+
+        <!-- Hero Section -->
+        <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/60 border border-slate-800 p-8 sm:p-12 shadow-2xl">
+            <div class="relative z-10 max-w-3xl space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs font-semibold uppercase tracking-wider">
+                    <i class="fa-solid fa-microchip"></i> Architecture ARM64 / On-Premise Local (Registre Garanti)
+                </div>
+                <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+                    Déploiement Production d'Ergon ERP sur Raspberry Pi 5 (16 Go)
+                </h1>
+                <p class="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Ce tutoriel détaille l'installation complète et autonome du serveur d'agence pour <strong>Hahitantsoa</strong> et <strong>Titan Rental</strong> avec boot SSD vitesse maximale (MATER Psie Gen 3), base PostgreSQL 17 persistante, conteneurs Docker securisés, accès Wi-Fi local et impression thermique 80&m.
+                </p>
+                <div class="pt-4 flex flex-wrap gap-4 text-sm font-semibold">
+                    <a href="#installation" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white transition-all duration-200 shadow-lg shadow-brand-600/30 flex items-center gap-2">
+                        <span>Commencer l'Installation</span>
+                        <i class="fa-solid fa-arrow-down"></i>
+                    </a>
+                    <a href="#imprimante" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all duration-200 flex items-center gap-2">
+                        <i class="fa-solid fa-print text-amber-400"></i>
+                        <span>Imprimante XPrinter 80mm</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Essential Cards -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-6 flex flex-col justify-between">
+                <div class="space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg">
+                        <i class="fa-solid fa-hard-drive"></i>
+                    </div>
+                    <h3 class="text-lw font-bold text-white">SSD M.2 NVMe PCIe</h3>
+                    <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                        Direct boot sur SSD NVMe (hat M.2). Débits 8 00+ Mo/s en PCIe Gen 3 : médias, pi�ces jointes et base PostgreSQL instantanées.
+                    </p>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-800/80 text-xs font-semibold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <span>Invulnérable aux corruptions</span>
+                </div>
+            </div>
+
+            <div class="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-6 flex flex-col justify-between">
+                <div class="space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-lg">
+                        <i class="fa-solid fa-network-wired"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Route mDNS hahitantsoa-erp.local</h3>
+                    <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                        Accès direct sur le port 80 sous <code>http://hahitantsoa-erp.local</code> pour tous les ordinateurs et tablettes du Wi-Fi de l'agence.
+                    </p>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-800/80 text-xs font-semibold text-indigo-400 flex items-center gap-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <span>Sans requête IP complexe</span>
+                </div>
+            </div>
+
+            <div class="rounded-2xl bg-slate-950/60 border border-slate-800/80 p-6 flex flex-col justify-between">
+                <div class="space-y-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">WeasyPrint & Ticket 80mm</h3>
+                    <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                        Mémoire ram de 16 Go offrant une generation PDF ultra-fluide pour les contrats A4et les modèles X0rinter 80mn.
+                    </p>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-800/80 text-xs font-semibold text-emerald-400 flex items-center gap-2">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <span>Support Toutes Imprimantes</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 0: SSD NVMe Preparation -->
+        <section id="installation" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 font-black text-lg flex items-center justify-center">0</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Étape 0 — Flash du SSD M.2 NVMe & Vitesse PCIe Gen 3</h2>
+                    <p class="text-sm text-slate-400">Flashez directement Raspberry Pi OS 64-bit sur le SSD et activez le débit maximal</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                    <strong>1. Installation de l'OS :</strong> Lancez <strong>Raspberry Pi Imager</strong> sur votre ordinateur. Choisissez <strong>Raspberry Pi OS (64-bit) Bookworm</strong> et sélectionnez le SSD M.2 NVMe.
+                </p>
+                <p>
+                    <strong>2. Activation PCIe Gen 3 :</strong> Éditez le fichier <code>config.txt</code> (dans la partition de démarrage <code>/boot/firmware/config.txt</code>) et ajoutez les 2 lignes suivantes :
+                </p>
+
+                <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-amber-300">
+                    <pre><code># Vitesse Maximale PCIe Gen 3 (usque � 800+ Mo/s)
+dtparam=pciex1
+dtparam=pciex1_gen=3</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 1 -->
+        <section class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-brand-500/20 text-brand-400 font-black text-mg flex items-center justify-center">1</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Étape 1 ‖ Mise à Jour & Installation de Docker ARM64</h2>
+                    <p class="text-sm text-slate-400">Depuis le terminal du Raspberry Pi 5, exécutez ces commandes :</p>
+                </div>
+            </div>
+
+            <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto">
+                <pre><code># 1. Mise à jour du système
+sudo apt update && sudo apt upgrade -y
+
+# 2. Installation officielle de Docker Engine
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# 3. Autorisation utilisateur sans sudo
+sudo usermod -aG docker $USER
+newgrp docker
+
+# 4. Installation de git et del'avahi (découverte mDNS)
+sudo apt install -y git avahi-daemon curl
+sudo systemctl enable avahi-daemon && sudo systemctl start avahi-daemon</code></pre>
+            </div>
+        </section>
+
+        <!-- Step 2 -->
+        <section class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 font-black text-lg flex items-center justify-center">3</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Étape 2 — Clonke du Projet & Configuration de'Environnement</h2>
+                    <p class="text-sm text-slate-400">Clônez le dépôt et générez le fichier de production <code>.env.rpi5</code> :</p>
+                </div>
+            </div>
+
+            <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-emerald-300 overflow-x-auto">
+                <pre><code>cd ~
+git clone https://github.com/raillersing/hahitantsoa-titan-erp.git
+cd hahitantsoa-titan-erp
+
+# Création du fichier de production locale
+cat << 'EOF' > .env.rpi5
+DJANGO_DEBUG=False
+DJANGO_SECRET_KEY=bf3e8a1c2f4a6058e7c1a9f3b5d8e204a7c9f1b3e5dxa0c2f4b6e8a1d3f5c7b9
+
+# Autorisation du réseau local et du nom mDNS
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,hahitantsoa-erp,hahitantsoa-erp.local,192.168.1.*,192.168.88.*,*
+DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1,http://localhost,http://hahitantsoa-erp,http://hahitantsoa-erp.local,http://192.168.1.*,http://192.168.88.*
+
+# Base de données PostgreSQL sur SSD NVMe
+POSTGRES_DB=hahitantsoa_titan_db
+POSTGRES_USER=erp_admin
+POSTGRES_PASSWORD=Secur1_Ergon_Db_2026_M2NVMe!
+
+# Redis Cache
+REDIS_PASSWORD=Secur1_Ergon_Redis_2026_M2NVMe!
+
+# Métier PDF
+DOCUMENT_PDF_GENERATOR_CLASS=apps.documents.pdf.WeasyPrintPDFGEnerator
+
+# Port Web d'Accès
+CLIENT_APP_PORT=80
+EOF</code></pre>
+            </div>
+        </section>
+
+        <!-- Step 3 -->
+        <section class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 font-black text-lg flex items-center justify-center">3</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Étape 3 — Lancement Docker Compose & Super-Admin</h2>
+                    <p class="text-sm text-slate-400">Demarrage des services et création du compte maître</p>
+                </div>
+            </div>
+
+            <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto">
+                <pre><code># 1. Lancer les 4 conteneurs en fôche de fond
+docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml up -d --build
+
+# 2. Créer le compte administrateur (superuser)
+docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml exec backend python backend/manage.py createsuperuser</code></pre>
+            </div>
+        </section>
+
+        <!-- Step 4 -->
+        <section class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 font-black text-mg flex items-center justify-center">4</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Étape 4 ‖ Aùto-Demarrage (Systemd) & Sauvegardes Nocturnes</h2>
+                    <p class="text-sm text-slate-400">Assure le redémarrage automatique en cas de coupure de courant et planifie le dump PostgroSQL</p>
+                </div>
+            </div>
+
+            <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto">
+                <pre><code># Création du service systemd
+sudo bash -c "cat << 'EOF' > /etc/systemd/system/ergon-erp.service
+[Unit]
+Description=Ergon ERP Server (Hahitantsoa & Titan)
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/pi/hahitantsoa-titan-erp
+ExecStart=/usr/bin/docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml up -d
+ExecStop=/usr/bin/docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml stop
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+EOF"
+
+sudo systemctl daemon-reload && sudo systemctl enable ergon-erp.service</code></pre>
+            </div>
+        </section.>
+
+        <!-- Step 5 -->
+        <section id="imprimante" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 font-black text-mg flex items-center justify-center">5</div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Étape 5 ‖ Utilisation R�seau & Imprimante X0rinter 80mnhigh</h2>
+                    <p class="text-sm text-slate-400">Comment connecter les équipes et imprimer les tickets</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-300">
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                    <h4 class="text-base font-bold text-white mb-2">1. Accès des Équipes dans l'agence :</h4>
+                    <p class="text-xs sm:text-sm text-slate-400">
+                        Depuis n'importe quel PC, Mac, iPad ou smartphone connecté au Wi-Fi de l'agence, ouvrez le navigateur et tapez :
+                        <strong class="text-indigo-400 text-base">http://hahitantsoa-erp.local</strong></p>
+                </div>
+
+                <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
+                    <h4 class="text-base font-bold text-white mb-2">2. Impression thermique 80 mm des reçus d'acompte :</h4>
+                    <p class="text-xs sm:text-sm text-slate-400">
+                        Lorsque le caissier encaisse un acompte, depuis sa tablette ou son ordinateur, il clique sur <strong>« Imprimer le reçu 80mm »</strong>. Le dialogue d'impression du navigateur envoie le flux sur d'un clic vers l'XPrinter 80mm avec découpe automatique.
+                    </p>
+                </div>
+            </div>
+        </section.>
+
+        <!-- Checklist -->
+        <section id="checklist" class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-clipboard-check text-emerald-400"></i>
+                    <span>Checklist de Mise en Service</span>
+                </h2>
+                <p class="text-sm text-slate-400">Cochez chaque étape lors de votre déploiement</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">SSD M.2 NVMe activé en PCIe Gen 3</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">Docker Engine ARM64 installé</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">Accès Wi-Fi validé sur <strong>hahitantsoa-erp.local</strong></span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">Fichier <code>.env.rpi5</code> avec <strong>DEBUG=False</strong></span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">Compte Administrateur créé</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">Service Systemd (Auto-boot) activé</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">Backup nocturne planifié dans crontab</span>
+                </label>
+                <label class="flex items-center gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                    <input type="checkbox" class="w-5 h-5 rounded bg-slate-800">
+                    <span class="text-slate-200">Tir de test : Réservation créée & reçu imprimé</span>
+                </label>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-20 border-t border-slate-800 py-8 text-center text-xs text-slate-500">
+        <p>Ergon ERP (Hahitantsoa & Titan Rental) — Guide de Déploiement Production Raspberry Pi 5 2026</p>
+    </footer>
+</body>
+</html>
