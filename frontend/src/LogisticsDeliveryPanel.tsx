@@ -164,7 +164,6 @@ export function LogisticsDeliveryPanel({
   const abortRef = useRef<AbortController | null>(null);
   const lineAbortRef = useRef<AbortController | null>(null);
   const passationLoadRef = useRef(0);
-  const passationDocumentEventRef = useRef<string | null>(null);
 
   const reservationReferenceById = useMemo(
     () => new Map(reservationDrafts.map((draft) => [draft.id, draft.public_reference])),
@@ -312,7 +311,6 @@ export function LogisticsDeliveryPanel({
         loading: false,
         error: null,
       });
-      passationDocumentEventRef.current = event.id;
     } catch (err: unknown) {
       if (requestId !== passationLoadRef.current) return;
       setPassationState({
@@ -375,9 +373,6 @@ export function LogisticsDeliveryPanel({
   }, [loadItemLines, selectedEventId]);
 
   useEffect(() => {
-    if (selectedEvent && passationDocumentEventRef.current === selectedEvent.id) {
-      return;
-    }
     setPassationState({ documentInstanceId: null, loading: true, error: null });
     if (selectedEvent) {
       void loadPassationDocument(selectedEvent);
@@ -455,7 +450,6 @@ export function LogisticsDeliveryPanel({
     }
 
     passationLoadRef.current += 1;
-    passationDocumentEventRef.current = selectedEvent.id;
     setPassationState({ documentInstanceId: null, loading: true, error: null });
     try {
       const response = await completeLogisticsPassation(selectedEvent.id, {});
