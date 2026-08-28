@@ -362,7 +362,8 @@ For each implementation bundle:
 4. obtain functional and visual human validation when frontend behavior changes;
 5. commit, push, open/update PR, and merge only with the required human authorization;
 6. require green PR CI, head-SHA merge protection, exact merged-SHA `main` CI, and
-   authorized cleanup;
+   automatic cleanup of the clean local task worktree and branch; keep remote branch
+   deletion explicitly authorized;
 7. update the module matrix and this checkpoint only from those proofs;
 8. list the remaining phases in the lot report and stop for human validation.
 

@@ -195,15 +195,16 @@ grep -Fq 'needs.classify-changes.outputs.tooling' "$workflow"
 grep -Fq '[backend|frontend|agent-tools|agent-ci|agent-docs]' "$worktree_preflight"
 grep -Fq 'repairing ownership of generated worktree artifacts' "$SCRIPT_DIR/erp-worktree-clean-after-merge"
 grep -Fq -- '--task-worktree and --task-branch must be provided together' "$root_finalizer"
-grep -Fq 'Task cleanup was not requested; preserving the PR worktree and branch.' "$root_finalizer"
+grep -Fq 'Automatic cleanup removed only the local branch; remote branch preserved.' "$root_finalizer"
+grep -Fq 'AUTO_LOCAL_CLEANUP=1' "$root_finalizer"
 grep -Fq 'sha256sum backend/Dockerfile pyproject.toml' "$backend_compose"
 grep -Fq 'export ERP_AGENT_BACKEND_IMAGE=' "$backend_compose"
 grep -Fq 'image: ${ERP_AGENT_BACKEND_IMAGE:-hahitantsoa_titan_erp_agent_ci_backend:local}' "$agent_compose"
 grep -Fq 'erp-orchestrator-state-check" --task-start-embedded' "$task_start"
 grep -Fq -- '--task-start-embedded skips PR, CI, and worktree output' "$orchestrator_check"
 grep -Fq 'duplicate remote and worktree queries skipped' "$orchestrator_check"
-if grep -Fq 'TASK_BRANCH="$pr_head_branch"' "$root_finalizer"; then
-  echo "FAIL: root finalizer still enables implicit task-branch cleanup"
+if ! grep -Fq 'TASK_BRANCH="$pr_head_branch"' "$root_finalizer"; then
+  echo "FAIL: root finalizer does not enable automatic local cleanup"
   exit 1
 fi
 for incomplete_cleanup_option in \

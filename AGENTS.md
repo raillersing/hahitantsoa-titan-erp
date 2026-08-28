@@ -120,7 +120,10 @@ backend, frontend, agent-tools, and agent-docs edits in the same task branch.
 - CI must pass before merge.
 - Validate `main` after merge.
 - Confirm CI on `main` after merge.
-- Clean local task and review branches after merge when the human authorizes cleanup.
+- After a PR is merged and the exact-SHA `main` CI is green, automatically remove the
+  clean task worktree and local branch through the protected finalizer. A dirty or
+  ambiguous worktree is a hard stop and must be reported; remote branch deletion
+  remains an explicit cleanup decision.
 - Never merge automatically.
 
 ### Worktree and branch lifecycle

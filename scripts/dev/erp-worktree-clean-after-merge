@@ -159,35 +159,35 @@ path_is_registered_worktree() {
 
 orphan_status_output() {
   local path="$1"
-  local tracked untracked
-  local -a pathspecs=()
-  local entry basename
+  local tracked_file relative_file
+  declare -A tracked_files=()
 
-  while IFS= read -r entry; do
-    basename="$(basename "$entry")"
-    case "$basename" in
-      .git|.pytest_cache|.ruff_cache|logs)
-        continue
-        ;;
-    esac
-    pathspecs+=("$basename")
-  done < <(find "$path" -mindepth 1 -maxdepth 1 -print | sort)
-
-  tracked="$(
-    git --git-dir="$REPO_ROOT/.git" --work-tree="$path" diff --name-only "$TARGET_BRANCH" -- "${pathspecs[@]}" 2>/dev/null || true
-  )"
-  untracked="$(
-    git --git-dir="$REPO_ROOT/.git" --work-tree="$path" ls-files --others --exclude-standard -- "${pathspecs[@]}" 2>/dev/null || true
-  )"
-
-  {
-    if [ -n "$tracked" ]; then
-      printf '%s\n' "$tracked"
+  # An orphan can be the residue of a failed `git worktree remove`: Git may
+  # already have removed the worktree metadata while permissions prevented the
+  # final directory removal. Missing files are therefore not actionable user
+  # edits here (and are also normal for sparse backend worktrees). Compare all
+  # files that remain and reject unexpected files instead.
+  while IFS= read -r -d '' tracked_file; do
+    [ -n "$tracked_file" ] || continue
+    tracked_files["$tracked_file"]=1
+    if [ -f "$path/$tracked_file" ] && ! cmp -s "$path/$tracked_file" <(git show "$TARGET_BRANCH:$tracked_file"); then
+      printf ' M %s\n' "$tracked_file"
     fi
-    if [ -n "$untracked" ]; then
-      printf '%s\n' "$untracked"
+  done < <(git ls-tree -r -z --name-only "$TARGET_BRANCH")
+
+  while IFS= read -r -d '' relative_file; do
+    relative_file="${relative_file#"$path"/}"
+    [ -n "${tracked_files[$relative_file]+present}" ] && continue
+    if git -C "$REPO_ROOT" check-ignore -q -- "$relative_file"; then
+      continue
     fi
-  } | sed '/^$/d'
+    printf '?? %s\n' "$relative_file"
+  done < <(
+    find "$path" -mindepth 1 \
+      \( -name .git -o -name .pytest_cache -o -name .ruff_cache -o -name logs \
+         -o -name node_modules -o -name dist -o -name __pycache__ \) -prune \
+      -o -type f -print0
+  )
 }
 
 if [ -z "$target_path" ]; then

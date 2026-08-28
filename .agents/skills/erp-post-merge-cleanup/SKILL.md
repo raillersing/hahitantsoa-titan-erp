@@ -5,7 +5,9 @@ description: Clean Titan ERP task branches, worktrees, and containers after an a
 
 # ERP Post-Merge Cleanup
 
-Load after a PR is merged and post-merge main CI is confirmed green.
+Load after a PR is merged and post-merge main CI is confirmed green. This is the
+standard automatic local cleanup phase; a dirty or ambiguous worktree remains a hard
+stop.
 
 ## What I do
 
@@ -14,10 +16,10 @@ Safely clean up task resources without data loss or orphaned containers.
 ## Checklist
 
 - [ ] Post-merge main CI is green (SHA-bound verification)
-- [ ] Human has authorized cleanup
+- [ ] Human has authorized the merge; cleanup of a clean local worktree and branch is automatic
 - [ ] Prefer the cleanup phase of `scripts/dev/erp-pr-finalize-from-root` from root `main`
 - [ ] Otherwise use `bash scripts/dev/erp-worktree-clean-after-merge --apply branch-name`; it cleans task containers, removes the worktree, then deletes the local branch
-- [ ] Delete the remote task branch only after the worktree is gone and only when cleanup authorization covers it
+- [ ] Delete the remote task branch only after the worktree is gone and only when remote deletion is explicitly authorized
 - [ ] Stale worktree metadata pruned: `git worktree prune`
 - [ ] No orphaned containers remaining
 
@@ -31,7 +33,9 @@ Safely clean up task resources without data loss or orphaned containers.
 
 ## When to use me
 
-Load after every PR merge when the task authorizes cleanup.
+Load after every PR merge and green exact-SHA `main` CI. The protected root finalizer
+selects the merged PR worktree automatically when no cleanup arguments are supplied,
+while preserving remote branches by default.
 
 ## References
 
