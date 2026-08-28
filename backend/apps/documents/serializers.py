@@ -13,7 +13,10 @@ from apps.documents.models import (
     UploadedAttachment,
     UploadedAttachmentCategory,
 )
-from apps.documents.registry import DocumentTemplateDefinition
+from apps.documents.registry import (
+    DocumentTemplateDefinition,
+    get_document_template_workflow_usage,
+)
 from apps.documents.services import (
     get_document_instance_contract_warnings,
     get_supported_reservation_draft_document_template_keys,
@@ -36,11 +39,16 @@ class DocumentTemplateDefinitionSerializer(serializers.Serializer):
     preview_path = serializers.CharField()
     validated_by_client = serializers.BooleanField()
     notes = serializers.CharField()
+    workflow_usage = serializers.ListField(child=serializers.CharField())
 
     def to_representation(self, instance: DocumentTemplateDefinition):
         if isinstance(instance, dict):
             return super().to_representation(instance)
-        return super().to_representation(asdict(instance))
+        representation = asdict(instance)
+        representation["workflow_usage"] = list(
+            get_document_template_workflow_usage(instance.key)
+        )
+        return super().to_representation(representation)
 
 
 class RuntimeDocumentScopeFlagsSerializer(serializers.Serializer):

@@ -30,6 +30,7 @@ EXPECTED_TEMPLATE_FIELDS = {
     "preview_path",
     "validated_by_client",
     "notes",
+    "workflow_usage",
 }
 WRITE_METHODS = ("post", "put", "patch", "delete")
 
@@ -89,6 +90,7 @@ def test_documents_template_registry_lists_known_templates(
 
     for item in response.data["items"]:
         assert set(item) == EXPECTED_TEMPLATE_FIELDS
+        assert item["workflow_usage"]
 
 
 def test_documents_template_detail_exposes_breakage_repair_invoice_source(
@@ -111,6 +113,7 @@ def test_documents_template_detail_exposes_breakage_repair_invoice_source(
     assert response.data["source_reference"] == EXPECTED_BREAKAGE_TEMPLATE_SOURCE
     assert response.data["preview_path"] == EXPECTED_BREAKAGE_TEMPLATE_SOURCE
     assert response.data["validated_by_client"] is True
+    assert response.data["workflow_usage"] == ["Titan · casse/perte · règlement"]
 
 
 def test_documents_template_detail_returns_404_for_unknown_key(
