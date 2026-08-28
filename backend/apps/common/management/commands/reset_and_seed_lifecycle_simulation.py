@@ -82,36 +82,49 @@ class Command(BaseCommand):
         titan_count = 0
         hahitantsoa_count = 0
 
+        titan_documents = {
+            "RD-DEMO-TITAN-001": ("T-001/2026", ("PF",)),
+            "RD-DEMO-TITAN-002": ("T-002/2026", ("PF", "CT")),
+            "RD-DEMO-TITAN-003": ("T-003/2026", ("PF", "CT")),
+            "RD-DEMO-TITAN-004": ("T-004/2026", ("CT",)),
+        }
         for draft in ReservationDraft.objects.filter(is_deleted=False).order_by("public_reference"):
-            proforma = create_document_instance_from_reservation_draft(
-                reservation_draft=draft,
-                template_key="titan.proforma.v1",
-                actor=actor,
-                notes="Simulation cycle de vie Titan.",
-            )
-            self._emit_reservation_document(proforma, draft, actor)
-            titan_count += 1
+            scenario = titan_documents.get(draft.public_reference)
+            if scenario is None:
+                continue
+            root, suffixes = scenario
+            if "PF" in suffixes:
+                proforma = create_document_instance_from_reservation_draft(
+                    reservation_draft=draft,
+                    template_key="titan.proforma.v1",
+                    actor=actor,
+                    notes="Simulation cycle de vie Titan.",
+                )
+                self._emit_reservation_document(proforma, draft, actor, f"{root}-PF")
+                titan_count += 1
 
-            if draft.status == "confirmed":
+            if "CT" in suffixes:
                 contract = create_document_instance_from_reservation_draft(
                     reservation_draft=draft,
                     template_key="titan.material_contract.v1",
                     actor=actor,
                     notes="Simulation contrat Titan.",
                 )
-                self._emit_reservation_document(contract, draft, actor)
+                self._emit_reservation_document(contract, draft, actor, f"{root}-CT")
                 titan_count += 1
 
-        for event in HahitantsoaEventDraft.objects.filter(is_deleted=False).order_by(
-            "public_reference"
-        ):
+        event = HahitantsoaEventDraft.objects.filter(
+            public_reference="ED-DEMO-HAH-001", is_deleted=False
+        ).first()
+        if event is not None:
+            root = "H-001/2026"
             proforma = create_document_instance_from_hahitantsoa_event_draft(
                 event_draft=event,
                 template_key="hahitantsoa.proforma.v1",
                 actor=actor,
                 notes="Simulation cycle de vie Hahitantsoa.",
             )
-            self._emit_event_document(proforma, event, actor)
+            self._emit_event_document(proforma, event, actor, f"{root}-PF")
             hahitantsoa_count += 1
 
             contract = create_document_instance_from_hahitantsoa_event_draft(
@@ -120,7 +133,7 @@ class Command(BaseCommand):
                 actor=actor,
                 notes="Simulation contrat Hahitantsoa.",
             )
-            self._emit_event_document(contract, event, actor)
+            self._emit_event_document(contract, event, actor, f"{root}-CT")
             hahitantsoa_count += 1
 
         self.stdout.write(
@@ -137,7 +150,11 @@ class Command(BaseCommand):
         return get_user_model().objects.filter(is_active=True).order_by("id").first()
 
     @staticmethod
-    def _emit_reservation_document(document: DocumentInstance, draft, actor) -> None:
+    def _emit_reservation_document(
+        document: DocumentInstance, draft, actor, reference: str
+    ) -> None:
+        document.document_reference = reference
+        document.save(update_fields=["document_reference", "updated_at"])
         document = generate_reservation_draft_document_instance_html(
             reservation_draft=draft,
             document_instance_id=document.id,
@@ -146,7 +163,9 @@ class Command(BaseCommand):
         generate_document_instance_pdf(document_instance=document, actor=actor)
 
     @staticmethod
-    def _emit_event_document(document: DocumentInstance, event, actor) -> None:
+    def _emit_event_document(document: DocumentInstance, event, actor, reference: str) -> None:
+        document.document_reference = reference
+        document.save(update_fields=["document_reference", "updated_at"])
         document = generate_hahitantsoa_event_draft_document_instance_html(
             event_draft=event,
             document_instance_id=document.id,

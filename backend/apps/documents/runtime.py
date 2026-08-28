@@ -348,7 +348,15 @@ def generate_document_instance_html(
     render_context = {
         "context": context,
         "bank": bank,
-        "document": {"date": document_instance.document_date},
+        "document": {
+            "date": document_instance.document_date,
+            "reference": document_instance.document_reference,
+            "proforma_reference": (
+                document_instance.document_reference.rsplit("-", 1)[0] + "-PF"
+                if document_instance.document_reference
+                else document_instance.reservation_public_reference
+            ),
+        },
     }
     database_version = get_active_database_template_version(document_instance.template_key)
     if database_version is not None:
