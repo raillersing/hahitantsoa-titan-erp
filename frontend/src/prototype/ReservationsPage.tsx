@@ -128,7 +128,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input
               type="text"
-              placeholder="Rechercher par référence, client, statut..."
+              placeholder="Rechercher par référence (ex: T-001/2026, H-001/2026), client, statut..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full"
@@ -181,7 +181,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
           <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="text-xs text-slate-500 uppercase bg-slate-50">
-                <th className="px-4 py-3 text-left font-medium rounded-tl-lg">Référence</th>
+                <th className="px-4 py-3 text-left font-medium rounded-tl-lg">Volet & Référence</th>
                 <th className="px-4 py-3 text-left font-medium">Client</th>
                 <th className="px-4 py-3 text-left font-medium">Date / Période</th>
                 <th className="px-4 py-3 text-left font-medium">Articles</th>
@@ -193,12 +193,23 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
               {filtered.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
-                      className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
-                    >
-                      {r.public_reference}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {r.public_reference.startsWith("H-") ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                          Hahitantsoa
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200">
+                          Titan
+                        </span>
+                      )}
+                      <button
+                        onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
+                        className="font-semibold text-slate-900 hover:text-indigo-600 hover:underline"
+                      >
+                        {r.public_reference}
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <button
