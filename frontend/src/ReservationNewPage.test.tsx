@@ -493,6 +493,9 @@ describe('ReservationNewPage', () => {
       customer_id: 'CUST-001',
       start_at: '2026-08-01T08:00:00Z',
       end_at: '2026-08-02T22:00:00Z',
+      delivery_fee: 0,
+      discount_amount: 0,
+      discount_reason: '',
     }));
     expect(convertProformaToContract).toHaveBeenCalledWith('DOC-T-001');
     expect(uploadAttachment).toHaveBeenCalledWith(

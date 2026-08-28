@@ -710,6 +710,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [discountIsPercentage, setDiscountIsPercentage] = useState<boolean>(true);
+  const [discountReason, setDiscountReason] = useState<string>("");
 
   useEffect(() => {
     if (domain === 'titan' && tDetails.startDate && tDetails.endDate) {
@@ -774,7 +775,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       dedicatedAttachments: Object.fromEntries(Object.entries(dedicatedAttachments).map(([category, attachment]) => [category, attachment ? (({ file: _file, ...rest }) => rest)(attachment) : attachment])),
       paymentAttachments: paymentAttachments.map(({ file: _file, ...attachment }) => attachment),
       recordedPayments,
-      discountValue, discountIsPercentage
+      discountValue, discountIsPercentage, discountReason
     };
     localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
   };
@@ -783,7 +784,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (step >= 2 && (selectedClientId || newClient.name)) {
       saveDraft();
     }
-  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage]);
+  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason]);
 
   const restoreDraft = () => {
     const saved = localStorage.getItem("prototypeReservationDraft");
@@ -800,7 +801,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       });
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
       setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: "50" }); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []); setRecordedPayments(data.recordedPayments || []);
-      setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true);
+      setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true); setDiscountReason(data.discountReason || "");
       setShowDraftPrompt(false);
     }
   };
@@ -1031,6 +1032,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       proforma_validity_days: proformaValidity,
     };
 
+    if (!isHahitantsoa && discountAmount > 0 && !discountReason.trim()) {
+      throw new Error("Indiquez le motif de la remise avant d’émettre le proforma Titan.");
+    }
+
     let emission: ProspectProformaEmission = prospectProformaEmission?.domain === domain
       ? prospectProformaEmission
       : { domain, htmlGenerated: false };
@@ -1059,6 +1064,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           start_at: startAt,
           end_at: endAt,
           notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
+          delivery_fee: Number(deliveryFee) || 0,
+          discount_amount: discountAmount,
+          discount_reason: discountAmount > 0 ? discountReason.trim() : "",
           lines,
         });
         emission = { ...emission, draftId: reservationDraft.id };
@@ -3071,7 +3079,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h4 className="font-semibold text-slate-700 text-sm uppercase mb-1">Remise commerciale</h4>
-          <p className="text-xs text-slate-500">Appliquer une remise sur le sous-total</p>
+          <p className="text-xs text-slate-500">Proposition de remise ; le dossier Titan valide le montant final.</p>
         </div>
         <div className="flex items-center gap-2">
           <input 
@@ -3094,6 +3102,22 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             Ar
           </button>
         </div>
+        {domain === 'titan' && discountAmount > 0 && (
+          <div className="mt-3 w-full">
+            <label htmlFor="titan-discount-reason" className="block text-xs font-medium text-slate-700 mb-1">
+              Motif de la remise <span className="text-rose-600">*</span>
+            </label>
+            <input
+              id="titan-discount-reason"
+              type="text"
+              className="w-full border border-slate-300 rounded-lg p-2 text-sm"
+              value={discountReason}
+              onChange={(event) => setDiscountReason(event.target.value)}
+              placeholder="Ex. remise commerciale validée"
+              required
+            />
+          </div>
+        )}
       </div>
 
       <div className="bg-indigo-50 text-indigo-900 p-6 rounded-xl border border-indigo-100 mb-4">

@@ -502,7 +502,11 @@ export default function ReservationDetailPage({
     repRole: customer?.representative_role || "Gérant(e)",
   };
 
-  const safeAmount = 0; // Prices not available on draft lines
+  const safeAmount = safeNumber(draft?.total_amount);
+  const subtotalAmount = safeNumber(draft?.subtotal_amount);
+  const deliveryFeeAmount = safeNumber(draft?.delivery_fee);
+  const discountAmount = safeNumber(draft?.discount_amount);
+  const commercialSubTotal = subtotalAmount + deliveryFeeAmount;
   const paidAmount = payments.reduce((total, payment) => total + payment.amount, 0);
   const remainingAmount = Math.max(0, safeAmount - paidAmount);
 
@@ -519,18 +523,10 @@ export default function ReservationDetailPage({
         name: l.inventory_item_name,
         designation: l.inventory_item_name,
         quantity: safeNumber(l.quantity, 1),
-        price: 0,
+        price: safeNumber(l.unit_rental_price),
       })) || [];
 
-  const services =
-    draft?.lines
-      ?.filter((l) => l.inventory_item_kind !== "material" && l.inventory_item_kind !== "article" && l.inventory_item_kind !== "material_pack")
-      .map((l) => ({
-        id: `${draft.id}-${l.inventory_item_name}`,
-        name: l.inventory_item_name,
-        quantity: safeNumber(l.quantity, 1),
-        price: 0,
-      })) || [];
+  const services: never[] = [];
 
   const isProspectProforma = customer?.lifecycle_status === "prospect";
 
@@ -873,6 +869,30 @@ export default function ReservationDetailPage({
             Résumé financier
           </h3>
           <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-500">Sous-total location</span>
+              <span className="font-medium text-slate-700">
+                {formatMoney(subtotalAmount)}
+              </span>
+            </div>
+            {deliveryFeeAmount > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">Livraison</span>
+                <span className="font-medium text-slate-700">
+                  {formatMoney(deliveryFeeAmount)}
+                </span>
+              </div>
+            )}
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">
+                  Remise{draft?.discount_reason ? ` — ${draft.discount_reason}` : ""}
+                </span>
+                <span className="font-medium text-emerald-700">
+                  − {formatMoney(discountAmount)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <span className="text-sm text-slate-500">Total TTC</span>
               <span className="font-bold text-slate-800">
@@ -2269,7 +2289,7 @@ export default function ReservationDetailPage({
                 materials={materials}
                 services={services}
                 totalAmount={safeAmount}
-                subTotalAmount={safeAmount}
+                subTotalAmount={commercialSubTotal}
                 paidAmount={paidAmount}
               />
             )}
