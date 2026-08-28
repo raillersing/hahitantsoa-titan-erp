@@ -1109,6 +1109,23 @@ export type InventoryDamageLossSettlement = {
   updated_by: string | null;
 };
 
+export type InventoryDamageLossSettlementLineCreatePayload = {
+  return_operation_line?: string | null;
+  manual_label?: string;
+  settlement_line_kind: SettlementLineKind;
+  quantity: number;
+  unit_amount: string;
+  amount_source?: SettlementAmountSource;
+  notes?: string;
+};
+
+export type InventoryDamageLossSettlementCreatePayload = {
+  return_operation: string;
+  document_instance?: string | null;
+  notes?: string;
+  lines: InventoryDamageLossSettlementLineCreatePayload[];
+};
+
 export type InventoryDamageLossExcessReceivable = {
   id: string;
   amount: number | string;

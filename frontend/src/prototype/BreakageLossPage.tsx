@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from "react";
 import {
+  createDamageLossSettlement,
   createDamageLossSettlementExecution,
   executeDamageLossSettlementExecution,
   generateExcessReceivableInvoice,
   getDamageLossSettlementExecutions,
   getDamageLossSettlements,
+  getInventoryItems,
   getReturnOperations,
   validateDamageLossSettlement,
 } from "../api";
-import type { InventoryDamageLossSettlement, InventoryDamageLossSettlementExecution, InventoryReturnOperation } from "../types";
+import type {
+  InventoryDamageLossSettlement,
+  InventoryDamageLossSettlementCreatePayload,
+  InventoryDamageLossSettlementExecution,
+  InventoryItem,
+  InventoryReturnOperation,
+} from "../types";
 
 type FilterStatus = "Tous" | "À traiter" | "Retenue validée" | "Clôturé";
 
@@ -30,6 +38,9 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
   const [data, setData] = useState<InventoryDamageLossSettlement[]>([]);
   const [executions, setExecutions] = useState<InventoryDamageLossSettlementExecution[]>([]);
   const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [creatingReturnId, setCreatingReturnId] = useState<string | null>(null);
+  const [unitAmounts, setUnitAmounts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
@@ -48,12 +59,14 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
       getDamageLossSettlements(controller.signal),
       getDamageLossSettlementExecutions(undefined, controller.signal),
       getReturnOperations(controller.signal),
+      getInventoryItems(controller.signal),
     ])
-      .then(([settlements, settlementExecutions, operations]) => {
+      .then(([settlements, settlementExecutions, operations, items]) => {
         if (!cancelled) {
           setData(Array.isArray(settlements) ? settlements : []);
           setExecutions(Array.isArray(settlementExecutions) ? settlementExecutions : []);
           setReturnOperations(Array.isArray(operations) ? operations : []);
+          setInventoryItems(Array.isArray(items) ? items : []);
         }
       })
       .catch(() => {
@@ -69,6 +82,71 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
     if (filter === "Tous") return true;
     return statusLabel(s.settlement_status) === filter;
   });
+
+  const pendingReturns = returnOperations.filter(
+    (operation) =>
+      operation.status === "validated" &&
+      !data.some((settlement) => settlement.return_operation === operation.id) &&
+      operation.lines.some((line) => line.damaged_quantity > 0 || line.missing_quantity > 0),
+  );
+
+  const itemName = (itemId: string) => inventoryItems.find((item) => item.id === itemId)?.name ?? itemId.slice(0, 8);
+
+  const handleCreateSettlement = async (operation: InventoryReturnOperation) => {
+    if (creatingReturnId === operation.id) return;
+    const affectedLines = operation.lines.flatMap((line) => {
+      const amount = unitAmounts[line.id]?.trim() ?? "";
+      const proposals: InventoryDamageLossSettlementCreatePayload["lines"] = [];
+      if (line.damaged_quantity > 0) {
+        proposals.push({
+          return_operation_line: line.id,
+          manual_label: itemName(line.inventory_item),
+          settlement_line_kind: "damage",
+          quantity: line.damaged_quantity,
+          unit_amount: amount,
+          amount_source: "manual",
+          notes: line.notes,
+        });
+      }
+      if (line.missing_quantity > 0) {
+        proposals.push({
+          return_operation_line: line.id,
+          manual_label: itemName(line.inventory_item),
+          settlement_line_kind: "loss",
+          quantity: line.missing_quantity,
+          unit_amount: amount,
+          amount_source: "manual",
+          notes: line.notes,
+        });
+      }
+      return proposals;
+    });
+    if (affectedLines.length === 0 || affectedLines.some((line) => !line.unit_amount || Number(line.unit_amount) <= 0)) {
+      showToast("Saisissez un montant unitaire positif pour chaque article concerné.", "error");
+      return;
+    }
+
+    setCreatingReturnId(operation.id);
+    try {
+      const created = await createDamageLossSettlement({
+        return_operation: operation.id,
+        document_instance: null,
+        notes: "Déclaration créée depuis le retour contrôlé.",
+        lines: affectedLines,
+      });
+      setData((current) => [created, ...current]);
+      setUnitAmounts((current) => {
+        const next = { ...current };
+        operation.lines.forEach((line) => delete next[line.id]);
+        return next;
+      });
+      showToast("Dossier casse/perte créé. Vous pouvez maintenant le valider.", "success");
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : "Impossible de créer le règlement casse/perte.", "error");
+    } finally {
+      setCreatingReturnId(null);
+    }
+  };
 
   const handleValidate = async (settlement: InventoryDamageLossSettlement) => {
     if (settlement.settlement_status !== "draft" || busySettlementId) return;
@@ -146,6 +224,60 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
             <span>Modèles Détails de casse</span>
           </button>
         </div>
+
+        {pendingReturns.length > 0 && (
+          <section className="m-6 p-5 rounded-xl border border-amber-200 bg-amber-50" aria-labelledby="pending-damage-loss-title">
+            <h2 id="pending-damage-loss-title" className="font-extrabold text-amber-900">Retours à régulariser</h2>
+            <p className="mt-1 text-sm text-amber-800">Saisissez la valeur de remplacement ou de réparation avant de créer le dossier financier.</p>
+            <div className="mt-4 space-y-4">
+              {pendingReturns.map((operation) => {
+                const affectedLines = operation.lines.filter((line) => line.damaged_quantity > 0 || line.missing_quantity > 0);
+                return (
+                  <div key={operation.id} className="p-4 bg-white rounded-lg border border-amber-200">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <strong>Retour {operation.id.slice(0, 8)}</strong>
+                      <span className="text-sm text-slate-500">Retour validé, règlement absent</span>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {affectedLines.map((line) => (
+                        <label key={line.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                          <span>
+                            <strong>{itemName(line.inventory_item)}</strong>{" "}
+                            — {line.damaged_quantity > 0 ? `${line.damaged_quantity} endommagé(s)` : ""}
+                            {line.damaged_quantity > 0 && line.missing_quantity > 0 ? ", " : ""}
+                            {line.missing_quantity > 0 ? `${line.missing_quantity} manquant(s)` : ""}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <input
+                              className="w-36 px-3 py-2 border border-slate-300 rounded-lg"
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              placeholder="Montant unitaire"
+                              value={unitAmounts[line.id] ?? ""}
+                              onChange={(event) => setUnitAmounts((current) => ({ ...current, [line.id]: event.target.value }))}
+                              aria-label={`Montant unitaire ${itemName(line.inventory_item)}`}
+                            />
+                            <span>Ar</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        className="px-4 py-2 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                        disabled={creatingReturnId === operation.id}
+                        onClick={() => void handleCreateSettlement(operation)}
+                      >
+                        {creatingReturnId === operation.id ? "Création…" : "Créer le règlement"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <div className="divide-y divide-slate-100">
           {filteredData.map((s) => {

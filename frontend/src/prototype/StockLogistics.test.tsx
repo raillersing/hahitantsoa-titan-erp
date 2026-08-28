@@ -205,6 +205,9 @@ describe('Stock & Logistics Pages', () => {
   describe('BreakageLossPage', () => {
     beforeEach(() => {
       vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([]);
+      vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
+        { id: 'MAT-01', name: 'Chaise Napoléon', kind: 'material', description: '' },
+      ]);
       vi.spyOn(api, 'getReturnOperations').mockResolvedValue([
         {
           id: 'LOC-2026-0087',
@@ -264,6 +267,53 @@ describe('Stock & Logistics Pages', () => {
       await waitFor(() => expect(validate).toHaveBeenCalledWith('set-001'));
       expect(createExecution).toHaveBeenCalledWith('set-001');
       expect(execute).toHaveBeenCalledWith('exec-001');
+    });
+
+    it('creates a settlement from a validated return with explicit unit amounts', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([]);
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([
+        {
+          id: 'ret-002',
+          reservation_draft: 'rd-002',
+          hahitantsoa_event_draft: null,
+          logistics_event: 'out-002',
+          document_instance: null,
+          status: 'validated',
+          notes: '',
+          validated_at: '2026-07-20T10:00:00Z',
+          validated_by: 'u-01',
+          lines: [{
+            id: 'rline-002', inventory_item: 'MAT-01', expected_quantity: 3,
+            returned_quantity: 3, damaged_quantity: 2, missing_quantity: 0,
+            condition_status: 'damaged', notes: 'Rayée', intact_quantity: 1,
+            created_at: '', updated_at: '', created_by: null, updated_by: null,
+          }],
+          created_at: '', updated_at: '', created_by: null, updated_by: null,
+        },
+      ]);
+      const create = vi.spyOn(api, 'createDamageLossSettlement').mockResolvedValue({
+        id: 'set-002', return_operation: 'ret-002', settlement_status: 'draft', lines: [],
+      } as any);
+
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+      const amount = await screen.findByRole('spinbutton', { name: 'Montant unitaire Chaise Napoléon' });
+      fireEvent.change(amount, { target: { value: '75000' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Créer le règlement' }));
+
+      await waitFor(() => expect(create).toHaveBeenCalledWith({
+        return_operation: 'ret-002',
+        document_instance: null,
+        notes: 'Déclaration créée depuis le retour contrôlé.',
+        lines: [{
+          return_operation_line: 'rline-002',
+          manual_label: 'Chaise Napoléon',
+          settlement_line_kind: 'damage',
+          quantity: 2,
+          unit_amount: '75000',
+          amount_source: 'manual',
+          notes: 'Rayée',
+        }],
+      }));
     });
   });
 });
