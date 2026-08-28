@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ApiError, getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService } from '../api';
+import { ApiError, getHahitantsoaServices, createHahitantsoaService, updateHahitantsoaService, deleteHahitantsoaService } from '../api';
 import type { HahitantsoaService, HahitantsoaServiceCategory, HahitantsoaServicePricingType } from '../types';
+
 
 const CATEGORIES: Array<{ key: HahitantsoaServiceCategory | 'all'; label: string; icon: string }> = [
   { key: 'all', label: 'Toutes les offres', icon: 'fa-layer-group' },
@@ -38,6 +39,8 @@ const ServicesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
   const [toast, setToast] = useState<{ message: string; type: 'info' | 'success' | 'warning' | 'error' } | null>(null);
+  const [deletingService, setDeletingService] = useState<HahitantsoaService | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [imageSourceMode, setImageSourceMode] = useState<'file' | 'url'>('file');
   const [localFileName, setLocalFileName] = useState('');
@@ -143,6 +146,22 @@ const ServicesPage: React.FC = () => {
       showToast(error instanceof ApiError ? error.message : "L'action a échoué.", 'error');
     }
   };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingService) return;
+    try {
+      setDeleting(true);
+      await deleteHahitantsoaService(deletingService.id);
+      setServices((current) => current.filter((s) => s.id !== deletingService.id));
+      showToast(`Prestation "${deletingService.name}" supprimée avec succès.`, 'success');
+      setDeletingService(null);
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : "Échec de la suppression.", 'error');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
@@ -722,6 +741,13 @@ const ServicesPage: React.FC = () => {
                       >
                         <i className={`fa-solid ${service.active ? 'fa-ban' : 'fa-check'}`}></i>
                       </button>
+                      <button
+                        title="Supprimer la prestation"
+                        onClick={() => setDeletingService(service)}
+                        className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition-colors text-xs"
+                      >
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -788,6 +814,13 @@ const ServicesPage: React.FC = () => {
                       >
                         <i className={`fa-solid ${s.active ? 'fa-ban' : 'fa-check'}`}></i>
                       </button>
+                      <button
+                        className="w-7 h-7 rounded hover:bg-rose-100 text-rose-600 text-xs flex items-center justify-center"
+                        onClick={() => setDeletingService(s)}
+                        title="Supprimer"
+                      >
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -797,7 +830,49 @@ const ServicesPage: React.FC = () => {
         </div>
       )}
 
+
+      {/* Delete Confirmation Modal */}
+      {deletingService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto">
+              <i className="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-bold text-slate-900">Supprimer la prestation ?</h3>
+              <p className="text-xs text-slate-500">
+                Êtes-vous sûr de vouloir supprimer définitivement la prestation <strong className="text-slate-800">« {deletingService.name} »</strong> ?
+              </p>
+            </div>
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+              <i className="fa-solid fa-circle-info mr-1.5"></i>
+              Cette action retirera la prestation du catalogue et ne pourra pas être annulée.
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setDeletingService(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDeleteConfirm}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 shadow-sm transition flex items-center justify-center gap-2"
+              >
+                {deleting ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-trash-can"></i>}
+                <span>Confirmer la suppression</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast Notification */}
+
       {toast && (
         <div
           className={`fixed bottom-6 right-6 px-6 py-3 rounded-xl shadow-lg font-medium animate-fade-in z-50 text-sm ${

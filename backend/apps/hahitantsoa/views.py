@@ -962,12 +962,12 @@ class HahitantsoaServiceListCreateAPIView(generics.ListCreateAPIView):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
 
-class HahitantsoaServiceRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
-    http_method_names = ["get", "patch", "head", "options"]
+class HahitantsoaServiceRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    http_method_names = ["get", "patch", "delete", "head", "options"]
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.request.method.lower() == "patch":
+        if self.request.method.lower() in ("patch", "delete"):
             return [HasInventoryManagementAccess()]
         return super().get_permissions()
 
