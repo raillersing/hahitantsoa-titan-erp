@@ -15,6 +15,11 @@ const MOCK_DRAFT: ReservationDraft = {
   start_at: '2026-06-14T09:00:00Z',
   end_at: '2026-06-16T12:00:00Z',
   notes: 'Location chaises pour mariage',
+  subtotal_amount: '550000.00',
+  delivery_fee: '50000.00',
+  discount_amount: '20000.00',
+  discount_reason: 'Remise commerciale validée',
+  total_amount: '580000.00',
   contract_signed_at: null,
   contract_signed_by_id: null,
   required_deposit_received_at: null,
@@ -24,8 +29,8 @@ const MOCK_DRAFT: ReservationDraft = {
   cancelled_at: null,
   cancelled_by_id: null,
   lines: [
-    { id: 'l1', inventory_item_id: 'ITEM-01', inventory_item_name: 'Chaise Napoleon', inventory_item_kind: 'article', quantity: 100, notes: '' },
-    { id: 'l2', inventory_item_id: 'ITEM-02', inventory_item_name: 'Table rectangulaire', inventory_item_kind: 'article', quantity: 10, notes: '' },
+    { id: 'l1', inventory_item_id: 'ITEM-01', inventory_item_name: 'Chaise Napoleon', inventory_item_kind: 'article', quantity: 100, unit_rental_price: '5000.00', notes: '' },
+    { id: 'l2', inventory_item_id: 'ITEM-02', inventory_item_name: 'Table rectangulaire', inventory_item_kind: 'article', quantity: 10, unit_rental_price: '5000.00', notes: '' },
   ],
   created_at: '2026-06-01T10:00:00Z',
   updated_at: '2026-06-01T10:00:00Z',
@@ -244,5 +249,17 @@ describe('ReservationDetailPage', () => {
     // Then show the content
     await waitForDraftLoad();
     expect(screen.getByText(/LOC-2026-0089/)).toBeInTheDocument();
+  });
+
+  it('affiche le détail commercial persisté par le serveur', async () => {
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    const totalLabel = screen.getByText('Total TTC');
+    expect(totalLabel).toBeInTheDocument();
+    expect(totalLabel.parentElement).toHaveTextContent(/580.*Ar/);
+    expect(screen.getByText('Sous-total location').parentElement).toHaveTextContent(/550.*Ar/);
+    expect(screen.getByText('Livraison').parentElement).toHaveTextContent(/50.*Ar/);
+    expect(screen.getByText(/Remise — Remise commerciale validée/).parentElement).toHaveTextContent(/20.*Ar/);
   });
 });

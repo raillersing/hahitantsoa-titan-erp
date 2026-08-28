@@ -275,6 +275,9 @@ export type ReservationDraftCreatePayload = {
   start_at: string;
   end_at: string;
   notes?: string;
+  delivery_fee?: number;
+  discount_amount?: number;
+  discount_reason?: string;
   lines: ReservationDraftLineInput[];
 };
 
@@ -283,6 +286,9 @@ export type ReservationDraftUpdatePayload = {
   start_at?: string;
   end_at?: string;
   notes?: string;
+  delivery_fee?: number;
+  discount_amount?: number;
+  discount_reason?: string;
   lines?: ReservationDraftLineInput[];
 };
 
@@ -292,6 +298,7 @@ export type ReservationDraftLine = {
   inventory_item_name: string;
   inventory_item_kind: InventoryItemKind;
   quantity: number;
+  unit_rental_price?: string;
   notes: string;
 };
 
@@ -304,6 +311,11 @@ export type ReservationDraft = {
   start_at: string;
   end_at: string;
   notes: string;
+  subtotal_amount?: string;
+  delivery_fee?: string;
+  discount_amount?: string;
+  discount_reason?: string;
+  total_amount?: string;
   contract_signed_at: string | null;
   contract_signed_by_id: string | null;
   required_deposit_received_at: string | null;
