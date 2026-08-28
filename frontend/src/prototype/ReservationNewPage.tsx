@@ -3189,84 +3189,147 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         </div>
       </div>
 
-      {isProspectProforma && issuedProspectProformaId && (
-        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status" aria-live="polite">
-          <p className="font-bold">Proforma émise avec succès</p>
-          <p>Le PDF a été généré et la validité de {proformaValidity} jours est maintenant fixée.</p>
-          <button
-            className="mt-3 rounded-lg bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800"
-            onClick={() => onNavigate("customer", selectedClientId)}
-          >
-            Voir le dossier client
-          </button>
+      {/* Decision Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className={`p-5 rounded-2xl border transition-all ${
+          issuedProspectProformaId ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+        }`}>
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-file-invoice text-lg"></i>
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-bold text-slate-900 text-sm">Option 1 : Émettre le Proforma (Prospect)</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Le contact demande un devis à emporter pour réflexion. Génère la facture proforma PDF officielle et enregistre le contact comme prospect qualifié.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-slate-500">Statut : {issuedProspectProformaId ? "Émis ✓" : "En attente"}</span>
+            <button
+              type="button"
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+              disabled={submitting || Boolean(issuedProspectProformaId)}
+              onClick={async () => {
+                setSubmitting(true);
+                setSubmitError(null);
+                try {
+                  const issued = await issueProspectProforma();
+                  setIssuedProspectProformaId(issued.documentId);
+                  setProformaGenerated(true);
+                  clearDraft(false);
+                  showToastMsg("Proforma prospect émise et PDF généré.", 'success');
+                } catch (err: unknown) {
+                  const message = err instanceof Error ? err.message : "Erreur lors de l’émission du proforma";
+                  setSubmitError(message);
+                  showToastMsg(`Erreur lors de l’émission : ${message}`, 'error');
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {submitting ? (
+                <><i className="fa-solid fa-spinner fa-spin"></i><span>Émission...</span></>
+              ) : issuedProspectProformaId ? (
+                <><i className="fa-solid fa-check"></i><span>Proforma émise</span></>
+              ) : (
+                <><i className="fa-solid fa-file-pdf"></i><span>Émettre le proforma</span></>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 rounded-2xl border border-indigo-100 bg-indigo-50/40 hover:border-indigo-200 transition-all flex flex-col justify-between">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-file-signature text-lg"></i>
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-bold text-indigo-950 text-sm">Option 2 : Poursuivre vers la Confirmation (Client)</h4>
+              <p className="text-xs text-indigo-900/70 leading-relaxed">
+                Le client valide immédiatement l'offre. Passe à la signature du contrat et au versement de l'acompte pour confirmer fermement la réservation.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-indigo-200/50 flex items-center justify-end">
+            <button
+              type="button"
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              disabled={submitting}
+              onClick={async () => {
+                setSubmitting(true);
+                setSubmitError(null);
+                try {
+                  await issueProspectProforma();
+                  setProformaGenerated(true);
+                  goNext();
+                } catch (err: unknown) {
+                  const message = err instanceof Error ? err.message : "Erreur lors de la préparation du proforma";
+                  setSubmitError(message);
+                  showToastMsg(`Erreur lors de la préparation : ${message}`, "error");
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              <span>Passer au paiement</span>
+              <i className="fa-solid fa-arrow-right text-[10px]"></i>
+            </button>
+
+          </div>
+        </div>
+      </div>
+
+      {issuedProspectProformaId && (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-sm text-emerald-900 shadow-xs" role="status" aria-live="polite">
+          <div className="flex items-center gap-2 font-bold text-emerald-800">
+            <i className="fa-solid fa-circle-check text-emerald-600 text-base"></i>
+            <span>Proforma émise avec succès</span>
+          </div>
+          <p className="mt-1 text-xs text-emerald-700">Le document officiel a été généré avec une durée de validité de {proformaValidity} jours. Le contact est enregistré comme prospect qualifié.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs transition flex items-center gap-1.5"
+              onClick={() => onNavigate("customer", selectedClientId)}
+            >
+              <i className="fa-solid fa-user"></i>
+              <span>Voir le dossier client / prospect</span>
+            </button>
+            <button
+              type="button"
+              className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition flex items-center gap-1.5"
+              onClick={() => onNavigate("documents")}
+            >
+              <i className="fa-solid fa-folder-open"></i>
+              <span>Consulter dans le Hub Documentaire</span>
+            </button>
+          </div>
         </div>
       )}
 
-      <div className="flex justify-between items-center mt-8 pt-4 border-t border-slate-100">
-        <button className="px-4 py-2 text-indigo-600 hover:text-indigo-800 font-medium text-sm" onClick={() => jumpTo(4)}>Modifier lignes</button>
-        <div className="flex gap-4">
-          {isProspectProforma ? (
-            <button 
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-green-700 transition-colors"
-              disabled={submitting || Boolean(issuedProspectProformaId)}
-              onClick={async () => {
-                 setSubmitting(true);
-                 setSubmitError(null);
-                 try {
-                   const issued = await issueProspectProforma();
-                   setIssuedProspectProformaId(issued.documentId);
-                   clearDraft(false);
-                   showToastMsg("Proforma prospect émise et PDF généré.", 'success');
-                 } catch (err: unknown) {
-                   const message = err instanceof Error ? err.message : "Erreur lors de l’émission du proforma";
-                   setSubmitError(message);
-                   showToastMsg(`Erreur lors de l’émission : ${message}`, 'error');
-                 } finally {
-                   setSubmitting(false);
-                 }
-              }}
-            >
-              {submitting ? <><i className="fa-solid fa-spinner fa-spin mr-2"></i>Émission...</> : issuedProspectProformaId ? "Proforma émise" : "Émettre le proforma"}
-            </button>
-          ) : (
-            <>
-              <button 
-                className="px-6 py-2.5 bg-slate-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-slate-700 transition-colors"
-                onClick={() => { 
-                   setProformaGenerated(true);
-                   saveDraft();
-                   showToastMsg("Proforma confirmée — en attente de décision client. État sauvegardé.", 'success');
-                }}
-              >
-                Confirmer proforma
-              </button>
-              <button 
-                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium text-sm shadow-sm hover:bg-indigo-700 transition-colors"
-                disabled={submitting}
-                onClick={async () => {
-                  setSubmitting(true);
-                  setSubmitError(null);
-                  try {
-                    await issueProspectProforma();
-                    setProformaGenerated(true);
-                    goNext();
-                  } catch (err: unknown) {
-                    const message = err instanceof Error ? err.message : "Erreur lors de la préparation du proforma";
-                    setSubmitError(message);
-                    showToastMsg(`Erreur lors de la préparation : ${message}`, "error");
-                  } finally {
-                    setSubmitting(false);
-                  }
-                }}
-              >
-                Passer au paiement
-              </button>
-            </>
-          )}
+      <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+        <button className="px-4 py-2 text-indigo-600 hover:text-indigo-800 font-medium text-sm" onClick={() => jumpTo(4)}>
+          <i className="fa-solid fa-arrow-left mr-1.5 text-xs"></i>Modifier lignes
+        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            type="button"
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition"
+            onClick={() => { 
+               setProformaGenerated(true);
+               saveDraft();
+               showToastMsg("Brouillon sauvegardé avec succès.", 'success');
+            }}
+          >
+            <i className="fa-solid fa-floppy-disk mr-1.5"></i>Sauvegarder brouillon
+          </button>
         </div>
       </div>
     </div>
   );
+
 
   const renderPaymentStep = () => {
     const activePercent = payment.percent ? parseInt(payment.percent, 10) : (domain === 'titan' ? (tDetails.advanceRate * 100) : 50);
