@@ -390,7 +390,8 @@ export default function ReservationDetailPage({
   /* ── proforma action handlers ────────────────────────────────── */
   const proformaInstance = documentInstances.find(
     (di) =>
-      di.template_key.startsWith("PROFORMA") &&
+      (di.document_type?.toLowerCase() === "proforma" ||
+        di.template_key?.toLowerCase().includes("proforma")) &&
       di.status !== "voided",
   );
   const titanContractInstance = documentInstances.find(
@@ -415,7 +416,10 @@ export default function ReservationDetailPage({
     setActionLoading("generate-proforma");
     try {
       // Determine template key based on scope
-      const templateKey = draft?.start_at ? "PROFORMA-TITAN" : "PROFORMA-HAH";
+      const templateKey =
+        domain?.toLowerCase() === "titan" || Boolean(draft?.start_at)
+          ? "titan.proforma.v1"
+          : "hahitantsoa.proforma.v1";
       const instance = await createReservationDraftDocumentInstance(draftId, {
         template_key: templateKey,
       });

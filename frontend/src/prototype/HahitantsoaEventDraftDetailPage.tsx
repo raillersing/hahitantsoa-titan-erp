@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   confirmHahitantsoaEventDraft,
+  createHahitantsoaEventDraftDocumentInstance,
+  generateHahitantsoaEventDraftDocumentInstance,
+  generateHahitantsoaEventDraftDocumentInstancePdf,
   getHahitantsoaEventDraft,
   getHahitantsoaEventDraftConfirmationPreflight,
   getHahitantsoaEventDraftDocumentInstances,
@@ -165,6 +168,35 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     }
   };
 
+  const generateOfficialContract = async () => {
+    if (!param) return;
+    setBusy("generate-contract");
+    setError(null);
+    setActionNotice(null);
+    try {
+      const contractDoc = await createHahitantsoaEventDraftDocumentInstance(param, {
+        template_key: "hahitantsoa.contract.v1",
+      });
+      await generateHahitantsoaEventDraftDocumentInstance(param, contractDoc.id);
+      await generateHahitantsoaEventDraftDocumentInstancePdf(param, contractDoc.id);
+
+      const hasDischarge = documents.some((d) => d.template_key === "hahitantsoa.liability_release.v1");
+      if (!hasDischarge) {
+        const dischargeDoc = await createHahitantsoaEventDraftDocumentInstance(param, {
+          template_key: "hahitantsoa.liability_release.v1",
+        });
+        await generateHahitantsoaEventDraftDocumentInstance(param, dischargeDoc.id);
+        await generateHahitantsoaEventDraftDocumentInstancePdf(param, dischargeDoc.id);
+      }
+      setActionNotice("Le contrat et la décharge officielle ont été générés avec succès.");
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de générer le contrat officiel."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (loading) return <div role="status" className="page active p-8 text-slate-500">Chargement du dossier événement…</div>;
   if (!draft) {
     return (
@@ -249,6 +281,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       <section className="rounded-2xl border border-slate-100 bg-white p-6">
         <h2 className="font-bold text-slate-800">Actions</h2>
         <div className="mt-4 flex flex-wrap items-end gap-3">
+          {draft.status === "draft" && !contractExists && (
+            <button
+              className="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+              disabled={busy !== null}
+              onClick={() => void generateOfficialContract()}
+            >
+              <i className="fa-solid fa-file-contract mr-1.5"></i>Générer le contrat officiel
+            </button>
+          )}
           {draft.status === "draft" && contractExists && !contractSigned && <button className="rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white disabled:opacity-50" disabled={busy !== null} onClick={() => void markContractSigned()}>Marquer le contrat signé</button>}
           {draft.status === "draft" && canRecordDeposit && (
             <label className="text-sm text-slate-600">Montant de l'acompte
