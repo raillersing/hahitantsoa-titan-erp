@@ -328,7 +328,12 @@ if [ "$AUTO_LOCAL_CLEANUP" -eq 1 ]; then
   if [ -n "$TASK_WORKTREE" ]; then
     echo "INFO: Automatic local cleanup selected worktree: $TASK_WORKTREE"
   else
-    echo "INFO: No registered task worktree found; local branch cleanup will still run."
+    if git show-ref --verify --quiet "refs/heads/$TASK_BRANCH"; then
+      echo "ERROR: No registered task worktree found while local branch exists: $TASK_BRANCH"
+      echo "Recovery: inspect stale worktree directories and rerun the protected cleanup helper with --orphan-path when appropriate."
+      exit 1
+    fi
+    echo "INFO: No registered task worktree or local branch found; no local cleanup is required."
   fi
 fi
 

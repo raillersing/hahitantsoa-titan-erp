@@ -197,6 +197,8 @@ grep -Fq 'repairing ownership of generated worktree artifacts' "$SCRIPT_DIR/erp-
 grep -Fq -- '--task-worktree and --task-branch must be provided together' "$root_finalizer"
 grep -Fq 'Automatic cleanup removed only the local branch; remote branch preserved.' "$root_finalizer"
 grep -Fq 'AUTO_LOCAL_CLEANUP=1' "$root_finalizer"
+grep -Fq 'No registered task worktree found while local branch exists' "$root_finalizer"
+grep -Fq 'rerun the protected cleanup helper with --orphan-path' "$root_finalizer"
 grep -Fq 'sha256sum backend/Dockerfile pyproject.toml' "$backend_compose"
 grep -Fq 'export ERP_AGENT_BACKEND_IMAGE=' "$backend_compose"
 grep -Fq 'image: ${ERP_AGENT_BACKEND_IMAGE:-hahitantsoa_titan_erp_agent_ci_backend:local}' "$agent_compose"
