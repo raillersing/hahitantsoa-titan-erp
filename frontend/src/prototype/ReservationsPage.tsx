@@ -128,7 +128,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
             <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <input
               type="text"
-              placeholder="Rechercher par référence, client, statut..."
+              placeholder="Rechercher par référence (ex: T-001/2026, H-001/2026), client, statut..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full"
@@ -136,7 +136,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {([
-              { key: "all", label: "Tous" },
+              { key: "all", label: "Tous les statuts" },
               { key: "draft", label: "Brouillon" },
               { key: "confirmed", label: "Confirmée" },
               { key: "cancelled", label: "Annulée" },
@@ -181,7 +181,7 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
           <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="text-xs text-slate-500 uppercase bg-slate-50">
-                <th className="px-4 py-3 text-left font-medium rounded-tl-lg">Référence</th>
+                <th className="px-4 py-3 text-left font-medium rounded-tl-lg">Volet & Référence</th>
                 <th className="px-4 py-3 text-left font-medium">Client</th>
                 <th className="px-4 py-3 text-left font-medium">Date / Période</th>
                 <th className="px-4 py-3 text-left font-medium">Articles</th>
@@ -190,15 +190,26 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((r) => (
+              {filtered.map((r) => {
+                const isHah = r.public_reference.startsWith("H-") || r.public_reference.startsWith("HED-");
+                return (
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
-                      className="font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
-                    >
-                      {r.public_reference}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase ${
+                        isHah
+                          ? "bg-amber-100 text-amber-800 border border-amber-200"
+                          : "bg-blue-100 text-blue-800 border border-blue-200"
+                      }`}>
+                        {isHah ? "Hahitantsoa" : "Titan"}
+                      </span>
+                      <button
+                        onClick={() => onNavigate("reservation-detail", `titan:${r.id}`)}
+                        className="font-semibold font-mono text-indigo-600 hover:text-indigo-800 hover:underline"
+                      >
+                        {r.public_reference}
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <button
@@ -227,7 +238,8 @@ export default function ReservationsPage({ onNavigate, canSensitiveWrite = false
                     ) : <span className="text-xs text-slate-400">Annulation requise</span>}
                   </td>}
                 </tr>
-              ))}
+              );
+              })}
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={canSuperAdminDelete ? 6 : 5} className="px-4 py-8">
