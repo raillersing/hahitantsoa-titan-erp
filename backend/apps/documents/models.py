@@ -159,6 +159,7 @@ class DocumentInstance(UUIDModel, TimestampedModel):
     template_preview_path = models.CharField(max_length=512)
     template_validated_by_client = models.BooleanField(default=False)
     template_notes = models.TextField(blank=True)
+    document_reference = models.CharField(max_length=64, blank=True, default="")
     reservation_public_reference = models.CharField(max_length=32)
     reservation_status = models.CharField(max_length=32)
     customer_display_name = models.CharField(max_length=255)

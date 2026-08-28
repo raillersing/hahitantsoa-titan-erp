@@ -128,7 +128,7 @@
 
         <h2>Article 4 : Tarifs</h2>
         <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% else %}<strong>{{ draft.total_amount|default:"...................." }}</strong>{% endif %} Ariary TTC.</p>
-        <p class="indent">N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ draft.proforma_reference|default:draft.public_reference|default:"................" }}{% endif %}</p>
+        <p class="indent">N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ document.proforma_reference|default:draft.proforma_reference|default:draft.public_reference|default:"................" }}{% endif %}</p>
         <p>Une facture sera établie après la réception de la totalité du règlement.</p>
         <p>Un reçu sera établi lors de la réception des fonds pour acompte.</p>
         <p>Dans le cas où le client n’aurait pas rendu les Matériels loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50 % du montant total de la facture par jour de non remise des Matériels Loués.</p>

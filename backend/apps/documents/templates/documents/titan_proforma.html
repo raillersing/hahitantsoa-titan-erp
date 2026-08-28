@@ -195,7 +195,7 @@
         <div class="header-box">
           <div class="ref">
             <span>PROFORMA N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"..../.." }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ document.reference|default:context.reservation_draft.public_reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">PROFORMA</div>
           <div class="date">

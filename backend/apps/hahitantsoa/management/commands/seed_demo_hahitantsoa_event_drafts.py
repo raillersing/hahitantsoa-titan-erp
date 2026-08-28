@@ -15,7 +15,7 @@ from apps.inventory.models import InventoryItem
 
 DEMO_EVENT_DRAFTS = (
     {
-        "public_reference": "ED-DEMO-HAH-001",
+        "public_reference": "H-001/2026",
         "event_name": "Conference annuelle Tech Summit",
         "venue_name": "Hotel Carlton Antananarivo",
         "start_at_delta_days": 14,
@@ -24,7 +24,7 @@ DEMO_EVENT_DRAFTS = (
         "status": HahitantsoaEventDraftStatus.DRAFT,
     },
     {
-        "public_reference": "ED-DEMO-HAH-002",
+        "public_reference": "H-002/2026",
         "event_name": "Mariage Raharison",
         "venue_name": "Domaine de la Vallee, Ambohimanga",
         "start_at_delta_days": 30,
@@ -33,7 +33,7 @@ DEMO_EVENT_DRAFTS = (
         "status": HahitantsoaEventDraftStatus.DRAFT,
     },
     {
-        "public_reference": "ED-DEMO-HAH-003",
+        "public_reference": "H-003/2026",
         "event_name": "Seminaire formation ERP",
         "venue_name": "Centre de conference Ivandry",
         "start_at_delta_days": 45,
@@ -57,7 +57,7 @@ class Command(BaseCommand):
         call_command("seed_demo_customers")
         call_command("seed_demo_inventory")
 
-        customer = Customer.objects.get(display_name="Client demo Hahitantsoa")
+        customer = Customer.objects.get(display_name="Hanta Rasoanirina")
         inventory_items = tuple(InventoryItem.objects.order_by("name")[:2])
 
         if not inventory_items:
