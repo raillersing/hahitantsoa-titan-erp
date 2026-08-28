@@ -237,13 +237,14 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
   const handleOpenSource = useCallback(
     (doc: DocumentInstanceListItem) => {
       if (doc.reservation_draft_id) {
-        onNavigate("reservation", doc.reservation_draft_id);
+        onNavigate("reservation-detail", doc.business_scope === "hahitantsoa" ? `hahitantsoa:${doc.reservation_draft_id}` : `titan:${doc.reservation_draft_id}`);
       } else if (doc.hahitantsoa_event_draft_id) {
-        onNavigate("hahitantsoa-event", doc.hahitantsoa_event_draft_id);
+        onNavigate("reservation-detail", `hahitantsoa:${doc.hahitantsoa_event_draft_id}`);
       }
     },
     [onNavigate],
   );
+
 
   const statsCards = [
     { label: "Documents totaux", value: stats.total, color: "text-slate-900" },
@@ -273,11 +274,14 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
             />
           </div>
           <button
-            className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition"
-            onClick={() => onNavigate("documents", "templates")}
+            className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition flex items-center gap-1.5"
+            onClick={() => onNavigate("new_reservation")}
+            title="Créer un nouveau devis ou réservation"
           >
-            <i className="fa-solid fa-plus mr-2"></i>Nouveau
+            <i className="fa-solid fa-plus"></i>
+            <span>Nouveau Devis / Réservation</span>
           </button>
+
         </div>
       </div>
 
@@ -453,17 +457,20 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                         >
                           <i className="fa-solid fa-file-pdf"></i>
                         </button>
-                        <button
-                          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                          type="button"
-                          aria-label="Ouvrir les modèles de documents"
-                          title="Plus"
-                          onClick={() => onNavigate("documents", "templates")}
-                        >
-                          <i className="fa-solid fa-ellipsis-vertical"></i>
-                        </button>
+                        {(doc.reservation_draft_id || doc.hahitantsoa_event_draft_id) && (
+                          <button
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            type="button"
+                            aria-label={`Ouvrir le dossier ${doc.reservation_public_reference || doc.document_type}`}
+                            title="Ouvrir le dossier"
+                            onClick={() => handleOpenSource(doc)}
+                          >
+                            <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                          </button>
+                        )}
                       </td>
                     </tr>
+
                   );
                 })}
               </tbody>
@@ -532,17 +539,20 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                     >
                       <i className="fa-solid fa-file-pdf"></i>
                     </button>
-                    <button
-                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                      type="button"
-                      aria-label="Ouvrir les modèles de documents"
-                      title="Plus"
-                      onClick={() => onNavigate("documents", "templates")}
-                    >
-                      <i className="fa-solid fa-ellipsis-vertical"></i>
-                    </button>
+                    {(doc.reservation_draft_id || doc.hahitantsoa_event_draft_id) && (
+                      <button
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        type="button"
+                        aria-label={`Ouvrir le dossier ${doc.reservation_public_reference || doc.document_type}`}
+                        title="Ouvrir le dossier"
+                        onClick={() => handleOpenSource(doc)}
+                      >
+                        <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                      </button>
+                    )}
                   </div>
                 </div>
+
               );
             })}
           </div>
