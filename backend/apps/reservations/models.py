@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -105,6 +106,19 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
     notes = models.TextField(blank=True)
+    subtotal_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    delivery_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    discount_reason = models.TextField(blank=True)
+    discount_applied_at = models.DateTimeField(null=True, blank=True)
+    discount_applied_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
 
     class Meta:
         ordering = ["-created_at", "public_reference"]
@@ -118,6 +132,30 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
             models.CheckConstraint(
                 condition=models.Q(end_at__gt=models.F("start_at")),
                 name="reservation_draft_end_after_start",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(subtotal_amount__gte=0)
+                    & models.Q(delivery_fee__gte=0)
+                    & models.Q(discount_amount__gte=0)
+                    & models.Q(total_amount__gte=0)
+                ),
+                name="reservation_draft_commercial_amounts_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(discount_amount=0)
+                        & models.Q(discount_applied_at__isnull=True)
+                        & models.Q(discount_applied_by__isnull=True)
+                    )
+                    | (
+                        models.Q(discount_amount__gt=0)
+                        & models.Q(discount_applied_at__isnull=False)
+                        & models.Q(discount_applied_by__isnull=False)
+                    )
+                ),
+                name="reservation_draft_discount_attribution_complete",
             ),
             models.CheckConstraint(
                 condition=(
@@ -155,6 +193,15 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
 
         if self.customer_id and (not self.customer.is_active or self.customer.is_deleted):
             raise ValidationError({"customer": "Reservation draft customer must be active."})
+        commercial_base = self.subtotal_amount + self.delivery_fee
+        if self.discount_amount > commercial_base:
+            raise ValidationError({"discount_amount": "Discount cannot exceed the subtotal."})
+        if self.discount_amount and not self.discount_reason.strip():
+            raise ValidationError({"discount_reason": "A discount reason is required."})
+        if self.total_amount != commercial_base - self.discount_amount:
+            raise ValidationError(
+                {"total_amount": "Total must equal subtotal plus delivery minus discount."}
+            )
 
     def __str__(self) -> str:
         return self.public_reference
@@ -219,6 +266,7 @@ class ReservationDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, Auditab
         related_name="reservation_draft_lines",
     )
     quantity = models.PositiveIntegerField(default=1)
+    unit_rental_price = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
     notes = models.TextField(blank=True)
 
     class Meta:
@@ -229,6 +277,10 @@ class ReservationDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, Auditab
             models.CheckConstraint(
                 condition=models.Q(quantity__gte=1),
                 name="reservation_draft_line_quantity_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(unit_rental_price__gte=0),
+                name="reservation_draft_line_unit_rental_price_nonnegative",
             ),
             models.UniqueConstraint(
                 fields=["reservation_draft", "inventory_item"],

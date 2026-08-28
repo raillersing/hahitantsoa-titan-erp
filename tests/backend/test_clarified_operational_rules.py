@@ -81,7 +81,16 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
         is_staff=True,
     )
     customer = Customer.objects.create(display_name="Amendment client")
-    item = InventoryItem.objects.create(name="Amendment item", kind="material")
+    item = InventoryItem.objects.create(
+        name="Amendment item",
+        kind="material",
+        rental_price="1000.00",
+    )
+    added_item = InventoryItem.objects.create(
+        name="Amendment added item",
+        kind="material",
+        rental_price="2000.00",
+    )
     start_at = timezone.now().replace(microsecond=0) + timedelta(days=3)
     draft = ReservationDraft.objects.create(
         customer=customer,
@@ -90,11 +99,14 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
         status="confirmed",
         confirmed_at=timezone.now(),
         confirmed_by=actor,
+        subtotal_amount="1000.00",
+        total_amount="1000.00",
     )
     line = ReservationDraftLine.objects.create(
         reservation_draft=draft,
         inventory_item=item,
         quantity=1,
+        unit_rental_price="1000.00",
     )
 
     with (
@@ -115,13 +127,21 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
             actor=actor,
             reason="Quantité modifiée",
             changed_end_at=start_at + timedelta(hours=5),
-            changed_lines=[{"inventory_item": item, "quantity": 2, "notes": "Deux unités"}],
+            changed_lines=[
+                {"inventory_item": item, "quantity": 2, "notes": "Deux unités"},
+                {"inventory_item": added_item, "quantity": 1, "notes": "Ajout"},
+            ],
         )
 
     draft.refresh_from_db()
     assert result.amendment.changed_end_at == start_at + timedelta(hours=5)
     assert draft.status == "confirmed"
     assert draft.end_at == start_at + timedelta(hours=5)
-    assert draft.lines.filter(is_deleted=False).get().quantity == 2
+    active_lines = draft.lines.filter(is_deleted=False).order_by("inventory_item__name")
+    assert active_lines.get(inventory_item=item).quantity == 2
+    assert active_lines.get(inventory_item=item).unit_rental_price == 1000
+    assert active_lines.get(inventory_item=added_item).unit_rental_price == 2000
+    assert draft.subtotal_amount == 4000
+    assert draft.total_amount == 4000
     line.refresh_from_db()
     assert line.is_deleted is False

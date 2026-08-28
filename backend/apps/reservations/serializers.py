@@ -1,8 +1,15 @@
+from decimal import Decimal
+
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.customers.models import Customer
 from apps.inventory.models import InventoryItem
+from apps.reservations.commercial import (
+    recalculate_reservation_draft_totals,
+    snapshot_inventory_rental_price,
+)
 from apps.reservations.models import (
     ReservationDraft,
     ReservationDraftAmendment,
@@ -213,12 +220,14 @@ class ReservationDraftLineSerializer(serializers.ModelSerializer):
             "inventory_item_name",
             "inventory_item_kind",
             "quantity",
+            "unit_rental_price",
             "notes",
         )
         read_only_fields = (
             "id",
             "inventory_item_name",
             "inventory_item_kind",
+            "unit_rental_price",
         )
 
     def validate_inventory_item(self, inventory_item: InventoryItem) -> InventoryItem:
@@ -262,6 +271,8 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
     cancelled_at = serializers.DateTimeField(read_only=True)
     cancelled_by_id = serializers.UUIDField(read_only=True, allow_null=True)
     lines = ReservationDraftLineSerializer(many=True)
+    subtotal_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
 
     class Meta:
         model = ReservationDraft
@@ -274,6 +285,11 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "start_at",
             "end_at",
             "notes",
+            "subtotal_amount",
+            "delivery_fee",
+            "discount_amount",
+            "discount_reason",
+            "total_amount",
             "contract_signed_at",
             "contract_signed_by_id",
             "required_deposit_received_at",
@@ -291,6 +307,8 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "public_reference",
             "status",
             "customer_display_name",
+            "subtotal_amount",
+            "total_amount",
             "contract_signed_at",
             "contract_signed_by_id",
             "required_deposit_received_at",
@@ -323,41 +341,111 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
                     {"lines": "Each inventory item can appear only once per draft."}
                 )
 
+        discount_amount = attrs.get(
+            "discount_amount",
+            getattr(self.instance, "discount_amount", Decimal("0")),
+        )
+        discount_reason = attrs.get(
+            "discount_reason",
+            getattr(self.instance, "discount_reason", ""),
+        )
+        if discount_amount and not discount_reason.strip():
+            raise serializers.ValidationError({"discount_reason": "A discount reason is required."})
+
         return attrs
+
+    def validate_discount_amount(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Discount must be non-negative.")
+        return value
+
+    def validate_delivery_fee(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Delivery fee must be non-negative.")
+        return value
+
+    def _actor(self):
+        actor = getattr(self.context.get("request"), "user", None)
+        if actor is None or not actor.is_authenticated:
+            raise serializers.ValidationError({"detail": "An authenticated actor is required."})
+        return actor
 
     @transaction.atomic
     def create(self, validated_data):
         lines_data = validated_data.pop("lines")
+        actor = self._actor()
+        if validated_data.get("discount_amount", Decimal("0")):
+            validated_data["discount_applied_at"] = timezone.now()
+            validated_data["discount_applied_by"] = actor
         reservation_draft = ReservationDraft.objects.create(
             status=ReservationDraftStatus.DRAFT,
+            created_by=actor,
+            updated_by=actor,
             **validated_data,
         )
 
         for line_data in lines_data:
+            line_data["unit_rental_price"] = snapshot_inventory_rental_price(
+                inventory_item=line_data["inventory_item"]
+            )
             ReservationDraftLine.objects.create(
                 reservation_draft=reservation_draft,
                 **line_data,
             )
 
+        recalculate_reservation_draft_totals(reservation_draft=reservation_draft)
+
         return reservation_draft
 
     @transaction.atomic
     def update(self, instance, validated_data):
+        instance = ReservationDraft.objects.select_for_update().get(pk=instance.pk)
+        if (
+            instance.status != ReservationDraftStatus.DRAFT
+            or instance.contract_signed_at is not None
+        ):
+            raise serializers.ValidationError(
+                {
+                    "detail": (
+                        "A signed or non-draft reservation must be changed through an amendment."
+                    )
+                }
+            )
+
         lines_data = validated_data.pop("lines", None)
+        actor = self._actor()
+        discount_changed = bool({"discount_amount", "discount_reason"} & validated_data.keys())
 
         for field, value in validated_data.items():
             setattr(instance, field, value)
 
-        instance.status = ReservationDraftStatus.DRAFT
-        instance.full_clean()
-        instance.save()
+        if instance.discount_amount:
+            if discount_changed:
+                instance.discount_applied_at = timezone.now()
+                instance.discount_applied_by = actor
+        else:
+            instance.discount_applied_at = None
+            instance.discount_applied_by = None
+        instance.updated_by = actor
 
         if lines_data is not None:
+            existing_prices = {
+                line.inventory_item_id: line.unit_rental_price for line in instance.lines.all()
+            }
             instance.lines.all().delete()
             for line_data in lines_data:
+                inventory_item = line_data["inventory_item"]
+                line_data["unit_rental_price"] = existing_prices.get(
+                    inventory_item.id,
+                    snapshot_inventory_rental_price(inventory_item=inventory_item),
+                )
                 ReservationDraftLine.objects.create(
                     reservation_draft=instance,
+                    created_by=actor,
+                    updated_by=actor,
                     **line_data,
                 )
+
+        recalculate_reservation_draft_totals(reservation_draft=instance)
 
         return instance

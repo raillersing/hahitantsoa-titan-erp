@@ -15,6 +15,10 @@ from apps.documents.services import (
 from apps.identity.authorization import require_reservation_sensitive_actor
 from apps.inventory.availability import get_inventory_availability_conflicts
 from apps.inventory.models import InventoryItem
+from apps.reservations.commercial import (
+    recalculate_reservation_draft_totals,
+    snapshot_inventory_rental_price,
+)
 from apps.reservations.periods import validate_reservation_period
 
 from .models import ReservationDraft, ReservationDraftAmendment, ReservationDraftLine
@@ -161,6 +165,9 @@ def create_reservation_draft_amendment(
                     reservation_draft=locked_draft,
                     inventory_item=line["inventory_item"],
                     quantity=line["quantity"],
+                    unit_rental_price=snapshot_inventory_rental_price(
+                        inventory_item=line["inventory_item"]
+                    ),
                     notes=line.get("notes", ""),
                     created_by=actor,
                     updated_by=actor,
@@ -170,6 +177,8 @@ def create_reservation_draft_amendment(
                 existing_line.notes = line.get("notes", "")
                 existing_line.updated_by = actor
                 existing_line.save(update_fields=["quantity", "notes", "updated_by", "updated_at"])
+    locked_draft.updated_by = actor
+    recalculate_reservation_draft_totals(reservation_draft=locked_draft)
     document = create_document_instance_from_reservation_draft(
         reservation_draft=locked_draft,
         template_key="titan.material_amendment.v1",
