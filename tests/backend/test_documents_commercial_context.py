@@ -1,5 +1,6 @@
 from dataclasses import FrozenInstanceError
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 from django.utils import timezone
@@ -39,6 +40,7 @@ def _create_inventory_item(
         name=name,
         kind=kind,
         description=description,
+        rental_price="12500.00",
     )
 
 
@@ -61,8 +63,12 @@ def test_builds_stable_commercial_document_context_from_reservation_draft() -> N
         reservation_draft=draft,
         inventory_item=item,
         quantity=2,
+        unit_rental_price=item.rental_price,
         notes="Avec cable",
     )
+    draft.subtotal_amount = Decimal(line.unit_rental_price) * line.quantity
+    draft.total_amount = draft.subtotal_amount
+    draft.save(update_fields=["subtotal_amount", "total_amount", "updated_at"])
 
     context = build_reservation_draft_commercial_document_context(
         reservation_draft=draft,
@@ -97,7 +103,11 @@ def test_builds_stable_commercial_document_context_from_reservation_draft() -> N
     assert line_context.inventory_item_kind == "material"
     assert line_context.inventory_item_description == "Description commerciale"
     assert line_context.quantity == 2
+    assert line_context.unit_rental_price == 12500
+    assert line_context.total_amount == 25000
     assert line_context.notes == "Avec cable"
+    assert reservation.subtotal_amount == "25000.00"
+    assert reservation.total_amount == "25000.00"
 
     assert context.runtime_scope_flags.pdf_runtime_generated is False
     assert context.runtime_scope_flags.inventory_blocked is False

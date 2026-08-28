@@ -106,6 +106,8 @@ class CommercialDocumentLineContext:
     inventory_item_kind: str
     inventory_item_description: str
     quantity: int
+    unit_rental_price: object
+    total_amount: object
     notes: str
 
 
@@ -122,6 +124,10 @@ class CommercialDocumentReservationContext:
     created_at: datetime
     updated_at: datetime
     total_amount: str = ""
+    subtotal_amount: str = ""
+    delivery_fee: str = ""
+    discount_amount: str = ""
+    discount_reason: str = ""
     proforma_reference: str = ""
     pickup_at: datetime | None = None
     return_at: datetime | None = None
@@ -235,6 +241,8 @@ def _build_line_context(
         inventory_item_kind=inventory_item.kind,
         inventory_item_description=inventory_item.description or "",
         quantity=line.quantity,
+        unit_rental_price=line.unit_rental_price,
+        total_amount=line.unit_rental_price * line.quantity,
         notes=line.notes or "",
     )
 
@@ -315,6 +323,11 @@ def build_reservation_draft_commercial_document_context(
             lines=tuple(_build_line_context(line=line) for line in active_lines),
             created_at=reservation_draft.created_at,
             updated_at=reservation_draft.updated_at,
+            subtotal_amount=str(reservation_draft.subtotal_amount),
+            delivery_fee=str(reservation_draft.delivery_fee),
+            discount_amount=str(reservation_draft.discount_amount),
+            discount_reason=reservation_draft.discount_reason or "",
+            total_amount=str(reservation_draft.total_amount),
         ),
         runtime_scope_flags=_build_runtime_scope_flags(),
         reservation_marker_flags=_build_reservation_marker_flags(

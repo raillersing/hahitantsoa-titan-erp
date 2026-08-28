@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.customers.models import Customer
@@ -53,8 +54,12 @@ def _customer(name: str = "Client Demo") -> Customer:
     return Customer.objects.create(display_name=name)
 
 
-def _item(name: str = "Projecteur LED", kind: str = "article") -> InventoryItem:
-    return InventoryItem.objects.create(name=name, kind=kind)
+def _item(
+    name: str = "Projecteur LED",
+    kind: str = "article",
+    rental_price: str | None = None,
+) -> InventoryItem:
+    return InventoryItem.objects.create(name=name, kind=kind, rental_price=rental_price)
 
 
 def _payload(customer: Customer, item: InventoryItem) -> dict:
@@ -99,8 +104,115 @@ def test_authenticated_user_can_create_draft(authenticated_client) -> None:
     assert len(payload["lines"]) == 1
     assert payload["lines"][0]["inventory_item_id"] == str(item.id)
     assert payload["lines"][0]["inventory_item_name"] == item.name
+    assert payload["lines"][0]["unit_rental_price"] == "0.00"
+    assert payload["subtotal_amount"] == "0.00"
+    assert payload["total_amount"] == "0.00"
     assert ReservationDraft.objects.count() == 1
     assert ReservationDraftLine.objects.count() == 1
+
+
+def test_draft_creation_uses_server_catalog_price_and_calculates_breakdown(
+    authenticated_client,
+) -> None:
+    customer = _customer()
+    item = _item(rental_price="12500.00")
+    payload = _payload(customer, item)
+    payload.update(
+        {
+            "delivery_fee": "3000.00",
+            "discount_amount": "500.00",
+            "discount_reason": "Remise commerciale approuvee.",
+        }
+    )
+    payload["lines"][0]["quantity"] = 2
+    payload["lines"][0]["unit_rental_price"] = "1.00"
+
+    response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["lines"][0]["unit_rental_price"] == "12500.00"
+    assert body["subtotal_amount"] == "25000.00"
+    assert body["delivery_fee"] == "3000.00"
+    assert body["discount_amount"] == "500.00"
+    assert body["total_amount"] == "27500.00"
+    draft = ReservationDraft.objects.get(pk=body["id"])
+    assert draft.discount_applied_by is not None
+    assert draft.discount_applied_at is not None
+
+
+def test_draft_creation_requires_a_reason_for_a_discount(authenticated_client) -> None:
+    customer = _customer()
+    item = _item(rental_price="12500.00")
+    payload = _payload(customer, item)
+    payload["discount_amount"] = "500.00"
+
+    response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=payload,
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "discount_reason" in response.json()
+
+
+def test_draft_update_preserves_existing_line_price_snapshot(authenticated_client) -> None:
+    customer = _customer()
+    item = _item(rental_price="12500.00")
+    create_response = authenticated_client.post(
+        DRAFT_LIST_URL,
+        data=_payload(customer, item),
+        content_type="application/json",
+    )
+    assert create_response.status_code == 201
+    item.rental_price = "18000.00"
+    item.save(update_fields=["rental_price", "updated_at"])
+
+    update_payload = create_response.json()
+    update_payload["notes"] = "Le prix initial reste applicable."
+    update_payload["lines"][0]["quantity"] = 2
+    response = authenticated_client.patch(
+        f"{DRAFT_LIST_URL}{update_payload['id']}/",
+        data={"notes": update_payload["notes"], "lines": update_payload["lines"]},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["lines"][0]["unit_rental_price"] == "12500.00"
+    assert response.json()["subtotal_amount"] == "25000.00"
+
+
+def test_signed_draft_rejects_direct_commercial_update(authenticated_client) -> None:
+    customer = _customer()
+    item = _item(rental_price="12500.00")
+    actor = get_user_model().objects.get(username="reservation-draft-reader")
+    draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=_period()[0],
+        end_at=_period()[1],
+        contract_signed_at=timezone.now(),
+        contract_signed_by=actor,
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=draft,
+        inventory_item=item,
+        quantity=1,
+        unit_rental_price="12500.00",
+    )
+
+    response = authenticated_client.patch(
+        f"{DRAFT_LIST_URL}{draft.id}/",
+        data={"notes": "Modification directe interdite."},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "amendment" in response.json()["detail"].lower()
 
 
 def test_authenticated_user_can_read_draft_list_and_detail(authenticated_client) -> None:
