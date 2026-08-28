@@ -620,6 +620,7 @@ export type DocumentTemplateDefinition = {
   preview_path: string;
   validated_by_client: boolean;
   notes: string;
+  workflow_usage?: string[];
 };
 
 export type DocumentTemplateCreatePayload = {
