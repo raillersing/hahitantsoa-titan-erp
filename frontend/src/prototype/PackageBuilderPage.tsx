@@ -128,6 +128,10 @@ export default function PackageBuilderPage() {
     return null;
   }, [editingDraft, selectedPkg]);
 
+  useEffect(() => {
+    setEditingDraft(null);
+  }, [selectedPkgId]);
+
   const updateDraft = (updates: Partial<{
     name: string;
     description: string;
@@ -137,7 +141,8 @@ export default function PackageBuilderPage() {
     lines: Array<{ inventory_item: string; quantity: number }>;
   }>) => {
     if (!draft) return;
-    updateDraft({ ...updates });
+    // ponytail: materialize the existing fallback only when the user edits it.
+    setEditingDraft((current) => ({ ...(current ?? draft), ...updates }));
   };
 
   // Handle local image file upload
