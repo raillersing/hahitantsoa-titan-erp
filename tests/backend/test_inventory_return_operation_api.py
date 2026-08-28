@@ -1,10 +1,14 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
+from threading import Barrier
 
 import pytest
+from django.db import close_old_connections
 from django.utils import timezone
 
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import (
     InventoryItem,
     InventoryReturnOperation,
@@ -13,7 +17,10 @@ from apps.inventory.models import (
     InventoryStockMovement,
     InventoryStockMovementType,
 )
-from apps.inventory.services import create_inventory_stock_movement
+from apps.inventory.services import (
+    create_inventory_return_operation,
+    create_inventory_stock_movement,
+)
 from apps.logistics.models import LogisticsEvent, LogisticsEventType
 from apps.reservations.models import ReservationDraft
 
@@ -98,6 +105,22 @@ def _document_instance(reservation_draft: ReservationDraft) -> DocumentInstance:
         customer_phone=reservation_draft.customer.phone,
         customer_address=reservation_draft.customer.address,
         status=DocumentInstanceStatus.GENERATED,
+    )
+
+
+def _hahitantsoa_event_draft() -> HahitantsoaEventDraft:
+    customer = Customer.objects.create(
+        display_name="Return Hahitantsoa customer",
+        email="return-hahitantsoa@example.test",
+        phone="+261340000998",
+        address="Antananarivo",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=2)
+    return HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Return Hahitantsoa event",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=4),
     )
 
 
@@ -223,6 +246,110 @@ def test_sensitive_user_can_create_return_with_logistics_event_link(sensitive_cl
     # Verify through the reverse relation
     return_op = InventoryReturnOperation.objects.get(id=payload["id"])
     assert list(event.return_operations.all()) == [return_op]
+
+
+def test_return_operation_supports_hahitantsoa_and_replays_idempotently(sensitive_client) -> None:
+    event_draft = _hahitantsoa_event_draft()
+    item = _inventory_item("Return Hahitantsoa item")
+    payload = {
+        "hahitantsoa_event_draft": str(event_draft.id),
+        "idempotency_key": "return-hahitantsoa-retry-001",
+        "lines": [
+            {
+                "inventory_item": str(item.id),
+                "expected_quantity": 1,
+                "returned_quantity": 1,
+                "damaged_quantity": 0,
+                "missing_quantity": 0,
+                "condition_status": "intact",
+            }
+        ],
+    }
+
+    first = sensitive_client.post(
+        RETURN_OPERATION_LIST_URL, data=payload, content_type="application/json"
+    )
+    second = sensitive_client.post(
+        RETURN_OPERATION_LIST_URL, data=payload, content_type="application/json"
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+    assert first.json()["hahitantsoa_event_draft"] == str(event_draft.id)
+    assert event_draft.return_operations.count() == 1
+    response = sensitive_client.get(
+        f"{RETURN_OPERATION_LIST_URL}?hahitantsoa_event_draft={event_draft.id}"
+    )
+    assert [item["id"] for item in response.json()] == [first.json()["id"]]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_hahitantsoa_return_replay_creates_one_operation() -> None:
+    event_draft = _hahitantsoa_event_draft()
+    item = _inventory_item("Concurrent Hahitantsoa return item")
+    start_together = Barrier(2)
+
+    def create_once() -> str:
+        close_old_connections()
+        try:
+            worker_event_draft = HahitantsoaEventDraft.objects.get(pk=event_draft.pk)
+            worker_item = InventoryItem.objects.get(pk=item.pk)
+            start_together.wait()
+            return str(
+                create_inventory_return_operation(
+                    hahitantsoa_event_draft=worker_event_draft,
+                    idempotency_key="return-hahitantsoa-concurrent-001",
+                    lines=[
+                        {
+                            "inventory_item": worker_item,
+                            "expected_quantity": 1,
+                            "returned_quantity": 1,
+                            "damaged_quantity": 0,
+                            "missing_quantity": 0,
+                            "condition_status": "intact",
+                        }
+                    ],
+                ).id
+            )
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        operation_ids = list(executor.map(lambda _: create_once(), range(2)))
+
+    assert len(set(operation_ids)) == 1
+    assert (
+        InventoryReturnOperation.objects.filter(
+            hahitantsoa_event_draft=event_draft,
+            idempotency_key="return-hahitantsoa-concurrent-001",
+        ).count()
+        == 1
+    )
+
+
+def test_return_operation_rejects_mixed_business_dossiers(sensitive_client) -> None:
+    item = _inventory_item("Mixed scope return item")
+
+    response = sensitive_client.post(
+        RETURN_OPERATION_LIST_URL,
+        data={
+            "reservation_draft": str(_reservation_draft().id),
+            "hahitantsoa_event_draft": str(_hahitantsoa_event_draft().id),
+            "lines": [
+                {
+                    "inventory_item": str(item.id),
+                    "expected_quantity": 1,
+                    "returned_quantity": 1,
+                    "damaged_quantity": 0,
+                    "missing_quantity": 0,
+                }
+            ],
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
 
 
 def test_return_operation_create_requires_authentication(client) -> None:

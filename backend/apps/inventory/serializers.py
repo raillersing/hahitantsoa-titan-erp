@@ -226,10 +226,12 @@ class InventoryReturnOperationSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "reservation_draft",
+            "hahitantsoa_event_draft",
             "logistics_event",
             "document_instance",
             "status",
             "notes",
+            "idempotency_key",
             "validated_at",
             "validated_by",
             "created_at",
@@ -261,6 +263,11 @@ class InventoryReturnOperationCreateSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+    hahitantsoa_event_draft = serializers.PrimaryKeyRelatedField(
+        queryset=HahitantsoaEventDraft.objects.filter(is_deleted=False),
+        required=False,
+        allow_null=True,
+    )
     logistics_event = serializers.PrimaryKeyRelatedField(
         queryset=LogisticsEvent.objects.all(),
         required=False,
@@ -272,7 +279,23 @@ class InventoryReturnOperationCreateSerializer(serializers.Serializer):
         allow_null=True,
     )
     notes = serializers.CharField(required=False, allow_blank=True, default="")
+    idempotency_key = serializers.CharField(
+        required=False, allow_blank=True, max_length=96, default=""
+    )
     lines = InventoryReturnOperationLineCreateSerializer(many=True, allow_empty=False)
+
+    def validate(self, attrs):
+        if attrs.get("reservation_draft") and attrs.get("hahitantsoa_event_draft"):
+            raise serializers.ValidationError(
+                "Un retour ne peut concerner qu'un dossier Titan ou un événement Hahitantsoa."
+            )
+        if attrs.get("idempotency_key") and not (
+            attrs.get("reservation_draft") or attrs.get("hahitantsoa_event_draft")
+        ):
+            raise serializers.ValidationError(
+                {"idempotency_key": "La clé de reprise nécessite un dossier métier."}
+            )
+        return attrs
 
 
 class InventoryDamageLossSettlementLineSerializer(serializers.ModelSerializer):

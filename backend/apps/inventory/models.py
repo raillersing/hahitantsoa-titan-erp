@@ -389,6 +389,13 @@ class InventoryReturnOperation(UUIDModel, TimestampedModel, AuditableModel):
         on_delete=models.PROTECT,
         related_name="return_operations",
     )
+    hahitantsoa_event_draft = models.ForeignKey(
+        "hahitantsoa.HahitantsoaEventDraft",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="return_operations",
+    )
     logistics_event = models.ForeignKey(
         "logistics.LogisticsEvent",
         null=True,
@@ -409,6 +416,7 @@ class InventoryReturnOperation(UUIDModel, TimestampedModel, AuditableModel):
         default=InventoryReturnOperationStatus.DRAFT,
     )
     notes = models.TextField(blank=True)
+    idempotency_key = models.CharField(max_length=96, blank=True, default="")
     validated_at = models.DateTimeField(null=True, blank=True)
     validated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -425,6 +433,13 @@ class InventoryReturnOperation(UUIDModel, TimestampedModel, AuditableModel):
         constraints = [
             models.CheckConstraint(
                 condition=(
+                    models.Q(reservation_draft__isnull=True)
+                    | models.Q(hahitantsoa_event_draft__isnull=True)
+                ),
+                name="inventory_return_operation_single_business_draft",
+            ),
+            models.CheckConstraint(
+                condition=(
                     (
                         models.Q(status=InventoryReturnOperationStatus.DRAFT)
                         & models.Q(validated_at__isnull=True)
@@ -436,9 +451,36 @@ class InventoryReturnOperation(UUIDModel, TimestampedModel, AuditableModel):
                 ),
                 name="inventory_return_operation_status_validated_at_consistent",
             ),
+            models.UniqueConstraint(
+                fields=("reservation_draft", "idempotency_key"),
+                condition=(
+                    models.Q(reservation_draft__isnull=False) & ~models.Q(idempotency_key="")
+                ),
+                name="inventory_return_operation_titan_idempotency_key_unique",
+            ),
+            models.UniqueConstraint(
+                fields=("hahitantsoa_event_draft", "idempotency_key"),
+                condition=(
+                    models.Q(hahitantsoa_event_draft__isnull=False) & ~models.Q(idempotency_key="")
+                ),
+                name="inventory_return_operation_hahitantsoa_idempotency_key_unique",
+            ),
         ]
 
     def clean(self) -> None:
+        if self.reservation_draft_id and self.hahitantsoa_event_draft_id:
+            raise ValidationError(
+                "A return operation cannot reference both a Titan reservation and a "
+                "Hahitantsoa event."
+            )
+
+        if self.idempotency_key and not (
+            self.reservation_draft_id or self.hahitantsoa_event_draft_id
+        ):
+            raise ValidationError(
+                {"idempotency_key": "An idempotency key requires a business dossier."}
+            )
+
         if self.status == InventoryReturnOperationStatus.VALIDATED and self.validated_by_id is None:
             raise ValidationError(
                 {"validated_by": "Validated return operations require validated_by."}

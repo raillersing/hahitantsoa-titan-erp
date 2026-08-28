@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -343,6 +343,8 @@ def active_inventory_return_operations():
     return (
         InventoryReturnOperation.objects.select_related(
             "reservation_draft",
+            "hahitantsoa_event_draft",
+            "logistics_event",
             "document_instance",
             "validated_by",
             "created_by",
@@ -358,6 +360,7 @@ def active_inventory_damage_loss_settlements():
         InventoryDamageLossSettlement.objects.select_related(
             "return_operation",
             "return_operation__reservation_draft",
+            "return_operation__hahitantsoa_event_draft",
             "document_instance",
             "validated_by",
             "created_by",
@@ -628,23 +631,72 @@ def create_inventory_return_operation(
     *,
     actor: object | None = None,
     reservation_draft=None,
+    hahitantsoa_event_draft=None,
     logistics_event=None,
     document_instance=None,
     notes: str = "",
+    idempotency_key: str = "",
     lines: list[dict] | tuple[dict, ...],
 ) -> InventoryReturnOperation:
     actor_id = getattr(actor, "pk", None)
+
+    if idempotency_key:
+        existing = (
+            InventoryReturnOperation.objects.select_for_update()
+            .filter(
+                idempotency_key=idempotency_key,
+                reservation_draft=reservation_draft,
+                hahitantsoa_event_draft=hahitantsoa_event_draft,
+            )
+            .first()
+        )
+        if existing is not None:
+            return existing
+
     return_operation = InventoryReturnOperation(
         reservation_draft=reservation_draft,
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
         logistics_event=logistics_event,
         document_instance=document_instance,
         notes=notes,
+        idempotency_key=idempotency_key,
         created_by_id=actor_id,
         updated_by_id=actor_id,
     )
     try:
-        return_operation.full_clean()
-        return_operation.save()
+        try:
+            return_operation.full_clean()
+        except ValidationError:
+            if idempotency_key:
+                existing = (
+                    InventoryReturnOperation.objects.select_for_update()
+                    .filter(
+                        idempotency_key=idempotency_key,
+                        reservation_draft=reservation_draft,
+                        hahitantsoa_event_draft=hahitantsoa_event_draft,
+                    )
+                    .first()
+                )
+                if existing is not None:
+                    return existing
+            raise
+        try:
+            with transaction.atomic():
+                return_operation.save()
+        except IntegrityError:
+            if idempotency_key:
+                existing = (
+                    InventoryReturnOperation.objects.select_for_update()
+                    .filter(
+                        idempotency_key=idempotency_key,
+                        reservation_draft=reservation_draft,
+                        hahitantsoa_event_draft=hahitantsoa_event_draft,
+                    )
+                    .first()
+                )
+                if existing is not None:
+                    return existing
+            raise
         line_models = []
         for line_data in lines:
             line = InventoryReturnOperationLine(
@@ -676,6 +728,11 @@ def create_inventory_return_operation(
             "reservation_draft_id": (
                 str(return_operation.reservation_draft_id)
                 if return_operation.reservation_draft_id
+                else None
+            ),
+            "hahitantsoa_event_draft_id": (
+                str(return_operation.hahitantsoa_event_draft_id)
+                if return_operation.hahitantsoa_event_draft_id
                 else None
             ),
             "logistics_event_id": (
@@ -716,12 +773,14 @@ def _validate_return_operation_delivery_scope(
                 "Un retour doit être rattaché à un bon de livraison.",
                 code=RETURN_OPERATION_SCOPE_MISMATCH,
             )
-        if return_operation.reservation_draft_id != document.reservation_draft_id:
-            if return_operation.reservation_draft_id is not None or document.reservation_draft_id:
-                raise InventoryStockMovementError(
-                    "Le retour et le bon de livraison ne concernent pas le même dossier.",
-                    code=RETURN_OPERATION_SCOPE_MISMATCH,
-                )
+        if (
+            return_operation.reservation_draft_id != document.reservation_draft_id
+            or return_operation.hahitantsoa_event_draft_id != document.hahitantsoa_event_draft_id
+        ):
+            raise InventoryStockMovementError(
+                "Le retour et le bon de livraison ne concernent pas le même dossier.",
+                code=RETURN_OPERATION_SCOPE_MISMATCH,
+            )
         outbound_movements = InventoryStockMovement.objects.filter(
             document_instance=document,
             movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
@@ -733,10 +792,20 @@ def _validate_return_operation_delivery_scope(
             ReservationDraft.objects.select_for_update().get(
                 pk=return_operation.reservation_draft_id
             )
-        outbound_movements = InventoryStockMovement.objects.filter(
-            reservation_draft=return_operation.reservation_draft,
-            movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
-        )
+            outbound_movements = InventoryStockMovement.objects.filter(
+                reservation_draft=return_operation.reservation_draft,
+                movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+            )
+        else:
+            from apps.hahitantsoa.models import HahitantsoaEventDraft
+
+            HahitantsoaEventDraft.objects.select_for_update().get(
+                pk=return_operation.hahitantsoa_event_draft_id
+            )
+            outbound_movements = InventoryStockMovement.objects.filter(
+                hahitantsoa_event_draft=return_operation.hahitantsoa_event_draft,
+                movement_type=InventoryStockMovementType.OUTBOUND_DELIVERY,
+            )
 
     if event is not None:
         if (
@@ -747,12 +816,18 @@ def _validate_return_operation_delivery_scope(
                 "L'événement de retour doit être terminé avant la validation du retour.",
                 code=RETURN_OPERATION_SCOPE_MISMATCH,
             )
-        if event.reservation_draft_id != return_operation.reservation_draft_id:
+        if (
+            event.reservation_draft_id != return_operation.reservation_draft_id
+            or event.hahitantsoa_event_draft_id != return_operation.hahitantsoa_event_draft_id
+        ):
             raise InventoryStockMovementError(
                 "L'événement de retour et le dossier ne correspondent pas.",
                 code=RETURN_OPERATION_SCOPE_MISMATCH,
             )
-        if document is not None and event.reservation_draft_id != document.reservation_draft_id:
+        if document is not None and (
+            event.reservation_draft_id != document.reservation_draft_id
+            or event.hahitantsoa_event_draft_id != document.hahitantsoa_event_draft_id
+        ):
             raise InventoryStockMovementError(
                 "L'événement et le bon de livraison ne correspondent pas.",
                 code=RETURN_OPERATION_SCOPE_MISMATCH,
@@ -771,9 +846,14 @@ def _validate_return_operation_delivery_scope(
     if document is not None:
         prior_returns = prior_returns.filter(return_operation__document_instance=document)
     else:
-        prior_returns = prior_returns.filter(
-            return_operation__reservation_draft=return_operation.reservation_draft
-        )
+        if return_operation.reservation_draft_id:
+            prior_returns = prior_returns.filter(
+                return_operation__reservation_draft=return_operation.reservation_draft
+            )
+        else:
+            prior_returns = prior_returns.filter(
+                return_operation__hahitantsoa_event_draft=return_operation.hahitantsoa_event_draft
+            )
     prior_returned_by_item = {
         item_id: quantity
         for item_id, quantity in prior_returns.values("inventory_item_id")
@@ -814,7 +894,7 @@ def validate_inventory_return_operation(
         .order_by("created_at", "id")
     )
     locked_return_operation = InventoryReturnOperation.objects.select_related(
-        "document_instance", "logistics_event"
+        "document_instance", "logistics_event", "hahitantsoa_event_draft"
     ).get(pk=locked_return_operation.pk)
     if locked_return_operation.status != InventoryReturnOperationStatus.DRAFT:
         raise InventoryStockMovementError(
@@ -847,6 +927,7 @@ def validate_inventory_return_operation(
                 actor=actor,
                 inventory_item=line.inventory_item,
                 reservation_draft=locked_return_operation.reservation_draft,
+                hahitantsoa_event_draft=locked_return_operation.hahitantsoa_event_draft,
                 document_instance=locked_return_operation.document_instance,
                 return_operation=locked_return_operation,
                 return_operation_line=line,
@@ -883,6 +964,11 @@ def validate_inventory_return_operation(
             "reservation_draft_id": (
                 str(locked_return_operation.reservation_draft_id)
                 if locked_return_operation.reservation_draft_id
+                else None
+            ),
+            "hahitantsoa_event_draft_id": (
+                str(locked_return_operation.hahitantsoa_event_draft_id)
+                if locked_return_operation.hahitantsoa_event_draft_id
                 else None
             ),
         },
