@@ -386,6 +386,95 @@ def compute_reservation_financial_closeout_summary(
     )
 
 
+def compute_hahitantsoa_financial_closeout_summary(
+    hahitantsoa_event_draft,
+) -> ReservationFinancialCloseoutSummary:
+    """Compute the same financial invariants from Hahitantsoa-owned facts."""
+    invoices = list(
+        BillingInvoice.objects.filter(hahitantsoa_event_draft=hahitantsoa_event_draft)
+        .select_related(
+            "settlement",
+            "settlement__payment",
+            "refund_obligation",
+        )
+        .prefetch_related(
+            "installments",
+            "refund_obligation__refund_payments",
+        )
+    )
+    total_invoiced = sum((invoice.amount for invoice in invoices), Decimal("0.00"))
+    total_settled = Decimal("0.00")
+    total_refunded = Decimal("0.00")
+    for invoice in invoices:
+        settlement = getattr(invoice, "settlement", None)
+        if settlement is not None:
+            total_settled += settlement.amount
+        else:
+            total_settled += sum(
+                (installment.paid_amount for installment in invoice.installments.all()),
+                Decimal("0.00"),
+            )
+        obligation = getattr(invoice, "refund_obligation", None)
+        if obligation is not None:
+            payments = list(obligation.refund_payments.all())
+            if payments:
+                total_refunded += payments[0].amount
+
+    total_paid = Payment.objects.filter(
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
+        payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    cashbox_movements = CashboxMovement.objects.filter(
+        Q(payment__hahitantsoa_event_draft=hahitantsoa_event_draft)
+        | Q(billing_invoice__hahitantsoa_event_draft=hahitantsoa_event_draft)
+        | Q(billing_refund_obligation__invoice__hahitantsoa_event_draft=hahitantsoa_event_draft)
+    )
+    total_cashbox_in = cashbox_movements.filter(
+        direction=CashboxMovementDirection.CASH_IN
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+    total_cashbox_out = cashbox_movements.filter(
+        direction=CashboxMovementDirection.CASH_OUT
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+    coherence_detail_parts = []
+    if total_settled > total_paid:
+        coherence_detail_parts.append(
+            f"total_settled ({total_settled}) exceeds total_paid ({total_paid})"
+        )
+    if total_settled > total_invoiced:
+        coherence_detail_parts.append(
+            f"total_settled ({total_settled}) exceeds total_invoiced ({total_invoiced})"
+        )
+    if total_refunded > total_paid:
+        coherence_detail_parts.append(
+            f"total_refunded ({total_refunded}) exceeds total_paid ({total_paid})"
+        )
+    if total_refunded > total_invoiced:
+        coherence_detail_parts.append(
+            f"total_refunded ({total_refunded}) exceeds total_invoiced ({total_invoiced})"
+        )
+    if total_refunded > total_settled:
+        coherence_detail_parts.append(
+            f"total_refunded ({total_refunded}) exceeds total_settled ({total_settled})"
+        )
+    coherence_detail = "; ".join(coherence_detail_parts) or "all checks pass"
+    return ReservationFinancialCloseoutSummary(
+        total_invoiced=total_invoiced,
+        total_paid=total_paid,
+        total_settled=total_settled,
+        total_refunded=total_refunded,
+        total_cashbox_in=total_cashbox_in,
+        total_cashbox_out=total_cashbox_out,
+        net_balance=total_cashbox_in - total_cashbox_out,
+        coherence_status=(
+            RESERVATION_FINANCIAL_CLOSEOUT_INCOHERENT
+            if coherence_detail_parts
+            else RESERVATION_FINANCIAL_CLOSEOUT_COHERENT
+        ),
+        coherence_detail=coherence_detail,
+    )
+
+
 @transaction.atomic
 def execute_commercial_closeout(
     *,
