@@ -242,7 +242,9 @@ def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> li
     - It is confirmed (not draft or cancelled)
     - All logistics events are completed or cancelled
     - All billing invoices are settled or cancelled
-    - All return operations have validated settlements
+    - All return operations have validated and executed settlements
+    - Damage/loss refund and excess-receivable obligations are resolved
+    - External payment confirmations have been reconciled
     """
     blockers: list[str] = []
 
@@ -263,12 +265,63 @@ def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> li
 
     # Returns
     return_ops = list(reservation_draft.return_operations.all())
+    from apps.billing.models import BillingInvoiceStatus
+    from apps.inventory.models import (
+        InventoryCautionRefundObligationStatus,
+        InventoryDamageLossExcessReceivableStatus,
+        InventoryDamageLossSettlementExecutionStatus,
+    )
+    from apps.payments.models import PaymentMethod, PaymentStatus
+
     for op in return_ops:
         if op.status != "validated":
             blockers.append(f"return_operation_not_validated:{op.id}")
         settlement = getattr(op, "damage_loss_settlement", None)
         if settlement is not None and settlement.settlement_status != "validated":
             blockers.append(f"return_settlement_not_validated:{op.id}")
+            continue
+        if settlement is None:
+            continue
+
+        execution = getattr(settlement, "execution", None)
+        if execution is None:
+            blockers.append(f"return_settlement_execution_missing:{op.id}")
+            continue
+        if execution.status != InventoryDamageLossSettlementExecutionStatus.EXECUTED:
+            blockers.append(f"return_settlement_execution_not_executed:{op.id}")
+            continue
+
+        refund_obligation = getattr(execution, "refund_obligation", None)
+        if refund_obligation is not None and refund_obligation.status not in {
+            InventoryCautionRefundObligationStatus.SETTLED,
+            InventoryCautionRefundObligationStatus.CANCELLED,
+        }:
+            blockers.append(f"caution_refund_obligation_unresolved:{op.id}")
+
+        excess_receivable = getattr(execution, "excess_receivable", None)
+        if excess_receivable is None:
+            continue
+        if excess_receivable.status == InventoryDamageLossExcessReceivableStatus.PENDING_INVOICE:
+            blockers.append(f"damage_loss_excess_receivable_not_invoiced:{op.id}")
+            continue
+        if excess_receivable.status == InventoryDamageLossExcessReceivableStatus.CANCELLED:
+            continue
+
+        invoice = getattr(excess_receivable, "billing_invoice", None)
+        if invoice is None or invoice.invoice_status != BillingInvoiceStatus.SETTLED:
+            blockers.append(f"damage_loss_excess_receivable_not_settled:{op.id}")
+
+    external_payment_methods = {
+        PaymentMethod.BANK_TRANSFER,
+        PaymentMethod.MOBILE_MONEY,
+        PaymentMethod.CHEQUE,
+    }
+    unreconciled_external_payments = reservation_draft.payments.filter(
+        payment_method__in=external_payment_methods,
+        payment_status=PaymentStatus.CONFIRMED,
+    )
+    if unreconciled_external_payments.exists():
+        blockers.append(f"external_payments_unreconciled:{unreconciled_external_payments.count()}")
 
     if reservation_draft.lines.filter(is_deleted=False).exists():
         outbound_events = [e for e in events if e.operation == "outbound"]
@@ -323,6 +376,31 @@ def closeout_reservation_draft(
                 code="closeout_idempotency_key_mismatch",
             )
         return _summary_from_snapshot(existing_closeout.summary_snapshot, replayed=True)
+
+    # ponytail: lock only the dependent rows that can change closeout eligibility.
+    from apps.billing.models import BillingInvoice
+    from apps.inventory.models import (
+        InventoryCautionRefundObligation,
+        InventoryDamageLossExcessReceivable,
+        InventoryDamageLossSettlement,
+        InventoryDamageLossSettlementExecution,
+    )
+    from apps.payments.models import Payment
+
+    InventoryDamageLossSettlement.objects.select_for_update().filter(
+        return_operation__reservation_draft=locked_draft
+    ).exists()
+    InventoryDamageLossSettlementExecution.objects.select_for_update().filter(
+        settlement__return_operation__reservation_draft=locked_draft
+    ).exists()
+    InventoryCautionRefundObligation.objects.select_for_update().filter(
+        settlement_execution__settlement__return_operation__reservation_draft=locked_draft
+    ).exists()
+    InventoryDamageLossExcessReceivable.objects.select_for_update().filter(
+        settlement_execution__settlement__return_operation__reservation_draft=locked_draft
+    ).exists()
+    BillingInvoice.objects.select_for_update().filter(reservation_draft=locked_draft).exists()
+    Payment.objects.select_for_update().filter(reservation_draft=locked_draft).exists()
 
     blockers = validate_reservation_closeable(reservation_draft=locked_draft)
     if blockers:
