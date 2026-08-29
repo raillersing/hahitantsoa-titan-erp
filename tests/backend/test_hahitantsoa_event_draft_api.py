@@ -248,6 +248,8 @@ def test_hahitantsoa_event_draft_list_rejects_unauthenticated_user(client) -> No
 def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_client) -> None:
     customer = _customer()
     item = _item(kind="article")
+    item.rental_price = 125000
+    item.save(update_fields=["rental_price"])
 
     response = authenticated_client.post(
         EVENT_DRAFT_LIST_URL,
@@ -265,6 +267,8 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert payload["event_type"] == "engagement"
     assert payload["lines"][0]["inventory_item_id"] == str(item.id)
     assert payload["lines"][0]["inventory_item_kind"] == "article"
+    assert payload["logistics_amount"] == "375000.00"
+    assert payload["total_amount"] == "6875000.00"
     assert payload["prerequisite_status"] == _missing_prerequisite_status()
     assert HahitantsoaEventDraft.objects.count() == 1
     assert HahitantsoaEventDraftLine.objects.count() == 1
@@ -273,6 +277,45 @@ def test_authenticated_user_can_create_hahitantsoa_event_draft(authenticated_cli
     assert draft.created_by == authenticated_client.test_user
     assert line.created_by == authenticated_client.test_user
     assert line.updated_by is None
+
+
+def test_event_draft_update_recalculates_persisted_commercial_totals(
+    authenticated_client,
+) -> None:
+    customer = _customer()
+    item = _item(kind="article")
+    item.rental_price = 200000
+    item.save(update_fields=["rental_price"])
+
+    response = authenticated_client.post(
+        EVENT_DRAFT_LIST_URL,
+        data=_payload(customer, item),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    draft_id = response.json()["id"]
+    response = authenticated_client.patch(
+        f"{EVENT_DRAFT_LIST_URL}{draft_id}/",
+        data={
+            "lines": [
+                {
+                    "inventory_item_id": str(item.id),
+                    "quantity": 4,
+                    "notes": "Quantité mise à jour",
+                }
+            ]
+        },
+        content_type="application/json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["logistics_amount"] == "800000.00"
+    assert payload["total_amount"] == "7300000.00"
+    draft = HahitantsoaEventDraft.objects.get(pk=draft_id)
+    assert draft.logistics_amount == 800000
+    assert draft.total_amount == 7300000
 
 
 def test_authenticated_user_can_create_hahitantsoa_event_draft_without_inventory_lines(

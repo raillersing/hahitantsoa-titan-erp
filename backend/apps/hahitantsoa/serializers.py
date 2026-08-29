@@ -15,6 +15,7 @@ from apps.hahitantsoa.commercial_terms import (
     default_deposit_amount,
     get_hahitantsoa_commercial_terms,
     get_hahitantsoa_payment_schedule,
+    recalculate_hahitantsoa_event_draft_totals,
 )
 from apps.hahitantsoa.models import (
     HahitantsoaCommercialTerms,
@@ -680,6 +681,8 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "rental_type",
             "guest_count",
             "space_rental_amount",
+            "logistics_amount",
+            "total_amount",
             "required_deposit_amount",
             "venue_name",
             "location_details",
@@ -690,6 +693,8 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "lines",
             "prerequisite_status",
             "payment_schedule",
+            "logistics_amount",
+            "total_amount",
             "created_at",
             "updated_at",
         )
@@ -772,6 +777,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             line.full_clean()
             line.save()
 
+        recalculate_hahitantsoa_event_draft_totals(event_draft=event_draft)
         return event_draft
 
     def to_representation(self, instance):
@@ -851,6 +857,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                         ]
                     )
 
+        recalculate_hahitantsoa_event_draft_totals(event_draft=instance)
         return instance
 
 

@@ -60,14 +60,8 @@ class HahitantsoaPaymentSchedule:
 def get_hahitantsoa_payment_schedule(
     *, event_draft: HahitantsoaEventDraft
 ) -> HahitantsoaPaymentSchedule:
-    logistics_amount = sum(
-        (
-            line.unit_rental_price * line.quantity
-            for line in event_draft.lines.filter(is_deleted=False)
-        ),
-        Decimal("0"),
-    ).quantize(MONEY_QUANTUM)
-    total_amount = (event_draft.space_rental_amount + logistics_amount).quantize(MONEY_QUANTUM)
+    logistics_amount = event_draft.logistics_amount.quantize(MONEY_QUANTUM)
+    total_amount = event_draft.total_amount.quantize(MONEY_QUANTUM)
     deposit_amount = min(event_draft.required_deposit_amount, total_amount).quantize(MONEY_QUANTUM)
     remaining_after_deposit = (total_amount - deposit_amount).quantize(MONEY_QUANTUM)
     first_installment_amount = (remaining_after_deposit / 2).quantize(
@@ -88,3 +82,20 @@ def get_hahitantsoa_payment_schedule(
         first_installment_due_on=subtract_one_calendar_month(event_date),
         second_installment_due_on=event_date.fromordinal(event_date.toordinal() - 10),
     )
+
+
+def recalculate_hahitantsoa_event_draft_totals(*, event_draft: HahitantsoaEventDraft) -> None:
+    """Persist the commercial snapshot from immutable event-draft line prices."""
+    logistics_amount = sum(
+        (
+            line.unit_rental_price * line.quantity
+            for line in event_draft.lines.filter(is_deleted=False)
+        ),
+        Decimal("0"),
+    ).quantize(MONEY_QUANTUM)
+    event_draft.logistics_amount = logistics_amount
+    event_draft.total_amount = (event_draft.space_rental_amount + logistics_amount).quantize(
+        MONEY_QUANTUM
+    )
+    event_draft.full_clean()
+    event_draft.save(update_fields=["logistics_amount", "total_amount", "updated_at"])

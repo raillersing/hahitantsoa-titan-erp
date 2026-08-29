@@ -12,6 +12,7 @@ from apps.documents.services import (
     generate_document_instance_pdf,
     generate_hahitantsoa_event_draft_document_instance_html,
 )
+from apps.hahitantsoa.commercial_terms import recalculate_hahitantsoa_event_draft_totals
 from apps.hahitantsoa.models import (
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
@@ -267,6 +268,8 @@ def apply_hahitantsoa_event_draft_amendment_request(
                     created_by=actor,
                     updated_by=actor,
                 )
+
+        recalculate_hahitantsoa_event_draft_totals(event_draft=locked_event_draft)
 
         document = create_document_instance_from_hahitantsoa_event_draft(
             event_draft=locked_event_draft,
