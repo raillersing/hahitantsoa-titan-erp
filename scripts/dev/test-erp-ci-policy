@@ -171,6 +171,7 @@ scope_fixture manifest pyproject.toml fail
 scope_fixture tooling-test scripts/dev/test-erp-logged-run pass
 scope_fixture finalizer-cleanup scripts/dev/erp-worktree-clean-after-merge pass
 scope_fixture docs-runbook docs/runbooks/example.md pass agent-docs
+scope_fixture docs-decision docs/decisions/example.md pass agent-docs
 
 preflight_repo="$tmp_root/preflight-agent-docs"
 git init -q -b main "$preflight_repo"
