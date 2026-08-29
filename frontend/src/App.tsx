@@ -208,7 +208,7 @@ function App() {
       case "commercial-ops": return <CommercialOpsPage onNavigate={navigate} />;
       case "customers": return <CustomersPage onNavigate={navigate} canSensitiveWrite={capabilities?.canSensitiveWrite ?? false} canSuperAdminDelete={capabilities?.canSuperAdminDelete ?? false} />;
       case "cashbox": return <CashboxPage onNavigate={navigate} />;
-      case "caution": return <CautionPage onNavigate={navigate} />;
+      case "caution": return <CautionPage onNavigate={navigate} param={activeParam} />;
       case "help": return <HelpPage onNavigate={navigate} canManageSupport={capabilities?.canManageIdentity ?? false} />;
       case "user-manual": return <UserManualPage onNavigate={navigate} />;
       case "reservation-new": return <ReservationNewPage onNavigate={navigate} param={activeParam} />;
@@ -239,8 +239,8 @@ function App() {
       case "stock-movements": return <StockMovementsPage onNavigate={navigate} />;
       case "stock-preparation": return <StockPreparationPage onNavigate={navigate} />;
       case "logistics-dispatch": return <LogisticsDispatchPage onNavigate={navigate} />;
-      case "logistics-returns": return <LogisticsReturnsPage onNavigate={navigate} />;
-      case "breakage-loss": return <BreakageLossPage onNavigate={navigate} />;
+      case "logistics-returns": return <LogisticsReturnsPage onNavigate={navigate} param={activeParam} />;
+      case "breakage-loss": return <BreakageLossPage onNavigate={navigate} param={activeParam} />;
       case "audit": return <AuditPage onNavigate={navigate} />;
       case "reports": return <ReportsPage onNavigate={navigate} />;
       case "venues": return <VenuesPage />;

@@ -33,7 +33,7 @@ function statusBadgeClass(status: FilterStatus): string {
   return "bg-slate-100 text-slate-700";
 }
 
-export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
+export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (scope: any, param?: string) => void; param?: string }) {
   const [filter, setFilter] = useState<FilterStatus>("Tous");
   const [data, setData] = useState<InventoryDamageLossSettlement[]>([]);
   const [executions, setExecutions] = useState<InventoryDamageLossSettlementExecution[]>([]);
@@ -78,13 +78,23 @@ export default function BreakageLossPage({ onNavigate }: { onNavigate: (scope: a
     return () => { cancelled = true; controller.abort(); };
   }, []);
 
+  const scopedReturnIds = new Set(returnOperations
+    .filter((operation) => !param || (param.startsWith("titan:")
+      ? operation.reservation_draft === param.slice("titan:".length)
+      : param.startsWith("hahitantsoa:")
+        ? operation.hahitantsoa_event_draft === param.slice("hahitantsoa:".length)
+        : true))
+    .map((operation) => operation.id));
+
   const filteredData = data.filter((s) => {
+    if (param && !scopedReturnIds.has(s.return_operation)) return false;
     if (filter === "Tous") return true;
     return statusLabel(s.settlement_status) === filter;
   });
 
   const pendingReturns = returnOperations.filter(
     (operation) =>
+      (!param || scopedReturnIds.has(operation.id)) &&
       operation.status === "validated" &&
       !data.some((settlement) => settlement.return_operation === operation.id) &&
       operation.lines.some((line) => line.damaged_quantity > 0 || line.missing_quantity > 0),

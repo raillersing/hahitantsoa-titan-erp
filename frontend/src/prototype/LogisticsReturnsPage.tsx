@@ -32,7 +32,7 @@ function formatDate(iso: string): string {
   });
 }
 
-export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
+export default function LogisticsReturnsPage({ onNavigate, param }: { onNavigate: (scope: any, param?: string) => void; param?: string }) {
   const [filter, setFilter] = useState<FilterCategory>("Tous");
   const [toast, setToast] = React.useState<{message: string, type: 'info'|'success'|'warning'|'error'} | null>(null);
   const [operations, setOperations] = useState<InventoryReturnOperation[]>([]);
@@ -80,9 +80,16 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
     }
   };
 
+  const scopedOperations = operations.filter((operation) =>
+    !param || (param.startsWith("titan:")
+      ? operation.reservation_draft === param.slice("titan:".length)
+      : param.startsWith("hahitantsoa:")
+        ? operation.hahitantsoa_event_draft === param.slice("hahitantsoa:".length)
+        : true),
+  );
   const filteredData = filter === "Tous"
-    ? operations
-    : operations.filter(r => categorizeByDate(r.created_at) === filter);
+    ? scopedOperations
+    : scopedOperations.filter(r => categorizeByDate(r.created_at) === filter);
 
   if (loading) {
     return (
@@ -258,7 +265,7 @@ export default function LogisticsReturnsPage({ onNavigate }: { onNavigate: (scop
               
               <div className="mt-4 flex justify-end gap-3 items-center">
                 <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-slate-200 dark:bg-slate-700" onClick={() => onNavigate("breakage-loss")}>
+                  <button className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-red-600 dark:text-red-400 font-bold rounded-lg hover:bg-slate-200 dark:bg-slate-700" onClick={() => onNavigate("breakage-loss", retour.reservation_draft ? `titan:${retour.reservation_draft}` : retour.hahitantsoa_event_draft ? `hahitantsoa:${retour.hahitantsoa_event_draft}` : undefined)}>
                     <i className="fas fa-exclamation-triangle mr-2"></i>Déclarer Casse/Perte
                   </button>
                   <button className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700 disabled:opacity-50" disabled={busyReturnId === retour.id || retour.status === "validated"} onClick={() => void handleValidateReturn(retour)}>
