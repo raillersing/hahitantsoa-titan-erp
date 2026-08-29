@@ -60,22 +60,18 @@ const mockGetReservationDraft = vi.fn();
 const mockGetCustomer = vi.fn();
 const mockGetReservationDraftDocumentInstances = vi.fn();
 const mockMarkReservationDraftContractSigned = vi.fn();
-const mockMarkReservationDraftRequiredDepositReceived = vi.fn();
 const mockConfirmReservationDraft = vi.fn();
 const mockGetPayments = vi.fn();
-const mockCreatePayment = vi.fn();
-const mockConfirmPayment = vi.fn();
+const mockRecordConfirmedDeposit = vi.fn();
 
 vi.mock('../api', () => ({
   getReservationDraft: (...args: any[]) => mockGetReservationDraft(...args),
   getCustomer: (...args: any[]) => mockGetCustomer(...args),
   getReservationDraftDocumentInstances: (...args: any[]) => mockGetReservationDraftDocumentInstances(...args),
   markReservationDraftContractSigned: (...args: any[]) => mockMarkReservationDraftContractSigned(...args),
-  markReservationDraftRequiredDepositReceived: (...args: any[]) => mockMarkReservationDraftRequiredDepositReceived(...args),
   confirmReservationDraft: (...args: any[]) => mockConfirmReservationDraft(...args),
   getPayments: (...args: any[]) => mockGetPayments(...args),
-  createPayment: (...args: any[]) => mockCreatePayment(...args),
-  confirmPayment: (...args: any[]) => mockConfirmPayment(...args),
+  recordConfirmedDeposit: (...args: any[]) => mockRecordConfirmedDeposit(...args),
 }));
 
 /* ── helper: wait for the draft page to load ────────────────────── */
@@ -90,25 +86,21 @@ async function waitForDraftLoad() {
 
 describe('ReservationDetailPage', () => {
   beforeEach(() => {
-    mockGetReservationDraft.mockResolvedValue(MOCK_DRAFT);
+    mockGetReservationDraft
+      .mockResolvedValueOnce(MOCK_DRAFT)
+      .mockResolvedValue({
+        ...MOCK_DRAFT,
+        contract_signed_at: '2026-07-01T10:00:00Z',
+        required_deposit_received_at: '2026-07-02T10:00:00Z',
+      });
     mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
     mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
     mockGetPayments.mockResolvedValue([]);
-    mockCreatePayment.mockResolvedValue({ id: 'payment-deposit-1' });
-    mockConfirmPayment.mockResolvedValue({ id: 'payment-deposit-1', payment_status: 'confirmed' });
+    mockRecordConfirmedDeposit.mockResolvedValue({ payment: { id: 'payment-deposit-1' }, replayed: false });
     mockMarkReservationDraftContractSigned.mockResolvedValue({
       status: 'draft',
       public_reference: 'LOC-2026-0089',
       reservation_draft: { ...MOCK_DRAFT, contract_signed_at: '2026-07-01T10:00:00Z' },
-    });
-    mockMarkReservationDraftRequiredDepositReceived.mockResolvedValue({
-      status: 'draft',
-      public_reference: 'LOC-2026-0089',
-      reservation_draft: {
-        ...MOCK_DRAFT,
-        contract_signed_at: '2026-07-01T10:00:00Z',
-        required_deposit_received_at: '2026-07-02T10:00:00Z',
-      },
     });
     mockConfirmReservationDraft.mockResolvedValue({
       status: 'confirmed',
@@ -203,9 +195,11 @@ describe('ReservationDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Confirmer la réservation/i })).toBeInTheDocument();
     });
-    expect(mockMarkReservationDraftRequiredDepositReceived).toHaveBeenCalledWith('draft-loc-089');
-    expect(mockCreatePayment).toHaveBeenCalledWith(expect.objectContaining({ amount: '250000.00' }));
-    expect(mockConfirmPayment).toHaveBeenCalledWith('payment-deposit-1', {});
+    expect(mockRecordConfirmedDeposit).toHaveBeenCalledWith(expect.objectContaining({
+      reservation_draft: 'draft-loc-089',
+      amount: '250000.00',
+      idempotency_key: expect.any(String),
+    }));
 
     // Click confirm
     fireEvent.click(screen.getByRole('button', { name: /Confirmer la réservation/i }));
@@ -216,6 +210,64 @@ describe('ReservationDetailPage', () => {
       expect(screen.queryByRole('button', { name: /Confirmer la réservation/i })).not.toBeInTheDocument();
     });
     expect(mockConfirmReservationDraft).toHaveBeenCalledWith('draft-loc-089');
+  });
+
+  it("reprend l'enregistrement d'acompte Titan avec la même clé après une erreur réseau", async () => {
+    const signedDraft = {
+      ...MOCK_DRAFT,
+      contract_signed_at: '2026-07-01T10:00:00Z',
+    };
+    mockGetReservationDraft.mockReset().mockResolvedValue({
+      ...signedDraft,
+      required_deposit_received_at: '2026-07-02T10:00:00Z',
+    });
+    mockGetReservationDraft.mockResolvedValueOnce(signedDraft);
+    mockRecordConfirmedDeposit.mockReset()
+      .mockRejectedValueOnce(new Error('Réseau indisponible'))
+      .mockResolvedValueOnce({ payment: { id: 'payment-deposit-1' }, replayed: true });
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    fireEvent.change(screen.getByLabelText(/Montant de l'acompte/i), { target: { value: '250000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer et confirmer l'acompte/i }));
+    await waitFor(() => expect(screen.getByText('Réseau indisponible')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer et confirmer l'acompte/i }));
+    await waitFor(() => expect(mockRecordConfirmedDeposit).toHaveBeenCalledTimes(2));
+
+    expect(mockRecordConfirmedDeposit.mock.calls[1][0].idempotency_key)
+      .toBe(mockRecordConfirmedDeposit.mock.calls[0][0].idempotency_key);
+    expect(screen.getByText(/repris sans doublon/i)).toBeInTheDocument();
+  });
+
+  it("conserve la clé d'acompte quand le rechargement après écriture échoue", async () => {
+    const signedDraft = {
+      ...MOCK_DRAFT,
+      contract_signed_at: '2026-07-01T10:00:00Z',
+    };
+    mockGetReservationDraft.mockReset()
+      .mockResolvedValueOnce(signedDraft)
+      .mockRejectedValueOnce(new Error('Lecture indisponible'))
+      .mockResolvedValue({
+        ...signedDraft,
+        required_deposit_received_at: '2026-07-02T10:00:00Z',
+      });
+    mockRecordConfirmedDeposit.mockReset()
+      .mockResolvedValue({ payment: { id: 'payment-deposit-1' }, replayed: true });
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    fireEvent.change(screen.getByLabelText(/Montant de l'acompte/i), { target: { value: '250000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer et confirmer l'acompte/i }));
+    await waitFor(() => expect(screen.getByText('Lecture indisponible')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer et confirmer l'acompte/i }));
+    await waitFor(() => expect(mockRecordConfirmedDeposit).toHaveBeenCalledTimes(2));
+
+    expect(mockRecordConfirmedDeposit.mock.calls[1][0].idempotency_key)
+      .toBe(mockRecordConfirmedDeposit.mock.calls[0][0].idempotency_key);
   });
 
   it('affiche les avertissements contractuels Titan sans bloquer le dossier', async () => {

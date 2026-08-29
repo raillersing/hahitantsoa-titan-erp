@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AppScope } from "../App";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
@@ -9,15 +9,13 @@ import {
   getCustomer,
   getReservationDraftDocumentInstances,
   markReservationDraftContractSigned,
-  markReservationDraftRequiredDepositReceived,
   confirmReservationDraft,
   convertProformaToContract,
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
   voidProforma,
   getPayments,
-  createPayment,
-  confirmPayment,
+  recordConfirmedDeposit,
   createReservationDraftAmendment,
   closeReservationDraft,
   getReservationDraftCloseoutSummary,
@@ -133,6 +131,7 @@ export default function ReservationDetailPage({
       reference?: string;
     }[]
   >([]);
+  const depositRecordingKeyRef = useRef<string | null>(null);
   const [closeoutSummary, setCloseoutSummary] = useState<ReservationCloseoutSummary | null>(null);
 
   /* ── fetch on mount ───────────────────────────────────────────── */
@@ -314,20 +313,38 @@ export default function ReservationDetailPage({
       if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error("Saisissez un montant d'acompte supérieur à zéro.");
       }
-      const payment = await createPayment({
+      const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
+      depositRecordingKeyRef.current = idempotencyKey;
+      const result = await recordConfirmedDeposit({
         reservation_draft: draft.id,
-        payment_kind: "deposit",
         payment_method: "cash",
-        payment_status: "pending",
         amount: amount.toFixed(2),
         notes: "Acompte enregistré depuis le dossier Titan.",
+        idempotency_key: idempotencyKey,
       });
-      await confirmPayment(payment.id, {});
-      const result = await markReservationDraftRequiredDepositReceived(
-        draft.id,
+      const [updatedDraft, paymentRecords] = await Promise.all([
+        getReservationDraft(draft.id),
+        getPayments(draft.id),
+      ]);
+      setDraft(updatedDraft);
+      setPayments(paymentRecords
+        .filter((payment: Payment) =>
+          payment.payment_status === "confirmed" || payment.payment_status === "reconciled",
+        )
+        .map((payment: Payment) => ({
+          id: payment.id,
+          date: payment.paid_at || payment.created_at,
+          method: payment.payment_method,
+          amount: Number(payment.amount),
+          note: payment.notes || payment.payment_kind,
+          reference: payment.external_reference || undefined,
+        })));
+      depositRecordingKeyRef.current = null;
+      setDepositAmount("");
+      showToast(
+        result.replayed ? "L'acompte déjà enregistré a été repris sans doublon." : "Acompte enregistré et confirmé.",
+        "success",
       );
-      setDraft(result.reservation_draft);
-      showToast("Acompte enregistré comme reçu.", "success");
     } catch (err: any) {
       showToast(
         err?.message || "Erreur lors de l'enregistrement de l'acompte.",
