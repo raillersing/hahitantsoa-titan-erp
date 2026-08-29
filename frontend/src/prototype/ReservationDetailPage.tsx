@@ -1568,7 +1568,7 @@ export default function ReservationDetailPage({
                   <button
                     type="button"
                     className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
-                    onClick={() => onNavigate("logistics-returns")}
+                    onClick={() => onNavigate("logistics-returns", `titan:${draft.id}`)}
                   >
                     <i className="fa-solid fa-circle-check"></i>
                     <span>Ouvrir le retour réel</span>
@@ -1703,7 +1703,7 @@ export default function ReservationDetailPage({
                   </button>
                   <button
                     className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700"
-                    onClick={() => onNavigate("logistics-returns")}
+                    onClick={() => onNavigate("logistics-returns", `titan:${draft.id}`)}
                   >
                     Ouvrir les retours réels
                   </button>
@@ -1715,7 +1715,7 @@ export default function ReservationDetailPage({
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-6">
                 <h4 className="font-bold text-rose-900">Casse & pertes constatées</h4>
                 <p className="mt-2 text-sm text-rose-800">Les montants et les articles sont chargés depuis le retour validé. Aucun montant d’exemple n’est affiché dans le dossier.</p>
-                <button type="button" className="mt-5 rounded-lg bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800" onClick={() => onNavigate("breakage-loss")}>
+                <button type="button" className="mt-5 rounded-lg bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800" onClick={() => onNavigate("breakage-loss", `titan:${draft.id}`)}>
                   <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir le règlement casse/perte
                 </button>
               </div>
@@ -1725,7 +1725,7 @@ export default function ReservationDetailPage({
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
                 <h4 className="font-bold text-blue-900">Caution & solde de fin de location</h4>
                 <p className="mt-2 text-sm text-blue-800">Le détail réel de la caution, de la retenue et d’une éventuelle restitution est centralisé dans l’espace Caution.</p>
-                <button type="button" className="mt-5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800" onClick={() => onNavigate("caution")}>
+                <button type="button" className="mt-5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800" onClick={() => onNavigate("caution", `titan:${draft.id}`)}>
                   <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir la caution réelle
                 </button>
               </div>

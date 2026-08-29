@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { getDamageLossSettlements } from "../api";
-import type { InventoryDamageLossSettlement } from "../types";
+import { getDamageLossSettlements, getReturnOperations } from "../api";
+import type { InventoryDamageLossSettlement, InventoryReturnOperation } from "../types";
 
 type CautionFilter = "Toutes" | "À traiter" | "Restitution due" | "Clôturées";
 
@@ -19,9 +19,10 @@ function formatMoney(value: number | string): string {
   return `${amount(value).toLocaleString("fr-FR")} Ar`;
 }
 
-export default function CautionPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
+export default function CautionPage({ onNavigate, param }: { onNavigate: (scope: any, param?: string) => void; param?: string }) {
   const [filter, setFilter] = useState<CautionFilter>("Toutes");
   const [settlements, setSettlements] = useState<InventoryDamageLossSettlement[]>([]);
+  const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +30,12 @@ export default function CautionPage({ onNavigate }: { onNavigate: (scope: any, p
     setLoading(true);
     setError(null);
     try {
-      const data = await getDamageLossSettlements(signal);
+      const [data, operations] = await Promise.all([
+        getDamageLossSettlements(signal),
+        getReturnOperations(signal),
+      ]);
       setSettlements(Array.isArray(data) ? data : []);
+      setReturnOperations(Array.isArray(operations) ? operations : []);
     } catch (err: any) {
       if (err?.name !== "AbortError") setError(err?.message || "Impossible de charger les cautions.");
     } finally {
@@ -44,8 +49,16 @@ export default function CautionPage({ onNavigate }: { onNavigate: (scope: any, p
     return () => controller.abort();
   }, [load]);
 
+  const scopedReturnIds = new Set(returnOperations
+    .filter((operation) => !param || (param.startsWith("titan:")
+      ? operation.reservation_draft === param.slice("titan:".length)
+      : param.startsWith("hahitantsoa:")
+        ? operation.hahitantsoa_event_draft === param.slice("hahitantsoa:".length)
+        : true))
+    .map((operation) => operation.id));
   const visibleSettlements = settlements.filter((settlement) =>
-    filter === "Toutes" || filterLabel(settlement) === filter,
+    (!param || scopedReturnIds.has(settlement.return_operation)) &&
+    (filter === "Toutes" || filterLabel(settlement) === filter),
   );
 
   return (
@@ -99,7 +112,7 @@ export default function CautionPage({ onNavigate }: { onNavigate: (scope: any, p
                     <div className="rounded-lg border border-amber-100 bg-amber-50 p-4"><p className="text-xs font-bold uppercase text-amber-600">Différence client</p><p className="mt-1 text-lg font-bold text-amber-700">{formatMoney(settlement.excess_due)}</p></div>
                   </div>
                   <div className="mt-4 flex justify-end">
-                    <button type="button" className="rounded-lg bg-tit-600 px-4 py-2 text-sm font-bold text-white hover:bg-tit-700" onClick={() => onNavigate("breakage-loss")}>
+                    <button type="button" className="rounded-lg bg-tit-600 px-4 py-2 text-sm font-bold text-white hover:bg-tit-700" onClick={() => onNavigate("breakage-loss", param)}>
                       <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir le règlement casse/perte
                     </button>
                   </div>

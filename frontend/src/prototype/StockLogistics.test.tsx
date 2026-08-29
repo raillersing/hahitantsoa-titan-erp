@@ -200,6 +200,11 @@ describe('Stock & Logistics Pages', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Valider le retour' }));
       await waitFor(() => expect(validate).toHaveBeenCalledWith('ret-001'));
     });
+
+    it('filters returns to the dossier supplied by navigation context', async () => {
+      render(<LogisticsReturnsPage onNavigate={mockNavigate} param="titan:another-draft" />);
+      expect(await screen.findByText('Aucun retour prévu.')).toBeDefined();
+    });
   });
 
   describe('BreakageLossPage', () => {
@@ -256,6 +261,11 @@ describe('Stock & Logistics Pages', () => {
       render(<BreakageLossPage onNavigate={mockNavigate} />);
       expect(await screen.findByText('Caution Disponible')).toBeDefined();
       expect(screen.getByText('Différence à payer')).toBeDefined();
+    });
+
+    it('filters settlements to the dossier supplied by navigation context', async () => {
+      render(<BreakageLossPage onNavigate={mockNavigate} param="titan:another-draft" />);
+      expect(await screen.findByText('Aucun dossier de casse ou de perte.')).toBeDefined();
     });
 
     it('executes the validated settlement through the backend lifecycle', async () => {
