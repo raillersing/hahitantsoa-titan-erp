@@ -60,8 +60,8 @@ class HahitantsoaPaymentSchedule:
 def get_hahitantsoa_payment_schedule(
     *, event_draft: HahitantsoaEventDraft
 ) -> HahitantsoaPaymentSchedule:
-    logistics_amount = event_draft.logistics_amount.quantize(MONEY_QUANTUM)
-    total_amount = event_draft.total_amount.quantize(MONEY_QUANTUM)
+    logistics_amount = Decimal(str(event_draft.logistics_amount)).quantize(MONEY_QUANTUM)
+    total_amount = Decimal(str(event_draft.total_amount)).quantize(MONEY_QUANTUM)
     deposit_amount = min(event_draft.required_deposit_amount, total_amount).quantize(MONEY_QUANTUM)
     remaining_after_deposit = (total_amount - deposit_amount).quantize(MONEY_QUANTUM)
     first_installment_amount = (remaining_after_deposit / 2).quantize(
