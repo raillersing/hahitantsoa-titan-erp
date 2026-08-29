@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   confirmHahitantsoaEventDraft,
+  closeHahitantsoaEventDraft,
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
   getHahitantsoaEventDraft,
   getHahitantsoaEventDraftConfirmationPreflight,
+  getHahitantsoaEventDraftCloseoutSummary,
   getHahitantsoaEventDraftDocumentInstances,
   getHahitantsoaEventDraftPayments,
   markHahitantsoaEventDraftContractSigned,
@@ -17,6 +19,7 @@ import type {
   DocumentInstance,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftConfirmationPreflight,
+  HahitantsoaEventCloseoutSummary,
   Payment,
 } from "../types";
 
@@ -35,12 +38,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [preflight, setPreflight] = useState<HahitantsoaEventDraftConfirmationPreflight | null>(null);
   const [documents, setDocuments] = useState<DocumentInstance[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [closeoutSummary, setCloseoutSummary] = useState<HahitantsoaEventCloseoutSummary | null>(null);
+  const [signatureExceptionReason, setSignatureExceptionReason] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const depositRecordingKeyRef = useRef<string | null>(null);
+  const closeoutKeyRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     if (!param) {
@@ -61,6 +67,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       setPreflight(nextPreflight);
       setDocuments(nextDocuments);
       setPayments(nextPayments);
+      if (eventDraft.status === "confirmed") {
+        try {
+          setCloseoutSummary(await getHahitantsoaEventDraftCloseoutSummary(param));
+        } catch {
+          setCloseoutSummary(null);
+        }
+      } else {
+        setCloseoutSummary(null);
+      }
       setDepositAmount((current) => {
         if (current) return current;
         const requiredAmount = Number(eventDraft.required_deposit_amount || "0");
@@ -163,6 +178,29 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       await load();
     } catch (err) {
       setError(errorMessage(err, "Impossible de confirmer le dossier Hahitantsoa."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const closeoutDraft = async () => {
+    if (!param || closeoutSummary?.closeout_status === "closed") return;
+    if (closeoutSummary?.signature_exception_required && !signatureExceptionReason.trim()) {
+      setError("Indiquez le motif durable de l'exception de signature avant de clôturer.");
+      return;
+    }
+    setBusy("closeout");
+    setError(null);
+    setActionNotice(null);
+    const idempotencyKey = closeoutKeyRef.current ?? crypto.randomUUID();
+    closeoutKeyRef.current = idempotencyKey;
+    try {
+      const summary = await closeHahitantsoaEventDraft(param, idempotencyKey, signatureExceptionReason.trim());
+      closeoutKeyRef.current = null;
+      setCloseoutSummary(summary);
+      setActionNotice(summary.replayed ? "La clôture déjà enregistrée a été rechargée." : "Le dossier événement est clôturé avec succès.");
+    } catch (err) {
+      setError(errorMessage(err, "Le dossier n'est pas encore prêt pour la clôture."));
     } finally {
       setBusy(null);
     }
@@ -303,6 +341,34 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         </div>
         {!preflight?.can_confirm && draft.status === "draft" && <p className="mt-3 text-sm text-slate-500">La confirmation restera indisponible tant que tous les prérequis ne seront pas satisfaits.</p>}
       </section>
+
+      {draft.status === "confirmed" && closeoutSummary && (
+        <section className="rounded-2xl border border-slate-200 bg-slate-50 p-6" aria-labelledby="closeout-heading">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 id="closeout-heading" className="font-bold text-slate-800">Clôture opérationnelle</h2>
+              <p className="mt-1 text-sm text-slate-600">Logistique incomplète : {closeoutSummary.incomplete_logistics_event_count} · Retours à régler : {closeoutSummary.unresolved_return_count} · Factures ouvertes : {closeoutSummary.open_invoice_count}</p>
+            </div>
+            {closeoutSummary.closeout_status === "closed" ? (
+              <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-bold text-emerald-700">Dossier clôturé</span>
+            ) : (
+              <span className="rounded-full bg-amber-100 px-3 py-1.5 text-sm font-bold text-amber-700">À clôturer</span>
+            )}
+          </div>
+          {closeoutSummary.signature_exception_required && closeoutSummary.closeout_status !== "closed" && (
+            <label className="mt-4 block text-sm font-medium text-slate-700">Motif de l'exception de signature
+              <textarea value={signatureExceptionReason} onChange={(event) => setSignatureExceptionReason(event.target.value)} className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2" rows={3} aria-describedby="signature-exception-help" />
+              <span id="signature-exception-help" className="mt-1 block text-xs text-slate-500">Ce motif est conservé dans la preuve de clôture auditée.</span>
+            </label>
+          )}
+          {closeoutSummary.closeout_status === "open" && (
+            <button type="button" onClick={() => void closeoutDraft()} disabled={busy !== null} className="mt-4 rounded-lg bg-slate-800 px-4 py-2 text-sm font-bold text-white hover:bg-slate-700 disabled:opacity-50">
+              <i className={`fas ${busy === "closeout" ? "fa-spinner fa-spin" : "fa-lock"} mr-2`} />Clôturer le dossier
+            </button>
+          )}
+          <p className="mt-3 text-xs text-slate-500">La vérification finale est effectuée par le backend. Les blocages sont affichés sans modifier le dossier.</p>
+        </section>
+      )}
     </div>
   );
 }

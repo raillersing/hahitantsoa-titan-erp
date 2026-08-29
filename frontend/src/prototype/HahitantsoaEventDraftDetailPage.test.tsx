@@ -16,6 +16,8 @@ const mockMarkContractSigned = vi.fn();
 const mockMarkDepositReceived = vi.fn();
 const mockRecordConfirmedDeposit = vi.fn();
 const mockConfirmDraft = vi.fn();
+const mockGetCloseoutSummary = vi.fn();
+const mockCloseDraft = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
@@ -26,6 +28,8 @@ vi.mock("../api", () => ({
   markHahitantsoaEventDraftRequiredDepositReceived: (...args: unknown[]) => mockMarkDepositReceived(...args),
   recordConfirmedDeposit: (...args: unknown[]) => mockRecordConfirmedDeposit(...args),
   confirmHahitantsoaEventDraft: (...args: unknown[]) => mockConfirmDraft(...args),
+  getHahitantsoaEventDraftCloseoutSummary: (...args: unknown[]) => mockGetCloseoutSummary(...args),
+  closeHahitantsoaEventDraft: (...args: unknown[]) => mockCloseDraft(...args),
 }));
 
 vi.mock("../PaymentWhatsAppReminderButton", () => ({ default: () => null }));
@@ -67,6 +71,29 @@ function preflight(overrides: Partial<HahitantsoaEventDraftConfirmationPreflight
   };
 }
 
+function closeoutSummary(overrides = {}) {
+  return {
+    event_draft_id: DRAFT.id,
+    status: "confirmed",
+    confirmed: true,
+    billing_invoice_count: 0,
+    open_invoice_count: 0,
+    payment_count: 1,
+    unreconciled_external_payment_count: 0,
+    logistics_event_count: 0,
+    incomplete_logistics_event_count: 0,
+    return_count: 0,
+    unresolved_return_count: 0,
+    signature_exception_required: false,
+    signature_exception_reason: "",
+    closeout_id: null,
+    closeout_status: "open" as const,
+    closed_at: null,
+    replayed: false,
+    ...overrides,
+  };
+}
+
 describe("HahitantsoaEventDraftDetailPage", () => {
   let currentDraft: HahitantsoaEventDraft;
   let currentPreflight: HahitantsoaEventDraftConfirmationPreflight;
@@ -83,6 +110,13 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     mockGetPayments.mockImplementation(() => Promise.resolve(currentPayments));
     mockMarkDepositReceived.mockResolvedValue({});
     mockConfirmDraft.mockResolvedValue({});
+    mockGetCloseoutSummary.mockResolvedValue(closeoutSummary());
+    mockCloseDraft.mockResolvedValue(closeoutSummary({
+      closeout_id: "closeout-1",
+      closeout_status: "closed" as const,
+      closed_at: "2026-09-02T10:00:00Z",
+      replayed: false,
+    }));
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -162,5 +196,26 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: /valider l'acompte déjà confirmé/i }));
     await waitFor(() => expect(mockMarkDepositReceived).toHaveBeenCalledWith(DRAFT.id));
     expect(mockRecordConfirmedDeposit).not.toHaveBeenCalled();
+  });
+
+  it("closes a confirmed event through the backend and displays the persisted result", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /clôturer le dossier/i }));
+    await waitFor(() => expect(mockCloseDraft).toHaveBeenCalledWith(DRAFT.id, expect.any(String), ""));
+    expect(await screen.findByText("Dossier clôturé")).toBeInTheDocument();
+  });
+
+  it("requires a signature exception reason before requesting closeout", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+    mockGetCloseoutSummary.mockResolvedValueOnce(closeoutSummary({ signature_exception_required: true }));
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /clôturer le dossier/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("motif durable");
+    expect(mockCloseDraft).not.toHaveBeenCalled();
   });
 });
