@@ -69,8 +69,9 @@ for a retry: reuse the existing lot worktree unless the orchestrator records a
 blocking filesystem or ownership reason. Review agents are non-mutating by
 default, so a review should not create commits or a `review2` branch.
 
-At lot finalization, record the verdict and owner, then remove clean obsolete
-worktrees and local branches. Preserve dirty worktrees, R7B, and unmerged
+At lot finalization, record the verdict and owner, then, after the merged PR's
+exact-SHA `main` CI is green, automatically remove its clean task worktree and
+local branch. Preserve dirty worktrees, R7B, and unmerged
 security or data-integrity changes. Temporary reports and captures are deleted
 after their evidence is transferred to the durable roadmap or PR record.
   until the operator confirms the intended baseline.
@@ -92,9 +93,10 @@ Docker/worktree/branch hygiene rules:
   before deleting a worktree. Never pass `-v`. Never run global Docker prune.
 - **Git worktree remove:** Always use `git worktree remove <path>` instead of manual
   `rm -rf`. Always run `git worktree prune` after worktree deletion.
-- **Delete merged branches:** After a PR is merged and main CI is green, delete the
-  remote branch with `git push origin --delete <branch>` and prune stale tracking refs
-  with `git remote prune origin`.
+- **Delete merged branches:** After a PR is merged and main CI is green, the protected
+  root finalizer deletes the clean local branch automatically. Delete the remote branch
+  only as a separate, explicitly authorized action, then prune stale tracking refs with
+  `git remote prune origin`.
 - **Final verification must include:**
   1. `git status --short` — root main must be clean
   2. `git worktree list` — no orphaned worktrees
@@ -669,7 +671,8 @@ Workflow:
 3. confirming PR state becomes MERGED and main CI is green
 4. switching to the main repository root (MAIN_PATH) to sync `main`
 5. removing the clean worktree with `git worktree remove`
-6. deleting the local and remote branches after the worktree is gone
+6. deleting the local branch after the worktree is gone; remote deletion is separate
+   and only applies when explicitly authorized
 7. pruning stale worktree metadata
 
 Only use this when the worktree is dedicated to the task and the user has explicitly
@@ -911,7 +914,10 @@ EOF
 
 ## Post-Merge Cleanup Commands
 
-Only after merge is confirmed and the human allows cleanup:
+After merge is confirmed and the exact-SHA `main` CI is green, the protected PR
+finalizer automatically cleans the clean task worktree and local branch. A dirty,
+ambiguous, or orphaned worktree stops the finalizer for human inspection. Remote branch
+deletion remains separate and explicit.
 
 ```sh
 scripts/dev/erp-logged-run task-post-merge <<'EOF'
@@ -932,20 +938,23 @@ _Container cleanup rules added in F149A; branch/worktree cleanup rules refined i
 After a PR is merged, the task branch, worktree, and any agent CI Docker resources
 should be cleaned up to prevent accumulation.
 
-Branch cleanup when explicitly authorized. Never use `gh pr merge --delete-branch`,
-which is unsafe when a worktree is checked out on the branch:
+The root finalizer performs local cleanup automatically after the merge and green
+exact-SHA `main` CI. Never use `gh pr merge --delete-branch`, which is unsafe when a
+worktree is checked out on the branch. For an already merged branch or an authorized
+recovery, use the dedicated wrapper:
 
 ```sh
 scripts/dev/erp-logged-run task-branch-cleanup <<'EOF'
 set -euo pipefail
 
-git branch -d branch-name
-git push origin --delete branch-name
+bash scripts/dev/erp-worktree-clean-after-merge --apply branch-name
 EOF
 ```
 
 Worktree cleanup using the dedicated wrapper. The wrapper refuses to run on dirty
-worktrees, secret-like paths, or the main worktree:
+worktrees, secret-like paths, or the main worktree. It removes the worktree first and
+then deletes only the local branch; use remote branch deletion separately when it is
+explicitly authorized:
 
 ```sh
 scripts/dev/erp-logged-run task-worktree-cleanup <<'EOF'

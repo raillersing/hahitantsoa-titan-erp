@@ -130,7 +130,8 @@ backend or frontend prompt contracts for tooling-only work.
 7. Commit, push, and open a PR only when authorized.
 8. Verify CI before human merge.
 9. Validate `main` and confirm CI on `main` after merge.
-10. Clean local task and review branches after merge when the human authorizes cleanup.
+10. After merge and green exact-SHA `main` CI, automatically clean the clean local task
+    worktree and branch through the protected finalizer; keep remote deletion explicit.
 11. Capture durable workflow improvements in a later small PR.
 
 After merge of F138B/F138C on `main`, these wrappers are official and required when

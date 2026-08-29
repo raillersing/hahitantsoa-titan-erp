@@ -57,7 +57,7 @@ Every backend orchestration prompt must explicitly reference:
 - exact checks to run
 - whether commit, push, PR creation are authorized
 - whether the prompt is implement-only or review-only
-- whether the orchestrator should continue automatically after merge and green `main` CI
+- whether the orchestrator should continue automatically after merge and green `main` CI; clean local task worktree and branch cleanup is automatic, while remote deletion is explicit
 - a short Backend Skill Plan that names the task slice, selected skills, validation plan, hard stops, and completion plan
 
 Executable profiles run the integrated task-start baseline first. Live baseline wins over
@@ -163,7 +163,8 @@ After a successful merge and green `main` CI:
 
 - sync `main`
 - confirm the merged commit is green on `main`
-- clean task branches and worktrees when authorized
+- automatically clean the clean task worktree and local branch through the protected finalizer
+- stop and report if the worktree is dirty, ambiguous, or orphaned
 - immediately continue to the next clear backend bundle unless a hard stop condition
   occurs
 

@@ -10,6 +10,7 @@ PR_REF=""
 TASK_WORKTREE=""
 TASK_BRANCH=""
 ALLOWLIST_FILE=""
+AUTO_LOCAL_CLEANUP=0
 declare -a ALLOWLIST_PATHS=()
 
 print_usage() {
@@ -18,11 +19,15 @@ Usage:
   scripts/dev/erp-pr-finalize-from-root <pr-number-or-url> [options]
 
 Options:
-  --task-worktree <path>     Remove this task worktree after main CI succeeds. Requires --task-branch.
-  --task-branch <branch>     Delete this local and remote branch. Requires --task-worktree.
+  --task-worktree <path>     Override the task worktree selected for automatic local cleanup.
+  --task-branch <branch>     Override the task branch for cleanup; explicit options also remove its remote branch.
   --allow <path>             Allow one changed file path. Repeat as needed.
   --allowlist-file <file>    Read allowed changed file paths from a newline-delimited file.
   --help                     Show this help.
+
+Default: after a merged PR has green exact-SHA main CI, remove the clean task
+worktree and local branch automatically. The remote branch is preserved unless
+explicit cleanup options are supplied.
 
 Purpose:
   Finalize a PR from the main-root worktree only by:
@@ -35,8 +40,8 @@ Purpose:
   - merging with gh pr merge --squash --match-head-commit and without --delete-branch
   - syncing main with fetch plus pull --ff-only
   - waiting for the post-merge main CI run tied to the merged HEAD
-  - removing the optional task worktree only after main CI succeeds
-  - deleting the optional local and remote branch only when cleanup was explicitly requested
+  - automatically removing the clean task worktree and local branch after main CI succeeds
+  - deleting the remote branch only when explicit cleanup options were requested
   - pruning stale worktree metadata
   - printing final git status, worktree list, and open PRs
 
@@ -108,6 +113,9 @@ if { [ -n "$TASK_WORKTREE" ] && [ -z "$TASK_BRANCH" ]; } || \
    { [ -z "$TASK_WORKTREE" ] && [ -n "$TASK_BRANCH" ]; }; then
   echo "ERROR: --task-worktree and --task-branch must be provided together"
   exit 2
+fi
+if [ -z "$TASK_WORKTREE" ] && [ -z "$TASK_BRANCH" ]; then
+  AUTO_LOCAL_CLEANUP=1
 fi
 if [ -n "$ALLOWLIST_FILE" ]; then
   require_option_value "--allowlist-file" "$ALLOWLIST_FILE"
@@ -298,6 +306,37 @@ if [ "$conclusion" != "success" ]; then
   exit 1
 fi
 
+if [ "$AUTO_LOCAL_CLEANUP" -eq 1 ]; then
+  TASK_BRANCH="$pr_head_branch"
+  TASK_WORKTREE=""
+  current_path=""
+  current_branch=""
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *)
+        current_path="${line#worktree }"
+        ;;
+      branch\ refs/heads/*)
+        current_branch="${line#branch refs/heads/}"
+        if [ "$current_branch" = "$TASK_BRANCH" ] && [ "$current_path" != "$REPO_ROOT" ]; then
+          TASK_WORKTREE="$current_path"
+          break
+        fi
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+  if [ -n "$TASK_WORKTREE" ]; then
+    echo "INFO: Automatic local cleanup selected worktree: $TASK_WORKTREE"
+  else
+    if git show-ref --verify --quiet "refs/heads/$TASK_BRANCH"; then
+      echo "ERROR: No registered task worktree found while local branch exists: $TASK_BRANCH"
+      echo "Recovery: inspect stale worktree directories and rerun the protected cleanup helper with --orphan-path when appropriate."
+      exit 1
+    fi
+    echo "INFO: No registered task worktree or local branch found; no local cleanup is required."
+  fi
+fi
+
 if [ -n "$TASK_WORKTREE" ]; then
   bash scripts/dev/erp-worktree-clean-after-merge --apply "$TASK_BRANCH"
   if [ -d "$TASK_WORKTREE" ]; then
@@ -342,7 +381,9 @@ if [ -n "$TASK_BRANCH" ]; then
     fi
   fi
 
-  if git ls-remote --exit-code --heads origin "$TASK_BRANCH" >/dev/null 2>&1; then
+  if [ "$AUTO_LOCAL_CLEANUP" -eq 1 ]; then
+    echo "INFO: Automatic cleanup removed only the local branch; remote branch preserved."
+  elif git ls-remote --exit-code --heads origin "$TASK_BRANCH" >/dev/null 2>&1; then
     git push origin --delete "$TASK_BRANCH"
   else
     echo "INFO: Remote branch already absent or unavailable for deletion check: $TASK_BRANCH"

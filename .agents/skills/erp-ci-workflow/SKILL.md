@@ -25,7 +25,7 @@ Use after opening a PR and after merge to validate CI.
 
 ## Merge
 
-- [ ] Stop until the human explicitly authorizes merge and cleanup
+- [ ] Stop until the human explicitly authorizes merge; local cleanup follows automatically after merge and green exact-SHA `main` CI
 - [ ] Reconfirm that the reviewed PR head SHA has not changed immediately before finalization
 - [ ] Confirm that `scripts/dev/erp-pr-finalize-from-root` enforces that exact head SHA in its merge operation; hard stop and request an `agent-tools` correction if it does not
 - [ ] Finalize only through that protected wrapper from root `main`
@@ -44,7 +44,7 @@ Use after opening a PR and after merge to validate CI.
 
 - The reviewed PR head SHA changed
 - The root finalizer does not lock the merge to the reviewed head SHA
-- Human merge or cleanup authorization is missing
+- Human merge authorization is missing
 - PR or exact-SHA `main` CI is not green
 
 ## When to use me
