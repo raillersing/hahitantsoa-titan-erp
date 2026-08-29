@@ -218,6 +218,54 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
         return self.public_reference
 
 
+class HahitantsoaEventCloseout(UUIDModel, TimestampedModel):
+    """Append-only proof that a Hahitantsoa event was closed once."""
+
+    class Status(models.TextChoices):
+        CLOSED = "closed", "closed"
+
+    event_draft = models.OneToOneField(
+        HahitantsoaEventDraft,
+        on_delete=models.PROTECT,
+        related_name="closeout_record",
+    )
+    closed_at = models.DateTimeField()
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.CLOSED,
+    )
+    idempotency_key = models.CharField(max_length=128, blank=True, default="")
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="hahitantsoa_event_closeouts",
+    )
+    signature_exception_reason = models.TextField(blank=True)
+    summary_snapshot = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-closed_at", "-created_at", "id"]
+        verbose_name = "Hahitantsoa event closeout"
+        verbose_name_plural = "Hahitantsoa event closeouts"
+
+    def clean(self) -> None:
+        if self.closed_at is None:
+            raise ValidationError("Hahitantsoa event closeouts require a closing timestamp.")
+        if self.status != self.Status.CLOSED:
+            raise ValidationError("Hahitantsoa event closeouts must be closed when persisted.")
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Hahitantsoa event closeouts are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Hahitantsoa event closeouts are append-only.")
+
+
 class HahitantsoaEventDraftLine(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableModel):
     event_draft = models.ForeignKey(
         HahitantsoaEventDraft,

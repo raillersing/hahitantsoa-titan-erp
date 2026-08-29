@@ -11,6 +11,8 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftAmendmentRequestListCreateAPIView,
     HahitantsoaEventDraftAmendmentRequestRetrieveUpdateAPIView,
     HahitantsoaEventDraftAvailabilityPreviewAPIView,
+    HahitantsoaEventDraftCloseoutExecuteAPIView,
+    HahitantsoaEventDraftCloseoutSummaryAPIView,
     HahitantsoaEventDraftConfirmAPIView,
     HahitantsoaEventDraftConfirmationPreflightAPIView,
     HahitantsoaEventDraftDocumentInstanceGenerateAPIView,
@@ -119,6 +121,16 @@ urlpatterns = [
         "event-drafts/<uuid:pk>/required-deposit-received/",
         HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView.as_view(),
         name="hahitantsoa-event-draft-mark-required-deposit-received",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/closeout/",
+        HahitantsoaEventDraftCloseoutSummaryAPIView.as_view(),
+        name="hahitantsoa-event-draft-closeout-summary",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/closeout/execute/",
+        HahitantsoaEventDraftCloseoutExecuteAPIView.as_view(),
+        name="hahitantsoa-event-draft-closeout-execute",
     ),
     path(
         "event-drafts/<uuid:pk>/documents/",

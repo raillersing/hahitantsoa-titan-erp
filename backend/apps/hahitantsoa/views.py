@@ -29,6 +29,8 @@ from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
 from apps.hahitantsoa.serializers import (
     HahitantsoaCommercialTermsSerializer,
     HahitantsoaDiscoveryItemSerializer,
+    HahitantsoaEventCloseoutExecuteSerializer,
+    HahitantsoaEventCloseoutSummarySerializer,
     HahitantsoaEventDraftAmendmentPreflightSerializer,
     HahitantsoaEventDraftAmendmentRequestApplySerializer,
     HahitantsoaEventDraftAmendmentRequestAvailabilityPreviewSerializer,
@@ -56,7 +58,11 @@ from apps.hahitantsoa.services import (
     mark_hahitantsoa_event_draft_contract_signed,
     mark_hahitantsoa_event_draft_required_deposit_received,
 )
-from apps.identity.permissions import HasInventoryManagementAccess, HasSuperAdminAccess
+from apps.identity.permissions import (
+    HasInventoryManagementAccess,
+    HasReservationSensitiveAccess,
+    HasSuperAdminAccess,
+)
 from apps.inventory.services import InventoryStockMovementError
 from apps.reservations.confirmation import (
     ReservationConfirmationPreflightError,
@@ -620,6 +626,74 @@ class HahitantsoaEventDraftMarkContractSignedAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class HahitantsoaEventDraftCloseoutSummaryAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(responses=HahitantsoaEventCloseoutSummarySerializer)
+    def get(self, request, pk):
+        from dataclasses import asdict
+
+        from django.shortcuts import get_object_or_404
+
+        from apps.hahitantsoa.closeout import get_hahitantsoa_closeout_summary
+
+        event_draft = get_object_or_404(active_hahitantsoa_event_drafts(), pk=pk)
+        summary = get_hahitantsoa_closeout_summary(event_draft_id=str(event_draft.id))
+        if summary is None:
+            return Response(
+                {"detail": "Hahitantsoa event draft not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(HahitantsoaEventCloseoutSummarySerializer(asdict(summary)).data)
+
+
+class HahitantsoaEventDraftCloseoutExecuteAPIView(APIView):
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=HahitantsoaEventCloseoutExecuteSerializer,
+        responses={
+            200: HahitantsoaEventCloseoutSummarySerializer,
+            400: serializers.Serializer,
+            404: serializers.Serializer,
+        },
+    )
+    def post(self, request, pk):
+        from dataclasses import asdict
+
+        from django.shortcuts import get_object_or_404
+
+        from apps.hahitantsoa.closeout import (
+            HahitantsoaCloseoutValidationError,
+            closeout_hahitantsoa_event_draft,
+        )
+
+        event_draft = get_object_or_404(active_hahitantsoa_event_drafts(), pk=pk)
+        request_serializer = HahitantsoaEventCloseoutExecuteSerializer(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        try:
+            summary = closeout_hahitantsoa_event_draft(
+                event_draft=event_draft,
+                actor=request.user,
+                idempotency_key=request.headers.get("Idempotency-Key", ""),
+                signature_exception_reason=request_serializer.validated_data.get(
+                    "signature_exception_reason", ""
+                ),
+            )
+        except HahitantsoaCloseoutValidationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=(
+                    status.HTTP_409_CONFLICT
+                    if error.code == "closeout_idempotency_key_mismatch"
+                    else status.HTTP_400_BAD_REQUEST
+                ),
+            )
+        return Response(HahitantsoaEventCloseoutSummarySerializer(asdict(summary)).data)
 
 
 class HahitantsoaEventDraftDocumentInstanceListCreateAPIView(generics.ListCreateAPIView):

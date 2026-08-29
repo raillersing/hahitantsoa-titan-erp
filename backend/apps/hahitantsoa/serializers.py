@@ -260,6 +260,30 @@ class HahitantsoaEventDraftDocumentInstanceGenerateSerializer(DocumentInstanceGe
     pass
 
 
+class HahitantsoaEventCloseoutSummarySerializer(serializers.Serializer):
+    event_draft_id = serializers.UUIDField()
+    status = serializers.CharField()
+    confirmed = serializers.BooleanField()
+    billing_invoice_count = serializers.IntegerField()
+    open_invoice_count = serializers.IntegerField()
+    payment_count = serializers.IntegerField()
+    unreconciled_external_payment_count = serializers.IntegerField()
+    logistics_event_count = serializers.IntegerField()
+    incomplete_logistics_event_count = serializers.IntegerField()
+    return_count = serializers.IntegerField()
+    unresolved_return_count = serializers.IntegerField()
+    signature_exception_required = serializers.BooleanField()
+    signature_exception_reason = serializers.CharField(allow_blank=True)
+    closeout_id = serializers.UUIDField(allow_null=True)
+    closeout_status = serializers.CharField()
+    closed_at = serializers.DateTimeField(allow_null=True)
+    replayed = serializers.BooleanField()
+
+
+class HahitantsoaEventCloseoutExecuteSerializer(serializers.Serializer):
+    signature_exception_reason = serializers.CharField(required=False, allow_blank=True)
+
+
 class HahitantsoaEventDraftAmendmentPreflightSerializer(serializers.Serializer):
     event_draft_id = serializers.UUIDField()
     public_reference = serializers.CharField()
@@ -981,6 +1005,8 @@ __all__ = [
     "HahitantsoaEventDraftAmendmentPreflightSerializer",
     "HahitantsoaEventDraftConfirmationPreflightSerializer",
     "HahitantsoaEventDraftConfirmationResultSerializer",
+    "HahitantsoaEventCloseoutExecuteSerializer",
+    "HahitantsoaEventCloseoutSummarySerializer",
     "HahitantsoaEventDraftLineSerializer",
     "HahitantsoaEventDraftSerializer",
     "ReservationAvailabilityPreviewRequestSerializer",
