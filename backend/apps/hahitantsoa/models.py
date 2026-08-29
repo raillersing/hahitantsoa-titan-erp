@@ -125,6 +125,8 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
     )
     guest_count = models.PositiveIntegerField(default=0)
     space_rental_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    logistics_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     required_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     venue_name = models.CharField(max_length=255, blank=True)
     location_details = models.TextField(blank=True)
@@ -151,6 +153,14 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
             models.CheckConstraint(
                 condition=models.Q(space_rental_amount__gte=0),
                 name="hahitantsoa_event_draft_space_rental_amount_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(logistics_amount__gte=0),
+                name="hahitantsoa_event_draft_logistics_amount_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(total_amount__gte=0),
+                name="hahitantsoa_event_draft_total_amount_nonnegative",
             ),
             models.CheckConstraint(
                 condition=models.Q(required_deposit_amount__gte=0),

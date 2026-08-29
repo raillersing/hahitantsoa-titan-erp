@@ -60,8 +60,12 @@ def test_hahitantsoa_logistics_defaults_apply_the_tariff_and_payment_schedule(
         unit_rental_price=Decimal("12500"),
     )
 
-    from apps.hahitantsoa.commercial_terms import get_hahitantsoa_payment_schedule
+    from apps.hahitantsoa.commercial_terms import (
+        get_hahitantsoa_payment_schedule,
+        recalculate_hahitantsoa_event_draft_totals,
+    )
 
+    recalculate_hahitantsoa_event_draft_totals(event_draft=draft)
     schedule = get_hahitantsoa_payment_schedule(event_draft=draft)
     assert line.unit_rental_price == Decimal("12500")
     assert schedule.logistics_amount == Decimal("25000.00")
