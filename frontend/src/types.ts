@@ -1187,6 +1187,26 @@ export type ReservationCloseoutSummary = {
   replayed: boolean;
 };
 
+export type HahitantsoaEventCloseoutSummary = {
+  event_draft_id: string;
+  status: string;
+  confirmed: boolean;
+  billing_invoice_count: number;
+  open_invoice_count: number;
+  payment_count: number;
+  unreconciled_external_payment_count: number;
+  logistics_event_count: number;
+  incomplete_logistics_event_count: number;
+  return_count: number;
+  unresolved_return_count: number;
+  signature_exception_required: boolean;
+  signature_exception_reason: string;
+  closeout_id: string | null;
+  closeout_status: "open" | "closed";
+  closed_at: string | null;
+  replayed: boolean;
+};
+
 // ---- Inventory Stock Movements (live backend — /api/v1/inventory/stock-movements/) ----
 
 export type InventoryStockMovementType =

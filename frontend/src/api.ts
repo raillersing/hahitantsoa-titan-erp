@@ -61,6 +61,7 @@ import type {
   HahitantsoaCommercialTermsUpdatePayload,
   HahitantsoaEventDraftAvailabilityPreview,
   HahitantsoaEventDraftConfirmationPreflight,
+  HahitantsoaEventCloseoutSummary,
   HahitantsoaEventDraftAmendmentPreflight,
   HahitantsoaEventDraftAmendmentRequest,
   HahitantsoaEventDraftAmendmentRequestCreatePayload,
@@ -1897,6 +1898,27 @@ export function closeReservationDraft(
   return postAuthenticatedJson(
     `/api/v1/reservations/drafts/${reservationDraftId}/closeout/execute/`,
     {},
+    signal,
+    { headers: { "Idempotency-Key": idempotencyKey } },
+  );
+}
+
+export function getHahitantsoaEventDraftCloseoutSummary(
+  eventDraftId: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventCloseoutSummary> {
+  return getAuthenticatedJson(`/api/v1/hahitantsoa/event-drafts/${eventDraftId}/closeout/`, signal);
+}
+
+export function closeHahitantsoaEventDraft(
+  eventDraftId: string,
+  idempotencyKey: string,
+  signatureExceptionReason = "",
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventCloseoutSummary> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${eventDraftId}/closeout/execute/`,
+    { signature_exception_reason: signatureExceptionReason },
     signal,
     { headers: { "Idempotency-Key": idempotencyKey } },
   );
