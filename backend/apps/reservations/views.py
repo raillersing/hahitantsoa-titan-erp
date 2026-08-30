@@ -18,6 +18,7 @@ from apps.reservations.permissions import (
     IsAuthenticatedReservationReadBoundary,
 )
 from apps.reservations.serializers import (
+    LifecycleSummarySerializer,
     ReservationAvailabilityPreviewRequestSerializer,
     ReservationAvailabilitySummarySerializer,
     ReservationAvailableItemPreviewSerializer,
@@ -393,6 +394,24 @@ class ReservationDraftCloseoutSummaryAPIView(APIView):
 
         payload = dataclasses.asdict(summary)
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class ReservationDraftLifecycleAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+    http_method_names = ["get", "head", "options"]
+
+    @extend_schema(responses=LifecycleSummarySerializer)
+    def get(self, request, pk):
+        from dataclasses import asdict
+
+        from apps.reservations.lifecycle import get_reservation_lifecycle_summary
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+        return Response(
+            LifecycleSummarySerializer(
+                asdict(get_reservation_lifecycle_summary(reservation_draft=draft))
+            ).data
+        )
 
 
 class ReservationDraftCloseoutExecuteAPIView(APIView):

@@ -19,6 +19,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView,
     HahitantsoaEventDraftDocumentInstanceListCreateAPIView,
     HahitantsoaEventDraftDocumentInstanceRetrieveAPIView,
+    HahitantsoaEventDraftLifecycleAPIView,
     HahitantsoaEventDraftListCreateAPIView,
     HahitantsoaEventDraftMarkContractSignedAPIView,
     HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView,
@@ -31,6 +32,11 @@ from apps.hahitantsoa.views import (
 )
 
 urlpatterns = [
+    path(
+        "event-drafts/<uuid:pk>/lifecycle/",
+        HahitantsoaEventDraftLifecycleAPIView.as_view(),
+        name="hahitantsoa-event-draft-lifecycle",
+    ),
     path(
         "commercial-terms/",
         HahitantsoaCommercialTermsAPIView.as_view(),

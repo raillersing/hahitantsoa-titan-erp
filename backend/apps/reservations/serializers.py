@@ -27,6 +27,24 @@ from apps.reservations.services import (
 )
 
 
+class LifecycleStepSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    label = serializers.CharField()
+    status = serializers.CharField()
+    occurred_at = serializers.DateTimeField(allow_null=True)
+
+
+class LifecycleSummarySerializer(serializers.Serializer):
+    domain = serializers.CharField()
+    dossier_id = serializers.UUIDField()
+    public_reference = serializers.CharField()
+    status = serializers.CharField()
+    next_action = serializers.CharField()
+    blockers = serializers.ListField(child=serializers.CharField())
+    owner_id = serializers.UUIDField(allow_null=True)
+    steps = LifecycleStepSerializer(many=True)
+
+
 class ReservationAvailabilityPreviewRequestSerializer(serializers.Serializer):
     start_at = serializers.DateTimeField()
     end_at = serializers.DateTimeField()
