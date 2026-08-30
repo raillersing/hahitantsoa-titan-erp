@@ -12,10 +12,12 @@ import {
   getMaterialPackages,
   getReservationAvailableItemPreviews,
   createReservationDraft,
+  updateReservationDraft,
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstancePdf,
   createHahitantsoaEventDraft,
+  updateHahitantsoaEventDraft,
   createHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
@@ -176,10 +178,12 @@ vi.mock('./api', () => ({
   getMaterialPackages: vi.fn(),
   getReservationAvailableItemPreviews: vi.fn(),
   createReservationDraft: vi.fn(),
+  updateReservationDraft: vi.fn(),
   createReservationDraftDocumentInstance: vi.fn(),
   generateReservationDraftDocumentInstance: vi.fn(),
   generateReservationDraftDocumentInstancePdf: vi.fn(),
   createHahitantsoaEventDraft: vi.fn(),
+  updateHahitantsoaEventDraft: vi.fn(),
   createHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstance: vi.fn(),
   generateHahitantsoaEventDraftDocumentInstancePdf: vi.fn(),
@@ -194,6 +198,7 @@ describe('ReservationNewPage', () => {
   let mockNavigate: any;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     mockNavigate = vi.fn();
     vi.spyOn(window, 'alert').mockImplementation(() => {});
     vi.spyOn(window, 'confirm').mockImplementation(() => true);
@@ -233,10 +238,12 @@ describe('ReservationNewPage', () => {
     ] as any);
     vi.mocked(getReservationAvailableItemPreviews).mockResolvedValue(mockCatalogData as any);
     vi.mocked(createReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);
+    vi.mocked(updateReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);
     vi.mocked(createReservationDraftDocumentInstance).mockResolvedValue({ id: 'DOC-T-001' } as any);
     vi.mocked(generateReservationDraftDocumentInstance).mockResolvedValue({ id: 'DOC-T-001' } as any);
     vi.mocked(generateReservationDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-T-001' } as any);
     vi.mocked(createHahitantsoaEventDraft).mockResolvedValue({ id: 'EVENT-001', status: 'draft' } as any);
+    vi.mocked(updateHahitantsoaEventDraft).mockResolvedValue({ id: 'EVENT-001', status: 'draft' } as any);
     vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-001' } as any);
     vi.mocked(generateHahitantsoaEventDraftDocumentInstancePdf).mockResolvedValue({ id: 'DOC-H-001' } as any);
@@ -250,6 +257,15 @@ describe('ReservationNewPage', () => {
   afterEach(() => {
     expect(window.alert).not.toHaveBeenCalled();
     expect(window.confirm).not.toHaveBeenCalled();
+  });
+
+  it('présente quatre étapes métier sans supprimer les sous-écrans du parcours', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="titan" />);
+
+    expect(await screen.findByRole('button', { name: /client & volet/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /date & disponibilité/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /offre & logistique/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /vérification & documents/i })).toBeInTheDocument();
   });
 
   it('calcule les deux tranches Hahitantsoa sans pourcentage d’acompte', () => {
@@ -531,7 +547,7 @@ describe('ReservationNewPage', () => {
   });
 
   it('7. Le catalogue permet d\'ajouter un matériel au tableau', async () => {
-    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    const firstRender = render(<ReservationNewPage onNavigate={mockNavigate} />);
     await waitFor(() => {
       expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
     });
@@ -586,6 +602,18 @@ describe('ReservationNewPage', () => {
     });
     expect(screen.getByText('Chaise Napoléon transparente')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument(); // Qté
+    expect(createReservationDraft).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft') || '{}')).toMatchObject({
+      prospectProformaEmission: { domain: 'titan', draftId: 'DRAFT-001' },
+    });
+
+    firstRender.unmount();
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+    fireEvent.click(await screen.findByRole('button', { name: /reprendre le brouillon/i }));
+    expect(await screen.findByText('Générer Devis/Proforma')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Générer Devis/Proforma'));
+    expect(await screen.findByText('Aperçu Proforma')).toBeInTheDocument();
+    expect(createReservationDraft).toHaveBeenCalledTimes(1);
   });
 
   it('8. Le stepper permet de naviguer entre les étapes', async () => {
