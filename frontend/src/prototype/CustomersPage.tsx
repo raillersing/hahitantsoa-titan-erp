@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ApiError, createCustomer, getCustomers, uploadAttachment } from "../api";
-import type { Customer as ApiCustomer } from "../types";
+import type { Customer as ApiCustomer, CustomerContactPoint } from "../types";
 import type { Client } from "../types";
 import { EmptyState, LoadingSpinner } from "../components";
 
@@ -19,6 +19,8 @@ type CustomerWizardAttachment = {
   status: string;
   file: File;
 };
+
+type CustomerContactDraft = CustomerContactPoint & { id: string };
 
 function AttachmentMiniPreview({ attachment }: { attachment: CustomerWizardAttachment }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -53,6 +55,8 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [additionalContacts, setAdditionalContacts] = useState<CustomerContactDraft[]>([]);
+  const [contactError, setContactError] = useState<string | null>(null);
   
   // Extended fields for Client
   const [newCivilite, setNewCivilite] = useState<"Monsieur" | "Madame" | "">("");
@@ -207,6 +211,16 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
     if (!newName && !newRepName) return;
 
     const finalName = newType === "Particulier" ? newName : (newName || newRepName);
+    const contactPoints = [
+      ...(newEmail.trim() ? [{ id: "email-primary", kind: "email" as const, value: newEmail.trim(), label: "", is_primary: !additionalContacts.some((contact) => contact.kind === "email" && contact.is_primary) }] : []),
+      ...(newPhone.trim() ? [{ id: "phone-primary", kind: "phone" as const, value: newPhone.trim(), label: "", is_primary: !additionalContacts.some((contact) => contact.kind === "phone" && contact.is_primary) }] : []),
+      ...additionalContacts.map((contact) => ({ ...contact, value: contact.value.trim(), label: contact.label?.trim() || "" })),
+    ];
+    if (contactPoints.some((contact) => !contact.value)) {
+      setContactError("Chaque contact ajouté doit contenir un e-mail ou un numéro de téléphone.");
+      return;
+    }
+    setContactError(null);
     setIsCreating(true);
     setCreateError(null);
     try {
@@ -216,6 +230,7 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
         party_type: newType === "Entreprise" ? "company" : "individual",
         email: newEmail,
         phone: newPhone,
+        contact_points: contactPoints.map(({ id: _id, ...contact }) => contact),
         address: newAddress,
         birth_date: newBirthDate || null,
         id_type: newType === "Particulier" ? newIdType : "",
@@ -264,6 +279,28 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const addContact = (kind: CustomerContactPoint["kind"]) => {
+    setAdditionalContacts((contacts) => [
+      ...contacts,
+      {
+        id: crypto.randomUUID(),
+        kind,
+        value: "",
+        label: "",
+        is_primary: !contacts.some((contact) => contact.kind === kind && contact.is_primary)
+          && (kind === "email" ? !newEmail.trim() : !newPhone.trim()),
+      },
+    ]);
+  };
+
+  const updateAdditionalContact = (id: string, update: Partial<CustomerContactDraft>) => {
+    setAdditionalContacts((contacts) => contacts.map((contact) => contact.id === id ? { ...contact, ...update } : contact));
+  };
+
+  const setPrimaryContact = (kind: CustomerContactPoint["kind"], id: string) => {
+    setAdditionalContacts((contacts) => contacts.map((contact) => contact.kind === kind ? { ...contact, is_primary: contact.id === id } : contact));
   };
 
   const renderWizard = () => {
@@ -406,11 +443,39 @@ export default function CustomersPage({ onNavigate, canSensitiveWrite = false, c
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{newType === "Entreprise" ? "Téléphone Pro" : "Téléphone"}</label>
-                  <input required type="text" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 034 00 000 00" />
+                  <input type="text" value={newPhone} onChange={e => setNewPhone(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 034 00 000 00" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{newType === "Entreprise" ? "Email Pro" : "Email"}</label>
                   <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="contact@email.com" />
+                </div>
+
+                <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-800">Autres contacts</h4>
+                      <p className="text-xs text-slate-500">Tous les contacts fournis sont enregistrés et repris dans les documents applicables.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => addContact("phone")} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-400">+ Téléphone</button>
+                      <button type="button" onClick={() => addContact("email")} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-400">+ E-mail</button>
+                    </div>
+                  </div>
+                  {additionalContacts.length > 0 && <div className="mt-3 space-y-3">
+                    {additionalContacts.map((contact) => (
+                      <div key={contact.id} className="grid gap-2 sm:grid-cols-[10rem_1fr_1fr_auto] sm:items-center">
+                        <span className="text-sm font-medium text-slate-700">{contact.kind === "email" ? "E-mail" : "Téléphone"}</span>
+                        <input aria-label={`${contact.kind === "email" ? "E-mail" : "Téléphone"} supplémentaire`} type={contact.kind === "email" ? "email" : "text"} value={contact.value} onChange={(event) => updateAdditionalContact(contact.id, { value: event.target.value })} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder={contact.kind === "email" ? "contact@exemple.mg" : "034 00 000 00"} />
+                        <input aria-label={`Libellé ${contact.kind === "email" ? "e-mail" : "téléphone"} supplémentaire`} type="text" value={contact.label || ""} onChange={(event) => updateAdditionalContact(contact.id, { label: event.target.value })} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Ex. responsable logistique" />
+                        <div className="flex items-center gap-2">
+                          <button type="button" aria-pressed={contact.is_primary} onClick={() => setPrimaryContact(contact.kind, contact.id)} className={`rounded-lg px-2 py-1 text-xs font-semibold ${contact.is_primary ? "bg-indigo-600 text-white" : "border border-slate-300 bg-white text-slate-700"}`}>Principal</button>
+                          <button type="button" aria-label="Supprimer ce contact" onClick={() => setAdditionalContacts((contacts) => contacts.filter((item) => item.id !== contact.id))} className="rounded-lg px-2 py-1 text-rose-700 hover:bg-rose-50"><i className="fa-solid fa-trash" aria-hidden="true" /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>}
+                  {!newEmail && !newPhone && additionalContacts.length === 0 && <p className="mt-3 text-xs text-amber-700">Aucun contact renseigné : vous pourrez compléter la fiche ultérieurement.</p>}
+                  {contactError && <p role="alert" className="mt-3 text-xs text-rose-700">{contactError}</p>}
                 </div>
                 
                 <div className="sm:col-span-2">
