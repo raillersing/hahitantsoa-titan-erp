@@ -1207,6 +1207,24 @@ export type HahitantsoaEventCloseoutSummary = {
   replayed: boolean;
 };
 
+export type LifecycleStep = {
+  key: string;
+  label: string;
+  status: "done" | "pending";
+  occurred_at: string | null;
+};
+
+export type LifecycleSummary = {
+  domain: "titan" | "hahitantsoa";
+  dossier_id: string;
+  public_reference: string;
+  status: string;
+  next_action: string;
+  blockers: string[];
+  owner_id: string | null;
+  steps: LifecycleStep[];
+};
+
 // ---- Inventory Stock Movements (live backend — /api/v1/inventory/stock-movements/) ----
 
 export type InventoryStockMovementType =

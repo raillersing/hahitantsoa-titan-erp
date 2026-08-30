@@ -8,6 +8,7 @@ import {
   getHahitantsoaEventDraft,
   getHahitantsoaEventDraftConfirmationPreflight,
   getHahitantsoaEventDraftCloseoutSummary,
+  getHahitantsoaEventDraftLifecycle,
   getHahitantsoaEventDraftDocumentInstances,
   getHahitantsoaEventDraftPayments,
   markHahitantsoaEventDraftContractSigned,
@@ -15,11 +16,13 @@ import {
   recordConfirmedDeposit,
 } from "../api";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
+import LifecycleTimeline from "./LifecycleTimeline";
 import type {
   DocumentInstance,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftConfirmationPreflight,
   HahitantsoaEventCloseoutSummary,
+  LifecycleSummary,
   Payment,
 } from "../types";
 
@@ -39,6 +42,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [documents, setDocuments] = useState<DocumentInstance[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [closeoutSummary, setCloseoutSummary] = useState<HahitantsoaEventCloseoutSummary | null>(null);
+  const [lifecycleSummary, setLifecycleSummary] = useState<LifecycleSummary | null>(null);
+  const [lifecycleError, setLifecycleError] = useState(false);
   const [signatureExceptionReason, setSignatureExceptionReason] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [loading, setLoading] = useState(true);
@@ -67,6 +72,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       setPreflight(nextPreflight);
       setDocuments(nextDocuments);
       setPayments(nextPayments);
+      try {
+        setLifecycleSummary(await getHahitantsoaEventDraftLifecycle(param));
+        setLifecycleError(false);
+      } catch {
+        setLifecycleSummary(null);
+        setLifecycleError(true);
+      }
       if (eventDraft.status === "confirmed") {
         try {
           setCloseoutSummary(await getHahitantsoaEventDraftCloseoutSummary(param));
@@ -275,6 +287,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
       {actionNotice && <div aria-live="polite" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{actionNotice}</div>}
+
+      {lifecycleSummary && <LifecycleTimeline summary={lifecycleSummary} />}
+      {lifecycleError && !lifecycleSummary && (
+        <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Parcours opérationnel indisponible. Actualisez le dossier après avoir vérifié votre accès.
+        </div>
+      )}
 
       <section className="grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-slate-100 bg-white p-6">

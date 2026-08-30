@@ -18,6 +18,7 @@ const mockRecordConfirmedDeposit = vi.fn();
 const mockConfirmDraft = vi.fn();
 const mockGetCloseoutSummary = vi.fn();
 const mockCloseDraft = vi.fn();
+const mockGetLifecycle = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
@@ -30,6 +31,7 @@ vi.mock("../api", () => ({
   confirmHahitantsoaEventDraft: (...args: unknown[]) => mockConfirmDraft(...args),
   getHahitantsoaEventDraftCloseoutSummary: (...args: unknown[]) => mockGetCloseoutSummary(...args),
   closeHahitantsoaEventDraft: (...args: unknown[]) => mockCloseDraft(...args),
+  getHahitantsoaEventDraftLifecycle: (...args: unknown[]) => mockGetLifecycle(...args),
 }));
 
 vi.mock("../PaymentWhatsAppReminderButton", () => ({ default: () => null }));
@@ -117,6 +119,16 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       closed_at: "2026-09-02T10:00:00Z",
       replayed: false,
     }));
+    mockGetLifecycle.mockResolvedValue({
+      domain: "hahitantsoa",
+      dossier_id: DRAFT.id,
+      public_reference: DRAFT.public_reference,
+      status: "draft",
+      next_action: "sign_contract",
+      blockers: ["contract_signature_required"],
+      owner_id: null,
+      steps: [{ key: "contract", label: "Contrat signé", status: "pending", occurred_at: null }],
+    });
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -186,6 +198,23 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /confirmer la réservation/i }));
     await waitFor(() => expect(mockConfirmDraft).toHaveBeenCalledWith(DRAFT.id));
+  });
+
+  it("shows the persisted lifecycle and its recommended next action", async () => {
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    expect(await screen.findByRole("heading", { name: /parcours opérationnel/i })).toBeInTheDocument();
+    expect(screen.getByText(/faire signer le contrat/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/signature du contrat requise/i)).not.toHaveLength(0);
+    expect(mockGetLifecycle).toHaveBeenCalledWith(DRAFT.id);
+  });
+
+  it("keeps the dossier visible when the lifecycle read model is unavailable", async () => {
+    mockGetLifecycle.mockRejectedValueOnce(new Error("Accès refusé"));
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    expect(await screen.findByText(/parcours opérationnel indisponible/i)).toBeInTheDocument();
+    expect(screen.getByText(DRAFT.event_name)).toBeInTheDocument();
   });
 
   it("marks an already confirmed deposit instead of creating a duplicate payment", async () => {

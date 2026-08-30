@@ -4,6 +4,7 @@ import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
+import LifecycleTimeline from "./LifecycleTimeline";
 import {
   getReservationDraft,
   getCustomer,
@@ -19,8 +20,9 @@ import {
   createReservationDraftAmendment,
   closeReservationDraft,
   getReservationDraftCloseoutSummary,
+  getReservationDraftLifecycle,
 } from "../api";
-import type { ReservationCloseoutSummary, ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
+import type { LifecycleSummary, ReservationCloseoutSummary, ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
 
 /* ── inline helpers ────────────────────────────────────────────────── */
 
@@ -133,6 +135,8 @@ export default function ReservationDetailPage({
   >([]);
   const depositRecordingKeyRef = useRef<string | null>(null);
   const [closeoutSummary, setCloseoutSummary] = useState<ReservationCloseoutSummary | null>(null);
+  const [lifecycleSummary, setLifecycleSummary] = useState<LifecycleSummary | null>(null);
+  const [lifecycleError, setLifecycleError] = useState(false);
 
   /* ── fetch on mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -194,6 +198,15 @@ export default function ReservationDetailPage({
         } catch {
           // Non-fatal: closeout access may be unavailable for the current role.
         }
+        try {
+          const summary = await getReservationDraftLifecycle(d.id);
+          if (!cancelled) {
+            setLifecycleSummary(summary);
+            setLifecycleError(false);
+          }
+        } catch {
+          if (!cancelled) setLifecycleError(true);
+        }
       } catch (err: any) {
         if (!cancelled) {
           setError(
@@ -234,6 +247,16 @@ export default function ReservationDetailPage({
   ) => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const refreshLifecycle = async (reservationDraftId: string) => {
+    try {
+      setLifecycleSummary(await getReservationDraftLifecycle(reservationDraftId));
+      setLifecycleError(false);
+    } catch {
+      // Keep the last successfully loaded operational context on a transient refresh failure.
+      setLifecycleError(true);
+    }
   };
 
   const closePreview = () => setPreviewDoc(null);
@@ -294,6 +317,7 @@ export default function ReservationDetailPage({
     try {
       const result = await markReservationDraftContractSigned(draft.id);
       setDraft(result.reservation_draft);
+      await refreshLifecycle(draft.id);
       showToast("Contrat marqué comme signé.", "success");
     } catch (err: any) {
       showToast(
@@ -327,6 +351,7 @@ export default function ReservationDetailPage({
         getPayments(draft.id),
       ]);
       setDraft(updatedDraft);
+      await refreshLifecycle(draft.id);
       setPayments(paymentRecords
         .filter((payment: Payment) =>
           payment.payment_status === "confirmed" || payment.payment_status === "reconciled",
@@ -361,6 +386,7 @@ export default function ReservationDetailPage({
     try {
       const result = await confirmReservationDraft(draft.id);
       setDraft(result.reservation_draft);
+      await refreshLifecycle(draft.id);
       if (result.blocked_item_count > 0) {
         showToast(
           `Réservation confirmée (${result.blocked_item_count} article(s) en conflit).`,
@@ -385,6 +411,7 @@ export default function ReservationDetailPage({
     try {
       const summary = await closeReservationDraft(draft.id, `reservation-closeout-${draft.id}`);
       setCloseoutSummary(summary);
+      await refreshLifecycle(draft.id);
       showToast(summary.replayed ? "Clôture déjà enregistrée, résumé rechargé." : "Dossier clôturé avec succès.", "success");
     } catch (err: any) {
       showToast(err?.message || "Le dossier n'est pas encore prêt pour la clôture.", "error");
@@ -760,6 +787,13 @@ export default function ReservationDetailPage({
           </span>
         )}
       </div>
+
+      {lifecycleSummary && <LifecycleTimeline summary={lifecycleSummary} />}
+      {lifecycleError && !lifecycleSummary && (
+        <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Parcours opérationnel indisponible. Actualisez le dossier après avoir vérifié votre accès.
+        </div>
+      )}
 
       {/* ── stepper ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8 overflow-x-auto pb-4">

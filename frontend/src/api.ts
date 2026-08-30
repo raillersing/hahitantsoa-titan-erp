@@ -46,6 +46,7 @@ import type {
   ReservationDraftCreatePayload,
   ReservationDraftMutationResult,
   ReservationCloseoutSummary,
+  LifecycleSummary,
   ReportCategory,
   ReportCategoryResponse,
   ReservationDraftUpdatePayload,
@@ -757,6 +758,16 @@ export function getReservationDraft(
 ): Promise<ReservationDraft> {
   return getAuthenticatedJson(
     `/api/v1/reservations/drafts/${draftId}/`,
+    signal,
+  );
+}
+
+export function getReservationDraftLifecycle(
+  draftId: string,
+  signal?: AbortSignal,
+): Promise<LifecycleSummary> {
+  return getAuthenticatedJson(
+    `/api/v1/reservations/drafts/${encodeURIComponent(draftId)}/lifecycle/`,
     signal,
   );
 }
@@ -1908,6 +1919,16 @@ export function getHahitantsoaEventDraftCloseoutSummary(
   signal?: AbortSignal,
 ): Promise<HahitantsoaEventCloseoutSummary> {
   return getAuthenticatedJson(`/api/v1/hahitantsoa/event-drafts/${eventDraftId}/closeout/`, signal);
+}
+
+export function getHahitantsoaEventDraftLifecycle(
+  eventDraftId: string,
+  signal?: AbortSignal,
+): Promise<LifecycleSummary> {
+  return getAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${encodeURIComponent(eventDraftId)}/lifecycle/`,
+    signal,
+  );
 }
 
 export function closeHahitantsoaEventDraft(
