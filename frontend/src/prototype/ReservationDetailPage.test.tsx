@@ -63,6 +63,7 @@ const mockMarkReservationDraftContractSigned = vi.fn();
 const mockConfirmReservationDraft = vi.fn();
 const mockGetPayments = vi.fn();
 const mockRecordConfirmedDeposit = vi.fn();
+const mockGetLifecycle = vi.fn();
 
 vi.mock('../api', () => ({
   getReservationDraft: (...args: any[]) => mockGetReservationDraft(...args),
@@ -72,6 +73,7 @@ vi.mock('../api', () => ({
   confirmReservationDraft: (...args: any[]) => mockConfirmReservationDraft(...args),
   getPayments: (...args: any[]) => mockGetPayments(...args),
   recordConfirmedDeposit: (...args: any[]) => mockRecordConfirmedDeposit(...args),
+  getReservationDraftLifecycle: (...args: any[]) => mockGetLifecycle(...args),
 }));
 
 /* ── helper: wait for the draft page to load ────────────────────── */
@@ -97,6 +99,16 @@ describe('ReservationDetailPage', () => {
     mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
     mockGetPayments.mockResolvedValue([]);
     mockRecordConfirmedDeposit.mockResolvedValue({ payment: { id: 'payment-deposit-1' }, replayed: false });
+    mockGetLifecycle.mockResolvedValue({
+      domain: 'titan',
+      dossier_id: MOCK_DRAFT.id,
+      public_reference: MOCK_DRAFT.public_reference,
+      status: 'draft',
+      next_action: 'sign_contract',
+      blockers: ['contract_signature_required'],
+      owner_id: null,
+      steps: [{ key: 'contract', label: 'Contrat signé', status: 'pending', occurred_at: null }],
+    });
     mockMarkReservationDraftContractSigned.mockResolvedValue({
       status: 'draft',
       public_reference: 'LOC-2026-0089',
@@ -118,6 +130,15 @@ describe('ReservationDetailPage', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('shows the persisted lifecycle next action without replacing the existing dossier flow', async () => {
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    expect(screen.getByRole('heading', { name: /parcours opérationnel/i })).toBeInTheDocument();
+    expect(screen.getByText(/faire signer le contrat/i)).toBeInTheDocument();
+    expect(mockGetLifecycle).toHaveBeenCalledWith(MOCK_DRAFT.id);
   });
 
   it('1. Préparation Titan: clamp prep quantities to ordered quantity', async () => {
