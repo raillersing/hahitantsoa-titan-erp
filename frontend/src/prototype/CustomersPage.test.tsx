@@ -129,4 +129,35 @@ describe('CustomersPage', () => {
     expect(categories).not.toContain('STAT');
     expect(categories).not.toContain('RCS');
   });
+
+  it('10. persiste tous les contacts fournis avec un principal par type', async () => {
+    const created = { ...API_CUSTOMERS[0], id: 'CUST-100', display_name: 'Contacts multiples' };
+    vi.spyOn(api, 'createCustomer').mockResolvedValue(created);
+    render(<CustomersPage onNavigate={vi.fn()} canSensitiveWrite />);
+    await screen.findByText('Ando Rakoto');
+    fireEvent.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Contacts multiples' } });
+    fireEvent.change(screen.getByPlaceholderText('Ex: 034 00 000 00'), { target: { value: '0340000000' } });
+    fireEvent.change(screen.getByPlaceholderText('contact@email.com'), { target: { value: 'principal@exemple.mg' } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Téléphone' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ E-mail' }));
+    fireEvent.change(screen.getByLabelText('Téléphone supplémentaire'), { target: { value: '0320000000' } });
+    fireEvent.change(screen.getByLabelText('E-mail supplémentaire'), { target: { value: 'logistique@exemple.mg' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Principal' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le client' }));
+
+    await screen.findByText('Ando Rakoto');
+    expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
+      contact_points: expect.arrayContaining([
+        expect.objectContaining({ kind: 'phone', value: '0340000000', is_primary: true }),
+        expect.objectContaining({ kind: 'phone', value: '0320000000' }),
+        expect.objectContaining({ kind: 'email', value: 'principal@exemple.mg', is_primary: false }),
+        expect.objectContaining({ kind: 'email', value: 'logistique@exemple.mg', is_primary: true }),
+      ]),
+    }));
+  });
 });
