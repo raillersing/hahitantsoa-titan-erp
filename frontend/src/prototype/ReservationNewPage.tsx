@@ -11,10 +11,12 @@ import {
   getMaterialPackages,
   getReservationAvailableItemPreviews,
   createReservationDraft,
+  updateReservationDraft,
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstancePdf,
   createHahitantsoaEventDraft,
+  updateHahitantsoaEventDraft,
   createHahitantsoaEventDraftDocumentInstance,
   getHahitantsoaEventDraftDocumentInstances,
   generateHahitantsoaEventDraftDocumentInstance,
@@ -513,6 +515,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [issuedProspectProformaId, setIssuedProspectProformaId] = useState<string | null>(null);
   const [prospectProformaEmission, setProspectProformaEmission] = useState<ProspectProformaEmission | null>(null);
   const [documentReference, setDocumentReference] = useState("");
+  const [serverDraftSaving, setServerDraftSaving] = useState(false);
 
   // Derived: mapped clients (API Customer → local Client format)
   const clients: Client[] = apiCustomers.map(mapCustomerToClient);
@@ -775,7 +778,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       dedicatedAttachments: Object.fromEntries(Object.entries(dedicatedAttachments).map(([category, attachment]) => [category, attachment ? (({ file: _file, ...rest }) => rest)(attachment) : attachment])),
       paymentAttachments: paymentAttachments.map(({ file: _file, ...attachment }) => attachment),
       recordedPayments,
-      discountValue, discountIsPercentage, discountReason
+      discountValue, discountIsPercentage, discountReason,
+      prospectProformaEmission,
     };
     localStorage.setItem("prototypeReservationDraft", JSON.stringify(draft));
   };
@@ -784,7 +788,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     if (step >= 2 && (selectedClientId || newClient.name)) {
       saveDraft();
     }
-  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason]);
+  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission]);
 
   const restoreDraft = () => {
     const saved = localStorage.getItem("prototypeReservationDraft");
@@ -802,6 +806,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
       setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: "50" }); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []); setRecordedPayments(data.recordedPayments || []);
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true); setDiscountReason(data.discountReason || "");
+      setProspectProformaEmission(data.prospectProformaEmission || null);
       setShowDraftPrompt(false);
     }
   };
@@ -895,8 +900,90 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     discountIsPercentage,
   });
 
+  const persistCommercialDraft = async (): Promise<ProspectProformaEmission> => {
+    if (!domain) throw new Error("Sélectionnez le volet métier avant d’enregistrer le dossier.");
+    const details = domain === "hahitantsoa" ? hDetails : tDetails;
+    if (!details.startDate || !details.startTime || !details.endDate || !details.endTime) {
+      throw new Error("Renseignez les dates et heures avant d’enregistrer le dossier.");
+    }
+    if (domain === "titan" && selectedMaterials.length === 0) {
+      throw new Error("Ajoutez au moins un article Titan avant d’enregistrer le dossier.");
+    }
+
+    const customerId = await ensureCustomerId();
+    const startAt = toTimezoneAwareIso(details.startDate, details.startTime);
+    const endAt = toTimezoneAwareIso(details.endDate, details.endTime);
+    const lines = selectedMaterials.map((material) => ({
+      inventory_item_id: material.id,
+      quantity: material.quantity,
+      notes: material.name,
+    }));
+    let emission: ProspectProformaEmission = prospectProformaEmission?.domain === domain
+      ? prospectProformaEmission
+      : { domain, htmlGenerated: false };
+
+    setServerDraftSaving(true);
+    try {
+      if (domain === "hahitantsoa") {
+        const payload = {
+          customer_id: customerId,
+          event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
+          venue_name: hDetails.venue || undefined,
+          location_details: hDetails.venue || undefined,
+          service_notes: selectedServices.map((service) => service.name).join(", ") || undefined,
+          start_at: startAt,
+          end_at: endAt,
+          rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" as const : "bare" as const,
+          guest_count: Number(hDetails.guests || 0),
+          space_rental_amount: hahitantsoaSpaceRentalAmount,
+          required_deposit_amount: hahitantsoaDepositAmount,
+          notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
+          lines,
+        };
+        const draft = emission.draftId
+          ? await updateHahitantsoaEventDraft(emission.draftId, payload)
+          : await createHahitantsoaEventDraft(payload);
+        emission = { ...emission, draftId: draft.id };
+      } else {
+        const payload = {
+          customer_id: customerId,
+          start_at: startAt,
+          end_at: endAt,
+          notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
+          delivery_fee: Number(deliveryFee) || 0,
+          discount_amount: discountAmount,
+          discount_reason: discountAmount > 0 ? discountReason.trim() : "",
+          lines,
+        };
+        const draft = emission.draftId
+          ? await updateReservationDraft(emission.draftId, payload)
+          : await createReservationDraft(payload);
+        emission = { ...emission, draftId: draft.id };
+      }
+      setProspectProformaEmission(emission);
+      return emission;
+    } finally {
+      setServerDraftSaving(false);
+    }
+  };
+
   // Navigation
-  const goNext = () => {
+  const goNext = async () => {
+    if (serverDraftSaving) return;
+    try {
+      const details = domain === "hahitantsoa" ? hDetails : tDetails;
+      const reachesPersistableOfferCompletion = step === 5
+        && domain !== null
+        && Boolean(details.startDate && details.startTime && details.endDate && details.endTime)
+        && (domain !== "titan" || selectedMaterials.length > 0);
+      if (reachesPersistableOfferCompletion) {
+        await persistCommercialDraft();
+        showToastMsg("Dossier enregistré sur le serveur. Vous pouvez reprendre ce parcours sans dépendre du navigateur.", "success");
+      }
+    } catch (error: any) {
+      setSubmitError(error?.message || "Impossible d’enregistrer le dossier.");
+      return;
+    }
     let nextStep = step + 1;
     if (step === 3 && domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
       nextStep = 5; // Skip catalog
@@ -1039,7 +1126,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     let emission: ProspectProformaEmission = prospectProformaEmission?.domain === domain
       ? prospectProformaEmission
       : { domain, htmlGenerated: false };
-
     if (!emission.draftId) {
       if (isHahitantsoa) {
         const eventDraft = await createHahitantsoaEventDraft({
@@ -1177,28 +1263,34 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   const renderStepper = () => {
-    let steps = isProspectProforma ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    if (domain === 'hahitantsoa' && hDetails.rentalType === 'Location nue') {
-      steps = steps.filter(s => s !== 4);
-    }
+    const stages = [
+      { label: "Client & volet", steps: [1, 2] },
+      { label: "Date & disponibilité", steps: [3] },
+      { label: "Offre & logistique", steps: [4, 5] },
+      { label: "Vérification & documents", steps: [6, 7, 8, 9] },
+    ];
     return (
       <div className="flex items-center justify-between mb-8 overflow-x-auto pb-4 text-sm scrollbar-hide">
-        {steps.map((s, i) => {
-          const isActive = step === s;
-          const isReached = s <= maxReachedStep;
-          const isClickable = isReached;
+        {stages.map((stage, index) => {
+          const isActive = stage.steps.includes(step);
+          const reachedSteps = stage.steps.filter((stageStep) => stageStep <= maxReachedStep);
+          const isReached = reachedSteps.length > 0;
+          const targetStep = reachedSteps[0] ?? stage.steps[0];
           return (
-            <React.Fragment key={s}>
-              <div 
-                className={`flex items-center space-x-2 shrink-0 ${isClickable ? 'cursor-pointer hover:opacity-80' : 'opacity-40'} transition-opacity`}
-                onClick={() => isClickable && jumpTo(s)}
+            <React.Fragment key={stage.label}>
+              <button
+                type="button"
+                disabled={!isReached}
+                aria-current={isActive ? "step" : undefined}
+                className={`flex items-center space-x-2 shrink-0 ${isReached ? 'cursor-pointer hover:opacity-80' : 'opacity-40'} transition-opacity disabled:cursor-not-allowed`}
+                onClick={() => isReached && jumpTo(targetStep)}
               >
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full ${isActive ? 'bg-indigo-600 text-white shadow-md' : isReached ? 'bg-green-500 text-white' : 'border-2 border-slate-300 text-slate-500'} font-bold transition-all`}>
-                  {isReached && !isActive ? <i className="fa-solid fa-check"></i> : s}
+                  {isReached && !isActive ? <i className="fa-solid fa-check" aria-hidden="true"></i> : index + 1}
                 </div>
-                <span className={`font-semibold ${isActive ? 'text-slate-900' : isReached ? 'text-green-600' : 'text-slate-500'} hidden md:inline-block`}>{getStepTitle(s)}</span>
-              </div>
-              {i < steps.length - 1 && <div className={`h-0.5 flex-1 mx-2 min-w-[10px] md:mx-4 md:min-w-[20px] ${s < maxReachedStep ? 'bg-green-500' : 'bg-slate-200'} transition-colors`}></div>}
+                <span className={`font-semibold ${isActive ? 'text-slate-900' : isReached ? 'text-green-600' : 'text-slate-500'} hidden md:inline-block`}>{stage.label}</span>
+              </button>
+              {index < stages.length - 1 && <div className={`h-0.5 flex-1 mx-2 min-w-[10px] md:mx-4 md:min-w-[20px] ${isReached && !isActive ? 'bg-green-500' : 'bg-slate-200'} transition-colors`}></div>}
             </React.Fragment>
           );
         })}
@@ -3797,6 +3889,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       {errorCatalog && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation"></i> {errorCatalog}</div>}
       {domain === "hahitantsoa" && errorHahitantsoaTerms && <div className="bg-amber-50 text-amber-800 p-3 rounded-lg text-sm flex items-center gap-2" role="alert"><i className="fa-solid fa-triangle-exclamation"></i> {errorHahitantsoaTerms} Les valeurs affichées sont les dernières valeurs par défaut connues.</div>}
       {submitError && <div className="bg-rose-50 text-rose-700 p-3 rounded-lg text-sm flex items-center gap-2" role="alert" aria-live="assertive"><i className="fa-solid fa-triangle-exclamation"></i> Erreur de soumission : {submitError}</div>}
+      {serverDraftSaving && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2" role="status" aria-live="polite"><i className="fa-solid fa-spinner fa-spin"></i> Enregistrement du dossier en cours...</div>}
 
       {step > 0 && renderStepper()}
 
