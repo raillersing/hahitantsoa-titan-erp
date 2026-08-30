@@ -70,6 +70,7 @@ from apps.reservations.confirmation import (
     ReservationLifecycleStateError,
 )
 from apps.reservations.periods import validate_reservation_period
+from apps.reservations.serializers import LifecycleSummarySerializer
 
 
 class HahitantsoaDiscoveryItemsAPIView(APIView):
@@ -648,6 +649,26 @@ class HahitantsoaEventDraftCloseoutSummaryAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(HahitantsoaEventCloseoutSummarySerializer(asdict(summary)).data)
+
+
+class HahitantsoaEventDraftLifecycleAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(responses=LifecycleSummarySerializer)
+    def get(self, request, pk):
+        from dataclasses import asdict
+
+        from django.shortcuts import get_object_or_404
+
+        from apps.hahitantsoa.lifecycle import get_hahitantsoa_lifecycle_summary
+
+        event_draft = get_object_or_404(active_hahitantsoa_event_drafts(), pk=pk)
+        return Response(
+            LifecycleSummarySerializer(
+                asdict(get_hahitantsoa_lifecycle_summary(event_draft=event_draft))
+            ).data
+        )
 
 
 class HahitantsoaEventDraftCloseoutExecuteAPIView(APIView):
