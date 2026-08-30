@@ -85,6 +85,9 @@ class Command(BaseCommand):
     def _ensure_active_document_templates(self) -> None:
         repository_root = Path(settings.BASE_DIR).parent
         for definition in DOCUMENT_TEMPLATE_REGISTRY:
+            # ponytail: house rules are deliberately enforced outside document generation.
+            if definition.key == "hahitantsoa.house_rules.v1":
+                continue
             template = DocumentTemplate.objects.filter(code=definition.key).first()
             if template is not None:
                 if (
