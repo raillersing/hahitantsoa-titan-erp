@@ -29,6 +29,17 @@ from apps.reservations.models import ReservationDraft
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
 HAHITANTSOA_PROFORMA_TEMPLATE_KEY = "hahitantsoa.proforma.v1"
 DEFAULT_PROFORMA_VALIDITY_DAYS = 15
+DOCUMENT_REFERENCE_SUFFIX_BY_TEMPLATE_KEY = {
+    "titan.proforma.v1": "PF",
+    "hahitantsoa.proforma.v1": "PF",
+    "titan.material_contract.v1": "CT",
+    "hahitantsoa.contract.v1": "CT",
+    "shared.preparation_sheet.v1": "FP",
+    "hahitantsoa.preparation_sheet.v1": "FP",
+    "titan.delivery_note.v1": "BL",
+    "hahitantsoa.delivery_note.v1": "BL",
+    "hahitantsoa.liability_release.v1": "DR",
+}
 TITAN_CONTRACT_TEMPLATE_KEYS = {
     "titan.material_contract.v1",
     "titan.material_amendment.v1",
@@ -75,6 +86,14 @@ class ProformaActionError(ValueError):
     def __init__(self, message: str, *, code: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+def build_document_reference(*, public_reference: str, template_key: str) -> str:
+    """Apply the approved document suffix when the template has one."""
+    suffix = DOCUMENT_REFERENCE_SUFFIX_BY_TEMPLATE_KEY.get(template_key)
+    if not public_reference or suffix is None:
+        return ""
+    return f"{public_reference}-{suffix}"
 
 
 def _get_locked_document_instance(*, document_instance_id) -> DocumentInstance:
@@ -385,6 +404,10 @@ def commercial_document_context_to_document_instance_kwargs(
         "template_preview_path": context.template.preview_path,
         "template_validated_by_client": context.template.validated_by_client,
         "template_notes": context.template.notes,
+        "document_reference": build_document_reference(
+            public_reference=context.reservation_draft.public_reference,
+            template_key=context.template.key,
+        ),
         "reservation_public_reference": context.reservation_draft.public_reference,
         "reservation_status": context.reservation_draft.status,
         "customer_display_name": context.reservation_draft.customer.display_name,
@@ -523,6 +546,10 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         "template_preview_path": template_definition.preview_path,
         "template_validated_by_client": template_definition.validated_by_client,
         "template_notes": template_definition.notes,
+        "document_reference": build_document_reference(
+            public_reference=event_draft.public_reference,
+            template_key=template_definition.key,
+        ),
         "reservation_public_reference": event_draft.public_reference,
         "reservation_status": event_draft.status,
         "customer_display_name": event_draft.customer.display_name,

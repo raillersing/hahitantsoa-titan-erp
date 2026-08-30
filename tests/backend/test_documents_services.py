@@ -9,6 +9,7 @@ from apps.documents.models import DocumentInstance
 from apps.documents.runtime import generate_document_instance_html
 from apps.documents.serializers import DocumentInstanceSerializer
 from apps.documents.services import (
+    build_document_reference,
     create_document_instance_from_reservation_draft,
     get_reservation_draft_commercial_document_context_service,
     get_titan_proforma_draft_preview_payload_service,
@@ -19,6 +20,43 @@ from apps.inventory.models import InventoryItem
 from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
 pytestmark = pytest.mark.django_db
+
+
+@pytest.mark.parametrize(
+    ("template_key", "expected"),
+    (
+        ("titan.proforma.v1", "T-001/2026-PF"),
+        ("hahitantsoa.proforma.v1", "H-001/2026-PF"),
+        ("titan.material_contract.v1", "T-001/2026-CT"),
+        ("hahitantsoa.contract.v1", "H-001/2026-CT"),
+        ("shared.preparation_sheet.v1", "T-001/2026-FP"),
+        ("titan.delivery_note.v1", "T-001/2026-BL"),
+        ("hahitantsoa.liability_release.v1", "H-001/2026-DR"),
+    ),
+)
+def test_build_document_reference_uses_approved_template_suffixes(
+    template_key: str,
+    expected: str,
+) -> None:
+    assert (
+        build_document_reference(
+            public_reference="H-001/2026"
+            if template_key.startswith("hahitantsoa")
+            else "T-001/2026",
+            template_key=template_key,
+        )
+        == expected
+    )
+
+
+def test_build_document_reference_leaves_unmapped_template_empty() -> None:
+    assert (
+        build_document_reference(
+            public_reference="T-001/2026",
+            template_key="shared.supplier_purchase_order.v1",
+        )
+        == ""
+    )
 
 
 def _customer() -> Customer:
@@ -161,12 +199,14 @@ def test_document_preparation_snapshots_the_default_bank(django_user_model) -> N
         rib="RIB-ORIGINAL",
         is_default_for_documents=True,
     )
+    reservation_draft = _draft()
     document = create_document_instance_from_reservation_draft(
-        reservation_draft=_draft(),
+        reservation_draft=reservation_draft,
         template_key="titan.proforma.v1",
         actor=actor,
     )
 
+    assert document.document_reference == f"{reservation_draft.public_reference}-PF"
     assert document.bank_profile_id == profile.id
     assert document.bank_name == "Banque documentaire"
     assert document.bank_rib == "RIB-ORIGINAL"
@@ -200,11 +240,13 @@ def test_titan_contract_snapshots_and_renders_all_customer_contacts() -> None:
         label="WhatsApp",
         is_primary=True,
     )
+    reservation_draft = _draft(customer=customer)
     document = create_document_instance_from_reservation_draft(
-        reservation_draft=_draft(customer=customer),
+        reservation_draft=reservation_draft,
         template_key="titan.material_contract.v1",
     )
 
+    assert document.document_reference == f"{reservation_draft.public_reference}-CT"
     assert document.customer_contact_points_snapshot == [
         {"kind": "email", "value": "commercial@example.test", "label": "Commercial"},
         {"kind": "phone", "value": "+261340000011", "label": "WhatsApp"},
