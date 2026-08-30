@@ -657,6 +657,12 @@ describe('ReservationNewPage', () => {
     expect(screen.getByText('Téléphone contact')).toBeInTheDocument();
     expect(screen.getByText('Latitude')).toBeInTheDocument();
     expect(screen.getByText('Longitude')).toBeInTheDocument();
+    expect(screen.getByLabelText("Type d'usage")).toBeInTheDocument();
+    expect(screen.getByLabelText('Nom du lieu')).toBeInTheDocument();
+    expect(screen.getByLabelText('Commune ou ville')).toBeInTheDocument();
+    expect(screen.getByLabelText('Adresse complète')).toBeInTheDocument();
+    expect(screen.getByLabelText('Latitude')).toBeInTheDocument();
+    expect(screen.getByLabelText('Longitude')).toBeInTheDocument();
 
     // Fill the fields
     const venueNameInput = screen.getByPlaceholderText('Ex: Espace Fitiavana, Villa privée, Salle communale, Domicile client');
