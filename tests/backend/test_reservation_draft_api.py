@@ -107,6 +107,7 @@ def test_authenticated_user_can_create_draft(authenticated_client) -> None:
     assert payload["lines"][0]["unit_rental_price"] == "0.00"
     assert payload["subtotal_amount"] == "0.00"
     assert payload["total_amount"] == "0.00"
+    assert payload["required_deposit_amount"] == "0.00"
     assert ReservationDraft.objects.count() == 1
     assert ReservationDraftLine.objects.count() == 1
 
@@ -140,6 +141,7 @@ def test_draft_creation_uses_server_catalog_price_and_calculates_breakdown(
     assert body["delivery_fee"] == "3000.00"
     assert body["discount_amount"] == "500.00"
     assert body["total_amount"] == "27500.00"
+    assert body["required_deposit_amount"] == "6875.00"
     draft = ReservationDraft.objects.get(pk=body["id"])
     assert draft.discount_applied_by is not None
     assert draft.discount_applied_at is not None

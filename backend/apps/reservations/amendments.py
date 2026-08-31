@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -148,9 +149,20 @@ def create_reservation_draft_amendment(
     if changed_end_at is not None:
         locked_draft.end_at = end_at
     if changed_start_at is not None or changed_end_at is not None:
+        locked_draft.required_deposit_amount = (
+            locked_draft.total_amount * Decimal("0.25")
+        ).quantize(Decimal("0.01"))
         locked_draft.full_clean()
         locked_draft.updated_by = actor
-        locked_draft.save(update_fields=["start_at", "end_at", "updated_by", "updated_at"])
+        locked_draft.save(
+            update_fields=[
+                "start_at",
+                "end_at",
+                "required_deposit_amount",
+                "updated_by",
+                "updated_at",
+            ]
+        )
     if changed_lines is not None:
         now = timezone.now()
         existing_by_item_id = {line.inventory_item_id: line for line in active_lines}

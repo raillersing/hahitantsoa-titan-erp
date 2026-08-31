@@ -34,6 +34,7 @@ from apps.payments.services import (
     reconcile_payment,
     record_confirmed_deposit,
 )
+from apps.reservations.confirmation import ReservationLifecycleError
 from apps.reservations.models import ReservationDraft
 
 pytestmark = pytest.mark.django_db
@@ -253,6 +254,36 @@ def test_record_confirmed_deposit_rolls_back_when_required_amount_is_not_reached
     assert event_draft.required_deposit_received_by_id is None
     assert not Payment.objects.filter(hahitantsoa_event_draft=event_draft).exists()
     assert not DocumentInstance.objects.filter(hahitantsoa_event_draft=event_draft).exists()
+
+
+def test_record_confirmed_deposit_rolls_back_when_titan_contract_amount_is_not_reached(
+    django_user_model,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="deposit-recording-titan-rollback",
+        password="test-pass",
+        is_staff=True,
+    )
+    draft = _reservation_draft()
+    draft.total_amount = Decimal("1000000.00")
+    draft.required_deposit_amount = Decimal("250000.00")
+    draft.save(update_fields=["total_amount", "required_deposit_amount", "updated_at"])
+
+    with pytest.raises(ReservationLifecycleError) as error_info:
+        record_confirmed_deposit(
+            actor=actor,
+            reservation_draft=draft,
+            payment_method=PaymentMethod.CASH,
+            amount=Decimal("200000.00"),
+            idempotency_key="deposit-titan-rollback",
+        )
+
+    draft.refresh_from_db()
+    assert error_info.value.code == "required_deposit_payment_truth_missing"
+    assert draft.required_deposit_received_at is None
+    assert draft.required_deposit_received_by_id is None
+    assert not Payment.objects.filter(reservation_draft=draft).exists()
+    assert not DocumentInstance.objects.filter(reservation_draft=draft).exists()
 
 
 def test_confirm_payment_generates_and_links_receipt_document(

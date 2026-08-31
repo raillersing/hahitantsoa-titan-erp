@@ -291,6 +291,11 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
     lines = ReservationDraftLineSerializer(many=True)
     subtotal_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    required_deposit_amount = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        read_only=True,
+    )
 
     class Meta:
         model = ReservationDraft
@@ -308,6 +313,7 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "discount_amount",
             "discount_reason",
             "total_amount",
+            "required_deposit_amount",
             "contract_signed_at",
             "contract_signed_by_id",
             "required_deposit_received_at",
@@ -327,6 +333,7 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "customer_display_name",
             "subtotal_amount",
             "total_amount",
+            "required_deposit_amount",
             "contract_signed_at",
             "contract_signed_by_id",
             "required_deposit_received_at",
