@@ -1991,7 +1991,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Type d'usage</label>
-              <select className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.usageType} onChange={e => setTDetails({...tDetails, usageType: e.target.value})}>
+              <select aria-label="Type d'usage" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.usageType} onChange={e => setTDetails({...tDetails, usageType: e.target.value})}>
                 <option value="Mariage">Mariage</option>
                 <option value="Anniversaire">Anniversaire</option>
                 <option value="Séminaire / réunion">Séminaire / réunion</option>
@@ -2012,25 +2012,25 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Nom du lieu</label>
-              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationName} onChange={e => setTDetails({...tDetails, destinationName: e.target.value})} placeholder="Ex: Espace Fitiavana, Villa privée, Salle communale, Domicile client" />
+              <input aria-label="Nom du lieu" type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationName} onChange={e => setTDetails({...tDetails, destinationName: e.target.value})} placeholder="Ex: Espace Fitiavana, Villa privée, Salle communale, Domicile client" />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Commune / Ville</label>
-              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationCity} onChange={e => setTDetails({...tDetails, destinationCity: e.target.value})} placeholder="Ex: Antananarivo" />
+              <input aria-label="Commune ou ville" type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationCity} onChange={e => setTDetails({...tDetails, destinationCity: e.target.value})} placeholder="Ex: Antananarivo" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Adresse complète</label>
-              <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationAddress} onChange={e => setTDetails({...tDetails, destinationAddress: e.target.value})} placeholder="Ex: Lot XYZ Ambohibao" />
+              <input aria-label="Adresse complète" type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationAddress} onChange={e => setTDetails({...tDetails, destinationAddress: e.target.value})} placeholder="Ex: Lot XYZ Ambohibao" />
             </div>
             <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Contact sur place</label>
-                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationContactName} onChange={e => setTDetails({...tDetails, destinationContactName: e.target.value})} placeholder="Ex: Jean" />
+                <input aria-label="Contact sur place" type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationContactName} onChange={e => setTDetails({...tDetails, destinationContactName: e.target.value})} placeholder="Ex: Jean" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone contact</label>
-                <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationContactPhone} onChange={e => setTDetails({...tDetails, destinationContactPhone: e.target.value})} placeholder="Ex: 034 00 000 00" />
+                <input aria-label="Téléphone contact" type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.destinationContactPhone} onChange={e => setTDetails({...tDetails, destinationContactPhone: e.target.value})} placeholder="Ex: 034 00 000 00" />
               </div>
             </div>
             
@@ -2065,11 +2065,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Latitude</label>
-                  <input type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationLat} onChange={e => setTDetails({...tDetails, destinationLat: e.target.value})} placeholder="Ex: -18.8792" />
+                  <input aria-label="Latitude" type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationLat} onChange={e => setTDetails({...tDetails, destinationLat: e.target.value})} placeholder="Ex: -18.8792" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">Longitude</label>
-                  <input type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationLng} onChange={e => setTDetails({...tDetails, destinationLng: e.target.value})} placeholder="Ex: 47.5079" />
+                  <input aria-label="Longitude" type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationLng} onChange={e => setTDetails({...tDetails, destinationLng: e.target.value})} placeholder="Ex: 47.5079" />
                 </div>
               </div>
               
@@ -2087,7 +2087,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Note d'accès</label>
-                <input type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationAccessNote} onChange={e => setTDetails({...tDetails, destinationAccessNote: e.target.value})} placeholder="Ex: Portail bleu au fond de l'impasse" />
+                <input aria-label="Note d'accès" type="text" className="w-full border border-slate-300 rounded-lg p-2 text-sm" value={tDetails.destinationAccessNote} onChange={e => setTDetails({...tDetails, destinationAccessNote: e.target.value})} placeholder="Ex: Portail bleu au fond de l'impasse" />
               </div>
             </div>
 
@@ -2121,21 +2121,21 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date début de location</label>
-                    <input type="date" min={new Date().toISOString().split('T')[0]} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
+                    <input aria-label="Date début de location" type="date" min={new Date().toISOString().split('T')[0]} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startDate || ''} onChange={e => setTDetails({...tDetails, startDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
-                    <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startTime || ''} onChange={e => setTDetails({...tDetails, startTime: e.target.value})} />
+                    <input aria-label="Heure de début de location" type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.startTime || ''} onChange={e => setTDetails({...tDetails, startTime: e.target.value})} />
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date fin de location</label>
-                    <input type="date" min={tDetails.startDate || new Date().toISOString().split('T')[0]} className={`w-full border rounded-lg p-2.5 text-sm ${tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate ? 'border-rose-500 bg-rose-50' : 'border-slate-300'}`} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
+                    <input aria-label="Date fin de location" type="date" min={tDetails.startDate || new Date().toISOString().split('T')[0]} className={`w-full border rounded-lg p-2.5 text-sm ${tDetails.startDate && tDetails.endDate && tDetails.endDate < tDetails.startDate ? 'border-rose-500 bg-rose-50' : 'border-slate-300'}`} value={tDetails.endDate || ''} onChange={e => setTDetails({...tDetails, endDate: e.target.value})} />
                   </div>
                   <div className="w-1/3">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Heure</label>
-                    <input type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.endTime || ''} onChange={e => setTDetails({...tDetails, endTime: e.target.value})} />
+                    <input aria-label="Heure de fin de location" type="time" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.endTime || ''} onChange={e => setTDetails({...tDetails, endTime: e.target.value})} />
                   </div>
                 </div>
               </div>
@@ -2193,7 +2193,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     Livraison prévue (J-1, jour ouvré)
                     {!deliveryModifiedManually && tDetails.pickupDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} readOnly />
+                  <input aria-label="Livraison prévue" type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={new Date().toISOString().split('T')[0]} value={tDetails.pickupDate || ''} readOnly />
                   <p className="text-xs text-slate-500 mt-1">Aucune heure n’est demandée pour les manœuvres Titan.</p>
                 </div>
                 <div>
@@ -2201,11 +2201,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     Récupération prévue (J+1, jour ouvré)
                     {!returnModifiedManually && tDetails.returnDate && <span className="ml-2 text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Calcul automatique</span>}
                   </label>
-                  <input type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} readOnly />
+                  <input aria-label="Récupération prévue" type="date" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" min={tDetails.pickupDate || new Date().toISOString().split('T')[0]} value={tDetails.returnDate || ''} readOnly />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Adresse livraison (si différente de la destination)</label>
-                  <input type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.deliveryAddress || ''} onChange={e => setTDetails({...tDetails, deliveryAddress: e.target.value})} placeholder="Laisser vide si identique" />
+                  <input aria-label="Adresse de livraison" type="text" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={tDetails.deliveryAddress || ''} onChange={e => setTDetails({...tDetails, deliveryAddress: e.target.value})} placeholder="Laisser vide si identique" />
                 </div>
               </>
             ) : (
@@ -2682,6 +2682,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                       <span className="font-bold text-indigo-600 text-sm">{item.price.toLocaleString('fr-FR')} Ar</span>
                       <div className="flex items-center gap-2">
                         <input 
+                          aria-label={`Quantité pour ${item.name}`}
                           type="number" 
                           min="0" 
                           max={item.available} 
@@ -2958,6 +2959,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             <label className="block text-sm font-medium text-slate-700 mb-2">Tarif de livraison (Saisir un montant ou laisser vide si pas de livraison)</label>
             <div className="relative">
               <input 
+                aria-label="Tarif de livraison"
                 type="number" 
                 className="w-full border border-slate-300 rounded-lg p-2.5 text-sm pl-4 pr-12" 
                 placeholder="Ex: 50000"
