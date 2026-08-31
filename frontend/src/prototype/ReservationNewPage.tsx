@@ -609,7 +609,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [serviceCategoryFilter, setServiceCategoryFilter] = useState<string>("all");
   const [deliveryFee, setDeliveryFee] = useState<string>("");
 
-  const [payment, setPayment] = useState<PaymentData>({ method: "Espèces", amount: "", percent: "50" });
+  const [payment, setPayment] = useState<PaymentData>({ method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
   
   const [proformaValidity, setProformaValidity] = useState<number>(15);
   const [proformaGenerated, setProformaGenerated] = useState(false);
@@ -804,7 +804,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         endTime: data.tDetails?.endTime || "22:00",
       });
       setSelectedMaterials(data.selectedMaterials || []); setSelectedServices(data.selectedServices || []);
-      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: "50" }); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []); setRecordedPayments(data.recordedPayments || []);
+      setDeliveryFee(data.deliveryFee || ""); setPayment(data.payment || { method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() }); setClientAttachments(data.clientAttachments || []); setDedicatedAttachments(data.dedicatedAttachments || {}); setPaymentAttachments(data.paymentAttachments || []); setRecordedPayments(data.recordedPayments || []);
       setDiscountValue(data.discountValue || 0); setDiscountIsPercentage(data.discountIsPercentage ?? true); setDiscountReason(data.discountReason || "");
       setProspectProformaEmission(data.prospectProformaEmission || null);
       setShowDraftPrompt(false);
@@ -3526,8 +3526,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 </>
               ) : (
                 <>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte % (sur total {totalAmount.toLocaleString('fr-FR')})</label>
-                  <input type="number" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={payment.percent === "50" ? (tDetails.advanceRate * 100).toString() : payment.percent} onChange={e => { const pct = e.target.value; const amt = (totalAmount * (parseInt(pct || "0", 10)) / 100).toString(); setPayment({...payment, percent: pct, amount: amt}); }} />
+                  <label htmlFor="reservation-payment-percent" className="block text-sm font-medium text-slate-700 mb-1">Acompte % (sur total {totalAmount.toLocaleString('fr-FR')})</label>
+                  <input id="reservation-payment-percent" type="number" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={payment.percent} onChange={e => { const pct = e.target.value; const amt = (totalAmount * (parseInt(pct || "0", 10)) / 100).toString(); setPayment({...payment, percent: pct, amount: amt}); }} />
                 </>
               )}
             </div>
