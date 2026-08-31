@@ -543,6 +543,35 @@ def test_confirmation_refuses_manual_deposit_marker_without_confirmed_payment_tr
     assert error_info.value.blockers == ("missing_required_deposit",)
 
 
+def test_confirmation_refuses_manual_deposit_marker_when_contract_amount_is_incomplete(
+    django_user_model,
+) -> None:
+    draft = _draft()
+    actor = _actor(django_user_model=django_user_model)
+    _line(reservation_draft=draft)
+    _generated_contract_document(reservation_draft=draft)
+    mark_reservation_draft_contract_signed(reservation_draft=draft, actor=actor)
+    draft.total_amount = Decimal("4000000.00")
+    draft.required_deposit_amount = Decimal("1000000.00")
+    draft.required_deposit_received_at = timezone.now()
+    draft.required_deposit_received_by = actor
+    draft.save(
+        update_fields=[
+            "total_amount",
+            "required_deposit_amount",
+            "required_deposit_received_at",
+            "required_deposit_received_by",
+        ]
+    )
+    _confirmed_deposit_payment(reservation_draft=draft, actor=actor)
+
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
+        confirm_reservation_draft(reservation_draft=draft, actor=actor)
+
+    assert error_info.value.code == "confirmation_preflight_failed"
+    assert error_info.value.blockers == ("missing_required_deposit",)
+
+
 def test_confirmation_refuses_availability_conflict(django_user_model) -> None:
     draft = _draft()
     actor = _actor(django_user_model=django_user_model)

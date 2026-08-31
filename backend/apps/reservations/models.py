@@ -119,6 +119,11 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
         related_name="+",
     )
     total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0"))
+    required_deposit_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0"),
+    )
 
     class Meta:
         ordering = ["-created_at", "public_reference"]
@@ -141,6 +146,10 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
                     & models.Q(total_amount__gte=0)
                 ),
                 name="reservation_draft_commercial_amounts_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(required_deposit_amount__gte=0),
+                name="reservation_draft_required_deposit_amount_nonnegative",
             ),
             models.CheckConstraint(
                 condition=(
@@ -201,6 +210,11 @@ class ReservationDraft(UUIDModel, TimestampedModel, SoftDeleteModel, AuditableMo
         if self.total_amount != commercial_base - self.discount_amount:
             raise ValidationError(
                 {"total_amount": "Total must equal subtotal plus delivery minus discount."}
+            )
+        expected_deposit_amount = (self.total_amount * Decimal("0.25")).quantize(Decimal("0.01"))
+        if self.required_deposit_amount != expected_deposit_amount:
+            raise ValidationError(
+                {"required_deposit_amount": "Titan deposit must equal 25% of the total."}
             )
 
     def __str__(self) -> str:

@@ -7,6 +7,7 @@ with durable inventory blocking.
 """
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -119,7 +120,11 @@ def _has_confirmed_required_deposit_payment(
     *,
     reservation_draft: ReservationDraft,
 ) -> bool:
-    return _confirmed_required_deposit_payments(reservation_draft=reservation_draft).exists()
+    payments = _confirmed_required_deposit_payments(reservation_draft=reservation_draft)
+    if not payments.exists():
+        return False
+    confirmed_amount = sum((payment.amount for payment in payments), Decimal("0"))
+    return confirmed_amount >= reservation_draft.required_deposit_amount
 
 
 def _lock_confirmed_required_deposit_payments(
@@ -489,12 +494,17 @@ def mark_reservation_draft_required_deposit_received(
             reservation_draft=reservation_draft
         )
         _assert_active_draft_state(reservation_draft=locked_reservation_draft)
-        if not _lock_confirmed_required_deposit_payments(
+        locked_payments = _lock_confirmed_required_deposit_payments(
             reservation_draft=locked_reservation_draft
+        )
+        confirmed_amount = sum((payment.amount for payment in locked_payments), Decimal("0"))
+        if (
+            not locked_payments
+            or confirmed_amount < locked_reservation_draft.required_deposit_amount
         ):
             raise ReservationLifecyclePrerequisiteError(
                 (
-                    "Reservation draft must have a confirmed deposit payment "
+                    "Reservation draft must have its contractual deposit fully confirmed "
                     "before the deposit marker can be recorded."
                 ),
                 code=REQUIRED_DEPOSIT_PAYMENT_TRUTH_MISSING,

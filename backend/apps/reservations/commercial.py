@@ -21,5 +21,8 @@ def recalculate_reservation_draft_totals(*, reservation_draft: ReservationDraft)
     reservation_draft.total_amount = (
         subtotal_amount + reservation_draft.delivery_fee - reservation_draft.discount_amount
     )
+    reservation_draft.required_deposit_amount = (
+        reservation_draft.total_amount * Decimal("0.25")
+    ).quantize(Decimal("0.01"))
     reservation_draft.full_clean()
     reservation_draft.save()
