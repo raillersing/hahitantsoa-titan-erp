@@ -229,6 +229,7 @@ function isReservationClientParam(param?: string): boolean {
 type ProspectProformaEmission = {
   domain: Exclude<DomainType, null>;
   draftId?: string;
+  requiredDepositAmount?: number;
   documentId?: string;
   htmlGenerated: boolean;
   documentPdfGenerated?: boolean;
@@ -1092,7 +1093,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     }
   };
 
-  const issueProspectProforma = async (): Promise<{ documentId: string; draftId: string }> => {
+  const issueProspectProforma = async (): Promise<{
+    documentId: string;
+    draftId: string;
+    requiredDepositAmount?: number;
+  }> => {
     if (!domain) {
       throw new Error("Sélectionnez un client et un volet avant d’émettre le proforma.");
     }
@@ -1155,7 +1160,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           discount_reason: discountAmount > 0 ? discountReason.trim() : "",
           lines,
         });
-        emission = { ...emission, draftId: reservationDraft.id };
+        emission = {
+          ...emission,
+          draftId: reservationDraft.id,
+          requiredDepositAmount: Number(reservationDraft.required_deposit_amount || "0"),
+        };
       }
       setProspectProformaEmission(emission);
     }
@@ -1209,7 +1218,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         setProspectProformaEmission(emission);
       }
     }
-    return { documentId, draftId };
+    return { documentId, draftId, requiredDepositAmount: emission.requiredDepositAmount };
   };
 
   const ensureContractGenerated = async (): Promise<{ contract: Awaited<ReturnType<typeof convertProformaToContract>>; draftId: string }> => {
@@ -3450,14 +3459,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
 
   const renderPaymentStep = () => {
-    const activePercent = payment.percent ? parseInt(payment.percent, 10) : (domain === 'titan' ? (tDetails.advanceRate * 100) : 50);
     const hahitantsoaDeposit = hahitantsoaDepositAmount;
     const hahitantsoaSchedule = domain === "hahitantsoa"
       ? calculateHahitantsoaPaymentSchedule(totalAmount, hahitantsoaDeposit, hDetails.startDate || hDetails.date)
       : null;
     const requiredPaymentAmount = domain === "hahitantsoa"
       ? hahitantsoaDeposit
-      : totalAmount * activePercent / 100;
+      : prospectProformaEmission?.requiredDepositAmount ?? totalAmount * TITAN_DEFAULT_ADVANCE_RATE;
     const recordedPaymentAmount = recordedPayments.reduce((sum, item) => sum + item.amount, 0);
     const remainingRequiredPayment = Math.max(0, requiredPaymentAmount - recordedPaymentAmount);
     const currentPaymentAmount = Number(payment.amount || 0);
@@ -3481,7 +3489,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-6">
              <h4 className="font-bold text-blue-800 text-sm mb-1">Règles Financières Titan</h4>
              <ul className="list-disc pl-5 text-sm text-blue-700 space-y-1">
-               <li>Acompte par défaut : <strong>{tDetails.advanceRate * 100}%</strong></li>
+               <li>Acompte contractuel : <strong>{TITAN_DEFAULT_ADVANCE_RATE * 100}%</strong> du total</li>
                <li>Solde dû <strong>{TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP} jours</strong> avant le prélèvement/livraison (soit le {new Date(new Date(tDetails.pickupDate || tDetails.startDate).getTime() - (TITAN_BALANCE_DUE_DAYS_BEFORE_PICKUP * 24 * 60 * 60 * 1000)).toLocaleDateString('fr-FR')})</li>
                <li>Dépôt de garantie Titan : <strong>{totalAmount < TITAN_DEPOSIT_THRESHOLD ? TITAN_SMALL_RENTAL_DEPOSIT.toLocaleString('fr-FR') : (totalAmount * TITAN_LARGE_RENTAL_DEPOSIT_RATE).toLocaleString('fr-FR')} Ar</strong></li>
              </ul>
@@ -3526,8 +3534,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 </>
               ) : (
                 <>
-                  <label htmlFor="reservation-payment-percent" className="block text-sm font-medium text-slate-700 mb-1">Acompte % (sur total {totalAmount.toLocaleString('fr-FR')})</label>
-                  <input id="reservation-payment-percent" type="number" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={payment.percent} onChange={e => { const pct = e.target.value; const amt = (totalAmount * (parseInt(pct || "0", 10)) / 100).toString(); setPayment({...payment, percent: pct, amount: amt}); }} />
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Acompte contractuel Titan</label>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-2.5 text-sm font-bold text-blue-800">
+                    {requiredPaymentAmount.toLocaleString('fr-FR')} Ar — {TITAN_DEFAULT_ADVANCE_RATE * 100}% du total
+                  </div>
                 </>
               )}
             </div>
@@ -3545,8 +3555,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 placeholder={remainingRequiredPayment.toLocaleString('fr-FR')}
                 onChange={e => {
                   const amt = e.target.value;
-                  const pct = ((parseInt(amt || "0", 10) / totalAmount) * 100).toFixed(1);
-                  setPayment({...payment, amount: amt, ...(domain === "titan" ? { percent: pct } : {})});
+                  setPayment({...payment, amount: amt});
                 }} 
               />
               <p className="mt-1 text-xs text-slate-500">L’acompte requis est enregistré en une opération atomique et rejouable sans doublon.</p>
@@ -3650,7 +3659,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   ? prospectProformaEmission
                   : await issueProspectProforma();
                 if (!emitted.draftId) throw new Error("Le brouillon de réservation est introuvable.");
-                if (remainingRequiredPayment > 0) {
+                const persistedRequiredPayment = domain === "titan"
+                  ? emitted.requiredDepositAmount ?? requiredPaymentAmount
+                  : requiredPaymentAmount;
+                const persistedRemainingPayment = Math.max(
+                  0,
+                  persistedRequiredPayment - recordedPaymentAmount,
+                );
+                if (persistedRemainingPayment > 0) {
                   const method = payment.method === "Espèces"
                     ? "cash"
                     : payment.method === "Chèque"
@@ -3663,11 +3679,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   if (!Number.isFinite(currentPaymentAmount) || currentPaymentAmount <= 0) {
                     throw new Error("Saisissez un montant de paiement supérieur à zéro.");
                   }
-                  if (currentPaymentAmount > remainingRequiredPayment) {
-                    throw new Error(`Le paiement ne peut pas dépasser le reste dû de ${remainingRequiredPayment.toLocaleString('fr-FR')} Ar.`);
+                  if (currentPaymentAmount > persistedRemainingPayment) {
+                    throw new Error(`Le paiement ne peut pas dépasser le reste dû de ${persistedRemainingPayment.toLocaleString('fr-FR')} Ar.`);
                   }
-                  if (currentPaymentAmount !== remainingRequiredPayment) {
-                    throw new Error(`Saisissez l’acompte requis de ${remainingRequiredPayment.toLocaleString('fr-FR')} Ar en une seule opération.`);
+                  if (currentPaymentAmount !== persistedRemainingPayment) {
+                    throw new Error(`Saisissez l’acompte requis de ${persistedRemainingPayment.toLocaleString('fr-FR')} Ar en une seule opération.`);
                   }
                   const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
                   depositRecordingKeyRef.current = idempotencyKey;

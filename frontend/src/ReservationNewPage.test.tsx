@@ -486,7 +486,9 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Acompte / Paiement')).toBeInTheDocument();
     });
-    expect(screen.getByLabelText(/Acompte %/)).toHaveValue(25);
+    expect(screen.getByText(/Acompte contractuel Titan/)).toBeInTheDocument();
+    expect(screen.getByText(/25% du total/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Acompte %/)).not.toBeInTheDocument();
     const paymentProof = new File(['proof'], 'recu-acompte.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByPlaceholderText("Ex. reçu d'acompte"), { target: { value: "Reçu acompte" } });
     fireEvent.change(document.getElementById('paymentFile')!, { target: { files: [paymentProof] } });
