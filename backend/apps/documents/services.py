@@ -38,6 +38,11 @@ DOCUMENT_REFERENCE_SUFFIX_BY_TEMPLATE_KEY = {
     "hahitantsoa.preparation_sheet.v1": "FP",
     "titan.delivery_note.v1": "BL",
     "hahitantsoa.delivery_note.v1": "BL",
+    "shared.return_note.v1": "BR",
+    "titan.invoice.v1": "FA",
+    "hahitantsoa.invoice.v1": "FA",
+    "titan.breakage_repair_invoice.v1": "FC",
+    "hahitantsoa.breakage_repair_invoice.v1": "FC",
     "hahitantsoa.liability_release.v1": "DR",
 }
 TITAN_CONTRACT_TEMPLATE_KEYS = {

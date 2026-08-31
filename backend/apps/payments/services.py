@@ -299,6 +299,29 @@ def active_payments():
     ).order_by("-created_at", "id")
 
 
+def _payment_receipt_document_reference(*, payment: Payment) -> str:
+    """Allocate the next canonical receipt reference for one persisted dossier."""
+    if payment.reservation_draft_id is not None:
+        draft = ReservationDraft.objects.select_for_update().get(pk=payment.reservation_draft_id)
+        receipt_count = DocumentInstance.objects.filter(
+            reservation_draft_id=draft.id,
+            document_type="payment_receipt",
+        ).count()
+        return f"{draft.public_reference}-REC-{receipt_count + 1:02d}"
+
+    if payment.hahitantsoa_event_draft_id is not None:
+        event_draft = HahitantsoaEventDraft.objects.select_for_update().get(
+            pk=payment.hahitantsoa_event_draft_id
+        )
+        receipt_count = DocumentInstance.objects.filter(
+            hahitantsoa_event_draft_id=event_draft.id,
+            document_type="payment_receipt",
+        ).count()
+        return f"{event_draft.public_reference}-REC-{receipt_count + 1:02d}"
+
+    return ""
+
+
 def build_payment_receipt_document_instance_kwargs(
     *,
     payment: Payment,
@@ -340,6 +363,7 @@ def build_payment_receipt_document_instance_kwargs(
         "template_preview_path": template.preview_path,
         "template_validated_by_client": template.validated_by_client,
         "template_notes": template.notes,
+        "document_reference": _payment_receipt_document_reference(payment=payment),
         "reservation_public_reference": (
             reservation_draft.public_reference
             if reservation_draft is not None
