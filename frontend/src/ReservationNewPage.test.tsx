@@ -489,6 +489,7 @@ describe('ReservationNewPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Acompte / Paiement')).toBeInTheDocument();
     });
+    expect(screen.getByLabelText(/Acompte %/)).toHaveValue(25);
     const paymentProof = new File(['proof'], 'recu-acompte.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByPlaceholderText("Ex. reçu d'acompte"), { target: { value: "Reçu acompte" } });
     fireEvent.change(document.getElementById('paymentFile')!, { target: { files: [paymentProof] } });
