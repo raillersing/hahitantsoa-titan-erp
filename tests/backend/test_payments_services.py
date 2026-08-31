@@ -148,6 +148,42 @@ def test_record_confirmed_deposit_is_atomic_and_replay_safe_for_titan(
     )
 
 
+def test_confirmed_payment_receipts_use_sequential_canonical_references(
+    django_user_model,
+) -> None:
+    actor = django_user_model.objects.create_user(
+        username="payment-receipt-references",
+        password="test-pass",
+        is_staff=True,
+    )
+    draft = _reservation_draft()
+    draft.public_reference = "T-001/2026"
+    draft.save(update_fields=["public_reference"])
+
+    first = create_payment(
+        actor=actor,
+        reservation_draft=draft,
+        payment_kind=PaymentKind.DEPOSIT,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("100000.00"),
+    )
+    second = create_payment(
+        actor=actor,
+        reservation_draft=draft,
+        payment_kind=PaymentKind.BALANCE,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("200000.00"),
+    )
+
+    first_result = confirm_payment(payment=first, actor=actor)
+    second_result = confirm_payment(payment=second, actor=actor)
+
+    assert first_result.receipt_document.document_reference == "T-001/2026-REC-01"
+    assert second_result.receipt_document.document_reference == "T-001/2026-REC-02"
+
+
 def test_record_confirmed_deposit_rejects_key_reused_with_different_amount(
     django_user_model,
     django_capture_on_commit_callbacks,

@@ -32,6 +32,11 @@ pytestmark = pytest.mark.django_db
         ("shared.preparation_sheet.v1", "T-001/2026-FP"),
         ("titan.delivery_note.v1", "T-001/2026-BL"),
         ("hahitantsoa.liability_release.v1", "H-001/2026-DR"),
+        ("shared.return_note.v1", "T-001/2026-BR"),
+        ("titan.invoice.v1", "T-001/2026-FA"),
+        ("hahitantsoa.invoice.v1", "H-001/2026-FA"),
+        ("titan.breakage_repair_invoice.v1", "T-001/2026-FC"),
+        ("hahitantsoa.breakage_repair_invoice.v1", "H-001/2026-FC"),
     ),
 )
 def test_build_document_reference_uses_approved_template_suffixes(
