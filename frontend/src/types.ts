@@ -316,6 +316,7 @@ export type ReservationDraft = {
   discount_amount?: string;
   discount_reason?: string;
   total_amount?: string;
+  required_deposit_amount?: string;
   contract_signed_at: string | null;
   contract_signed_by_id: string | null;
   required_deposit_received_at: string | null;
