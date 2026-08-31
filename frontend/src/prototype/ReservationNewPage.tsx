@@ -25,8 +25,7 @@ import {
   createCustomer,
   convertProspectToClient,
   uploadAttachment,
-  createPayment,
-  confirmPayment,
+  recordConfirmedDeposit,
 } from "../api";
 import type {
   Customer,
@@ -615,6 +614,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [proformaGenerated, setProformaGenerated] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
   const [recordedPayments, setRecordedPayments] = useState<RecordedPayment[]>([]);
+  const depositRecordingKeyRef = useRef<string | null>(null);
   const [clientAttachments, setClientAttachments] = useState<Attachment[]>([]);
   const [dedicatedAttachments, setDedicatedAttachments] = useState<Partial<Record<DedicatedAttachmentCategory, Attachment>>>({});
   const [paymentAttachments, setPaymentAttachments] = useState<Attachment[]>([]);
@@ -3549,7 +3549,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   setPayment({...payment, amount: amt, ...(domain === "titan" ? { percent: pct } : {})});
                 }} 
               />
-              <p className="mt-1 text-xs text-slate-500">Vous pouvez enregistrer plusieurs paiements avant l’échéance.</p>
+              <p className="mt-1 text-xs text-slate-500">L’acompte requis est enregistré en une opération atomique et rejouable sans doublon.</p>
             </div>
             <div>
               <span className="block text-sm font-medium text-slate-700 mb-1">Reste à verser pour l’acompte requis</span>
@@ -3666,29 +3666,29 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   if (currentPaymentAmount > remainingRequiredPayment) {
                     throw new Error(`Le paiement ne peut pas dépasser le reste dû de ${remainingRequiredPayment.toLocaleString('fr-FR')} Ar.`);
                   }
-                  const paymentRecord = await createPayment({
+                  if (currentPaymentAmount !== remainingRequiredPayment) {
+                    throw new Error(`Saisissez l’acompte requis de ${remainingRequiredPayment.toLocaleString('fr-FR')} Ar en une seule opération.`);
+                  }
+                  const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
+                  depositRecordingKeyRef.current = idempotencyKey;
+                  const result = await recordConfirmedDeposit({
                     ...(domain === "hahitantsoa"
                       ? { hahitantsoa_event_draft: emitted.draftId }
                       : { reservation_draft: emitted.draftId }),
-                    payment_kind: "deposit",
                     payment_method: method,
-                    payment_status: "pending",
                     amount: currentPaymentAmount.toFixed(2),
                     notes: "Paiement confirmé depuis l’assistant de réservation.",
+                    idempotency_key: idempotencyKey,
                   });
-                  await confirmPayment(paymentRecord.id, {});
                   const nextRecordedPayments = [...recordedPayments, {
-                    id: paymentRecord.id,
+                    id: result.payment.id,
                     amount: currentPaymentAmount,
                     method: payment.method,
                   }];
-                  const nextRecordedAmount = recordedPaymentAmount + currentPaymentAmount;
                   setRecordedPayments(nextRecordedPayments);
                   setPayment(current => ({ ...current, amount: "" }));
-                  if (nextRecordedAmount < requiredPaymentAmount) {
-                    showToastMsg(`Paiement enregistré. Il reste ${Math.max(0, requiredPaymentAmount - nextRecordedAmount).toLocaleString('fr-FR')} Ar à verser pour l’acompte requis.`, 'success');
-                    return;
-                  }
+                  depositRecordingKeyRef.current = null;
+                  showToastMsg(result.replayed ? "L’acompte déjà enregistré a été repris sans doublon." : "Acompte enregistré et confirmé.", 'success');
                 }
                 setPaymentDone(true);
                 goNext();
