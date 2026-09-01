@@ -22,6 +22,17 @@ def get_bool_env(name: str, default: bool = False) -> bool:
     raise ValueError(f"{name} must be a boolean value: 1, true, yes, on, 0, false, no, or off.")
 
 
+def get_int_env(name: str, default: int = 0) -> int:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+
+    try:
+        return int(value)
+    except ValueError as error:
+        raise ValueError(f"{name} must be an integer value.") from error
+
+
 def get_csv_env(name: str, default: str = "") -> list[str]:
     value = os.environ.get(name, default)
     return [item.strip() for item in value.split(",") if item.strip()]
