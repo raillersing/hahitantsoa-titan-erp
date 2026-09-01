@@ -10,17 +10,8 @@ from django.core import serializers
 from django.core.management import BaseCommand, CommandError, call_command
 from django.db import transaction
 
-from apps.documents.models import DocumentInstance, DocumentTemplate, DocumentTemplateVersion
+from apps.documents.models import DocumentTemplate, DocumentTemplateVersion
 from apps.documents.registry import DOCUMENT_TEMPLATE_REGISTRY
-from apps.documents.services import (
-    create_document_instance_from_hahitantsoa_event_draft,
-    create_document_instance_from_reservation_draft,
-    generate_document_instance_pdf,
-    generate_hahitantsoa_event_draft_document_instance_html,
-    generate_reservation_draft_document_instance_html,
-)
-from apps.hahitantsoa.models import HahitantsoaEventDraft
-from apps.reservations.models import ReservationDraft
 
 PRESERVED_FIXTURE_LABELS = (
     "auth.user",
@@ -59,8 +50,7 @@ class Command(BaseCommand):
         call_command("flush", interactive=False, verbosity=0)
         self._restore_preserved_catalogue(preserved_fixture)
         self._ensure_active_document_templates()
-        call_command("seed_all_demo", verbosity=0)
-        self._generate_scenario_documents()
+        call_command("seed_realistic_lifecycle_scenarios", verbosity=0)
 
     def _dump_preserved_catalogue(self) -> str:
         output = StringIO()
@@ -116,99 +106,3 @@ class Command(BaseCommand):
                 status="active",
                 body_html=source_path.read_text(encoding="utf-8"),
             )
-
-    def _generate_scenario_documents(self) -> None:
-        actor = self._actor()
-        titan_count = 0
-        hahitantsoa_count = 0
-
-        titan_documents = {
-            "RD-DEMO-TITAN-001": ("T-001/2026", ("PF",)),
-            "RD-DEMO-TITAN-002": ("T-002/2026", ("PF", "CT")),
-            "RD-DEMO-TITAN-003": ("T-003/2026", ("PF", "CT")),
-            "RD-DEMO-TITAN-004": ("T-004/2026", ("CT",)),
-        }
-        for draft in ReservationDraft.objects.filter(is_deleted=False).order_by("public_reference"):
-            scenario = titan_documents.get(draft.public_reference)
-            if scenario is None:
-                continue
-            root, suffixes = scenario
-            if "PF" in suffixes:
-                proforma = create_document_instance_from_reservation_draft(
-                    reservation_draft=draft,
-                    template_key="titan.proforma.v1",
-                    actor=actor,
-                    notes="Simulation cycle de vie Titan.",
-                )
-                self._emit_reservation_document(proforma, draft, actor, f"{root}-PF")
-                titan_count += 1
-
-            if "CT" in suffixes:
-                contract = create_document_instance_from_reservation_draft(
-                    reservation_draft=draft,
-                    template_key="titan.material_contract.v1",
-                    actor=actor,
-                    notes="Simulation contrat Titan.",
-                )
-                self._emit_reservation_document(contract, draft, actor, f"{root}-CT")
-                titan_count += 1
-
-        event = HahitantsoaEventDraft.objects.filter(
-            public_reference="ED-DEMO-HAH-001", is_deleted=False
-        ).first()
-        if event is not None:
-            root = "H-001/2026"
-            proforma = create_document_instance_from_hahitantsoa_event_draft(
-                event_draft=event,
-                template_key="hahitantsoa.proforma.v1",
-                actor=actor,
-                notes="Simulation cycle de vie Hahitantsoa.",
-            )
-            self._emit_event_document(proforma, event, actor, f"{root}-PF")
-            hahitantsoa_count += 1
-
-            contract = create_document_instance_from_hahitantsoa_event_draft(
-                event_draft=event,
-                template_key="hahitantsoa.contract.v1",
-                actor=actor,
-                notes="Simulation contrat Hahitantsoa.",
-            )
-            self._emit_event_document(contract, event, actor, f"{root}-CT")
-            hahitantsoa_count += 1
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Lifecycle simulation ready: {titan_count} Titan and "
-                f"{hahitantsoa_count} Hahitantsoa documents emitted."
-            )
-        )
-
-    @staticmethod
-    def _actor():
-        from django.contrib.auth import get_user_model
-
-        return get_user_model().objects.filter(is_active=True).order_by("id").first()
-
-    @staticmethod
-    def _emit_reservation_document(
-        document: DocumentInstance, draft, actor, reference: str
-    ) -> None:
-        document.document_reference = reference
-        document.save(update_fields=["document_reference", "updated_at"])
-        document = generate_reservation_draft_document_instance_html(
-            reservation_draft=draft,
-            document_instance_id=document.id,
-            actor=actor,
-        )
-        generate_document_instance_pdf(document_instance=document, actor=actor)
-
-    @staticmethod
-    def _emit_event_document(document: DocumentInstance, event, actor, reference: str) -> None:
-        document.document_reference = reference
-        document.save(update_fields=["document_reference", "updated_at"])
-        document = generate_hahitantsoa_event_draft_document_instance_html(
-            event_draft=event,
-            document_instance_id=document.id,
-            actor=actor,
-        )
-        generate_document_instance_pdf(document_instance=document, actor=actor)
