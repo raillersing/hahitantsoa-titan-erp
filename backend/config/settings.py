@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from config.env import get_bool_env, get_csv_env, get_env
+from config.env import get_bool_env, get_csv_env, get_env, get_int_env
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -18,6 +18,20 @@ CSRF_TRUSTED_ORIGINS = get_csv_env("DJANGO_CSRF_TRUSTED_ORIGINS")
 SECURE_SSL_REDIRECT = get_bool_env("DJANGO_SECURE_SSL_REDIRECT", default=False)
 SESSION_COOKIE_SECURE = get_bool_env("DJANGO_SESSION_COOKIE_SECURE", default=False)
 CSRF_COOKIE_SECURE = get_bool_env("DJANGO_CSRF_COOKIE_SECURE", default=False)
+SECURE_PROXY_SSL_HEADER = (
+    ("HTTP_X_FORWARDED_PROTO", "https")
+    if get_bool_env("DJANGO_TRUST_X_FORWARDED_PROTO", default=False)
+    else None
+)
+SECURE_HSTS_SECONDS = get_int_env("DJANGO_SECURE_HSTS_SECONDS", default=0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = get_bool_env(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    default=False,
+)
+SECURE_HSTS_PRELOAD = get_bool_env("DJANGO_SECURE_HSTS_PRELOAD", default=False)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
