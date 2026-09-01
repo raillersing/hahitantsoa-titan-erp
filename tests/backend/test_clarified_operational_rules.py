@@ -10,15 +10,22 @@ from apps.cashbox.services import get_or_create_operator_cash_account
 from apps.customers.models import Customer
 from apps.documents.models import DocumentInstance
 from apps.finance.models import FinanceAccountKind
-from apps.inventory.models import InventoryItem
-from apps.logistics.models import TitanClosedDay
+from apps.inventory.models import (
+    InventoryAvailability,
+    InventoryAvailabilityStatus,
+    InventoryItem,
+)
+from apps.logistics.models import LogisticsEvent, TitanClosedDay
 from apps.logistics.services import (
     LogisticsServiceError,
     default_logistics_scheduled_at,
     next_titan_working_day,
     previous_titan_working_day,
 )
-from apps.reservations.amendments import create_reservation_draft_amendment
+from apps.reservations.amendments import (
+    ReservationAmendmentError,
+    create_reservation_draft_amendment,
+)
 from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
 pytestmark = pytest.mark.django_db
@@ -108,6 +115,13 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
         quantity=1,
         unit_rental_price="1000.00",
     )
+    previous_block = InventoryAvailability.objects.create(
+        inventory_item=item,
+        reservation_draft=draft,
+        status=InventoryAvailabilityStatus.RESERVED,
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=3),
+    )
 
     with (
         patch(
@@ -145,3 +159,43 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
     assert draft.total_amount == 4000
     line.refresh_from_db()
     assert line.is_deleted is False
+    previous_block.refresh_from_db()
+    assert previous_block.is_deleted is True
+    blocks = draft.inventory_availability_blocks.filter(is_deleted=False)
+    assert blocks.count() == 2
+    assert {block.inventory_item_id for block in blocks} == {item.id, added_item.id}
+    assert all(block.end_at == start_at + timedelta(hours=5) for block in blocks)
+
+
+def test_titan_amendment_is_blocked_after_logistics_dispatch():
+    actor = get_user_model().objects.create_user(
+        username="amendment-dispatch-operator",
+        password="test-pass",
+        is_staff=True,
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=3)
+    draft = ReservationDraft.objects.create(
+        customer=Customer.objects.create(display_name="Client expédition"),
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=3),
+        status="confirmed",
+        confirmed_at=timezone.now(),
+        confirmed_by=actor,
+    )
+    item = InventoryItem.objects.create(name="Article expédié", kind="material")
+    ReservationDraftLine.objects.create(reservation_draft=draft, inventory_item=item, quantity=1)
+    LogisticsEvent.objects.create(
+        reservation_draft=draft,
+        event_type="handover",
+        status="dispatched",
+        scheduled_at=start_at - timedelta(days=1),
+    )
+
+    with pytest.raises(ReservationAmendmentError, match="corrective workflow") as error:
+        create_reservation_draft_amendment(
+            reservation_draft=draft,
+            actor=actor,
+            reason="Modification tardive",
+        )
+
+    assert error.value.code == "amendment_operationally_locked"

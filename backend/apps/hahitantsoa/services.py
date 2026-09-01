@@ -11,9 +11,11 @@ from apps.documents.services import (
     create_document_instance_from_hahitantsoa_event_draft,
     generate_document_instance_pdf,
     generate_hahitantsoa_event_draft_document_instance_html,
+    revise_hahitantsoa_preparation_document_for_amendment,
 )
 from apps.hahitantsoa.commercial_terms import recalculate_hahitantsoa_event_draft_totals
 from apps.hahitantsoa.models import (
+    HahitantsoaEventCloseout,
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
@@ -37,6 +39,38 @@ from apps.reservations.periods import ReservationPeriod, make_reservation_period
 from apps.reservations.preview import ReservationItemPreview, preview_reservation_item_request
 
 HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
+
+
+def _replace_hahitantsoa_availability_blocks(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    lines: tuple,
+    start_at,
+    end_at,
+    actor,
+) -> None:
+    """Atomically replace confirmed event availability after an allowed amendment."""
+    existing_blocks = InventoryAvailability.objects.select_for_update().filter(
+        hahitantsoa_event_draft=event_draft,
+        is_deleted=False,
+    )
+    now = timezone.now()
+    existing_blocks.update(is_deleted=True, deleted_at=now, updated_by=actor, updated_at=now)
+    InventoryAvailability.objects.bulk_create(
+        [
+            InventoryAvailability(
+                inventory_item=line.inventory_item,
+                hahitantsoa_event_draft=event_draft,
+                status=InventoryAvailabilityStatus.RESERVED,
+                start_at=start_at,
+                end_at=end_at,
+                notes=f"Amendment availability for {event_draft.public_reference}.",
+                created_by=actor,
+                updated_by=actor,
+            )
+            for line in lines
+        ]
+    )
 
 
 @dataclass(frozen=True)
@@ -162,6 +196,18 @@ def apply_hahitantsoa_event_draft_amendment_request(
         )
         if locked_request.status == "applied":
             return HahitantsoaEventDraftAmendmentRequestResult(amendment_request=locked_request)
+        if (
+            locked_event_draft.logistics_events.filter(
+                status__in=("dispatched", "completed")
+            ).exists()
+            or locked_event_draft.return_operations.exists()
+            or locked_event_draft.billing_invoices.exists()
+            or HahitantsoaEventCloseout.objects.filter(event_draft=locked_event_draft).exists()
+        ):
+            raise ReservationLifecycleStateError(
+                "An event with dispatched or completed logistics requires a corrective workflow.",
+                code="amendment_operationally_locked",
+            )
         preflight = get_hahitantsoa_event_draft_amendment_preflight(event_draft=locked_event_draft)
         if not preflight.can_amend:
             raise ReservationLifecycleStateError(
@@ -270,6 +316,13 @@ def apply_hahitantsoa_event_draft_amendment_request(
                 )
 
         recalculate_hahitantsoa_event_draft_totals(event_draft=locked_event_draft)
+        _replace_hahitantsoa_availability_blocks(
+            event_draft=locked_event_draft,
+            lines=active_lines,
+            start_at=start_at,
+            end_at=end_at,
+            actor=actor,
+        )
 
         document = create_document_instance_from_hahitantsoa_event_draft(
             event_draft=locked_event_draft,
@@ -283,6 +336,12 @@ def apply_hahitantsoa_event_draft_amendment_request(
             event_draft=locked_event_draft, document_instance_id=document.id, actor=actor
         )
         document = generate_document_instance_pdf(document_instance=document, actor=actor)
+        revise_hahitantsoa_preparation_document_for_amendment(
+            event_draft=locked_event_draft,
+            actor=actor,
+            amendment_sequence=sequence,
+            amendment_document_id=document.id,
+        )
         locked_request.status = "applied"
         locked_request.amendment_sequence = sequence
         locked_request.document_instance_id = document.id

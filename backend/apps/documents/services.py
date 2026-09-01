@@ -101,6 +101,11 @@ def build_document_reference(*, public_reference: str, template_key: str) -> str
     return f"{public_reference}-{suffix}"
 
 
+def build_amendment_document_reference(*, public_reference: str, amendment_sequence: int) -> str:
+    """Build the approved sequential reference for an amendment document."""
+    return f"{public_reference}-AV-{amendment_sequence:02d}"
+
+
 def _get_locked_document_instance(*, document_instance_id) -> DocumentInstance:
     # The draft links are nullable: select_related() would create outer joins that
     # PostgreSQL correctly refuses to lock. The source document row is the
@@ -648,10 +653,16 @@ def create_document_instance_from_reservation_draft(
     if amendment_sequence is not None or amendment_source_document_id is not None:
         instance.amendment_sequence = amendment_sequence
         instance.amendment_source_document_id = amendment_source_document_id
+        if template_key == "titan.material_amendment.v1" and amendment_sequence is not None:
+            instance.document_reference = build_amendment_document_reference(
+                public_reference=reservation_draft.public_reference,
+                amendment_sequence=amendment_sequence,
+            )
         instance.save(
             update_fields=[
                 "amendment_sequence",
                 "amendment_source_document_id",
+                "document_reference",
                 "updated_at",
             ]
         )
@@ -728,10 +739,16 @@ def create_document_instance_from_hahitantsoa_event_draft(
     if amendment_sequence is not None or amendment_source_document_id is not None:
         instance.amendment_sequence = amendment_sequence
         instance.amendment_source_document_id = amendment_source_document_id
+        if template_key == "hahitantsoa.contract_amendment.v1" and amendment_sequence is not None:
+            instance.document_reference = build_amendment_document_reference(
+                public_reference=event_draft.public_reference,
+                amendment_sequence=amendment_sequence,
+            )
         instance.save(
             update_fields=[
                 "amendment_sequence",
                 "amendment_source_document_id",
+                "document_reference",
                 "updated_at",
             ]
         )
@@ -890,6 +907,118 @@ def ensure_hahitantsoa_preparation_document(
     if preparation.pdf_storage_path is None:
         preparation = generate_document_instance_pdf(document_instance=preparation, actor=actor)
     return preparation
+
+
+@transaction.atomic
+def revise_reservation_draft_preparation_document_for_amendment(
+    *,
+    reservation_draft: ReservationDraft,
+    actor: object | None,
+    amendment_sequence: int,
+    amendment_document_id,
+) -> DocumentInstance | None:
+    """Replace an unexecuted Titan preparation sheet after a signed amendment."""
+    current = (
+        DocumentInstance.objects.select_for_update()
+        .filter(
+            reservation_draft=reservation_draft,
+            template_key="shared.preparation_sheet.v1",
+            status__in=(DocumentInstanceStatus.PREPARED, DocumentInstanceStatus.GENERATED),
+        )
+        .order_by("-created_at", "-id")
+        .first()
+    )
+    if current is None:
+        return None
+    current.status = DocumentInstanceStatus.VOIDED
+    current.voided_at = timezone.now()
+    current.voided_by = actor
+    current.void_reason = f"Remplacée par l'avenant {amendment_sequence}."
+    current.save(update_fields=["status", "voided_at", "voided_by", "void_reason", "updated_at"])
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.preparation_voided_for_amendment",
+        target_type="document_instance",
+        target_id=str(current.id),
+        metadata={
+            "reservation_draft_id": str(reservation_draft.id),
+            "amendment_document_id": str(amendment_document_id),
+            "amendment_sequence": amendment_sequence,
+        },
+    )
+    replacement = create_document_instance_from_reservation_draft(
+        reservation_draft=reservation_draft,
+        template_key="shared.preparation_sheet.v1",
+        actor=actor,
+        notes=f"Révision {amendment_sequence} après avenant.",
+        amendment_sequence=amendment_sequence,
+        amendment_source_document_id=amendment_document_id,
+    )
+    replacement.document_reference = (
+        f"{reservation_draft.public_reference}-FP-R{amendment_sequence:02d}"
+    )
+    replacement.save(update_fields=["document_reference", "updated_at"])
+    replacement = generate_reservation_draft_document_instance_html(
+        reservation_draft=reservation_draft,
+        document_instance_id=replacement.id,
+        actor=actor,
+    )
+    return generate_document_instance_pdf(document_instance=replacement, actor=actor)
+
+
+@transaction.atomic
+def revise_hahitantsoa_preparation_document_for_amendment(
+    *,
+    event_draft: HahitantsoaEventDraft,
+    actor: object | None,
+    amendment_sequence: int,
+    amendment_document_id,
+) -> DocumentInstance | None:
+    """Replace an unexecuted Hahitantsoa checking sheet after a signed amendment."""
+    current = (
+        DocumentInstance.objects.select_for_update()
+        .filter(
+            hahitantsoa_event_draft=event_draft,
+            template_key="hahitantsoa.preparation_sheet.v1",
+            status__in=(DocumentInstanceStatus.PREPARED, DocumentInstanceStatus.GENERATED),
+        )
+        .order_by("-created_at", "-id")
+        .first()
+    )
+    if current is None:
+        return None
+    current.status = DocumentInstanceStatus.VOIDED
+    current.voided_at = timezone.now()
+    current.voided_by = actor
+    current.void_reason = f"Remplacée par l'avenant {amendment_sequence}."
+    current.save(update_fields=["status", "voided_at", "voided_by", "void_reason", "updated_at"])
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.preparation_voided_for_amendment",
+        target_type="document_instance",
+        target_id=str(current.id),
+        metadata={
+            "hahitantsoa_event_draft_id": str(event_draft.id),
+            "amendment_document_id": str(amendment_document_id),
+            "amendment_sequence": amendment_sequence,
+        },
+    )
+    replacement = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=event_draft,
+        template_key="hahitantsoa.preparation_sheet.v1",
+        actor=actor,
+        notes=f"Révision {amendment_sequence} après avenant.",
+        amendment_sequence=amendment_sequence,
+        amendment_source_document_id=amendment_document_id,
+    )
+    replacement.document_reference = f"{event_draft.public_reference}-FP-R{amendment_sequence:02d}"
+    replacement.save(update_fields=["document_reference", "updated_at"])
+    replacement = generate_hahitantsoa_event_draft_document_instance_html(
+        event_draft=event_draft,
+        document_instance_id=replacement.id,
+        actor=actor,
+    )
+    return generate_document_instance_pdf(document_instance=replacement, actor=actor)
 
 
 @transaction.atomic

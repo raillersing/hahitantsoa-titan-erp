@@ -12,17 +12,23 @@ from apps.documents.services import (
     create_document_instance_from_reservation_draft,
     generate_document_instance_pdf,
     generate_reservation_draft_document_instance_html,
+    revise_reservation_draft_preparation_document_for_amendment,
 )
 from apps.identity.authorization import require_reservation_sensitive_actor
 from apps.inventory.availability import get_inventory_availability_conflicts
-from apps.inventory.models import InventoryItem
+from apps.inventory.models import InventoryAvailability, InventoryAvailabilityStatus, InventoryItem
 from apps.reservations.commercial import (
     recalculate_reservation_draft_totals,
     snapshot_inventory_rental_price,
 )
 from apps.reservations.periods import validate_reservation_period
 
-from .models import ReservationDraft, ReservationDraftAmendment, ReservationDraftLine
+from .models import (
+    ReservationCloseout,
+    ReservationDraft,
+    ReservationDraftAmendment,
+    ReservationDraftLine,
+)
 
 
 class ReservationAmendmentError(ValueError):
@@ -34,6 +40,38 @@ class ReservationAmendmentError(ValueError):
 @dataclass(frozen=True)
 class ReservationAmendmentResult:
     amendment: ReservationDraftAmendment
+
+
+def _replace_reservation_availability_blocks(
+    *,
+    reservation_draft: ReservationDraft,
+    line_data: list[dict],
+    start_at,
+    end_at,
+    actor,
+) -> None:
+    """Atomically replace confirmed availability after an allowed amendment."""
+    existing_blocks = InventoryAvailability.objects.select_for_update().filter(
+        reservation_draft=reservation_draft,
+        is_deleted=False,
+    )
+    now = timezone.now()
+    existing_blocks.update(is_deleted=True, deleted_at=now, updated_by=actor, updated_at=now)
+    InventoryAvailability.objects.bulk_create(
+        [
+            InventoryAvailability(
+                inventory_item=line["inventory_item"],
+                reservation_draft=reservation_draft,
+                status=InventoryAvailabilityStatus.RESERVED,
+                start_at=start_at,
+                end_at=end_at,
+                notes=(f"Amendment availability for {reservation_draft.public_reference}."),
+                created_by=actor,
+                updated_by=actor,
+            )
+            for line in line_data
+        ]
+    )
 
 
 @transaction.atomic
@@ -52,6 +90,16 @@ def create_reservation_draft_amendment(
     if locked_draft.status == "cancelled":
         raise ReservationAmendmentError(
             "A cancelled reservation cannot be amended.", code="reservation_cancelled"
+        )
+    if (
+        locked_draft.logistics_events.filter(status__in=("dispatched", "completed")).exists()
+        or locked_draft.return_operations.exists()
+        or locked_draft.billing_invoices.exists()
+        or ReservationCloseout.objects.filter(reservation_draft=locked_draft).exists()
+    ):
+        raise ReservationAmendmentError(
+            "A reservation with dispatched or completed logistics requires a corrective workflow.",
+            code="amendment_operationally_locked",
         )
     if timezone.localdate() > timezone.localtime(locked_draft.start_at).date():
         raise ReservationAmendmentError(
@@ -191,6 +239,14 @@ def create_reservation_draft_amendment(
                 existing_line.save(update_fields=["quantity", "notes", "updated_by", "updated_at"])
     locked_draft.updated_by = actor
     recalculate_reservation_draft_totals(reservation_draft=locked_draft)
+    if locked_draft.status == "confirmed":
+        _replace_reservation_availability_blocks(
+            reservation_draft=locked_draft,
+            line_data=line_data,
+            start_at=start_at,
+            end_at=end_at,
+            actor=actor,
+        )
     document = create_document_instance_from_reservation_draft(
         reservation_draft=locked_draft,
         template_key="titan.material_amendment.v1",
@@ -205,6 +261,12 @@ def create_reservation_draft_amendment(
         actor=actor,
     )
     document = generate_document_instance_pdf(document_instance=document, actor=actor)
+    revise_reservation_draft_preparation_document_for_amendment(
+        reservation_draft=locked_draft,
+        actor=actor,
+        amendment_sequence=next_sequence,
+        amendment_document_id=document.id,
+    )
     amendment.document_instance_id = document.id
     amendment.save(update_fields=["document_instance_id", "updated_at", "updated_by"])
     record_audit_event_on_commit(
