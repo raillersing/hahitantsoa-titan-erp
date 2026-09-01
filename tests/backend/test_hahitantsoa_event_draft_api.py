@@ -1293,8 +1293,15 @@ def test_owner_can_apply_hahitantsoa_amendment_and_replay_is_idempotent(
     assert draft.location_details == "Updated location details"
     assert draft.service_notes == "Updated service notes"
     assert draft.notes == "Updated operational notes"
+    active_availability = InventoryAvailability.objects.get(
+        hahitantsoa_event_draft=draft,
+        is_deleted=False,
+    )
+    assert active_availability.start_at == expected_start_at
+    assert active_availability.end_at == expected_end_at
     amendment_document = draft.document_instances.get(id=payload["document_instance_id"])
     assert amendment_document.template_key == "hahitantsoa.contract_amendment.v1"
+    assert amendment_document.document_reference == f"{draft.public_reference}-AV-01"
     assert amendment_document.amendment_sequence == 1
     assert (
         str(amendment_document.amendment_source_document_id)

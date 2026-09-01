@@ -9,6 +9,7 @@ from apps.documents.models import DocumentInstance
 from apps.documents.runtime import generate_document_instance_html
 from apps.documents.serializers import DocumentInstanceSerializer
 from apps.documents.services import (
+    build_amendment_document_reference,
     build_document_reference,
     create_document_instance_from_reservation_draft,
     get_reservation_draft_commercial_document_context_service,
@@ -61,6 +62,27 @@ def test_build_document_reference_leaves_unmapped_template_empty() -> None:
             template_key="shared.supplier_purchase_order.v1",
         )
         == ""
+    )
+
+
+@pytest.mark.parametrize(
+    ("public_reference", "amendment_sequence", "expected"),
+    (
+        ("T-001/2026", 1, "T-001/2026-AV-01"),
+        ("H-014/2026", 12, "H-014/2026-AV-12"),
+    ),
+)
+def test_build_amendment_document_reference_uses_approved_sequence(
+    public_reference: str,
+    amendment_sequence: int,
+    expected: str,
+) -> None:
+    assert (
+        build_amendment_document_reference(
+            public_reference=public_reference,
+            amendment_sequence=amendment_sequence,
+        )
+        == expected
     )
 
 
