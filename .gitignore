@@ -20,6 +20,10 @@ backups/
 !.env.example
 !deploy/client/.env.client.example
 
+# Linux production configuration and encrypted database dumps.
+/deploy/linux/production.env
+/deploy/linux/backups/
+
 # Python
 .venv/
 __pycache__/
