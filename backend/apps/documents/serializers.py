@@ -186,6 +186,7 @@ class DocumentInstanceListSerializer(serializers.ModelSerializer):
             "business_scope",
             "template_key",
             "template_label",
+            "document_reference",
             "reservation_public_reference",
             "reservation_status",
             "customer_display_name",
