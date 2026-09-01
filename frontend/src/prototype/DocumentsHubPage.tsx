@@ -96,6 +96,10 @@ function formatAmount(amount?: string | number | null): string {
   return `${n.toLocaleString("fr-FR")} Ar`;
 }
 
+function displayDocumentReference(doc: DocumentInstanceListItem): string {
+  return doc.document_reference || doc.reservation_public_reference || "—";
+}
+
 export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) {
   const [docs, setDocs] = useState<DocumentInstanceListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -160,6 +164,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
       result = result.filter(
         (d) =>
           d.customer_display_name.toLowerCase().includes(q) ||
+          (d.document_reference || "").toLowerCase().includes(q) ||
           d.reservation_public_reference.toLowerCase().includes(q) ||
           d.document_type.toLowerCase().includes(q) ||
           d.template_label.toLowerCase().includes(q),
@@ -224,7 +229,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${doc.reservation_public_reference || doc.id}.pdf`;
+      a.download = `${displayDocumentReference(doc) || doc.id}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -401,6 +406,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                 {paginatedDocs.map((doc) => {
                   const tb = typeBadge(doc.document_type);
                   const sb = statusBadge(doc.status);
+                  const reference = displayDocumentReference(doc);
                   return (
                     <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
@@ -412,7 +418,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-semibold text-slate-900">{doc.reservation_public_reference || "—"}</div>
+                        <div className="font-semibold text-slate-900">{reference}</div>
                         <div className="text-xs text-slate-500">{scopeLabel(doc.business_scope)}</div>
                       </td>
                       <td className="px-6 py-4">
@@ -442,7 +448,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                         <button
                           className="mr-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           type="button"
-                          aria-label={`Aperçu de ${doc.reservation_public_reference || doc.document_type}`}
+                          aria-label={`Aperçu de ${reference}`}
                           title="Aperçu"
                           onClick={(event) => openPreview(doc, event.currentTarget)}
                         >
@@ -451,7 +457,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                         <button
                           className="mr-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           type="button"
-                          aria-label={`Télécharger le PDF de ${doc.reservation_public_reference || doc.document_type}`}
+                          aria-label={`Télécharger le PDF de ${reference}`}
                           title="PDF"
                           onClick={() => void handlePdfDownload(doc)}
                         >
@@ -461,7 +467,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                           <button
                             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             type="button"
-                            aria-label={`Ouvrir le dossier ${doc.reservation_public_reference || doc.document_type}`}
+                            aria-label={`Ouvrir le dossier ${reference}`}
                             title="Ouvrir le dossier"
                             onClick={() => handleOpenSource(doc)}
                           >
@@ -487,6 +493,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
             {paginatedDocs.map((doc) => {
               const tb = typeBadge(doc.document_type);
               const sb = statusBadge(doc.status);
+              const reference = displayDocumentReference(doc);
               return (
                 <div key={doc.id} className="p-4 space-y-3 hover:bg-slate-50 transition-colors">
                   <div className="flex items-center justify-between">
@@ -505,7 +512,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                   </div>
                   <div className="text-sm">
                     <span className="text-slate-500">Réf:</span>{" "}
-                    <span className="font-medium text-slate-900">{doc.reservation_public_reference || "—"}</span>
+                    <span className="font-medium text-slate-900">{reference}</span>
                   </div>
                   <div className="text-sm">
                     <span className="text-slate-500">Client:</span>{" "}
@@ -524,7 +531,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                     <button
                       className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                       type="button"
-                      aria-label={`Aperçu de ${doc.reservation_public_reference || doc.document_type}`}
+                      aria-label={`Aperçu de ${reference}`}
                       title="Aperçu"
                       onClick={(event) => openPreview(doc, event.currentTarget)}
                     >
@@ -533,7 +540,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                     <button
                       className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                       type="button"
-                      aria-label={`Télécharger le PDF de ${doc.reservation_public_reference || doc.document_type}`}
+                      aria-label={`Télécharger le PDF de ${reference}`}
                       title="PDF"
                       onClick={() => void handlePdfDownload(doc)}
                     >
@@ -543,7 +550,7 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
                       <button
                         className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                         type="button"
-                        aria-label={`Ouvrir le dossier ${doc.reservation_public_reference || doc.document_type}`}
+                        aria-label={`Ouvrir le dossier ${reference}`}
                         title="Ouvrir le dossier"
                         onClick={() => handleOpenSource(doc)}
                       >
