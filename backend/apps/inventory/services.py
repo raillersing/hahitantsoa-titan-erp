@@ -1209,8 +1209,12 @@ def generate_excess_receivable_invoice_document(
     # Create the DocumentInstance with the excess receivable invoice template
     template_key = EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY
     instance = DocumentInstance.objects.create(
-        reservation_draft=None,  # Not directly linked to a reservation draft
-        customer=None,  # Will be set from context below
+        reservation_draft=(
+            excess_receivable.settlement_execution.settlement.return_operation.reservation_draft
+        ),
+        customer=(
+            excess_receivable.settlement_execution.settlement.return_operation.reservation_draft.customer
+        ),
         template_key=context.template.key,
         template_version=context.template.version,
         template_label=context.template.label,
@@ -1223,6 +1227,11 @@ def generate_excess_receivable_invoice_document(
         template_preview_path=context.template.preview_path,
         template_validated_by_client=context.template.validated_by_client,
         template_notes=context.template.notes,
+        document_reference=(
+            f"{context.excess_receivable.reservation_public_reference}-FC"
+            if context.excess_receivable.reservation_public_reference
+            else ""
+        ),
         # Customer and reservation data from context
         reservation_public_reference=context.excess_receivable.reservation_public_reference,
         reservation_status=context.excess_receivable.reservation_status,

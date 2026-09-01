@@ -73,6 +73,11 @@ def test_issue_billing_invoice_creates_billing_record_and_generated_document(
     assert invoice.amount == excess_receivable.amount
     assert invoice.invoice_status == BillingInvoiceStatus.OPEN
     assert invoice.document_instance.status == "generated"
+    assert invoice.document_instance.reservation_draft_id == reservation_draft.id
+    assert invoice.document_instance.customer_id == reservation_draft.customer_id
+    assert invoice.document_instance.document_reference == (
+        f"{reservation_draft.public_reference}-FC"
+    )
     assert excess_receivable.status == InventoryDamageLossExcessReceivableStatus.INVOICED
     assert AuditEvent.objects.filter(
         action="billing.invoice_issued",
