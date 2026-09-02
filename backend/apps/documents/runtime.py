@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, replace
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.template import Context, Template
 from django.template.loader import render_to_string
 
 from apps.documents.commercial import (
@@ -16,7 +16,6 @@ from apps.documents.commercial import (
 from apps.documents.excess_receivable import build_excess_receivable_invoice_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
-from apps.documents.registry import get_active_database_template_version
 from apps.documents.rendering import resolve_document_template_path
 
 
@@ -27,6 +26,99 @@ class DocumentRuntimeGenerationError(ValueError):
 
 
 PAYMENT_RECEIPT_PAYMENT_NOT_FOUND = "payment_receipt_payment_not_found"
+
+
+_FRENCH_UNITS = (
+    "zéro",
+    "un",
+    "deux",
+    "trois",
+    "quatre",
+    "cinq",
+    "six",
+    "sept",
+    "huit",
+    "neuf",
+    "dix",
+    "onze",
+    "douze",
+    "treize",
+    "quatorze",
+    "quinze",
+    "seize",
+)
+_FRENCH_TENS = {
+    20: "vingt",
+    30: "trente",
+    40: "quarante",
+    50: "cinquante",
+    60: "soixante",
+}
+
+
+def _french_number_words(value: int) -> str:
+    """Render a non-negative integer in French for official document totals."""
+    if value < 0:
+        raise ValueError("French number words only supports non-negative values.")
+    if value < 17:
+        return _FRENCH_UNITS[value]
+    if value < 20:
+        return f"dix-{_FRENCH_UNITS[value - 10]}"
+    if value < 70:
+        tens, remainder = divmod(value, 10)
+        prefix = _FRENCH_TENS[tens * 10]
+        if remainder == 0:
+            return prefix
+        if remainder == 1:
+            return f"{prefix} et un"
+        return f"{prefix}-{_french_number_words(remainder)}"
+    if value < 80:
+        remainder = value - 60
+        if remainder == 11:
+            return "soixante et onze"
+        return f"soixante-{_french_number_words(remainder)}"
+    if value < 100:
+        remainder = value - 80
+        if remainder == 0:
+            return "quatre-vingts"
+        return f"quatre-vingt-{_french_number_words(remainder)}"
+    if value < 1000:
+        hundreds, remainder = divmod(value, 100)
+        prefix = "cent" if hundreds == 1 else f"{_french_number_words(hundreds)} cent"
+        if remainder == 0:
+            return f"{prefix}s" if hundreds > 1 else prefix
+        return f"{prefix} {_french_number_words(remainder)}"
+
+    for scale, singular in ((1_000_000_000, "milliard"), (1_000_000, "million"), (1000, "mille")):
+        if value >= scale:
+            quantity, remainder = divmod(value, scale)
+            if scale == 1000:
+                quantity_words = _french_number_words(quantity)
+                if quantity_words.endswith("cents"):
+                    quantity_words = quantity_words[:-1]
+                prefix = singular if quantity == 1 else f"{quantity_words} {singular}"
+            else:
+                suffix = singular if quantity == 1 else f"{singular}s"
+                prefix = f"{_french_number_words(quantity)} {suffix}"
+            return prefix if remainder == 0 else f"{prefix} {_french_number_words(remainder)}"
+    raise ValueError("French number words supports values below one trillion.")
+
+
+def format_ariary_amount_in_words(value: object) -> str:
+    """Return the exact Ariary amount in French words without losing a fraction."""
+    try:
+        amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("Document total amount must be a valid decimal value.") from exc
+    if amount < 0:
+        raise ValueError("Document total amount cannot be negative.")
+
+    whole_amount = int(amount)
+    hundredths = int((amount - whole_amount) * 100)
+    words = f"{_french_number_words(whole_amount)} Ariary"
+    if hundredths:
+        words = f"{words} et {_french_number_words(hundredths)} centièmes d'Ariary"
+    return words[:1].upper() + words[1:]
 
 
 @dataclass(frozen=True)
@@ -91,7 +183,7 @@ def _reservation_document_context(*, document_instance: DocumentInstance):
 def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
-    event_draft = (
+    event_lines = (
         document_instance.hahitantsoa_event_draft.lines.filter(is_deleted=False)
         .select_related("inventory_item", "event_draft__customer")
         .order_by("created_at", "id")
@@ -137,6 +229,8 @@ def _build_hahitantsoa_contract_runtime_context(
             "guest_count": linked_event_draft.guest_count,
             "required_deposit_amount": linked_event_draft.required_deposit_amount,
             "space_rental_amount": linked_event_draft.space_rental_amount,
+            "total_amount": linked_event_draft.total_amount,
+            "total_amount_in_words": format_ariary_amount_in_words(linked_event_draft.total_amount),
             "proforma_reference": linked_event_draft.public_reference,
             "lines": tuple(
                 {
@@ -152,7 +246,7 @@ def _build_hahitantsoa_contract_runtime_context(
                         else None
                     ),
                 }
-                for line in event_draft
+                for line in event_lines
             ),
         },
     }
@@ -358,15 +452,8 @@ def generate_document_instance_html(
             ),
         },
     }
-    database_version = get_active_database_template_version(document_instance.template_key)
-    if database_version is not None:
-        html_content = Template(
-            f"<style>{database_version.css}</style>"
-            f"{database_version.header_html}{database_version.body_html}"
-            f"{database_version.footer_html}"
-        ).render(Context(render_context))
-    else:
-        html_content = render_to_string(template_path, render_context)
+    # ponytail: the registry owns the single approved renderer for each workflow document.
+    html_content = render_to_string(template_path, render_context)
 
     if not html_content or not html_content.strip():
         raise DocumentRuntimeGenerationError(
