@@ -25,6 +25,8 @@ import {
   createCustomer,
   uploadAttachment,
   recordConfirmedDeposit,
+  getDocumentArtifactHtml,
+  getDocumentTemplatePreview,
 } from './api';
 
 // ---- Shared mock data ----
@@ -190,6 +192,8 @@ vi.mock('./api', () => ({
   createCustomer: vi.fn(),
   uploadAttachment: vi.fn(),
   recordConfirmedDeposit: vi.fn(),
+  getDocumentArtifactHtml: vi.fn(),
+  getDocumentTemplatePreview: vi.fn(),
 }));
 
 describe('ReservationNewPage', () => {
@@ -249,6 +253,8 @@ describe('ReservationNewPage', () => {
     vi.mocked(createCustomer).mockResolvedValue({ id: 'CUST-NEW', display_name: 'New Client' } as any);
     vi.mocked(uploadAttachment).mockResolvedValue({ id: 'ATT-001' } as any);
     vi.mocked(recordConfirmedDeposit).mockResolvedValue({ payment: { id: 'PAY-001' }, replayed: false } as any);
+    vi.mocked(getDocumentArtifactHtml).mockResolvedValue('<html><body>Document émis officiel</body></html>');
+    vi.mocked(getDocumentTemplatePreview).mockResolvedValue('<html><body>Document officiel</body></html>');
   });
 
   afterEach(() => {
@@ -909,7 +915,7 @@ describe('ReservationNewPage', () => {
       expect(generateReservationDraftDocumentInstance).toHaveBeenCalledWith('DRAFT-001', 'DOC-T-001');
       expect(generateReservationDraftDocumentInstancePdf).toHaveBeenCalledWith('DRAFT-001', 'DOC-T-001');
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Proforma émise avec succès');
+    expect(screen.getByText('Proforma émise avec succès')).toBeInTheDocument();
   });
 
   it('16. émet le proforma prospect Hahitantsoa sur un EventDraft', async () => {
@@ -970,7 +976,7 @@ describe('ReservationNewPage', () => {
       expect(generateReservationDraftDocumentInstance).toHaveBeenCalledTimes(1);
       expect(generateReservationDraftDocumentInstancePdf).toHaveBeenCalledTimes(2);
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Proforma émise avec succès');
+    expect(screen.getByText('Proforma émise avec succès')).toBeInTheDocument();
   });
 
   it('18. Hahitantsoa applique automatiquement le tarif de prolongation nocturne et permet la sélection par catégorie', async () => {

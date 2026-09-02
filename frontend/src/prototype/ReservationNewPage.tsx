@@ -3286,6 +3286,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       <DocumentPreviewDispatcher
         type="proforma"
         domain={domain as 'titan' | 'hahitantsoa'}
+        documentInstanceId={prospectProformaEmission?.htmlGenerated ? prospectProformaEmission.documentId : null}
         client={activeClient}
         date={new Date().toLocaleDateString('fr-FR')}
           refNumber={documentReference || "Brouillon en préparation"}
