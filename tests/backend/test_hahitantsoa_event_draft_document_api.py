@@ -74,6 +74,13 @@ def _documents_url(event_draft_id) -> str:
     return f"/api/v1/hahitantsoa/event-drafts/{event_draft_id}/documents/"
 
 
+def _document_preview_url(event_draft_id, template_key: str) -> str:
+    return (
+        f"/api/v1/hahitantsoa/event-drafts/{event_draft_id}/documents/preview/"
+        f"?template_key={template_key}"
+    )
+
+
 def _document_detail_url(event_draft_id, document_id) -> str:
     return f"/api/v1/hahitantsoa/event-drafts/{event_draft_id}/documents/{document_id}/"
 
@@ -121,6 +128,63 @@ def test_hahitantsoa_event_draft_document_list_create_and_generate(authenticated
     generated_payload = generate_response.json()
     assert generated_payload["status"] == DocumentInstanceStatus.GENERATED
     assert generated_payload["storage_path"].endswith(".html")
+
+
+def test_hahitantsoa_document_preview_uses_live_draft_data_without_creating_instance(
+    authenticated_client,
+) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+
+    response = authenticated_client.get(_document_preview_url(draft.id, "hahitantsoa.proforma.v1"))
+
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/html")
+    rendered_html = response.content.decode()
+    assert "Hahitantsoa docs customer" in rendered_html
+    assert "Shared speaker" in rendered_html
+    assert draft.public_reference + "-PF" in rendered_html
+    assert "Zéro Ariary" in rendered_html
+    assert draft.document_instances.count() == 0
+
+
+def test_hahitantsoa_liability_release_can_be_prepared(authenticated_client) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+
+    response = authenticated_client.post(
+        _documents_url(draft.id),
+        data={"template_key": "hahitantsoa.liability_release.v1"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["template_key"] == "hahitantsoa.liability_release.v1"
+    assert response.json()["document_reference"] == draft.public_reference + "-DR"
+
+
+def test_hahitantsoa_document_preview_is_owner_scoped(
+    authenticated_client, django_user_model
+) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+    other_client = Client()
+    other_user = django_user_model.objects.create_user(
+        username="hahitantsoa-preview-other",
+        password="test-password",
+    )
+    other_client.force_login(other_user)
+
+    response = other_client.get(_document_preview_url(draft.id, "hahitantsoa.contract.v1"))
+
+    assert response.status_code == 404
+
+
+def test_hahitantsoa_document_preview_rejects_another_domain_template(authenticated_client) -> None:
+    draft = _event_draft(user=authenticated_client.test_user)
+
+    response = authenticated_client.get(_document_preview_url(draft.id, "titan.proforma.v1"))
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "hahitantsoa_document_preview_template_not_supported"
+    assert draft.document_instances.count() == 0
 
 
 def test_hahitantsoa_delivery_pdf_emits_checklist_once(authenticated_client) -> None:

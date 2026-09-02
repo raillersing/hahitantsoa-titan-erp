@@ -1,14 +1,19 @@
 from django.db import transaction
 from django.db.models import Prefetch
+from django.http import HttpResponse
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.documents.models import DocumentInstance
-from apps.documents.runtime import DocumentRuntimeGenerationError
+from apps.documents.runtime import (
+    HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS,
+    DocumentRuntimeGenerationError,
+    preview_hahitantsoa_event_draft_document_html,
+)
 from apps.documents.selectors import list_document_instances_for_hahitantsoa_event_draft
 from apps.documents.services import (
     create_document_instance_from_hahitantsoa_event_draft,
@@ -781,6 +786,48 @@ class HahitantsoaEventDraftDocumentInstanceListCreateAPIView(generics.ListCreate
             HahitantsoaEventDraftDocumentInstanceSerializer(instance).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class HahitantsoaEventDraftDocumentPreviewAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedHahitantsoaEventDraftBoundary]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="template_key",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses={200: str, 400: serializers.Serializer},
+    )
+    def get(self, request, pk):
+        template_key = request.query_params.get("template_key", "")
+        if template_key not in HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS:
+            return Response(
+                {
+                    "detail": "template_key is not available for Hahitantsoa draft preview.",
+                    "code": "hahitantsoa_document_preview_template_not_supported",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from django.shortcuts import get_object_or_404
+
+        event_draft = get_object_or_404(visible_hahitantsoa_event_drafts(user=request.user), pk=pk)
+        try:
+            html_content = preview_hahitantsoa_event_draft_document_html(
+                event_draft=event_draft,
+                template_key=template_key,
+            )
+        except DocumentRuntimeGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return HttpResponse(html_content, content_type="text/html; charset=utf-8")
 
 
 class HahitantsoaEventDraftDocumentInstanceRetrieveAPIView(generics.RetrieveAPIView):

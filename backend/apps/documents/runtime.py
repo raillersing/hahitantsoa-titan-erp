@@ -26,6 +26,13 @@ class DocumentRuntimeGenerationError(ValueError):
 
 
 PAYMENT_RECEIPT_PAYMENT_NOT_FOUND = "payment_receipt_payment_not_found"
+HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
+    {
+        "hahitantsoa.proforma.v1",
+        "hahitantsoa.contract.v1",
+        "hahitantsoa.liability_release.v1",
+    }
+)
 
 
 _FRENCH_UNITS = (
@@ -250,6 +257,61 @@ def _build_hahitantsoa_contract_runtime_context(
             ),
         },
     }
+
+
+def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: str) -> str:
+    """Render an official Hahitantsoa document with live draft data without persisting it."""
+    if template_key not in HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS:
+        raise DocumentRuntimeGenerationError(
+            "This Hahitantsoa document is not available for a draft preview.",
+            code="hahitantsoa_document_preview_template_not_supported",
+        )
+
+    # Import lazily: services imports this runtime module for persisted generation.
+    from apps.documents.services import hahitantsoa_event_draft_document_instance_kwargs
+
+    preview_instance = DocumentInstance(
+        **hahitantsoa_event_draft_document_instance_kwargs(
+            event_draft=event_draft,
+            template_key=template_key,
+            actor_id=None,
+            notes="",
+        )
+    )
+    context = _build_hahitantsoa_contract_runtime_context(document_instance=preview_instance)
+    template_path = resolve_document_template_path(template_key)
+    if template_path is None:
+        raise DocumentRuntimeGenerationError(
+            "The approved Hahitantsoa document template could not be resolved.",
+            code="hahitantsoa_document_preview_template_not_found",
+        )
+
+    html_content = render_to_string(
+        template_path,
+        {
+            "context": context,
+            "bank": {
+                "name": preview_instance.bank_name,
+                "branch": preview_instance.bank_branch,
+                "account_holder": preview_instance.bank_account_holder,
+                "account_number": preview_instance.bank_account_number,
+                "rib": preview_instance.bank_rib,
+                "iban": preview_instance.bank_iban,
+                "swift_bic": preview_instance.bank_swift_bic,
+            },
+            "document": {
+                "date": preview_instance.document_date,
+                "reference": preview_instance.document_reference,
+                "proforma_reference": event_draft.public_reference + "-PF",
+            },
+        },
+    )
+    if not html_content or not html_content.strip():
+        raise DocumentRuntimeGenerationError(
+            "Preview document HTML content is empty or invalid.",
+            code="empty_hahitantsoa_document_preview_html",
+        )
+    return html_content
 
 
 def calculate_document_html_checksum(html_content: str) -> str:

@@ -19,6 +19,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftDocumentInstanceGeneratePdfAPIView,
     HahitantsoaEventDraftDocumentInstanceListCreateAPIView,
     HahitantsoaEventDraftDocumentInstanceRetrieveAPIView,
+    HahitantsoaEventDraftDocumentPreviewAPIView,
     HahitantsoaEventDraftLifecycleAPIView,
     HahitantsoaEventDraftListCreateAPIView,
     HahitantsoaEventDraftMarkContractSignedAPIView,
@@ -142,6 +143,11 @@ urlpatterns = [
         "event-drafts/<uuid:pk>/documents/",
         HahitantsoaEventDraftDocumentInstanceListCreateAPIView.as_view(),
         name="hahitantsoa-event-draft-document-list",
+    ),
+    path(
+        "event-drafts/<uuid:pk>/documents/preview/",
+        HahitantsoaEventDraftDocumentPreviewAPIView.as_view(),
+        name="hahitantsoa-event-draft-document-preview",
     ),
     path(
         "event-drafts/<uuid:pk>/documents/<uuid:id>/",
