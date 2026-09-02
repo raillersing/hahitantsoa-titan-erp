@@ -1,162 +1,41 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { DocumentPreview } from './DocumentPreview';
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-describe('DocumentPreview', () => {
-  const clientMock = { name: 'Test Client', phone: '0340000000' };
+import { getDocumentTemplatePreview } from "../api";
+import { DocumentPreview } from "./DocumentPreview";
 
-  it('renders Titan proforma correctly', () => {
-    render(<DocumentPreview type="proforma" domain="titan" client={clientMock} date="01/01/2026" refNumber="TEST-123" totalAmount={50000} />);
-    expect(screen.getByText('P R O F O R M A')).toBeInTheDocument();
-    expect(screen.getByAltText('titan logo')).toBeInTheDocument();
-    expect(screen.getByAltText('Ergon logo')).toBeInTheDocument();
-    expect(screen.getByText('Q T E')).toBeInTheDocument();
-    expect(screen.getByText('D E S I G N A T I O N')).toBeInTheDocument();
-    expect(screen.getByText('P. U.')).toBeInTheDocument();
-    expect(screen.getByText('M O N T A N T')).toBeInTheDocument();
-    expect(screen.queryByText('P. C A S S E')).not.toBeInTheDocument();
-    expect(screen.getByText('T O T A L A P A Y E R')).toBeInTheDocument();
-    expect(document.querySelector('.commercial-proforma-titan-table')).toBeInTheDocument();
-    expect(document.querySelector('.commercial-proforma-preview .doc-body > .text-center'))
-      .toBeInTheDocument();
-    expect(document.querySelector('.commercial-proforma-preview .doc-body > .text-right'))
-      .not.toBeInTheDocument();
-    expect(screen.queryByText('Aucune ligne à afficher dans ce document mock.')).not.toBeInTheDocument();
-  });
+vi.mock("../api", () => ({ getDocumentTemplatePreview: vi.fn() }));
 
-  it('keeps the blank Hahitantsoa model free of fabricated line items', () => {
-    render(<DocumentPreview type="proforma" domain="hahitantsoa" client={clientMock} />);
-    expect(document.querySelector('.commercial-proforma-hahitantsoa-table')).toBeInTheDocument();
-    expect(screen.queryByText('Location local')).not.toBeInTheDocument();
-    expect(screen.getByText('P. C A S S E')).toBeInTheDocument();
-  });
+describe("DocumentPreview", () => {
+  it("loads the official Hahitantsoa proforma instead of composing React content", async () => {
+    vi.mocked(getDocumentTemplatePreview).mockResolvedValue("<html><body>OFFICIAL PROFORMA</body></html>");
 
-  it('renders Hahitantsoa facture correctly', () => {
-    render(<DocumentPreview type="facture" domain="hahitantsoa" client={clientMock} date="01/01/2026" refNumber="TEST-456" totalAmount={50000} />);
-    expect(screen.getByText('F A C T U R E')).toBeInTheDocument();
-    expect(screen.getByAltText('hahitantsoa logo')).toBeInTheDocument();
-    expect(screen.getByAltText('Ergon logo')).toBeInTheDocument();
-  });
+    render(<DocumentPreview type="proforma" domain="hahitantsoa" totalAmount={6_750_000} />);
 
-  it('keeps common templates neutral instead of attributing them to Titan', () => {
-    const { container } = render(
-      <DocumentPreview
-        template={{ volet: 'Commun', content: '' }}
-        blocks={[]}
-        isGuided
-      />
+    expect(await screen.findByTitle("Aperçu du modèle officiel hahitantsoa.proforma.v1")).toHaveAttribute(
+      "srcdoc",
+      "<html><body>OFFICIAL PROFORMA</body></html>",
     );
-
-    expect(screen.getByText('Document commun')).toBeInTheDocument();
-    expect(container).toHaveTextContent('ergon@ergon.mg');
-    expect(screen.queryByAltText('Titan logo')).not.toBeInTheDocument();
-    expect(screen.queryByAltText('Hahitantsoa logo')).not.toBeInTheDocument();
-  });
-
-  it('renders Contrats with unchanged labels and multipage content', () => {
-    const { rerender, container } = render(<DocumentPreview type="contrat" domain="titan" client={clientMock} date="01/01/2026" refNumber="TEST-CTR" totalAmount={50000} />);
-    
-    // Check Titan labels and pages
-    expect(screen.getByText('CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS « TITAN RENTAL »')).toBeInTheDocument();
-    expect(screen.getAllByAltText('titan logo').length).toBeGreaterThan(0);
-    const titanPages = container.querySelectorAll('.contract-a4-page');
-    expect(titanPages.length).toBeGreaterThanOrEqual(3);
-    
-    // Check Titan articles
-    expect(screen.getByText(/Article 1 : Objet du contrat/)).toBeInTheDocument();
-    expect(screen.getByText(/Article 12 : Transport/)).toBeInTheDocument();
-    expect(screen.getByText('Le Prestataire,')).toBeInTheDocument();
-    expect(screen.getByText('Le Client,')).toBeInTheDocument();
-
-    // Re-render for Hahitantsoa
-    rerender(<DocumentPreview type="contrat" domain="hahitantsoa" client={clientMock} date="01/01/2026" refNumber="TEST-CTR" totalAmount={50000} />);
-    
-    // Check Hahitantsoa labels and pages
-    expect(screen.getByText('CONTRAT DE LOCATION « HAHITANTSOA »')).toBeInTheDocument();
-    expect(screen.getAllByAltText('hahitantsoa logo').length).toBeGreaterThan(0);
-    const hahiPages = container.querySelectorAll('.contract-a4-page');
-    expect(hahiPages.length).toBeGreaterThanOrEqual(5);
-
-    // Check Hahitantsoa articles and annexes
-    expect(screen.getByText(/Article 1 : Objet du contrat/)).toBeInTheDocument();
-    expect(screen.getByText(/Article 16 : Annexes/)).toBeInTheDocument();
-    expect(screen.getByText(/Annexe 1 : REGLEMENT INTERIEUR/)).toBeInTheDocument();
-    expect(screen.getByText(/Annexe 2 : Plan de masse et évacuation incendie/)).toBeInTheDocument();
-    expect(screen.getByText(/Annexe 3 : Prix de casse/)).toBeInTheDocument();
-    expect(screen.getByText(/Annexe 4 : Liste des intervenants non autorisés/)).toBeInTheDocument();
-    expect(screen.getByText(/Aucun matériel n’étant inclus dans cette commande/)).toBeInTheDocument();
-    expect(screen.queryByText('Table')).not.toBeInTheDocument();
-    expect(screen.queryByText('Chaise')).not.toBeInTheDocument();
-  });
-
-  it('limite l’annexe 3 aux matériels commandés', () => {
-    render(
-      <DocumentPreview
-        type="contrat"
-        domain="hahitantsoa"
-        client={clientMock}
-        date="01/01/2026"
-        refNumber="TEST-CTR-LINES"
-        materials={[{ id: 'table-1', name: 'Table', quantity: 2 }]}
-      />
+    expect(getDocumentTemplatePreview).toHaveBeenCalledWith(
+      "hahitantsoa.proforma.v1",
+      expect.any(AbortSignal),
+      false,
+      "individual",
     );
-
-    expect(screen.getByText('Table')).toBeInTheDocument();
-    expect(screen.queryByText('Chaise')).not.toBeInTheDocument();
   });
 
-  it('reproduit les champs du modèle Hahitantsoa et les deux types de location', () => {
-    const { container } = render(
-      <DocumentPreview
-        type="contrat"
-        domain="hahitantsoa"
-        client={{
-          type: 'Particulier', name: 'Client modèle', address: 'Lot source', phone: '0340000000', email: 'client@example.com',
-          birthDate: '1990-02-01', birthPlace: 'Antananarivo', idType: 'CIN', idNumber: '101', idIssueDate: '2010-03-04', idIssuePlace: 'Alasora',
-          idDuplicataDate: '2015-06-07', idDuplicataPlace: 'Antananarivo', additionalPhones: ['0320000000'],
-        }}
-        hDetails={{ eventType: 'Mariage', rentalType: 'Location + logistique' }}
-      />,
+  it("maps the Hahitantsoa contract and never renders a local contract", async () => {
+    vi.mocked(getDocumentTemplatePreview).mockResolvedValue("<html><body>OFFICIAL CONTRACT</body></html>");
+
+    render(<DocumentPreview type="contrat" domain="hahitantsoa" client={{ type: "Entreprise" }} />);
+
+    expect(await screen.findByTitle("Aperçu du modèle officiel hahitantsoa.contract.v1")).toBeInTheDocument();
+    expect(getDocumentTemplatePreview).toHaveBeenCalledWith(
+      "hahitantsoa.contract.v1",
+      expect.any(AbortSignal),
+      false,
+      "company",
     );
-    expect(screen.getByText(/né\(e\) le 01\/02\/1990/)).toBeInTheDocument();
-    expect(screen.getByText(/Location \+ logistique/)).toBeInTheDocument();
-    expect(screen.queryByText(/Location avec package/)).not.toBeInTheDocument();
-    const text = container.textContent || '';
-    expect(text.indexOf('Pour le Mariage')).toBeLessThan(text.indexOf('Le Client et le Prestataire étant dénommés'));
-  });
-
-  it('renders Titan Article 2 with correct geography, usage type and venue name', () => {
-    const tDetails = {
-      usageType: 'Anniversaire',
-      destinationName: 'Villa Privée',
-      destinationAddress: 'Lot 45',
-      destinationCity: 'Antananarivo',
-      destinationLat: '-18',
-      destinationLng: '47',
-      movementMode: 'Livraison par Titan',
-      startDate: '01/01/2026',
-      startTime: '08:00',
-      endDate: '02/01/2026',
-      endTime: '18:00',
-      pickupDate: '01/01/2026',
-      deliveryTime: '07:00'
-    };
-    render(<DocumentPreview type="contrat" domain="titan" client={clientMock} date="01/01/2026" refNumber="TEST-1" totalAmount={100} tDetails={tDetails as any} />);
-    expect(screen.getByText(/Anniversaire/)).toBeInTheDocument();
-    expect(screen.getByText(/Villa Privée/)).toBeInTheDocument();
-    expect(screen.getByText(/Lot 45/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Antananarivo/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/-18, 47/)).toBeInTheDocument();
-    expect(screen.queryByText(/Salle des fêtes/)).not.toBeInTheDocument();
-    
-    // Check fallback for returnDate using endDate
-    expect(screen.getByText(/La récupération des matériels est prévue le 02\/01\/2026 à 18:00/)).toBeInTheDocument();
-  });
-
-  it('renders prospect warning on proforma if client is prospect', () => {
-    const prospectMock = { name: 'Test Prospect', phone: '0340000000', status: 'Prospect' };
-    render(<DocumentPreview type="proforma" domain="titan" client={prospectMock} date="01/01/2026" refNumber="TEST-PROSPECT" totalAmount={50000} />);
-    expect(screen.getByText(/Ce document est une proforma émise à titre informatif/)).toBeInTheDocument();
+    expect(screen.queryByText("CONTRAT DE LOCATION « HAHITANTSOA »")).not.toBeInTheDocument();
   });
 });
