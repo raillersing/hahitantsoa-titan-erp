@@ -5,6 +5,7 @@ from apps.documents.registry import (
     get_document_template_definition,
     list_document_template_definitions,
 )
+from apps.documents.runtime import format_ariary_amount_in_words
 from apps.documents.views import (
     _build_mock_preview_context,
     _build_preview_bank,
@@ -53,6 +54,37 @@ def test_hahitantsoa_contract_uses_canonical_html_css_pages_and_preserves_annex_
     assert "Prix de casse" in html
     assert "Annexe 2 : Plan de masse et évacuation incendie" in html
     assert "total des préjudices" not in html.lower()
+
+
+def test_hahitantsoa_proforma_uses_its_official_template_and_total_in_words() -> None:
+    definition = get_document_template_definition("hahitantsoa.proforma.v1")
+    assert definition is not None
+    context = _build_mock_preview_context(definition)
+    context["event_draft"]["total_amount"] = "12500000.00"
+    context["event_draft"]["total_amount_in_words"] = format_ariary_amount_in_words(
+        context["event_draft"]["total_amount"]
+    )
+
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {"context": context, "bank": _build_preview_bank(definition), "show_variables": False},
+    )
+
+    assert "PROFORMA Hahitantsoa" in html
+    assert "Douze millions cinq cent mille Ariary" in html
+
+
+@pytest.mark.parametrize(
+    ("amount", "expected"),
+    (
+        ("0", "Zéro Ariary"),
+        ("1000000", "Un million Ariary"),
+        ("12500000.00", "Douze millions cinq cent mille Ariary"),
+        ("81.25", "Quatre-vingt-un Ariary et vingt-cinq centièmes d'Ariary"),
+    ),
+)
+def test_format_ariary_amount_in_words(amount: str, expected: str) -> None:
+    assert format_ariary_amount_in_words(amount) == expected
 
 
 def test_titan_material_contract_uses_canonical_html_css_pages() -> None:
