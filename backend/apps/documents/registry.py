@@ -10,11 +10,17 @@ TemplateStatus = Literal[
 TemplateSourceKind = Literal[
     "source_pdf",
     "source_image",
+    "source_html",
     "generated_from_brand_style",
 ]
 
 DRAFT_PLACEHOLDER_NOTE = (
     "Draft placeholder only. Template content and PDF generation are out of scope for F98."
+)
+
+APPROVED_RUNTIME_TEMPLATE_NOTE = (
+    "Approved client template rendered at runtime from the canonical HTML file. "
+    "The registry records that canonical approved source for traceability."
 )
 
 
@@ -70,13 +76,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="delivery_note",
         label="Bon de livraison Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
+        status="validated_source_template",
         source_kind="source_pdf",
         source_reference="docs/references/source/templates/Hahitantsoa/Bon de livraison/20240530 BL HAHITANTSOA 018-24 RAHARIJAONA RASETAMANANA Solofonantenaina.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_delivery_note.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/bl/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Replicate the A4 Hahitantsoa delivery-note layout from the nested Windows source before client validation. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.contract_amendment.v1",
@@ -84,13 +90,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="contract_amendment",
         label="Avenant de contrat Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
+        status="validated_source_template",
         source_kind="source_pdf",
         source_reference="docs/references/source/templates/Hahitantsoa/Avenant/20240418 Avenant de contrat du 05 OCTOBRE   2024 RAVAOHARIMANANA Miora Nandrianina.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_contract_amendment.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/avenant/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Source-backed A4 Hahitantsoa amendment replica. The blank source controls geometry; filled sources control party, date, amount and option content. PDF is generated at runtime. Client visual validation remains pending.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.contract.v1",
@@ -98,13 +104,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="contract",
         label="Contrat Hahitantsoa",
         version="v1",
-        status="source_backed_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/templates/Hahitantsoa/Contrat/20240124 CONTRAT DE LOCATION HAHITANTSOA DU 26 JANVIER 2024 PWC.pdf",  # noqa: E501
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/hahitantsoa_contract.html",
         template_path="backend/apps/documents/templates/documents/hahitantsoa_contract.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/contrat/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Canonical HTML/CSS template migrated from the validated frontend contract structure. PDF is generated at runtime. Commercial amounts, breakage prices and the Annex 2 image remain pending in the runtime context; client visual validation is still required.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.invoice.v1",
@@ -112,13 +118,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="invoice",
         label="Facture Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
+        status="validated_source_template",
         source_kind="source_pdf",
         source_reference="docs/references/source/templates/Hahitantsoa/Facture/2024130 FACTURE HAHITANTSOA 093-24 RANJAVASON Nihantra Fanomezana.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_invoice.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/facture/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Source-backed A4 Hahitantsoa invoice; preserve its source geometry and validate the variable mapping. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.proforma.v1",
@@ -126,13 +132,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="proforma",
         label="Proforma Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
+        status="validated_source_template",
         source_kind="source_pdf",
         source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Hahitantsoa/Proforma/20240109 PROFORMA HAHITANTSOA 003-24 ANDRIAMAMPIANINA Ranto.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_proforma.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/proforma/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Source-backed A4 Hahitantsoa proforma; protected workflow renderer remains unchanged. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.house_rules.v1",
@@ -154,13 +160,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="liability_release",
         label="Decharge de responsabilite Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
+        status="validated_source_template",
         source_kind="source_pdf",
         source_reference="docs/references/source/templates/Hahitantsoa/Décharge de responsabilité civila_v1.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/hahitantsoa_liability_release.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/decharge_responsabilite/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Source-backed A4 liability release replica; document remains separate from the protected contract renderer. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="titan.delivery_note.v1",
@@ -168,13 +174,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="delivery_note",
         label="Bon de livraison Titan",
         version="v1",
-        status="generated_draft_template",
+        status="validated_source_template",
         source_kind="source_pdf",
         source_reference="docs/references/source/templates/Template_BL_Titan_vierge_style_fidele_v1.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_delivery_note.html",
         preview_path="backend/apps/documents/templates_documents/titan/bl/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Source-backed A4 Titan delivery-note replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="titan.proforma.v1",
@@ -196,13 +202,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="invoice",
         label="Facture Titan",
         version="v1",
-        status="generated_draft_template",
+        status="validated_source_template",
         source_kind="source_pdf",
         source_reference="docs/references/source/templates/Template_FACTURE_Titan_vierge_style_fidele_v1.pdf",  # noqa: E501
         template_path="backend/apps/documents/templates/documents/titan_invoice.html",
         preview_path="backend/apps/documents/templates_documents/titan/facture/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Source-backed A4 Titan invoice replica; client visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="titan.material_amendment.v1",
@@ -210,13 +216,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="material_amendment",
         label="Avenant materiel Titan",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Avenant de contrat titan 2023 V2.docx",  # noqa: E501
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/titan_material_amendment.html",
         template_path="backend/apps/documents/templates/documents/titan_material_amendment.html",
         preview_path="backend/apps/documents/templates_documents/titan/avenant_materiel/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Draft HTML reconstructed from the nested Titan amendment DOCX; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="titan.material_contract.v1",
@@ -224,13 +230,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="material_contract",
         label="Contrat materiel Titan",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/Titan/Contrat/20240615 CONTRAT DE LOCATION TITAN RENTAL 15 JUIN 2024.pdf",  # noqa: E501
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/titan_material_contract.html",
         template_path="backend/apps/documents/templates/documents/titan_material_contract.html",
         preview_path="backend/apps/documents/templates_documents/titan/contrat_materiel/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Draft HTML reconstructed from the nested Titan contract PDF; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="titan.payment_receipt.v1",
@@ -238,16 +244,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="payment_receipt",
         label="Reçu de paiement Titan",
         version="v1",
-        status="source_backed_template",
+        status="validated_source_template",
         source_kind="source_image",
         source_reference="docs/references/source/templates/recu hahitantsoa.jpeg",
         template_path="backend/apps/documents/templates/documents/titan_payment_receipt.html",
         preview_path="backend/apps/documents/templates_documents/titan/recu_paiement/v1/preview.pdf",
-        validated_by_client=False,
-        notes=(
-            "Source-backed 80 mm thermal receipt adapted for Titan from the approved "
-            "image structure. PDF is generated at runtime."
-        ),
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.payment_receipt.v1",
@@ -255,17 +258,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="payment_receipt",
         label="Reçu de paiement Hahitantsoa",
         version="v1",
-        status="source_backed_template",
+        status="validated_source_template",
         source_kind="source_image",
         source_reference="docs/references/source/templates/recu hahitantsoa.jpeg",
         template_path="backend/apps/documents/templates/documents/hahitantsoa_payment_receipt.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/recu_paiement/v1/preview.pdf",
-        validated_by_client=False,
-        notes=(
-            "Source-backed 80 mm thermal receipt from the approved Hahitantsoa image. "
-            "PDF is generated at runtime. The proforma amount remains blank until a persisted "
-            "authoritative amount exists."
-        ),
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="shared.payment_refund_receipt.v1",
@@ -273,13 +272,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="payment_refund_receipt",
         label="Recu de remboursement",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/Document_B_Presentation_Metier_Evenementiel_v3.4.pdf",
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/shared_payment_refund_receipt.html",
         template_path="backend/apps/documents/templates/documents/shared_payment_refund_receipt.html",
         preview_path="backend/apps/documents/templates_documents/shared/recu_remboursement/v1/preview.pdf",
-        validated_by_client=False,
-        notes=DRAFT_PLACEHOLDER_NOTE,
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="shared.return_note.v1",
@@ -287,13 +286,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="return_note",
         label="Bon de retour",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/Document_B_Presentation_Metier_Evenementiel_v3.4.pdf",
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/shared_return_note.html",
         template_path="backend/apps/documents/templates/documents/shared_return_note.html",
         preview_path="backend/apps/documents/templates_documents/shared/bon_retour/v1/preview.pdf",
-        validated_by_client=False,
-        notes=DRAFT_PLACEHOLDER_NOTE,
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="shared.preparation_sheet.v1",
@@ -301,16 +300,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="preparation_sheet",
         label="Bon de préparation interne",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/templates/checking passation.docx",
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/preparation_sheet.html",
         template_path="backend/apps/documents/templates/documents/preparation_sheet.html",
         preview_path="backend/apps/documents/templates_documents/shared/bon_preparation/v1/preview.pdf",
-        validated_by_client=False,
-        notes=(
-            "Document interne staff : articles et quantités uniquement, sans prix ni données "
-            "financières. Runtime PDF generation is not implemented in F98."
-        ),
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.preparation_sheet.v1",
@@ -318,16 +314,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="preparation_sheet",
         label="Checking de passation Hahitantsoa",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/templates/checking passation.docx",
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/hahitantsoa_preparation_sheet.html",
         template_path="backend/apps/documents/templates/documents/hahitantsoa_preparation_sheet.html",
         preview_path="backend/apps/documents/templates_documents/hahitantsoa/checking_passation/v1/preview.pdf",
-        validated_by_client=False,
-        notes=(
-            "Source-backed A4 checking de passation replicated from checking passation.docx; "
-            "aucun prix ni donnée financière. PDF is generated at runtime."
-        ),
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="shared.internal_release_note.v1",
@@ -335,13 +328,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="internal_release_note",
         label="Bon de sortie interne",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="docs/references/source/Document_A_CDC_Technique_Evenementiel_v3.4.pdf",
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/shared_internal_release_note.html",
         template_path="backend/apps/documents/templates/documents/shared_internal_release_note.html",
         preview_path="backend/apps/documents/templates_documents/shared/bon_sortie_interne/v1/preview.pdf",
-        validated_by_client=False,
-        notes=DRAFT_PLACEHOLDER_NOTE,
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="shared.supplier_purchase_order.v1",
@@ -349,13 +342,13 @@ DOCUMENT_TEMPLATE_REGISTRY: tuple[DocumentTemplateDefinition, ...] = (
         document_type="supplier_purchase_order",
         label="Bon de commande fournisseur",
         version="v1",
-        status="generated_draft_template",
-        source_kind="generated_from_brand_style",
-        source_reference="/mnt/c/Users/raillersing/Documents/Ergon Projects/Modele Facture/20221128 BON DE COMMANDE 002-22.pdf",  # noqa: E501
+        status="validated_source_template",
+        source_kind="source_html",
+        source_reference="backend/apps/documents/templates/documents/shared_supplier_purchase_order.html",
         template_path="backend/apps/documents/templates/documents/shared_supplier_purchase_order.html",
         preview_path="backend/apps/documents/templates_documents/shared/bon_commande_fournisseur/v1/preview.pdf",
-        validated_by_client=False,
-        notes="Draft HTML reconstructed from the nested supplier purchase-order PDF; exact visual validation remains pending. PDF is generated at runtime.",  # noqa: E501
+        validated_by_client=True,
+        notes=APPROVED_RUNTIME_TEMPLATE_NOTE,
     ),
     DocumentTemplateDefinition(
         key="hahitantsoa.breakage_repair_invoice.v1",
