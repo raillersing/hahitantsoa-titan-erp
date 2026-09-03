@@ -45,21 +45,23 @@ HAHITANTSOA_CONFIRMATION_BLOCKER_VENUE_CONFLICT = "venue_availability_conflict"
 
 
 def _venue_has_confirmed_overlap(*, venue_key: str, start_at, end_at, exclude_id) -> bool:
-    return HahitantsoaEventDraft.objects.filter(
-        status="confirmed",
-        is_deleted=False,
-        venue_key=venue_key,
-        start_at__lt=end_at,
-        end_at__gt=start_at,
-    ).exclude(pk=exclude_id).exists()
+    return (
+        HahitantsoaEventDraft.objects.filter(
+            status="confirmed",
+            is_deleted=False,
+            venue_key=venue_key,
+            start_at__lt=end_at,
+            end_at__gt=start_at,
+        )
+        .exclude(pk=exclude_id)
+        .exists()
+    )
 
 
 def _lock_hahitantsoa_venue(*, venue_key: str) -> None:
     """Serialize same-venue confirmation before checking the overlap predicate."""
     try:
-        HahitantsoaVenueOccupancyLock.objects.select_for_update().get(
-            venue_key=venue_key
-        )
+        HahitantsoaVenueOccupancyLock.objects.select_for_update().get(venue_key=venue_key)
     except HahitantsoaVenueOccupancyLock.DoesNotExist:
         try:
             with transaction.atomic():
@@ -67,9 +69,7 @@ def _lock_hahitantsoa_venue(*, venue_key: str) -> None:
         except IntegrityError:
             # A concurrent confirmation may have created the unique lock row.
             pass
-        HahitantsoaVenueOccupancyLock.objects.select_for_update().get(
-            venue_key=venue_key
-        )
+        HahitantsoaVenueOccupancyLock.objects.select_for_update().get(venue_key=venue_key)
 
 
 def _replace_hahitantsoa_availability_blocks(
