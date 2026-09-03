@@ -1490,7 +1490,7 @@ export default function ReservationDetailPage({
                   Sortie / Livraison
                   <span className="text-sm font-normal text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
                     <i className="fa-solid fa-truck text-indigo-500 mr-2"></i>{" "}
-                    Prélèvement par le client
+                    Données gérées dans la sortie réelle
                   </span>
                 </h4>
 
@@ -1499,21 +1499,13 @@ export default function ReservationDetailPage({
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Date et heure de sortie
                     </label>
-                    <input
-                      type="datetime-local"
-                      className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                      defaultValue={reservationDate?.substring(0, 16) || ""}
-                    />
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-500">À renseigner dans l’opération logistique réelle.</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       Responsable remise
                     </label>
-                    <input
-                      type="text"
-                      className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                      placeholder="Nom du responsable"
-                    />
+                    <p className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-500">Enregistré avec la sortie ou la livraison.</p>
                   </div>
                 </div>
 
@@ -1539,11 +1531,7 @@ export default function ReservationDetailPage({
                           {m.quantity}
                         </td>
                         <td className="p-2">
-                          <select className="border border-slate-300 rounded p-1 text-xs w-full">
-                            <option>Bon état</option>
-                            <option>Usure normale</option>
-                            <option>À signaler</option>
-                          </select>
+                          <span className="text-slate-500">Constaté dans la sortie réelle</span>
                         </td>
                       </tr>
                     ))}
@@ -1554,10 +1542,7 @@ export default function ReservationDetailPage({
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Preuves visuelles (Photos avant départ)
                   </label>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center text-slate-500 opacity-70">
-                    <i className="fa-solid fa-camera text-2xl mb-2 block"></i>
-                    <span className="text-sm">Ajout de photos non raccordé au backend</span>
-                  </div>
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Les preuves sont à joindre depuis l’opération logistique réelle.</p>
                 </div>
 
                 <div className="flex justify-end">
@@ -1600,17 +1585,14 @@ export default function ReservationDetailPage({
                     <label className="block text-xs font-medium text-slate-500 uppercase mb-1">
                       Retour réel le
                     </label>
-                    <input
-                      type="datetime-local"
-                      className="w-full border border-slate-300 rounded p-1.5 text-sm bg-white"
-                    />
+                    <div className="font-semibold text-slate-500">Enregistré dans le retour réel</div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-rose-500 uppercase mb-1">
                       Retard calculé
                     </label>
                     <div className="font-bold text-rose-600">
-                      0 jour(s)
+                      Calculé après validation du retour
                     </div>
                     <div className="text-xs text-rose-500 italic mt-0.5">
                       Pénalité 50% par jour si applicable.
@@ -1655,21 +1637,10 @@ export default function ReservationDetailPage({
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Notes / Constat
                   </label>
-                  <textarea
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                    rows={2}
-                    placeholder="Notes sur le retour..."
-                  ></textarea>
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">Les notes et constats sont saisis dans le retour réel.</p>
                 </div>
 
                 <div className="flex justify-end gap-3">
-                  <button
-                    className="px-6 py-2 bg-slate-200 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-300"
-                    type="button"
-                    disabled
-                  >
-                    Enregistrement provisoire indisponible
-                  </button>
                   <button
                     className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700"
                     onClick={() => onNavigate("logistics-returns", `titan:${draft.id}`)}
