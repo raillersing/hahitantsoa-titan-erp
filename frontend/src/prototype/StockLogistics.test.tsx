@@ -105,13 +105,17 @@ describe('Stock & Logistics Pages', () => {
       signed_by_client_name: '', signed_by: null, signed_at: null, item_lines: [],
       created_at: '', updated_at: '', created_by: null, updated_by: null,
     } as any);
-    vi.spyOn(api, 'addLogisticsEventItemLine').mockResolvedValue({} as any);
+    const addLine = vi.spyOn(api, 'addLogisticsEventItemLine').mockResolvedValue({ id: 'prep-line-001', inventory_item: 'MAT-01', quantity: 20 } as any);
     vi.spyOn(api, 'transitionLogisticsEvent').mockResolvedValue({
       id: 'prep-001', event_type: 'preparation', operation: 'outbound', status: 'completed',
       reservation_draft: 'draft-001', item_lines: [],
     } as any);
     render(<StockPreparationPage onNavigate={mockNavigate} />);
     expect(await screen.findByText('LOC-2026-0089')).toBeDefined();
+    const quantities = screen.getAllByRole('spinbutton');
+    fireEvent.change(quantities[0], { target: { value: '20' } });
+    fireEvent.blur(quantities[0]);
+    await waitFor(() => expect(addLine).toHaveBeenCalledWith('prep-001', expect.objectContaining({ inventory_item_id: 'MAT-01', quantity: 20 })));
   });
 
   describe('LogisticsDispatchPage', () => {

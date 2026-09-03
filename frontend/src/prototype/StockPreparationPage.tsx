@@ -5,6 +5,7 @@ import {
   getInventoryItems,
   getLogisticsEvents,
   getReservationDrafts,
+  removeLogisticsEventItemLine,
   transitionLogisticsEvent,
 } from "../api";
 import { clampQuantity } from "../utils";
@@ -16,6 +17,7 @@ type PrepItem = {
   qtyOrdered: number;
   qtyPrepared: number;
   available: number;
+  eventLineId?: string;
 };
 
 type Preparation = {
@@ -54,6 +56,7 @@ function draftToPreparation(
       qtyOrdered: line.quantity,
       qtyPrepared: Math.min(eventLine?.quantity ?? 0, line.quantity),
       available: invItem?.stock_summary?.available_stock ?? 0,
+      eventLineId: eventLine?.id,
     };
   });
 
@@ -86,6 +89,7 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyPreparationId, setBusyPreparationId] = useState<string | null>(null);
+  const [savingLineKey, setSavingLineKey] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -149,6 +153,51 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
           : "À préparer";
       return { ...preparation, items, status };
     }));
+  };
+
+  const persistPreparedQuantity = async (preparation: Preparation, item: PrepItem, value: number) => {
+    if (preparation.preparationEvent?.status === "completed") return;
+    const quantity = clampQuantity(value, 0, Math.min(item.qtyOrdered, item.available));
+    const lineKey = `${preparation.id}:${item.articleId}`;
+    setSavingLineKey(lineKey);
+    try {
+      let event = preparation.preparationEvent;
+      if (!event && quantity > 0) {
+        event = await createLogisticsEvent({
+          reservation_draft: preparation.id,
+          event_type: "preparation",
+          operation: "outbound",
+        });
+      }
+      if (event && quantity > 0) {
+        const savedLine = await addLogisticsEventItemLine(event.id, {
+          inventory_item_id: item.articleId,
+          quantity,
+          notes: "Quantité préparée depuis le volet Préparation stock.",
+        });
+        setPreparations((current) => current.map((currentPreparation) => {
+          if (currentPreparation.id !== preparation.id) return currentPreparation;
+          const items = currentPreparation.items.map((currentItem) => currentItem.articleId === item.articleId
+            ? { ...currentItem, qtyPrepared: quantity, eventLineId: savedLine.id }
+            : currentItem);
+          const status: Preparation["status"] = items.some((line) => line.available < line.qtyOrdered)
+            ? "Bloqué"
+            : items.some((line) => line.qtyPrepared > 0)
+              ? "Partiel"
+              : "À préparer";
+          return { ...currentPreparation, preparationEvent: event!, items, status };
+        }));
+        return;
+      }
+      if (event && quantity === 0 && item.eventLineId) {
+        await removeLogisticsEventItemLine(event.id, item.eventLineId);
+      }
+      updatePreparedQuantity(preparation.id, item.articleId, quantity);
+    } catch (err: any) {
+      showToast(err?.message || "Impossible d’enregistrer la quantité préparée.", "error");
+    } finally {
+      setSavingLineKey(null);
+    }
   };
 
   const markPreparationReady = async (preparation: Preparation) => {
@@ -351,6 +400,7 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
                               const val = parseInt(e.target.value);
                               updatePreparedQuantity(prep.id, item.articleId, val);
                             }}
+                            onBlur={(e) => void persistPreparedQuantity(prep, item, parseInt(e.target.value || "0", 10))}
                           />
                         </td>
                         <td className="p-3 font-bold text-amber-600 dark:text-amber-400 text-right">
@@ -362,10 +412,11 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
                               className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold rounded hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
                               title="Préparer le max possible"
                               disabled={prep.preparationEvent?.status === "completed"}
-                              onClick={() => updatePreparedQuantity(prep.id, item.articleId, Math.min(item.qtyOrdered, item.available))}
+                              onClick={() => void persistPreparedQuantity(prep, item, Math.min(item.qtyOrdered, item.available))}
                             >
                               Mettre au max
                             </button>
+                            {savingLineKey === `${prep.id}:${item.articleId}` && <span className="text-xs text-slate-500">Enregistrement…</span>}
                             {item.available < item.qtyOrdered && (
                               <button
                                 className="px-2 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded hover:bg-red-100 dark:hover:bg-red-900/50"
