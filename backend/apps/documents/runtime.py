@@ -375,7 +375,6 @@ def generate_document_instance_html(
 
     if document_instance.template_key in {
         "titan.payment_receipt.v1",
-        "shared.payment_receipt.v1",
         "hahitantsoa.payment_receipt.v1",
     }:
         from apps.payments.models import Payment
