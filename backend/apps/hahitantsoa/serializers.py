@@ -826,7 +826,6 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
 
         for field, value in validated_data.items():
             setattr(instance, field, value)
-
         instance.full_clean()
         instance.save()
 

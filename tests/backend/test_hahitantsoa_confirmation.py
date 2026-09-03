@@ -243,6 +243,40 @@ def test_hahitantsoa_confirmation_allows_bare_rental_without_inventory_lines(
     assert not InventoryAvailability.objects.filter(hahitantsoa_event_draft=draft).exists()
 
 
+def test_hahitantsoa_confirmation_refuses_overlapping_bare_rental_for_same_venue(
+    django_user_model,
+) -> None:
+    actor = _actor(django_user_model=django_user_model, username="venue-conflict")
+    start_at, end_at = _period()
+    confirmed = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Premier événement",
+        venue_name="Salle Principale",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=actor,
+    )
+    _create_confirmation_truth(event_draft=confirmed, actor=actor, mark_prerequisites=True)
+    confirm_hahitantsoa_event_draft(event_draft=confirmed, actor=actor)
+
+    conflicting = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Second événement",
+        venue_name="  salle   principale ",
+        start_at=start_at + timedelta(hours=1),
+        end_at=end_at + timedelta(hours=1),
+        created_by=actor,
+    )
+    _create_confirmation_truth(event_draft=conflicting, actor=actor, mark_prerequisites=True)
+
+    with pytest.raises(ReservationConfirmationPreflightError) as error_info:
+        confirm_hahitantsoa_event_draft(event_draft=conflicting, actor=actor)
+
+    assert error_info.value.blockers == ("venue_availability_conflict",)
+    conflicting.refresh_from_db()
+    assert conflicting.status == "draft"
+
+
 def test_hahitantsoa_confirmation_refuses_logistics_without_active_lines(django_user_model) -> None:
     actor = _actor(django_user_model=django_user_model, username="logistics-without-lines")
     start_at, end_at = _period()

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
@@ -20,6 +20,8 @@ from apps.hahitantsoa.models import (
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
+    HahitantsoaVenueOccupancyLock,
+    normalize_hahitantsoa_venue_key,
 )
 from apps.hahitantsoa.selectors import _get_available_hahitantsoa_shared_inventory_items_for_period
 from apps.inventory.availability import get_inventory_availability_conflicts
@@ -39,6 +41,35 @@ from apps.reservations.periods import ReservationPeriod, make_reservation_period
 from apps.reservations.preview import ReservationItemPreview, preview_reservation_item_request
 
 HAHITANTSOA_CONTRACT_TEMPLATE_KEY = "hahitantsoa.contract.v1"
+HAHITANTSOA_CONFIRMATION_BLOCKER_VENUE_CONFLICT = "venue_availability_conflict"
+
+
+def _venue_has_confirmed_overlap(*, venue_key: str, start_at, end_at, exclude_id) -> bool:
+    return (
+        HahitantsoaEventDraft.objects.filter(
+            status="confirmed",
+            is_deleted=False,
+            venue_key=venue_key,
+            start_at__lt=end_at,
+            end_at__gt=start_at,
+        )
+        .exclude(pk=exclude_id)
+        .exists()
+    )
+
+
+def _lock_hahitantsoa_venue(*, venue_key: str) -> None:
+    """Serialize same-venue confirmation before checking the overlap predicate."""
+    try:
+        HahitantsoaVenueOccupancyLock.objects.select_for_update().get(venue_key=venue_key)
+    except HahitantsoaVenueOccupancyLock.DoesNotExist:
+        try:
+            with transaction.atomic():
+                HahitantsoaVenueOccupancyLock.objects.create(venue_key=venue_key)
+        except IntegrityError:
+            # A concurrent confirmation may have created the unique lock row.
+            pass
+        HahitantsoaVenueOccupancyLock.objects.select_for_update().get(venue_key=venue_key)
 
 
 def _replace_hahitantsoa_availability_blocks(
@@ -234,6 +265,20 @@ def apply_hahitantsoa_event_draft_amendment_request(
             raise ReservationLifecycleStateError(
                 str(error), code="invalid_amendment_period"
             ) from error
+
+        target_venue_name = locked_request.changed_venue_name or locked_event_draft.venue_name
+        target_venue_key = normalize_hahitantsoa_venue_key(target_venue_name)
+        _lock_hahitantsoa_venue(venue_key=target_venue_key)
+        if _venue_has_confirmed_overlap(
+            venue_key=target_venue_key,
+            start_at=start_at,
+            end_at=end_at,
+            exclude_id=locked_event_draft.pk,
+        ):
+            raise ReservationLifecycleStateError(
+                "Le lieu est déjà réservé pour la période modifiée.",
+                code="amendment_venue_unavailable",
+            )
 
         requested_lines = list(locked_request.lines.filter(is_deleted=False))
         if requested_lines:
@@ -996,6 +1041,14 @@ def get_hahitantsoa_event_draft_confirmation_preflight(
             blocker=RESERVATION_CONFIRMATION_BLOCKER_MISSING_REQUIRED_DATA,
         )
 
+    if _venue_has_confirmed_overlap(
+        venue_key=event_draft.venue_key,
+        start_at=event_draft.start_at,
+        end_at=event_draft.end_at,
+        exclude_id=event_draft.pk,
+    ):
+        _append_blocker(blockers=blockers, blocker=HAHITANTSOA_CONFIRMATION_BLOCKER_VENUE_CONFLICT)
+
     customer = event_draft.customer
     if (not customer.is_active) or customer.is_deleted:
         _append_blocker(
@@ -1093,6 +1146,7 @@ def confirm_hahitantsoa_event_draft(
     with transaction.atomic():
         locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
         _assert_active_draft_state(event_draft=locked_event_draft)
+        _lock_hahitantsoa_venue(venue_key=locked_event_draft.venue_key)
 
         active_lines = _locked_active_hahitantsoa_event_draft_lines(event_draft=locked_event_draft)
         if locked_event_draft.rental_type == "logistics" and not active_lines:
