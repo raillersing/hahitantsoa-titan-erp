@@ -115,6 +115,7 @@ class DocumentInstanceSerializer(serializers.ModelSerializer):
             "template_preview_path",
             "template_validated_by_client",
             "template_notes",
+            "document_reference",
             "reservation_public_reference",
             "reservation_status",
             "customer_display_name",
