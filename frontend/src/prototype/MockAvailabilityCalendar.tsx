@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 
 import {
+  getHahitantsoaVenueOccupancy,
   getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
 } from "../api";
 import type {
+  HahitantsoaVenueOccupancy,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
 } from "../types";
@@ -19,6 +21,12 @@ interface MockAvailabilityCalendarProps {
    * the authoritative Titan availability preview for the selected full day.
    */
   showAvailabilityPreview?: boolean;
+  /**
+   * Hahitantsoa-only calendar overlay. It reads the selected venue's real
+   * occupancy for the displayed month without changing Titan's rental flow.
+   */
+  showHahitantsoaVenueOccupancy?: boolean;
+  venueName?: string;
 }
 
 type AvailabilityState =
@@ -29,6 +37,12 @@ type AvailabilityState =
       summary: ReservationAvailabilitySummary;
       previews: ReservationAvailableItemPreview[];
     }
+  | { status: "error"; message: string };
+
+type VenueOccupancyState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "loaded"; items: HahitantsoaVenueOccupancy[] }
   | { status: "error"; message: string };
 
 const monthNames = [
@@ -49,6 +63,28 @@ function selectedDayPeriod(dateStr: string): { startAt: string; endAt: string } 
   };
 }
 
+function displayedMonthPeriod(year: number, month: number): { startAt: string; endAt: string } {
+  return {
+    startAt: new Date(Date.UTC(year, month, 1)).toISOString(),
+    endAt: new Date(Date.UTC(year, month + 1, 1)).toISOString(),
+  };
+}
+
+function occupancyStatusForDay(
+  items: HahitantsoaVenueOccupancy[],
+  dateStr: string,
+): HahitantsoaVenueOccupancy["occupancy_status"] | undefined {
+  const { startAt, endAt } = selectedDayPeriod(dateStr);
+  const dayStart = Date.parse(startAt);
+  const dayEnd = Date.parse(endAt);
+  const overlaps = items.filter((item) => (
+    Date.parse(item.start_at) < dayEnd && Date.parse(item.end_at) > dayStart
+  ));
+  return overlaps.some((item) => item.occupancy_status === "reserved")
+    ? "reserved"
+    : overlaps[0]?.occupancy_status;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -61,12 +97,16 @@ export function MockAvailabilityCalendar({
   allowPast = false,
   disabledDates = [],
   showAvailabilityPreview = false,
+  showHahitantsoaVenueOccupancy = false,
+  venueName,
 }: MockAvailabilityCalendarProps) {
   const currentDate = new Date();
   const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth());
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear());
   const [availability, setAvailability] = useState<AvailabilityState>({ status: "idle" });
   const [retryAttempt, setRetryAttempt] = useState(0);
+  const [venueOccupancy, setVenueOccupancy] = useState<VenueOccupancyState>({ status: "idle" });
+  const [venueOccupancyRetryAttempt, setVenueOccupancyRetryAttempt] = useState(0);
 
   useEffect(() => {
     if (!showAvailabilityPreview || !selectedDate) {
@@ -97,6 +137,31 @@ export function MockAvailabilityCalendar({
       active = false;
     };
   }, [retryAttempt, selectedDate, showAvailabilityPreview]);
+
+  useEffect(() => {
+    if (!showHahitantsoaVenueOccupancy || venueName === undefined) {
+      setVenueOccupancy({ status: "idle" });
+      return;
+    }
+
+    const controller = new AbortController();
+    const { startAt, endAt } = displayedMonthPeriod(currentYear, currentMonth);
+    setVenueOccupancy({ status: "loading" });
+
+    void getHahitantsoaVenueOccupancy(startAt, endAt, venueName, controller.signal)
+      .then((response) => {
+        if (!controller.signal.aborted) {
+          setVenueOccupancy({ status: "loaded", items: response.items });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setVenueOccupancy({ status: "error", message: errorMessage(error) });
+        }
+      });
+
+    return () => controller.abort();
+  }, [currentMonth, currentYear, showHahitantsoaVenueOccupancy, venueName, venueOccupancyRetryAttempt]);
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
@@ -133,20 +198,34 @@ export function MockAvailabilityCalendar({
       const isPast = !allowPast && new Date(`${dateStr}T00:00:00`) < today;
       const isDisabled = disabledDates.includes(dateStr);
       const isSelected = selectedDate === dateStr;
-      const style = isPast || isDisabled
-        ? "bg-slate-50 text-slate-300 cursor-not-allowed"
+      const occupancyStatus = venueOccupancy.status === "loaded"
+        ? occupancyStatusForDay(venueOccupancy.items, dateStr)
+        : undefined;
+      const isReserved = occupancyStatus === "reserved";
+      const isUnavailable = isPast || isDisabled || isReserved;
+      const style = isReserved
+        ? "border-rose-300 bg-rose-50 text-rose-700 cursor-not-allowed"
+        : isPast || isDisabled
+          ? "bg-slate-50 text-slate-300 cursor-not-allowed"
         : isSelected
           ? "bg-indigo-600 text-white font-bold shadow-md"
+          : occupancyStatus === "option"
+            ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
           : "bg-white hover:bg-slate-100 text-slate-700";
+      const occupancyLabel = isReserved
+        ? ", réservée pour cette salle"
+        : occupancyStatus === "option"
+          ? ", option en cours pour cette salle"
+          : "";
 
       days.push(
         <button
           key={dateStr}
           type="button"
-          disabled={isPast || isDisabled}
+          disabled={isUnavailable}
           onClick={() => onDateSelect?.(dateStr)}
           aria-pressed={isSelected}
-          aria-label={`${day} ${monthNames[currentMonth].toLowerCase()} ${currentYear}`}
+          aria-label={`${day} ${monthNames[currentMonth].toLowerCase()} ${currentYear}${occupancyLabel}`}
           className={`min-h-10 rounded border border-transparent text-sm ${style}`}
         >
           {day}
@@ -185,7 +264,33 @@ export function MockAvailabilityCalendar({
       <div className="flex flex-wrap gap-4 mt-6 text-xs justify-center">
         <div className="flex items-center gap-1"><div className="w-3 h-3 bg-white border border-slate-300 rounded" /> Date à vérifier</div>
         <div className="flex items-center gap-1"><div className="w-3 h-3 bg-indigo-600 rounded" /> Date souhaitée</div>
+        {showHahitantsoaVenueOccupancy && <>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-amber-50 border border-amber-300 rounded" /> Option en cours</div>
+          <div className="flex items-center gap-1"><div className="w-3 h-3 bg-rose-50 border border-rose-300 rounded" /> Date réservée</div>
+        </>}
       </div>
+      {showHahitantsoaVenueOccupancy && venueName !== undefined && (
+        <div aria-live="polite" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
+          {venueOccupancy.status === "loading" && <p>Chargement des réservations de cette salle…</p>}
+          {venueOccupancy.status === "error" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-rose-700">Occupation de la salle non vérifiée : {venueOccupancy.message}</p>
+              <button
+                type="button"
+                onClick={() => setVenueOccupancyRetryAttempt((attempt) => attempt + 1)}
+                className="min-h-10 rounded border border-rose-200 bg-white px-3 py-1 text-sm font-medium text-rose-700 hover:bg-rose-50"
+              >
+                Réessayer
+              </button>
+            </div>
+          )}
+          {venueOccupancy.status === "loaded" && (
+            venueOccupancy.items.length > 0
+              ? <p>Les dates réservées sont indisponibles. Les options restent sélectionnables jusqu'à la confirmation.</p>
+              : <p>Aucune réservation enregistrée pour cette salle ce mois-ci.</p>
+          )}
+        </div>
+      )}
       {showAvailabilityPreview && selectedDate && (
         <div aria-live="polite" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700">
           {availability.status === "loading" && <p>Vérification de la disponibilité réelle…</p>}

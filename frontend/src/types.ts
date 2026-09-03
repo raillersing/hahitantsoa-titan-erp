@@ -1552,6 +1552,21 @@ export type HahitantsoaVenue = {
   isDefault?: boolean;
 };
 
+export type HahitantsoaVenueOccupancyStatus = "option" | "reserved";
+
+export type HahitantsoaVenueOccupancy = {
+  public_reference: string;
+  venue_name: string;
+  start_at: string;
+  end_at: string;
+  occupancy_status: HahitantsoaVenueOccupancyStatus;
+};
+
+export type HahitantsoaVenueOccupancyResponse = {
+  items: HahitantsoaVenueOccupancy[];
+  count: number;
+};
+
 export type HahitantsoaServiceCategory =
   | 'drapery'
   | 'starry_sky'

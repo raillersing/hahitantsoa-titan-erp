@@ -99,6 +99,7 @@ import type {
   PaymentCreatePayload,
   PaymentConfirmPayload,
   HahitantsoaVenue,
+  HahitantsoaVenueOccupancyResponse,
   HahitantsoaService,
   VisitAppointment,
   VisitAppointmentPayload,
@@ -708,6 +709,19 @@ export function getHahitantsoaDiscoveryItems(
   signal?: AbortSignal,
 ): Promise<HahitantsoaDiscoveryResponse> {
   return getAuthenticatedJson("/api/v1/hahitantsoa/discovery-items/", signal);
+}
+
+export function getHahitantsoaVenueOccupancy(
+  startAt: string,
+  endAt: string,
+  venueName?: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaVenueOccupancyResponse> {
+  const query = new URLSearchParams(buildReservationPeriodQuery(startAt, endAt));
+  if (venueName !== undefined) {
+    query.set("venue_name", venueName);
+  }
+  return getAuthenticatedJson(`/api/v1/hahitantsoa/venue-occupancy/?${query}`, signal);
 }
 
 export function getReservationAvailabilitySummary(
