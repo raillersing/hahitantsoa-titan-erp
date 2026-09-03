@@ -28,6 +28,7 @@ from apps.hahitantsoa.models import (
     HahitantsoaEventDraftLine,
     HahitantsoaService,
     HahitantsoaVenue,
+    normalize_hahitantsoa_venue_key,
 )
 from apps.hahitantsoa.permissions import IsAuthenticatedHahitantsoaEventDraftBoundary
 from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
@@ -54,6 +55,7 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaEventDraftDocumentInstanceSerializer,
     HahitantsoaEventDraftSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
+    HahitantsoaVenueOccupancyRequestSerializer,
     HahitantsoaVenueOccupancyResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
 )
@@ -146,17 +148,17 @@ class HahitantsoaVenueOccupancyAPIView(APIView):
         parameters=[
             OpenApiParameter("start_at", str, OpenApiParameter.QUERY, required=True),
             OpenApiParameter("end_at", str, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter("venue_name", str, OpenApiParameter.QUERY, required=False),
         ],
         responses=HahitantsoaVenueOccupancyResponseSerializer,
     )
     def get(self, request):
-        request_serializer = ReservationAvailabilityPreviewRequestSerializer(
-            data=request.query_params
-        )
+        request_serializer = HahitantsoaVenueOccupancyRequestSerializer(data=request.query_params)
         request_serializer.is_valid(raise_exception=True)
 
         start_at = request_serializer.validated_data["start_at"]
         end_at = request_serializer.validated_data["end_at"]
+        venue_name = request_serializer.validated_data.get("venue_name")
 
         try:
             validate_reservation_period(start_at=start_at, end_at=end_at)
@@ -166,6 +168,9 @@ class HahitantsoaVenueOccupancyAPIView(APIView):
         response_serializer = HahitantsoaVenueOccupancyResponseSerializer.from_period(
             start_at=start_at,
             end_at=end_at,
+            venue_key=(
+                normalize_hahitantsoa_venue_key(venue_name) if venue_name is not None else None
+            ),
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 

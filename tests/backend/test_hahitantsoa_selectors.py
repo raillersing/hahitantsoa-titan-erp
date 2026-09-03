@@ -101,6 +101,7 @@ def test_selector_public_contract_exposes_only_read_apis() -> None:
     assert tuple(signature(list_hahitantsoa_venue_occupancies_for_period).parameters) == (
         "start_at",
         "end_at",
+        "venue_key",
     )
     assert public_module_functions == {
         "list_hahitantsoa_discovery_items",

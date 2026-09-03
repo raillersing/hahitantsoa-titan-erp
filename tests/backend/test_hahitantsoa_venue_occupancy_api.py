@@ -47,11 +47,16 @@ def _period() -> tuple[datetime, datetime]:
     return start_at, start_at + timedelta(hours=4)
 
 
-def _query_params(start_at: datetime, end_at: datetime) -> dict[str, str]:
-    return {
+def _query_params(
+    start_at: datetime, end_at: datetime, *, venue_name: str | None = None
+) -> dict[str, str]:
+    params = {
         "start_at": start_at.isoformat().replace("+00:00", "Z"),
         "end_at": end_at.isoformat().replace("+00:00", "Z"),
     }
+    if venue_name is not None:
+        params["venue_name"] = venue_name
+    return params
 
 
 def _event_draft(*, status: str, start_at: datetime, end_at: datetime, venue_name: str):
@@ -130,6 +135,64 @@ def test_venue_occupancy_returns_drafts_as_options_and_confirmed_events_as_reser
         },
     ]
     assert all(set(item) == EXPECTED_ITEM_FIELDS for item in payload["items"])
+
+
+def test_venue_occupancy_filters_and_normalizes_the_selected_venue(
+    reservation_sensitive_client,
+) -> None:
+    start_at, end_at = _period()
+    selected_draft = _event_draft(
+        status="draft",
+        start_at=start_at,
+        end_at=end_at,
+        venue_name="Salle Orchidée",
+    )
+    _event_draft(
+        status="confirmed",
+        start_at=start_at,
+        end_at=end_at,
+        venue_name="Salle Jardin",
+    )
+
+    response = reservation_sensitive_client.get(
+        HAHITANTSOA_VENUE_OCCUPANCY_URL,
+        data=_query_params(start_at, end_at, venue_name="  SALLE   orchidée "),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"] == [
+        {
+            "public_reference": selected_draft.public_reference,
+            "venue_name": "Salle Orchidée",
+            "start_at": start_at.isoformat().replace("+00:00", "Z"),
+            "end_at": end_at.isoformat().replace("+00:00", "Z"),
+            "occupancy_status": "option",
+        }
+    ]
+
+
+def test_venue_occupancy_filter_accepts_the_default_unnamed_space(
+    reservation_sensitive_client,
+) -> None:
+    start_at, end_at = _period()
+    unnamed_draft = _event_draft(
+        status="confirmed", start_at=start_at, end_at=end_at, venue_name=""
+    )
+    _event_draft(
+        status="confirmed",
+        start_at=start_at,
+        end_at=end_at,
+        venue_name="Salle Orchidée",
+    )
+
+    response = reservation_sensitive_client.get(
+        HAHITANTSOA_VENUE_OCCUPANCY_URL,
+        data=_query_params(start_at, end_at, venue_name="   "),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["public_reference"] == unnamed_draft.public_reference
+    assert response.json()["count"] == 1
 
 
 @pytest.mark.parametrize("offset", [timedelta(), -timedelta(seconds=1)])

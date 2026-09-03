@@ -145,16 +145,26 @@ class HahitantsoaVenueOccupancySerializer(serializers.Serializer):
         )
 
 
+class HahitantsoaVenueOccupancyRequestSerializer(ReservationAvailabilityPreviewRequestSerializer):
+    """Calendar period with an optional venue label resolved server-side."""
+
+    venue_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
+
+
 class HahitantsoaVenueOccupancyResponseSerializer(serializers.Serializer):
     items = HahitantsoaVenueOccupancySerializer(many=True)
     count = serializers.IntegerField()
 
     @classmethod
-    def from_period(cls, *, start_at, end_at):
+    def from_period(cls, *, start_at, end_at, venue_key=None):
         from apps.hahitantsoa.selectors import list_hahitantsoa_venue_occupancies_for_period
 
         item_serializer = HahitantsoaVenueOccupancySerializer.from_event_drafts(
-            list_hahitantsoa_venue_occupancies_for_period(start_at=start_at, end_at=end_at)
+            list_hahitantsoa_venue_occupancies_for_period(
+                start_at=start_at,
+                end_at=end_at,
+                venue_key=venue_key,
+            )
         )
         return cls({"items": item_serializer.data, "count": len(item_serializer.data)})
 
@@ -1040,6 +1050,7 @@ __all__ = [
     "HahitantsoaEventDraftAmendmentRequestUpdateSerializer",
     "HahitantsoaSharedAvailabilityItemPreviewSerializer",
     "HahitantsoaSharedAvailabilityResponseSerializer",
+    "HahitantsoaVenueOccupancyRequestSerializer",
     "HahitantsoaEventDraftAvailabilityLinePreviewSerializer",
     "HahitantsoaEventDraftAvailabilityPreviewSerializer",
     "HahitantsoaEventDraftAmendmentPreflightSerializer",
