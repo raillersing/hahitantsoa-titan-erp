@@ -111,4 +111,100 @@ describe("MockAvailabilityCalendar", () => {
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(String(fetchMock.mock.calls[2][0])).toContain(encodeURIComponent(`${selectedDate}T00:00:00.000Z`));
   });
+
+  it("marks a confirmed Hahitantsoa venue reservation as unavailable", async () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+    const selectedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const nextDay = new Date(Date.UTC(year, month, day + 1)).toISOString().slice(0, 10);
+    const monthName = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(today);
+    const onDateSelect = vi.fn();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({
+      items: [{
+        public_reference: "H-001/2026",
+        venue_name: "Salle des fêtes + jardin",
+        start_at: `${selectedDate}T00:00:00.000Z`,
+        end_at: `${nextDay}T00:00:00.000Z`,
+        occupancy_status: "reserved",
+      }],
+      count: 1,
+    }));
+
+    render(
+      <MockAvailabilityCalendar
+        onDateSelect={onDateSelect}
+        showHahitantsoaVenueOccupancy
+        venueName="Salle des fêtes + jardin"
+      />,
+    );
+
+    const reservedDate = await screen.findByRole("button", {
+      name: `${day} ${monthName} ${year}, réservée pour cette salle`,
+    });
+    expect(reservedDate).toBeDisabled();
+    fireEvent.click(reservedDate);
+    expect(onDateSelect).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/hahitantsoa/venue-occupancy/?"),
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(String(fetchMock.mock.calls[0][0])).toContain("venue_name=Salle+des+f%C3%AAtes+%2B+jardin");
+    expect(screen.getByText(/Les dates réservées sont indisponibles/)).toBeInTheDocument();
+  });
+
+  it("keeps the venue calendar explicit and retryable when occupancy cannot be loaded", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: "Indisponible" }), { status: 500 }))
+      .mockResolvedValueOnce(jsonResponse({ items: [], count: 0 }));
+
+    render(
+      <MockAvailabilityCalendar
+        showHahitantsoaVenueOccupancy
+        venueName="Salle des fêtes + jardin"
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText(/Occupation de la salle non vérifiée/)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    await waitFor(() => expect(screen.getByText("Aucune réservation enregistrée pour cette salle ce mois-ci.")).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a Hahitantsoa option visible but selectable", async () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const optionDay = Math.min(today.getDate() + 1, new Date(year, month + 1, 0).getDate());
+    const optionDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(optionDay).padStart(2, "0")}`;
+    const optionEndDate = new Date(Date.UTC(year, month, optionDay + 1)).toISOString().slice(0, 10);
+    const monthName = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(today);
+    const onDateSelect = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse({
+      items: [{
+        public_reference: "H-002/2026",
+        venue_name: "Salle des fêtes + jardin",
+        start_at: `${optionDate}T00:00:00.000Z`,
+        end_at: `${optionEndDate}T00:00:00.000Z`,
+        occupancy_status: "option",
+      }],
+      count: 1,
+    }));
+
+    render(
+      <MockAvailabilityCalendar
+        onDateSelect={onDateSelect}
+        showHahitantsoaVenueOccupancy
+        venueName="Salle des fêtes + jardin"
+      />,
+    );
+
+    const optionDateButton = await screen.findByRole("button", {
+      name: `${optionDay} ${monthName} ${year}, option en cours pour cette salle`,
+    });
+    expect(optionDateButton).toBeEnabled();
+    fireEvent.click(optionDateButton);
+    expect(onDateSelect).toHaveBeenCalledWith(optionDate);
+  });
 });

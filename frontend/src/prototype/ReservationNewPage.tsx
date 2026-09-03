@@ -1829,6 +1829,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               <div className="mb-4">
                 <MockAvailabilityCalendar
                   selectedDate={hDetails.startDate}
+                  showHahitantsoaVenueOccupancy
+                  venueName={hDetails.venue}
                   onDateSelect={(dateStr: string) => {
                     let endDate = dateStr;
                     if (hDetails.durationOption?.includes('03:30')) {
