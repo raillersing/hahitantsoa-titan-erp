@@ -27,6 +27,7 @@ import {
   recordConfirmedDeposit,
   getDocumentArtifactHtml,
   getDocumentTemplatePreview,
+  getHahitantsoaEventDraftDocumentPreview,
 } from './api';
 
 // ---- Shared mock data ----
@@ -194,6 +195,7 @@ vi.mock('./api', () => ({
   recordConfirmedDeposit: vi.fn(),
   getDocumentArtifactHtml: vi.fn(),
   getDocumentTemplatePreview: vi.fn(),
+  getHahitantsoaEventDraftDocumentPreview: vi.fn(),
 }));
 
 describe('ReservationNewPage', () => {
@@ -255,6 +257,7 @@ describe('ReservationNewPage', () => {
     vi.mocked(recordConfirmedDeposit).mockResolvedValue({ payment: { id: 'PAY-001' }, replayed: false } as any);
     vi.mocked(getDocumentArtifactHtml).mockResolvedValue('<html><body>Document émis officiel</body></html>');
     vi.mocked(getDocumentTemplatePreview).mockResolvedValue('<html><body>Document officiel</body></html>');
+    vi.mocked(getHahitantsoaEventDraftDocumentPreview).mockResolvedValue('<html><body>Document officiel</body></html>');
   });
 
   afterEach(() => {

@@ -709,6 +709,7 @@ export type DocumentInstance = {
   template_preview_path: string;
   template_validated_by_client: boolean;
   template_notes: string;
+  document_reference?: string;
   reservation_public_reference: string;
   reservation_status: string;
   customer_display_name: string;

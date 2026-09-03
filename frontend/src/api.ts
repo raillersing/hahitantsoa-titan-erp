@@ -1211,6 +1211,24 @@ export async function getDocumentTemplatePreview(
   return response.text();
 }
 
+export async function getHahitantsoaEventDraftDocumentPreview(
+  eventDraftId: string,
+  templateKey: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const params = new URLSearchParams({ template_key: templateKey });
+  const response = await fetch(
+    `/api/v1/hahitantsoa/event-drafts/${encodeURIComponent(eventDraftId)}/documents/preview/?${params.toString()}`,
+    { credentials: "include", signal },
+  );
+  if (!response.ok) {
+    requestSessionRevalidation(response.status);
+    const parsed = await parseErrorResponse(response);
+    throw new ApiError(parsed.message, response.status, parsed.errors);
+  }
+  return response.text();
+}
+
 export function createDocumentTemplate(
   payload: DocumentTemplateCreatePayload,
   signal?: AbortSignal,
