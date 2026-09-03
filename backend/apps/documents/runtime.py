@@ -128,6 +128,10 @@ def format_ariary_amount_in_words(value: object) -> str:
     return words[:1].upper() + words[1:]
 
 
+def _format_ariary_amount(value: object) -> str:
+    return f"{Decimal(str(value)):,.2f}".replace(",", " ").replace(".", ",")
+
+
 @dataclass(frozen=True)
 class DocumentGenerationResult:
     document_instance: DocumentInstance
@@ -196,6 +200,34 @@ def _build_hahitantsoa_contract_runtime_context(
         .order_by("created_at", "id")
     )
     linked_event_draft = document_instance.hahitantsoa_event_draft
+    lines = tuple(
+        {
+            "inventory_item_name": line.inventory_item.name,
+            "inventory_item_kind": line.inventory_item.kind,
+            "quantity": line.quantity,
+            "notes": line.notes,
+            "unit_price": _format_ariary_amount(line.unit_rental_price),
+            "total_price": _format_ariary_amount(line.unit_rental_price * line.quantity),
+            "breakage_price": (
+                _format_ariary_amount(line.inventory_item.breakage_price)
+                if getattr(line.inventory_item, "breakage_price", None)
+                else None
+            ),
+        }
+        for line in event_lines
+    )
+    if linked_event_draft.rental_type == "bare":
+        lines = (
+            {
+                "inventory_item_name": "Location nue de l'espace",
+                "inventory_item_kind": "venue",
+                "quantity": 1,
+                "notes": linked_event_draft.venue_name,
+                "unit_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
+                "total_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
+                "breakage_price": None,
+            },
+        )
     return {
         "template": {
             "label": document_instance.template_label,
@@ -237,24 +269,11 @@ def _build_hahitantsoa_contract_runtime_context(
             "required_deposit_amount": linked_event_draft.required_deposit_amount,
             "space_rental_amount": linked_event_draft.space_rental_amount,
             "total_amount": linked_event_draft.total_amount,
+            "sub_total": _format_ariary_amount(linked_event_draft.total_amount),
+            "discount": "0,00",
             "total_amount_in_words": format_ariary_amount_in_words(linked_event_draft.total_amount),
             "proforma_reference": linked_event_draft.public_reference,
-            "lines": tuple(
-                {
-                    "inventory_item_name": line.inventory_item.name,
-                    "inventory_item_kind": line.inventory_item.kind,
-                    "quantity": line.quantity,
-                    "notes": line.notes,
-                    "breakage_price": (
-                        f"{line.inventory_item.breakage_price:,.2f}".replace(",", " ").replace(
-                            ".", ","
-                        )
-                        if getattr(line.inventory_item, "breakage_price", None)
-                        else None
-                    ),
-                }
-                for line in event_lines
-            ),
+            "lines": lines,
         },
     }
 
