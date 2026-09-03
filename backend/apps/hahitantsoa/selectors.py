@@ -44,14 +44,17 @@ def list_hahitantsoa_venue_occupancies_for_period(
     *,
     start_at: datetime,
     end_at: datetime,
+    venue_key: str | None = None,
 ) -> QuerySet[HahitantsoaEventDraft]:
     """Return operational venue slots overlapping a requested calendar period."""
-    return (
-        HahitantsoaEventDraft.objects.filter(
-            is_deleted=False,
-            start_at__lt=end_at,
-            end_at__gt=start_at,
-        )
-        .only("id", "public_reference", "status", "venue_name", "start_at", "end_at")
-        .order_by("start_at", "end_at", "public_reference")
+    occupancies = HahitantsoaEventDraft.objects.filter(
+        is_deleted=False,
+        start_at__lt=end_at,
+        end_at__gt=start_at,
     )
+    if venue_key is not None:
+        occupancies = occupancies.filter(venue_key=venue_key)
+
+    return occupancies.only(
+        "id", "public_reference", "status", "venue_name", "start_at", "end_at"
+    ).order_by("start_at", "end_at", "public_reference")
