@@ -5,6 +5,7 @@ import ReservationNewPage, { calculateHahitantsoaPaymentSchedule, calculateReser
 import {
   getCustomers,
   getHahitantsoaVenues,
+  getHahitantsoaVenueOccupancy,
   getHahitantsoaServices,
   getHahitantsoaCommercialTerms,
   getTitanClosedDays,
@@ -174,6 +175,7 @@ vi.mock('./api', () => ({
   getCustomers: vi.fn(),
   getTitanClosedDays: vi.fn(),
   getHahitantsoaVenues: vi.fn(),
+  getHahitantsoaVenueOccupancy: vi.fn(),
   getHahitantsoaServices: vi.fn(),
   getHahitantsoaCommercialTerms: vi.fn(),
   getInventoryItems: vi.fn(),
@@ -211,6 +213,7 @@ describe('ReservationNewPage', () => {
     // Apply mock implementations before each test
     vi.mocked(getCustomers).mockResolvedValue(mockCustomersData as any);
     vi.mocked(getHahitantsoaVenues).mockResolvedValue(mockVenuesData as any);
+    vi.mocked(getHahitantsoaVenueOccupancy).mockResolvedValue({ items: [], count: 0 });
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
     vi.mocked(getHahitantsoaCommercialTerms).mockResolvedValue({
       base_space_rental_amount: '6500000.00',
