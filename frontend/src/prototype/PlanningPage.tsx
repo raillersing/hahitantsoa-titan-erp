@@ -113,6 +113,14 @@ function getDayIndex(date: Date, monday: Date): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
+function overlapsWeek(startAt: Date, endAt: Date, monday: Date, sundayExclusive: Date): boolean {
+  return startAt < sundayExclusive && endAt > monday;
+}
+
+function visibleDayIndex(startAt: Date, monday: Date): number {
+  return Math.max(0, getDayIndex(startAt, monday));
+}
+
 function visitPlanningStatus(status: VisitAppointment["status"]): string {
   if (status === "completed") return "Terminée";
   if (status === "cancelled") return "Annulée";
@@ -153,14 +161,14 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
 
         for (const draft of reservationDrafts) {
           const startAt = new Date(draft.start_at);
-          const dayIndex = getDayIndex(startAt, monday);
-          if (dayIndex < 0 || dayIndex > 6) continue;
+          const endAt = new Date(draft.end_at);
+          if (!overlapsWeek(startAt, endAt, monday, sundayExclusive)) continue;
           items.push({
             id: draft.id,
             kind: "titan",
-            dayIndex,
+            dayIndex: visibleDayIndex(startAt, monday),
             startAt,
-            endAt: new Date(draft.end_at),
+            endAt,
             title: draft.public_reference,
             subtitle: "",
             customerName: draft.customer_display_name,
@@ -171,14 +179,14 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
 
         for (const draft of eventDrafts) {
           const startAt = new Date(draft.start_at);
-          const dayIndex = getDayIndex(startAt, monday);
-          if (dayIndex < 0 || dayIndex > 6) continue;
+          const endAt = new Date(draft.end_at);
+          if (!overlapsWeek(startAt, endAt, monday, sundayExclusive)) continue;
           items.push({
             id: draft.id,
             kind: "hahitantsoa",
-            dayIndex,
+            dayIndex: visibleDayIndex(startAt, monday),
             startAt,
-            endAt: new Date(draft.end_at),
+            endAt,
             title: draft.event_name,
             subtitle: draft.venue_name,
             customerName: draft.customer_display_name,
@@ -234,9 +242,12 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
     filteredItems.filter((i) => i.dayIndex === dayIndex),
   );
 
-  const handleEventClick = (reservationId?: string) => {
-    if (reservationId && onNavigate) {
-      onNavigate("reservation-detail", reservationId);
+  const handleEventClick = (item: PlanningItem) => {
+    if (onNavigate) {
+      onNavigate(
+        "reservation-detail",
+        item.kind === "hahitantsoa" ? `hahitantsoa:${item.id}` : item.id,
+      );
     }
   };
 
@@ -350,7 +361,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
                           {dayLabel} {formatDayDate(monday, dayIndex)}
                         </div>
                           <div className="text-xs text-slate-500">
-                          {formatTime(item.startAt)}{item.endAt ? ` — ${formatTime(item.endAt)}` : ""}
+                          {item.startAt < monday ? "En cours" : formatTime(item.startAt)}{item.endAt ? ` — ${formatTime(item.endAt)}` : ""}
                         </div>
                       </td>
                     ) : null}
@@ -362,7 +373,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
                           <span className="inline-block mt-1 rounded bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">Visite</span>
                         </div>
                       ) : (
-                        <button onClick={() => handleEventClick(item.id)} className="group text-left">
+                        <button onClick={() => handleEventClick(item)} className="group text-left">
                           <div className="font-medium text-slate-900 group-hover:text-indigo-600 group-hover:underline">{item.title}</div>
                           {item.subtitle ? <div className="text-xs text-slate-500">{item.subtitle}</div> : null}
                           <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${item.kind === "hahitantsoa" ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>{item.kind === "hahitantsoa" ? "Hahitantsoa" : "Titan"}</span>
