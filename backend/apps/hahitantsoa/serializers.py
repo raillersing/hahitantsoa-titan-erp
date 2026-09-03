@@ -119,6 +119,46 @@ class HahitantsoaSharedAvailabilityResponseSerializer(serializers.Serializer):
         )
 
 
+class HahitantsoaVenueOccupancySerializer(serializers.Serializer):
+    public_reference = serializers.CharField()
+    venue_name = serializers.CharField()
+    start_at = serializers.DateTimeField()
+    end_at = serializers.DateTimeField()
+    occupancy_status = serializers.ChoiceField(choices=("option", "reserved"))
+
+    @classmethod
+    def from_event_drafts(cls, event_drafts):
+        return cls(
+            [
+                {
+                    "public_reference": event_draft.public_reference,
+                    "venue_name": event_draft.venue_name,
+                    "start_at": event_draft.start_at,
+                    "end_at": event_draft.end_at,
+                    "occupancy_status": (
+                        "reserved" if event_draft.status == "confirmed" else "option"
+                    ),
+                }
+                for event_draft in event_drafts
+            ],
+            many=True,
+        )
+
+
+class HahitantsoaVenueOccupancyResponseSerializer(serializers.Serializer):
+    items = HahitantsoaVenueOccupancySerializer(many=True)
+    count = serializers.IntegerField()
+
+    @classmethod
+    def from_period(cls, *, start_at, end_at):
+        from apps.hahitantsoa.selectors import list_hahitantsoa_venue_occupancies_for_period
+
+        item_serializer = HahitantsoaVenueOccupancySerializer.from_event_drafts(
+            list_hahitantsoa_venue_occupancies_for_period(start_at=start_at, end_at=end_at)
+        )
+        return cls({"items": item_serializer.data, "count": len(item_serializer.data)})
+
+
 class HahitantsoaEventDraftAvailabilityLinePreviewSerializer(serializers.Serializer):
     event_draft_line_id = serializers.UUIDField()
     quantity = serializers.IntegerField()

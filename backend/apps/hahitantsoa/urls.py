@@ -29,6 +29,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaServiceRetrieveUpdateDestroyAPIView,
     HahitantsoaSharedAvailabilityAPIView,
     HahitantsoaVenueListCreateAPIView,
+    HahitantsoaVenueOccupancyAPIView,
     HahitantsoaVenueRetrieveUpdateAPIView,
 )
 
@@ -52,6 +53,11 @@ urlpatterns = [
         "shared-availability/",
         HahitantsoaSharedAvailabilityAPIView.as_view(),
         name="hahitantsoa-shared-availability",
+    ),
+    path(
+        "venue-occupancy/",
+        HahitantsoaVenueOccupancyAPIView.as_view(),
+        name="hahitantsoa-venue-occupancy",
     ),
     path(
         "event-drafts/",

@@ -3,6 +3,7 @@ from datetime import datetime
 from django.db.models import QuerySet
 
 from apps.hahitantsoa.discovery import HahitantsoaDiscoveryItem
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import InventoryItem
 from apps.reservations.selectors import get_available_reservation_inventory_items_for_period
 
@@ -37,3 +38,20 @@ def _get_available_hahitantsoa_shared_inventory_items_for_period(
         start_at=start_at,
         end_at=end_at,
     ).filter(kind__in=HAHITANTSOA_SHARED_AVAILABILITY_ITEM_KINDS)
+
+
+def list_hahitantsoa_venue_occupancies_for_period(
+    *,
+    start_at: datetime,
+    end_at: datetime,
+) -> QuerySet[HahitantsoaEventDraft]:
+    """Return operational venue slots overlapping a requested calendar period."""
+    return (
+        HahitantsoaEventDraft.objects.filter(
+            is_deleted=False,
+            start_at__lt=end_at,
+            end_at__gt=start_at,
+        )
+        .only("id", "public_reference", "status", "venue_name", "start_at", "end_at")
+        .order_by("start_at", "end_at", "public_reference")
+    )

@@ -11,7 +11,10 @@ from apps.hahitantsoa.scope import (
     HAHITANTSOA_SHARED_INVENTORY_CONCEPTS,
     HahitantsoaDiscoveryConcept,
 )
-from apps.hahitantsoa.selectors import list_hahitantsoa_discovery_items
+from apps.hahitantsoa.selectors import (
+    list_hahitantsoa_discovery_items,
+    list_hahitantsoa_venue_occupancies_for_period,
+)
 from apps.inventory.scope import is_titan_allowed_item_kind
 
 EXPECTED_DISCOVERY_CONCEPTS = (
@@ -87,7 +90,7 @@ def test_selector_preserves_titan_separation() -> None:
     assert is_titan_allowed_item_kind("material_pack") is True
 
 
-def test_selector_public_contract_has_no_parameters_or_write_api() -> None:
+def test_selector_public_contract_exposes_only_read_apis() -> None:
     public_module_functions = {
         name
         for name, member in getmembers(selectors, isfunction)
@@ -95,7 +98,14 @@ def test_selector_public_contract_has_no_parameters_or_write_api() -> None:
     }
 
     assert tuple(signature(list_hahitantsoa_discovery_items).parameters) == ()
-    assert public_module_functions == {"list_hahitantsoa_discovery_items"}
+    assert tuple(signature(list_hahitantsoa_venue_occupancies_for_period).parameters) == (
+        "start_at",
+        "end_at",
+    )
+    assert public_module_functions == {
+        "list_hahitantsoa_discovery_items",
+        "list_hahitantsoa_venue_occupancies_for_period",
+    }
 
 
 def test_selected_items_expose_only_read_only_discovery_fields() -> None:
