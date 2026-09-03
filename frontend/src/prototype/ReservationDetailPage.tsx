@@ -226,12 +226,6 @@ export default function ReservationDetailPage({
 
   /* ── local UI state ───────────────────────────────────────────── */
   const [activeTab, setActiveTab] = useState("contrat");
-  const [prepStatus, setPrepStatus] = useState("à préparer");
-  const [returnStatus, setReturnStatus] = useState("Bon état");
-  const [prepQty1, setPrepQty1] = useState(100);
-  const [prepQty2, setPrepQty2] = useState(10);
-  const [returnQty1, setReturnQty1] = useState(98);
-  const [returnQty2, setReturnQty2] = useState(10);
   const [toast, setToast] = useState<{
     message: string;
     type: "info" | "success" | "warning" | "error";
@@ -240,6 +234,8 @@ export default function ReservationDetailPage({
   const [previewDoc, setPreviewDoc] = useState<PreviewDoc>(null);
   const [showConversionAssistant, setShowConversionAssistant] =
     useState(false);
+  const preparationStep = lifecycleSummary?.steps.find((step) => step.key === "preparation");
+  const preparationReady = preparationStep?.status === "done";
 
   const showToast = (
     message: string,
@@ -1410,12 +1406,12 @@ export default function ReservationDetailPage({
                     </span>
                     <span
                       className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                        prepStatus === "Prêt"
+                        preparationReady
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-amber-100 text-amber-700"
                       }`}
                     >
-                      {prepStatus}
+                      {preparationReady ? "Prêt" : "À préparer"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1427,7 +1423,7 @@ export default function ReservationDetailPage({
                       <i className="fa-solid fa-check-double"></i>
                       <span>Ouvrir la préparation réelle</span>
                     </button>
-                    {prepStatus !== "Prêt" && (
+                    {!preparationReady && (
                       <button
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700"
                         onClick={() => onNavigate("stock-preparation")}
@@ -1455,7 +1451,7 @@ export default function ReservationDetailPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {materials.map((m, idx) => (
+                    {materials.map((m) => (
                       <tr
                         key={m.id}
                         className="border-b border-slate-100"
@@ -1465,25 +1461,7 @@ export default function ReservationDetailPage({
                           {m.quantity}
                         </td>
                         <td className="p-3 text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            max={m.quantity}
-                            step="1"
-                            className="w-16 border rounded p-1 text-center"
-                            value={idx === 0 ? prepQty1 : prepQty2}
-                            onChange={(e) => {
-                              const v = Math.max(
-                                0,
-                                Math.min(
-                                  m.quantity,
-                                  parseInt(e.target.value || "0", 10),
-                                ),
-                              );
-                              if (idx === 0) setPrepQty1(v);
-                              else setPrepQty2(v);
-                            }}
-                          />
+                          <span className="text-slate-500">À renseigner dans la préparation réelle</span>
                         </td>
                         <td className="p-3 text-emerald-600 font-medium">
                           <i className="fa-solid fa-check-circle mr-1"></i>{" "}
@@ -1653,7 +1631,7 @@ export default function ReservationDetailPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {materials.map((m, idx) => (
+                    {materials.map((m) => (
                       <tr
                         key={m.id}
                         className="border-b border-slate-100"
@@ -1663,53 +1641,10 @@ export default function ReservationDetailPage({
                           {m.quantity}
                         </td>
                         <td className="p-2 text-center">
-                          <input
-                            type="number"
-                            min="0"
-                            max={m.quantity}
-                            step="1"
-                            className="w-16 border rounded p-1 text-center"
-                            value={idx === 0 ? returnQty1 : returnQty2}
-                            onChange={(e) => {
-                              const v = Math.max(
-                                0,
-                                Math.min(
-                                  m.quantity,
-                                  parseInt(e.target.value || "0", 10),
-                                ),
-                              );
-                              if (idx === 0) setReturnQty1(v);
-                              else setReturnQty2(v);
-                            }}
-                          />
+                          <span className="text-slate-500">À saisir dans le retour réel</span>
                         </td>
                         <td className="p-2">
-                          <select
-                            className="border border-slate-300 rounded p-1 text-xs w-full text-rose-600 font-medium"
-                            value={
-                              idx === 0 ? returnStatus : undefined
-                            }
-                            onChange={
-                              idx === 0
-                                ? (e) => setReturnStatus(e.target.value)
-                                : undefined
-                            }
-                          >
-                            <option className="text-slate-700">
-                              Bon état
-                            </option>
-                            <option className="text-rose-600">
-                              Cassé
-                            </option>
-                            <option className="text-orange-600">
-                              Manquant
-                            </option>
-                            {idx === 0 && (
-                              <option className="text-amber-600">
-                                Sale / non lavé
-                              </option>
-                            )}
-                          </select>
+                          <span className="text-slate-500">État enregistré dans le retour réel</span>
                         </td>
                       </tr>
                     ))}

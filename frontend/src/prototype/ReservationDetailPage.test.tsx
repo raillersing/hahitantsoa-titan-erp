@@ -141,56 +141,25 @@ describe('ReservationDetailPage', () => {
     expect(mockGetLifecycle).toHaveBeenCalledWith(MOCK_DRAFT.id);
   });
 
-  it('1. Préparation Titan: clamp prep quantities to ordered quantity', async () => {
+  it('1. Préparation Titan: redirects quantity entry to the persisted preparation workflow', async () => {
     render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
     await waitForDraftLoad();
 
     fireEvent.click(screen.getByRole('button', { name: /^Préparation$/i }));
 
-    await waitFor(() => {
-      expect(screen.getAllByRole('spinbutton').length).toBeGreaterThanOrEqual(2);
-    });
-
-    const inputs = screen.getAllByRole('spinbutton');
-    const prepQty1 = inputs[0] as HTMLInputElement;
-    const prepQty2 = inputs[1] as HTMLInputElement;
-
-    expect(prepQty1).toHaveAttribute('max', '100');
-    expect(prepQty2).toHaveAttribute('max', '10');
-
-    // Clamp > max
-    fireEvent.change(prepQty1, { target: { value: '150' } });
-    expect(prepQty1).toHaveValue(100);
-
-    // Clamp < min
-    fireEvent.change(prepQty1, { target: { value: '-10' } });
-    expect(prepQty1).toHaveValue(0);
+    expect(await screen.findAllByText('À renseigner dans la préparation réelle')).toHaveLength(2);
+    expect(screen.queryAllByRole('spinbutton')).toHaveLength(0);
   });
 
-  it('2. Retour Titan: clamp return quantities to ordered quantity', async () => {
+  it('2. Retour Titan: redirects quantity and condition entry to the persisted return workflow', async () => {
     render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
     await waitForDraftLoad();
 
     fireEvent.click(screen.getByRole('button', { name: /Retour \/ Restitution/i }));
 
-    await waitFor(() => {
-      expect(screen.getAllByRole('spinbutton').length).toBeGreaterThanOrEqual(2);
-    });
-
-    const inputs = screen.getAllByRole('spinbutton');
-    const returnQty1 = inputs[0] as HTMLInputElement;
-    const returnQty2 = inputs[1] as HTMLInputElement;
-
-    expect(returnQty1).toHaveAttribute('max', '100');
-    expect(returnQty2).toHaveAttribute('max', '10');
-
-    // Clamp > max
-    fireEvent.change(returnQty1, { target: { value: '120' } });
-    expect(returnQty1).toHaveValue(100);
-
-    // Clamp < min
-    fireEvent.change(returnQty1, { target: { value: '-5' } });
-    expect(returnQty1).toHaveValue(0);
+    expect(await screen.findAllByText('À saisir dans le retour réel')).toHaveLength(2);
+    expect(screen.getAllByText('État enregistré dans le retour réel')).toHaveLength(2);
+    expect(screen.queryAllByRole('spinbutton')).toHaveLength(0);
   });
 
   it('3. Actions: contract-signed, deposit-received, confirm buttons appear in sequence', async () => {
