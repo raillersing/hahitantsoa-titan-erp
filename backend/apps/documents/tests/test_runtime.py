@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from html import unescape
 
 import pytest
 from django.utils import timezone
@@ -28,6 +29,8 @@ def test_hahitantsoa_proforma_uses_official_renderer_over_active_database_versio
         event_name="Réception familiale",
         start_at=start_at,
         end_at=start_at + timedelta(hours=6),
+        rental_type="bare",
+        venue_name="Salle de réception Hahitantsoa",
         space_rental_amount=Decimal("12500000.00"),
         total_amount=Decimal("12500000.00"),
     )
@@ -48,10 +51,13 @@ def test_hahitantsoa_proforma_uses_official_renderer_over_active_database_versio
     )
 
     result = generate_document_instance_html(document_instance=document_instance)
+    rendered_html = unescape(result.html_content)
 
-    assert "DATABASE OVERRIDE" not in result.html_content
-    assert "PROFORMA Hahitantsoa" in result.html_content
-    assert "Douze millions cinq cent mille Ariary" in result.html_content
+    assert "DATABASE OVERRIDE" not in rendered_html
+    assert "PROFORMA Hahitantsoa" in rendered_html
+    assert "Location nue de l'espace" in rendered_html
+    assert "12 500 000,00" in rendered_html
+    assert "Douze millions cinq cent mille Ariary" in rendered_html
 
 
 def test_titan_proforma_uses_official_renderer_over_active_database_version() -> None:
