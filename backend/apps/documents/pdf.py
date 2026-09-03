@@ -57,21 +57,38 @@ class MockPDFGenerator(DocumentPDFGenerator):
 def get_pdf_generator() -> DocumentPDFGenerator:
     """Return the active PDF generator configured in Django settings.
 
-    Default is ``MockPDFGenerator``.
-    Override via ``settings.DOCUMENT_PDF_GENERATOR_CLASS``.
+    Development and pytest may use ``MockPDFGenerator``. Production requires a
+    configured non-mock generator via ``settings.DOCUMENT_PDF_GENERATOR_CLASS``.
     """
     from django.conf import settings
     from django.utils.module_loading import import_string
 
     class_path = getattr(settings, "DOCUMENT_PDF_GENERATOR_CLASS", None)
+    allow_mock = settings.DEBUG or getattr(settings, "TESTING", False)
     if class_path is None:
+        if not allow_mock:
+            raise DocumentPDFGenerationError(
+                "A production PDF generator must be configured.",
+                code="production_pdf_generator_required",
+            )
         return MockPDFGenerator()
     try:
         generator_class = import_string(class_path)
-        return generator_class()
     except Exception as error:
         raise DocumentPDFGenerationError(
             f"Failed to load PDF generator class '{class_path}': {error}",
+            code="pdf_generator_load_failed",
+        ) from error
+    if issubclass(generator_class, MockPDFGenerator) and not allow_mock:
+        raise DocumentPDFGenerationError(
+            "The mock PDF generator cannot be used in production.",
+            code="production_mock_pdf_generator_forbidden",
+        )
+    try:
+        return generator_class()
+    except Exception as error:
+        raise DocumentPDFGenerationError(
+            f"Failed to initialize PDF generator class '{class_path}': {error}",
             code="pdf_generator_load_failed",
         ) from error
 

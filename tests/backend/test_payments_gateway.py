@@ -123,9 +123,16 @@ class TestMVolaGatewayAdapter:
 
 
 class TestGetPaymentGatewayAdapter:
+    @override_settings(DEBUG=True, PAYMENT_GATEWAY_NAME="mock")
     def test_default_returns_mock(self) -> None:
         adapter = get_payment_gateway_adapter()
         assert isinstance(adapter, MockPaymentGatewayAdapter)
+
+    @override_settings(DEBUG=False, TESTING=False, PAYMENT_GATEWAY_NAME="mock")
+    def test_production_rejects_mock_gateway(self) -> None:
+        with pytest.raises(PaymentGatewayError) as exc_info:
+            get_payment_gateway_adapter()
+        assert exc_info.value.code == "production_payment_gateway_required"
 
     def test_explicit_mvola_returns_mvola(self) -> None:
         adapter = get_payment_gateway_adapter(gateway_name="mvola")

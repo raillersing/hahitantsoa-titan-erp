@@ -196,6 +196,11 @@ def get_payment_gateway_adapter(
     if name in {"mvola", "mvola_sandbox"}:
         return MVolaGatewayAdapter()
     if name == "mock":
+        if not (settings.DEBUG or getattr(settings, "TESTING", False)):
+            raise PaymentGatewayError(
+                "A production payment gateway must be configured.",
+                code="production_payment_gateway_required",
+            )
         return MockPaymentGatewayAdapter()
     raise PaymentGatewayError(
         f"Unknown payment gateway: {name}",

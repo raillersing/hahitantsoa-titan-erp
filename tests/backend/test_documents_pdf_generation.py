@@ -65,9 +65,26 @@ class TestPDFHelpers:
 
 
 class TestGetPDFGenerator:
+    @override_settings(DEBUG=True, DOCUMENT_PDF_GENERATOR_CLASS=None)
     def test_default_returns_mock(self) -> None:
         gen = get_pdf_generator()
         assert isinstance(gen, MockPDFGenerator)
+
+    @override_settings(DEBUG=False, TESTING=False, DOCUMENT_PDF_GENERATOR_CLASS=None)
+    def test_production_requires_explicit_generator(self) -> None:
+        with pytest.raises(DocumentPDFGenerationError) as exc_info:
+            get_pdf_generator()
+        assert exc_info.value.code == "production_pdf_generator_required"
+
+    @override_settings(
+        DEBUG=False,
+        TESTING=False,
+        DOCUMENT_PDF_GENERATOR_CLASS="apps.documents.pdf.MockPDFGenerator",
+    )
+    def test_production_rejects_explicit_mock_generator(self) -> None:
+        with pytest.raises(DocumentPDFGenerationError) as exc_info:
+            get_pdf_generator()
+        assert exc_info.value.code == "production_mock_pdf_generator_forbidden"
 
     @override_settings(DOCUMENT_PDF_GENERATOR_CLASS="apps.documents.pdf.WeasyPrintPDFGenerator")
     def test_explicit_runtime_configuration_uses_weasyprint_generator(self) -> None:
