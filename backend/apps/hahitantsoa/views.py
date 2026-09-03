@@ -54,6 +54,7 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaEventDraftDocumentInstanceSerializer,
     HahitantsoaEventDraftSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
+    HahitantsoaVenueOccupancyResponseSerializer,
     ReservationAvailabilityPreviewRequestSerializer,
 )
 from apps.hahitantsoa.services import (
@@ -131,6 +132,38 @@ class HahitantsoaSharedAvailabilityAPIView(APIView):
             return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
 
         response_serializer = HahitantsoaSharedAvailabilityResponseSerializer.from_period(
+            start_at=start_at,
+            end_at=end_at,
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+
+class HahitantsoaVenueOccupancyAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start_at", str, OpenApiParameter.QUERY, required=True),
+            OpenApiParameter("end_at", str, OpenApiParameter.QUERY, required=True),
+        ],
+        responses=HahitantsoaVenueOccupancyResponseSerializer,
+    )
+    def get(self, request):
+        request_serializer = ReservationAvailabilityPreviewRequestSerializer(
+            data=request.query_params
+        )
+        request_serializer.is_valid(raise_exception=True)
+
+        start_at = request_serializer.validated_data["start_at"]
+        end_at = request_serializer.validated_data["end_at"]
+
+        try:
+            validate_reservation_period(start_at=start_at, end_at=end_at)
+        except ValueError as error:
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_serializer = HahitantsoaVenueOccupancyResponseSerializer.from_period(
             start_at=start_at,
             end_at=end_at,
         )
