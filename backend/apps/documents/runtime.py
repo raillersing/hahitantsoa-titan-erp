@@ -216,7 +216,7 @@ def _build_hahitantsoa_contract_runtime_context(
         }
         for line in event_lines
     )
-    if linked_event_draft.rental_type == "bare":
+    if linked_event_draft.rental_type == "bare" and not lines:
         lines = (
             {
                 "inventory_item_name": "Location nue de l'espace",
