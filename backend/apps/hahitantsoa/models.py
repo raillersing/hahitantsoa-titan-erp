@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from django.conf import settings
@@ -18,6 +19,12 @@ class HahitantsoaEventDraftStatus(models.TextChoices):
 
 
 HAHITANTSOA_EVENT_DRAFT_STATUS_VALUES = [status.value for status in HahitantsoaEventDraftStatus]
+
+
+def normalize_hahitantsoa_venue_key(venue_name: str) -> str:
+    """Stable operational key; an unnamed booking uses Hahitantsoa's default space."""
+    normalized = re.sub(r"\s+", " ", venue_name.strip()).casefold()
+    return normalized or "hahitantsoa-default-space"
 
 
 class HahitantsoaEventType(models.TextChoices):
@@ -129,6 +136,7 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
     total_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     required_deposit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     venue_name = models.CharField(max_length=255, blank=True)
+    venue_key = models.CharField(max_length=255, db_index=True, default="hahitantsoa-default-space")
     location_details = models.TextField(blank=True)
     service_notes = models.TextField(blank=True)
     start_at = models.DateTimeField()
@@ -213,6 +221,14 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
 
         if self.customer_id and (not self.customer.is_active or self.customer.is_deleted):
             raise ValidationError({"customer": "Hahitantsoa event draft customer must be active."})
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if update_fields is None or "venue_name" in update_fields:
+            self.venue_key = normalize_hahitantsoa_venue_key(self.venue_name)
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"venue_key"}
+        return super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return self.public_reference
@@ -504,6 +520,12 @@ class HahitantsoaVenue(UUIDModel, TimestampedModel, AuditableModel):
 
     def __str__(self) -> str:
         return self.name
+
+
+class HahitantsoaVenueOccupancyLock(UUIDModel, TimestampedModel):
+    """One durable lock row serialises overlapping confirmations for a venue."""
+
+    venue_key = models.CharField(max_length=255, unique=True)
 
 
 class HahitantsoaServiceCategory(models.TextChoices):
