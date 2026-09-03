@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
-import { getDocumentTemplatePreview } from "../api";
+import {
+  getDocumentTemplatePreview,
+  getHahitantsoaEventDraftDocumentPreview,
+} from "../api";
 
 type DocumentType = "proforma" | "facture" | "contrat" | string;
 
@@ -11,6 +14,7 @@ export interface DocumentPreviewProps {
   client?: { type?: string; party_type?: string } | null;
   template?: { templateKey?: string; key?: string } | null;
   documentInstanceId?: string | null;
+  hahitantsoaEventDraftId?: string | null;
   showVariables?: boolean;
   [key: string]: unknown;
 }
@@ -57,9 +61,24 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
       setState({ status: "error", message: "Aucun modèle officiel n’est associé à ce document." });
       return;
     }
+    const eventDraftId = props.hahitantsoaEventDraftId;
+    if (props.domain === "hahitantsoa" && !eventDraftId) {
+      setState({
+        status: "error",
+        message: "Enregistrez le brouillon Hahitantsoa pour afficher le document avec ses données réelles.",
+      });
+      return;
+    }
     const controller = new AbortController();
     setState({ status: "loading" });
-    void getDocumentTemplatePreview(templateKey, controller.signal, Boolean(props.showVariables), partyType)
+    const preview = props.domain === "hahitantsoa" && eventDraftId
+      ? getHahitantsoaEventDraftDocumentPreview(
+          eventDraftId,
+          templateKey,
+          controller.signal,
+        )
+      : getDocumentTemplatePreview(templateKey, controller.signal, Boolean(props.showVariables), partyType);
+    void preview
       .then((html) => setState({ status: "loaded", html }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -69,7 +88,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
         });
       });
     return () => controller.abort();
-  }, [partyType, props.documentInstanceId, props.showVariables, templateKey]);
+  }, [partyType, props.documentInstanceId, props.domain, props.hahitantsoaEventDraftId, props.showVariables, templateKey]);
 
   if (props.documentInstanceId) {
     return <DocumentArtifactPreviewPanel documentInstanceId={props.documentInstanceId} />;

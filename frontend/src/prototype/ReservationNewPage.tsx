@@ -1186,7 +1186,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         ? await createHahitantsoaEventDraftDocumentInstance(draftId, documentPayload)
         : await createReservationDraftDocumentInstance(draftId, documentPayload);
       emission = { ...emission, documentId: document.id };
-      setDocumentReference(document.reservation_public_reference || draftId);
+      setDocumentReference(
+        document.document_reference || document.reservation_public_reference || draftId,
+      );
       setProspectProformaEmission(emission);
     }
 
@@ -1238,7 +1240,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       throw new Error("Le brouillon et le proforma sont requis avant de générer le contrat.");
     }
     const contract = await convertProformaToContract(proformaDocumentId);
-    setDocumentReference(contract.reservation_public_reference || emission.draftId);
+    setDocumentReference(
+      contract.document_reference || contract.reservation_public_reference || emission.draftId,
+    );
     if (domain === "hahitantsoa") {
       if (contract.status === "prepared") {
         await generateHahitantsoaEventDraftDocumentInstance(emission.draftId, contract.id);
@@ -3287,6 +3291,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         type="proforma"
         domain={domain as 'titan' | 'hahitantsoa'}
         documentInstanceId={prospectProformaEmission?.htmlGenerated ? prospectProformaEmission.documentId : null}
+        hahitantsoaEventDraftId={domain === 'hahitantsoa' ? prospectProformaEmission?.draftId : null}
         client={activeClient}
         date={new Date().toLocaleDateString('fr-FR')}
           refNumber={documentReference || "Brouillon en préparation"}
@@ -3730,13 +3735,18 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Contrat</h3>
         <div className="flex items-center gap-3 mb-6">
            <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Prêt à signer</span>
-           <span className="text-sm text-slate-500">Brouillon de Contrat : CTR-2026-9042</span>
+           <span className="text-sm text-slate-500">
+             {documentReference.endsWith("-CT")
+               ? `Référence : ${documentReference}`
+               : "Référence officielle attribuée lors de la génération"}
+           </span>
         </div>
         
       <div className="mb-8">
         <DocumentPreviewDispatcher
           type="contrat"
           domain={domain as 'titan' | 'hahitantsoa'}
+          hahitantsoaEventDraftId={domain === 'hahitantsoa' ? prospectProformaEmission?.draftId : null}
           client={activeClient}
           date={new Date().toLocaleDateString('fr-FR')}
           refNumber={documentReference || "Brouillon en préparation"}
