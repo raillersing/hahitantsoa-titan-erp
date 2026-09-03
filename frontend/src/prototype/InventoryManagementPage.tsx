@@ -211,7 +211,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
   const handleOpenCreate = () => {
     setFormMode("create");
     setEditForm({
-      id: `NEW-${Math.floor(Math.random() * 10000)}`,
+      code: "",
       name: "",
       type: "Location",
       category: "",
@@ -264,7 +264,7 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
       const payload = {
         name: editForm.name,
         kind,
-        code: editForm.id?.startsWith("NEW-") ? "" : editForm.id,
+        code: editForm.code || "",
         section: editForm.category || "",
         rental_price: String(editForm.unitPrice || 0),
         purchase_price: String(editForm.purchasePrice || 0),
@@ -606,8 +606,8 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <form onSubmit={handleSaveForm} className="p-6 overflow-y-auto space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="item-id" className="block text-sm font-medium text-slate-700 mb-1">Code / ID</label>
-                  <input id="item-id" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.id} onChange={e => setEditForm({...editForm, id: e.target.value})} />
+                  <label htmlFor="item-code" className="block text-sm font-medium text-slate-700 mb-1">Code article</label>
+                  <input id="item-code" type="text" className="w-full border border-slate-300 rounded p-2 text-sm" value={editForm.code || ""} onChange={e => setEditForm({...editForm, code: e.target.value})} />
                 </div>
                 <div>
                   <label htmlFor="item-name" className="block text-sm font-medium text-slate-700 mb-1">Nom de l'article</label>

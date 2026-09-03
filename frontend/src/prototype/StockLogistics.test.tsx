@@ -28,6 +28,22 @@ describe('Stock & Logistics Pages', () => {
     expect(screen.getAllByText('Réservé').length).toBeGreaterThan(0);
   });
 
+  it('creates an item with its entered catalogue code, never a generated local ID', async () => {
+    vi.spyOn(api, 'getInventoryItems').mockResolvedValue([]);
+    const createItem = vi.spyOn(api, 'createInventoryItem').mockResolvedValue({
+      id: 'inventory-uuid', code: 'CHAISE-001', name: 'Chaise', kind: 'material', description: '',
+    } as any);
+    render(<InventoryManagementPage onNavigate={mockNavigate} />);
+    await screen.findByText('Aucun article trouvé.');
+    fireEvent.click(screen.getByRole('button', { name: 'Nouvel Article' }));
+    fireEvent.change(screen.getByLabelText('Code article'), { target: { value: 'CHAISE-001' } });
+    fireEvent.change(screen.getByLabelText("Nom de l'article"), { target: { value: 'Chaise' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(createItem).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'CHAISE-001',
+    })));
+  });
+
   it('InventoryPage (Catalogue) - renders grid of location articles', async () => {
     vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
       { id: 'MAT-01', name: 'Chaise Napoléon transparente', kind: 'material', description: '' },
