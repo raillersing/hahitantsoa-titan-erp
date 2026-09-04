@@ -35,9 +35,11 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
   await page.getByRole('button', { name: /Aller au catalogue/i }).click();
 
   await expect(page.getByRole('heading', { name: 'Catalogue Matériels' })).toBeVisible();
-  const quantity = page.locator('input[aria-label^="Quantité pour"]').first();
+  const quantity = page.locator('input[aria-label^="Quantité pour"][max]:not([max="0"])').first();
   await expect(quantity).toBeVisible();
+  await expect(quantity).toHaveAttribute('max', /[1-9]\d*/);
   await quantity.fill('1');
+  await expect(quantity).toHaveValue('1');
 
   await page.getByRole('button', { name: 'Aller à la Livraison' }).click();
   await expect(page.getByRole('heading', { name: 'Option Livraison (Titan)' })).toBeVisible();
