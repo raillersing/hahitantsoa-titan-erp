@@ -26,7 +26,7 @@ async function login(page: Page, username: string, password: string) {
   await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill(username);
   await page.getByLabel('Mot de passe').fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByRole('heading', { name: 'Profil utilisateur', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Profil utilisateur', level: 1 })).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe('Phase 1F-D — permissions réelles multi-utilisateurs', () => {

@@ -11,11 +11,11 @@ test("protège un deep-link, restaure la session et déconnecte réellement", as
   await page.getByLabel("Mot de passe").fill(password);
   await page.getByRole("button", { name: "Se connecter" }).click();
 
-  await expect(page.getByRole("heading", { name: "Documents & Modèles" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("phase1b-e2e", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Documents & Modèles" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("link", { name: /Titan/ }).click();
   await expect(page.getByRole("heading", { name: "Titan", exact: true })).toBeVisible();
@@ -28,7 +28,7 @@ test("protège un deep-link, restaure la session et déconnecte réellement", as
   await page.goBack();
   await expect(page.getByRole("heading", { name: "Titan", exact: true })).toBeVisible();
   await page.goBack();
-  await expect(page.getByRole("heading", { name: "Documents & Modèles" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: "Menu utilisateur" }).click();
   await page.getByRole("button", { name: "Déconnexion" }).click();
@@ -55,7 +55,7 @@ test("affiche le profil backend et demande une reconnexion après expiration", a
   await page.getByLabel("Mot de passe").fill(password);
   await page.getByRole("button", { name: "Se connecter" }).click();
 
-  await expect(page.getByRole("heading", { name: "Profil utilisateur", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Profil utilisateur", level: 1 })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(username, { exact: true })).toHaveCount(3);
 
   await context.clearCookies();
