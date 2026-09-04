@@ -252,8 +252,9 @@ jobs:
           # clearing it between groups prevents its login rate-limit state from
           # leaking across unrelated browser scenarios.
           run_group() {
-            python -c 'import socket; s=socket.create_connection(("localhost", 6379)); s.sendall(b"*1\\r\\n$8\\r\\nFLUSHALL\\r\\n"); r=s.recv(1024); s.close(); assert r.startswith(b"+OK"), r'
-            npm exec playwright -- test "$@" --project='Desktop Chrome'
+            echo "Browser group: $*"
+            python -c 'import socket; s=socket.create_connection(("localhost", 6379), timeout=5); s.sendall(b"*1\r\n$8\r\nFLUSHALL\r\n"); r=s.recv(1024); s.close(); assert r.startswith(b"+OK"), r'
+            timeout 180s npm exec playwright -- test "$@" --project='Desktop Chrome'
           }
           run_group e2e/auth-session.spec.ts
           run_group e2e/phase1f-real-backend.spec.ts
