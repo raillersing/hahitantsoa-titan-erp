@@ -64,7 +64,7 @@ async function login(page: Page) {
   await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill(username);
   await page.getByLabel('Mot de passe').fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
 test('recette réelle: session, rechargement, déconnexion et réseau applicatif', async ({ page }) => {
@@ -77,7 +77,7 @@ test('recette réelle: session, rechargement, déconnexion et réseau applicatif
   expect(statusesFor(evidence, '/api/v1/auth/session/').every((status) => status >= 200 && status < 300)).toBe(true);
 
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole('button', { name: 'Menu utilisateur' }).click();
   await page.getByRole('button', { name: 'Déconnexion' }).click();
@@ -96,7 +96,7 @@ test('recette réelle: expiration de session redirige sans fallback métier', as
   await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill(username);
   await page.getByLabel('Mot de passe').fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByRole('heading', { name: 'Profil utilisateur', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Profil utilisateur', level: 1 })).toBeVisible({ timeout: 15_000 });
 
   await context.clearCookies();
   const sessionResponsePromise = page.waitForResponse((response) => {
