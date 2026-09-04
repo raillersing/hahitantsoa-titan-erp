@@ -52,6 +52,7 @@ class PaymentReceiptPaymentContext:
     payment_status: str
     amount: Decimal
     amount_label: str
+    amount_in_words: str
     paid_at: object | None
     external_reference: str
     source_label: str
@@ -115,6 +116,9 @@ def _payment_method_label(payment) -> str:
 def build_payment_receipt_context(
     *, payment: Payment, template_key: str | None = None
 ) -> PaymentReceiptContext:
+    # ponytail: reuse the one approved Ariary wording rule without an import cycle.
+    from apps.documents.runtime import format_ariary_amount_in_words
+
     template_definition = get_document_template_definition(
         template_key or payment_receipt_template_key(payment=payment)
     )
@@ -208,6 +212,7 @@ def build_payment_receipt_context(
             payment_status=payment.payment_status,
             amount=payment.amount,
             amount_label=_format_amount(payment.amount),
+            amount_in_words=format_ariary_amount_in_words(payment.amount),
             paid_at=payment.paid_at,
             external_reference=payment.external_reference or "",
             source_label=payment.source_label or "",
