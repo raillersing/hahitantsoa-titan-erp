@@ -232,6 +232,7 @@ jobs:
         run: |
           python backend/manage.py migrate --noinput
           python backend/manage.py seed_all_demo
+          python backend/manage.py seed_browser_acceptance_titan_fixture
           python backend/manage.py seed_dev_admin
           python backend/manage.py seed_dev_user
 
