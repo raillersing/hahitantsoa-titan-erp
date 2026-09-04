@@ -147,6 +147,7 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [partialLoadMessage, setPartialLoadMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -155,20 +156,36 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
       try {
         setLoading(true);
         setError(null);
-        const [draftsData, eventDraftsData, inventoryData, invoicesData, notifData] =
-          await Promise.all([
-            getReservationDrafts(undefined, controller.signal),
-            getHahitantsoaEventDrafts(undefined, controller.signal),
-            getInventoryItems(controller.signal),
-            getBillingInvoices(undefined, controller.signal),
-            getNotifications(false, controller.signal),
-          ]);
+        setPartialLoadMessage(null);
+        const results = await Promise.allSettled([
+          getReservationDrafts(undefined, controller.signal),
+          getHahitantsoaEventDrafts(undefined, controller.signal),
+          getInventoryItems(controller.signal),
+          getBillingInvoices(undefined, controller.signal),
+          getNotifications(false, controller.signal),
+        ]);
+        if (controller.signal.aborted) return;
 
-        setDrafts(draftsData);
-        setEventDrafts(eventDraftsData);
-        setInventoryItems(inventoryData);
-        setInvoices(invoicesData);
-        setNotifications(notifData);
+        const [draftsResult, eventDraftsResult, inventoryResult, invoicesResult, notificationsResult] = results;
+        const unavailableSources: string[] = [];
+        if (draftsResult.status === "fulfilled") setDrafts(draftsResult.value);
+        else unavailableSources.push("les réservations Titan");
+        if (eventDraftsResult.status === "fulfilled") setEventDrafts(eventDraftsResult.value);
+        else unavailableSources.push("les événements Hahitantsoa");
+        if (inventoryResult.status === "fulfilled") setInventoryItems(inventoryResult.value);
+        else unavailableSources.push("l’inventaire");
+        if (invoicesResult.status === "fulfilled") setInvoices(invoicesResult.value);
+        else unavailableSources.push("la facturation");
+        if (notificationsResult.status === "fulfilled") setNotifications(notificationsResult.value);
+        else unavailableSources.push("les notifications");
+
+        if (unavailableSources.length === results.length) {
+          setError("Aucune donnée du tableau de bord n’a pu être chargée.");
+        } else if (unavailableSources.length > 0) {
+          setPartialLoadMessage(
+            `Certaines données sont temporairement indisponibles : ${unavailableSources.join(", ")}.`,
+          );
+        }
       } catch (err: any) {
         if (err.name === "AbortError") return;
         const message =
@@ -247,6 +264,13 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
           <i className="fas fa-chart-bar mr-2 text-blue-500"></i>Voir les rapports
         </button>
       </div>
+
+      {partialLoadMessage && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+          <i className="fas fa-exclamation-triangle mr-2" aria-hidden="true"></i>
+          {partialLoadMessage}
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
