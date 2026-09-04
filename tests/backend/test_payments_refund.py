@@ -13,6 +13,7 @@ from tests.backend.test_inventory_damage_loss_settlement_model import (
 
 from apps.audit.models import AuditEvent
 from apps.customers.models import Customer
+from apps.documents.payment_receipts import build_payment_receipt_context
 from apps.inventory.models import (
     InventoryCautionRefundObligationStatus,
 )
@@ -165,6 +166,12 @@ def test_confirm_refund_payment_confirms_and_settles(django_user_model) -> None:
     assert obligation.status == InventoryCautionRefundObligationStatus.SETTLED
     assert result.payment.id == payment.id
     assert result.receipt_document.id == payment.receipt_document.id
+
+    receipt_context = build_payment_receipt_context(
+        payment=payment,
+        template_key="shared.payment_refund_receipt.v1",
+    )
+    assert receipt_context.payment.amount_in_words == "Dix mille Ariary"
 
 
 def test_confirm_refund_payment_rejects_non_refund_kind(django_user_model) -> None:
