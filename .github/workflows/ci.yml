@@ -252,6 +252,7 @@ jobs:
           e2e/auth-session.spec.ts
           e2e/phase1f-real-backend.spec.ts
           e2e/phase1f-real-roles.spec.ts
+          e2e/lifecycle-write-titan.spec.ts
           --project='Desktop Chrome'
 
       - name: Upload browser diagnostics
