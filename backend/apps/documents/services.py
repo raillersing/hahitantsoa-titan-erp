@@ -566,6 +566,22 @@ def hahitantsoa_event_draft_document_instance_kwargs(
         "customer_party_type": event_draft.customer.party_type,
         "customer_email": event_draft.customer.email,
         "customer_phone": event_draft.customer.phone,
+        "customer_contact_points_snapshot": [
+            {
+                "kind": contact_point.kind,
+                "value": contact_point.value,
+                "label": contact_point.label,
+            }
+            for contact_point in sorted(
+                event_draft.customer.contact_points.all(),
+                key=lambda contact_point: (
+                    not contact_point.is_primary,
+                    contact_point.kind,
+                    contact_point.created_at,
+                    contact_point.id,
+                ),
+            )
+        ],
         "customer_address": event_draft.customer.address,
         "customer_civilite": event_draft.customer.civilite,
         "customer_birth_date": event_draft.customer.birth_date,

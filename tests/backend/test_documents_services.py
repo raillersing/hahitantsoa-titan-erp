@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 from django.utils import timezone
@@ -11,12 +12,14 @@ from apps.documents.serializers import DocumentInstanceSerializer
 from apps.documents.services import (
     build_amendment_document_reference,
     build_document_reference,
+    create_document_instance_from_hahitantsoa_event_draft,
     create_document_instance_from_reservation_draft,
     get_reservation_draft_commercial_document_context_service,
     get_titan_proforma_draft_preview_payload_service,
 )
 from apps.finance.models import FinanceAccountKind, FinanceBusinessScope
 from apps.finance.services import create_finance_account, create_finance_bank_profile
+from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import InventoryItem
 from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
@@ -294,6 +297,64 @@ def test_titan_contract_snapshots_and_renders_all_customer_contacts() -> None:
     assert "service@example.test" in result.html_content
     assert "+261340000010" in result.html_content
     assert "changed@example.test" not in result.html_content
+
+
+def test_hahitantsoa_documents_snapshot_and_render_all_customer_contacts() -> None:
+    customer = _customer()
+    CustomerContactPoint.objects.create(
+        customer=customer,
+        kind="email",
+        value="commercial-hah@example.test",
+        label="Commercial",
+        is_primary=True,
+    )
+    CustomerContactPoint.objects.create(
+        customer=customer,
+        kind="email",
+        value="accounting-hah@example.test",
+        label="Comptabilité",
+    )
+    CustomerContactPoint.objects.create(
+        customer=customer,
+        kind="phone",
+        value="+261340000021",
+        label="WhatsApp",
+        is_primary=True,
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=14)
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Réception familiale",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=6),
+        rental_type="bare",
+        venue_name="Salle de réception Hahitantsoa",
+        space_rental_amount=Decimal("12500000.00"),
+        total_amount=Decimal("12500000.00"),
+    )
+    document = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=event_draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+
+    assert document.customer_contact_points_snapshot == [
+        {"kind": "email", "value": "commercial-hah@example.test", "label": "Commercial"},
+        {"kind": "phone", "value": "+261340000021", "label": "WhatsApp"},
+        {"kind": "email", "value": "accounting-hah@example.test", "label": "Comptabilité"},
+    ]
+
+    CustomerContactPoint.objects.filter(
+        customer=customer,
+        value="commercial-hah@example.test",
+    ).update(value="changed-hah@example.test")
+    result = generate_document_instance_html(document_instance=document)
+
+    assert "commercial-hah@example.test" in result.html_content
+    assert "accounting-hah@example.test" in result.html_content
+    assert "+261340000021" in result.html_content
+    assert "service@example.test" in result.html_content
+    assert "+261340000010" in result.html_content
+    assert "changed-hah@example.test" not in result.html_content
 
 
 def test_titan_contract_missing_identity_fields_are_non_blocking_warnings() -> None:
