@@ -226,10 +226,14 @@ jobs:
           npm --prefix frontend exec playwright -- install --with-deps chromium
 
       - name: Provision isolated acceptance data
+        env:
+          DJANGO_DEV_USERNAME: phase1b-e2e
+          DJANGO_DEV_PASSWORD: Test-only-Phase1B!
         run: |
           python backend/manage.py migrate --noinput
           python backend/manage.py seed_all_demo
           python backend/manage.py seed_dev_admin
+          python backend/manage.py seed_dev_user
 
       - name: Run backend for browser acceptance
         run: |
