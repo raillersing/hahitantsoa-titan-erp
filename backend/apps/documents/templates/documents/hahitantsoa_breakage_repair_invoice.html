@@ -253,7 +253,7 @@
         </div>
         <div class="identity-row">
           <strong>CONTACT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.phone {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_phone }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.contacts {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_contacts|default:context.event_draft.customer_phone }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>DOSSIER :</strong>

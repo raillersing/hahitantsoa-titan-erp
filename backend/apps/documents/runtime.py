@@ -191,6 +191,30 @@ def _reservation_document_context(*, document_instance: DocumentInstance):
     )
 
 
+def _document_contact_displays(*, document_instance: DocumentInstance) -> tuple[str, str]:
+    """Return all snapshotted phones and emails for approved document rendering."""
+    contact_points = tuple(
+        contact_point
+        for contact_point in document_instance.customer_contact_points_snapshot
+        if contact_point.get("kind") in {"email", "phone"} and contact_point.get("value")
+    )
+
+    def values_for(kind: str, legacy_value: str) -> str:
+        values = [
+            str(contact_point["value"])
+            for contact_point in contact_points
+            if contact_point["kind"] == kind
+        ]
+        if legacy_value and legacy_value not in values:
+            values.append(legacy_value)
+        return " · ".join(values)
+
+    return (
+        values_for("phone", document_instance.customer_phone),
+        values_for("email", document_instance.customer_email),
+    )
+
+
 def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
@@ -228,6 +252,9 @@ def _build_hahitantsoa_contract_runtime_context(
                 "breakage_price": None,
             },
         )
+    customer_phone_contacts, customer_email_contacts = _document_contact_displays(
+        document_instance=document_instance
+    )
     return {
         "template": {
             "label": document_instance.template_label,
@@ -245,9 +272,14 @@ def _build_hahitantsoa_contract_runtime_context(
             "start_at": linked_event_draft.start_at,
             "end_at": linked_event_draft.end_at,
             "notes": linked_event_draft.notes,
-            "customer_display_name": linked_event_draft.customer.display_name,
+            "customer_display_name": document_instance.customer_display_name,
             "customer_email": document_instance.customer_email,
             "customer_phone": document_instance.customer_phone,
+            "customer_phone_contacts": customer_phone_contacts,
+            "customer_email_contacts": customer_email_contacts,
+            "customer_contacts": " · ".join(
+                value for value in (customer_phone_contacts, customer_email_contacts) if value
+            ),
             "customer_address": document_instance.customer_address,
             "customer_civilite": document_instance.customer_civilite,
             "customer_birth_date": document_instance.customer_birth_date,
