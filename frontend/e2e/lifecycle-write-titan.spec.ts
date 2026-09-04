@@ -1,7 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const username = 'phase1b-e2e';
-const password = 'Test-only-Phase1B!';
+// The browser acceptance environment provisions this DEBUG-only admin via
+// seed_dev_admin. The journey performs reservation-sensitive writes, so using
+// the standard session fixture would correctly be denied by the application.
+const username = 'admin';
+const password = 'admin';
 
 async function login(page: Page) {
   await page.goto('/#reservation-new');
