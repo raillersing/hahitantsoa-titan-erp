@@ -247,13 +247,18 @@ jobs:
 
       - name: Run real-backend browser acceptance
         working-directory: frontend
-        run: >-
-          npm exec playwright -- test
-          e2e/auth-session.spec.ts
-          e2e/phase1f-real-backend.spec.ts
-          e2e/phase1f-real-roles.spec.ts
-          e2e/lifecycle-write-titan.spec.ts
-          --project='Desktop Chrome'
+        run: |
+          # Each group is independent. Redis is ephemeral for this manual job;
+          # clearing it between groups prevents its login rate-limit state from
+          # leaking across unrelated browser scenarios.
+          run_group() {
+            redis-cli -h localhost FLUSHALL
+            npm exec playwright -- test "$@" --project='Desktop Chrome'
+          }
+          run_group e2e/auth-session.spec.ts
+          run_group e2e/phase1f-real-backend.spec.ts
+          run_group e2e/phase1f-real-roles.spec.ts
+          run_group e2e/lifecycle-write-titan.spec.ts
 
       - name: Upload browser diagnostics
         if: failure()
