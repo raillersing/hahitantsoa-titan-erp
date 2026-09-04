@@ -252,7 +252,7 @@ jobs:
           # clearing it between groups prevents its login rate-limit state from
           # leaking across unrelated browser scenarios.
           run_group() {
-            redis-cli -h localhost FLUSHALL
+            python -c 'import redis; redis.Redis(host="localhost", port=6379).flushall()'
             npm exec playwright -- test "$@" --project='Desktop Chrome'
           }
           run_group e2e/auth-session.spec.ts
