@@ -59,7 +59,7 @@ function resolveTemplateKey({ type, domain, template }: DocumentPreviewProps): s
     if (normalizedType === "facture" || normalizedType === "invoice") return "titan.invoice.v1";
     if (normalizedType === "contrat" || normalizedType === "contract") return "titan.material_contract.v1";
     if (normalizedType === "bon_livraison" || normalizedType === "delivery_note") return "titan.delivery_note.v1";
-    if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet") return "shared.preparation_sheet.v1";
+    if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet" || normalizedType === "bon_preparation" || normalizedType === "preparation_interne") return "shared.preparation_sheet.v1";
     if (normalizedType === "bon_retour" || normalizedType === "return_note") return "shared.return_note.v1";
     if (normalizedType === "facture_casse" || normalizedType === "breakage_repair_invoice") return "titan.breakage_repair_invoice.v1";
     if (normalizedType === "recu_remboursement" || normalizedType === "refund_receipt") return "shared.payment_refund_receipt.v1";
@@ -72,7 +72,8 @@ function resolveTemplateKey({ type, domain, template }: DocumentPreviewProps): s
     if (normalizedType === "contrat" || normalizedType === "contract" || normalizedType === "annexes") return "hahitantsoa.contract.v1";
     if (normalizedType === "bon_livraison" || normalizedType === "delivery_note") return "hahitantsoa.delivery_note.v1";
     if (normalizedType === "decharge" || normalizedType === "liability_release") return "hahitantsoa.liability_release.v1";
-    if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet") return "hahitantsoa.preparation_sheet.v1";
+    if (normalizedType === "bon_preparation" || normalizedType === "fiche_preparation_interne" || normalizedType === "preparation_interne") return "shared.preparation_sheet.v1";
+    if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet" || normalizedType === "checking_passation" || normalizedType === "passation") return "hahitantsoa.preparation_sheet.v1";
     if (normalizedType === "bon_retour" || normalizedType === "return_note") return "shared.return_note.v1";
     if (normalizedType === "facture_casse" || normalizedType === "breakage_repair_invoice") return "hahitantsoa.breakage_repair_invoice.v1";
     if (normalizedType === "recu_remboursement" || normalizedType === "refund_receipt") return "shared.payment_refund_receipt.v1";
@@ -162,6 +163,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
     <DocumentCanvasViewer
       html={state.html}
       title={`Aperçu du modèle officiel ${templateKey}`}
+      showPrintButton={true}
     />
   );
 };

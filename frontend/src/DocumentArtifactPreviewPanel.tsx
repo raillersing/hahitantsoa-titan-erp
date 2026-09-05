@@ -164,6 +164,7 @@ function DocumentArtifactPreviewPanel({
             html={previewState.html}
             title={`Document artifact preview ${previewState.documentInstanceId}`}
             sandbox=""
+            showPrintButton={true}
           />
         </div>
       ) : null}

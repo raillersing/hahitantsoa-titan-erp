@@ -21,6 +21,7 @@ import {
 } from "../api";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreview } from "./DocumentPreview";
+import { printDocumentHtml } from "./DocumentCanvasViewer";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
 import type {
@@ -451,6 +452,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const proformaDoc = docMap.get("hahitantsoa.proforma.v1");
   const dischargeDoc = docMap.get("hahitantsoa.liability_release.v1");
   const prepSheetDoc = docMap.get("hahitantsoa.preparation_sheet.v1");
+  const internalPrepDoc = docMap.get("shared.preparation_sheet.v1");
   const deliveryNoteDoc = docMap.get("hahitantsoa.delivery_note.v1");
   const returnNoteDoc = docMap.get("shared.return_note.v1");
   const breakageDoc = docMap.get("hahitantsoa.breakage_repair_invoice.v1");
@@ -1056,7 +1058,49 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   </div>
                 </div>
 
-                {/* Fiche de préparation */}
+                {/* Bon de préparation interne */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-base">
+                        <i className="fa-solid fa-boxes-packing"></i>
+                      </div>
+                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800">
+                        {internalPrepDoc ? "Généré" : "Magasin"}
+                      </span>
+                    </div>
+                    <p className="font-bold text-slate-900 text-sm">Bon de Préparation Interne</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {internalPrepDoc ? `Généré le ${formatDateFr(internalPrepDoc.prepared_at || internalPrepDoc.created_at)}` : "Rassemblement magasinier"}
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewModal({
+                        title: "Bon de Préparation Interne (Logistique & Magasin)",
+                        documentInstanceId: internalPrepDoc?.id,
+                        templateKey: "shared.preparation_sheet.v1",
+                        type: "bon_preparation",
+                      })}
+                      className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu
+                    </button>
+                    {!internalPrepDoc && (
+                      <button
+                        type="button"
+                        onClick={() => void generateDocument("shared.preparation_sheet.v1", "Bon de préparation interne")}
+                        disabled={busy !== null}
+                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        Générer
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Checking de passation */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -1064,19 +1108,19 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         <i className="fa-solid fa-clipboard-check"></i>
                       </div>
                       <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-bold text-purple-800">
-                        {prepSheetDoc ? "Généré" : "Préparation"}
+                        {prepSheetDoc ? "Généré" : "Passation"}
                       </span>
                     </div>
-                    <p className="font-bold text-slate-900 text-sm">Fiche de Préparation / Checking</p>
+                    <p className="font-bold text-slate-900 text-sm">Checking de Passation</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {prepSheetDoc ? `Généré le ${formatDateFr(prepSheetDoc.prepared_at || prepSheetDoc.created_at)}` : "Checking logistique"}
+                      {prepSheetDoc ? `Généré le ${formatDateFr(prepSheetDoc.prepared_at || prepSheetDoc.created_at)}` : "Pointage & passation sur site"}
                     </p>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setPreviewModal({
-                        title: "Fiche de Préparation Hahitantsoa",
+                        title: "Checking de Passation Hahitantsoa",
                         documentInstanceId: prepSheetDoc?.id,
                         templateKey: "hahitantsoa.preparation_sheet.v1",
                         type: "fiche_preparation",
@@ -1085,6 +1129,16 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     >
                       <i className="fa-solid fa-eye text-purple-600"></i> Aperçu
                     </button>
+                    {!prepSheetDoc && (
+                      <button
+                        type="button"
+                        onClick={() => void generateDocument("hahitantsoa.preparation_sheet.v1", "Checking de passation")}
+                        disabled={busy !== null}
+                        className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-50"
+                      >
+                        Générer
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1117,6 +1171,16 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     >
                       <i className="fa-solid fa-eye text-emerald-600"></i> Aperçu
                     </button>
+                    {!deliveryNoteDoc && (
+                      <button
+                        type="button"
+                        onClick={() => void generateDocument("hahitantsoa.delivery_note.v1", "Bon de livraison")}
+                        disabled={busy !== null}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        Générer
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1193,27 +1257,52 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     Fiche de préparation pour les magasiniers et le personnel avant l'événement ou le départ
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Bon de préparation interne */}
                   <button
                     type="button"
                     onClick={() => setPreviewModal({
-                      title: "Bon de Préparation / Checking de Passation",
+                      title: "Bon de Préparation Interne (Logistique & Magasin)",
+                      documentInstanceId: internalPrepDoc?.id,
+                      templateKey: "shared.preparation_sheet.v1",
+                      type: "bon_preparation",
+                    })}
+                    className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-2 font-bold text-indigo-700 hover:bg-indigo-50 text-xs shadow-2xs transition-colors"
+                  >
+                    <i className="fa-solid fa-boxes-packing text-indigo-600"></i> Aperçu Bon Préparation
+                  </button>
+                  {!internalPrepDoc && (
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => void generateDocument("shared.preparation_sheet.v1", "Bon de préparation interne")}
+                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                    >
+                      <i className="fa-solid fa-plus"></i> Générer Bon Interne
+                    </button>
+                  )}
+
+                  {/* Checking de passation */}
+                  <button
+                    type="button"
+                    onClick={() => setPreviewModal({
+                      title: "Checking de Passation Hahitantsoa",
                       documentInstanceId: prepSheetDoc?.id,
                       templateKey: "hahitantsoa.preparation_sheet.v1",
                       type: "fiche_preparation",
                     })}
-                    className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 font-bold text-indigo-700 hover:bg-indigo-50 text-xs shadow-2xs transition-colors"
+                    className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3 py-2 font-bold text-purple-700 hover:bg-purple-50 text-xs shadow-2xs transition-colors"
                   >
-                    <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu Bon de Préparation
+                    <i className="fa-solid fa-clipboard-check text-purple-600"></i> Aperçu Checking Passation
                   </button>
                   {!prepSheetDoc && (
                     <button
                       type="button"
                       disabled={busy !== null}
-                      onClick={() => void generateDocument("hahitantsoa.preparation_sheet.v1", "Bon de préparation")}
-                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                      onClick={() => void generateDocument("hahitantsoa.preparation_sheet.v1", "Checking de passation")}
+                      className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-2 font-bold text-white hover:bg-purple-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
                     >
-                      <i className="fa-solid fa-file-circle-plus"></i> Générer le Bon
+                      <i className="fa-solid fa-plus"></i> Générer Passation
                     </button>
                   )}
                 </div>
@@ -1722,13 +1811,31 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <i className="fa-solid fa-file-lines text-indigo-600"></i> {previewModal.title}
               </h3>
-              <button
-                type="button"
-                onClick={() => setPreviewModal(null)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-              >
-                <i className="fa-solid fa-xmark text-lg"></i>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const modal = document.querySelector(".fixed.inset-0.z-50");
+                    const iframe = modal?.querySelector("iframe");
+                    if (iframe?.srcdoc) {
+                      printDocumentHtml(iframe.srcdoc);
+                    } else if (iframe?.contentWindow) {
+                      iframe.contentWindow.focus();
+                      iframe.contentWindow.print();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-xs"
+                >
+                  <i className="fa-solid fa-print"></i> Imprimer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewModal(null)}
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                >
+                  <i className="fa-solid fa-xmark text-lg"></i>
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-auto p-6 bg-slate-100/50">
               {previewModal.documentInstanceId ? (

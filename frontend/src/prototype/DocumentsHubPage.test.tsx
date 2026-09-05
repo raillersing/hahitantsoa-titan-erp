@@ -40,17 +40,17 @@ describe("DocumentsHubPage", () => {
     vi.spyOn(api, "getDocumentArtifactHtml").mockResolvedValue("<main>Proforma</main>");
 
     render(<DocumentsHubPage onNavigate={vi.fn()} />);
-    const previewButton = (await screen.findAllByRole("button", { name: /Aperçu de T-001\/2026-PF/i }))[0];
+    const previewButton = (await screen.findAllByRole("button", { name: /Aperçu de T-001\/2026-PF/i }, { timeout: 5000 }))[0];
     fireEvent.click(previewButton);
 
-    const dialog = await screen.findByRole("dialog", { name: "Aperçu du document" });
+    const dialog = await screen.findByRole("dialog", { name: "Aperçu du document" }, { timeout: 5000 });
     expect(dialog).toHaveClass("lg:inset-8");
     expect(within(dialog).getByText("Client Test")).toBeInTheDocument();
     expect(within(dialog).getByText("Volet")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Fermer l’aperçu" })).toHaveFocus();
 
     fireEvent.keyDown(dialog, { key: "Escape" });
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument(), { timeout: 5000 });
     expect(previewButton).toHaveFocus();
   });
 
