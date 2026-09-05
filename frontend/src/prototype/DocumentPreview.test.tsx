@@ -4,12 +4,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getDocumentTemplatePreview,
   getHahitantsoaEventDraftDocumentPreview,
+  getReservationDraftDocumentPreview,
 } from "../api";
 import { DocumentPreview } from "./DocumentPreview";
 
 vi.mock("../api", () => ({
   getDocumentTemplatePreview: vi.fn(),
   getHahitantsoaEventDraftDocumentPreview: vi.fn(),
+  getReservationDraftDocumentPreview: vi.fn(),
 }));
 
 afterEach(() => {
@@ -38,6 +40,32 @@ describe("DocumentPreview", () => {
     expect(getHahitantsoaEventDraftDocumentPreview).toHaveBeenCalledWith(
       "event-draft-1",
       "hahitantsoa.proforma.v1",
+      expect.any(AbortSignal),
+    );
+    expect(getDocumentTemplatePreview).not.toHaveBeenCalled();
+  });
+
+  it("loads the official Titan proforma when reservationDraftId is provided", async () => {
+    vi.mocked(getReservationDraftDocumentPreview).mockResolvedValue(
+      "<html><body>OFFICIAL TITAN PROFORMA</body></html>",
+    );
+
+    render(
+      <DocumentPreview
+        type="proforma"
+        domain="titan"
+        reservationDraftId="titan-draft-1"
+        totalAmount={450_000}
+      />,
+    );
+
+    expect(await screen.findByTitle("Aperçu du modèle officiel titan.proforma.v1")).toHaveAttribute(
+      "srcdoc",
+      "<html><body>OFFICIAL TITAN PROFORMA</body></html>",
+    );
+    expect(getReservationDraftDocumentPreview).toHaveBeenCalledWith(
+      "titan-draft-1",
+      "titan.proforma.v1",
       expect.any(AbortSignal),
     );
     expect(getDocumentTemplatePreview).not.toHaveBeenCalled();

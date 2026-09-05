@@ -197,7 +197,8 @@ vi.mock('./api', () => ({
   recordConfirmedDeposit: vi.fn(),
   getDocumentArtifactHtml: vi.fn(),
   getDocumentTemplatePreview: vi.fn(),
-  getHahitantsoaEventDraftDocumentPreview: vi.fn(),
+  getReservationDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Titan proforma mock</body></html>'),
+  getHahitantsoaEventDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Hahitantsoa proforma mock</body></html>'),
 }));
 
 describe('ReservationNewPage', () => {
