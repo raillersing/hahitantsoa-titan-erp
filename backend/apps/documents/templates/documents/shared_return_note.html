@@ -213,7 +213,7 @@
         <section class="identity">
           <div class="identity-row">
             <strong>CLIENT :</strong>
-            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:context.reservation_draft.customer_display_name|default:"........................" }}{% endif %}</span>
+            <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"........................" }}{% endif %}</span>
           </div>
           <div class="identity-row">
             <strong>PÉRIODE :</strong>
