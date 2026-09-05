@@ -286,7 +286,7 @@
               <td>{{ line.quantity|stringformat:"03d" }}</td>
               <td>
                 {{ line.inventory_item_name }}
-                {% if line.notes %}<br>{{ line.notes }}{% endif %}
+                {% if line.notes and line.notes != line.inventory_item_name %}<br>{{ line.notes }}{% endif %}
               </td>
               <td>{{ line.unit_price|default:"0,00" }}</td>
               <td>{{ line.total_price|default:"0,00" }}</td>

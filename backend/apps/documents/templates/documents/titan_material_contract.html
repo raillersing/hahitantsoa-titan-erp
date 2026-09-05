@@ -75,7 +75,7 @@
         {% else %}
             <ul>
                 {% for line in draft.lines %}
-                    <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} — {{ line.notes }}{% endif %}</li>
+                    <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes and line.notes != line.inventory_item_name %} — {{ line.notes }}{% endif %}</li>
                 {% empty %}
                     <li>…………………………………………………………………………………………………</li>
                 {% endfor %}

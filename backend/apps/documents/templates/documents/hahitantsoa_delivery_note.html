@@ -207,7 +207,7 @@
           {% for line in context.event_draft.lines %}
             <tr>
               <td>{{ line.quantity|stringformat:"03d" }}</td>
-              <td class="description">{{ line.inventory_item_name }}{% if line.notes %}<br>{{ line.notes }}{% endif %}</td>
+              <td class="description">{{ line.inventory_item_name }}{% if line.notes and line.notes != line.inventory_item_name %}<br>{{ line.notes }}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>
