@@ -127,7 +127,7 @@ describe('6F-R9 stabilization', () => {
     render(<PlanningPage onNavigate={mockNavigate} />);
 
     // PlanningPage now fetches from API, just verify it renders
-    expect(screen.getByText('Planning hebdomadaire')).toBeInTheDocument();
+    expect(screen.getByText('Planning & Agenda Général')).toBeInTheDocument();
   });
 
   it('ReservationDetailPage - renders all reservation IDs without crash', async () => {
