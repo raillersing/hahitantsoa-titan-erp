@@ -123,15 +123,13 @@ describe('AppShell', () => {
     expect(mockNavigate).toHaveBeenCalledWith('planning');
   });
 
-  it('3b. ajoute Dates souhaitées au commercial sans retirer les entrées existantes', () => {
-    render(<AppShell activeScope="desired-dates" onNavigate={mockNavigate}><div>Content</div></AppShell>);
+  it('3b. structure épurée du menu commercial avec Planning et Clients & Prospects', () => {
+    render(<AppShell activeScope="planning" onNavigate={mockNavigate}><div>Content</div></AppShell>);
 
     expect(screen.getByRole('link', { name: 'Planning' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Clients & Prospects' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Agenda visiteurs' })).toBeInTheDocument();
-    const desiredDates = screen.getByRole('link', { name: 'Dates souhaitées' });
-    fireEvent.click(desiredDates);
-    expect(mockNavigate).toHaveBeenCalledWith('desired-dates');
+    expect(screen.queryByRole('link', { name: 'Agenda visiteurs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Dates souhaitées' })).not.toBeInTheDocument();
   });
 
   it('4. La sidebar ne contient plus "Nouvelle réservation"', () => {
