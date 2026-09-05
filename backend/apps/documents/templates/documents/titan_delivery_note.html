@@ -210,7 +210,7 @@
           {% for line in context.reservation_draft.lines %}
             <tr>
               <td>{{ line.quantity|stringformat:"03d" }}</td>
-              <td>{{ line.inventory_item_name }}{% if line.notes %}<br>{{ line.notes }}{% endif %}</td>
+              <td>{{ line.inventory_item_name }}{% if line.notes and line.notes != line.inventory_item_name %}<br>{{ line.notes }}{% endif %}</td>
             </tr>
           {% endfor %}
         </tbody>

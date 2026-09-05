@@ -64,7 +64,7 @@
         {% if context.event_draft.lines %}
             <div class="options">
                 {% for line in context.event_draft.lines %}
-                    <div class="option"><span class="box">✔</span> {{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes %} ({{ line.notes }}){% endif %}</div>
+                    <div class="option"><span class="box">✔</span> {{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes and line.notes != line.inventory_item_name %} ({{ line.notes }}){% endif %}</div>
                 {% endfor %}
             </div>
         {% elif show_variables %}

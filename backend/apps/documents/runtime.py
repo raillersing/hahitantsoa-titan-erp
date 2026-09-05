@@ -238,7 +238,11 @@ def _build_hahitantsoa_contract_runtime_context(
             "inventory_item_name": line.inventory_item.name,
             "inventory_item_kind": line.inventory_item.kind,
             "quantity": line.quantity,
-            "notes": line.notes,
+            "notes": (
+                line.notes
+                if line.notes and line.notes.strip() != line.inventory_item.name.strip()
+                else ""
+            ),
             "unit_price": _format_ariary_amount(line.unit_rental_price),
             "total_price": _format_ariary_amount(line.unit_rental_price * line.quantity),
             "breakage_price": (
