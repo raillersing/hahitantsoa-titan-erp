@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 
 import { getDocumentArtifactHtml } from "./api";
+import DocumentCanvasViewer from "./prototype/DocumentCanvasViewer";
 
 type DocumentArtifactPreviewPanelProps = {
   documentInstanceId?: string;
@@ -156,12 +157,10 @@ function DocumentArtifactPreviewPanel({
               sandboxed iframe.
             </p>
           </div>
-          <iframe
-            className="artifact-preview-frame"
-            loading="lazy"
-            sandbox=""
-            srcDoc={previewState.html}
+          <DocumentCanvasViewer
+            html={previewState.html}
             title={`Document artifact preview ${previewState.documentInstanceId}`}
+            sandbox=""
           />
         </div>
       ) : null}
