@@ -119,6 +119,6 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
   expect(persistedDocuments.ok()).toBe(true);
   await expect(persistedDocuments.json()).resolves.toEqual(expect.arrayContaining([
     expect.objectContaining({ template_key: 'titan.proforma.v1' }),
-    expect.objectContaining({ template_key: 'titan.contract.v1' }),
+    expect.objectContaining({ template_key: 'titan.material_contract.v1' }),
   ]));
 });

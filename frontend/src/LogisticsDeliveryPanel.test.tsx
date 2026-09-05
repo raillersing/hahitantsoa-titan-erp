@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as api from "./api";
@@ -333,12 +333,23 @@ describe("LogisticsDeliveryPanel", () => {
   it("completes passation for completed handover events", async () => {
     vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
     vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([MOCK_HANDOVER_EVENT]);
+    let resolveDocumentInstances: (instances: never[]) => void = () => undefined;
+    const documentInstances = new Promise<never[]>((resolve) => {
+      resolveDocumentInstances = resolve;
+    });
+    vi.spyOn(api, "getReservationDraftDocumentInstances").mockReturnValue(documentInstances);
     const passationSpy = vi.spyOn(api, "completeLogisticsPassation").mockResolvedValue({
       event: { ...MOCK_HANDOVER_EVENT, signature_received: true, signed_at: "2026-06-15T08:30:00Z" },
       document_instance_id: "doc-123",
     });
 
     render(<LogisticsDeliveryPanel />);
+    await waitFor(() => {
+      expect(api.getReservationDraftDocumentInstances).toHaveBeenCalledWith("rd-1111");
+    });
+    await act(async () => {
+      resolveDocumentInstances([]);
+    });
     fireEvent.click(await screen.findByRole("button", { name: "Finaliser la remise" }));
 
     await waitFor(() => {
