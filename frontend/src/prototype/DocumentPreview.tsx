@@ -8,7 +8,30 @@ import {
   getReservationDraftDocumentPreview,
 } from "../api";
 
-type DocumentType = "proforma" | "facture" | "contrat" | "bon_livraison" | "delivery_note" | "decharge" | "liability_release" | "fiche_preparation" | "preparation_sheet" | string;
+type DocumentType =
+  | "proforma"
+  | "facture"
+  | "invoice"
+  | "contrat"
+  | "contract"
+  | "annexes"
+  | "bon_livraison"
+  | "delivery_note"
+  | "decharge"
+  | "liability_release"
+  | "fiche_preparation"
+  | "preparation_sheet"
+  | "bon_retour"
+  | "return_note"
+  | "facture_casse"
+  | "breakage_repair_invoice"
+  | "recu_remboursement"
+  | "refund_receipt"
+  | "avenant"
+  | "amendment"
+  | "recu_paiement"
+  | "payment_receipt"
+  | string;
 
 export interface DocumentPreviewProps {
   type?: DocumentType;
@@ -37,6 +60,11 @@ function resolveTemplateKey({ type, domain, template }: DocumentPreviewProps): s
     if (normalizedType === "contrat" || normalizedType === "contract") return "titan.material_contract.v1";
     if (normalizedType === "bon_livraison" || normalizedType === "delivery_note") return "titan.delivery_note.v1";
     if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet") return "shared.preparation_sheet.v1";
+    if (normalizedType === "bon_retour" || normalizedType === "return_note") return "shared.return_note.v1";
+    if (normalizedType === "facture_casse" || normalizedType === "breakage_repair_invoice") return "titan.breakage_repair_invoice.v1";
+    if (normalizedType === "recu_remboursement" || normalizedType === "refund_receipt") return "shared.payment_refund_receipt.v1";
+    if (normalizedType === "avenant" || normalizedType === "amendment") return "titan.material_amendment.v1";
+    if (normalizedType === "recu_paiement" || normalizedType === "payment_receipt") return "titan.payment_receipt.v1";
   }
   if (domain === "hahitantsoa") {
     if (normalizedType === "proforma") return "hahitantsoa.proforma.v1";
@@ -45,6 +73,11 @@ function resolveTemplateKey({ type, domain, template }: DocumentPreviewProps): s
     if (normalizedType === "bon_livraison" || normalizedType === "delivery_note") return "hahitantsoa.delivery_note.v1";
     if (normalizedType === "decharge" || normalizedType === "liability_release") return "hahitantsoa.liability_release.v1";
     if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet") return "hahitantsoa.preparation_sheet.v1";
+    if (normalizedType === "bon_retour" || normalizedType === "return_note") return "shared.return_note.v1";
+    if (normalizedType === "facture_casse" || normalizedType === "breakage_repair_invoice") return "hahitantsoa.breakage_repair_invoice.v1";
+    if (normalizedType === "recu_remboursement" || normalizedType === "refund_receipt") return "shared.payment_refund_receipt.v1";
+    if (normalizedType === "avenant" || normalizedType === "amendment") return "hahitantsoa.contract_amendment.v1";
+    if (normalizedType === "recu_paiement" || normalizedType === "payment_receipt") return "hahitantsoa.payment_receipt.v1";
   }
   return null;
 }
