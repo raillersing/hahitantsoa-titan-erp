@@ -392,3 +392,95 @@ def test_all_supported_draft_preview_templates_for_hahitantsoa_and_titan(
         assert response.status_code == 200, f"Failed for {template_key}: {response.content}"
         assert "text/html" in response["Content-Type"]
         assert len(response.content) > 100
+
+
+def test_shared_return_note_and_preparation_sheet_content_for_both_domains(
+    client,
+    django_user_model,
+) -> None:
+    from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
+    from apps.inventory.models import InventoryItem
+    from apps.reservations.models import ReservationDraft, ReservationDraftLine
+
+    user = django_user_model.objects.create_user(
+        username="return-note-tester",
+        password="test-password",
+        is_staff=True,
+    )
+    client.force_login(user)
+
+    customer = Customer.objects.create(
+        display_name="Client Test Retour",
+        lifecycle_status=CustomerLifecycleStatus.CLIENT,
+    )
+    item = InventoryItem.objects.create(
+        name="Chaises Napoléon Blanches",
+        kind="material",
+        rental_price=Decimal("5000.00"),
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=10)
+    end_at = start_at + timedelta(hours=8)
+
+    # 1. Titan Return Note
+    titan_draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=end_at,
+        total_amount=Decimal("50000.00"),
+        notes="Contrôle retour matériel Titan",
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=titan_draft,
+        inventory_item=item,
+        quantity=10,
+        unit_rental_price=Decimal("5000.00"),
+    )
+    titan_url = (
+        f"/api/v1/reservations/drafts/{titan_draft.id}/document-preview/"
+        "?template_key=shared.return_note.v1"
+    )
+    titan_res = client.get(titan_url)
+    assert titan_res.status_code == 200
+    titan_html = titan_res.content.decode("utf-8")
+    assert "Client Test Retour" in titan_html
+    assert "Chaises Napoléon Blanches" in titan_html
+    assert "BON DE RETOUR" in titan_html
+    assert "Contrôle retour matériel Titan" in titan_html
+
+    # 2. Hahitantsoa Return Note & Preparation Sheet
+    h_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        created_by=user,
+        event_name="Mariage Champêtre",
+        start_at=start_at,
+        end_at=end_at,
+        total_amount=Decimal("100000.00"),
+        notes="Contrôle restitution Hahitantsoa",
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=h_draft,
+        inventory_item=item,
+        quantity=20,
+        unit_rental_price=Decimal("5000.00"),
+    )
+    h_return_url = (
+        f"/api/v1/hahitantsoa/event-drafts/{h_draft.id}/documents/preview/"
+        "?template_key=shared.return_note.v1"
+    )
+    h_return_res = client.get(h_return_url)
+    assert h_return_res.status_code == 200
+    h_return_html = h_return_res.content.decode("utf-8")
+    assert "Client Test Retour" in h_return_html
+    assert "Chaises Napoléon Blanches" in h_return_html
+    assert "BON DE RETOUR" in h_return_html
+    assert "Contrôle restitution Hahitantsoa" in h_return_html
+
+    h_prep_url = (
+        f"/api/v1/hahitantsoa/event-drafts/{h_draft.id}/documents/preview/"
+        "?template_key=shared.preparation_sheet.v1"
+    )
+    h_prep_res = client.get(h_prep_url)
+    assert h_prep_res.status_code == 200
+    h_prep_html = h_prep_res.content.decode("utf-8")
+    assert "BON DE PRÉPARATION" in h_prep_html
+    assert "Chaises Napoléon Blanches" in h_prep_html

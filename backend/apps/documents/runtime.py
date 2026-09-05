@@ -36,6 +36,8 @@ HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
         "hahitantsoa.breakage_repair_invoice.v1",
         "hahitantsoa.invoice.v1",
         "hahitantsoa.contract_amendment.v1",
+        "shared.preparation_sheet.v1",
+        "shared.return_note.v1",
     }
 )
 TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
@@ -47,6 +49,7 @@ TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
         "titan.invoice.v1",
         "titan.breakage_repair_invoice.v1",
         "shared.preparation_sheet.v1",
+        "shared.return_note.v1",
     }
 )
 
@@ -613,6 +616,17 @@ def generate_document_instance_html(
         else:
             context = _reservation_document_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_breakage_repair_invoice.html"
+    elif document_instance.template_key in {
+        "shared.preparation_sheet.v1",
+        "shared.return_note.v1",
+    }:
+        if document_instance.hahitantsoa_event_draft is not None:
+            context = _build_hahitantsoa_contract_runtime_context(
+                document_instance=document_instance
+            )
+        else:
+            context = _reservation_document_context(document_instance=document_instance)
+        template_path = resolve_document_template_path(document_instance.template_key)
     else:
         context = _reservation_document_context(document_instance=document_instance)
         template_path = context.template.template_path
