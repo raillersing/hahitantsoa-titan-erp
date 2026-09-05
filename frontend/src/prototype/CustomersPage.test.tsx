@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CustomersPage from './CustomersPage';
 import * as api from '../api';
@@ -8,7 +8,7 @@ import type { Customer } from '../types';
 const API_CUSTOMERS: Customer[] = [
   { id: 'CUST-001', display_name: 'Ando Rakoto', lifecycle_status: 'client', party_type: 'individual', email: 'ando.rakoto@email.mg', phone: '+261 34 12 345 67', address: '', notes: '', is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null },
   { id: 'CUST-002', display_name: 'Rasoa Nomena', lifecycle_status: 'client', party_type: 'company', email: 'rasoa.nomena@entreprise.mg', phone: '+261 32 98 765 43', address: '', notes: '', is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null },
-  { id: 'PROS-001', display_name: 'Jean Dupont', lifecycle_status: 'prospect', party_type: 'individual', email: 'jean.dupont@test.com', phone: '+261 34 00 111 22', address: '', notes: '', is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null },
+  { id: 'PROS-001', display_name: 'Jean Dupont', lifecycle_status: 'prospect', party_type: 'individual', email: 'jean.dupont@test.com', phone: '+261 34 00 111 22', address: '', notes: '', is_active: true, created_at: '', updated_at: '', is_deleted: false, deleted_at: null, created_by: null, updated_by: null, prospect_status: 'to_recall', prospect_next_follow_up: '2026-09-15' },
 ];
 
 beforeEach(() => {
@@ -43,11 +43,11 @@ describe('CustomersPage', () => {
   it('4. Filtres prospects et entreprises', async () => {
     render(<CustomersPage onNavigate={vi.fn()} />);
     await screen.findByText('Ando Rakoto');
-    fireEvent.click(screen.getByText('Prospects'));
+    fireEvent.click(screen.getByRole('button', { name: /Prospects/i }));
     expect(screen.getByText('Jean Dupont')).toBeInTheDocument();
     expect(screen.queryByText('Ando Rakoto')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Entreprises'));
+    fireEvent.click(screen.getByRole('button', { name: /Entreprises/i }));
     expect(screen.getByText('Rasoa Nomena')).toBeInTheDocument();
     expect(screen.queryByText('Jean Dupont')).not.toBeInTheDocument();
   });
@@ -71,8 +71,8 @@ describe('CustomersPage', () => {
   it('7. expose le statut prospect issu du backend', async () => {
     render(<CustomersPage onNavigate={vi.fn()} />);
     expect(await screen.findByText('Jean Dupont')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Prospects'));
-    expect(screen.getByText('Prospect')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Prospects/i }));
+    expect(screen.getAllByText('Prospect').length).toBeGreaterThan(0);
   });
 
   it('8. crée un client via l’API et ouvre sa fiche', async () => {
@@ -81,7 +81,7 @@ describe('CustomersPage', () => {
     vi.spyOn(api, 'createCustomer').mockResolvedValue(created);
     render(<CustomersPage onNavigate={mockNavigate} canSensitiveWrite />);
     await screen.findByText('Ando Rakoto');
-    fireEvent.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau client/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Client Persisté' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
@@ -105,7 +105,7 @@ describe('CustomersPage', () => {
   it('9. affiche les champs et boutons légaux uniquement pour une entreprise', async () => {
     render(<CustomersPage onNavigate={vi.fn()} canSensitiveWrite />);
     await screen.findByText('Ando Rakoto');
-    fireEvent.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau client/i }));
     fireEvent.click(screen.getByText('Entreprise'));
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.change(screen.getByPlaceholderText("Nom de l'entreprise"), { target: { value: 'Entreprise Test' } });
@@ -135,7 +135,7 @@ describe('CustomersPage', () => {
     vi.spyOn(api, 'createCustomer').mockResolvedValue(created);
     render(<CustomersPage onNavigate={vi.fn()} canSensitiveWrite />);
     await screen.findByText('Ando Rakoto');
-    fireEvent.click(screen.getByRole('button', { name: 'Nouveau client' }));
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau client/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Continuer' }));
     fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Contacts multiples' } });
     fireEvent.change(screen.getByPlaceholderText('Ex: 034 00 000 00'), { target: { value: '0340000000' } });
@@ -159,5 +159,99 @@ describe('CustomersPage', () => {
         expect.objectContaining({ kind: 'email', value: 'logistique@exemple.mg', is_primary: true }),
       ]),
     }));
+  });
+
+  it('11. crée un prospect en mode express en 1 étape et ouvre sa fiche', async () => {
+    const mockNavigate = vi.fn();
+    const createdProspect = {
+      id: 'PROS-999',
+      display_name: 'Lead Mariage Express',
+      lifecycle_status: 'prospect',
+      party_type: 'individual',
+      email: 'mariage@test.mg',
+      phone: '034 11 222 33',
+      address: '',
+      notes: 'Besoin grande salle et chaises',
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      is_deleted: false,
+      deleted_at: null,
+      created_by: null,
+      updated_by: null,
+    };
+    vi.spyOn(api, 'createCustomer').mockResolvedValue(createdProspect as any);
+    render(<CustomersPage onNavigate={mockNavigate} canSensitiveWrite />);
+    await screen.findByText('Ando Rakoto');
+
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau prospect/i }));
+    expect(screen.getByText('Enregistrement commercial express & qualification de besoin')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Lead Mariage Express' } });
+    fireEvent.change(screen.getByPlaceholderText('034 00 000 00'), { target: { value: '034 11 222 33' } });
+    fireEvent.change(screen.getByPlaceholderText('contact@exemple.mg'), { target: { value: 'mariage@test.mg' } });
+    fireEvent.change(screen.getByPlaceholderText('Ex: 5 000 000 Ar'), { target: { value: '6 000 000 Ar' } });
+    fireEvent.change(screen.getByPlaceholderText(/Type d'événement/i), { target: { value: 'Besoin grande salle et chaises' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer le prospect/i }));
+
+    await waitFor(() => {
+      expect(api.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
+        display_name: 'Lead Mariage Express',
+        lifecycle_status: 'prospect',
+        party_type: 'individual',
+        phone: '034 11 222 33',
+        email: 'mariage@test.mg',
+        prospect_budget: '6 000 000 Ar',
+        notes: 'Besoin grande salle et chaises',
+      }));
+    });
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('customer', 'PROS-999');
+    });
+  });
+
+  it('12. crée un prospect express et redirige vers le devis', async () => {
+    const mockNavigate = vi.fn();
+    const createdProspect = {
+      id: 'PROS-QUOTE-1',
+      display_name: 'Prospect Devis Titan',
+      lifecycle_status: 'prospect',
+      party_type: 'individual',
+      email: 'devis@titan.mg',
+      phone: '033 99 888 77',
+      address: '',
+      notes: '',
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      is_deleted: false,
+      deleted_at: null,
+      created_by: null,
+      updated_by: null,
+    };
+    vi.spyOn(api, 'createCustomer').mockResolvedValue(createdProspect as any);
+    render(<CustomersPage onNavigate={mockNavigate} canSensitiveWrite />);
+    await screen.findByText('Ando Rakoto');
+
+    fireEvent.click(screen.getByRole('button', { name: /Nouveau prospect/i }));
+    fireEvent.change(screen.getByPlaceholderText('Ex: Rakoto Jean'), { target: { value: 'Prospect Devis Titan' } });
+    fireEvent.change(screen.getByPlaceholderText('034 00 000 00'), { target: { value: '033 99 888 77' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer & Devis/i }));
+
+    await waitFor(() => {
+      expect(api.createCustomer).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('reservation-new', 'PROS-QUOTE-1');
+    });
+  });
+
+  it('13. filtre les contacts dans longlet À relancer', async () => {
+    render(<CustomersPage onNavigate={vi.fn()} />);
+    await screen.findByText('Ando Rakoto');
+
+    fireEvent.click(screen.getByRole('button', { name: /À relancer/i }));
+    expect(screen.getByText('Jean Dupont')).toBeInTheDocument();
+    expect(screen.queryByText('Ando Rakoto')).not.toBeInTheDocument();
   });
 });
