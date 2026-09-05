@@ -2073,190 +2073,227 @@ export default function ReservationDetailPage({
       )}
 
       {previewDoc && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-          onClick={closePreview}
-        >
+        <>
           <div
-            className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6"
+            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 transition-opacity"
+            onClick={closePreview}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reservation-document-preview-title"
+            className="fixed inset-3 sm:inset-5 lg:inset-8 bg-white shadow-2xl z-50 border border-slate-200 rounded-2xl flex flex-col overflow-hidden animate-fade-in"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-800">
-                Aperçu{" "}
-                {previewDoc === "proforma"
-                  ? "Proforma"
-                  : previewDoc === "facture"
-                    ? "Facture"
-                    : previewDoc === "contrat"
-                      ? "Contrat"
-                      : "Annexes"}
-              </h3>
-              <button
-                onClick={closePreview}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <i className="fa-solid fa-xmark text-xl"></i>
-              </button>
-            </div>
-            {previewArtifact ? (
-              <DocumentArtifactPreviewPanel documentInstanceId={previewArtifact.id} />
-            ) : previewDoc === "annexes" ? (
-              <div className="space-y-8 text-sm text-slate-700 font-serif">
-                <div className="text-center mb-8 border-b pb-4">
-                  <h2 className="text-2xl font-bold mb-2 uppercase">
-                    Annexes Contractuelles
-                  </h2>
-                  <p className="text-slate-500">
-                    Mises à jour pour la réservation {publicRef}
-                  </p>
+            {/* Modal Header */}
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between gap-4 shrink-0">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3
+                    id="reservation-document-preview-title"
+                    className="font-bold text-slate-900 text-base sm:text-lg truncate"
+                  >
+                    Aperçu {previewDoc === "proforma"
+                      ? "Proforma"
+                      : previewDoc === "facture"
+                        ? "Facture"
+                        : previewDoc === "contrat"
+                          ? "Contrat"
+                          : previewDoc === "annexes"
+                            ? "Annexes Contractuelles"
+                            : previewDoc === "bon_livraison"
+                              ? "Bon de livraison"
+                              : previewDoc === "decharge"
+                                ? "Décharge de responsabilité"
+                                : "Document"}
+                  </h3>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border ${
+                    domain === "Titan"
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : "bg-pink-50 text-pink-700 border-pink-200"
+                  }`}>
+                    {domain}
+                  </span>
                 </div>
-
-                <section>
-                  <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                    Annexe 1 : Règlement Intérieur Hahitantsoa
-                  </h4>
-                  <ul className="list-disc pl-5 space-y-2">
-                    <li>
-                      L'accès aux cuisines est strictement réservé au
-                      personnel autorisé et aux traiteurs agréés.
-                    </li>
-                    <li>
-                      Le niveau sonore ne doit pas dépasser les limites
-                      légales en vigueur après 22h00.
-                    </li>
-                    <li>
-                      L'utilisation de feux d'artifice, de fumigènes
-                      lourds ou de confettis en plastique est strictement
-                      interdite sur tout le domaine.
-                    </li>
-                    <li>
-                      Le locataire est responsable du nettoyage
-                      préliminaire et de la gestion des déchets générés
-                      par ses prestataires.
-                    </li>
-                  </ul>
-                </section>
-
-                <section>
-                  <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                    Annexe 2 : Plan de masse et Évacuation
-                  </h4>
-                  <p className="mb-2">
-                    Le plan d'évacuation est affiché dans le hall principal
-                    et doit être communiqué au responsable de la sécurité
-                    de l'événement.
-                  </p>
-                  <div className="bg-slate-100 p-4 rounded text-center border border-slate-300 border-dashed">
-                    [Aperçu du plan d'évacuation PDF/Image intégré ici
-                    dans la version finale]
-                  </div>
-                </section>
-
-                <section>
-                  <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                    Annexe 3 : Grille tarifaire des casses & pertes
-                  </h4>
-                  <p className="mb-2">
-                    En cas de dommage ou de perte du matériel mis à
-                    disposition, la facturation se fera selon la grille
-                    suivante :
-                  </p>
-                  <table className="w-full text-left border-collapse border border-slate-200">
-                    <thead>
-                      <tr className="bg-slate-100">
-                        <th className="p-2 border border-slate-200">
-                          Désignation
-                        </th>
-                        <th className="p-2 border border-slate-200">
-                          Indemnité forfaitaire (Ar)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="p-2 border border-slate-200">
-                          Chaise Chiavari (casse/perte)
-                        </td>
-                        <td className="p-2 border border-slate-200 font-mono">
-                          150 000
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 border border-slate-200">
-                          Verre / Coupe (unité)
-                        </td>
-                        <td className="p-2 border border-slate-200 font-mono">
-                          15 000
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 border border-slate-200">
-                          Assiette de présentation
-                        </td>
-                        <td className="p-2 border border-slate-200 font-mono">
-                          45 000
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="p-2 border border-slate-200">
-                          Table ronde / rectangulaire
-                        </td>
-                        <td className="p-2 border border-slate-200 font-mono">
-                          350 000
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </section>
-
-                <section>
-                  <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                    Annexe 4 : Liste des intervenants non autorisés
-                  </h4>
-                  <p className="mb-2">
-                    Pour des raisons de qualité, de sécurité ou de litiges
-                    antérieurs, les prestataires suivants ne sont pas admis
-                    sur le domaine Hahitantsoa :
-                  </p>
-                  <ul className="list-disc pl-5 space-y-1 text-rose-700">
-                    <li>
-                      Prestataire Alpha (Sonorisation) - Dépassement
-                      récurrent des décibels
-                    </li>
-                    <li>
-                      Traiteur Beta - Non-respect des règles d'hygiène
-                    </li>
-                    <li>
-                      Décorateur Gamma - Utilisation de matériaux
-                      inflammables non homologués
-                    </li>
-                  </ul>
-                  <p className="mt-2 text-xs text-slate-500 italic">
-                    Cette liste est mise à jour mensuellement par la
-                    direction technique.
-                  </p>
-                </section>
+                <p className="text-xs text-slate-500 mt-0.5 truncate">
+                  Réf : <span className="font-mono font-medium text-slate-700">{publicRef}</span> · Client : <span className="font-medium text-slate-700">{displayName}</span> · Données réelles du dossier
+                </p>
               </div>
-            ) : (
-              <DocumentPreviewDispatcher
-                type={previewDoc === "contrat" ? "contrat" : previewDoc}
-                domain={domain === "Titan" ? "titan" : "hahitantsoa"}
-                client={docClient}
-                date={reservationDate}
-                refNumber={publicRef}
-                eventDate={eventDate}
-                materials={materials}
-                services={services}
-                totalAmount={safeAmount}
-                subTotalAmount={commercialSubTotal}
-                paidAmount={paidAmount}
-                reservationDraftId={domain === "Titan" ? draft?.id : undefined}
-                hahitantsoaEventDraftId={domain !== "Titan" ? draft?.id : undefined}
-              />
-            )}
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={closePreview}
+                  aria-label="Fermer l'aperçu"
+                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                  <i className="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Document Canvas Workspace */}
+            <div className="flex-1 min-h-0 overflow-y-auto bg-slate-100 p-4 sm:p-6 lg:p-8">
+              <div className="max-w-4xl mx-auto">
+                {previewArtifact ? (
+                  <DocumentArtifactPreviewPanel documentInstanceId={previewArtifact.id} />
+                ) : previewDoc === "annexes" ? (
+                  <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 space-y-8 text-sm text-slate-700 font-serif">
+                    <div className="text-center mb-8 border-b pb-4">
+                      <h2 className="text-2xl font-bold mb-2 uppercase">
+                        Annexes Contractuelles
+                      </h2>
+                      <p className="text-slate-500">
+                        Mises à jour pour la réservation {publicRef}
+                      </p>
+                    </div>
+
+                    <section>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
+                        Annexe 1 : Règlement Intérieur Hahitantsoa
+                      </h4>
+                      <ul className="list-disc pl-5 space-y-2">
+                        <li>
+                          L'accès aux cuisines est strictement réservé au
+                          personnel autorisé et aux traiteurs agréés.
+                        </li>
+                        <li>
+                          Le niveau sonore ne doit pas dépasser les limites
+                          légales en vigueur après 22h00.
+                        </li>
+                        <li>
+                          L'utilisation de feux d'artifice, de fumigènes
+                          lourds ou de confettis en plastique est strictement
+                          interdite sur tout le domaine.
+                        </li>
+                        <li>
+                          Le locataire est responsable du nettoyage
+                          préliminaire et de la gestion des déchets générés
+                          par ses prestataires.
+                        </li>
+                      </ul>
+                    </section>
+
+                    <section>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
+                        Annexe 2 : Plan de masse et Évacuation
+                      </h4>
+                      <p className="mb-2">
+                        Le plan d'évacuation est affiché dans le hall principal
+                        et doit être communiqué au responsable de la sécurité
+                        de l'événement.
+                      </p>
+                      <div className="bg-slate-100 p-4 rounded text-center border border-slate-300 border-dashed">
+                        [Aperçu du plan d'évacuation PDF/Image intégré ici
+                        dans la version finale]
+                      </div>
+                    </section>
+
+                    <section>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
+                        Annexe 3 : Grille tarifaire des casses & pertes
+                      </h4>
+                      <p className="mb-2">
+                        En cas de dommage ou de perte du matériel mis à
+                        disposition, la facturation se fera selon la grille
+                        suivante :
+                      </p>
+                      <table className="w-full text-left border-collapse border border-slate-200">
+                        <thead>
+                          <tr className="bg-slate-100">
+                            <th className="p-2 border border-slate-200">
+                              Désignation
+                            </th>
+                            <th className="p-2 border border-slate-200">
+                              Indemnité forfaitaire (Ar)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="p-2 border border-slate-200">
+                              Chaise Chiavari (casse/perte)
+                            </td>
+                            <td className="p-2 border border-slate-200 font-mono">
+                              150 000
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="p-2 border border-slate-200">
+                              Verre / Coupe (unité)
+                            </td>
+                            <td className="p-2 border border-slate-200 font-mono">
+                              15 000
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="p-2 border border-slate-200">
+                              Assiette de présentation
+                            </td>
+                            <td className="p-2 border border-slate-200 font-mono">
+                              45 000
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="p-2 border border-slate-200">
+                              Table ronde / rectangulaire
+                            </td>
+                            <td className="p-2 border border-slate-200 font-mono">
+                              350 000
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </section>
+
+                    <section>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
+                        Annexe 4 : Liste des intervenants non autorisés
+                      </h4>
+                      <p className="mb-2">
+                        Pour des raisons de qualité, de sécurité ou de litiges
+                        antérieurs, les prestataires suivants ne sont pas admis
+                        sur le domaine Hahitantsoa :
+                      </p>
+                      <ul className="list-disc pl-5 space-y-1 text-rose-700">
+                        <li>
+                          Prestataire Alpha (Sonorisation) - Dépassement
+                          récurrent des décibels
+                        </li>
+                        <li>
+                          Traiteur Beta - Non-respect des règles d'hygiène
+                        </li>
+                        <li>
+                          Décorateur Gamma - Utilisation de matériaux
+                          inflammables non homologués
+                        </li>
+                      </ul>
+                      <p className="mt-2 text-xs text-slate-500 italic">
+                        Cette liste est mise à jour mensuellement par la
+                        direction technique.
+                      </p>
+                    </section>
+                  </div>
+                ) : (
+                  <DocumentPreviewDispatcher
+                    type={previewDoc === "contrat" ? "contrat" : previewDoc}
+                    domain={domain === "Titan" ? "titan" : "hahitantsoa"}
+                    client={docClient}
+                    date={reservationDate}
+                    refNumber={publicRef}
+                    eventDate={eventDate}
+                    materials={materials}
+                    services={services}
+                    totalAmount={safeAmount}
+                    subTotalAmount={commercialSubTotal}
+                    paidAmount={paidAmount}
+                    reservationDraftId={domain === "Titan" ? draft?.id : undefined}
+                    hahitantsoaEventDraftId={domain !== "Titan" ? draft?.id : undefined}
+                  />
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ── toast ─────────────────────────────────────────────────── */}

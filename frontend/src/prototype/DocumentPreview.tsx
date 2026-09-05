@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
+import DocumentCanvasViewer from "./DocumentCanvasViewer";
 import {
   getDocumentTemplatePreview,
   getHahitantsoaEventDraftDocumentPreview,
@@ -125,11 +126,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
   if (state.status === "error") return <div className="notice error-notice" role="alert">{state.message}</div>;
   if (state.status === "loading") return <div className="notice loading-notice" role="status">Chargement du modèle officiel…</div>;
   return (
-    <iframe
-      className="artifact-preview-frame w-full min-h-[720px] border-0"
-      loading="lazy"
-      sandbox=""
-      srcDoc={state.html}
+    <DocumentCanvasViewer
+      html={state.html}
       title={`Aperçu du modèle officiel ${templateKey}`}
     />
   );
