@@ -88,6 +88,7 @@ async function waitForDraftLoad() {
 
 describe('ReservationDetailPage', () => {
   beforeEach(() => {
+    vi.resetAllMocks();
     mockGetReservationDraft
       .mockResolvedValueOnce(MOCK_DRAFT)
       .mockResolvedValue({
@@ -290,7 +291,7 @@ describe('ReservationDetailPage', () => {
 
     // Then show the content
     await waitForDraftLoad();
-    expect(screen.getByText(/LOC-2026-0089/)).toBeInTheDocument();
+    expect(screen.getAllByText(/LOC-2026-0089/).length).toBeGreaterThan(0);
   });
 
   it('affiche le détail commercial persisté par le serveur', async () => {

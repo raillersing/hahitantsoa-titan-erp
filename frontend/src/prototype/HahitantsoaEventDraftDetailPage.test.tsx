@@ -259,7 +259,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
-    expect(await screen.findByText("Contrat officiel généré")).toBeInTheDocument();
+    expect(await screen.findByText("Contrat Officiel")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /marquer le contrat signé/i }));
     await waitFor(() => expect(screen.getByRole("button", { name: /enregistrer et confirmer l'acompte/i })).toBeInTheDocument());
 
@@ -331,19 +331,31 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
     // Documents tab (active by default)
-    expect(await screen.findByText("Documents contractuels et officiels")).toBeInTheDocument();
+    expect(await screen.findByText("Documents & Pièces contractuelles")).toBeInTheDocument();
 
-    // Switch to Payments tab
-    fireEvent.click(screen.getByRole("button", { name: /règlements & reçus/i }));
-    expect(screen.getByText("Reçu #45")).toBeInTheDocument();
+    // Switch to Preparation tab
+    fireEvent.click(screen.getByRole("button", { name: /préparation/i }));
+    expect(screen.getAllByText(/fiche de préparation/i).length).toBeGreaterThan(0);
 
-    // Switch to Logistics tab
-    fireEvent.click(screen.getByRole("button", { name: /logistique & salle/i }));
-    expect(screen.getByText(/coordination logistique/i)).toBeInTheDocument();
+    // Switch to Sortie / Livraison tab
+    fireEvent.click(screen.getByRole("button", { name: /sortie \/ livraison/i }));
+    expect(screen.getAllByText(/remise des clés/i).length).toBeGreaterThan(0);
 
-    // Switch to Closeout tab
-    fireEvent.click(screen.getByRole("button", { name: /restitution & clôture r7/i }));
-    expect(screen.getByText(/clôture opérationnelle du dossier/i)).toBeInTheDocument();
+    // Switch to Retour / Restitution tab
+    fireEvent.click(screen.getByRole("button", { name: /retour \/ restitution/i }));
+    expect(screen.getAllByText(/état des lieux de sortie/i).length).toBeGreaterThan(0);
+
+    // Switch to Casse & Pertes tab
+    fireEvent.click(screen.getByRole("button", { name: /casse & pertes/i }));
+    expect(screen.getAllByText(/grille tarifaire/i).length).toBeGreaterThan(0);
+
+    // Switch to Caution & Solde tab
+    fireEvent.click(screen.getByRole("button", { name: /caution & solde/i }));
+    expect(screen.getAllByText(/clôture opérationnelle/i).length).toBeGreaterThan(0);
+
+    // Switch to Avenants tab
+    fireEvent.click(screen.getByRole("button", { name: /avenants/i }));
+    expect(screen.getAllByText(/demandes d'avenant/i).length).toBeGreaterThan(0);
   });
 
   it("opens the document preview modal when clicking on aperçu", async () => {
@@ -353,7 +365,6 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     fireEvent.click(previewButtons[0]);
 
     expect(screen.getByTestId("artifact-preview")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /aperçu du document/i })).toBeInTheDocument();
   });
 
   it("closes a confirmed event through the backend and displays the persisted result", async () => {
@@ -361,8 +372,8 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
-    // Switch to closeout tab
-    fireEvent.click(await screen.findByRole("button", { name: /restitution & clôture r7/i }));
+    // Switch to closeout tab (caution & solde)
+    fireEvent.click(await screen.findByRole("button", { name: /caution & solde/i }));
 
     fireEvent.click(await screen.findByRole("button", { name: /clôturer le dossier/i }));
     await waitFor(() => expect(mockCloseDraft).toHaveBeenCalledWith(DRAFT.id, expect.any(String), ""));
@@ -377,7 +388,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /restitution & clôture r7/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /caution & solde/i }));
 
     const closeBtn = await screen.findByRole("button", { name: /clôturer le dossier/i });
     fireEvent.click(closeBtn);

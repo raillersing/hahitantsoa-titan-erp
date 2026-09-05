@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AppScope } from "../App";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
+import { DocumentPreview } from "./DocumentPreview";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
@@ -87,7 +88,26 @@ function formatDateFr(dateStr: string | undefined): string {
 
 /* ── types ────────────────────────────────────────────────────────── */
 
-type PreviewDoc = "proforma" | "facture" | "contrat" | "annexes" | null;
+type PreviewDoc =
+  | "proforma"
+  | "facture"
+  | "contrat"
+  | "annexes"
+  | "bon_livraison"
+  | "fiche_preparation"
+  | "bon_retour"
+  | "facture_casse"
+  | "recu_remboursement"
+  | "avenant"
+  | "recu_paiement"
+  | null;
+
+type PreviewModalState = {
+  title: string;
+  documentInstanceId?: string | null;
+  templateKey?: string;
+  type?: string;
+} | null;
 
 interface ReservationDetailPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -131,12 +151,14 @@ export default function ReservationDetailPage({
       amount: number;
       note: string;
       reference?: string;
+      receipt_document?: DocumentInstance | null;
     }[]
   >([]);
   const depositRecordingKeyRef = useRef<string | null>(null);
   const [closeoutSummary, setCloseoutSummary] = useState<ReservationCloseoutSummary | null>(null);
   const [lifecycleSummary, setLifecycleSummary] = useState<LifecycleSummary | null>(null);
   const [lifecycleError, setLifecycleError] = useState(false);
+  const [previewModal, setPreviewModal] = useState<PreviewModalState>(null);
 
   /* ── fetch on mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -187,6 +209,7 @@ export default function ReservationDetailPage({
               amount: Number(payment.amount),
               note: payment.notes || payment.payment_kind,
               reference: payment.external_reference || undefined,
+              receipt_document: payment.receipt_document,
               })));
           }
         } catch {
@@ -552,6 +575,8 @@ export default function ReservationDetailPage({
   const commercialSubTotal = subtotalAmount + deliveryFeeAmount;
   const paidAmount = payments.reduce((total, payment) => total + payment.amount, 0);
   const remainingAmount = Math.max(0, safeAmount - paidAmount);
+  const requiredDepositAmount =
+    safeNumber(draft?.required_deposit_amount) || Math.round(safeAmount * 0.25);
 
   const materials =
     draft?.lines
@@ -851,159 +876,238 @@ export default function ReservationDetailPage({
         })}
       </div>
 
-      {/* ── info cards grid ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-4">
-            {draft.notes || publicRef}
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-                Client
-              </label>
-              <div
-                className="text-sm text-slate-800 font-medium hover:text-indigo-600 hover:underline cursor-pointer"
-                onClick={() =>
-                  onNavigate("customer", draft.customer_id)
-                }
-              >
-                {displayName}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-                Téléphone
-              </label>
-              <div className="text-sm text-slate-800 font-medium">
-                {customer?.phone || "—"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-                Email
-              </label>
-              <div className="text-sm text-slate-800 font-medium">
-                {customer?.email || "—"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-                Type
-              </label>
-              <div className="text-sm text-slate-800 font-medium">
+      {/* ── Section 1 : Fiche Client & Synthèse Financière Harmonisée ──────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Customer Card */}
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-100 p-6 flex flex-col justify-between shadow-xs">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <i className="fa-solid fa-user-tie text-indigo-600"></i> Fiche Client
+              </h3>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
                 {docClient.type}
-              </div>
+              </span>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-                Date de début
-              </label>
-              <div className="text-sm text-slate-800 font-medium">
-                {formatDateFr(reservationDate)}
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-xs text-slate-400 block">Nom complet / Raison sociale</span>
+                <span
+                  className="font-bold text-slate-800 hover:text-indigo-600 hover:underline cursor-pointer"
+                  onClick={() => onNavigate("customer", draft.customer_id)}
+                >
+                  {displayName}
+                </span>
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-                Date de fin
-              </label>
-              <div className="text-sm text-slate-800 font-medium">
-                {formatDateFr(eventDate)}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="text-xs text-slate-400 block">Téléphone</span>
+                  <span className="font-medium text-slate-700">{customer?.phone || "—"}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">Email</span>
+                  <span className="font-medium text-slate-700 truncate block">{customer?.email || "—"}</span>
+                </div>
+              </div>
+              {customer?.address && (
+                <div>
+                  <span className="text-xs text-slate-400 block">Adresse</span>
+                  <span className="text-slate-600">{customer.address}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-50">
+                <div>
+                  <span className="text-xs text-slate-400 block">Début location</span>
+                  <span className="font-semibold text-slate-700">{formatDateFr(reservationDate)}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400 block">Fin location</span>
+                  <span className="font-semibold text-slate-700">{formatDateFr(eventDate)}</span>
+                </div>
               </div>
             </div>
           </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <span>Créé le {formatDateFr(draft.created_at)}</span>
+            <span>Réf : {publicRef}</span>
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-4">
-            Résumé financier
-          </h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-slate-500">Sous-total location</span>
-              <span className="font-medium text-slate-700">
-                {formatMoney(subtotalAmount)}
+        {/* Financial & Milestone Schedule Card */}
+        <div className="lg:col-span-7 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 via-white to-white p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b border-indigo-100/60 pb-3 mb-4">
+              <h3 className="text-base font-bold text-indigo-950 flex items-center gap-2">
+                <i className="fa-solid fa-coins text-amber-500"></i> Synthèse Financière & Échéancier
+              </h3>
+              <span className="text-xs font-extrabold uppercase px-2.5 py-0.5 rounded bg-indigo-100 text-indigo-800">
+                Échéancier Titan (25% + Solde + Caution)
               </span>
             </div>
-            {deliveryFeeAmount > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">Livraison</span>
-                <span className="font-medium text-slate-700">
-                  {formatMoney(deliveryFeeAmount)}
+
+            <div className="grid grid-cols-4 gap-2.5 mb-4">
+              <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Dossier</span>
+                <span className="text-sm font-black text-slate-900">{formatMoney(safeAmount)}</span>
+              </div>
+              <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Acompte Requis</span>
+                <span className="text-sm font-black text-amber-600">{formatMoney(requiredDepositAmount)}</span>
+              </div>
+              <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Perçu</span>
+                <span className="text-sm font-black text-emerald-600">{formatMoney(paidAmount)}</span>
+              </div>
+              <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Reste à Régler</span>
+                <span className={`text-sm font-black ${remainingAmount > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                  {formatMoney(remainingAmount)}
                 </span>
               </div>
-            )}
-            {discountAmount > 0 && (
+            </div>
+
+            {/* Commercial breakdown details */}
+            <div className="rounded-xl border border-slate-100 bg-white p-3 mb-4 space-y-1.5 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">
-                  Remise{draft?.discount_reason ? ` — ${draft.discount_reason}` : ""}
-                </span>
-                <span className="font-medium text-emerald-700">
-                  − {formatMoney(discountAmount)}
-                </span>
+                <span className="text-slate-500">Sous-total location</span>
+                <span className="font-medium text-slate-700">{formatMoney(subtotalAmount)}</span>
               </div>
-            )}
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-              <span className="text-sm text-slate-500">Total TTC</span>
-              <span className="font-bold text-slate-800">
-                {formatMoney(safeAmount)}
-              </span>
+              {deliveryFeeAmount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Livraison</span>
+                  <span className="font-medium text-slate-700">{formatMoney(deliveryFeeAmount)}</span>
+                </div>
+              )}
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">
+                    Remise{draft?.discount_reason ? ` — ${draft.discount_reason}` : ""}
+                  </span>
+                  <span className="font-medium text-emerald-700">− {formatMoney(discountAmount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100">
+                <span className="font-bold text-slate-700">Total TTC</span>
+                <span className="font-bold text-slate-900">{formatMoney(safeAmount)}</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-              <span className="text-sm text-slate-500">
-                Montant perçu
-              </span>
-              <span className="font-bold text-emerald-600">
-                {formatMoney(paidAmount)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-rose-600">
-                Reste à payer
-              </span>
-              <span className="font-bold text-rose-600">
-                {formatMoney(remainingAmount)}
-              </span>
+
+            {/* 3-tier milestone schedule boxes with progress bars */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {/* 1. Deposit 25% */}
+              <div className="rounded-xl border border-indigo-100 bg-white/90 p-3 text-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-indigo-700">1. Acompte (25%)</span>
+                    {paidAmount >= requiredDepositAmount ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Réglé</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">En cours</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(requiredDepositAmount)}</p>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">À la confirmation</span>
+                </div>
+                <div className="mt-2">
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-indigo-600 h-full rounded-full transition-all"
+                      style={{ width: `${Math.min((paidAmount / (requiredDepositAmount || 1)) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Payé : {formatMoney(Math.min(paidAmount, requiredDepositAmount))}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. Balance before delivery (J-5) */}
+              <div className="rounded-xl border border-indigo-100 bg-white/90 p-3 text-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-indigo-700">2. Solde (75%)</span>
+                    {remainingAmount <= 0 ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Soldé</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">Avant départ</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(Math.max(0, safeAmount - requiredDepositAmount))}</p>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Échéance : J-5 avant livraison</span>
+                </div>
+                <div className="mt-2">
+                  <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-teal-600 h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(
+                          (Math.max(0, paidAmount - requiredDepositAmount) /
+                            (Math.max(1, safeAmount - requiredDepositAmount))) *
+                            100,
+                          100,
+                        )}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Payé : {formatMoney(Math.max(0, paidAmount - requiredDepositAmount))}
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. Caution / Dépôt de garantie */}
+              <div className="rounded-xl border border-indigo-100 bg-white/90 p-3 text-xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-indigo-700">3. Caution Dépôt</span>
+                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">Restituable</span>
+                  </div>
+                  <p className="text-sm font-black text-slate-900 mt-0.5">Chèque / Espèces</p>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Exigée à la prise en charge</span>
+                </div>
+                <div className="mt-2 pt-1 border-t border-slate-100">
+                  <span className="text-[10px] text-slate-500 block">Restitution après retour & contrôle</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── payments table ────────────────────────────────────────── */}
+      {/* ── Payments table ────────────────────────────────────────── */}
       {payments.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 mt-6">
-          <h3 className="text-lg font-bold text-slate-800 mb-4">
-            Paiements en tranches
-          </h3>
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 mt-6 shadow-xs">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i className="fa-solid fa-receipt text-indigo-600"></i> Paiements & Règlements enregistrés
+            </h3>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              {payments.length} versement{payments.length > 1 ? "s" : ""}
+            </span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                 <tr>
-                  <th className="text-left px-4 py-3 rounded-l-lg">
-                    Date
-                  </th>
+                  <th className="text-left px-4 py-3 rounded-l-lg">Date</th>
                   <th className="text-left px-4 py-3">Mode</th>
                   <th className="text-left px-4 py-3">Référence</th>
                   <th className="text-left px-4 py-3">Note</th>
-                  <th className="text-left px-4 py-3">Justificatif</th>
-                  <th className="text-right px-4 py-3 rounded-r-lg">
-                    Montant
-                  </th>
+                  <th className="text-center px-4 py-3">Reçu officiel</th>
+                  <th className="text-right px-4 py-3 rounded-r-lg">Montant</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {payments.map((p, idx) => (
                   <tr
-                    key={p.id}
+                    key={p.id || `payment-${idx}`}
                     className={
                       idx === payments.length - 1 && remainingAmount <= 0
                         ? "bg-emerald-50/50"
                         : ""
                     }
                   >
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatDateFr(p.date)}
-                    </td>
+                    <td className="px-4 py-3 text-slate-600">{formatDateFr(p.date)}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
                         {p.method}
@@ -1013,23 +1117,33 @@ export default function ReservationDetailPage({
                       {p.reference || "-"}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{p.note}</td>
-                    <td className="px-4 py-3 text-indigo-600 cursor-pointer hover:underline text-xs">
-                      <i className="fa-solid fa-download mr-1"></i>
-                      Reçu
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewModal({
+                            title: `Reçu de versement - ${formatMoney(p.amount)}`,
+                            documentInstanceId: p.receipt_document?.id || null,
+                            templateKey: "titan.payment_receipt.v1",
+                            type: "recu_paiement",
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        <i className="fa-solid fa-file-invoice text-indigo-600"></i>
+                        <span>Reçu</span>
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-emerald-600">
                       + {formatMoney(p.amount)}
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-slate-50">
-                  <td
-                    colSpan={5}
-                    className="px-4 py-3 text-right font-bold text-slate-700"
-                  >
+                <tr className="bg-slate-50 font-bold">
+                  <td colSpan={5} className="px-4 py-3 text-right text-slate-700">
                     Reste dû
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-rose-600">
+                  <td className="px-4 py-3 text-right text-rose-600">
                     {formatMoney(remainingAmount)}
                   </td>
                 </tr>
@@ -1143,7 +1257,7 @@ export default function ReservationDetailPage({
             {[
               {
                 id: "contrat",
-                label: "Contrat & Proforma",
+                label: "Documents & Devis",
                 icon: "fa-file-signature",
               },
               { id: "prep", label: "Préparation", icon: "fa-box-open" },
@@ -1163,10 +1277,15 @@ export default function ReservationDetailPage({
                 label: "Caution & Solde",
                 icon: "fa-money-bill-transfer",
               },
+              {
+                id: "avenants",
+                label: "Avenants",
+                icon: "fa-pen-to-square",
+              },
             ].map((tab) => (
               <button
                 key={tab.id}
-                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 flex items-center gap-2 transition-colors ${
+                className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 flex items-center gap-2 transition-colors cursor-pointer ${
                   activeTab === tab.id
                     ? "border-indigo-600 text-indigo-700 bg-white"
                     : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -1181,78 +1300,85 @@ export default function ReservationDetailPage({
           <div className="p-6">
             {activeTab === "contrat" && (
               <div>
-                <h4 className="font-bold text-slate-800 mb-4">
-                  Documents du dossier
+                <h4 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
+                  <span>Documents & Pièces contractuelles</span>
+                  <span className="text-xs text-slate-500 font-normal">Aperçus et documents générés</span>
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 text-left">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
-                          <i className="fa-solid fa-file-invoice"></i>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* 1. Proforma */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-file-invoice"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Devis / Proforma</p>
+                            <p className="text-xs text-slate-500">
+                              {proformaInstance
+                                ? `Généré le ${formatDateFr(proformaInstance.prepared_at || proformaInstance.created_at)}`
+                                : "Aperçu disponible"}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-slate-800 text-sm">
-                            Proforma
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {proformaInstance
-                              ? `Généré le ${formatDateFr(proformaInstance.prepared_at || proformaInstance.created_at)}`
-                              : "Aucun proforma disponible"}
-                          </p>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Devis / Facture Proforma Titan",
+                              documentInstanceId: proformaInstance?.id || null,
+                              templateKey: "titan.proforma.v1",
+                              type: "proforma",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu du proforma"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setPreviewDoc("proforma")}
-                        className="text-slate-400 hover:text-indigo-600 transition-colors"
-                        title="Aperçu du proforma"
-                      >
-                        <i className="fa-solid fa-eye"></i>
-                      </button>
-                    </div>
 
-                    {/* Validity status badge */}
-                    {proformaInstance && (
-                      <div className="mb-3">
-                        {proformaInstance.status === "voided" ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-600">
-                            <i className="fa-solid fa-ban"></i>
-                            Annulé
-                          </span>
-                        ) : proformaInstance.valid_until ? (
-                          (() => {
-                            const isExpired = new Date(proformaInstance.valid_until!) < new Date();
-                            return (
-                              <div className="flex items-center gap-3">
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                    isExpired
-                                      ? "bg-red-100 text-red-700"
-                                      : "bg-emerald-100 text-emerald-700"
-                                  }`}
-                                >
-                                  <i className={`fa-solid ${isExpired ? "fa-clock" : "fa-check-circle"}`}></i>
-                                  {isExpired ? "Expiré" : "Valide"}
-                                </span>
-                                <span className="text-xs text-slate-500">
-                                  Valide jusqu'au {formatDateFr(proformaInstance.valid_until)}
-                                </span>
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                            <i className="fa-solid fa-info-circle"></i>
-                            Pas de date d'expiration
-                          </span>
-                        )}
-                      </div>
-                    )}
+                      {/* Validity status badge */}
+                      {proformaInstance && (
+                        <div className="mb-3">
+                          {proformaInstance.status === "voided" ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-600">
+                              <i className="fa-solid fa-ban"></i> Annulé
+                            </span>
+                          ) : proformaInstance.valid_until ? (
+                            (() => {
+                              const isExpired = new Date(proformaInstance.valid_until!) < new Date();
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold ${
+                                      isExpired ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+                                    }`}
+                                  >
+                                    <i className={`fa-solid ${isExpired ? "fa-clock" : "fa-check-circle"}`}></i>
+                                    {isExpired ? "Expiré" : "Valide"}
+                                  </span>
+                                  <span className="text-[11px] text-slate-500">
+                                    Jusqu'au {formatDateFr(proformaInstance.valid_until)}
+                                  </span>
+                                </div>
+                              );
+                            })()
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-700">
+                              <i className="fa-solid fa-info-circle"></i> Permanent
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Convert / Void buttons */}
                     {proformaInstance && proformaInstance.status !== "voided" && (
-                      <div className="flex gap-2 pt-2 border-t border-slate-200">
+                      <div className="flex gap-2 pt-2 border-t border-slate-200 mt-2">
                         <button
+                          type="button"
                           onClick={handleConvertToContract}
                           disabled={
                             actionLoading === "convert-contract" ||
@@ -1260,7 +1386,7 @@ export default function ReservationDetailPage({
                               ? new Date(proformaInstance.valid_until) < new Date()
                               : false)
                           }
-                          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                          className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1"
                         >
                           {actionLoading === "convert-contract" ? (
                             <i className="fa-solid fa-spinner fa-spin"></i>
@@ -1270,214 +1396,402 @@ export default function ReservationDetailPage({
                           Convertir en contrat
                         </button>
                         <button
+                          type="button"
                           onClick={handleVoidProforma}
                           disabled={actionLoading === "void-proforma"}
-                          className="px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-sm hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                          className="px-2.5 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-xs hover:bg-red-50 disabled:opacity-50 transition-colors flex items-center gap-1"
                         >
                           {actionLoading === "void-proforma" ? (
                             <i className="fa-solid fa-spinner fa-spin"></i>
                           ) : (
                             <i className="fa-solid fa-ban"></i>
                           )}
-                          Annuler le proforma
+                          Annuler
                         </button>
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => setPreviewDoc("contrat")}
-                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-amber-100 text-amber-600 flex items-center justify-center text-lg">
-                        <i className="fa-solid fa-file-contract"></i>
+
+                  {/* 2. Contrat Titan */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-file-contract"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Contrat de location</p>
+                            <p className="text-xs text-slate-500">
+                              {draft.contract_signed_at ? "Contrat signé" : "En attente de signature"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Contrat de location Titan",
+                              documentInstanceId: titanContractInstance?.id || null,
+                              templateKey: "titan.material_contract.v1",
+                              type: "contrat",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu du contrat"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          Contrat Titan
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Signé par le client
-                        </p>
-                      </div>
-                    </div>
-                    <i className="fa-solid fa-eye text-slate-400 hover:text-amber-600"></i>
-                  </button>
-                  {contractWarnings.length > 0 && (
-                    <div
-                      className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-                      role="status"
-                    >
-                      <p className="font-bold">
-                        Informations contractuelles à compléter
+                      <p className="text-xs text-slate-600">
+                        {draft.contract_signed_at
+                          ? `Signé le ${formatDateFr(draft.contract_signed_at)}`
+                          : "Contrat officiel avec conditions générales de location"}
                       </p>
-                      <p className="mt-1 text-xs">
-                        Le contrat reste générable. Complétez ces informations dès que possible.
+                    </div>
+                  </div>
+
+                  {/* 3. Facture */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-file-invoice-dollar"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Facture définitive</p>
+                            <p className="text-xs text-slate-500">Règlement & facturation</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Facture de location Titan",
+                              templateKey: "titan.invoice.v1",
+                              type: "facture",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu de la facture"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Facturation officielle avec détail de la TVA et des règlements perçus.
                       </p>
-                      <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-                        {contractWarnings.map((warning) => (
-                          <li key={warning.code}>{warning.message}</li>
-                        ))}
-                      </ul>
                     </div>
-                  )}
-                  <button
-                    onClick={() => setPreviewDoc("facture")}
-                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg">
-                        <i className="fa-solid fa-file-invoice-dollar"></i>
+                  </div>
+
+                  {/* 4. Bon de préparation */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-box-open"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Bon de préparation</p>
+                            <p className="text-xs text-slate-500">Magasin & préparation stock</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Bon de préparation matériel",
+                              templateKey: "shared.preparation_sheet.v1",
+                              type: "fiche_preparation",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu du bon de préparation"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          Facture
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Règlement final
-                        </p>
-                      </div>
+                      <p className="text-xs text-slate-600">
+                        Fiche de préparation magasinier avec quantités à rassembler et vérifier.
+                      </p>
                     </div>
-                    <i className="fa-solid fa-eye text-slate-400 hover:text-emerald-600"></i>
-                  </button>
-                  <button
-                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between hover:border-indigo-300 transition-colors bg-slate-50 text-left"
-                    onClick={openAmendmentWizard}
-                    disabled={actionLoading !== null}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg">
-                        <i className="fa-solid fa-file-signature"></i>
+                  </div>
+
+                  {/* 5. Bon de livraison / Sortie */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-cyan-100 text-cyan-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-truck-fast"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Bon de livraison / Sortie</p>
+                            <p className="text-xs text-slate-500">Remise matériel & transport</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Bon de livraison / Sortie Titan",
+                              templateKey: "titan.delivery_note.v1",
+                              type: "bon_livraison",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu du bon de livraison"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          Avenant
-                        </p>
-                          <p className="text-xs text-slate-500">Créer jusqu’au jour J</p>
-                      </div>
+                      <p className="text-xs text-slate-600">
+                        Document de passation et prise en charge signé à la sortie des articles.
+                      </p>
                     </div>
-                  </button>
-                  <button
-                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50 opacity-60 cursor-not-allowed text-left"
-                    disabled
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg">
-                        <i className="fa-solid fa-truck"></i>
+                  </div>
+
+                  {/* 6. Bon de retour */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-rotate-left"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Bon de retour</p>
+                            <p className="text-xs text-slate-500">Restitution & contrôle</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Bon de retour / Restitution",
+                              templateKey: "shared.return_note.v1",
+                              type: "bon_retour",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu du bon de retour"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          Bon de livraison / Sortie
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Généré à la sortie
-                        </p>
-                      </div>
+                      <p className="text-xs text-slate-600">
+                        Constat contradictoire des quantités retournées et de l'état du matériel.
+                      </p>
                     </div>
-                  </button>
-                  <button
-                    className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-slate-50 opacity-60 cursor-not-allowed text-left"
-                    disabled
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded bg-slate-200 text-slate-500 flex items-center justify-center text-lg">
-                        <i className="fa-solid fa-rotate-left"></i>
+                  </div>
+
+                  {/* 7. Facture de casse */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-heart-crack"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Facture casse & pertes</p>
+                            <p className="text-xs text-slate-500">Dégradations constatées</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Facture de casse et dégradation",
+                              templateKey: "titan.breakage_repair_invoice.v1",
+                              type: "facture_casse",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu de la facture de casse"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
                       </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">
-                          Bon de retour
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Généré au retour
-                        </p>
-                      </div>
+                      <p className="text-xs text-slate-600">
+                        Facture de dédommagement calculée sur la grille officielle des casses.
+                      </p>
                     </div>
-                  </button>
+                  </div>
+
+                  {/* 8. Récépissé remboursement caution */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-money-bill-transfer"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Récépissé de caution</p>
+                            <p className="text-xs text-slate-500">Remboursement / Solde</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Récépissé de remboursement de caution",
+                              templateKey: "shared.payment_refund_receipt.v1",
+                              type: "recu_remboursement",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu du récépissé de caution"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Attestation officielle de restitution de la caution après clôture sans litige.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 9. Avenant */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/60 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-lg">
+                            <i className="fa-solid fa-pen-to-square"></i>
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">Avenant de location</p>
+                            <p className="text-xs text-slate-500">Modification contractuelle</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewModal({
+                              title: "Avenant au contrat de location",
+                              templateKey: "titan.material_amendment.v1",
+                              type: "avenant",
+                            })
+                          }
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                          title="Aperçu de l'avenant"
+                        >
+                          <i className="fa-solid fa-eye text-base"></i>
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        Modification des dates ou quantités d'articles jusqu'au jour du départ.
+                      </p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200 mt-2">
+                      <button
+                        type="button"
+                        onClick={openAmendmentWizard}
+                        className="w-full py-1.5 px-3 bg-white text-indigo-600 border border-indigo-200 rounded-lg text-xs font-bold shadow-xs hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <i className="fa-solid fa-plus"></i> Créer un avenant
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
+                {contractWarnings.length > 0 && (
+                  <div
+                    className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                    role="status"
+                  >
+                    <p className="font-bold flex items-center gap-2">
+                      <i className="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                      Informations contractuelles à compléter
+                    </p>
+                    <p className="mt-1 text-xs">
+                      Le contrat reste générable. Complétez ces informations dès que possible.
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
+                      {contractWarnings.map((warning) => (
+                        <li key={warning.code}>{warning.message}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === "prep" && (
               <div>
-                <h4 className="font-bold text-slate-800 mb-4">
-                  Préparation matériel
-                </h4>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex justify-between items-center">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div>
-                    <span className="text-sm font-bold text-blue-900 block mb-1">
-                      Statut actuel
-                    </span>
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                        preparationReady
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {preparationReady ? "Prêt" : "À préparer"}
-                    </span>
+                    <h4 className="font-bold text-slate-800">Préparation matériel & Magasin</h4>
+                    <p className="text-xs text-slate-500">Rassemblement et contrôle avant expédition</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                      onClick={() =>
+                        setPreviewModal({
+                          title: "Bon de préparation matériel (Magasin)",
+                          templateKey: "shared.preparation_sheet.v1",
+                          type: "fiche_preparation",
+                        })
+                      }
+                      className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <i className="fa-solid fa-file-lines text-indigo-600"></i>
+                      <span>Aperçu Bon de préparation</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                       onClick={() => onNavigate("stock-preparation")}
                     >
                       <i className="fa-solid fa-check-double"></i>
                       <span>Ouvrir la préparation réelle</span>
                     </button>
-                    {!preparationReady && (
-                      <button
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700"
-                        onClick={() => onNavigate("stock-preparation")}
-                      >
-                        Ouvrir la préparation stock
-                      </button>
-                    )}
                   </div>
                 </div>
-                <table className="w-full text-sm text-left border-collapse">
+
+                <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 mb-4 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-bold text-blue-900 block mb-1">Statut actuel</span>
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase ${
+                        preparationReady ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {preparationReady ? "Prêt à être expédié" : "À préparer en magasin"}
+                    </span>
+                  </div>
+                </div>
+
+                <table className="w-full text-sm text-left border-collapse bg-white rounded-xl overflow-hidden border border-slate-200">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-600">
-                      <th className="p-3 font-semibold rounded-tl-lg">
-                        Article
-                      </th>
-                      <th className="p-3 font-semibold text-center">
-                        Qté demandée
-                      </th>
-                      <th className="p-3 font-semibold text-center">
-                        Qté préparée
-                      </th>
-                      <th className="p-3 font-semibold rounded-tr-lg">
-                        Disponibilité
-                      </th>
+                    <tr className="bg-slate-100 text-slate-600 text-xs uppercase">
+                      <th className="p-3 font-semibold">Article</th>
+                      <th className="p-3 font-semibold text-center">Qté demandée</th>
+                      <th className="p-3 font-semibold text-center">Qté préparée</th>
+                      <th className="p-3 font-semibold text-right">Disponibilité</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {materials.map((m) => (
-                      <tr
-                        key={m.id}
-                        className="border-b border-slate-100"
-                      >
-                        <td className="p-3">{m.name}</td>
-                        <td className="p-3 text-center font-medium">
-                          {m.quantity}
-                        </td>
+                      <tr key={m.id} className="hover:bg-slate-50/50">
+                        <td className="p-3 font-medium text-slate-800">{m.name}</td>
+                        <td className="p-3 text-center font-bold text-slate-900">{m.quantity}</td>
                         <td className="p-3 text-center">
-                          <span className="text-slate-500">À renseigner dans la préparation réelle</span>
+                          <span className="text-slate-500 text-xs">À renseigner dans la préparation réelle</span>
                         </td>
-                        <td className="p-3 text-emerald-600 font-medium">
-                          <i className="fa-solid fa-check-circle mr-1"></i>{" "}
-                          En stock
+                        <td className="p-3 text-right text-emerald-600 font-semibold text-xs">
+                          <i className="fa-solid fa-circle-check mr-1"></i> En stock
                         </td>
                       </tr>
                     ))}
                     {materials.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={4}
-                          className="p-3 text-center text-slate-400 italic"
-                        >
+                        <td colSpan={4} className="p-4 text-center text-slate-400 italic">
                           Aucun matériel dans cette réservation.
                         </td>
                       </tr>
@@ -1489,188 +1803,262 @@ export default function ReservationDetailPage({
 
             {activeTab === "sortie" && (
               <div>
-                <h4 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
-                  Sortie / Livraison
-                  <span className="text-sm font-normal text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                    <i className="fa-solid fa-truck text-indigo-500 mr-2"></i>{" "}
-                    Données gérées dans la sortie réelle
-                  </span>
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Date et heure de sortie
-                    </label>
-                    <p className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-500">À renseigner dans l’opération logistique réelle.</p>
+                    <h4 className="font-bold text-slate-800">Sortie / Livraison du matériel</h4>
+                    <p className="text-xs text-slate-500">Expédition, transport et décharge de livraison</p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Responsable remise
-                    </label>
-                    <p className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm text-slate-500">Enregistré avec la sortie ou la livraison.</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewModal({
+                          title: "Bon de livraison / Sortie Titan",
+                          templateKey: "titan.delivery_note.v1",
+                          type: "bon_livraison",
+                        })
+                      }
+                      className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <i className="fa-solid fa-file-lines text-indigo-600"></i>
+                      <span>Aperçu Bon de livraison</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      onClick={() => onNavigate("logistics-dispatch")}
+                    >
+                      <i className="fa-solid fa-truck"></i>
+                      <span>Ouvrir le planning sortie</span>
+                    </button>
                   </div>
                 </div>
 
-                <h5 className="font-bold text-slate-700 text-sm mb-3">
-                  État initial des articles
-                </h5>
-                <table className="w-full text-sm text-left mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                      Date de début de location
+                    </label>
+                    <p className="text-sm font-semibold text-slate-800">{formatDateFr(reservationDate)}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                      Responsable remise
+                    </label>
+                    <p className="text-sm text-slate-500">Enregistré lors de la validation logistique</p>
+                  </div>
+                </div>
+
+                <table className="w-full text-sm text-left mb-6 border border-slate-200 rounded-xl overflow-hidden bg-white">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-600 text-xs uppercase">
-                      <th className="p-2">Article</th>
-                      <th className="p-2 text-center">Qté</th>
-                      <th className="p-2">État de sortie</th>
+                    <tr className="bg-slate-100 text-slate-600 text-xs uppercase">
+                      <th className="p-3">Article</th>
+                      <th className="p-3 text-center">Qté</th>
+                      <th className="p-3">État au départ</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {materials.map((m) => (
-                      <tr
-                        key={m.id}
-                        className="border-b border-slate-100"
-                      >
-                        <td className="p-2">{m.name}</td>
-                        <td className="p-2 text-center font-medium">
-                          {m.quantity}
-                        </td>
-                        <td className="p-2">
-                          <span className="text-slate-500">Constaté dans la sortie réelle</span>
-                        </td>
+                      <tr key={m.id} className="hover:bg-slate-50/50">
+                        <td className="p-3 font-medium text-slate-800">{m.name}</td>
+                        <td className="p-3 text-center font-bold text-slate-900">{m.quantity}</td>
+                        <td className="p-3 text-slate-500 text-xs">Constaté au départ réel</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Preuves visuelles (Photos avant départ)
-                  </label>
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Les preuves sont à joindre depuis l’opération logistique réelle.</p>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700"
-                    onClick={() => onNavigate("logistics-dispatch")}
-                  >
-                    Ouvrir le planning sortie / livraison
-                  </button>
-                </div>
               </div>
             )}
 
             {activeTab === "retour" && (
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-bold text-slate-800">
-                    Retour / Restitution
-                  </h4>
-                  <button
-                    type="button"
-                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
-                    onClick={() => onNavigate("logistics-returns", `titan:${draft.id}`)}
-                  >
-                    <i className="fa-solid fa-circle-check"></i>
-                    <span>Ouvrir le retour réel</span>
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h4 className="font-bold text-slate-800">Retour / Restitution du matériel</h4>
+                    <p className="text-xs text-slate-500">Contrôle quantitatif et qualitatif au retour</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewModal({
+                          title: "Bon de retour / Restitution Titan",
+                          templateKey: "shared.return_note.v1",
+                          type: "bon_retour",
+                        })
+                      }
+                      className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <i className="fa-solid fa-file-lines text-indigo-600"></i>
+                      <span>Aperçu Bon de retour</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                      onClick={() => onNavigate("logistics-returns", `titan:${draft.id}`)}
+                    >
+                      <i className="fa-solid fa-circle-check"></i>
+                      <span>Ouvrir le retour réel</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 uppercase mb-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       Retour prévu le
                     </label>
-                    <div className="font-semibold text-slate-800">
-                      {formatDateFr(eventDate)}
-                    </div>
+                    <div className="font-semibold text-slate-800">{formatDateFr(eventDate)}</div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 uppercase mb-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                       Retour réel le
                     </label>
-                    <div className="font-semibold text-slate-500">Enregistré dans le retour réel</div>
+                    <div className="font-semibold text-slate-500">Enregistré au retour réel</div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-rose-500 uppercase mb-1">
-                      Retard calculé
+                    <label className="block text-xs font-bold text-rose-500 uppercase mb-1">
+                      Retard / Pénalité
                     </label>
-                    <div className="font-bold text-rose-600">
-                      Calculé après validation du retour
-                    </div>
-                    <div className="text-xs text-rose-500 italic mt-0.5">
-                      Pénalité 50% par jour si applicable.
-                    </div>
+                    <div className="font-bold text-rose-600">Calculé après validation</div>
                   </div>
                 </div>
 
-                <h5 className="font-bold text-slate-700 text-sm mb-3">
-                  Contrôle des articles
-                </h5>
-                <table className="w-full text-sm text-left mb-6">
+                <table className="w-full text-sm text-left mb-6 border border-slate-200 rounded-xl overflow-hidden bg-white">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-600 text-xs uppercase">
-                      <th className="p-2">Article</th>
-                      <th className="p-2 text-center">Attendus</th>
-                      <th className="p-2 text-center">Retournés</th>
-                      <th className="p-2">État au retour</th>
+                    <tr className="bg-slate-100 text-slate-600 text-xs uppercase">
+                      <th className="p-3">Article</th>
+                      <th className="p-3 text-center">Attendus</th>
+                      <th className="p-3 text-center">Retournés</th>
+                      <th className="p-3">État au retour</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100">
                     {materials.map((m) => (
-                      <tr
-                        key={m.id}
-                        className="border-b border-slate-100"
-                      >
-                        <td className="p-2">{m.name}</td>
-                        <td className="p-2 text-center text-slate-500">
-                          {m.quantity}
-                        </td>
-                        <td className="p-2 text-center">
+                      <tr key={m.id} className="hover:bg-slate-50/50">
+                        <td className="p-3 font-medium text-slate-800">{m.name}</td>
+                        <td className="p-3 text-center font-bold text-slate-900">{m.quantity}</td>
+                        <td className="p-3 text-center">
                           <span className="text-slate-500">À saisir dans le retour réel</span>
                         </td>
-                        <td className="p-2">
+                        <td className="p-3">
                           <span className="text-slate-500">État enregistré dans le retour réel</span>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Notes / Constat
-                  </label>
-                  <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">Les notes et constats sont saisis dans le retour réel.</p>
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700"
-                    onClick={() => onNavigate("logistics-returns", `titan:${draft.id}`)}
-                  >
-                    Ouvrir les retours réels
-                  </button>
-                </div>
               </div>
             )}
 
             {activeTab === "casse" && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-6">
-                <h4 className="font-bold text-rose-900">Casse & pertes constatées</h4>
-                <p className="mt-2 text-sm text-rose-800">Les montants et les articles sont chargés depuis le retour validé. Aucun montant d’exemple n’est affiché dans le dossier.</p>
-                <button type="button" className="mt-5 rounded-lg bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800" onClick={() => onNavigate("breakage-loss", `titan:${draft.id}`)}>
-                  <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir le règlement casse/perte
-                </button>
+              <div className="rounded-xl border border-rose-200 bg-rose-50/70 p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-rose-900 text-base">Casse & Pertes constatées</h4>
+                    <p className="mt-1 text-xs text-rose-800">
+                      Règlement et facturation des articles dégradés ou non restitués selon la grille officielle.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewModal({
+                          title: "Facture casse & dégradation Titan",
+                          templateKey: "titan.breakage_repair_invoice.v1",
+                          type: "facture_casse",
+                        })
+                      }
+                      className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <i className="fa-solid fa-file-invoice text-rose-600"></i>
+                      <span>Aperçu Facture casse</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-rose-700 px-4 py-2 text-xs font-bold text-white hover:bg-rose-800 transition cursor-pointer shadow-xs"
+                      onClick={() => onNavigate("breakage-loss", `titan:${draft.id}`)}
+                    >
+                      <i className="fas fa-arrow-up-right-from-square mr-1.5" />
+                      Ouvrir le règlement casse
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
             {activeTab === "caution" && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-6">
-                <h4 className="font-bold text-blue-900">Caution & solde de fin de location</h4>
-                <p className="mt-2 text-sm text-blue-800">Le détail réel de la caution, de la retenue et d’une éventuelle restitution est centralisé dans l’espace Caution.</p>
-                <button type="button" className="mt-5 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800" onClick={() => onNavigate("caution", `titan:${draft.id}`)}>
-                  <i className="fas fa-arrow-up-right-from-square mr-2" />Ouvrir la caution réelle
-                </button>
+              <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-blue-900 text-base">Caution & Solde de fin de location</h4>
+                    <p className="mt-1 text-xs text-blue-800">
+                      Suivi du dépôt de garantie, déduction des éventuelles dégradations et restitution du solde.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewModal({
+                          title: "Récépissé de remboursement de caution",
+                          templateKey: "shared.payment_refund_receipt.v1",
+                          type: "recu_remboursement",
+                        })
+                      }
+                      className="px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <i className="fa-solid fa-file-invoice text-blue-600"></i>
+                      <span>Aperçu Récépissé remboursement</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white hover:bg-blue-800 transition cursor-pointer shadow-xs"
+                      onClick={() => onNavigate("caution", `titan:${draft.id}`)}
+                    >
+                      <i className="fas fa-arrow-up-right-from-square mr-1.5" />
+                      Ouvrir la caution réelle
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "avenants" && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-indigo-950 text-base">Avenants au contrat de location</h4>
+                    <p className="mt-1 text-xs text-indigo-800">
+                      Modifications contractuelles des articles, des dates ou des conditions de location.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewModal({
+                          title: "Avenant au contrat de location Titan",
+                          templateKey: "titan.material_amendment.v1",
+                          type: "avenant",
+                        })
+                      }
+                      className="px-3 py-1.5 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <i className="fa-solid fa-file-lines text-indigo-600"></i>
+                      <span>Aperçu Avenant</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openAmendmentWizard}
+                      className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <i className="fa-solid fa-plus"></i>
+                      Nouvel avenant Titan
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2072,228 +2460,66 @@ export default function ReservationDetailPage({
         </div>
       )}
 
-      {previewDoc && (
-        <>
-          <div
-            className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 transition-opacity"
-            onClick={closePreview}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="reservation-document-preview-title"
-            className="fixed inset-3 sm:inset-5 lg:inset-8 bg-white shadow-2xl z-50 border border-slate-200 rounded-2xl flex flex-col overflow-hidden animate-fade-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="px-5 sm:px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between gap-4 shrink-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3
-                    id="reservation-document-preview-title"
-                    className="font-bold text-slate-900 text-base sm:text-lg truncate"
-                  >
-                    Aperçu {previewDoc === "proforma"
-                      ? "Proforma"
-                      : previewDoc === "facture"
-                        ? "Facture"
-                        : previewDoc === "contrat"
-                          ? "Contrat"
-                          : previewDoc === "annexes"
-                            ? "Annexes Contractuelles"
+      {/* ── Document Preview Modal (Artifact or Live Authentic Draft Preview) ── */}
+      {(previewModal || previewDoc) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs animate-fade-in">
+          <div className="relative flex h-[90vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50 shrink-0">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <i className="fa-solid fa-file-lines text-indigo-600"></i>
+                <span>
+                  {previewModal?.title ||
+                    (previewDoc === "proforma"
+                      ? "Devis / Facture Proforma"
+                      : previewDoc === "contrat"
+                        ? "Contrat de location Titan"
+                        : previewDoc === "facture"
+                          ? "Facture définitive"
+                          : previewDoc === "fiche_preparation"
+                            ? "Bon de préparation matériel"
                             : previewDoc === "bon_livraison"
-                              ? "Bon de livraison"
-                              : previewDoc === "decharge"
-                                ? "Décharge de responsabilité"
-                                : "Document"}
-                  </h3>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide border ${
-                    domain === "Titan"
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : "bg-pink-50 text-pink-700 border-pink-200"
-                  }`}>
-                    {domain}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5 truncate">
-                  Réf : <span className="font-mono font-medium text-slate-700">{publicRef}</span> · Client : <span className="font-medium text-slate-700">{displayName}</span> · Données réelles du dossier
-                </p>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <button
-                  type="button"
-                  onClick={closePreview}
-                  aria-label="Fermer l'aperçu"
-                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                >
-                  <i className="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
-                </button>
-              </div>
+                              ? "Bon de livraison / Sortie"
+                              : previewDoc === "bon_retour"
+                                ? "Bon de retour / Restitution"
+                                : previewDoc === "facture_casse"
+                                  ? "Facture de casse et dégradation"
+                                  : previewDoc === "recu_remboursement"
+                                    ? "Récépissé de remboursement de caution"
+                                    : previewDoc === "avenant"
+                                      ? "Avenant au contrat de location"
+                                      : previewDoc === "recu_paiement"
+                                        ? "Reçu de versement"
+                                        : "Aperçu du document")}
+                </span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewModal(null);
+                  setPreviewDoc(null);
+                }}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors cursor-pointer"
+                title="Fermer"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
             </div>
-
-            {/* Document Canvas Workspace */}
-            <div className="flex-1 min-h-0 overflow-y-auto bg-slate-100 p-4 sm:p-6 lg:p-8">
-              <div className="max-w-4xl mx-auto">
-                {previewArtifact ? (
-                  <DocumentArtifactPreviewPanel documentInstanceId={previewArtifact.id} />
-                ) : previewDoc === "annexes" ? (
-                  <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 space-y-8 text-sm text-slate-700 font-serif">
-                    <div className="text-center mb-8 border-b pb-4">
-                      <h2 className="text-2xl font-bold mb-2 uppercase">
-                        Annexes Contractuelles
-                      </h2>
-                      <p className="text-slate-500">
-                        Mises à jour pour la réservation {publicRef}
-                      </p>
-                    </div>
-
-                    <section>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                        Annexe 1 : Règlement Intérieur Hahitantsoa
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-2">
-                        <li>
-                          L'accès aux cuisines est strictement réservé au
-                          personnel autorisé et aux traiteurs agréés.
-                        </li>
-                        <li>
-                          Le niveau sonore ne doit pas dépasser les limites
-                          légales en vigueur après 22h00.
-                        </li>
-                        <li>
-                          L'utilisation de feux d'artifice, de fumigènes
-                          lourds ou de confettis en plastique est strictement
-                          interdite sur tout le domaine.
-                        </li>
-                        <li>
-                          Le locataire est responsable du nettoyage
-                          préliminaire et de la gestion des déchets générés
-                          par ses prestataires.
-                        </li>
-                      </ul>
-                    </section>
-
-                    <section>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                        Annexe 2 : Plan de masse et Évacuation
-                      </h4>
-                      <p className="mb-2">
-                        Le plan d'évacuation est affiché dans le hall principal
-                        et doit être communiqué au responsable de la sécurité
-                        de l'événement.
-                      </p>
-                      <div className="bg-slate-100 p-4 rounded text-center border border-slate-300 border-dashed">
-                        [Aperçu du plan d'évacuation PDF/Image intégré ici
-                        dans la version finale]
-                      </div>
-                    </section>
-
-                    <section>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                        Annexe 3 : Grille tarifaire des casses & pertes
-                      </h4>
-                      <p className="mb-2">
-                        En cas de dommage ou de perte du matériel mis à
-                        disposition, la facturation se fera selon la grille
-                        suivante :
-                      </p>
-                      <table className="w-full text-left border-collapse border border-slate-200">
-                        <thead>
-                          <tr className="bg-slate-100">
-                            <th className="p-2 border border-slate-200">
-                              Désignation
-                            </th>
-                            <th className="p-2 border border-slate-200">
-                              Indemnité forfaitaire (Ar)
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td className="p-2 border border-slate-200">
-                              Chaise Chiavari (casse/perte)
-                            </td>
-                            <td className="p-2 border border-slate-200 font-mono">
-                              150 000
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="p-2 border border-slate-200">
-                              Verre / Coupe (unité)
-                            </td>
-                            <td className="p-2 border border-slate-200 font-mono">
-                              15 000
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="p-2 border border-slate-200">
-                              Assiette de présentation
-                            </td>
-                            <td className="p-2 border border-slate-200 font-mono">
-                              45 000
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="p-2 border border-slate-200">
-                              Table ronde / rectangulaire
-                            </td>
-                            <td className="p-2 border border-slate-200 font-mono">
-                              350 000
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </section>
-
-                    <section>
-                      <h4 className="text-lg font-bold text-slate-900 mb-2 border-l-4 border-indigo-600 pl-3 bg-slate-50 py-1">
-                        Annexe 4 : Liste des intervenants non autorisés
-                      </h4>
-                      <p className="mb-2">
-                        Pour des raisons de qualité, de sécurité ou de litiges
-                        antérieurs, les prestataires suivants ne sont pas admis
-                        sur le domaine Hahitantsoa :
-                      </p>
-                      <ul className="list-disc pl-5 space-y-1 text-rose-700">
-                        <li>
-                          Prestataire Alpha (Sonorisation) - Dépassement
-                          récurrent des décibels
-                        </li>
-                        <li>
-                          Traiteur Beta - Non-respect des règles d'hygiène
-                        </li>
-                        <li>
-                          Décorateur Gamma - Utilisation de matériaux
-                          inflammables non homologués
-                        </li>
-                      </ul>
-                      <p className="mt-2 text-xs text-slate-500 italic">
-                        Cette liste est mise à jour mensuellement par la
-                        direction technique.
-                      </p>
-                    </section>
-                  </div>
-                ) : (
-                  <DocumentPreviewDispatcher
-                    type={previewDoc === "contrat" ? "contrat" : previewDoc}
-                    domain={domain === "Titan" ? "titan" : "hahitantsoa"}
-                    client={docClient}
-                    date={reservationDate}
-                    refNumber={publicRef}
-                    eventDate={eventDate}
-                    materials={materials}
-                    services={services}
-                    totalAmount={safeAmount}
-                    subTotalAmount={commercialSubTotal}
-                    paidAmount={paidAmount}
-                    reservationDraftId={domain === "Titan" ? draft?.id : undefined}
-                    hahitantsoaEventDraftId={domain !== "Titan" ? draft?.id : undefined}
-                  />
-                )}
-              </div>
+            <div className="flex-1 overflow-auto p-6 bg-slate-100/50">
+              {previewModal?.documentInstanceId ? (
+                <DocumentArtifactPreviewPanel documentInstanceId={previewModal.documentInstanceId} />
+              ) : previewArtifact ? (
+                <DocumentArtifactPreviewPanel documentInstanceId={previewArtifact.id} />
+              ) : (
+                <DocumentPreview
+                  domain="titan"
+                  reservationDraftId={draft.id}
+                  template={{ templateKey: previewModal?.templateKey }}
+                  type={previewModal?.type || (previewDoc === "contrat" ? "contrat" : previewDoc || undefined)}
+                />
+              )}
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── toast ─────────────────────────────────────────────────── */}
