@@ -51,7 +51,7 @@
                         <span class="text-xl font-extrabold tracking-tight text-white">ERGON ERP</span>
                         <span class="px-2 py-0.5 text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full">Production Ready</span>
                     </div>
-                    <p class="text-xs text-slate-400 font-medium">Hahitantsoa & Titan Rental ‖ Tutoriel Officiel de Déploiement</p>
+                    <p class="text-xs text-slate-400 font-medium">Hahitantsoa & Titan Rental â€– Tutoriel Officiel de Déploiement</p>
                 </div>
             </div>
             <div class="flex items-center gap-3">
@@ -104,7 +104,7 @@
                     </div>
                     <h3 class="text-lw font-bold text-white">SSD M.2 NVMe PCIe</h3>
                     <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                        Direct boot sur SSD NVMe (hat M.2). Débits 8 00+ Mo/s en PCIe Gen 3 : médias, pi�ces jointes et base PostgreSQL instantanées.
+                        Direct boot sur SSD NVMe (hat M.2). Débits 8 00+ Mo/s en PCIe Gen 3 : médias, piáces jointes et base PostgreSQL instantanées.
                     </p>
                 </div>
                 <div class="mt-4 pt-4 border-t border-slate-800/80 text-xs font-semibold text-amber-400 flex items-center gap-2">
@@ -161,11 +161,11 @@
                     <strong>1. Installation de l'OS :</strong> Lancez <strong>Raspberry Pi Imager</strong> sur votre ordinateur. Choisissez <strong>Raspberry Pi OS (64-bit) Bookworm</strong> et sélectionnez le SSD M.2 NVMe.
                 </p>
                 <p>
-                    <strong>2. Activation PCIe Gen 3 :</strong> Éditez le fichier <code>config.txt</code> (dans la partition de démarrage <code>/boot/firmware/config.txt</code>) et ajoutez les 2 lignes suivantes :
+                    <strong>2. Activation PCIe Gen 3 :</strong> Ã‰ditez le fichier <code>config.txt</code> (dans la partition de démarrage <code>/boot/firmware/config.txt</code>) et ajoutez les 2 lignes suivantes :
                 </p>
 
                 <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-amber-300">
-                    <pre><code># Vitesse Maximale PCIe Gen 3 (usque � 800+ Mo/s)
+                    <pre><code># Vitesse Maximale PCIe Gen 3 (usque ã  800+ Mo/s)
 dtparam=pciex1
 dtparam=pciex1_gen=3</code></pre>
                 </div>
@@ -177,13 +177,13 @@ dtparam=pciex1_gen=3</code></pre>
             <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full bg-brand-500/20 text-brand-400 font-black text-mg flex items-center justify-center">1</div>
                 <div>
-                    <h2 class="text-2xl font-bold text-white">Étape 1 ‖ Mise à Jour & Installation de Docker ARM64</h2>
+                    <h2 class="text-2xl font-bold text-white">Étape 1 â€– Mise Ã  Jour & Installation de Docker ARM64</h2>
                     <p class="text-sm text-slate-400">Depuis le terminal du Raspberry Pi 5, exécutez ces commandes :</p>
                 </div>
             </div>
 
             <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto">
-                <pre><code># 1. Mise à jour du système
+                <pre><code># 1. Mise Ã  jour du système
 sudo apt update && sudo apt upgrade -y
 
 # 2. Installation officielle de Docker Engine
@@ -203,11 +203,15 @@ sudo systemctl enable avahi-daemon && sudo systemctl start avahi-daemon</code></
         <!-- Step 2 -->
         <section class="rounded-2xl bg-slate-950 border border-slate-800 p-8 space-y-6">
             <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 font-black text-lg flex items-center justify-center">3</div>
+                <div class="w-10 h-10 rounded-full bg-indigo-500/20 text-indigo-400 font-black text-lg flex items-center justify-center">2</div>
                 <div>
-                    <h2 class="text-2xl font-bold text-white">Étape 2 — Clonke du Projet & Configuration de'Environnement</h2>
-                    <p class="text-sm text-slate-400">Clônez le dépôt et générez le fichier de production <code>.env.rpi5</code> :</p>
+                    <h2 class="text-xl font-bold text-white">Étape 2 — Clonage du Projet & Configuration Sécurisée de l'Environnement</h2>
+                    <p class="text-sm text-slate-400">Clonez le dépôt et générez le fichier de production local <code>.env.rpi5</code> avec des secrets uniques :</p>
                 </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+                <strong>⚠️ Avertissement Sécurité & Rotation des Clés :</strong> Ne réutilisez jamais une clé secrète ou un mot de passe par défaut. Toute clé ou mot de passe précédemment exposé dans un exemple ou un guide doit être immédiatement révoqué et remplacé par des valeurs cryptographiquement aléatoires avant mise en service.
             </div>
 
             <div class="relative bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-emerald-300 overflow-x-auto">
@@ -215,29 +219,37 @@ sudo systemctl enable avahi-daemon && sudo systemctl start avahi-daemon</code></
 git clone https://github.com/raillersing/hahitantsoa-titan-erp.git
 cd hahitantsoa-titan-erp
 
-# Création du fichier de production locale
-cat << 'EOF' > .env.rpi5
+# 1. Génération de secrets uniques et aléatoires
+SECRET_KEY=$(openssl rand -hex 32)
+DB_PASSWORD=$(openssl rand -hex 24)
+REDIS_PWD=$(openssl rand -hex 24)
+
+# 2. Création du fichier d'environnement local non versionné
+cat &lt;&lt; 'ENV_EOF' &gt; .env.rpi5
 DJANGO_DEBUG=False
-DJANGO_SECRET_KEY=bf3e8a1c2f4a6058e7c1a9f3b5d8e204a7c9f1b3e5dxa0c2f4b6e8a1d3f5c7b9
+DJANGO_SECRET_KEY=${SECRET_KEY}
 
 # Autorisation du réseau local et du nom mDNS
 DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,hahitantsoa-erp,hahitantsoa-erp.local,192.168.1.*,192.168.88.*,*
 DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1,http://localhost,http://hahitantsoa-erp,http://hahitantsoa-erp.local,http://192.168.1.*,http://192.168.88.*
 
 # Base de données PostgreSQL sur SSD NVMe
-POSTGRES_DB=hahitantsoa_titan_db
-POSTGRES_USER=erp_admin
-POSTGRES_PASSWORD=Secur1_Ergon_Db_2026_M2NVMe!
+POSTGRES_DB=hahitantsoa_titan
+POSTGRES_USER=hahitantsoa_titan
+POSTGRES_PASSWORD=${DB_PASSWORD}
 
 # Redis Cache
-REDIS_PASSWORD=Secur1_Ergon_Redis_2026_M2NVMe!
+REDIS_PASSWORD=${REDIS_PWD}
 
-# Métier PDF
-DOCUMENT_PDF_GENERATOR_CLASS=apps.documents.pdf.WeasyPrintPDFGEnerator
+# Moteur PDF
+DOCUMENT_PDF_GENERATOR_CLASS=apps.documents.pdf.WeasyPrintPDFGenerator
 
 # Port Web d'Accès
 CLIENT_APP_PORT=80
-EOF</code></pre>
+ENV_EOF
+
+# 3. Verrouillage des permissions du fichier de configuration
+chmod 600 .env.rpi5</code></pre>
             </div>
         </section>
 
@@ -265,7 +277,7 @@ docker compose --env-file .env.rpi5 -f deploy/client/compose.yaml exec backend p
             <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 font-black text-mg flex items-center justify-center">4</div>
                 <div>
-                    <h2 class="text-2xl font-bold text-white">Étape 4 ‖ Aùto-Demarrage (Systemd) & Sauvegardes Nocturnes</h2>
+                    <h2 class="text-2xl font-bold text-white">Étape 4 â€– AÃ¹to-Demarrage (Systemd) & Sauvegardes Nocturnes</h2>
                     <p class="text-sm text-slate-400">Assure le redémarrage automatique en cas de coupure de courant et planifie le dump PostgroSQL</p>
                 </div>
             </div>
@@ -299,14 +311,14 @@ sudo systemctl daemon-reload && sudo systemctl enable ergon-erp.service</code></
             <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 font-black text-mg flex items-center justify-center">5</div>
                 <div>
-                    <h2 class="text-2xl font-bold text-white">Étape 5 ‖ Utilisation R�seau & Imprimante X0rinter 80mnhigh</h2>
+                    <h2 class="text-2xl font-bold text-white">Étape 5 â€– Utilisation Réseau & Imprimante X0rinter 80mnhigh</h2>
                     <p class="text-sm text-slate-400">Comment connecter les équipes et imprimer les tickets</p>
                 </div>
             </div>
 
             <div class="space-y-4 text-sm text-slate-300">
                 <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                    <h4 class="text-base font-bold text-white mb-2">1. Accès des Équipes dans l'agence :</h4>
+                    <h4 class="text-base font-bold text-white mb-2">1. Accès des Ã‰quipes dans l'agence :</h4>
                     <p class="text-xs sm:text-sm text-slate-400">
                         Depuis n'importe quel PC, Mac, iPad ou smartphone connecté au Wi-Fi de l'agence, ouvrez le navigateur et tapez :
                         <strong class="text-indigo-400 text-base">http://hahitantsoa-erp.local</strong></p>
@@ -315,7 +327,7 @@ sudo systemctl daemon-reload && sudo systemctl enable ergon-erp.service</code></
                 <div class="p-5 rounded-xl bg-slate-900 border border-slate-800">
                     <h4 class="text-base font-bold text-white mb-2">2. Impression thermique 80 mm des reçus d'acompte :</h4>
                     <p class="text-xs sm:text-sm text-slate-400">
-                        Lorsque le caissier encaisse un acompte, depuis sa tablette ou son ordinateur, il clique sur <strong>« Imprimer le reçu 80mm »</strong>. Le dialogue d'impression du navigateur envoie le flux sur d'un clic vers l'XPrinter 80mm avec découpe automatique.
+                        Lorsque le caissier encaisse un acompte, depuis sa tablette ou son ordinateur, il clique sur <strong>Â«Â Imprimer le reçu 80mmÂ Â»</strong>. Le dialogue d'impression du navigateur envoie le flux sur d'un clic vers l'XPrinter 80mm avec découpe automatique.
                     </p>
                 </div>
             </div>
