@@ -380,10 +380,11 @@ describe("HahitantsoaDocumentsPanel", () => {
     render(<HahitantsoaDocumentsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Générer HTML" })).toBeInTheDocument();
+      expect(screen.getByText("HTML prêt (ID : inst-2)")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Générer HTML" }));
+    const generateBtn = screen.getByRole("button", { name: "Générer HTML" });
+    fireEvent.click(generateBtn);
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Generation failed");

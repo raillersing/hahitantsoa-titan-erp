@@ -25,12 +25,42 @@ export function detectPageCount(html: string): number {
   return Math.max(1, pageMarkers?.length ?? 1);
 }
 
+export function printDocumentHtml(html: string) {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  const printFrame = document.createElement("iframe");
+  printFrame.style.position = "fixed";
+  printFrame.style.right = "0";
+  printFrame.style.bottom = "0";
+  printFrame.style.width = "0";
+  printFrame.style.height = "0";
+  printFrame.style.border = "0";
+  printFrame.setAttribute("aria-hidden", "true");
+  document.body.appendChild(printFrame);
+
+  const frameDoc = printFrame.contentWindow?.document;
+  if (frameDoc) {
+    frameDoc.open();
+    frameDoc.write(html);
+    frameDoc.close();
+    printFrame.contentWindow?.focus();
+    setTimeout(() => {
+      printFrame.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 1500);
+    }, 250);
+  }
+}
+
 export interface DocumentCanvasViewerProps {
   html: string;
   title?: string;
   paperSize?: PaperSize;
   className?: string;
   sandbox?: string;
+  showPrintButton?: boolean;
 }
 
 /**
@@ -45,6 +75,7 @@ export function DocumentCanvasViewer({
   paperSize: initialPaperSize,
   className = "",
   sandbox = "",
+  showPrintButton = false,
 }: DocumentCanvasViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -73,34 +104,48 @@ export function DocumentCanvasViewer({
   const isNativeScale = scale >= 0.99;
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="document-canvas-container"
-      data-paper-size={paperSize}
-      data-page-count={pageCount}
-      className={`relative mx-auto flex justify-center overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-2xl transition-all ${className}`}
-      style={{
-        width: "100%",
-        maxWidth: `${dimensions.width}px`,
-        height: `${Math.round(dimensions.height * pageCount * scale)}px`,
-      }}
-    >
-      <iframe
-        title={title}
-        srcDoc={html}
-        loading="lazy"
-        sandbox={sandbox}
-        className="block border-0 bg-white shrink-0"
+    <div className="flex flex-col items-center w-full">
+      {showPrintButton && (
+        <div className="w-full flex justify-end mb-3" style={{ maxWidth: `${dimensions.width}px` }}>
+          <button
+            type="button"
+            onClick={() => printDocumentHtml(html)}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <i className="fa-solid fa-print" aria-hidden="true"></i>
+            <span>Imprimer</span>
+          </button>
+        </div>
+      )}
+      <div
+        ref={containerRef}
+        data-testid="document-canvas-container"
+        data-paper-size={paperSize}
+        data-page-count={pageCount}
+        className={`relative mx-auto flex justify-center overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-2xl transition-all ${className}`}
         style={{
-          width: `${dimensions.width}px`,
-          height: `${dimensions.height * pageCount}px`,
-          transform: isNativeScale ? "none" : `scale(${scale})`,
-          transformOrigin: "top left",
-          WebkitFontSmoothing: "antialiased",
-          MozOsxFontSmoothing: "grayscale",
-          textRendering: "optimizeLegibility",
+          width: "100%",
+          maxWidth: `${dimensions.width}px`,
+          height: `${Math.round(dimensions.height * pageCount * scale)}px`,
         }}
-      />
+      >
+        <iframe
+          title={title}
+          srcDoc={html}
+          loading="lazy"
+          sandbox={sandbox}
+          className="block border-0 bg-white shrink-0"
+          style={{
+            width: `${dimensions.width}px`,
+            height: `${dimensions.height * pageCount}px`,
+            transform: isNativeScale ? "none" : `scale(${scale})`,
+            transformOrigin: "top left",
+            WebkitFontSmoothing: "antialiased",
+            MozOsxFontSmoothing: "grayscale",
+            textRendering: "optimizeLegibility",
+          }}
+        />
+      </div>
     </div>
   );
 }

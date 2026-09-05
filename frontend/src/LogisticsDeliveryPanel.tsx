@@ -381,13 +381,13 @@ export function LogisticsDeliveryPanel({
   }, [selectedEventId]);
 
   useEffect(() => {
-    setPassationState({ documentInstanceId: null, loading: true, error: null });
-    if (selectedEvent) {
-      void loadPassationDocument(selectedEvent);
-    } else {
+    if (!selectedEvent) {
       setPassationState({ documentInstanceId: null, loading: false, error: null });
+      return;
     }
-  }, [loadPassationDocument, selectedEventId]);
+    setPassationState({ documentInstanceId: null, loading: true, error: null });
+    void loadPassationDocument(selectedEvent);
+  }, [loadPassationDocument, selectedEvent?.id]);
 
   const handleTransition = async (newStatus: LogisticsEvent["status"]) => {
     if (!selectedEvent || !canWrite) {

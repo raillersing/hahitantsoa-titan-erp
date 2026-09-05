@@ -128,8 +128,12 @@ export default function PackageBuilderPage() {
     return null;
   }, [editingDraft, selectedPkg]);
 
+  const prevSelectedPkgIdRef = useRef<string | null>(selectedPkgId);
   useEffect(() => {
-    setEditingDraft(null);
+    if (prevSelectedPkgIdRef.current && prevSelectedPkgIdRef.current !== selectedPkgId) {
+      setEditingDraft(null);
+    }
+    prevSelectedPkgIdRef.current = selectedPkgId;
   }, [selectedPkgId]);
 
   const updateDraft = (updates: Partial<{

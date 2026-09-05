@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { AppScope } from "../App";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreview } from "./DocumentPreview";
+import { printDocumentHtml } from "./DocumentCanvasViewer";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
@@ -2492,17 +2493,35 @@ export default function ReservationDetailPage({
                                         : "Aperçu du document")}
                 </span>
               </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setPreviewModal(null);
-                  setPreviewDoc(null);
-                }}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors cursor-pointer"
-                title="Fermer"
-              >
-                <i className="fa-solid fa-xmark text-lg"></i>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const modal = document.querySelector(".fixed.inset-0.z-50");
+                    const iframe = modal?.querySelector("iframe");
+                    if (iframe?.srcdoc) {
+                      printDocumentHtml(iframe.srcdoc);
+                    } else if (iframe?.contentWindow) {
+                      iframe.contentWindow.focus();
+                      iframe.contentWindow.print();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-print"></i> Imprimer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewModal(null);
+                    setPreviewDoc(null);
+                  }}
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors cursor-pointer"
+                  title="Fermer"
+                >
+                  <i className="fa-solid fa-xmark text-lg"></i>
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-auto p-6 bg-slate-100/50">
               {previewModal?.documentInstanceId ? (
