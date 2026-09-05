@@ -4,6 +4,7 @@ import { getDocumentInstancePdfBlob } from "./api";
 
 type DocumentPdfPreviewPanelProps = {
   documentInstanceId?: string;
+  embedded?: boolean;
 };
 
 type PdfPreviewState =
@@ -14,7 +15,9 @@ type PdfPreviewState =
 
 function DocumentPdfPreviewPanel({
   documentInstanceId: linkedDocumentInstanceId,
+  embedded: explicitEmbedded,
 }: DocumentPdfPreviewPanelProps) {
+  const isEmbedded = explicitEmbedded ?? Boolean(linkedDocumentInstanceId);
   const [documentInstanceId, setDocumentInstanceId] = useState("");
   const [previewState, setPreviewState] = useState<PdfPreviewState>({ status: "idle" });
 
@@ -93,23 +96,24 @@ function DocumentPdfPreviewPanel({
   }
 
   return (
-    <section className="artifact-preview-section" aria-labelledby="pdf-preview-heading">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Private PDF artifacts</p>
-          <h2 id="pdf-preview-heading">Document PDF preview</h2>
-          <p className="section-helper">
-            Controlled frontend preview for generated PDF artifacts only. This surface uses
-            the private backend endpoint and creates no public URL.
-          </p>
+    <section
+      className={`artifact-preview-section ${isEmbedded ? "artifact-preview-section--embedded" : ""}`}
+      aria-labelledby={isEmbedded ? undefined : "pdf-preview-heading"}
+    >
+      {!isEmbedded ? (
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Private PDF artifacts</p>
+            <h2 id="pdf-preview-heading">Document PDF preview</h2>
+            <p className="section-helper">
+              Controlled frontend preview for generated PDF artifacts only. This surface uses
+              the private backend endpoint and creates no public URL.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      {linkedDocumentInstanceId ? (
-        <p className="ops-preview-note" role="status">
-          Aperçu chargé depuis l’instance sélectionnée : {linkedDocumentInstanceId}
-        </p>
-      ) : (
+      {!linkedDocumentInstanceId ? (
         <form className="artifact-preview-form" onSubmit={handleSubmit}>
           <label>
             Document instance ID
@@ -129,7 +133,7 @@ function DocumentPdfPreviewPanel({
             Load PDF preview
           </button>
         </form>
-      )}
+      ) : null}
 
       {previewState.status === "loading" ? (
         <div className="notice loading-notice artifact-preview-status" role="status">
@@ -148,12 +152,14 @@ function DocumentPdfPreviewPanel({
 
       {previewState.status === "loaded" ? (
         <div className="artifact-preview-frame-shell">
-          <div className="artifact-preview-meta">
-            <strong>
-              Previewing PDF document instance {previewState.documentInstanceId}
-            </strong>
-            <p>Rendered from the authenticated private PDF endpoint inside an iframe.</p>
-          </div>
+          {!isEmbedded ? (
+            <div className="artifact-preview-meta">
+              <strong>
+                Previewing PDF document instance {previewState.documentInstanceId}
+              </strong>
+              <p>Rendered from the authenticated private PDF endpoint inside an iframe.</p>
+            </div>
+          ) : null}
           <iframe
             className="artifact-preview-frame"
             loading="lazy"

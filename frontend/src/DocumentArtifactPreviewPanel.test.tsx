@@ -134,4 +134,25 @@ describe("DocumentArtifactPreviewPanel", () => {
       "No generated HTML artifact was found for this document instance.",
     );
   });
+
+  it("omits developer debug heading and metadata text in embedded mode", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      htmlResponse("<html><body><h1>Embedded Real Document</h1></body></html>"),
+    );
+
+    render(<DocumentArtifactPreviewPanel documentInstanceId="inst-clean" />);
+
+    expect(
+      screen.queryByRole("heading", { name: "Document artifact preview" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Private HTML artifacts/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Aperçu chargé depuis l’instance sélectionnée/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Rendered from the authenticated private artifact/i)).not.toBeInTheDocument();
+
+    expect(
+      await screen.findByTitle("Document artifact preview inst-clean"),
+    ).toBeInTheDocument();
+  });
 });

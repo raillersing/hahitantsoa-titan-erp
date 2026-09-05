@@ -917,7 +917,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     const lines = selectedMaterials.map((material) => ({
       inventory_item_id: material.id,
       quantity: material.quantity,
-      notes: material.name,
+      notes: (material as { notes?: string }).notes || "",
     }));
     let emission: ProspectProformaEmission = prospectProformaEmission?.domain === domain
       ? prospectProformaEmission
@@ -1117,7 +1117,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     const lines = selectedMaterials.map((material) => ({
       inventory_item_id: material.id,
       quantity: material.quantity,
-      notes: material.name,
+      notes: (material as { notes?: string }).notes || "",
     }));
     const documentPayload = {
       template_key: isHahitantsoa ? "hahitantsoa.proforma.v1" : "titan.proforma.v1",
