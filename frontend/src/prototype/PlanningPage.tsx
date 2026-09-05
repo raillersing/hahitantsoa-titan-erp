@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   cancelVisitAppointment,
   completeVisitAppointment,
+  createCustomer,
   createVisitAppointment,
   getCustomers,
   getHahitantsoaEventDrafts,
@@ -2039,7 +2040,20 @@ function AddVisitModal({
   const [responsibles, setResponsibles] = useState<VisitResponsible[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
 
-  const [customerId, setCustomerId] = useState("");
+  // Mode: existing customer search vs new prospect express
+  const [contactMode, setContactMode] = useState<"existing" | "new_prospect">("existing");
+
+  // Existing customer search
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  // New prospect fields
+  const [prospectName, setProspectName] = useState("");
+  const [prospectPhone, setProspectPhone] = useState("");
+  const [prospectEmail, setProspectEmail] = useState("");
+  const [prospectPartyType, setProspectPartyType] = useState<"individual" | "company">("individual");
+
+  // Common visit fields
   const [reason, setReason] = useState<VisitReason>("simple_visit");
   const [dateStr, setDateStr] = useState(initialDate || new Date().toISOString().slice(0, 10));
   const [timeStr, setTimeStr] = useState(initialTime || "10:00");
@@ -2059,13 +2073,10 @@ function AddVisitModal({
           getVisitResponsibles().catch(() => [] as VisitResponsible[]),
         ]);
         if (!active) return;
-        setCustomers(custs);
+        setCustomers(custs.filter((c) => c.is_active !== false && !c.is_deleted));
         setResponsibles(resps);
         if (resps.length > 0) {
           setResponsibleId(resps[0].id);
-        }
-        if (custs.length > 0) {
-          setCustomerId(custs[0].id);
         }
       } finally {
         if (active) setLoadingInitial(false);
@@ -2077,20 +2088,59 @@ function AddVisitModal({
     };
   }, []);
 
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers.slice(0, 8);
+    return customers
+      .filter((c) => {
+        const name = (c.display_name || c.representative_name || "").toLowerCase();
+        const email = (c.email || "").toLowerCase();
+        const phone = (c.phone || "").toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q);
+      })
+      .slice(0, 8);
+  }, [customers, customerSearch]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerId) {
-      setError("Veuillez sélectionner un client.");
-      return;
-    }
-
     setSubmitting(true);
     setError(null);
 
     try {
+      let targetCustomerId = "";
+
+      if (contactMode === "new_prospect") {
+        if (!prospectName.trim()) {
+          setError("Veuillez renseigner le nom complet du prospect.");
+          setSubmitting(false);
+          return;
+        }
+        if (!prospectPhone.trim()) {
+          setError("Veuillez renseigner un numéro de téléphone de contact.");
+          setSubmitting(false);
+          return;
+        }
+
+        const newCust = await createCustomer({
+          display_name: prospectName.trim(),
+          phone: prospectPhone.trim() || undefined,
+          email: prospectEmail.trim() || undefined,
+          party_type: prospectPartyType,
+          lifecycle_status: "prospect",
+        });
+        targetCustomerId = newCust.id;
+      } else {
+        if (!selectedCustomer) {
+          setError("Veuillez rechercher et sélectionner un client ou créer un nouveau prospect.");
+          setSubmitting(false);
+          return;
+        }
+        targetCustomerId = selectedCustomer.id;
+      }
+
       const scheduled_at = `${dateStr}T${timeStr}:00`;
       const payload: VisitAppointmentPayload = {
-        customer_id: customerId,
+        customer_id: targetCustomerId,
         reason,
         scheduled_at,
         responsible_id: responsibleId,
@@ -2112,16 +2162,17 @@ function AddVisitModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+        {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 flex items-center justify-center">
               <i className="fa-solid fa-calendar-plus text-base"></i>
             </div>
             <div>
               <h3 className="text-base font-black text-slate-900 dark:text-white">
                 Nouveau Rendez-vous / Visite
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-medium">
                 Planification rapide sur l'agenda de l'entreprise
               </p>
             </div>
@@ -2129,7 +2180,7 @@ function AddVisitModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 flex items-center justify-center"
+            className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center transition"
           >
             <i className="fa-solid fa-xmark"></i>
           </button>
@@ -2149,29 +2200,237 @@ function AddVisitModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Contact Mode Switcher */}
             <div>
-              <label
-                htmlFor="visit-customer"
-                className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
-              >
-                Client / Prospect *
-              </label>
-              <select
-                id="visit-customer"
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-              >
-                <option value="">Sélectionner un client...</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.display_name || c.email || c.id}
-                  </option>
-                ))}
-              </select>
+              <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContactMode("existing");
+                    setError(null);
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    contactMode === "existing"
+                      ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <i className="fa-solid fa-magnifying-glass text-[11px]"></i>
+                  <span>Client existant</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContactMode("new_prospect");
+                    setError(null);
+                  }}
+                  className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    contactMode === "new_prospect"
+                      ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs"
+                      : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                  }`}
+                >
+                  <i className="fa-solid fa-user-plus text-[11px]"></i>
+                  <span>+ Nouveau Prospect</span>
+                </button>
+              </div>
             </div>
 
+            {/* Mode: Existing Customer Search */}
+            {contactMode === "existing" && (
+              <div className="space-y-2">
+                <label
+                  htmlFor="visit-customer-search"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300"
+                >
+                  Sélectionner le Client / Prospect *
+                </label>
+
+                {selectedCustomer ? (
+                  <div className="p-3 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 rounded-2xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                        {selectedCustomer.display_name?.slice(0, 2).toUpperCase() || "CL"}
+                      </div>
+                      <div className="overflow-hidden">
+                        <div className="font-bold text-xs text-slate-900 dark:text-white truncate flex items-center gap-2">
+                          <span>{selectedCustomer.display_name}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                              selectedCustomer.lifecycle_status === "client"
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            }`}
+                          >
+                            {selectedCustomer.lifecycle_status === "client"
+                              ? "Client"
+                              : "Prospect"}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate">
+                          {selectedCustomer.phone && <span className="mr-2">📞 {selectedCustomer.phone}</span>}
+                          {selectedCustomer.email && <span>✉️ {selectedCustomer.email}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCustomer(null);
+                        setCustomerSearch("");
+                      }}
+                      className="px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-rose-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition shrink-0"
+                    >
+                      <i className="fa-solid fa-xmark mr-1"></i>Changer
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+                      <input
+                        id="visit-customer-search"
+                        type="text"
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        placeholder="Rechercher par nom, téléphone, e-mail..."
+                        className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="max-h-40 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                      {filteredCustomers.length === 0 ? (
+                        <div className="p-4 text-center space-y-2">
+                          <p className="text-xs text-slate-400 font-medium">
+                            Aucun contact trouvé pour "{customerSearch}".
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setContactMode("new_prospect");
+                              setProspectName(customerSearch);
+                            }}
+                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold transition"
+                          >
+                            <i className="fa-solid fa-user-plus mr-1.5"></i>
+                            Créer comme nouveau prospect
+                          </button>
+                        </div>
+                      ) : (
+                        filteredCustomers.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCustomer(c);
+                              setCustomerSearch("");
+                            }}
+                            className="w-full text-left p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between gap-2 transition"
+                          >
+                            <div className="overflow-hidden">
+                              <div className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                {c.display_name || c.representative_name || c.email || c.phone}
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate">
+                                {c.phone && <span className="mr-2">📞 {c.phone}</span>}
+                                {c.email && <span>✉️ {c.email}</span>}
+                              </div>
+                            </div>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                                c.lifecycle_status === "client"
+                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                              }`}
+                            >
+                              {c.lifecycle_status === "client" ? "Client" : "Prospect"}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mode: New Prospect Express */}
+            {contactMode === "new_prospect" && (
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <i className="fa-solid fa-user-plus text-indigo-600"></i>
+                    Fiche Prospect Express
+                  </span>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-md">
+                    Enregistrement automatique
+                  </span>
+                </div>
+
+                <div>
+                  <label htmlFor="prospect-name" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Nom complet / Raison sociale *
+                  </label>
+                  <input
+                    id="prospect-name"
+                    type="text"
+                    value={prospectName}
+                    onChange={(e) => setProspectName(e.target.value)}
+                    required
+                    placeholder="Ex: Famille Rakoto, Société Madagascar Events..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="prospect-phone" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Téléphone mobile *
+                    </label>
+                    <input
+                      id="prospect-phone"
+                      type="tel"
+                      value={prospectPhone}
+                      onChange={(e) => setProspectPhone(e.target.value)}
+                      required
+                      placeholder="Ex: 034 00 000 00"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="prospect-email" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Email (optionnel)
+                    </label>
+                    <input
+                      id="prospect-email"
+                      type="email"
+                      value={prospectEmail}
+                      onChange={(e) => setProspectEmail(e.target.value)}
+                      placeholder="Ex: contact@email.mg"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="prospect-party-type" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Typologie de prospect
+                  </label>
+                  <select
+                    id="prospect-party-type"
+                    value={prospectPartyType}
+                    onChange={(e) => setProspectPartyType(e.target.value as "individual" | "company")}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="individual">Particulier (Mariage, Fête, Anniversaire...)</option>
+                    <option value="company">Entreprise / Institution / Professionnel</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Visit Details */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label
@@ -2186,9 +2445,9 @@ function AddVisitModal({
                   onChange={(e) => setReason(e.target.value as VisitReason)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 >
-                  <option value="simple_visit">Simple visite</option>
-                  <option value="prospect">Visite prospect</option>
-                  <option value="other">Autre raison</option>
+                  <option value="simple_visit">Simple visite de repérage</option>
+                  <option value="prospect">Rendez-vous prospect commercial</option>
+                  <option value="other">Autre rendez-vous</option>
                 </select>
               </div>
 
@@ -2197,7 +2456,7 @@ function AddVisitModal({
                   htmlFor="visit-responsible"
                   className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
                 >
-                  Responsable
+                  Responsable assigné
                 </label>
                 <select
                   id="visit-responsible"
@@ -2262,7 +2521,7 @@ function AddVisitModal({
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="Ex: Local de l'entreprise, Salle 1, Chez le client..."
+                placeholder="Ex: Local de l'entreprise, Salle principale, Chez le client..."
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -2278,7 +2537,7 @@ function AddVisitModal({
                 id="visit-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                rows={3}
+                rows={2}
                 placeholder="Détails complémentaires sur le rendez-vous..."
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none"
               />
@@ -2305,7 +2564,7 @@ function AddVisitModal({
                 ) : (
                   <>
                     <i className="fa-solid fa-check"></i>
-                    <span>Créer le RDV</span>
+                    <span>{contactMode === "new_prospect" ? "Créer prospect & RDV" : "Créer le RDV"}</span>
                   </>
                 )}
               </button>

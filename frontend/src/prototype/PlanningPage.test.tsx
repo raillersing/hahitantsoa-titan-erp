@@ -171,7 +171,7 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
     expect(screen.getByText("Visiteur Prospect")).toBeInTheDocument();
   });
 
-  it("opens the quick visit creation modal and handles submission", async () => {
+  it("opens the quick visit creation modal, searches for a customer, and handles submission", async () => {
     render(<PlanningPage />);
 
     const newRdvBtn = await screen.findByRole("button", { name: /\+ Nouveau RDV \/ Visite/i });
@@ -179,9 +179,15 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
 
     expect(await screen.findByText("Nouveau Rendez-vous / Visite")).toBeInTheDocument();
 
-    // Select customer
-    const customerSelect = screen.getByLabelText(/Client \/ Prospect/i);
-    fireEvent.change(customerSelect, { target: { value: "cust-1" } });
+    // Search and select existing customer after initial load
+    const searchInput = await screen.findByPlaceholderText(/Rechercher par nom, téléphone, e-mail/i);
+    fireEvent.change(searchInput, { target: { value: "Client Test" } });
+
+    const customerItem = await screen.findByText("Client Test Alpha");
+    fireEvent.click(customerItem);
+
+    // Selected customer badge is now visible
+    expect(screen.getByText("Client Test Alpha")).toBeInTheDocument();
 
     // Submit form
     const submitBtn = screen.getByRole("button", { name: /Créer le RDV/i });
@@ -191,6 +197,60 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
       expect(api.createVisitAppointment).toHaveBeenCalledWith(
         expect.objectContaining({
           customer_id: "cust-1",
+          reason: "simple_visit",
+        }),
+      );
+    });
+  });
+
+  it("creates a new prospect on the fly and schedules a visit in the same modal", async () => {
+    const createCustomerSpy = vi.spyOn(api, "createCustomer").mockResolvedValue({
+      id: "new-prospect-99",
+      display_name: "Famille Dupont Express",
+      phone: "0340011223",
+      lifecycle_status: "prospect",
+    } as any);
+
+    render(<PlanningPage />);
+
+    const newRdvBtn = await screen.findByRole("button", { name: /\+ Nouveau RDV \/ Visite/i });
+    fireEvent.click(newRdvBtn);
+
+    expect(await screen.findByText("Nouveau Rendez-vous / Visite")).toBeInTheDocument();
+
+    // Switch to Nouveau Prospect mode after initial load
+    const newProspectTab = await screen.findByRole("button", { name: /\+ Nouveau Prospect/i });
+    fireEvent.click(newProspectTab);
+
+    // Fill in prospect info
+    const nameInput = await screen.findByLabelText(/Nom complet \/ Raison sociale/i);
+    fireEvent.change(nameInput, { target: { value: "Famille Dupont Express" } });
+
+    const phoneInput = screen.getByLabelText(/Téléphone mobile/i);
+    fireEvent.change(phoneInput, { target: { value: "0340011223" } });
+
+    const emailInput = screen.getByLabelText(/Email \(optionnel\)/i);
+    fireEvent.change(emailInput, { target: { value: "dupont@test.mg" } });
+
+    // Submit form
+    const submitBtn = screen.getByRole("button", { name: /Créer prospect & RDV/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(createCustomerSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          display_name: "Famille Dupont Express",
+          phone: "0340011223",
+          email: "dupont@test.mg",
+          lifecycle_status: "prospect",
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(api.createVisitAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customer_id: "new-prospect-99",
           reason: "simple_visit",
         }),
       );
