@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  cancelVisitAppointment,
+  completeVisitAppointment,
   createVisitAppointment,
   getCustomers,
   getHahitantsoaEventDrafts,
@@ -9,6 +11,7 @@ import {
   getTitanClosedDays,
   getVisitAppointments,
   getVisitResponsibles,
+  updateVisitAppointment,
 } from "../api";
 import type {
   Customer,
@@ -912,6 +915,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
         <EventDetailDrawer
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
+          onRefresh={loadData}
           onNavigate={(event) => {
             setSelectedEvent(null);
             handleNavigateToEvent(event);
@@ -1135,7 +1139,8 @@ function WeekViewGrid({
                     return (
                       <div
                         key={event.id}
-                        className={`rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 p-3 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all border-l-4 ${cfg.cardAccent} ${cfg.borderBadge}`}
+                        onClick={() => onEventClick(event)}
+                        className={`rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 p-3 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all border-l-4 cursor-pointer ${cfg.cardAccent} ${cfg.borderBadge}`}
                       >
                         <div className="flex items-center justify-between gap-1 mb-1.5">
                           <span
@@ -1568,14 +1573,33 @@ interface EventDetailDrawerProps {
   event: UnifiedPlanningEvent;
   onClose: () => void;
   onNavigate: (event: UnifiedPlanningEvent) => void;
+  onRefresh?: () => void | Promise<void>;
 }
 
 function EventDetailDrawer({
   event,
   onClose,
   onNavigate,
+  onRefresh,
 }: EventDetailDrawerProps) {
   const cfg = CATEGORY_CONFIG[event.category];
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Edit visit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDate, setEditDate] = useState(() => {
+    return event.startAt.toISOString().slice(0, 10);
+  });
+  const [editTime, setEditTime] = useState(() => {
+    const hours = String(event.startAt.getHours()).padStart(2, "0");
+    const mins = String(event.startAt.getMinutes()).padStart(2, "0");
+    return `${hours}:${mins}`;
+  });
+  const [editLocation, setEditLocation] = useState(event.location || "Local de l'entreprise");
+  const [editNotes, setEditNotes] = useState(event.notes || "");
+  const [editResponsibleId, setEditResponsibleId] = useState("");
+  const [responsibles, setResponsibles] = useState<VisitResponsible[]>([]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1584,6 +1608,77 @@ function EventDetailDrawer({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    if (event.category === "visit") {
+      void getVisitResponsibles()
+        .then((data) => {
+          setResponsibles(data);
+          if (event.raw?.responsible_id) {
+            setEditResponsibleId(event.raw.responsible_id);
+          } else if (data.length > 0) {
+            setEditResponsibleId(data[0].id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [event]);
+
+  const handleCompleteVisit = async () => {
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      await completeVisitAppointment(event.id);
+      await onRefresh?.();
+      onClose();
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error ? err.message : "Erreur lors de la validation du rendez-vous.",
+      );
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleCancelVisit = async () => {
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      await cancelVisitAppointment(event.id);
+      await onRefresh?.();
+      onClose();
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error ? err.message : "Erreur lors de l'annulation du rendez-vous.",
+      );
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsActionLoading(true);
+    setActionError(null);
+    try {
+      const scheduled_at = `${editDate}T${editTime}:00`;
+      await updateVisitAppointment(event.id, {
+        scheduled_at,
+        location: editLocation,
+        notes: editNotes,
+        responsible_id: editResponsibleId || undefined,
+      });
+      await onRefresh?.();
+      setIsEditing(false);
+      onClose();
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error ? err.message : "Erreur lors de la mise à jour du rendez-vous.",
+      );
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -1637,88 +1732,254 @@ function EventDetailDrawer({
 
           {/* Body content */}
           <div className="p-6 space-y-6 overflow-y-auto flex-1">
-            {/* Dates & Times */}
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-3 border border-slate-100 dark:border-slate-800">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                <i className="fa-regular fa-clock mr-1.5"></i>
-                Date et horaires
-              </h3>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-slate-400 block text-[11px]">Début :</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {event.startAt.toLocaleDateString("fr-FR", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })}{" "}
-                    à {formatTime(event.startAt)}
-                  </span>
-                </div>
-                {event.endAt && (
+            {actionError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+                <i className="fa-solid fa-circle-exclamation mr-1.5"></i>
+                {actionError}
+              </div>
+            )}
+
+            {isEditing ? (
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                  <i className="fa-solid fa-pen-to-square mr-1.5"></i>
+                  Modifier le rendez-vous
+                </h3>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-slate-400 block text-[11px]">Fin :</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {event.endAt.toLocaleDateString("fr-FR", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      })}{" "}
-                      à {formatTime(event.endAt)}
-                    </span>
+                    <label htmlFor="edit-visit-date" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Date *
+                    </label>
+                    <input
+                      id="edit-visit-date"
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-visit-time" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Heure *
+                    </label>
+                    <input
+                      id="edit-visit-time"
+                      type="time"
+                      value={editTime}
+                      onChange={(e) => setEditTime(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="edit-visit-resp" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Responsable
+                  </label>
+                  <select
+                    id="edit-visit-resp"
+                    value={editResponsibleId}
+                    onChange={(e) => setEditResponsibleId(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    {responsibles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.display_name || r.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="edit-visit-loc" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Lieu du RDV
+                  </label>
+                  <input
+                    id="edit-visit-loc"
+                    type="text"
+                    value={editLocation}
+                    onChange={(e) => setEditLocation(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edit-visit-notes" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Notes & Remarques
+                  </label>
+                  <textarea
+                    id="edit-visit-notes"
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(false)}
+                    className="flex-1 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isActionLoading}
+                    className="flex-1 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isActionLoading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-check"></i>}
+                    <span>Enregistrer</span>
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                {/* Dates & Times */}
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-3 border border-slate-100 dark:border-slate-800">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <i className="fa-regular fa-clock mr-1.5"></i>
+                    Date et horaires
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-400 block text-[11px]">Début :</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {event.startAt.toLocaleDateString("fr-FR", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })}{" "}
+                        à {formatTime(event.startAt)}
+                      </span>
+                    </div>
+                    {event.endAt && (
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">Fin :</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {event.endAt.toLocaleDateString("fr-FR", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          })}{" "}
+                          à {formatTime(event.endAt)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Client / Interlocuteur */}
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    <i className="fa-regular fa-user mr-1.5"></i>
+                    Client / Interlocuteur
+                  </h3>
+                  <div className="font-bold text-sm text-slate-900 dark:text-white">
+                    {event.customerName}
+                  </div>
+                </div>
+
+                {/* Lieu */}
+                {event.location && (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      <i className="fa-solid fa-location-dot mr-1.5"></i>
+                      Lieu / Emplacement
+                    </h3>
+                    <div className="font-semibold text-xs text-slate-800 dark:text-slate-200">
+                      {event.location}
+                    </div>
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Client / Interlocuteur */}
-            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                <i className="fa-regular fa-user mr-1.5"></i>
-                Client / Interlocuteur
-              </h3>
-              <div className="font-bold text-sm text-slate-900 dark:text-white">
-                {event.customerName}
-              </div>
-            </div>
+                {/* Finances */}
+                {event.amountAriary !== undefined && (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      <i className="fa-solid fa-coins mr-1.5"></i>
+                      Montant concerné
+                    </h3>
+                    <div className="text-lg font-black text-rose-600 dark:text-rose-400">
+                      {formatAriary(event.amountAriary)}
+                    </div>
+                  </div>
+                )}
 
-            {/* Lieu */}
-            {event.location && (
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  <i className="fa-solid fa-location-dot mr-1.5"></i>
-                  Lieu / Emplacement
-                </h3>
-                <div className="font-semibold text-xs text-slate-800 dark:text-slate-200">
-                  {event.location}
-                </div>
-              </div>
-            )}
+                {/* Notes */}
+                {event.notes && (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      <i className="fa-regular fa-note-sticky mr-1.5"></i>
+                      Observations & Notes
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap">
+                      {event.notes}
+                    </p>
+                  </div>
+                )}
 
-            {/* Finances */}
-            {event.amountAriary !== undefined && (
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  <i className="fa-solid fa-coins mr-1.5"></i>
-                  Montant concerné
-                </h3>
-                <div className="text-lg font-black text-rose-600 dark:text-rose-400">
-                  {formatAriary(event.amountAriary)}
-                </div>
-              </div>
-            )}
+                {/* Direct Visit Actions */}
+                {event.category === "visit" && (
+                  <div className="bg-indigo-50/50 dark:bg-indigo-950/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center justify-between">
+                      <span><i className="fa-solid fa-list-check mr-1.5"></i>Actions sur le rendez-vous</span>
+                    </h3>
 
-            {/* Notes */}
-            {event.notes && (
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-2 border border-slate-100 dark:border-slate-800">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  <i className="fa-regular fa-note-sticky mr-1.5"></i>
-                  Observations & Notes
-                </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap">
-                  {event.notes}
-                </p>
-              </div>
+                    {event.statusKind === "scheduled" && (
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          disabled={isActionLoading}
+                          onClick={handleCompleteVisit}
+                          className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+                        >
+                          {isActionLoading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-circle-check"></i>}
+                          <span>Marquer comme terminée</span>
+                        </button>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => setIsEditing(true)}
+                            className="py-2 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                          >
+                            <i className="fa-solid fa-pen-to-square text-indigo-600"></i>
+                            <span>Modifier</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={handleCancelVisit}
+                            className="py-2 px-3 bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            <i className="fa-solid fa-ban"></i>
+                            <span>Annuler RDV</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {event.statusKind === "completed" && (
+                      <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                        <i className="fa-solid fa-circle-check text-emerald-600 text-base"></i>
+                        <span>Ce rendez-vous a été honoré et marqué comme terminé.</span>
+                      </div>
+                    )}
+
+                    {event.statusKind === "cancelled" && (
+                      <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold flex items-center gap-2">
+                        <i className="fa-solid fa-ban text-slate-500 text-base"></i>
+                        <span>Ce rendez-vous a été annulé.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -1732,7 +1993,16 @@ function EventDetailDrawer({
               Fermer
             </button>
 
-            {event.targetParam && (
+            {event.category === "visit" && event.customerId ? (
+              <button
+                type="button"
+                onClick={() => onNavigate({ ...event, targetScope: "customer", targetParam: event.customerId! })}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition shadow-sm flex items-center gap-2"
+              >
+                <span>Fiche client</span>
+                <i className="fa-solid fa-arrow-right"></i>
+              </button>
+            ) : event.targetParam ? (
               <button
                 type="button"
                 onClick={() => onNavigate(event)}
@@ -1741,7 +2011,7 @@ function EventDetailDrawer({
                 <span>Accéder au dossier</span>
                 <i className="fa-solid fa-arrow-right"></i>
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

@@ -196,4 +196,66 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
       );
     });
   });
+
+  it("completes a scheduled visit appointment from the drawer", async () => {
+    const monday = currentMonday();
+    vi.spyOn(api, "getVisitAppointments").mockResolvedValue([
+      {
+        id: "visit-123",
+        reason: "simple_visit",
+        customer_display_name: "Prospect Martin",
+        customer_id: "cust-1",
+        location: "Local de l'entreprise",
+        scheduled_at: monday.toISOString(),
+        status: "scheduled",
+      } as any,
+    ]);
+    const completeSpy = vi.spyOn(api, "completeVisitAppointment").mockResolvedValue({ id: "visit-123", status: "completed" } as any);
+
+    render(<PlanningPage />);
+
+    // In week view or agenda, find the visit card and click it to open drawer
+    const visitCards = await screen.findAllByText("Prospect Martin");
+    expect(visitCards.length).toBeGreaterThan(0);
+    fireEvent.click(visitCards[0]);
+
+    // Drawer should open with actions
+    expect(await screen.findByText(/Actions sur le rendez-vous/i)).toBeInTheDocument();
+    const completeBtn = screen.getByRole("button", { name: /Marquer comme terminée/i });
+    fireEvent.click(completeBtn);
+
+    await waitFor(() => {
+      expect(completeSpy).toHaveBeenCalledWith("visit-123");
+    });
+  });
+
+  it("cancels a scheduled visit appointment from the drawer", async () => {
+    const monday = currentMonday();
+    vi.spyOn(api, "getVisitAppointments").mockResolvedValue([
+      {
+        id: "visit-456",
+        reason: "prospect",
+        customer_display_name: "Prospect Dupont",
+        customer_id: "cust-1",
+        location: "Local de l'entreprise",
+        scheduled_at: monday.toISOString(),
+        status: "scheduled",
+      } as any,
+    ]);
+    const cancelSpy = vi.spyOn(api, "cancelVisitAppointment").mockResolvedValue({ id: "visit-456", status: "cancelled" } as any);
+
+    render(<PlanningPage />);
+
+    const visitCards = await screen.findAllByText("Prospect Dupont");
+    expect(visitCards.length).toBeGreaterThan(0);
+    fireEvent.click(visitCards[0]);
+
+    expect(await screen.findByText(/Actions sur le rendez-vous/i)).toBeInTheDocument();
+    const cancelBtn = screen.getByRole("button", { name: /Annuler RDV/i });
+    fireEvent.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(cancelSpy).toHaveBeenCalledWith("visit-456");
+    });
+  });
 });
