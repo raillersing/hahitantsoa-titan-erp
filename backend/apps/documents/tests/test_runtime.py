@@ -331,3 +331,64 @@ def test_hahitantsoa_event_draft_serializer_auto_creates_proforma_document(
     assert proforma.template_key == "hahitantsoa.proforma.v1"
     assert proforma.status == DocumentInstanceStatus.PREPARED
     assert proforma.customer_display_name == "Client Hahitantsoa Serializer Test"
+
+
+def test_all_supported_draft_preview_templates_for_hahitantsoa_and_titan(
+    client,
+    django_user_model,
+) -> None:
+    from apps.documents.runtime import (
+        HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS,
+        TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS,
+    )
+    from apps.hahitantsoa.models import HahitantsoaEventDraft
+
+    user = django_user_model.objects.create_user(
+        username="preview-all-user",
+        password="test-password",
+        is_staff=True,
+    )
+    client.force_login(user)
+
+    customer = Customer.objects.create(
+        display_name="Client Multi Preview Test",
+        lifecycle_status=CustomerLifecycleStatus.CLIENT,
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=15)
+    end_at = start_at + timedelta(hours=6)
+
+    # Test Titan draft preview
+    titan_draft = ReservationDraft.objects.create(
+        customer=customer,
+        start_at=start_at,
+        end_at=end_at,
+        total_amount=Decimal("450000.00"),
+    )
+    for template_key in TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS:
+        url = (
+            f"/api/v1/reservations/drafts/{titan_draft.id}/document-preview/"
+            f"?template_key={template_key}"
+        )
+        response = client.get(url)
+        assert response.status_code == 200, f"Failed for {template_key}: {response.content}"
+        assert "text/html" in response["Content-Type"]
+        assert len(response.content) > 100
+
+    # Test Hahitantsoa draft preview
+    h_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        created_by=user,
+        event_name="Celebration Preview Test",
+        start_at=start_at,
+        end_at=end_at,
+        total_amount=Decimal("750000.00"),
+    )
+    for template_key in HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS:
+        url = (
+            f"/api/v1/hahitantsoa/event-drafts/{h_draft.id}/documents/preview/"
+            f"?template_key={template_key}"
+        )
+        response = client.get(url)
+        assert response.status_code == 200, f"Failed for {template_key}: {response.content}"
+        assert "text/html" in response["Content-Type"]
+        assert len(response.content) > 100

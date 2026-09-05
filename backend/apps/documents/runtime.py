@@ -31,15 +31,22 @@ HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
         "hahitantsoa.proforma.v1",
         "hahitantsoa.contract.v1",
         "hahitantsoa.liability_release.v1",
+        "hahitantsoa.delivery_note.v1",
+        "hahitantsoa.preparation_sheet.v1",
+        "hahitantsoa.breakage_repair_invoice.v1",
+        "hahitantsoa.invoice.v1",
+        "hahitantsoa.contract_amendment.v1",
     }
 )
 TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
     {
         "titan.proforma.v1",
         "titan.material_contract.v1",
+        "titan.material_amendment.v1",
         "titan.delivery_note.v1",
         "titan.invoice.v1",
         "titan.breakage_repair_invoice.v1",
+        "shared.preparation_sheet.v1",
     }
 )
 
