@@ -33,6 +33,15 @@ HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
         "hahitantsoa.liability_release.v1",
     }
 )
+TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
+    {
+        "titan.proforma.v1",
+        "titan.material_contract.v1",
+        "titan.delivery_note.v1",
+        "titan.invoice.v1",
+        "titan.breakage_repair_invoice.v1",
+    }
+)
 
 
 _FRENCH_UNITS = (
@@ -365,6 +374,64 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
     return html_content
 
 
+def preview_reservation_draft_document_html(*, reservation_draft, template_key: str) -> str:
+    """Render an official Titan document with live draft data without persisting it."""
+    if template_key not in TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS:
+        raise DocumentRuntimeGenerationError(
+            "This Titan document is not available for a draft preview.",
+            code="titan_document_preview_template_not_supported",
+        )
+
+    from apps.documents.services import (
+        build_reservation_draft_commercial_document_context,
+        commercial_document_context_to_document_instance_kwargs,
+    )
+
+    context = build_reservation_draft_commercial_document_context(
+        reservation_draft=reservation_draft,
+        template_key=template_key,
+    )
+    preview_instance = DocumentInstance(
+        **commercial_document_context_to_document_instance_kwargs(
+            reservation_draft=reservation_draft,
+            context=context,
+            actor_id=None,
+            notes="",
+        )
+    )
+    preview_instance.reservation_draft = reservation_draft
+    runtime_context = _reservation_document_context(document_instance=preview_instance)
+    template_path = resolve_document_template_path(template_key)
+    if template_path is None:
+        template_path = context.template.template_path
+
+    bank = {
+        "name": preview_instance.bank_name,
+        "branch": preview_instance.bank_branch,
+        "account_holder": preview_instance.bank_account_holder,
+        "account_number": preview_instance.bank_account_number,
+        "rib": preview_instance.bank_rib,
+        "iban": preview_instance.bank_iban,
+        "swift_bic": preview_instance.bank_swift_bic,
+    }
+    render_context = {
+        "context": runtime_context,
+        "bank": bank,
+        "document": {
+            "date": preview_instance.document_date,
+            "reference": preview_instance.document_reference or reservation_draft.public_reference,
+            "proforma_reference": reservation_draft.public_reference + "-PF",
+        },
+    }
+    html_content = render_to_string(template_path, render_context)
+    if not html_content or not html_content.strip():
+        raise DocumentRuntimeGenerationError(
+            "Preview document HTML content is empty or invalid.",
+            code="empty_titan_document_preview_html",
+        )
+    return html_content
+
+
 def calculate_document_html_checksum(html_content: str) -> str:
     return hashlib.sha256(html_content.encode("utf-8")).hexdigest()
 
@@ -393,13 +460,14 @@ def generate_document_instance_html(
     *,
     document_instance: DocumentInstance,
     actor: object | None = None,
+    force: bool = False,
 ) -> DocumentGenerationResult:
     if document_instance.template_key == "hahitantsoa.house_rules.v1":
         raise DocumentRuntimeGenerationError(
             "The Hahitantsoa house rules are not generated as a document template.",
             code="house_rules_document_generation_disabled",
         )
-    if document_instance.status != DocumentInstanceStatus.PREPARED:
+    if not force and document_instance.status != DocumentInstanceStatus.PREPARED:
         raise DocumentRuntimeGenerationError(
             f"Cannot generate document from status: {document_instance.status}",
             code="invalid_document_status_for_generation",
@@ -594,7 +662,8 @@ def generate_document_instance_html(
             code="unsafe_storage_path",
         )
 
-    document_instance.status = DocumentInstanceStatus.GENERATED
+    if document_instance.status == DocumentInstanceStatus.PREPARED:
+        document_instance.status = DocumentInstanceStatus.GENERATED
     document_instance.content_checksum = checksum
     document_instance.generated_content_size_bytes = size_bytes
     document_instance.storage_path = storage_path

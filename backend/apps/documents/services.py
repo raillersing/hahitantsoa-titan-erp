@@ -19,7 +19,10 @@ from apps.documents.pdf import (
     calculate_pdf_checksum,
     get_pdf_generator,
 )
-from apps.documents.runtime import generate_document_instance_html
+from apps.documents.runtime import (
+    DocumentRuntimeGenerationError,
+    generate_document_instance_html,
+)
 from apps.documents.selectors import get_document_instance_by_id
 from apps.finance.models import FinanceBankProfile
 from apps.finance.services import get_default_finance_bank_profile
@@ -804,6 +807,11 @@ def generate_reservation_draft_document_instance_html(
         reservation_draft=reservation_draft,
         document_instance_id=document_instance_id,
     )
+    if instance.status != DocumentInstanceStatus.PREPARED:
+        raise DocumentRuntimeGenerationError(
+            f"Cannot generate document from status: {instance.status}",
+            code="invalid_document_status_for_generation",
+        )
     result = generate_document_instance_html(document_instance=instance, actor=actor)
     record_audit_event_on_commit(
         actor=actor,
@@ -831,6 +839,11 @@ def generate_hahitantsoa_event_draft_document_instance_html(
         event_draft=event_draft,
         document_instance_id=document_instance_id,
     )
+    if instance.status != DocumentInstanceStatus.PREPARED:
+        raise DocumentRuntimeGenerationError(
+            f"Cannot generate document from status: {instance.status}",
+            code="invalid_document_status_for_generation",
+        )
     result = generate_document_instance_html(document_instance=instance, actor=actor)
     record_audit_event_on_commit(
         actor=actor,

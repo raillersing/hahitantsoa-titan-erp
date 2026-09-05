@@ -8,6 +8,7 @@ from apps.reservations.views import (
     ReservationDraftCloseoutExecuteAPIView,
     ReservationDraftCloseoutSummaryAPIView,
     ReservationDraftConfirmAPIView,
+    ReservationDraftDocumentPreviewAPIView,
     ReservationDraftLifecycleAPIView,
     ReservationDraftListCreateAPIView,
     ReservationDraftMarkContractSignedAPIView,
@@ -18,6 +19,11 @@ from apps.reservations.views import (
 )
 
 urlpatterns = [
+    path(
+        "api/v1/reservations/drafts/<uuid:pk>/document-preview/",
+        ReservationDraftDocumentPreviewAPIView.as_view(),
+        name="reservation-draft-document-preview",
+    ),
     path(
         "api/v1/reservations/drafts/<uuid:pk>/lifecycle/",
         ReservationDraftLifecycleAPIView.as_view(),
