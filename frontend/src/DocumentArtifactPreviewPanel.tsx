@@ -5,6 +5,7 @@ import DocumentCanvasViewer from "./prototype/DocumentCanvasViewer";
 
 type DocumentArtifactPreviewPanelProps = {
   documentInstanceId?: string;
+  embedded?: boolean;
 };
 
 type ArtifactPreviewState =
@@ -15,7 +16,9 @@ type ArtifactPreviewState =
 
 function DocumentArtifactPreviewPanel({
   documentInstanceId: linkedDocumentInstanceId,
+  embedded: explicitEmbedded,
 }: DocumentArtifactPreviewPanelProps) {
+  const isEmbedded = explicitEmbedded ?? Boolean(linkedDocumentInstanceId);
   const [documentInstanceId, setDocumentInstanceId] = useState("");
   const [previewState, setPreviewState] = useState<ArtifactPreviewState>({
     status: "idle",
@@ -89,26 +92,24 @@ function DocumentArtifactPreviewPanel({
 
   return (
     <section
-      className="artifact-preview-section"
-      aria-labelledby="artifact-preview-heading"
+      className={`artifact-preview-section ${isEmbedded ? "artifact-preview-section--embedded" : ""}`}
+      aria-labelledby={isEmbedded ? undefined : "artifact-preview-heading"}
     >
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Private HTML artifacts</p>
-          <h2 id="artifact-preview-heading">Document artifact preview</h2>
-          <p className="section-helper">
-            Controlled frontend preview for generated HTML artifacts only. This
-            surface uses the private backend endpoint, exposes no storage path,
-            creates no public URL and does not generate PDF output.
-          </p>
+      {!isEmbedded ? (
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Private HTML artifacts</p>
+            <h2 id="artifact-preview-heading">Document artifact preview</h2>
+            <p className="section-helper">
+              Controlled frontend preview for generated HTML artifacts only. This
+              surface uses the private backend endpoint, exposes no storage path,
+              creates no public URL and does not generate PDF output.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      {linkedDocumentInstanceId ? (
-        <p className="ops-preview-note" role="status">
-          Aperçu chargé depuis l’instance sélectionnée : {linkedDocumentInstanceId}
-        </p>
-      ) : (
+      {!linkedDocumentInstanceId ? (
         <form className="artifact-preview-form" onSubmit={handleSubmit}>
           <label>
             Document instance ID
@@ -128,7 +129,7 @@ function DocumentArtifactPreviewPanel({
             Load artifact preview
           </button>
         </form>
-      )}
+      ) : null}
 
       {previewState.status === "loading" ? (
         <div className="notice loading-notice artifact-preview-status" role="status">
@@ -147,16 +148,18 @@ function DocumentArtifactPreviewPanel({
 
       {previewState.status === "loaded" ? (
         <div className="artifact-preview-frame-shell">
-          <div className="artifact-preview-meta">
-            <strong>
-              Previewing document instance{" "}
-              {previewState.documentInstanceId}
-            </strong>
-            <p>
-              Rendered from the authenticated private artifact endpoint inside a
-              sandboxed iframe.
-            </p>
-          </div>
+          {!isEmbedded ? (
+            <div className="artifact-preview-meta">
+              <strong>
+                Previewing document instance{" "}
+                {previewState.documentInstanceId}
+              </strong>
+              <p>
+                Rendered from the authenticated private artifact endpoint inside a
+                sandboxed iframe.
+              </p>
+            </div>
+          ) : null}
           <DocumentCanvasViewer
             html={previewState.html}
             title={`Document artifact preview ${previewState.documentInstanceId}`}

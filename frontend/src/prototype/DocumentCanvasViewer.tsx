@@ -57,7 +57,10 @@ export function DocumentCanvasViewer({
     if (!container) return;
 
     const updateScale = () => {
-      setScale(Math.min(1, container.clientWidth / dimensions.width));
+      const computedScale = Math.min(1, container.clientWidth / dimensions.width);
+      // When scale is close to 1 (>= 0.98), snap to 1 to avoid bilinear downsampling blur
+      // and allow the browser to use native crisp vector font antialiasing.
+      setScale(computedScale >= 0.98 ? 1 : computedScale);
     };
 
     updateScale();
@@ -66,6 +69,8 @@ export function DocumentCanvasViewer({
     observer.observe(container);
     return () => observer.disconnect();
   }, [html, dimensions.width]);
+
+  const isNativeScale = scale >= 0.99;
 
   return (
     <div
@@ -77,7 +82,7 @@ export function DocumentCanvasViewer({
       style={{
         width: "100%",
         maxWidth: `${dimensions.width}px`,
-        height: `${dimensions.height * pageCount * scale}px`,
+        height: `${Math.round(dimensions.height * pageCount * scale)}px`,
       }}
     >
       <iframe
@@ -89,8 +94,11 @@ export function DocumentCanvasViewer({
         style={{
           width: `${dimensions.width}px`,
           height: `${dimensions.height * pageCount}px`,
-          transform: `scale(${scale})`,
+          transform: isNativeScale ? "none" : `scale(${scale})`,
           transformOrigin: "top left",
+          WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+          textRendering: "optimizeLegibility",
         }}
       />
     </div>
