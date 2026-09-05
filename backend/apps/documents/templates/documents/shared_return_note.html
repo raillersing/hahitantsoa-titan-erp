@@ -199,12 +199,12 @@
         <div class="header-box">
           <div class="ref">
             <span>BON DE RETOUR N° :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:"..../.." }}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.public_reference|default:context.event_draft.public_reference|default:document.reference|default:"..../.." }}{% endif %}</span>
           </div>
           <div class="title">BON DE RETOUR</div>
           <div class="date">
             <span>DATE :</span>
-            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</span>
+            <span>{% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% if document.date %}{{ document.date|date:"d/m/Y" }}{% else %}{% now "d/m/Y" %}{% endif %}{% endif %}</span>
           </div>
         </div>
       </header>
@@ -212,11 +212,11 @@
       <section class="identity">
         <div class="identity-row">
           <strong>CLIENT :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:"........................" }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.customer.display_name|default:context.event_draft.customer_display_name|default:context.reservation_draft.customer_display_name|default:context.customer.display_name|default:context.customer_display_name|default:"........................" }}{% endif %}</span>
         </div>
         <div class="identity-row">
           <strong>PÉRIODE :</strong>
-          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"../../...." }} — {{ context.reservation_draft.end_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
+          <span class="identity-value">{% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{% if context.reservation_draft %}{{ context.reservation_draft.start_at|date:"d/m/Y"|default:"../../...." }} — {{ context.reservation_draft.end_at|date:"d/m/Y"|default:"../../...." }}{% elif context.event_draft %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"../../...." }} — {{ context.event_draft.end_at|date:"d/m/Y"|default:"../../...." }}{% else %}../../.... — ../../....{% endif %}{% endif %}</span>
         </div>
       </section>
 
@@ -237,13 +237,22 @@
               <td class="center">........</td>
               <td>{{ line.notes|default:"" }}</td>
             </tr>
+          {% empty %}
+            {% for line in context.event_draft.lines %}
+              <tr>
+                <td>{{ line.inventory_item_name }}</td>
+                <td class="center">{{ line.quantity }}</td>
+                <td class="center">........</td>
+                <td>{{ line.notes|default:"" }}</td>
+              </tr>
+            {% endfor %}
           {% endfor %}
         </tbody>
       </table>
 
       <div class="observations">
         <strong>Observations générales & contrôle matériel :</strong>
-        {{ context.reservation_draft.notes|default:"Matériel retourné et vérifié conforme sauf mention contraire ci-dessus." }}
+        {{ context.reservation_draft.notes|default:context.event_draft.notes|default:"Matériel retourné et vérifié conforme sauf mention contraire ci-dessus." }}
       </div>
 
       <div class="signatures">
