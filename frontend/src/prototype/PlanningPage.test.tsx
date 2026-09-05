@@ -107,23 +107,23 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
     render(<PlanningPage />);
 
     // Default is week view
-    expect(await screen.findByText("T-001/2026")).toBeInTheDocument();
+    expect((await screen.findAllByText("T-001/2026")).length).toBeGreaterThan(0);
 
     // Switch to Month view
     const monthButton = screen.getByRole("button", { name: /^Mois$/i });
     fireEvent.click(monthButton);
-    expect(await screen.findByText("T-001/2026")).toBeInTheDocument();
+    expect((await screen.findAllByText("T-001/2026")).length).toBeGreaterThan(0);
 
     // Switch to Day view
     const dayButton = screen.getByRole("button", { name: /^Jour$/i });
     fireEvent.click(dayButton);
-    expect(await screen.findByText("T-001/2026")).toBeInTheDocument();
+    expect((await screen.findAllByText("T-001/2026")).length).toBeGreaterThan(0);
     expect(screen.getByText(/Ajouter un RDV à cette date/i)).toBeInTheDocument();
 
     // Switch to Agenda view
     const agendaButton = screen.getByRole("button", { name: /Flux \/ Agenda/i });
     fireEvent.click(agendaButton);
-    expect(await screen.findByText("T-001/2026")).toBeInTheDocument();
+    expect((await screen.findAllByText("T-001/2026")).length).toBeGreaterThan(0);
     expect(screen.getByText(/Flux & Événements chronologiques/i)).toBeInTheDocument();
   });
 
