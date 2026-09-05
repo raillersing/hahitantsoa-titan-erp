@@ -88,7 +88,7 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
   );
   await page.getByRole('button', { name: 'Générer le contrat et ouvrir le dossier' }).click();
   await contractGenerated;
-  await expect(page.getByRole('heading', { name: 'Titan' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Titan', exact: true })).toBeVisible();
 
   await page.goto(`/#reservation-detail/${encodeURIComponent(`titan:${persistedDraft.id}`)}`);
   await expect(page.getByRole('button', { name: 'Marquer contrat signé' })).toBeVisible();
