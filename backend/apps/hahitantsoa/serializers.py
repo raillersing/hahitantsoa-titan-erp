@@ -853,6 +853,15 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             line.save()
 
         recalculate_hahitantsoa_event_draft_totals(event_draft=event_draft)
+
+        from apps.documents.services import create_document_instance_from_hahitantsoa_event_draft
+
+        create_document_instance_from_hahitantsoa_event_draft(
+            event_draft=event_draft,
+            template_key="hahitantsoa.proforma.v1",
+            actor=event_draft.created_by,
+        )
+
         return event_draft
 
     def to_representation(self, instance):

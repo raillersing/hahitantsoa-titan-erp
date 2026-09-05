@@ -634,16 +634,33 @@ class DocumentInstancePrivateArtifactAPIView(APIView):
         from apps.documents.selectors import get_document_instance_by_id
 
         instance = get_document_instance_by_id(document_instance_id=id)
-        if instance is None:
+        if instance is None or instance.status == DocumentInstanceStatus.VOIDED:
             raise Http404("Document instance not found.")
 
-        if instance.status != DocumentInstanceStatus.GENERATED:
+        if instance.status == DocumentInstanceStatus.PREPARED:
+            from apps.documents.runtime import generate_document_instance_html
+
+            try:
+                generate_document_instance_html(document_instance=instance, actor=request.user)
+                instance.refresh_from_db()
+            except Exception:
+                raise Http404("Failed to generate document artifact.")
+
+        if instance.status not in (DocumentInstanceStatus.GENERATED, DocumentInstanceStatus.ISSUED):
             raise Http404("Document instance is not generated.")
 
-        if not instance.storage_path:
-            raise Http404("Artifact storage path is empty.")
+        if not instance.storage_path or not default_storage.exists(instance.storage_path):
+            from apps.documents.runtime import generate_document_instance_html
 
-        if not default_storage.exists(instance.storage_path):
+            try:
+                generate_document_instance_html(
+                    document_instance=instance, actor=request.user, force=True
+                )
+                instance.refresh_from_db()
+            except Exception:
+                pass
+
+        if not instance.storage_path or not default_storage.exists(instance.storage_path):
             raise Http404("Artifact file does not exist.")
 
         try:

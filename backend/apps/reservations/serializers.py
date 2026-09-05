@@ -420,6 +420,14 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
 
         recalculate_reservation_draft_totals(reservation_draft=reservation_draft)
 
+        from apps.documents.services import create_document_instance_from_reservation_draft
+
+        create_document_instance_from_reservation_draft(
+            reservation_draft=reservation_draft,
+            template_key="titan.proforma.v1",
+            actor=actor,
+        )
+
         return reservation_draft
 
     @transaction.atomic

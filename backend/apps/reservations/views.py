@@ -1,7 +1,8 @@
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import generics, status
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework import generics, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -456,3 +457,49 @@ class ReservationDraftCloseoutExecuteAPIView(APIView):
 
         payload = dataclasses.asdict(summary)
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class ReservationDraftDocumentPreviewAPIView(APIView):
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [IsAuthenticatedReservationDraftBoundary]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="template_key",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=True,
+            )
+        ],
+        responses={200: str, 400: serializers.Serializer},
+    )
+    def get(self, request, pk):
+        template_key = request.query_params.get("template_key", "")
+        from apps.documents.runtime import (
+            TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS,
+            DocumentRuntimeGenerationError,
+            preview_reservation_draft_document_html,
+        )
+
+        if template_key not in TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS:
+            return Response(
+                {
+                    "detail": "template_key is not available for Titan draft preview.",
+                    "code": "titan_document_preview_template_not_supported",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+        try:
+            html_content = preview_reservation_draft_document_html(
+                reservation_draft=draft,
+                template_key=template_key,
+            )
+        except DocumentRuntimeGenerationError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return HttpResponse(html_content, content_type="text/html; charset=utf-8")
