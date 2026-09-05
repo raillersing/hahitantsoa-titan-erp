@@ -443,11 +443,14 @@ export default function ReservationDetailPage({
 
   const previewArtifact = previewDoc
     ? documentInstances.find((documentInstance) => {
-        if (!['generated', 'issued'].includes(documentInstance.status)) return false;
+        if (!['prepared', 'generated', 'issued'].includes(documentInstance.status)) return false;
         if (previewDoc === "annexes") {
           return documentInstance.template_key === "hahitantsoa.contract.v1";
         }
-        return documentInstance.document_type.toLowerCase() === previewDoc;
+        return (
+          documentInstance.document_type.toLowerCase() === previewDoc ||
+          documentInstance.template_key.toLowerCase().includes(previewDoc)
+        );
       })
     : undefined;
 
@@ -2248,6 +2251,8 @@ export default function ReservationDetailPage({
                 totalAmount={safeAmount}
                 subTotalAmount={commercialSubTotal}
                 paidAmount={paidAmount}
+                reservationDraftId={domain === "Titan" ? draft?.id : undefined}
+                hahitantsoaEventDraftId={domain !== "Titan" ? draft?.id : undefined}
               />
             )}
           </div>

@@ -3293,6 +3293,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         type="proforma"
         domain={domain as 'titan' | 'hahitantsoa'}
         documentInstanceId={prospectProformaEmission?.htmlGenerated ? prospectProformaEmission.documentId : null}
+        reservationDraftId={domain === 'titan' ? prospectProformaEmission?.draftId : null}
         hahitantsoaEventDraftId={domain === 'hahitantsoa' ? prospectProformaEmission?.draftId : null}
         client={activeClient}
         date={new Date().toLocaleDateString('fr-FR')}
@@ -3748,6 +3749,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         <DocumentPreviewDispatcher
           type="contrat"
           domain={domain as 'titan' | 'hahitantsoa'}
+          reservationDraftId={domain === 'titan' ? prospectProformaEmission?.draftId : null}
           hahitantsoaEventDraftId={domain === 'hahitantsoa' ? prospectProformaEmission?.draftId : null}
           client={activeClient}
           date={new Date().toLocaleDateString('fr-FR')}

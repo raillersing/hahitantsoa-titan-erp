@@ -4,9 +4,10 @@ import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import {
   getDocumentTemplatePreview,
   getHahitantsoaEventDraftDocumentPreview,
+  getReservationDraftDocumentPreview,
 } from "../api";
 
-type DocumentType = "proforma" | "facture" | "contrat" | string;
+type DocumentType = "proforma" | "facture" | "contrat" | "bon_livraison" | "delivery_note" | "decharge" | "liability_release" | "fiche_preparation" | "preparation_sheet" | string;
 
 export interface DocumentPreviewProps {
   type?: DocumentType;
@@ -14,6 +15,7 @@ export interface DocumentPreviewProps {
   client?: { type?: string; party_type?: string } | null;
   template?: { templateKey?: string; key?: string } | null;
   documentInstanceId?: string | null;
+  reservationDraftId?: string | null;
   hahitantsoaEventDraftId?: string | null;
   showVariables?: boolean;
   [key: string]: unknown;
@@ -27,21 +29,27 @@ type PreviewState =
 function resolveTemplateKey({ type, domain, template }: DocumentPreviewProps): string | null {
   const explicitKey = template?.templateKey || template?.key;
   if (explicitKey) return explicitKey;
+  const normalizedType = type?.toLowerCase();
   if (domain === "titan") {
-    if (type === "proforma") return "titan.proforma.v1";
-    if (type === "facture") return "titan.invoice.v1";
-    if (type === "contrat") return "titan.material_contract.v1";
+    if (normalizedType === "proforma") return "titan.proforma.v1";
+    if (normalizedType === "facture" || normalizedType === "invoice") return "titan.invoice.v1";
+    if (normalizedType === "contrat" || normalizedType === "contract") return "titan.material_contract.v1";
+    if (normalizedType === "bon_livraison" || normalizedType === "delivery_note") return "titan.delivery_note.v1";
+    if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet") return "shared.preparation_sheet.v1";
   }
   if (domain === "hahitantsoa") {
-    if (type === "proforma") return "hahitantsoa.proforma.v1";
-    if (type === "facture") return "hahitantsoa.invoice.v1";
-    if (type === "contrat" || type === "annexes") return "hahitantsoa.contract.v1";
+    if (normalizedType === "proforma") return "hahitantsoa.proforma.v1";
+    if (normalizedType === "facture" || normalizedType === "invoice") return "hahitantsoa.invoice.v1";
+    if (normalizedType === "contrat" || normalizedType === "contract" || normalizedType === "annexes") return "hahitantsoa.contract.v1";
+    if (normalizedType === "bon_livraison" || normalizedType === "delivery_note") return "hahitantsoa.delivery_note.v1";
+    if (normalizedType === "decharge" || normalizedType === "liability_release") return "hahitantsoa.liability_release.v1";
+    if (normalizedType === "fiche_preparation" || normalizedType === "preparation_sheet") return "hahitantsoa.preparation_sheet.v1";
   }
   return null;
 }
 
 /**
- * Renders only an official backend template. Generated documents are shown by
+ * Renders only an official backend template or authentic draft preview. Generated documents are shown by
  * DocumentArtifactPreviewPanel; React never composes commercial document content.
  */
 export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
@@ -62,7 +70,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
       return;
     }
     const eventDraftId = props.hahitantsoaEventDraftId;
-    if (props.domain === "hahitantsoa" && !eventDraftId) {
+    const reservationDraftId = props.reservationDraftId;
+    if (props.domain === "hahitantsoa" && !eventDraftId && !props.documentInstanceId) {
       setState({
         status: "error",
         message: "Enregistrez le brouillon Hahitantsoa pour afficher le document avec ses données réelles.",
@@ -71,13 +80,25 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
     }
     const controller = new AbortController();
     setState({ status: "loading" });
-    const preview = props.domain === "hahitantsoa" && eventDraftId
-      ? getHahitantsoaEventDraftDocumentPreview(
-          eventDraftId,
-          templateKey,
-          controller.signal,
-        )
-      : getDocumentTemplatePreview(templateKey, controller.signal, Boolean(props.showVariables), partyType);
+    const preview =
+      props.domain === "hahitantsoa" && eventDraftId
+        ? getHahitantsoaEventDraftDocumentPreview(
+            eventDraftId,
+            templateKey,
+            controller.signal,
+          )
+        : (props.domain === "titan" || reservationDraftId) && reservationDraftId
+          ? getReservationDraftDocumentPreview(
+              reservationDraftId,
+              templateKey,
+              controller.signal,
+            )
+          : getDocumentTemplatePreview(
+              templateKey,
+              controller.signal,
+              Boolean(props.showVariables),
+              partyType,
+            );
     void preview
       .then((html) => setState({ status: "loaded", html }))
       .catch((error: unknown) => {
@@ -88,7 +109,15 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = (props) => {
         });
       });
     return () => controller.abort();
-  }, [partyType, props.documentInstanceId, props.domain, props.hahitantsoaEventDraftId, props.showVariables, templateKey]);
+  }, [
+    partyType,
+    props.documentInstanceId,
+    props.domain,
+    props.hahitantsoaEventDraftId,
+    props.reservationDraftId,
+    props.showVariables,
+    templateKey,
+  ]);
 
   if (props.documentInstanceId) {
     return <DocumentArtifactPreviewPanel documentInstanceId={props.documentInstanceId} />;
