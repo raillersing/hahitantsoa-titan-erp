@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, replace
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -18,6 +18,7 @@ from apps.documents.excess_receivable import build_excess_receivable_invoice_con
 from apps.documents.formatting import (
     _format_ariary_amount,
     format_ariary_amount_in_words,
+    parse_service_price,
 )
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
@@ -81,16 +82,8 @@ def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, objec
         if m1:
             name = m1.group("name").strip()
             qty = max(1, int(m1.group("qty")))
-            cleaned_price = (
-                m1.group("price")
-                .replace(" ", "")
-                .replace("\xa0", "")
-                .replace("Ar", "")
-                .replace("ar", "")
-                .replace(",", ".")
-            )
-            try:
-                tot_price = Decimal(cleaned_price)
+            tot_price = parse_service_price(m1.group("price"))
+            if tot_price is not None:
                 u_price = tot_price / Decimal(qty)
                 lines.append(
                     {
@@ -101,11 +94,10 @@ def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, objec
                         "unit_price": _format_ariary_amount(u_price),
                         "total_price": _format_ariary_amount(tot_price),
                         "breakage_price": None,
+                        "_raw_total_price": tot_price,
                     }
                 )
                 continue
-            except InvalidOperation, ValueError:
-                pass
 
         # Pattern 2: Service Name - 50 000 Ar or Service Name : 50 000
         m2 = re.match(
@@ -115,16 +107,8 @@ def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, objec
         )
         if m2:
             name = m2.group("name").strip()
-            cleaned_price = (
-                m2.group("price")
-                .replace(" ", "")
-                .replace("\xa0", "")
-                .replace("Ar", "")
-                .replace("ar", "")
-                .replace(",", ".")
-            )
-            try:
-                tot_price = Decimal(cleaned_price)
+            tot_price = parse_service_price(m2.group("price"))
+            if tot_price is not None:
                 lines.append(
                     {
                         "inventory_item_name": name,
@@ -134,11 +118,10 @@ def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, objec
                         "unit_price": _format_ariary_amount(tot_price),
                         "total_price": _format_ariary_amount(tot_price),
                         "breakage_price": None,
+                        "_raw_total_price": tot_price,
                     }
                 )
                 continue
-            except InvalidOperation, ValueError:
-                pass
 
         # Pattern 3: Service Name (x2)
         m3 = re.match(
@@ -158,6 +141,7 @@ def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, objec
                     "unit_price": "—",
                     "total_price": "—",
                     "breakage_price": None,
+                    "_raw_total_price": Decimal("0.00"),
                 }
             )
             continue
@@ -172,6 +156,7 @@ def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, objec
                 "unit_price": "—",
                 "total_price": "—",
                 "breakage_price": None,
+                "_raw_total_price": Decimal("0.00"),
             }
         )
 
@@ -311,6 +296,19 @@ def _build_hahitantsoa_contract_runtime_context(
 
     lines = (venue_line, *service_lines, *material_lines)
 
+    venue_amount = Decimal(str(linked_event_draft.space_rental_amount or 0))
+    materials_total = sum(
+        (Decimal(str(line.unit_rental_price * line.quantity)) for line in event_lines),
+        Decimal("0"),
+    )
+    services_total = sum(
+        (Decimal(str(line.get("_raw_total_price", 0))) for line in service_lines),
+        Decimal("0"),
+    )
+    calculated_total = (venue_amount + materials_total + services_total).quantize(Decimal("0.01"))
+    if calculated_total == Decimal("0.00") and linked_event_draft.total_amount:
+        calculated_total = Decimal(str(linked_event_draft.total_amount)).quantize(Decimal("0.01"))
+
     customer_phone_contacts, customer_email_contacts = _document_contact_displays(
         document_instance=document_instance
     )
@@ -361,10 +359,10 @@ def _build_hahitantsoa_contract_runtime_context(
                 linked_event_draft.required_deposit_amount
             ),
             "space_rental_amount": _format_ariary_amount(linked_event_draft.space_rental_amount),
-            "total_amount": _format_ariary_amount(linked_event_draft.total_amount),
-            "sub_total": _format_ariary_amount(linked_event_draft.total_amount),
+            "total_amount": _format_ariary_amount(calculated_total),
+            "sub_total": _format_ariary_amount(calculated_total),
             "discount": "0,00",
-            "total_amount_in_words": format_ariary_amount_in_words(linked_event_draft.total_amount),
+            "total_amount_in_words": format_ariary_amount_in_words(calculated_total),
             "proforma_reference": linked_event_draft.public_reference,
             "lines": lines,
         },

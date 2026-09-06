@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 _FRENCH_UNITS = (
@@ -124,12 +125,69 @@ def format_ariary_amount(value: object) -> str:
             .replace(",", ".")
             .strip()
         )
-        if not cleaned:
-            return "0,00"
         amount = Decimal(cleaned)
         return f"{amount:,.2f}".replace(",", " ").replace(".", ",")
     except InvalidOperation, ValueError:
         return "0,00"
+
+
+def parse_service_price(price_str: str) -> Decimal | None:
+    """Extract decimal price from formatted Ariary price strings."""
+    if not price_str:
+        return None
+    cleaned = (
+        str(price_str)
+        .replace(" ", "")
+        .replace("\xa0", "")
+        .replace("Ar", "")
+        .replace("ar", "")
+        .replace(",", ".")
+        .strip()
+    )
+    try:
+        return Decimal(cleaned)
+    except InvalidOperation, ValueError:
+        return None
+
+
+def parse_hahitantsoa_services_total(service_notes: str | None) -> Decimal:
+    """Calculate the total price of all parsed services in service_notes."""
+    if not service_notes or not service_notes.strip():
+        return Decimal("0.00")
+
+    raw_entries = (
+        [e.strip() for e in service_notes.splitlines() if e.strip()]
+        if "\n" in service_notes
+        else [e.strip() for e in re.split(r",\s*(?=[A-Za-zÀ-ÿ0-9])", service_notes) if e.strip()]
+    )
+
+    total = Decimal("0.00")
+    for entry in raw_entries:
+        # Pattern 1: Service Name (x2) - 50 000 Ar or Service Name (x2) : 50 000
+        m1 = re.match(
+            r"^(?P<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?P<qty>\d+)\)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
+            entry,
+            re.IGNORECASE,
+        )
+        if m1:
+            tot_price = parse_service_price(m1.group("price"))
+            if tot_price is not None:
+                total += tot_price
+                continue
+
+        # Pattern 2: Service Name - 50 000 Ar or Service Name : 50 000
+        m2 = re.match(
+            r"^(?P<name>.+?)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
+            entry,
+            re.IGNORECASE,
+        )
+        if m2:
+            tot_price = parse_service_price(m2.group("price"))
+            if tot_price is not None:
+                total += tot_price
+                continue
+
+    return total
 
 
 _format_ariary_amount = format_ariary_amount
