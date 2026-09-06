@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass, replace
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -14,6 +15,10 @@ from apps.documents.commercial import (
     build_reservation_draft_commercial_document_context,
 )
 from apps.documents.excess_receivable import build_excess_receivable_invoice_context
+from apps.documents.formatting import (
+    _format_ariary_amount,
+    format_ariary_amount_in_words,
+)
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
 from apps.documents.rendering import resolve_document_template_path
@@ -54,101 +59,123 @@ TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
 )
 
 
-_FRENCH_UNITS = (
-    "zéro",
-    "un",
-    "deux",
-    "trois",
-    "quatre",
-    "cinq",
-    "six",
-    "sept",
-    "huit",
-    "neuf",
-    "dix",
-    "onze",
-    "douze",
-    "treize",
-    "quatorze",
-    "quinze",
-    "seize",
-)
-_FRENCH_TENS = {
-    20: "vingt",
-    30: "trente",
-    40: "quarante",
-    50: "cinquante",
-    60: "soixante",
-}
+def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, object]]:
+    """Parse services/prestations from service_notes into structured document lines."""
+    if not service_notes or not service_notes.strip():
+        return []
 
+    lines: list[dict[str, object]] = []
+    raw_entries = (
+        [e.strip() for e in service_notes.splitlines() if e.strip()]
+        if "\n" in service_notes
+        else [e.strip() for e in re.split(r",\s*(?=[A-Za-zÀ-ÿ0-9])", service_notes) if e.strip()]
+    )
 
-def _french_number_words(value: int) -> str:
-    """Render a non-negative integer in French for official document totals."""
-    if value < 0:
-        raise ValueError("French number words only supports non-negative values.")
-    if value < 17:
-        return _FRENCH_UNITS[value]
-    if value < 20:
-        return f"dix-{_FRENCH_UNITS[value - 10]}"
-    if value < 70:
-        tens, remainder = divmod(value, 10)
-        prefix = _FRENCH_TENS[tens * 10]
-        if remainder == 0:
-            return prefix
-        if remainder == 1:
-            return f"{prefix} et un"
-        return f"{prefix}-{_french_number_words(remainder)}"
-    if value < 80:
-        remainder = value - 60
-        if remainder == 11:
-            return "soixante et onze"
-        return f"soixante-{_french_number_words(remainder)}"
-    if value < 100:
-        remainder = value - 80
-        if remainder == 0:
-            return "quatre-vingts"
-        return f"quatre-vingt-{_french_number_words(remainder)}"
-    if value < 1000:
-        hundreds, remainder = divmod(value, 100)
-        prefix = "cent" if hundreds == 1 else f"{_french_number_words(hundreds)} cent"
-        if remainder == 0:
-            return f"{prefix}s" if hundreds > 1 else prefix
-        return f"{prefix} {_french_number_words(remainder)}"
+    for entry in raw_entries:
+        # Pattern 1: Service Name (x2) - 50 000 Ar or Service Name (x2) : 50 000
+        m1 = re.match(
+            r"^(?P<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?P<qty>\d+)\)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
+            entry,
+            re.IGNORECASE,
+        )
+        if m1:
+            name = m1.group("name").strip()
+            qty = max(1, int(m1.group("qty")))
+            cleaned_price = (
+                m1.group("price")
+                .replace(" ", "")
+                .replace("\xa0", "")
+                .replace("Ar", "")
+                .replace("ar", "")
+                .replace(",", ".")
+            )
+            try:
+                tot_price = Decimal(cleaned_price)
+                u_price = tot_price / Decimal(qty)
+                lines.append(
+                    {
+                        "inventory_item_name": name,
+                        "inventory_item_kind": "service",
+                        "quantity": qty,
+                        "notes": "",
+                        "unit_price": _format_ariary_amount(u_price),
+                        "total_price": _format_ariary_amount(tot_price),
+                        "breakage_price": None,
+                    }
+                )
+                continue
+            except InvalidOperation, ValueError:
+                pass
 
-    for scale, singular in ((1_000_000_000, "milliard"), (1_000_000, "million"), (1000, "mille")):
-        if value >= scale:
-            quantity, remainder = divmod(value, scale)
-            if scale == 1000:
-                quantity_words = _french_number_words(quantity)
-                if quantity_words.endswith("cents"):
-                    quantity_words = quantity_words[:-1]
-                prefix = singular if quantity == 1 else f"{quantity_words} {singular}"
-            else:
-                suffix = singular if quantity == 1 else f"{singular}s"
-                prefix = f"{_french_number_words(quantity)} {suffix}"
-            return prefix if remainder == 0 else f"{prefix} {_french_number_words(remainder)}"
-    raise ValueError("French number words supports values below one trillion.")
+        # Pattern 2: Service Name - 50 000 Ar or Service Name : 50 000
+        m2 = re.match(
+            r"^(?P<name>.+?)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
+            entry,
+            re.IGNORECASE,
+        )
+        if m2:
+            name = m2.group("name").strip()
+            cleaned_price = (
+                m2.group("price")
+                .replace(" ", "")
+                .replace("\xa0", "")
+                .replace("Ar", "")
+                .replace("ar", "")
+                .replace(",", ".")
+            )
+            try:
+                tot_price = Decimal(cleaned_price)
+                lines.append(
+                    {
+                        "inventory_item_name": name,
+                        "inventory_item_kind": "service",
+                        "quantity": 1,
+                        "notes": "",
+                        "unit_price": _format_ariary_amount(tot_price),
+                        "total_price": _format_ariary_amount(tot_price),
+                        "breakage_price": None,
+                    }
+                )
+                continue
+            except InvalidOperation, ValueError:
+                pass
 
+        # Pattern 3: Service Name (x2)
+        m3 = re.match(
+            r"^(?P<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?P<qty>\d+)\)$",
+            entry,
+            re.IGNORECASE,
+        )
+        if m3:
+            name = m3.group("name").strip()
+            qty = max(1, int(m3.group("qty")))
+            lines.append(
+                {
+                    "inventory_item_name": name,
+                    "inventory_item_kind": "service",
+                    "quantity": qty,
+                    "notes": "",
+                    "unit_price": "—",
+                    "total_price": "—",
+                    "breakage_price": None,
+                }
+            )
+            continue
 
-def format_ariary_amount_in_words(value: object) -> str:
-    """Return the exact Ariary amount in French words without losing a fraction."""
-    try:
-        amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    except (InvalidOperation, ValueError) as exc:
-        raise ValueError("Document total amount must be a valid decimal value.") from exc
-    if amount < 0:
-        raise ValueError("Document total amount cannot be negative.")
+        # Fallback: simple service name
+        lines.append(
+            {
+                "inventory_item_name": entry,
+                "inventory_item_kind": "service",
+                "quantity": 1,
+                "notes": "",
+                "unit_price": "—",
+                "total_price": "—",
+                "breakage_price": None,
+            }
+        )
 
-    whole_amount = int(amount)
-    hundredths = int((amount - whole_amount) * 100)
-    words = f"{_french_number_words(whole_amount)} Ariary"
-    if hundredths:
-        words = f"{words} et {_french_number_words(hundredths)} centièmes d'Ariary"
-    return words[:1].upper() + words[1:]
-
-
-def _format_ariary_amount(value: object) -> str:
-    return f"{Decimal(str(value)):,.2f}".replace(",", " ").replace(".", ",")
+    return lines
 
 
 @dataclass(frozen=True)
@@ -237,13 +264,13 @@ def _document_contact_displays(*, document_instance: DocumentInstance) -> tuple[
 def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
+    linked_event_draft = document_instance.hahitantsoa_event_draft
     event_lines = (
-        document_instance.hahitantsoa_event_draft.lines.filter(is_deleted=False)
+        linked_event_draft.lines.filter(is_deleted=False)
         .select_related("inventory_item", "event_draft__customer")
         .order_by("created_at", "id")
     )
-    linked_event_draft = document_instance.hahitantsoa_event_draft
-    lines = tuple(
+    material_lines = tuple(
         {
             "inventory_item_name": line.inventory_item.name,
             "inventory_item_kind": line.inventory_item.kind,
@@ -263,18 +290,27 @@ def _build_hahitantsoa_contract_runtime_context(
         }
         for line in event_lines
     )
-    if linked_event_draft.rental_type == "bare" and not lines:
-        lines = (
-            {
-                "inventory_item_name": "Location nue de l'espace",
-                "inventory_item_kind": "venue",
-                "quantity": 1,
-                "notes": linked_event_draft.venue_name,
-                "unit_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
-                "total_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
-                "breakage_price": None,
-            },
-        )
+
+    venue_name = linked_event_draft.venue_name or "Salle de réception Hahitantsoa"
+    venue_line_name = (
+        "Location nue de l'espace"
+        if linked_event_draft.rental_type == "bare"
+        else "Location de l'espace"
+    )
+    venue_line = {
+        "inventory_item_name": venue_line_name,
+        "inventory_item_kind": "venue",
+        "quantity": 1,
+        "notes": venue_name,
+        "unit_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
+        "total_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
+        "breakage_price": None,
+    }
+
+    service_lines = tuple(_parse_hahitantsoa_service_lines(linked_event_draft.service_notes))
+
+    lines = (venue_line, *service_lines, *material_lines)
+
     customer_phone_contacts, customer_email_contacts = _document_contact_displays(
         document_instance=document_instance
     )
@@ -321,9 +357,11 @@ def _build_hahitantsoa_contract_runtime_context(
             "rental_type": linked_event_draft.rental_type,
             "rental_type_display": linked_event_draft.get_rental_type_display(),
             "guest_count": linked_event_draft.guest_count,
-            "required_deposit_amount": linked_event_draft.required_deposit_amount,
-            "space_rental_amount": linked_event_draft.space_rental_amount,
-            "total_amount": linked_event_draft.total_amount,
+            "required_deposit_amount": _format_ariary_amount(
+                linked_event_draft.required_deposit_amount
+            ),
+            "space_rental_amount": _format_ariary_amount(linked_event_draft.space_rental_amount),
+            "total_amount": _format_ariary_amount(linked_event_draft.total_amount),
             "sub_total": _format_ariary_amount(linked_event_draft.total_amount),
             "discount": "0,00",
             "total_amount_in_words": format_ariary_amount_in_words(linked_event_draft.total_amount),
