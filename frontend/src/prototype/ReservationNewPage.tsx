@@ -377,7 +377,7 @@ interface SelectedMaterial {
   quantity: number;
 }
 
-interface SelectedService {
+export interface SelectedService {
   id: string;
   name: string;
   price: number;
@@ -386,6 +386,18 @@ interface SelectedService {
   category?: string;
   pricing_type?: string;
   image_url?: string;
+}
+
+export function formatHahitantsoaServiceNotes(services: SelectedService[]): string | undefined {
+  if (!services || services.length === 0) return undefined;
+  return services
+    .map((service) => {
+      const name = (service.name || "").trim();
+      const qty = service.quantity && service.quantity > 1 ? ` (x${service.quantity})` : "";
+      const price = typeof service.price === "number" && !isNaN(service.price) ? ` - ${service.price} Ar` : "";
+      return `${name}${qty}${price}`;
+    })
+    .join("\n");
 }
 
 export interface ReservationTotals {
@@ -576,6 +588,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const hahitantsoaIncludedGuests = Number(hahitantsoaTerms?.included_guest_count ?? 250);
   const hahitantsoaExcessGuestAmount = Number(hahitantsoaTerms?.excess_guest_amount ?? HAHITANTSOA_EXCESS_GUEST_RATE);
   const hahitantsoaSpaceRentalAmount = (hDetails.venuePrice || hahitantsoaBaseSpaceRental)
+    + (hDetails.rentalType === "Location + logistique" ? (hDetails.logisticsPrice || 0) : 0)
+    + (hDetails.durationOptionPrice || 0)
     + Math.max(Number(hDetails.guests || 0) - hahitantsoaIncludedGuests, 0) * hahitantsoaExcessGuestAmount;
   const hahitantsoaDepositAmount = hDetails.rentalType === "Location + logistique"
     ? Number(hahitantsoaTerms?.logistics_deposit_amount ?? HAHITANTSOA_LOGISTICS_DEPOSIT)
@@ -931,7 +945,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
-          service_notes: selectedServices.map((service) => service.name).join(", ") || undefined,
+          service_notes: formatHahitantsoaServiceNotes(selectedServices),
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" as const : "bare" as const,
@@ -1138,7 +1152,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
-          service_notes: selectedServices.map((service) => service.name).join(", ") || undefined,
+          service_notes: formatHahitantsoaServiceNotes(selectedServices),
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
@@ -1167,6 +1181,35 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         };
       }
       setProspectProformaEmission(emission);
+    } else {
+      if (isHahitantsoa) {
+        await updateHahitantsoaEventDraft(emission.draftId, {
+          customer_id: customerId,
+          event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
+          venue_name: hDetails.venue || undefined,
+          location_details: hDetails.venue || undefined,
+          service_notes: formatHahitantsoaServiceNotes(selectedServices),
+          start_at: startAt,
+          end_at: endAt,
+          rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
+          guest_count: Number(hDetails.guests || 0),
+          space_rental_amount: hahitantsoaSpaceRentalAmount,
+          required_deposit_amount: hahitantsoaDepositAmount,
+          notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
+          lines,
+        });
+      } else {
+        await updateReservationDraft(emission.draftId, {
+          customer_id: customerId,
+          start_at: startAt,
+          end_at: endAt,
+          notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
+          delivery_fee: Number(deliveryFee) || 0,
+          discount_amount: discountAmount,
+          discount_reason: discountAmount > 0 ? discountReason.trim() : "",
+          lines,
+        });
+      }
     }
 
     if (!emission.draftId) {
@@ -3178,7 +3221,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <div className="text-sm text-slate-600">
             {selectedServices.map(s => (
               <div key={s.id} className="flex justify-between py-1">
-                <span>{s.name}</span>
+                <span>{s.name}{s.quantity && s.quantity > 1 ? ` (x${s.quantity})` : ""}</span>
                 <span className="font-medium">{s.price.toLocaleString('fr-FR')} Ar</span>
               </div>
             ))}
