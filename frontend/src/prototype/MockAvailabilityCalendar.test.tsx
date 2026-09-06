@@ -155,9 +155,18 @@ describe("MockAvailabilityCalendar", () => {
   });
 
   it("keeps the venue calendar explicit and retryable when occupancy cannot be loaded", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: "Indisponible" }), { status: 500 }))
-      .mockResolvedValueOnce(jsonResponse({ items: [], count: 0 }));
+    let occupancyCalls = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/api/v1/hahitantsoa/venue-occupancy/")) {
+        occupancyCalls += 1;
+        if (occupancyCalls === 1) {
+          return Promise.resolve(new Response(JSON.stringify({ detail: "Indisponible" }), { status: 500 }));
+        }
+        return Promise.resolve(jsonResponse({ items: [], count: 0 }));
+      }
+      return Promise.resolve(jsonResponse([]));
+    });
 
     render(
       <MockAvailabilityCalendar
@@ -169,7 +178,7 @@ describe("MockAvailabilityCalendar", () => {
     await waitFor(() => expect(screen.getByText(/Occupation de la salle non vérifiée/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
     await waitFor(() => expect(screen.getByText("Aucune réservation enregistrée pour cette salle ce mois-ci.")).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(occupancyCalls).toBe(2);
   });
 
   it("keeps a Hahitantsoa option visible but selectable", async () => {

@@ -4,11 +4,13 @@ import {
   getHahitantsoaVenueOccupancy,
   getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
+  getReservationDrafts,
 } from "../api";
 import type {
   HahitantsoaVenueOccupancy,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
+  ReservationDraft,
 } from "../types";
 
 export interface AvailabilityDatePickerProps {
@@ -103,6 +105,14 @@ export interface AvailabilityDatePickerProps {
    */
   venueName?: string;
   /**
+   * Business domain context: "titan" | "hahitantsoa" | "all"
+   */
+  domain?: "titan" | "hahitantsoa" | "all";
+  /**
+   * If true, disables dates when the venue is reserved. If false, dates remain selectable for Titan equipment rentals.
+   */
+  disableIfVenueReserved?: boolean;
+  /**
    * Hint text below the input.
    */
   hint?: string;
@@ -184,6 +194,21 @@ function occupancyStatusForDay(
   return overlaps.some((item) => item.occupancy_status === "reserved")
     ? "reserved"
     : overlaps[0]?.occupancy_status;
+}
+
+function titanReservationsForDay(
+  drafts: ReservationDraft[],
+  dateStr: string,
+): ReservationDraft[] {
+  const { startAt, endAt } = selectedDayPeriod(dateStr);
+  const dayStart = Date.parse(startAt);
+  const dayEnd = Date.parse(endAt);
+  return drafts.filter((draft) => {
+    if (!draft.start_at || !draft.end_at) return false;
+    const s = Date.parse(draft.start_at);
+    const e = Date.parse(draft.end_at);
+    return s < dayEnd && e > dayStart;
+  });
 }
 
 function errorMessage(error: unknown): string {
@@ -285,6 +310,8 @@ export function AvailabilityDatePicker({
   showAvailabilityPreview = false,
   showHahitantsoaVenueOccupancy = false,
   venueName,
+  domain = "all",
+  disableIfVenueReserved,
   hint,
   error,
   ariaLabel,
@@ -297,6 +324,13 @@ export function AvailabilityDatePicker({
 
   const effectiveSelectedDate = value !== undefined ? value : (legacySelectedDate ?? "");
   const effectiveOnChange = onChange || legacyOnDateSelect;
+
+  const effectiveDisableIfVenueReserved =
+    disableIfVenueReserved !== undefined
+      ? disableIfVenueReserved
+      : domain === "titan"
+        ? false
+        : Boolean(venueName);
 
   const [inputValue, setInputValue] = useState<string>(formatDisplayDate(effectiveSelectedDate));
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -318,6 +352,7 @@ export function AvailabilityDatePicker({
   const [retryAttempt, setRetryAttempt] = useState(0);
   const [venueOccupancy, setVenueOccupancy] = useState<VenueOccupancyState>({ status: "idle" });
   const [venueOccupancyRetryAttempt, setVenueOccupancyRetryAttempt] = useState(0);
+  const [monthTitanDrafts, setMonthTitanDrafts] = useState<ReservationDraft[]>([]);
 
   // Keep input value in sync when external selected date changes
   useEffect(() => {
@@ -331,7 +366,7 @@ export function AvailabilityDatePicker({
     }
   }, [effectiveSelectedDate]);
 
-  // Titan availability check
+  // Titan availability check for selected day
   useEffect(() => {
     if (!showAvailabilityPreview || !effectiveSelectedDate) {
       setAvailability({ status: "idle" });
@@ -362,10 +397,11 @@ export function AvailabilityDatePicker({
     };
   }, [retryAttempt, effectiveSelectedDate, showAvailabilityPreview]);
 
-  // Hahitantsoa venue occupancy check
+  // Hahitantsoa venue occupancy & Titan monthly draft counts check
   useEffect(() => {
     if (!showHahitantsoaVenueOccupancy) {
       setVenueOccupancy({ status: "idle" });
+      setMonthTitanDrafts([]);
       return;
     }
 
@@ -373,10 +409,20 @@ export function AvailabilityDatePicker({
     const { startAt, endAt } = displayedMonthPeriod(currentYear, currentMonth);
     setVenueOccupancy({ status: "loading" });
 
-    void getHahitantsoaVenueOccupancy(startAt, endAt, venueName, controller.signal)
-      .then((response) => {
+    void Promise.all([
+      getHahitantsoaVenueOccupancy(startAt, endAt, venueName, controller.signal),
+      getReservationDrafts(undefined, controller.signal).catch((err) => {
+        if (controller.signal.aborted) throw err;
+        return [];
+      }),
+    ])
+      .then(([venueResponse, titanDraftsResponse]) => {
         if (!controller.signal.aborted) {
-          setVenueOccupancy({ status: "loaded", items: response.items });
+          setVenueOccupancy({
+            status: "loaded",
+            items: Array.isArray(venueResponse?.items) ? venueResponse.items : [],
+          });
+          setMonthTitanDrafts(Array.isArray(titanDraftsResponse) ? titanDraftsResponse : []);
         }
       })
       .catch((err: unknown) => {
@@ -563,19 +609,24 @@ export function AvailabilityDatePicker({
       const isSelected = effectiveSelectedDate === dateStr;
       const isCurrentDay = getTodayISO() === dateStr;
 
+      const titanDrafts = titanReservationsForDay(monthTitanDrafts, dateStr);
+      const titanCount = titanDrafts.length;
+
       const occupancyStatus =
         venueOccupancy.status === "loaded"
           ? occupancyStatusForDay(venueOccupancy.items, dateStr)
           : undefined;
       const isReserved = occupancyStatus === "reserved";
-      const isUnavailable = isPast || isDisabled || isReserved;
+      const isUnavailable = isPast || isDisabled || (isReserved && effectiveDisableIfVenueReserved);
 
-      const style = isReserved
+      const style = isReserved && effectiveDisableIfVenueReserved
         ? "border-rose-300 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 cursor-not-allowed"
         : isPast || isDisabled
           ? "bg-slate-50 dark:bg-slate-800/40 text-slate-300 dark:text-slate-600 cursor-not-allowed"
         : isSelected
           ? "bg-indigo-600 text-white font-bold shadow-md ring-2 ring-indigo-300 dark:ring-indigo-700"
+          : isReserved && !effectiveDisableIfVenueReserved
+            ? "border-rose-200 bg-rose-50/40 dark:bg-rose-950/20 text-slate-800 dark:text-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40"
           : occupancyStatus === "option"
             ? "border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60"
           : "bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-100 dark:border-slate-700/60";
@@ -586,6 +637,8 @@ export function AvailabilityDatePicker({
           ? ", option en cours pour cette salle"
           : "";
 
+      const titanLabel = titanCount > 0 ? `, ${titanCount} location(s) Titan` : "";
+
       days.push(
         <button
           key={dateStr}
@@ -593,15 +646,48 @@ export function AvailabilityDatePicker({
           disabled={isUnavailable}
           onClick={() => validateAndSelectDate(dateStr)}
           aria-pressed={isSelected}
-          aria-label={`${day} ${MONTH_NAMES[currentMonth].toLowerCase()} ${currentYear}${occupancyLabel}`}
-          className={`min-h-9 relative rounded-lg border text-xs font-medium transition-all ${style} ${
+          aria-label={`${day} ${MONTH_NAMES[currentMonth].toLowerCase()} ${currentYear}${occupancyLabel}${titanLabel}`}
+          className={`min-h-10 sm:min-h-11 p-1 rounded-lg border text-left flex flex-col justify-between transition-all relative ${style} ${
             isCurrentDay && !isSelected ? "ring-1 ring-indigo-400 font-bold" : ""
           }`}
         >
-          {day}
-          {isCurrentDay && !isSelected && (
-            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-500 rounded-full" />
-          )}
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs font-semibold">{day}</span>
+            {/* Hahitantsoa Venue Occupancy Dot */}
+            {showHahitantsoaVenueOccupancy && (
+              <span className="flex items-center">
+                {occupancyStatus === "reserved" && (
+                  <span title="Salle réservée (événement confirmé)" className="w-2 h-2 rounded-full bg-rose-500 ring-1 ring-white dark:ring-slate-900" />
+                )}
+                {occupancyStatus === "option" && (
+                  <span title="Option salle en cours" className="w-2 h-2 rounded-full bg-amber-500 ring-1 ring-white dark:ring-slate-900" />
+                )}
+                {!occupancyStatus && (
+                  <span title="Salle 100% libre" className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+                )}
+              </span>
+            )}
+          </div>
+
+          {/* Titan Active Rentals count badge */}
+          <div className="w-full flex items-center justify-between">
+            {titanCount > 0 ? (
+              <span
+                title={`${titanCount} location(s) Titan active(s)`}
+                className={`text-[8.5px] leading-tight font-bold px-1 py-0.2 rounded truncate ${
+                  isSelected
+                    ? "bg-indigo-700 text-white"
+                    : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300"
+                }`}
+              >
+                🔵 {titanCount} loc{titanCount > 1 ? "s" : ""}
+              </span>
+            ) : isCurrentDay && !isSelected ? (
+              <span className="w-1 h-1 bg-indigo-500 rounded-full mx-auto" />
+            ) : (
+              <span className="h-2" />
+            )}
+          </div>
         </button>,
       );
     }
@@ -719,10 +805,10 @@ export function AvailabilityDatePicker({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 pt-2 text-[10px] text-slate-600 dark:text-slate-400 justify-center border-t border-slate-100 dark:border-slate-800">
+      <div className="flex flex-wrap gap-2.5 pt-2 text-[10px] text-slate-600 dark:text-slate-400 justify-center border-t border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-1">
           <div className="w-2.5 h-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded" />
-          <span>Libre / À vérifier</span>
+          <span>Libre</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-2.5 h-2.5 bg-indigo-600 rounded" />
@@ -731,15 +817,21 @@ export function AvailabilityDatePicker({
         {showHahitantsoaVenueOccupancy && (
           <>
             <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 rounded" />
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
               <span>Option</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-2.5 h-2.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-700 rounded" />
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
               <span>Réservée</span>
             </div>
           </>
         )}
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] font-bold px-1 py-0.2 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+            🔵 X locs
+          </span>
+          <span>Locations Titan</span>
+        </div>
       </div>
 
       {/* Live Venue Occupancy Info */}

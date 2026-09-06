@@ -18,6 +18,8 @@ interface MockAvailabilityCalendarProps {
    */
   showHahitantsoaVenueOccupancy?: boolean;
   venueName?: string;
+  domain?: "titan" | "hahitantsoa" | "all";
+  disableIfVenueReserved?: boolean;
 }
 
 export function MockAvailabilityCalendar(props: MockAvailabilityCalendarProps) {
@@ -31,6 +33,8 @@ export function MockAvailabilityCalendar(props: MockAvailabilityCalendarProps) {
       showAvailabilityPreview={props.showAvailabilityPreview}
       showHahitantsoaVenueOccupancy={props.showHahitantsoaVenueOccupancy}
       venueName={props.venueName}
+      domain={props.domain}
+      disableIfVenueReserved={props.disableIfVenueReserved}
     />
   );
 }

@@ -284,4 +284,93 @@ describe("AvailabilityDatePicker Component", () => {
     });
     expect(screen.getByText("Tente 50m2")).toBeInTheDocument();
   });
+
+  it("keeps dates selectable in Titan domain even if Hahitantsoa venue is reserved", async () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const nextDay = new Date(Date.UTC(year, month, day + 1)).toISOString().slice(0, 10);
+    const onChange = vi.fn();
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("venue-occupancy")) {
+        return Promise.resolve(jsonResponse({
+          items: [{
+            public_reference: "H-2026-009",
+            venue_name: "Grande Salle",
+            start_at: `${dateStr}T00:00:00.000Z`,
+            end_at: `${nextDay}T00:00:00.000Z`,
+            occupancy_status: "reserved",
+          }],
+          count: 1,
+        }));
+      }
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(
+      <AvailabilityDatePicker
+        mode="inline"
+        domain="titan"
+        disableIfVenueReserved={false}
+        onChange={onChange}
+        showHahitantsoaVenueOccupancy
+        allowPast
+      />,
+    );
+
+    const dayBtn = await screen.findByRole("button", {
+      name: new RegExp(`^${day} `),
+    });
+    expect(dayBtn).not.toBeDisabled();
+    fireEvent.click(dayBtn);
+    expect(onChange).toHaveBeenCalledWith(dateStr);
+  });
+
+  it("displays Titan active rental badges on day cells when reservation drafts exist", async () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const nextDay = new Date(Date.UTC(year, month, day + 1)).toISOString().slice(0, 10);
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/api/v1/reservations/drafts/")) {
+        return Promise.resolve(jsonResponse([
+          {
+            id: "draft-1",
+            public_reference: "T-001/2026",
+            start_at: `${dateStr}T08:00:00.000Z`,
+            end_at: `${nextDay}T18:00:00.000Z`,
+            status: "confirmed",
+          },
+          {
+            id: "draft-2",
+            public_reference: "T-002/2026",
+            start_at: `${dateStr}T10:00:00.000Z`,
+            end_at: `${nextDay}T12:00:00.000Z`,
+            status: "confirmed",
+          },
+        ]));
+      }
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(
+      <AvailabilityDatePicker
+        mode="inline"
+        showHahitantsoaVenueOccupancy
+        allowPast
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/2 locs/).length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });

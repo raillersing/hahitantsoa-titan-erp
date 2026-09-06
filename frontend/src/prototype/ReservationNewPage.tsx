@@ -1832,6 +1832,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   showHahitantsoaVenueOccupancy
                   showAvailabilityPreview
                   venueName={hDetails.venue}
+                  domain="hahitantsoa"
+                  disableIfVenueReserved={Boolean(hDetails.venue)}
                   onDateSelect={(dateStr: string) => {
                     let endDate = dateStr;
                     if (hDetails.durationOption?.includes('03:30')) {
@@ -2125,6 +2127,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   selectedDate={tDetails.startDate}
                   showAvailabilityPreview
                   showHahitantsoaVenueOccupancy
+                  domain="titan"
+                  disableIfVenueReserved={false}
                   disabledDates={titanClosedDays.map((closedDay) => closedDay.date)}
                   onDateSelect={(dateStr: string) => setTDetails((previous) => ({
                     ...previous,
