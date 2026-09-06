@@ -3,3 +3,5 @@ export type { LoadingSpinnerProps, LoadingSpinnerSize } from './LoadingSpinner';
 export { EmptyState } from './EmptyState';
 export { AvailabilityDatePicker, parseAndNormalizeDate } from './AvailabilityDatePicker';
 export type { AvailabilityDatePickerProps } from './AvailabilityDatePicker';
+export { AvailabilityInspectorModal } from './AvailabilityInspectorModal';
+export type { AvailabilityInspectorModalProps } from './AvailabilityInspectorModal';
