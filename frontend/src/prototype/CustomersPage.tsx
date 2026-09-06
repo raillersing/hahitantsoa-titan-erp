@@ -693,6 +693,8 @@ export default function CustomersPage({
                     onChange={(val) => setProspectRequestedDate(val)}
                     allowPast={false}
                     showShortcuts
+                    showAvailabilityPreview
+                    showHahitantsoaVenueOccupancy={prospectDomain === "Hahitantsoa" || prospectDomain === "Indécis"}
                   />
                 </div>
                 <div>

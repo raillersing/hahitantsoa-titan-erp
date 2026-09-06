@@ -1830,6 +1830,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 <MockAvailabilityCalendar
                   selectedDate={hDetails.startDate}
                   showHahitantsoaVenueOccupancy
+                  showAvailabilityPreview
                   venueName={hDetails.venue}
                   onDateSelect={(dateStr: string) => {
                     let endDate = dateStr;
@@ -2122,6 +2123,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               <div className="mb-4">
                 <MockAvailabilityCalendar
                   selectedDate={tDetails.startDate}
+                  showAvailabilityPreview
+                  showHahitantsoaVenueOccupancy
                   disabledDates={titanClosedDays.map((closedDay) => closedDay.date)}
                   onDateSelect={(dateStr: string) => setTDetails((previous) => ({
                     ...previous,
