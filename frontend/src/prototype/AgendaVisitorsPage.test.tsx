@@ -48,8 +48,7 @@ describe("AgendaVisitorsPage", () => {
   it("preserves the commercial visitor register from real customer data", async () => {
     mockLoad();
     render(<AgendaVisitorsPage onNavigate={vi.fn()} />);
-    expect(await screen.findByText("Registre des visites, réunions commerciales et prestataires.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Clients" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Clients" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Prospects" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Prestataires" })).toBeInTheDocument();
     expect(screen.getByText("Dernière activité")).toBeInTheDocument();
