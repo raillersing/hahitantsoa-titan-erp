@@ -863,7 +863,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             <i className="fa-solid fa-bell-concierge text-amber-600 text-sm mt-0.5"></i>
             <div>
               <span className="font-bold block">Prestations de services & traiteur associées</span>
-              <p className="mt-0.5">{draft.service_notes}</p>
+              <p className="mt-0.5 whitespace-pre-line">{draft.service_notes}</p>
             </div>
           </div>
         )}

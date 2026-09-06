@@ -419,6 +419,10 @@ export type HahitantsoaEventDraftUpdatePayload = {
   customer_id?: string;
   event_name?: string;
   event_type?: HahitantsoaEventType;
+  rental_type?: "bare" | "logistics";
+  guest_count?: number;
+  space_rental_amount?: number;
+  required_deposit_amount?: number;
   venue_name?: string;
   location_details?: string;
   service_notes?: string;

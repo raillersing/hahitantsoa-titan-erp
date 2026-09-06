@@ -1,7 +1,11 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, beforeEach, afterEach, it, expect, vi } from 'vitest';
-import ReservationNewPage, { calculateHahitantsoaPaymentSchedule, calculateReservationTotals } from './prototype/ReservationNewPage';
+import ReservationNewPage, {
+  calculateHahitantsoaPaymentSchedule,
+  calculateReservationTotals,
+  formatHahitantsoaServiceNotes,
+} from './prototype/ReservationNewPage';
 import {
   getCustomers,
   getHahitantsoaVenues,
@@ -1040,5 +1044,67 @@ describe('ReservationNewPage', () => {
     // Verify subtotal update
     expect(screen.getByText(/Total des Prestations Hahitantsoa/i)).toBeInTheDocument();
     expect(screen.getByText('100 000 Ar')).toBeInTheDocument();
+  });
+
+  it('19. formatHahitantsoaServiceNotes formate exhaustivement les prestations avec quantités et prix', () => {
+    expect(formatHahitantsoaServiceNotes([])).toBeUndefined();
+
+    const formatted = formatHahitantsoaServiceNotes([
+      { id: '1', name: 'Guinguette linéaire', price: 200000, quantity: 2 },
+      { id: '2', name: 'Ciel Étoilé LED', price: 500000, quantity: 1 },
+      { id: '3', name: 'Sonorisation Standard', price: 300000 },
+    ]);
+
+    expect(formatted).toBe(
+      'Guinguette linéaire (x2) - 200000 Ar\nCiel Étoilé LED - 500000 Ar\nSonorisation Standard - 300000 Ar'
+    );
+  });
+
+  it('20. émet le proforma Hahitantsoa avec les prestations sélectionnées dans service_notes', async () => {
+    vi.mocked(createHahitantsoaEventDraft).mockClear();
+    vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockClear();
+    vi.mocked(createHahitantsoaEventDraft).mockResolvedValue({ id: 'EVENT-002', status: 'draft' } as any);
+    vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({ id: 'DOC-H-002' } as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param="prospect-proforma-h/CUST-001" />);
+
+    await screen.findByText('Détails Événement (Hahitantsoa)');
+    const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
+    fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
+    fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
+
+    // Go to Services
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+    await screen.findByText('Services Hahitantsoa');
+
+    // Select Traiteur
+    const traiteurSelectBtn = screen.getByText('Traiteur').closest('.rounded-xl')!.querySelector('button')!;
+    fireEvent.click(traiteurSelectBtn);
+
+    // Go to Summary
+    fireEvent.click(screen.getByRole('button', { name: /Vérifier le résumé/i }));
+    await screen.findByText('Résumé modifiable');
+
+    // Go to Proforma
+    fireEvent.click(screen.getByRole('button', { name: /Générer Devis\/Proforma/i }));
+    await screen.findByText('Aperçu Proforma');
+
+    // Click Emit
+    fireEvent.click(screen.getByRole('button', { name: /Émettre le proforma/i }));
+
+    await waitFor(() => {
+      expect(createHahitantsoaEventDraft).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customer_id: 'CUST-001',
+          service_notes: 'Traiteur - 500000 Ar',
+        })
+      );
+      expect(createHahitantsoaEventDraftDocumentInstance).toHaveBeenCalledWith('EVENT-002', {
+        template_key: 'hahitantsoa.proforma.v1',
+        proforma_validity_days: 15,
+      });
+    });
   });
 });
