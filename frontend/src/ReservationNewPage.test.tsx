@@ -29,6 +29,7 @@ import {
   recordConfirmedDeposit,
   getDocumentArtifactHtml,
   getDocumentTemplatePreview,
+  getReservationDrafts,
   getHahitantsoaEventDraftDocumentPreview,
 } from './api';
 
@@ -199,6 +200,7 @@ vi.mock('./api', () => ({
   recordConfirmedDeposit: vi.fn(),
   getDocumentArtifactHtml: vi.fn(),
   getDocumentTemplatePreview: vi.fn(),
+  getReservationDrafts: vi.fn(),
   getReservationDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Titan proforma mock</body></html>'),
   getHahitantsoaEventDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Hahitantsoa proforma mock</body></html>'),
 }));
@@ -215,6 +217,7 @@ describe('ReservationNewPage', () => {
 
     // Apply mock implementations before each test
     vi.mocked(getCustomers).mockResolvedValue(mockCustomersData as any);
+    vi.mocked(getReservationDrafts).mockResolvedValue([]);
     vi.mocked(getHahitantsoaVenues).mockResolvedValue(mockVenuesData as any);
     vi.mocked(getHahitantsoaVenueOccupancy).mockResolvedValue({ items: [], count: 0 });
     vi.mocked(getHahitantsoaServices).mockResolvedValue(mockServicesData as any);
@@ -625,8 +628,10 @@ describe('ReservationNewPage', () => {
     expect(screen.getByText('Chaise Napoléon transparente')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument(); // Qté
     expect(createReservationDraft).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(localStorage.getItem('prototypeReservationDraft') || '{}')).toMatchObject({
-      prospectProformaEmission: { domain: 'titan', draftId: 'DRAFT-001' },
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem('prototypeReservationDraft') || '{}')).toMatchObject({
+        prospectProformaEmission: { domain: 'titan', draftId: 'DRAFT-001' },
+      });
     });
 
     firstRender.unmount();

@@ -695,6 +695,8 @@ export default function CustomersPage({
                     showShortcuts
                     showAvailabilityPreview
                     showHahitantsoaVenueOccupancy={prospectDomain === "Hahitantsoa" || prospectDomain === "Indécis"}
+                    domain={prospectDomain === "Titan Rental" ? "titan" : prospectDomain === "Hahitantsoa" ? "hahitantsoa" : "all"}
+                    disableIfVenueReserved={false}
                   />
                 </div>
                 <div>
