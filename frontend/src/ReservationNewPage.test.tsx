@@ -11,6 +11,7 @@ import {
   getTitanClosedDays,
   getInventoryItems,
   getMaterialPackages,
+  getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
   createReservationDraft,
   updateReservationDraft,
@@ -180,6 +181,7 @@ vi.mock('./api', () => ({
   getHahitantsoaCommercialTerms: vi.fn(),
   getInventoryItems: vi.fn(),
   getMaterialPackages: vi.fn(),
+  getReservationAvailabilitySummary: vi.fn(),
   getReservationAvailableItemPreviews: vi.fn(),
   createReservationDraft: vi.fn(),
   updateReservationDraft: vi.fn(),
@@ -244,6 +246,13 @@ describe('ReservationNewPage', () => {
         updated_at: '2026-01-01T00:00:00Z',
       },
     ] as any);
+    vi.mocked(getReservationAvailabilitySummary).mockResolvedValue({
+      start_at: '2026-07-23T00:00:00Z',
+      end_at: '2026-07-24T00:00:00Z',
+      available_item_count: 5,
+      available_preview_count: 1,
+      available_item_kinds: ['material'],
+    });
     vi.mocked(getReservationAvailableItemPreviews).mockResolvedValue(mockCatalogData as any);
     vi.mocked(createReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);
     vi.mocked(updateReservationDraft).mockResolvedValue({ id: 'DRAFT-001', status: 'draft' } as any);

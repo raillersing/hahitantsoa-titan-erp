@@ -364,7 +364,7 @@ export function AvailabilityDatePicker({
 
   // Hahitantsoa venue occupancy check
   useEffect(() => {
-    if (!showHahitantsoaVenueOccupancy || venueName === undefined) {
+    if (!showHahitantsoaVenueOccupancy) {
       setVenueOccupancy({ status: "idle" });
       return;
     }
@@ -743,7 +743,7 @@ export function AvailabilityDatePicker({
       </div>
 
       {/* Live Venue Occupancy Info */}
-      {showHahitantsoaVenueOccupancy && venueName !== undefined && (
+      {showHahitantsoaVenueOccupancy && (
         <div
           aria-live="polite"
           className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-3 text-xs text-slate-700 dark:text-slate-300"
@@ -961,6 +961,108 @@ export function AvailabilityDatePicker({
       {/* Subtle Hint */}
       {hint && !inputWarning && !error && (
         <p className="text-[11px] text-slate-500 dark:text-slate-400">{hint}</p>
+      )}
+
+      {/* Live In-Situ Availability Preview when a date is selected */}
+      {(showAvailabilityPreview || showHahitantsoaVenueOccupancy) && effectiveSelectedDate && (
+        <div
+          aria-live="polite"
+          className="mt-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/90 p-3 text-xs text-slate-700 dark:text-slate-300 space-y-2 shadow-2xs"
+        >
+          {showHahitantsoaVenueOccupancy && (
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-700">
+              <span className="font-bold text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <i className="fa-solid fa-landmark text-amber-500"></i>
+                Lieu / Salle Hahitantsoa
+              </span>
+              {(() => {
+                const status = venueOccupancy.status === "loaded" ? occupancyStatusForDay(venueOccupancy.items, effectiveSelectedDate) : undefined;
+                if (status === "reserved") return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">🔴 Réservée</span>;
+                if (status === "option") return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">🟠 Option</span>;
+                return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">🟢 100% Libre</span>;
+              })()}
+            </div>
+          )}
+
+          {showAvailabilityPreview && (
+            <div>
+              {availability.status === "loading" && (
+                <p className="flex items-center gap-1.5 text-slate-500">
+                  <i className="fa-solid fa-spinner fa-spin text-indigo-500"></i>
+                  Vérification de la disponibilité réelle…
+                </p>
+              )}
+              {availability.status === "error" && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-rose-700 dark:text-rose-400">
+                    Disponibilité non vérifiée : {availability.message}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setRetryAttempt((attempt) => attempt + 1)}
+                    className="rounded-lg border border-rose-200 dark:border-rose-800 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-50"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              )}
+              {availability.status === "loaded" && (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <i className="fa-solid fa-circle-check text-emerald-500"></i>
+                      {availability.summary.available_item_count} ressource(s) Titan disponible(s) sur cette journée.
+                    </p>
+                    {availability.previews.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowItemDetails(!showItemDetails)}
+                        className="text-[11px] font-bold text-indigo-600 hover:underline"
+                      >
+                        {showItemDetails ? "Masquer" : "Détails stock"}
+                      </button>
+                    )}
+                  </div>
+                  {availability.previews.length > 0 && !showItemDetails && (
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {availability.previews.map((preview) => preview.inventory_item_name).join(", ")}
+                    </p>
+                  )}
+
+                  {showItemDetails && availability.previews.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 space-y-1.5">
+                      <input
+                        type="text"
+                        placeholder="Filtrer les matériels..."
+                        value={itemSearchFilter}
+                        onChange={(e) => setItemSearchFilter(e.target.value)}
+                        className="w-full px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none"
+                      />
+                      <div className="max-h-36 overflow-y-auto space-y-1">
+                        {filteredPreviewItems.map((item) => (
+                          <div
+                            key={item.inventory_item_id}
+                            className="flex items-center justify-between px-2 py-1 bg-slate-50 dark:bg-slate-900/60 rounded text-[11px]"
+                          >
+                            <span className="font-medium text-slate-700 dark:text-slate-300">
+                              {item.inventory_item_name}
+                            </span>
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              ✓ Disponible
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                    Multi-locations autorisées : Plusieurs clients peuvent louer simultanément tant que les stocks suffisent. La sélection ne bloque pas la date souhaitée.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Floating Popover Calendar */}

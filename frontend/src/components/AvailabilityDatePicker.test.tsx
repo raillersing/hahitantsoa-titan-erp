@@ -225,4 +225,63 @@ describe("AvailabilityDatePicker Component", () => {
     fireEvent.click(reservedBtn);
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("renders in-situ live preview card directly beneath the input in popover mode", async () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+    const selectedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const nextDay = new Date(Date.UTC(year, month, day + 1)).toISOString().slice(0, 10);
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("venue-occupancy")) {
+        return Promise.resolve(jsonResponse({
+          items: [{
+            public_reference: "H-2026-009",
+            venue_name: "Grande Salle",
+            start_at: `${selectedDate}T00:00:00.000Z`,
+            end_at: `${nextDay}T00:00:00.000Z`,
+            occupancy_status: "free",
+          }],
+          count: 1,
+        }));
+      }
+      if (url.includes("availability-summary")) {
+        return Promise.resolve(jsonResponse({
+          start_at: `${selectedDate}T00:00:00.000Z`,
+          end_at: `${nextDay}T00:00:00.000Z`,
+          available_item_count: 8,
+          available_preview_count: 1,
+          available_item_kinds: ["material"],
+        }));
+      }
+      return Promise.resolve(jsonResponse([{
+        inventory_item_id: "item-101",
+        inventory_item_name: "Tente 50m2",
+        inventory_item_kind: "material",
+        start_at: `${selectedDate}T00:00:00.000Z`,
+        end_at: `${nextDay}T00:00:00.000Z`,
+        status: "available",
+      }]));
+    });
+
+    render(
+      <AvailabilityDatePicker
+        label="Date souhaitée de l'événement"
+        value={selectedDate}
+        showAvailabilityPreview
+        showHahitantsoaVenueOccupancy
+        allowPast
+      />,
+    );
+
+    // In-situ card should be visible directly below the input
+    expect(screen.getByText("Lieu / Salle Hahitantsoa")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/8 ressource\(s\) Titan disponible\(s\)/)).toBeInTheDocument();
+    });
+    expect(screen.getByText("Tente 50m2")).toBeInTheDocument();
+  });
 });
