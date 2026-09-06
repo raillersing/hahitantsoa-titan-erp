@@ -554,7 +554,27 @@ def test_hahitantsoa_proforma_and_contract_includes_venue_services_and_materials
     assert "9 100 000,00" in proforma_html
     assert "Neuf millions cent mille Ariary" in proforma_html
 
-    # 2. Test Contract
+    # 2. Test Invoice
+    invoice_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.invoice.v1",
+        )
+    )
+    assert "FACTURE" in invoice_html
+    assert "Rakoto Jean & Rasoa Marie" in invoice_html
+    assert "Location de l'espace" in invoice_html
+    assert "6 500 000,00" in invoice_html
+    assert "Traiteur prestige" in invoice_html
+    assert "1 500 000,00" in invoice_html
+    assert "Ciel étoilé / Guinguette" in invoice_html
+    assert "800 000,00" in invoice_html
+    assert "Chaise argentée médaillon" in invoice_html
+    assert "300 000,00" in invoice_html
+    assert "9 100 000,00" in invoice_html
+    assert "Neuf millions cent mille Ariary" in invoice_html
+
+    # 3. Test Contract
     contract_html = unescape(
         preview_hahitantsoa_event_draft_document_html(
             event_draft=event_draft,
@@ -564,6 +584,16 @@ def test_hahitantsoa_proforma_and_contract_includes_venue_services_and_materials
     assert "CONTRAT DE LOCATION « HAHITANTSOA »" in contract_html
     assert "9 100 000,00" in contract_html
     assert "1 500 000,00" in contract_html
+
+    # 4. Test recalculate_hahitantsoa_event_draft_totals
+    from apps.hahitantsoa.commercial_terms import recalculate_hahitantsoa_event_draft_totals
+
+    event_draft.total_amount = Decimal("0.00")
+    event_draft.save(update_fields=["total_amount"])
+    recalculate_hahitantsoa_event_draft_totals(event_draft=event_draft)
+    event_draft.refresh_from_db()
+    assert event_draft.total_amount == Decimal("9100000.00")
+    assert event_draft.logistics_amount == Decimal("300000.00")
 
 
 def test_titan_proforma_and_contract_includes_real_prices_and_breakage(django_user_model) -> None:

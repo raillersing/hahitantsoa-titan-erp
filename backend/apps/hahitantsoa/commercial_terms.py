@@ -86,6 +86,8 @@ def get_hahitantsoa_payment_schedule(
 
 def recalculate_hahitantsoa_event_draft_totals(*, event_draft: HahitantsoaEventDraft) -> None:
     """Persist the commercial snapshot from immutable event-draft line prices."""
+    from apps.documents.formatting import parse_hahitantsoa_services_total
+
     logistics_amount = sum(
         (
             line.unit_rental_price * line.quantity
@@ -93,9 +95,12 @@ def recalculate_hahitantsoa_event_draft_totals(*, event_draft: HahitantsoaEventD
         ),
         Decimal("0"),
     ).quantize(MONEY_QUANTUM)
-    event_draft.logistics_amount = logistics_amount
-    event_draft.total_amount = (event_draft.space_rental_amount + logistics_amount).quantize(
+    services_amount = parse_hahitantsoa_services_total(event_draft.service_notes).quantize(
         MONEY_QUANTUM
     )
+    event_draft.logistics_amount = logistics_amount
+    event_draft.total_amount = (
+        event_draft.space_rental_amount + logistics_amount + services_amount
+    ).quantize(MONEY_QUANTUM)
     event_draft.full_clean()
     event_draft.save(update_fields=["logistics_amount", "total_amount", "updated_at"])
