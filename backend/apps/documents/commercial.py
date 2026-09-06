@@ -11,6 +11,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from apps.documents.formatting import (
+    _format_ariary_amount,
+    format_ariary_amount_in_words,
+)
 from apps.documents.registry import (
     DocumentTemplateDefinition,
     get_document_template_definition,
@@ -109,6 +113,21 @@ class CommercialDocumentLineContext:
     unit_rental_price: object
     total_amount: object
     notes: str
+    inventory_item_breakage_price: object | None = None
+
+    @property
+    def unit_price(self) -> str:
+        return _format_ariary_amount(self.unit_rental_price)
+
+    @property
+    def total_price(self) -> str:
+        return _format_ariary_amount(self.total_amount)
+
+    @property
+    def breakage_price(self) -> str | None:
+        if self.inventory_item_breakage_price is not None:
+            return _format_ariary_amount(self.inventory_item_breakage_price)
+        return None
 
 
 @dataclass(frozen=True)
@@ -131,6 +150,26 @@ class CommercialDocumentReservationContext:
     proforma_reference: str = ""
     pickup_at: datetime | None = None
     return_at: datetime | None = None
+
+    @property
+    def sub_total(self) -> str:
+        return _format_ariary_amount(self.subtotal_amount)
+
+    @property
+    def discount(self) -> str:
+        return _format_ariary_amount(self.discount_amount)
+
+    @property
+    def total_amount_in_words(self) -> str:
+        return format_ariary_amount_in_words(self.total_amount)
+
+    @property
+    def total_amount_formatted(self) -> str:
+        return _format_ariary_amount(self.total_amount)
+
+    @property
+    def delivery_fee_formatted(self) -> str:
+        return _format_ariary_amount(self.delivery_fee)
 
 
 @dataclass(frozen=True)
@@ -244,6 +283,7 @@ def _build_line_context(
         unit_rental_price=line.unit_rental_price,
         total_amount=line.unit_rental_price * line.quantity,
         notes=line.notes or "",
+        inventory_item_breakage_price=getattr(inventory_item, "breakage_price", None),
     )
 
 

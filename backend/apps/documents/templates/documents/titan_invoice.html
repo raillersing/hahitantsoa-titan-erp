@@ -242,12 +242,15 @@
 
       <div class="totals">
         <div class="totals-row"><span>TOTAL</span><span>{{ context.reservation_draft.sub_total|default:"" }}</span></div>
+        {% if context.reservation_draft.delivery_fee and context.reservation_draft.delivery_fee != "0,00" and context.reservation_draft.delivery_fee != "0" and context.reservation_draft.delivery_fee != "0.00" %}
+        <div class="totals-row"><span>Livraison</span><span>{{ context.reservation_draft.delivery_fee_formatted|default:context.reservation_draft.delivery_fee }}</span></div>
+        {% endif %}
         <div class="totals-row"><span>Remise</span><span>{{ context.reservation_draft.discount|default:"" }}</span></div>
       </div>
 
       <div class="total-bar">
         <span>TOTAL A PAYER</span>
-        <strong>{{ context.reservation_draft.total_amount|default:"" }} Ar</strong>
+        <strong>{{ context.reservation_draft.total_amount_formatted|default:context.reservation_draft.total_amount|default:"" }} Ar</strong>
       </div>
 
       <div class="words">

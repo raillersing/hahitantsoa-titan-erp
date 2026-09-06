@@ -13,7 +13,8 @@ from apps.documents.services import (
     create_document_instance_from_reservation_draft,
 )
 from apps.hahitantsoa.models import HahitantsoaEventDraft
-from apps.reservations.models import ReservationDraft
+from apps.inventory.models import InventoryItem
+from apps.reservations.models import ReservationDraft, ReservationDraftLine
 
 pytestmark = pytest.mark.django_db
 
@@ -484,3 +485,174 @@ def test_shared_return_note_and_preparation_sheet_content_for_both_domains(
     h_prep_html = h_prep_res.content.decode("utf-8")
     assert "BON DE PRÉPARATION" in h_prep_html
     assert "Chaises Napoléon Blanches" in h_prep_html
+
+
+def test_hahitantsoa_proforma_and_contract_includes_venue_services_and_materials() -> None:
+    from apps.documents.runtime import preview_hahitantsoa_event_draft_document_html
+    from apps.hahitantsoa.models import HahitantsoaEventDraftLine
+
+    customer = Customer.objects.create(
+        display_name="Rakoto Jean & Rasoa Marie",
+        lifecycle_status=CustomerLifecycleStatus.CLIENT,
+        phone="+261 34 11 222 33",
+        email="mariage.rakoto@example.test",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=30)
+    end_at = start_at + timedelta(hours=12)
+
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Grand Mariage Rakoto",
+        start_at=start_at,
+        end_at=end_at,
+        rental_type="logistics",
+        venue_name="Domaine Hahitantsoa Bypass",
+        space_rental_amount=Decimal("6500000.00"),
+        service_notes=(
+            "Traiteur prestige (x1) - 1 500 000 Ar\n"
+            "Ciel étoilé / Guinguette (x2) - 800 000 Ar\n"
+            "Décoration florale de salle"
+        ),
+        total_amount=Decimal("9100000.00"),
+        required_deposit_amount=Decimal("1500000.00"),
+    )
+
+    item = InventoryItem.objects.create(
+        name="Chaise argentée médaillon",
+        kind="material",
+        rental_price=Decimal("3000.00"),
+        breakage_price=Decimal("25000.00"),
+    )
+    HahitantsoaEventDraftLine.objects.create(
+        event_draft=event_draft,
+        inventory_item=item,
+        quantity=100,
+        unit_rental_price=Decimal("3000.00"),
+    )
+
+    # 1. Test Proforma
+    proforma_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.proforma.v1",
+        )
+    )
+
+    assert "PROFORMA Hahitantsoa" in proforma_html
+    assert "Rakoto Jean & Rasoa Marie" in proforma_html
+    assert "Location de l'espace" in proforma_html
+    assert "Domaine Hahitantsoa Bypass" in proforma_html
+    assert "6 500 000,00" in proforma_html
+    assert "Traiteur prestige" in proforma_html
+    assert "1 500 000,00" in proforma_html
+    assert "Ciel étoilé / Guinguette" in proforma_html
+    assert "800 000,00" in proforma_html
+    assert "Décoration florale de salle" in proforma_html
+    assert "Chaise argentée médaillon" in proforma_html
+    assert "300 000,00" in proforma_html
+    assert "25 000,00" in proforma_html
+    assert "9 100 000,00" in proforma_html
+    assert "Neuf millions cent mille Ariary" in proforma_html
+
+    # 2. Test Contract
+    contract_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.contract.v1",
+        )
+    )
+    assert "CONTRAT DE LOCATION « HAHITANTSOA »" in contract_html
+    assert "9 100 000,00" in contract_html
+    assert "1 500 000,00" in contract_html
+
+
+def test_titan_proforma_and_contract_includes_real_prices_and_breakage(django_user_model) -> None:
+    from apps.documents.runtime import preview_reservation_draft_document_html
+
+    user = django_user_model.objects.create_user(
+        username="titan-doc-actor",
+        password="test-password",
+        is_staff=True,
+    )
+    customer = Customer.objects.create(
+        display_name="Société Evénementielle Pro",
+        lifecycle_status=CustomerLifecycleStatus.CLIENT,
+        phone="+261 32 00 111 22",
+        email="contact@eventpro.mg",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=20)
+    end_at = start_at + timedelta(days=2)
+
+    item1 = InventoryItem.objects.create(
+        name="Projecteur LED RGBW",
+        kind="material",
+        rental_price=Decimal("25000.00"),
+        breakage_price=Decimal("120000.00"),
+    )
+    item2 = InventoryItem.objects.create(
+        name="Table d'honneur ronde",
+        kind="article",
+        rental_price=Decimal("50000.00"),
+        breakage_price=Decimal("200000.00"),
+    )
+
+    reservation_draft = ReservationDraft.objects.create(
+        customer=customer,
+        created_by=user,
+        start_at=start_at,
+        end_at=end_at,
+        subtotal_amount=Decimal("200000.00"),
+        delivery_fee=Decimal("50000.00"),
+        discount_amount=Decimal("10000.00"),
+        discount_reason="Remise commerciale fidélité",
+        discount_applied_at=timezone.now(),
+        discount_applied_by=user,
+        total_amount=Decimal("240000.00"),
+    )
+
+    ReservationDraftLine.objects.create(
+        reservation_draft=reservation_draft,
+        inventory_item=item1,
+        quantity=4,
+        unit_rental_price=Decimal("25000.00"),
+    )
+    ReservationDraftLine.objects.create(
+        reservation_draft=reservation_draft,
+        inventory_item=item2,
+        quantity=2,
+        unit_rental_price=Decimal("50000.00"),
+    )
+
+    # 1. Test Titan Proforma
+    titan_proforma = unescape(
+        preview_reservation_draft_document_html(
+            reservation_draft=reservation_draft,
+            template_key="titan.proforma.v1",
+        )
+    )
+
+    assert "PROFORMA" in titan_proforma
+    assert "Société Evénementielle Pro" in titan_proforma
+    assert "Projecteur LED RGBW" in titan_proforma
+    assert "25 000,00" in titan_proforma
+    assert "100 000,00" in titan_proforma
+    assert "120 000,00" in titan_proforma
+    assert "Table d'honneur ronde" in titan_proforma
+    assert "50 000,00" in titan_proforma
+    assert "200 000,00" in titan_proforma
+    assert "Livraison" in titan_proforma
+    assert "50 000,00" in titan_proforma
+    assert "Remise" in titan_proforma
+    assert "10 000,00" in titan_proforma
+    assert "240 000,00" in titan_proforma
+    assert "Deux cent quarante mille Ariary" in titan_proforma
+
+    # 2. Test Titan Contract
+    titan_contract = unescape(
+        preview_reservation_draft_document_html(
+            reservation_draft=reservation_draft,
+            template_key="titan.material_contract.v1",
+        )
+    )
+    assert "CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS" in titan_contract
+    assert "240 000,00" in titan_contract
