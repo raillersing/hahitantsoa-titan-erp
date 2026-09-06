@@ -250,7 +250,7 @@ function getTomorrowISO(): string {
 
 function getThisSaturdayISO(): string {
   const d = new Date();
-  const day = d.getDay(); // 0 is Sunday, 6 is Saturday
+  const day = d.getDay();
   const diff = day === 6 ? 7 : (6 - day);
   d.setDate(d.getDate() + diff);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -301,6 +301,8 @@ export function AvailabilityDatePicker({
   const [inputValue, setInputValue] = useState<string>(formatDisplayDate(effectiveSelectedDate));
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [inputWarning, setInputWarning] = useState<string | null>(null);
+  const [showItemDetails, setShowItemDetails] = useState<boolean>(false);
+  const [itemSearchFilter, setItemSearchFilter] = useState<string>("");
 
   // Calendar navigation month/year
   const initialDate = effectiveSelectedDate ? new Date(`${effectiveSelectedDate}T00:00:00`) : new Date();
@@ -536,6 +538,15 @@ export function AvailabilityDatePicker({
   const startingDayOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  const filteredPreviewItems =
+    availability.status === "loaded"
+      ? availability.previews.filter(
+          (p) =>
+            !itemSearchFilter.trim() ||
+            p.inventory_item_name.toLowerCase().includes(itemSearchFilter.toLowerCase()),
+        )
+      : [];
 
   const renderCalendarDays = () => {
     const days: React.ReactNode[] = [];
@@ -775,7 +786,7 @@ export function AvailabilityDatePicker({
       {showAvailabilityPreview && effectiveSelectedDate && (
         <div
           aria-live="polite"
-          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-3 text-xs text-slate-700 dark:text-slate-300"
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 p-3 text-xs text-slate-700 dark:text-slate-300 space-y-2"
         >
           {availability.status === "loading" && (
             <p className="flex items-center gap-1.5 text-slate-500">
@@ -798,27 +809,68 @@ export function AvailabilityDatePicker({
             </div>
           )}
           {availability.status === "loaded" && (
-            availability.summary.available_item_count > 0 ? (
-              <div>
-                <p className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                  <i className="fa-solid fa-circle-check text-emerald-500"></i>
-                  {availability.summary.available_item_count} ressource(s) Titan disponible(s) sur cette journée.
+            <div>
+              {availability.summary.available_item_count > 0 ? (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <i className="fa-solid fa-circle-check text-emerald-500"></i>
+                      {availability.summary.available_item_count} ressource(s) Titan disponible(s) sur cette journée.
+                    </p>
+                    {availability.previews.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowItemDetails(!showItemDetails)}
+                        className="text-[11px] font-bold text-indigo-600 hover:underline"
+                      >
+                        {showItemDetails ? "Masquer la liste" : "Voir le détail"}
+                      </button>
+                    )}
+                  </div>
+                  {availability.previews.length > 0 && !showItemDetails && (
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      {availability.previews.map((preview) => preview.inventory_item_name).join(", ")}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <i className="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                  Aucune ressource Titan disponible sur cette journée.
                 </p>
-                {availability.previews.length > 0 && (
-                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                    {availability.previews.map((preview) => preview.inventory_item_name).join(", ")}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                <i className="fa-solid fa-triangle-exclamation text-amber-500"></i>
-                Aucune ressource Titan disponible sur cette journée.
-              </p>
-            )
+              )}
+
+              {/* Expandable item details list */}
+              {showItemDetails && availability.previews.length > 0 && (
+                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Filtrer les matériels disponibles..."
+                    value={itemSearchFilter}
+                    onChange={(e) => setItemSearchFilter(e.target.value)}
+                    className="w-full px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 focus:outline-none"
+                  />
+                  <div className="max-h-36 overflow-y-auto space-y-1">
+                    {filteredPreviewItems.map((item) => (
+                      <div
+                        key={item.inventory_item_id}
+                        className="flex items-center justify-between px-2 py-1 bg-slate-50 dark:bg-slate-900/60 rounded text-[11px]"
+                      >
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          {item.inventory_item_name}
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                          ✓ Disponible
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
-          <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">
-            Cette indication ne bloque pas la date souhaitée et ne constitue pas une réservation.
+          <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+            Multi-locations autorisées : Plusieurs clients peuvent louer simultanément tant que les stocks suffisent. La sélection ne bloque pas la date souhaitée.
           </p>
         </div>
       )}

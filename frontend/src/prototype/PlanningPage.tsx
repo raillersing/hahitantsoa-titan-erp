@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
+import { AvailabilityDatePicker, AvailabilityInspectorModal } from "../components";
 import {
   cancelVisitAppointment,
   completeVisitAppointment,
@@ -277,6 +277,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
   const [selectedEvent, setSelectedEvent] = useState<UnifiedPlanningEvent | null>(null);
 
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
+  const [isAvailabilityInspectorOpen, setIsAvailabilityInspectorOpen] = useState(false);
   const [quickVisitDate, setQuickVisitDate] = useState<string>("");
   const [quickVisitTime, setQuickVisitTime] = useState<string>("10:00");
 
@@ -659,6 +660,14 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
+            onClick={() => setIsAvailabilityInspectorOpen(true)}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
+          >
+            <i className="fa-solid fa-calendar-check"></i>
+            <span>Disponibilité & Stocks</span>
+          </button>
+          <button
+            type="button"
             onClick={() => openNewVisitModal()}
             className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2"
           >
@@ -955,6 +964,18 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           }}
         />
       )}
+
+      {/* Availability & Stock Inspector Modal */}
+      <AvailabilityInspectorModal
+        isOpen={isAvailabilityInspectorOpen}
+        onClose={() => setIsAvailabilityInspectorOpen(false)}
+        initialDate={currentDate.toISOString().slice(0, 10)}
+        onSelectDateAndNavigate={(date, domain) => {
+          if (onNavigate) {
+            onNavigate("reservation-new", domain || "titan");
+          }
+        }}
+      />
     </div>
   );
 }
