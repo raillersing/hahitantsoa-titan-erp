@@ -7,7 +7,7 @@ import {
   uploadAttachment,
 } from "../api";
 import type { Customer as ApiCustomer, CustomerContactPoint, Client } from "../types";
-import { EmptyState, LoadingSpinner } from "../components";
+import { AvailabilityDatePicker, EmptyState, LoadingSpinner } from "../components";
 
 interface CustomersPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -687,14 +687,12 @@ export default function CustomersPage({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Date souhaitée de l'événement
-                  </label>
-                  <input
-                    type="date"
+                  <AvailabilityDatePicker
+                    label="Date souhaitée de l'événement"
                     value={prospectRequestedDate}
-                    onChange={(e) => setProspectRequestedDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={(val) => setProspectRequestedDate(val)}
+                    allowPast={false}
+                    showShortcuts
                   />
                 </div>
                 <div>
@@ -744,14 +742,12 @@ export default function CustomersPage({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Date de prochaine relance
-                </label>
-                <input
-                  type="date"
+                <AvailabilityDatePicker
+                  label="Date de prochaine relance"
                   value={prospectFollowUpDate}
-                  onChange={(e) => setProspectFollowUpDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(val) => setProspectFollowUpDate(val)}
+                  allowPast
+                  showShortcuts
                 />
               </div>
             </div>

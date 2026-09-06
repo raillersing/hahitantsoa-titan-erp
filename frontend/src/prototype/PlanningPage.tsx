@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
 import {
   cancelVisitAppointment,
   completeVisitAppointment,
@@ -750,6 +751,24 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
             <span className="text-base font-bold text-slate-900 dark:text-white ml-2 capitalize">
               {dateRangeLabel}
             </span>
+
+            <div className="hidden sm:block ml-2 w-48">
+              <AvailabilityDatePicker
+                value={currentDate.toISOString().slice(0, 10)}
+                onChange={(dateStr) => {
+                  if (dateStr) {
+                    const parsed = new Date(`${dateStr}T00:00:00`);
+                    if (!isNaN(parsed.getTime())) {
+                      setCurrentDate(parsed);
+                    }
+                  }
+                }}
+                allowPast
+                placeholder="Aller au..."
+                ariaLabel="Aller à une date précise"
+                showShortcuts
+              />
+            </div>
           </div>
 
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1749,16 +1768,14 @@ function EventDetailDrawer({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="edit-visit-date" className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      Date *
-                    </label>
-                    <input
+                    <AvailabilityDatePicker
                       id="edit-visit-date"
-                      type="date"
-                      value={editDate}
-                      onChange={(e) => setEditDate(e.target.value)}
+                      label="Date"
                       required
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                      value={editDate}
+                      onChange={(val) => setEditDate(val)}
+                      allowPast
+                      showShortcuts
                     />
                   </div>
                   <div>
@@ -2475,19 +2492,14 @@ function AddVisitModal({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label
-                  htmlFor="visit-date"
-                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1"
-                >
-                  Date
-                </label>
-                <input
+                <AvailabilityDatePicker
                   id="visit-date"
-                  type="date"
-                  value={dateStr}
-                  onChange={(e) => setDateStr(e.target.value)}
+                  label="Date"
                   required
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  value={dateStr}
+                  onChange={(val) => setDateStr(val)}
+                  allowPast
+                  showShortcuts
                 />
               </div>
 
