@@ -155,13 +155,17 @@ def build_payment_receipt_context(
     )
     history = tuple(
         {
-            "date_label": _date_label(item.paid_at),
+            "date_label": _date_label(item.paid_at or item.created_at),
             "amount_label": _format_amount(item.amount),
             "method_label": _payment_method_label(item),
             "reference": item.external_reference or "",
             "kind": item.get_payment_kind_display(),
         }
         for item in confirmed_payments
+    )
+    total_confirmed_payments = sum(
+        (item.amount for item in confirmed_payments),
+        Decimal("0"),
     )
     deposit_total = sum(
         (item.amount for item in confirmed_payments if item.payment_kind == PaymentKind.DEPOSIT),
@@ -183,6 +187,59 @@ def build_payment_receipt_context(
         if reservation_draft is not None
         else None
     )
+
+    # Calculate proforma total amount
+    proforma_total = Decimal("0.00")
+    if event_draft is not None:
+        if getattr(event_draft, "total_amount", None) and Decimal(
+            str(event_draft.total_amount)
+        ) > Decimal("0.00"):
+            proforma_total = Decimal(str(event_draft.total_amount))
+        else:
+            space_amt = Decimal(str(getattr(event_draft, "space_rental_amount", 0) or 0))
+            materials_total = sum(
+                (
+                    Decimal(str(line.unit_rental_price * line.quantity))
+                    for line in event_draft.lines.filter(is_deleted=False)
+                ),
+                Decimal("0"),
+            )
+            from apps.documents.runtime import _parse_hahitantsoa_service_lines
+
+            service_lines = tuple(
+                _parse_hahitantsoa_service_lines(getattr(event_draft, "service_notes", ""))
+            )
+            services_total = sum(
+                (Decimal(str(line.get("_raw_total_price", 0))) for line in service_lines),
+                Decimal("0"),
+            )
+            proforma_total = space_amt + materials_total + services_total
+    elif reservation_draft is not None:
+        proforma_total = sum(
+            (
+                Decimal(str(line.unit_rental_price * line.quantity))
+                for line in reservation_draft.lines.all()
+            ),
+            Decimal("0"),
+        )
+
+    remaining_balance = (
+        max(Decimal("0.00"), proforma_total - total_confirmed_payments)
+        if proforma_total > Decimal("0.00")
+        else Decimal("0.00")
+    )
+
+    dossier_public_reference = (
+        reservation_draft.public_reference
+        if reservation_draft is not None
+        else (event_draft.public_reference if event_draft is not None else "")
+    )
+    proforma_reference = (
+        proforma_document.reservation_public_reference
+        if (proforma_document and proforma_document.reservation_public_reference)
+        else dossier_public_reference
+    )
+
     customer_display_name = (
         customer.display_name
         if customer is not None
@@ -200,13 +257,7 @@ def build_payment_receipt_context(
         payment=PaymentReceiptPaymentContext(
             payment_id=payment.id,
             reservation_draft_id=payment.reservation_draft_id,
-            reservation_public_reference=(
-                reservation_draft.public_reference
-                if reservation_draft is not None
-                else event_draft.public_reference
-                if event_draft is not None
-                else ""
-            ),
+            reservation_public_reference=dossier_public_reference,
             payment_kind=payment.payment_kind,
             payment_method=payment.payment_method,
             payment_status=payment.payment_status,
@@ -220,16 +271,22 @@ def build_payment_receipt_context(
             notes=payment.notes or "",
             event_date=event_date,
             event_date_label=_date_label(event_date),
-            payment_date_label=_date_label(payment.paid_at),
+            payment_date_label=_date_label(payment.paid_at or payment.created_at),
             payment_method_label=_payment_method_label(payment),
             transaction_reference=payment.external_reference or "",
             history=history,
-            total_deposit_label=_format_amount(deposit_total),
-            proforma_reference=(
-                proforma_document.reservation_public_reference if proforma_document else ""
+            total_deposit_label=_format_amount(
+                total_confirmed_payments
+                if total_confirmed_payments > Decimal("0")
+                else deposit_total
             ),
-            proforma_amount_label="",
-            remaining_balance_label="",
+            proforma_reference=proforma_reference,
+            proforma_amount_label=_format_amount(proforma_total)
+            if proforma_total > Decimal("0")
+            else "",
+            remaining_balance_label=_format_amount(remaining_balance)
+            if proforma_total > Decimal("0")
+            else "",
             receipt_page_height_mm=receipt_page_height_mm,
         ),
     )

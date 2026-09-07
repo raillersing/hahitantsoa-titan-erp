@@ -49,6 +49,9 @@ def test_hahitantsoa_receipt_context_contains_history_and_event_fields(django_us
     event = HahitantsoaEventDraft.objects.create(
         customer=customer,
         event_name="Test event",
+        public_reference="H-012/2026",
+        space_rental_amount=Decimal("3000000.00"),
+        total_amount=Decimal("3000000.00"),
         start_at=start_at,
         end_at=start_at + timedelta(hours=4),
     )
@@ -92,6 +95,6 @@ def test_hahitantsoa_receipt_context_contains_history_and_event_fields(django_us
     assert context.payment.transaction_reference == "4485796407"
     assert context.payment.total_deposit_label == "2 210 000"
     assert context.payment.proforma_reference == "118/026"
-    assert context.payment.proforma_amount_label == ""
-    assert context.payment.remaining_balance_label == ""
+    assert context.payment.proforma_amount_label == "3 000 000"
+    assert context.payment.remaining_balance_label == "790 000"
     assert len(context.payment.history) == 2
