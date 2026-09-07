@@ -413,6 +413,11 @@ class HahitantsoaEventDraftAmendmentRequest(UUIDModel, TimestampedModel, Auditab
     changed_end_at = models.DateTimeField(null=True, blank=True)
     changed_event_name = models.CharField(max_length=255, blank=True)
     changed_event_type = models.CharField(max_length=32, blank=True)
+    changed_rental_type = models.CharField(max_length=16, blank=True)
+    changed_guest_count = models.PositiveIntegerField(null=True, blank=True)
+    changed_space_rental_amount = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True
+    )
     changed_venue_name = models.CharField(max_length=255, blank=True)
     changed_location_details = models.TextField(blank=True)
     changed_service_notes = models.TextField(blank=True)

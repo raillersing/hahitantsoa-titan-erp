@@ -444,6 +444,9 @@ class HahitantsoaEventDraftAmendmentRequestSerializer(serializers.ModelSerialize
             "changed_end_at",
             "changed_event_name",
             "changed_event_type",
+            "changed_rental_type",
+            "changed_guest_count",
+            "changed_space_rental_amount",
             "changed_venue_name",
             "changed_location_details",
             "changed_service_notes",
@@ -598,6 +601,11 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
     changed_end_at = serializers.DateTimeField(required=False, allow_null=True)
     changed_event_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     changed_event_type = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    changed_rental_type = serializers.CharField(required=False, allow_blank=True, max_length=16)
+    changed_guest_count = serializers.IntegerField(required=False, allow_null=True, min_value=0)
+    changed_space_rental_amount = serializers.DecimalField(
+        required=False, allow_null=True, max_digits=14, decimal_places=2
+    )
     changed_venue_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     changed_location_details = serializers.CharField(required=False, allow_blank=True)
     changed_service_notes = serializers.CharField(required=False, allow_blank=True)
@@ -615,6 +623,9 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
             changed_end_at=validated_data.get("changed_end_at"),
             changed_event_name=validated_data.get("changed_event_name", ""),
             changed_event_type=validated_data.get("changed_event_type", ""),
+            changed_rental_type=validated_data.get("changed_rental_type", ""),
+            changed_guest_count=validated_data.get("changed_guest_count"),
+            changed_space_rental_amount=validated_data.get("changed_space_rental_amount"),
             changed_venue_name=validated_data.get("changed_venue_name", ""),
             changed_location_details=validated_data.get("changed_location_details", ""),
             changed_service_notes=validated_data.get("changed_service_notes", ""),
@@ -634,6 +645,9 @@ class HahitantsoaEventDraftAmendmentRequestUpdateSerializer(serializers.ModelSer
             "changed_end_at",
             "changed_event_name",
             "changed_event_type",
+            "changed_rental_type",
+            "changed_guest_count",
+            "changed_space_rental_amount",
             "changed_venue_name",
             "changed_location_details",
             "changed_service_notes",

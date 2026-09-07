@@ -333,13 +333,16 @@ def apply_hahitantsoa_event_draft_amendment_request(
         for field in (
             "changed_event_name",
             "changed_event_type",
+            "changed_rental_type",
+            "changed_guest_count",
+            "changed_space_rental_amount",
             "changed_venue_name",
             "changed_location_details",
             "changed_service_notes",
             "changed_notes",
         ):
-            value = getattr(locked_request, field)
-            if value:
+            value = getattr(locked_request, field, None)
+            if value is not None and value != "":
                 setattr(locked_event_draft, field.removeprefix("changed_"), value)
         locked_event_draft.updated_by = actor
         locked_event_draft.full_clean()
@@ -832,6 +835,9 @@ def create_hahitantsoa_event_draft_amendment_request(
     changed_end_at=None,
     changed_event_name: str = "",
     changed_event_type: str = "",
+    changed_rental_type: str = "",
+    changed_guest_count=None,
+    changed_space_rental_amount=None,
     changed_venue_name: str = "",
     changed_location_details: str = "",
     changed_service_notes: str = "",
@@ -864,6 +870,9 @@ def create_hahitantsoa_event_draft_amendment_request(
             changed_end_at=changed_end_at,
             changed_event_name=changed_event_name,
             changed_event_type=changed_event_type,
+            changed_rental_type=changed_rental_type,
+            changed_guest_count=changed_guest_count,
+            changed_space_rental_amount=changed_space_rental_amount,
             changed_venue_name=changed_venue_name,
             changed_location_details=changed_location_details,
             changed_service_notes=changed_service_notes,
