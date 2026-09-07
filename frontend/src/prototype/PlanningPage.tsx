@@ -330,6 +330,12 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
   const [itemsState, setItemsState] = useState<ItemsState>({ status: "loading" });
   const [selectedEvent, setSelectedEvent] = useState<UnifiedPlanningEvent | null>(null);
   const [conflictEventToResolve, setConflictEventToResolve] = useState<UnifiedPlanningEvent | null>(null);
+  const [conflictModalInitialTab, setConflictModalInitialTab] = useState<"reschedule" | "waitlist" | "cancel">("reschedule");
+
+  const handleOpenConflictModal = useCallback((event: UnifiedPlanningEvent, tab: "reschedule" | "waitlist" | "cancel" = "reschedule") => {
+    setConflictModalInitialTab(tab);
+    setConflictEventToResolve(event);
+  }, []);
 
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [isAvailabilityInspectorOpen, setIsAvailabilityInspectorOpen] = useState(false);
@@ -707,9 +713,6 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
 
   const handleEventClick = (event: UnifiedPlanningEvent) => {
     setSelectedEvent(event);
-    if (onNavigate && event.targetParam) {
-      onNavigate(event.targetScope || "reservation-detail", event.targetParam);
-    }
   };
 
   const handleNavigateToEvent = (event: UnifiedPlanningEvent) => {
@@ -1053,6 +1056,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
               currentDate={currentDate}
               events={filteredEvents}
               onSelectEvent={setSelectedEvent}
+              onResolveConflict={handleOpenConflictModal}
               onDayClick={(d) => {
                 setCurrentDate(d);
                 setViewMode("day");
@@ -1066,6 +1070,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
               events={filteredEvents}
               onSelectEvent={setSelectedEvent}
               onEventClick={handleEventClick}
+              onResolveConflict={handleOpenConflictModal}
               onDayClick={(d) => {
                 setCurrentDate(d);
                 setViewMode("day");
@@ -1079,6 +1084,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
               events={filteredEvents}
               onSelectEvent={setSelectedEvent}
               onEventClick={handleEventClick}
+              onResolveConflict={handleOpenConflictModal}
               onAddVisit={(time) =>
                 openNewVisitModal(currentDate.toISOString().slice(0, 10), time)
               }
@@ -1090,6 +1096,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
               events={filteredEvents}
               onSelectEvent={setSelectedEvent}
               onEventClick={handleEventClick}
+              onResolveConflict={handleOpenConflictModal}
             />
           )}
         </>
@@ -1099,15 +1106,16 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
       {selectedEvent && (
         <EventDetailDrawer
           event={selectedEvent}
+          allEvents={allEvents}
           onClose={() => setSelectedEvent(null)}
           onRefresh={loadData}
           onNavigate={(event) => {
             setSelectedEvent(null);
             handleNavigateToEvent(event);
           }}
-          onResolveConflict={(event) => {
+          onResolveConflict={(event, tab) => {
             setSelectedEvent(null);
-            setConflictEventToResolve(event);
+            handleOpenConflictModal(event, tab);
           }}
         />
       )}
@@ -1117,6 +1125,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
         <DraftConflictResolutionModal
           isOpen={!!conflictEventToResolve}
           event={conflictEventToResolve}
+          initialTab={conflictModalInitialTab}
           onClose={() => setConflictEventToResolve(null)}
           onResolved={async () => {
             await loadData();
@@ -1159,6 +1168,7 @@ interface MonthViewGridProps {
   currentDate: Date;
   events: UnifiedPlanningEvent[];
   onSelectEvent: (event: UnifiedPlanningEvent) => void;
+  onResolveConflict?: (event: UnifiedPlanningEvent, tab?: "reschedule" | "waitlist" | "cancel") => void;
   onDayClick: (day: Date) => void;
 }
 
@@ -1166,6 +1176,7 @@ function MonthViewGrid({
   currentDate,
   events,
   onSelectEvent,
+  onResolveConflict,
   onDayClick,
 }: MonthViewGridProps) {
   const year = currentDate.getFullYear();
@@ -1255,7 +1266,16 @@ function MonthViewGrid({
                       <i className={`fa-solid ${style.icon} text-[9px] opacity-90 shrink-0`}></i>
                       <span className="truncate">{event.title}</span>
                       {event.statusKind === "conflict" && (
-                        <span className="ml-auto text-[9px] bg-rose-900 text-white px-1 rounded">!</span>
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onResolveConflict) onResolveConflict(event);
+                          }}
+                          className="ml-auto text-[9px] bg-rose-600 hover:bg-rose-700 text-white px-1.5 py-0.5 rounded font-black cursor-pointer shadow-xs shrink-0"
+                          title="Arbitrer / Relocaliser ce conflit"
+                        >
+                          ⚡ Arbitrer
+                        </span>
                       )}
                     </button>
                   );
@@ -1291,6 +1311,7 @@ interface WeekViewGridProps {
   events: UnifiedPlanningEvent[];
   onSelectEvent: (event: UnifiedPlanningEvent) => void;
   onEventClick: (event: UnifiedPlanningEvent) => void;
+  onResolveConflict?: (event: UnifiedPlanningEvent, tab?: "reschedule" | "waitlist" | "cancel") => void;
   onDayClick: (day: Date) => void;
 }
 
@@ -1299,6 +1320,7 @@ function WeekViewGrid({
   events,
   onSelectEvent,
   onEventClick,
+  onResolveConflict,
   onDayClick,
 }: WeekViewGridProps) {
   const today = new Date();
@@ -1374,9 +1396,22 @@ function WeekViewGrid({
                         </div>
 
                         {event.statusKind === "conflict" && (
-                          <div className="mb-2 p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold flex items-center gap-1 border border-rose-300">
-                            <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
-                            <span className="truncate">Date occupée par {event.conflictingWith}</span>
+                          <div className="mb-2 space-y-1.5">
+                            <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold flex items-center gap-1 border border-rose-300">
+                              <i className="fa-solid fa-triangle-exclamation text-rose-600 shrink-0"></i>
+                              <span className="truncate">Date occupée par {event.conflictingWith}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onResolveConflict) onResolveConflict(event);
+                              }}
+                              className="w-full py-1.5 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center justify-center gap-1.5 shadow-xs transition"
+                            >
+                              <i className="fa-solid fa-arrows-split-up-and-left text-[9px]"></i>
+                              <span>⚡ Arbitrer / Relocaliser</span>
+                            </button>
                           </div>
                         )}
 
@@ -1453,6 +1488,7 @@ interface DayViewTimelineProps {
   events: UnifiedPlanningEvent[];
   onSelectEvent: (event: UnifiedPlanningEvent) => void;
   onEventClick: (event: UnifiedPlanningEvent) => void;
+  onResolveConflict?: (event: UnifiedPlanningEvent, tab?: "reschedule" | "waitlist" | "cancel") => void;
   onAddVisit: (time?: string) => void;
 }
 
@@ -1461,6 +1497,7 @@ function DayViewTimeline({
   events,
   onSelectEvent,
   onEventClick,
+  onResolveConflict,
   onAddVisit,
 }: DayViewTimelineProps) {
   const dayEvents = useMemo(
@@ -1513,9 +1550,22 @@ function DayViewTimeline({
                   className={`rounded-2xl border p-3.5 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all ${getEventCardClass(event)}`}
                 >
                   {event.statusKind === "conflict" && (
-                    <div className="mb-2 p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold flex items-center gap-1 border border-rose-300">
-                      <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
-                      <span>Date déjà réservée par {event.conflictingWith}</span>
+                    <div className="mb-2 space-y-1.5">
+                      <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold flex items-center gap-1 border border-rose-300">
+                        <i className="fa-solid fa-triangle-exclamation text-rose-600 shrink-0"></i>
+                        <span>Date déjà réservée par {event.conflictingWith}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onResolveConflict) onResolveConflict(event);
+                        }}
+                        className="w-full py-1.5 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center justify-center gap-1.5 shadow-xs transition"
+                      >
+                        <i className="fa-solid fa-arrows-split-up-and-left text-[9px]"></i>
+                        <span>⚡ Arbitrer / Relocaliser</span>
+                      </button>
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -1614,6 +1664,26 @@ function DayViewTimeline({
                             </span>
                           </div>
 
+                          {event.statusKind === "conflict" && (
+                            <div className="mb-2 space-y-1.5">
+                              <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold flex items-center gap-1 border border-rose-300">
+                                <i className="fa-solid fa-triangle-exclamation text-rose-600 shrink-0"></i>
+                                <span className="truncate">Date occupée par {event.conflictingWith}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onResolveConflict) onResolveConflict(event);
+                                }}
+                                className="w-full py-1.5 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold flex items-center justify-center gap-1.5 shadow-xs transition"
+                              >
+                                <i className="fa-solid fa-arrows-split-up-and-left text-[9px]"></i>
+                                <span>⚡ Arbitrer / Relocaliser</span>
+                              </button>
+                            </div>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => onEventClick(event)}
@@ -1669,12 +1739,14 @@ interface AgendaStreamViewProps {
   events: UnifiedPlanningEvent[];
   onSelectEvent: (event: UnifiedPlanningEvent) => void;
   onEventClick: (event: UnifiedPlanningEvent) => void;
+  onResolveConflict?: (event: UnifiedPlanningEvent, tab?: "reschedule" | "waitlist" | "cancel") => void;
 }
 
 function AgendaStreamView({
   events,
   onSelectEvent,
   onEventClick,
+  onResolveConflict,
 }: AgendaStreamViewProps) {
   if (events.length === 0) {
     return (
@@ -1769,15 +1841,26 @@ function AgendaStreamView({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
                 {event.amountAriary ? (
-                  <div className="text-right">
+                  <div className="text-right mr-2">
                     <div className="text-xs text-slate-400 font-medium">Montant</div>
                     <div className="text-sm font-black text-rose-600 dark:text-rose-400">
                       {formatAriary(event.amountAriary)}
                     </div>
                   </div>
                 ) : null}
+
+                {event.statusKind === "conflict" && (
+                  <button
+                    type="button"
+                    onClick={() => onResolveConflict && onResolveConflict(event)}
+                    className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5"
+                  >
+                    <i className="fa-solid fa-arrows-split-up-and-left text-[10px]"></i>
+                    <span>⚡ Arbitrer</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1800,14 +1883,16 @@ function AgendaStreamView({
    ========================================================================== */
 interface EventDetailDrawerProps {
   event: UnifiedPlanningEvent;
+  allEvents?: UnifiedPlanningEvent[];
   onClose: () => void;
   onNavigate: (event: UnifiedPlanningEvent) => void;
   onRefresh?: () => void | Promise<void>;
-  onResolveConflict?: (event: UnifiedPlanningEvent) => void;
+  onResolveConflict?: (event: UnifiedPlanningEvent, tab?: "reschedule" | "waitlist" | "cancel") => void;
 }
 
 function EventDetailDrawer({
   event,
+  allEvents,
   onClose,
   onNavigate,
   onRefresh,
@@ -1816,6 +1901,20 @@ function EventDetailDrawer({
   const cfg = CATEGORY_CONFIG[event.category];
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const competingDrafts = useMemo(() => {
+    if (event.statusKind !== "confirmed" || !allEvents) return [];
+    const eventVenue = (event.location || "Salle principale").trim().toLowerCase();
+    const eventStart = event.startAt;
+    const eventEnd = event.endAt || event.startAt;
+    return allEvents.filter((e) => {
+      if (e.id === event.id || e.statusKind === "confirmed") return false;
+      const venue = (e.location || "Salle principale").trim().toLowerCase();
+      const s = e.startAt;
+      const end = e.endAt || e.startAt;
+      return venue === eventVenue && s < eventEnd && end > eventStart;
+    });
+  }, [event, allEvents]);
 
   // Edit visit state
   const [isEditing, setIsEditing] = useState(false);
@@ -1971,10 +2070,10 @@ function EventDetailDrawer({
                   </div>
                   <div>
                     <h4 className="text-xs font-black text-rose-900 dark:text-rose-200">
-                      Conflit de disponibilité de salle
+                      Conflit de disponibilité de salle & date
                     </h4>
                     <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">
-                      Ce devis chevauche la réservation confirmée <strong>{event.conflictingWith || "Dossier Ferme"}</strong>. Il ne peut pas être confirmé à cette date.
+                      Ce devis pour <strong>{event.customerName}</strong> chevauche la réservation confirmée <strong>{event.conflictingWith || "Dossier Ferme"}</strong>. Il ne peut pas être confirmé à cette date.
                     </p>
                   </div>
                 </div>
@@ -1983,13 +2082,70 @@ function EventDetailDrawer({
                   <button
                     type="button"
                     onClick={() => {
-                      if (onResolveConflict) onResolveConflict(event);
+                      if (onResolveConflict) onResolveConflict(event, "reschedule");
                     }}
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs flex items-center gap-1.5 transition"
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs flex items-center gap-1.5 transition"
                   >
                     <i className="fa-solid fa-calendar-day"></i>
-                    <span>Arbitrer / Relocaliser la date</span>
+                    <span>Relocaliser / Reporter</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onResolveConflict) onResolveConflict(event, "waitlist");
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-1.5 transition"
+                  >
+                    <i className="fa-solid fa-hourglass-half"></i>
+                    <span>Mettre en attente</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onResolveConflict) onResolveConflict(event, "cancel");
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-100 hover:bg-rose-200 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700 shadow-xs flex items-center gap-1.5 transition"
+                  >
+                    <i className="fa-solid fa-trash-can"></i>
+                    <span>Supprimer le devis</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {competingDrafts.length > 0 && (
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 space-y-2.5 shadow-xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <i className="fa-solid fa-circle-info"></i>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-amber-900 dark:text-amber-200">
+                      Devis concurrents en attente d'arbitrage
+                    </h4>
+                    <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5">
+                      {competingDrafts.length} devis ont été simulés sur cette même salle et date :
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  {competingDrafts.map((d) => (
+                    <div key={d.id} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900 text-xs">
+                      <div className="truncate">
+                        <span className="font-bold text-slate-900 dark:text-white">{d.title}</span>
+                        <span className="text-slate-500 dark:text-slate-400 ml-1 text-[11px]">({d.customerName})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onResolveConflict && onResolveConflict(d)}
+                        className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold shadow-xs shrink-0 flex items-center gap-1"
+                      >
+                        <i className="fa-solid fa-arrows-split-up-and-left text-[9px]"></i>
+                        <span>Arbitrer</span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

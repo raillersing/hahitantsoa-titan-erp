@@ -305,4 +305,23 @@ describe('ReservationDetailPage', () => {
     expect(screen.getByText('Livraison').parentElement).toHaveTextContent(/50.*Ar/);
     expect(screen.getByText(/Remise — Remise commerciale validée/).parentElement).toHaveTextContent(/20.*Ar/);
   });
+
+  it('affiche le bandeau de liste d attente et le bouton d arbitrage', async () => {
+    mockGetReservationDraft.mockReset();
+    mockGetReservationDraft.mockResolvedValue({
+      ...MOCK_DRAFT,
+      notes: "[LISTE D'ATTENTE] Demande en attente de disponibilité matériels",
+    });
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    expect(screen.getByText(/Dossier en liste d'attente/i)).toBeInTheDocument();
+    expect(screen.getByText(/Demande en attente de disponibilité matériels/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Arbitrer \/ Déplacer la période/i })).toBeInTheDocument();
+
+    // Click arbitration button
+    fireEvent.click(screen.getByRole('button', { name: /Arbitrer \/ Déplacer la période/i }));
+    expect(await screen.findByText(/Arbitrage & Relocalisation/i)).toBeInTheDocument();
+  });
 });

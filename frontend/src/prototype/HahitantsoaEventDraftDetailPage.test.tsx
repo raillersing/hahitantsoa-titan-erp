@@ -11,6 +11,7 @@ import type {
 } from "../types";
 
 const mockGetDraft = vi.fn();
+const mockGetDrafts = vi.fn();
 const mockGetCustomer = vi.fn();
 const mockGetPreflight = vi.fn();
 const mockGetDocuments = vi.fn();
@@ -30,6 +31,7 @@ const mockGenerateDocumentInstancePdf = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
+  getHahitantsoaEventDrafts: (...args: unknown[]) => mockGetDrafts(...args) ?? Promise.resolve([]),
   getCustomer: (...args: unknown[]) => mockGetCustomer(...args),
   getHahitantsoaEventDraftConfirmationPreflight: (...args: unknown[]) => mockGetPreflight(...args),
   getHahitantsoaEventDraftDocumentInstances: (...args: unknown[]) => mockGetDocuments(...args),
@@ -99,7 +101,7 @@ const DRAFT: HahitantsoaEventDraft = {
       inventory_item_name: "Pack Décoration V.I.P",
       inventory_item_kind: "material_pack",
       quantity: 1,
-      notes: "Estrade mariés",
+      notes: "Pack complet comprenant housses et nœuds",
     },
   ],
   created_at: "2026-08-01T10:00:00Z",
@@ -109,9 +111,11 @@ const DRAFT: HahitantsoaEventDraft = {
 const CUSTOMER: Customer = {
   id: "customer-1",
   display_name: "Rakoto Andry",
+  lifecycle_status: "client",
+  party_type: "individual",
+  address: "Lot II M 34 Antananarivo",
   phone: "+261 34 00 123 45",
-  email: "andry.rakoto@example.mg",
-  address: "Lot II M 45 Ambohijatovo, Antananarivo",
+  email: "andry@example.mg",
   representative_name: "Rakoto Events",
   notes: "Client VIP",
   is_active: true,
@@ -181,11 +185,15 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       { id: "doc-3", template_key: "hahitantsoa.liability_release.v1", status: "generated", template_label: "Décharge" } as unknown as DocumentInstance,
     ];
     mockGetDraft.mockImplementation(() => Promise.resolve(currentDraft));
+    mockGetDrafts.mockImplementation(() => Promise.resolve([]));
     mockGetCustomer.mockResolvedValue(CUSTOMER);
     mockGetPreflight.mockImplementation(() => Promise.resolve(currentPreflight));
     mockGetDocuments.mockImplementation(() => Promise.resolve(currentDocuments));
     mockGetPayments.mockImplementation(() => Promise.resolve(currentPayments));
     mockGetAmendments.mockResolvedValue([]);
+    mockCreateDocumentInstance.mockResolvedValue({ id: "doc-gen-1", template_key: "hahitantsoa.contract.v1" });
+    mockGenerateDocumentInstance.mockResolvedValue({ id: "doc-gen-1" });
+    mockGenerateDocumentInstancePdf.mockResolvedValue({ id: "doc-gen-1" });
     mockMarkDepositReceived.mockResolvedValue({});
     mockConfirmDraft.mockResolvedValue({});
     mockGetCloseoutSummary.mockImplementation(() => Promise.resolve(closeoutSummary()));
@@ -323,38 +331,113 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(mockRecordConfirmedDeposit).not.toHaveBeenCalled();
   });
 
-  it("navigates across tabs and displays operational contents", async () => {
+  it("displays conflict notification banner with direct action buttons when draft is in conflict", async () => {
+    const conflictingEvent: HahitantsoaEventDraft = {
+      ...DRAFT,
+      id: "event-conf-2",
+      public_reference: "HAH-2026-0002",
+      status: "confirmed",
+      event_name: "Gala d'Entreprise",
+      customer_display_name: "Société ABC",
+      start_at: "2026-09-01T08:00:00Z",
+      end_at: "2026-09-01T22:00:00Z",
+      venue_name: "Grande Salle Hahitantsoa",
+    };
+
+    mockGetDrafts.mockResolvedValueOnce([DRAFT, conflictingEvent]);
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    expect(await screen.findByText(/Conflit de disponibilité bloquant/i)).toBeInTheDocument();
+    expect(screen.getByText(/Créneau déjà réservé et confirmé/i)).toBeInTheDocument();
+    expect(screen.getByText(/HAH-2026-0002/i)).toBeInTheDocument();
+
+    expect(screen.getByRole("button", { name: /Relocaliser \/ Reporter la date/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Mettre en attente/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Supprimer le devis/i })).toBeInTheDocument();
+
+    // Click reschedule button to trigger modal
+    fireEvent.click(screen.getByRole("button", { name: /Relocaliser \/ Reporter la date/i }));
+    expect(await screen.findByText(/Arbitrage & Relocalisation/i)).toBeInTheDocument();
+  });
+
+  it("displays competing drafts info banner when current event is confirmed and drafts exist on same venue/date", async () => {
     currentDraft = { ...DRAFT, status: "confirmed" };
-    currentPayments = [
-      { id: "p-1", paid_at: "2026-08-05T10:00:00Z", created_at: "2026-08-05T10:00:00Z", payment_kind: "deposit", payment_method: "cash", amount: "5000.00", payment_status: "confirmed", notes: "Reçu #45" } as unknown as Payment,
+
+    const competingDraft: HahitantsoaEventDraft = {
+      ...DRAFT,
+      id: "draft-comp-3",
+      public_reference: "HAH-2026-0003",
+      status: "draft",
+      event_name: "Fête Familiale",
+      customer_display_name: "Famille Dupont",
+      start_at: "2026-09-01T10:00:00Z",
+      end_at: "2026-09-01T18:00:00Z",
+      venue_name: "Grande Salle Hahitantsoa",
+    };
+
+    mockGetDrafts.mockResolvedValueOnce([currentDraft, competingDraft]);
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    expect(await screen.findByText(/Devis concurrent\(s\) non confirmés/i)).toBeInTheDocument();
+    expect(screen.getByText(/HAH-2026-0003 — Fête Familiale/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Arbitrer \/ Relocaliser/i })).toBeInTheDocument();
+  });
+
+  it("generates a new document instance when clicking on generate button", async () => {
+    currentDocuments = [];
+    mockGenerateDocumentInstance.mockResolvedValue({ id: "doc-gen-1" });
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    const genBtn = await screen.findByRole("button", { name: /générer le contrat officiel/i });
+    fireEvent.click(genBtn);
+
+    await waitFor(() => {
+      expect(mockCreateDocumentInstance).toHaveBeenCalledWith(DRAFT.id, { template_key: "hahitantsoa.contract.v1" });
+      expect(mockGenerateDocumentInstance).toHaveBeenCalledWith(DRAFT.id, "doc-gen-1");
+    });
+  });
+
+  it("marks contract as signed when clicking the button", async () => {
+    currentDocuments = [
+      { id: "doc-1", template_key: "hahitantsoa.contract.v1", status: "generated", template_label: "Contrat" } as unknown as DocumentInstance,
     ];
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
-    // Documents tab (active by default)
-    expect(await screen.findByText("Documents & Pièces contractuelles")).toBeInTheDocument();
+    const signBtn = await screen.findByRole("button", { name: /marquer le contrat signé/i });
+    fireEvent.click(signBtn);
 
-    // Switch to Preparation tab
-    fireEvent.click(screen.getByRole("button", { name: /préparation/i }));
+    await waitFor(() => {
+      expect(mockMarkContractSigned).toHaveBeenCalledWith(DRAFT.id);
+    });
+  });
+
+  it("switches tabs correctly across the multi-view interface", async () => {
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    // Switch to Prep tab
+    fireEvent.click(await screen.findByRole("button", { name: /^Préparation$/i }));
     expect(screen.getAllByText(/fiche de préparation/i).length).toBeGreaterThan(0);
 
-    // Switch to Sortie / Livraison tab
-    fireEvent.click(screen.getByRole("button", { name: /sortie \/ livraison/i }));
-    expect(screen.getAllByText(/remise des clés/i).length).toBeGreaterThan(0);
+    // Switch to Sortie tab
+    fireEvent.click(screen.getByRole("button", { name: /Sortie \/ Livraison/i }));
+    expect(screen.getAllByText(/bon de livraison/i).length).toBeGreaterThan(0);
 
-    // Switch to Retour / Restitution tab
-    fireEvent.click(screen.getByRole("button", { name: /retour \/ restitution/i }));
-    expect(screen.getAllByText(/état des lieux de sortie/i).length).toBeGreaterThan(0);
+    // Switch to Retour tab
+    fireEvent.click(screen.getByRole("button", { name: /Retour \/ Restitution/i }));
+    expect(screen.getAllByText(/bon de retour/i).length).toBeGreaterThan(0);
 
-    // Switch to Casse & Pertes tab
-    fireEvent.click(screen.getByRole("button", { name: /casse & pertes/i }));
+    // Switch to Casse tab
+    fireEvent.click(screen.getByRole("button", { name: /Casse & Pertes/i }));
     expect(screen.getAllByText(/grille tarifaire/i).length).toBeGreaterThan(0);
 
     // Switch to Caution & Solde tab
-    fireEvent.click(screen.getByRole("button", { name: /caution & solde/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Caution & Solde/i }));
     expect(screen.getAllByText(/clôture opérationnelle/i).length).toBeGreaterThan(0);
 
     // Switch to Avenants tab
-    fireEvent.click(screen.getByRole("button", { name: /avenants/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Avenants$/i }));
     expect(screen.getAllByText(/demandes d'avenant/i).length).toBeGreaterThan(0);
   });
 
@@ -382,7 +465,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
   it("requires a signature exception reason before requesting closeout", async () => {
     currentDraft = { ...DRAFT, status: "confirmed" };
-    mockGetCloseoutSummary.mockImplementationOnce(() =>
+    mockGetCloseoutSummary.mockImplementation(() =>
       Promise.resolve(closeoutSummary({ signature_exception_required: true }))
     );
 

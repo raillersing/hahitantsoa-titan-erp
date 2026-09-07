@@ -6,6 +6,7 @@ import {
   generateHahitantsoaEventDraftDocumentInstance,
   generateHahitantsoaEventDraftDocumentInstancePdf,
   getHahitantsoaEventDraft,
+  getHahitantsoaEventDrafts,
   getHahitantsoaEventDraftConfirmationPreflight,
   getHahitantsoaEventDraftCloseoutSummary,
   getHahitantsoaEventDraftLifecycle,
@@ -25,6 +26,10 @@ import { printDocumentHtml } from "./DocumentCanvasViewer";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
 import PaymentRegistrationModal from "./PaymentRegistrationModal";
+import {
+  DraftConflictResolutionModal,
+  type ConflictResolutionTarget,
+} from "./DraftConflictResolutionModal";
 import type {
   Customer,
   DocumentInstance,
@@ -138,6 +143,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [activeTab, setActiveTab] = useState<HahitantsoaActiveTab>("contrat");
   const [previewModal, setPreviewModal] = useState<PreviewModalState>(null);
 
+  // Conflict management states
+  const [conflictedWithEvent, setConflictedWithEvent] = useState<HahitantsoaEventDraft | null>(null);
+  const [competingDrafts, setCompetingDrafts] = useState<HahitantsoaEventDraft[]>([]);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictModalTarget, setConflictModalTarget] = useState<ConflictResolutionTarget | null>(null);
+  const [conflictModalTab, setConflictModalTab] = useState<"reschedule" | "waitlist" | "cancel">("reschedule");
+
   // Form states
   const [signatureExceptionReason, setSignatureExceptionReason] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -164,6 +176,21 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const depositRecordingKeyRef = useRef<string | null>(null);
   const closeoutKeyRef = useRef<string | null>(null);
 
+  const toConflictTarget = useCallback((targetDraft: HahitantsoaEventDraft, conflictingWithRef?: string, conflictingWithName?: string): ConflictResolutionTarget => {
+    return {
+      id: targetDraft.id,
+      category: "hahitantsoa",
+      title: targetDraft.event_name || targetDraft.public_reference,
+      customerName: targetDraft.customer_display_name || "Client",
+      startAt: targetDraft.start_at,
+      endAt: targetDraft.end_at,
+      location: targetDraft.venue_name || "Salle principale",
+      conflictingWith: conflictingWithRef,
+      conflictingWithEventName: conflictingWithName,
+      raw: targetDraft,
+    };
+  }, []);
+
   const load = useCallback(async () => {
     if (!param) {
       setError("Aucun identifiant de dossier Hahitantsoa fourni.");
@@ -177,15 +204,43 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       setDraft(eventDraft);
 
       // Load parallel details
-      const [nextPreflight, nextDocuments, nextPayments] = await Promise.all([
+      const [nextPreflight, nextDocuments, nextPayments, allDrafts] = await Promise.all([
         getHahitantsoaEventDraftConfirmationPreflight(param).catch(() => null),
         getHahitantsoaEventDraftDocumentInstances(param).catch(() => []),
         getHahitantsoaEventDraftPayments(param).catch(() => []),
+        getHahitantsoaEventDrafts().catch(() => [] as HahitantsoaEventDraft[]),
       ]);
 
       setPreflight(nextPreflight);
       setDocuments(nextDocuments);
       setPayments(nextPayments);
+
+      // Conflict detection for current draft
+      const draftVenue = (eventDraft.venue_name || "Salle principale").trim().toLowerCase();
+      const draftStart = new Date(eventDraft.start_at);
+      const draftEnd = new Date(eventDraft.end_at);
+
+      if (eventDraft.status !== "confirmed") {
+        const conflict = allDrafts.find((other) => {
+          if (other.id === eventDraft.id || other.status !== "confirmed") return false;
+          const otherVenue = (other.venue_name || "Salle principale").trim().toLowerCase();
+          const oStart = new Date(other.start_at);
+          const oEnd = new Date(other.end_at);
+          return otherVenue === draftVenue && oStart < draftEnd && oEnd > draftStart;
+        });
+        setConflictedWithEvent(conflict || null);
+        setCompetingDrafts([]);
+      } else {
+        const competing = allDrafts.filter((other) => {
+          if (other.id === eventDraft.id || other.status === "confirmed") return false;
+          const otherVenue = (other.venue_name || "Salle principale").trim().toLowerCase();
+          const oStart = new Date(other.start_at);
+          const oEnd = new Date(other.end_at);
+          return otherVenue === draftVenue && oStart < draftEnd && oEnd > draftStart;
+        });
+        setConflictedWithEvent(null);
+        setCompetingDrafts(competing);
+      }
 
       // Customer details
       if (eventDraft.customer_id) {
@@ -586,6 +641,137 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       {/* ── Alerts & Notices ──────────────────────────────────────────────── */}
       {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 flex items-center gap-3"><i className="fa-solid fa-triangle-exclamation text-lg"></i><span>{error}</span></div>}
       {actionNotice && <div aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 flex items-center gap-3"><i className="fa-solid fa-circle-check text-lg"></i><span>{actionNotice}</span></div>}
+
+      {/* ── Conflict Alert Banner (for draft in conflict with confirmed event) ── */}
+      {conflictedWithEvent && (
+        <div className="rounded-2xl border-2 border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-5 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500 text-white flex items-center justify-center text-xl shadow-md shrink-0">
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700">
+                    Conflit de disponibilité bloquant
+                  </span>
+                </div>
+                <h3 className="text-base font-black text-rose-950 dark:text-rose-100 mt-1">
+                  Créneau déjà réservé et confirmé par un autre événement
+                </h3>
+                <p className="text-xs text-rose-800 dark:text-rose-200 mt-1 leading-relaxed">
+                  La salle <strong className="underline">{draft.venue_name || "Salle principale"}</strong> est déjà occupée sur ce créneau par la réservation confirmée <strong className="underline">{conflictedWithEvent.public_reference}</strong> ({conflictedWithEvent.event_name || "Événement"} — {conflictedWithEvent.customer_display_name}). Ce devis ne peut pas être confirmé en l'état.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setConflictModalTarget(toConflictTarget(draft, conflictedWithEvent.public_reference, conflictedWithEvent.event_name));
+                  setConflictModalTab("reschedule");
+                  setShowConflictModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition"
+              >
+                <i className="fa-solid fa-arrows-rotate"></i>
+                Relocaliser / Reporter la date
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConflictModalTarget(toConflictTarget(draft, conflictedWithEvent.public_reference, conflictedWithEvent.event_name));
+                  setConflictModalTab("waitlist");
+                  setShowConflictModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-50 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition"
+              >
+                <i className="fa-regular fa-clock text-amber-500"></i>
+                Mettre en attente
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConflictModalTarget(toConflictTarget(draft, conflictedWithEvent.public_reference, conflictedWithEvent.event_name));
+                  setConflictModalTab("cancel");
+                  setShowConflictModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-rose-50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 shadow-2xs transition"
+              >
+                <i className="fa-solid fa-trash-can text-rose-500"></i>
+                Supprimer le devis
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Competing Drafts Info Banner (for confirmed event with competing drafts) ── */}
+      {competingDrafts.length > 0 && (
+        <div className="rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/30 p-5 shadow-sm">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-lg shadow-md shrink-0">
+              <i className="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100">
+                  {competingDrafts.length} Devis concurrent(s) non confirmés
+                </span>
+              </div>
+              <h3 className="text-sm font-black text-amber-950 dark:text-amber-100 mt-1">
+                Dossiers / Devis concurrents enregistrés sur ce créneau
+              </h3>
+              <p className="text-xs text-amber-800 dark:text-amber-200 mt-0.5">
+                Cet événement est confirmé ferme sur la salle <strong className="underline">{draft.venue_name || "Salle principale"}</strong>. Les options suivantes sont bloquées en conflit et peuvent être arbitrées (relocalisation, attente ou annulation) :
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {competingDrafts.map((comp) => (
+                  <div key={comp.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-900/60 shadow-2xs">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-slate-900 dark:text-white">
+                          {comp.public_reference} — {comp.event_name || "Devis"}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 font-semibold">
+                          Option en conflit
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Client : <strong className="text-slate-700 dark:text-slate-300">{comp.customer_display_name}</strong> • Créneau : {formatDateFr(comp.start_at)}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConflictModalTarget(toConflictTarget(comp, draft.public_reference, draft.event_name));
+                          setConflictModalTab("reschedule");
+                          setShowConflictModal(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-2xs transition"
+                      >
+                        <i className="fa-solid fa-bolt text-[11px]"></i>
+                        Arbitrer / Relocaliser
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("hahitantsoa-draft-detail", comp.id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 transition"
+                      >
+                        Voir dossier <i className="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Lifecycle Timeline ────────────────────────────────────────────── */}
       {lifecycleSummary && <LifecycleTimeline summary={lifecycleSummary} />}
@@ -1978,6 +2164,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           </div>
         </div>
       )}
+
+      {/* ── Conflict Arbitration & Rescheduling Modal ────────────────────── */}
+      <DraftConflictResolutionModal
+        isOpen={showConflictModal}
+        onClose={() => setShowConflictModal(false)}
+        event={conflictModalTarget}
+        initialTab={conflictModalTab}
+        onResolved={load}
+      />
     </div>
   );
 }

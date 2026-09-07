@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { AppScope } from "../App";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreview } from "./DocumentPreview";
@@ -8,6 +8,10 @@ import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
 import PaymentRegistrationModal from "./PaymentRegistrationModal";
+import {
+  DraftConflictResolutionModal,
+  type ConflictResolutionTarget,
+} from "./DraftConflictResolutionModal";
 import {
   getReservationDraft,
   getCustomer,
@@ -164,92 +168,97 @@ export default function ReservationDetailPage({
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentModalInitialKind, setPaymentModalInitialKind] = useState<string>("deposit");
 
+  // Conflict and arbitration modal states
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictModalTarget, setConflictModalTarget] = useState<ConflictResolutionTarget | null>(null);
+  const [conflictModalTab, setConflictModalTab] = useState<"reschedule" | "waitlist" | "cancel">("reschedule");
+
+  const toConflictTarget = useCallback((targetDraft: ReservationDraft): ConflictResolutionTarget => {
+    return {
+      id: targetDraft.id,
+      category: "titan",
+      title: targetDraft.public_reference,
+      customerName: targetDraft.customer_display_name || "Client",
+      startAt: targetDraft.start_at,
+      endAt: targetDraft.end_at,
+      location: "Enlèvement magasin / Dépôt",
+      raw: targetDraft,
+    };
+  }, []);
+
   /* ── fetch on mount ───────────────────────────────────────────── */
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!draftId) {
       setError("Aucun identifiant de réservation fourni.");
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setError(null);
+    try {
+      const d = await getReservationDraft(draftId);
+      setDraft(d);
 
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const d = await getReservationDraft(draftId);
-        if (cancelled) return;
-        setDraft(d);
-
-        // Fetch the linked customer
-        if (d.customer_id) {
-          try {
-            const c = await getCustomer(d.customer_id);
-            if (!cancelled) setCustomer(c);
-          } catch {
-            // Non-fatal: customer fetch failed
-          }
-        }
-
-        // Fetch document instances (proforma, contract, etc.)
+      // Fetch the linked customer
+      if (d.customer_id) {
         try {
-          const instances = await getReservationDraftDocumentInstances(d.id);
-          if (!cancelled) setDocumentInstances(instances);
+          const c = await getCustomer(d.customer_id);
+          setCustomer(c);
         } catch {
-          // Non-fatal: document instances fetch failed
+          // Non-fatal: customer fetch failed
         }
-        try {
-          const paymentRecords = await getPayments(d.id);
-          if (!cancelled) {
-            setPayments(paymentRecords
-              .filter((payment: Payment) =>
-                payment.payment_status === "confirmed" || payment.payment_status === "reconciled",
-              )
-              .map((payment: Payment) => ({
-              id: payment.id,
-              date: payment.paid_at || payment.created_at,
-              method: payment.payment_method,
-              amount: Number(payment.amount),
-              note: payment.notes || payment.payment_kind,
-              reference: payment.external_reference || undefined,
-              receipt_document: payment.receipt_document,
-              })));
-          }
-        } catch {
-          // Non-fatal: payment loading failure does not hide the dossier.
-        }
-        try {
-          const summary = await getReservationDraftCloseoutSummary(d.id);
-          if (!cancelled) setCloseoutSummary(summary);
-        } catch {
-          // Non-fatal: closeout access may be unavailable for the current role.
-        }
-        try {
-          const summary = await getReservationDraftLifecycle(d.id);
-          if (!cancelled) {
-            setLifecycleSummary(summary);
-            setLifecycleError(false);
-          }
-        } catch {
-          if (!cancelled) setLifecycleError(true);
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setError(
-            err?.message || "Erreur lors du chargement de la réservation.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    }
 
-    load();
-    return () => {
-      cancelled = true;
-    };
+      // Fetch document instances (proforma, contract, etc.)
+      try {
+        const instances = await getReservationDraftDocumentInstances(d.id);
+        setDocumentInstances(instances);
+      } catch {
+        // Non-fatal: document instances fetch failed
+      }
+      try {
+        const paymentRecords = await getPayments(d.id);
+        setPayments(paymentRecords
+          .filter((payment: Payment) =>
+            payment.payment_status === "confirmed" || payment.payment_status === "reconciled",
+          )
+          .map((payment: Payment) => ({
+            id: payment.id,
+            date: payment.paid_at || payment.created_at,
+            method: payment.payment_method,
+            amount: Number(payment.amount),
+            note: payment.notes || payment.payment_kind,
+            reference: payment.external_reference || undefined,
+            receipt_document: payment.receipt_document,
+          })));
+      } catch {
+        // Non-fatal: payment loading failure does not hide the dossier.
+      }
+      try {
+        const summary = await getReservationDraftCloseoutSummary(d.id);
+        setCloseoutSummary(summary);
+      } catch {
+        // Non-fatal: closeout access may be unavailable for the current role.
+      }
+      try {
+        const summary = await getReservationDraftLifecycle(d.id);
+        setLifecycleSummary(summary);
+        setLifecycleError(false);
+      } catch {
+        setLifecycleError(true);
+      }
+    } catch (err: any) {
+      setError(
+        err?.message || "Erreur lors du chargement de la réservation.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [draftId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   /* ── local UI state ───────────────────────────────────────────── */
   const [activeTab, setActiveTab] = useState("contrat");
@@ -849,6 +858,59 @@ export default function ReservationDetailPage({
         )}
       </div>
 
+      {/* ── Waitlist / Conflict Notice Banner ─────────────────────────── */}
+      {draft.notes?.includes("[LISTE D'ATTENTE]") && (
+        <div className="rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5 shadow-sm mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-lg shadow-md shrink-0">
+                <i className="fa-regular fa-clock"></i>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100">
+                    Dossier en liste d'attente
+                  </span>
+                </div>
+                <h3 className="text-sm font-black text-amber-950 dark:text-amber-100 mt-1">
+                  Réservation mise en attente d'arbitrage de date ou de matériel
+                </h3>
+                <p className="text-xs text-amber-800 dark:text-amber-200 mt-0.5">
+                  {draft.notes}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setConflictModalTarget(toConflictTarget(draft));
+                  setConflictModalTab("reschedule");
+                  setShowConflictModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition cursor-pointer"
+              >
+                <i className="fa-solid fa-arrows-rotate"></i>
+                Reprogrammer / Relocaliser
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConflictModalTarget(toConflictTarget(draft));
+                  setConflictModalTab("cancel");
+                  setShowConflictModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-rose-50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 shadow-2xs transition cursor-pointer"
+              >
+                <i className="fa-solid fa-trash-can text-rose-500"></i>
+                Annuler le devis
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {lifecycleSummary && <LifecycleTimeline summary={lifecycleSummary} />}
       {lifecycleError && !lifecycleSummary && (
         <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -1264,6 +1326,21 @@ export default function ReservationDetailPage({
                 <span>Comptabilité & Reçu en direct</span>
               </button>
             </div>
+          )}
+
+          {draftStatus === "draft" && (
+            <button
+              type="button"
+              onClick={() => {
+                setConflictModalTarget(toConflictTarget(draft));
+                setConflictModalTab("reschedule");
+                setShowConflictModal(true);
+              }}
+              className="px-4 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg text-sm font-bold shadow-2xs transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <i className="fa-solid fa-arrows-rotate text-indigo-600"></i>
+              Arbitrer / Déplacer la période
+            </button>
           )}
 
           {draftStatus === "draft" &&
@@ -2648,6 +2725,15 @@ export default function ReservationDetailPage({
           {toast.message}
         </div>
       )}
+
+      {/* ── Conflict Arbitration & Rescheduling Modal ────────────────── */}
+      <DraftConflictResolutionModal
+        isOpen={showConflictModal}
+        onClose={() => setShowConflictModal(false)}
+        event={conflictModalTarget}
+        initialTab={conflictModalTab}
+        onResolved={load}
+      />
     </div>
   );
 }
