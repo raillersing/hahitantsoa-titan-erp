@@ -298,6 +298,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [catalogItems, setCatalogItems] = useState<InventoryItem[]>([]);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [serviceCategoryFilter, setServiceCategoryFilter] = useState("all");
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("all");
+
+  // Custom service form states (Prestations sur-mesure / libres ex: Sol en gazon)
+  const [showCustomServiceForm, setShowCustomServiceForm] = useState(false);
+  const [customServiceName, setCustomServiceName] = useState("");
+  const [customServiceCategory, setCustomServiceCategory] = useState("technical_facility");
+  const [customServiceQty, setCustomServiceQty] = useState(1);
+  const [customServicePrice, setCustomServicePrice] = useState(150000);
+  const [customServiceUnitLabel, setCustomServiceUnitLabel] = useState("prestation");
 
   // Step 2: Formule horaire, convives, type de location, lieu, tarifs de base
   const [amendmentDurationOption, setAmendmentDurationOption] = useState("Fête de jour : Sortie J-J à 20:00");
@@ -722,10 +731,19 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       quantities[l.id] = l.quantity;
     });
     setAmendmentQuantities(quantities);
-    setAmendmentAddedLines([]);
-    setAmendmentSelectedServices([]);
+    const { selectedServices: initialServices, remainingNotes: initialNotes } = parseHahitantsoaServiceNotes(
+      draft.service_notes,
+      services,
+    );
+    setAmendmentSelectedServices(initialServices);
+    setAmendmentServiceNotes(initialNotes);
     setServiceCategoryFilter("all");
+    setCatalogCategoryFilter("all");
     setCatalogSearch("");
+    setShowCustomServiceForm(false);
+    setCustomServiceName("");
+    setCustomServiceQty(1);
+    setCustomServicePrice(150000);
     setAutoApplyAmendment(true);
     setShowAmendmentModal(true);
 
@@ -768,25 +786,76 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         draft.service_notes,
         apiServices,
       );
-      setAmendmentSelectedServices(parsedServices);
-      setAmendmentServiceNotes(remainingNotes);
+      setAmendmentSelectedServices((current) => {
+        if (current.length === 0 && parsedServices.length > 0) {
+          return parsedServices;
+        }
+        return current;
+      });
+      setAmendmentServiceNotes((current) => current || remainingNotes);
     } catch {
       // Keep fallbacks
     }
   };
 
   const filteredCatalogItems = useMemo(() => {
-    if (!catalogSearch.trim()) return catalogItems.slice(0, 8);
-    const q = catalogSearch.toLowerCase();
-    return catalogItems
-      .filter(
-        (item) =>
-          item.name.toLowerCase().includes(q) ||
-          item.description?.toLowerCase().includes(q) ||
-          item.kind.toLowerCase().includes(q),
-      )
-      .slice(0, 12);
-  }, [catalogItems, catalogSearch]);
+    const q = catalogSearch.trim().toLowerCase();
+    return catalogItems.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        (item.description && item.description.toLowerCase().includes(q)) ||
+        item.kind.toLowerCase().includes(q) ||
+        (item.section && item.section.toLowerCase().includes(q));
+
+      const itemCategory = (item.section || item.kind || "").toLowerCase();
+      const itemName = item.name.toLowerCase();
+      let matchesCategory = true;
+      if (catalogCategoryFilter === "furniture") {
+        matchesCategory =
+          itemCategory.includes("furniture") ||
+          itemCategory.includes("mobilier") ||
+          item.kind === "material" ||
+          itemName.includes("table") ||
+          itemName.includes("chaise") ||
+          itemName.includes("fauteuil") ||
+          itemName.includes("canap");
+      } else if (catalogCategoryFilter === "tableware") {
+        matchesCategory =
+          itemCategory.includes("tableware") ||
+          itemCategory.includes("vaisselle") ||
+          item.kind === "article" ||
+          itemName.includes("verre") ||
+          itemName.includes("assiette") ||
+          itemName.includes("fourchette") ||
+          itemName.includes("couteau") ||
+          itemName.includes("cuill") ||
+          itemName.includes("plat");
+      } else if (catalogCategoryFilter === "linen") {
+        matchesCategory =
+          itemCategory.includes("linen") ||
+          itemCategory.includes("nappe") ||
+          itemCategory.includes("textile") ||
+          itemName.includes("nappe") ||
+          itemName.includes("serviette") ||
+          itemName.includes("chemin de table") ||
+          itemName.includes("housse");
+      } else if (catalogCategoryFilter === "tent") {
+        matchesCategory =
+          itemCategory.includes("tent") ||
+          itemCategory.includes("tente") ||
+          itemCategory.includes("structure") ||
+          itemName.includes("tente") ||
+          itemName.includes("chapiteau") ||
+          itemName.includes("barnum") ||
+          itemName.includes("tonnelle");
+      } else if (catalogCategoryFilter === "pack") {
+        matchesCategory = item.kind === "material_pack" || itemName.includes("pack");
+      }
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [catalogItems, catalogSearch, catalogCategoryFilter]);
 
   const amendmentFinancialPreview = useMemo(() => {
     const includedGuests = Number(commercialTerms?.included_guest_count ?? 250);
@@ -955,6 +1024,36 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         try {
           await applyHahitantsoaEventDraftAmendmentRequest(param, amendmentId);
           setActionNotice("Avenant contractuel appliqué au dossier avec succès.");
+          setDraft((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              guest_count: Number(amendmentGuestCount) || 200,
+              rental_type: backendRentalType,
+              venue_name: amendmentVenueName.trim(),
+              space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
+              service_notes: combinedServiceNotes,
+              total_amount: String(amendmentFinancialPreview.newTotal),
+              lines: [
+                ...prev.lines
+                  .map((l) => ({
+                    ...l,
+                    quantity: amendmentQuantities[l.id] !== undefined ? amendmentQuantities[l.id] : l.quantity,
+                  }))
+                  .filter((l) => l.quantity > 0),
+                ...amendmentAddedLines.map((al, idx) => ({
+                  id: `line-added-${Date.now()}-${idx}`,
+                  inventory_item_id: al.inventory_item_id,
+                  inventory_item_name: al.inventory_item_name,
+                  inventory_item_kind: al.inventory_item_kind,
+                  quantity: al.quantity,
+                  unit_rental_price: String(al.unit_rental_price),
+                  total_price: String(al.quantity * al.unit_rental_price),
+                  notes: al.notes,
+                })),
+              ],
+            };
+          });
         } catch {
           setActionNotice("Demande d'avenant enregistrée avec succès (application en attente).");
         }
@@ -1047,6 +1146,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </span>
             <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
               {rentalTypeLabel(draft.rental_type)}
+            </span>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+              <i className="fa-solid fa-users mr-1 text-emerald-600"></i> {draft.guest_count || 250} convives
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">
@@ -1582,6 +1684,11 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             >
               <i className={`fa-solid ${tab.icon} ${activeTab === tab.id ? "text-indigo-600" : "text-slate-400"}`}></i>
               <span>{tab.label}</span>
+              {tab.id === "avenants" && amendments.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-bold">
+                  {amendments.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -2429,62 +2536,130 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </div>
           )}
 
-          {/* ── 7. Onglet Avenants ─────────────────────────────────────────── */}
+          {/* ── 7. Onglet Avenants (Historique des Avenants Successifs) ─────── */}
           {activeTab === "avenants" && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i className="fa-solid fa-pen-ruler text-indigo-600"></i> Demandes d'avenant et modifications contractuelles
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Modifications d'articles, d'horaires ou de prestations validées</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Modifications contractuelles d'invités, horaires, prestations et articles validées
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setPreviewModal({
-                      title: "Avenant Officiel de Contrat",
-                      documentInstanceId: amendmentDoc?.id,
-                      templateKey: "hahitantsoa.contract_amendment.v1",
-                      type: "avenant",
-                    })}
-                    className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 font-bold text-indigo-700 hover:bg-indigo-50 text-xs shadow-2xs transition-colors"
+                    onClick={() => void openAmendmentModal()}
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors flex items-center gap-1.5 shadow-xs"
                   >
-                    <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu Avenant
+                    <i className="fa-solid fa-plus"></i> Demander un nouvel avenant
                   </button>
-                  {draft.status === "confirmed" && (
-                    <button
-                      type="button"
-                      onClick={() => void openAmendmentModal()}
-                      className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors flex items-center gap-1.5"
-                    >
-                      <i className="fa-solid fa-plus"></i> Nouvel avenant
-                    </button>
-                  )}
                 </div>
               </div>
 
               {amendments.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-8 text-center text-slate-500 text-sm">
-                  <i className="fa-solid fa-pen-ruler text-3xl text-slate-300 block mb-2"></i>
-                  Aucun avenant enregistré pour cet événement.
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-slate-500 text-sm">
+                  <i className="fa-solid fa-pen-ruler text-4xl text-slate-300 block mb-3"></i>
+                  <p className="font-bold text-slate-700">Aucun avenant enregistré pour ce dossier.</p>
+                  <p className="text-xs text-slate-500 mt-1 mb-4">
+                    Les modifications de convives, prestations ou articles peuvent être formalisées via un avenant contractuel.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void openAmendmentModal()}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700"
+                  >
+                    <i className="fa-solid fa-plus"></i> Créer le premier avenant
+                  </button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {amendments.map((am) => (
-                    <div key={am.id} className="rounded-xl border border-slate-200 p-4 bg-white shadow-2xs">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-slate-900 text-sm">{am.reason}</span>
-                        <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-bold text-indigo-800 capitalize">
-                          {am.status}
-                        </span>
+                <div className="space-y-4">
+                  {amendments.map((am, index) => {
+                    const seqNum = am.amendment_sequence || (amendments.length - index);
+                    return (
+                      <div
+                        key={am.id}
+                        className="rounded-2xl border border-slate-200 p-5 bg-white shadow-2xs hover:shadow-sm transition-all space-y-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-600 text-white text-xs font-black">
+                              {seqNum}
+                            </span>
+                            <div>
+                              <h4 className="font-bold text-slate-900 text-sm">
+                                Avenant N°{seqNum} — {am.reason}
+                              </h4>
+                              <span className="text-[11px] text-slate-400">
+                                Demandé le {formatDateTimeFr(am.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${
+                                am.status === "applied"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {am.status === "applied" ? "Appliqué au contrat" : "En attente"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewModal({
+                                  title: `Avenant N°${seqNum} — Document Officiel`,
+                                  documentInstanceId: am.document_instance_id || amendmentDoc?.id,
+                                  templateKey: "hahitantsoa.contract_amendment.v1",
+                                  type: "avenant",
+                                })
+                              }
+                              className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 flex items-center gap-1"
+                            >
+                              <i className="fa-solid fa-file-pdf text-rose-500"></i> Voir PDF Avenant
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Amendment specifics */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-slate-50 p-3 rounded-xl">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Convives Révisés</span>
+                            <span className="font-bold text-slate-800">
+                              {am.changed_guest_count ? `${am.changed_guest_count} invités` : "Inchangé"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Formule / Lieu</span>
+                            <span className="font-bold text-slate-800 truncate block">
+                              {am.changed_venue_name || (am.changed_rental_type === "logistics" ? "Location + logistique" : "Location nue")}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Articles Modifiés</span>
+                            <span className="font-bold text-slate-800">
+                              {am.lines?.length ?? 0} article(s)
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Espace Facturé</span>
+                            <span className="font-bold text-indigo-700">
+                              {am.changed_space_rental_amount ? formatMoney(am.changed_space_rental_amount) : "Inchangé"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {am.notes && (
+                          <p className="text-xs text-slate-600 bg-slate-50/50 p-2.5 rounded-lg">
+                            <strong className="text-slate-700">Détails :</strong> {am.notes}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-500">{am.notes || "Aucune note additionnelle."}</p>
-                      <div className="mt-2 text-[11px] text-slate-400">
-                        {am.lines.length} ligne(s) modifiée(s) · Demandé le {formatDateFr(am.created_at)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2971,14 +3146,131 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     <div>
                       <h4 className="text-sm font-bold text-slate-900">Prestations & Services Hahitantsoa</h4>
                       <p className="text-xs text-slate-500">
-                        Catalogue officiel des Prestations & Scénographies 2026.
+                        Catalogue officiel 2026 et prestations sur-mesure (ex: Sol en gazon synthétique, Ciel étoilé...).
                       </p>
                     </div>
-                    <span className="text-xs font-bold px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full self-start sm:self-auto">
-                      {amendmentSelectedServices.length} prestation(s) sélectionnée(s) (
-                      {formatMoney(amendmentFinancialPreview.newServicesTotal)})
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomServiceForm(!showCustomServiceForm)}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center gap-1.5"
+                      >
+                        <i className={`fa-solid ${showCustomServiceForm ? "fa-xmark" : "fa-plus"}`}></i>
+                        {showCustomServiceForm ? "Fermer formulaire" : "+ Prestation sur-mesure / libre"}
+                      </button>
+                      <span className="text-xs font-bold px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full">
+                        {amendmentSelectedServices.length} prestation(s) ({formatMoney(amendmentFinancialPreview.newServicesTotal)})
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Inline Custom Service Creator Form */}
+                  {showCustomServiceForm && (
+                    <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50/50 p-4 space-y-3 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-emerald-950 uppercase flex items-center gap-1.5">
+                          <i className="fa-solid fa-sparkles text-emerald-600"></i> Ajouter une prestation libre / personnalisée
+                        </span>
+                        <span className="text-[11px] text-emerald-800 font-medium">Saisie directe pour avenant</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Nom de la prestation *
+                          </label>
+                          <input
+                            type="text"
+                            value={customServiceName}
+                            onChange={(e) => setCustomServiceName(e.target.value)}
+                            placeholder="Ex: Sol en gazon synthétique, Arche florale, Feux d'artifice..."
+                            className="w-full rounded-xl border border-emerald-300 bg-white p-2 text-xs font-bold focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Catégorie
+                          </label>
+                          <select
+                            value={customServiceCategory}
+                            onChange={(e) => setCustomServiceCategory(e.target.value)}
+                            className="w-full rounded-xl border border-emerald-300 bg-white p-2 text-xs font-semibold"
+                          >
+                            <option value="technical_facility">Technique & Sol</option>
+                            <option value="scenography">Scénographie & Piste</option>
+                            <option value="drapery">Draperie & Habillage</option>
+                            <option value="starry_sky">Ciels Étoilés</option>
+                            <option value="special_effects">Effets Spéciaux</option>
+                            <option value="other">Autre prestation</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                            Prix unitaire (Ar) *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="10000"
+                            value={customServicePrice}
+                            onChange={(e) => setCustomServicePrice(Math.max(0, parseInt(e.target.value || "0", 10)))}
+                            className="w-full rounded-xl border border-emerald-300 bg-white p-2 text-xs font-bold text-right"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-slate-600 font-medium">Quantité :</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={customServiceQty}
+                            onChange={(e) => setCustomServiceQty(Math.max(1, parseInt(e.target.value || "1", 10)))}
+                            className="w-16 rounded-lg border border-emerald-300 bg-white p-1 text-xs font-bold text-center"
+                          />
+                          <span className="font-bold text-emerald-900 ml-2">
+                            Total: {formatMoney(customServicePrice * customServiceQty)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomServiceForm(false)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold text-xs hover:bg-slate-50"
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!customServiceName.trim()}
+                            onClick={() => {
+                              if (!customServiceName.trim()) return;
+                              setAmendmentSelectedServices((prev) => [
+                                ...prev,
+                                {
+                                  id: `custom-srv-${Date.now()}`,
+                                  name: customServiceName.trim(),
+                                  price: customServicePrice,
+                                  quantity: customServiceQty,
+                                  unit_label: customServiceUnitLabel || "prestation",
+                                  category: customServiceCategory,
+                                },
+                              ]);
+                              setCustomServiceName("");
+                              setCustomServiceQty(1);
+                              setCustomServicePrice(150000);
+                              setShowCustomServiceForm(false);
+                            }}
+                            className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs shadow-xs"
+                          >
+                            <i className="fa-solid fa-check mr-1"></i> Ajouter cette prestation
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Category Filter Pills */}
                   <div className="flex flex-wrap gap-2">
@@ -3008,8 +3300,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     })}
                   </div>
 
-                  {/* Services Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                  {/* Standard Services Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
                     {services
                       .filter((s) => s.active !== false)
                       .filter((s) => serviceCategoryFilter === "all" || s.category === serviceCategoryFilter)
@@ -3084,7 +3376,20 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                                   >
                                     -
                                   </button>
-                                  <span className="w-8 text-center font-bold text-slate-900">{qty}</span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={qty}
+                                    onChange={(e) => {
+                                      const nextQty = Math.max(1, parseInt(e.target.value || "1", 10));
+                                      setAmendmentSelectedServices(
+                                        amendmentSelectedServices.map((s) =>
+                                          s.id === srv.id ? { ...s, quantity: nextQty } : s,
+                                        ),
+                                      );
+                                    }}
+                                    className="w-12 text-center font-bold text-slate-900 border border-slate-300 rounded px-1 py-0.5 text-xs"
+                                  />
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -3109,6 +3414,61 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       })}
                   </div>
 
+                  {/* Summary of Selected Services & Custom Additions */}
+                  {amendmentSelectedServices.length > 0 && (
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 space-y-2">
+                      <span className="text-xs font-bold text-indigo-950 uppercase block">
+                        Prestations sélectionnées dans cet avenant ({amendmentSelectedServices.length}) :
+                      </span>
+                      <div className="divide-y divide-indigo-100 max-h-48 overflow-y-auto">
+                        {amendmentSelectedServices.map((srv) => (
+                          <div key={srv.id} className="py-2 flex items-center justify-between gap-3 text-xs">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-slate-900 truncate">{srv.name}</span>
+                                {srv.id.startsWith("custom-srv") && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                                    Sur-mesure
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-slate-500">
+                                {formatMoney(srv.price)} / unité · Total: {formatMoney(srv.price * srv.quantity)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <input
+                                type="number"
+                                min="1"
+                                value={srv.quantity}
+                                onChange={(e) => {
+                                  const nQty = Math.max(1, parseInt(e.target.value || "1", 10));
+                                  setAmendmentSelectedServices(
+                                    amendmentSelectedServices.map((s) =>
+                                      s.id === srv.id ? { ...s, quantity: nQty } : s,
+                                    ),
+                                  );
+                                }}
+                                className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold text-xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setAmendmentSelectedServices(
+                                    amendmentSelectedServices.filter((s) => s.id !== srv.id),
+                                  )
+                                }
+                                className="text-rose-500 hover:text-rose-700 p-1"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase">
                       Consignes particulières scénographie & services
@@ -3127,205 +3487,242 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               {/* ── STEP 4: Matériels & Articles du Catalogue ─────────────────── */}
               {amendmentStep === 4 && (
                 <div className="space-y-4 animate-in fade-in duration-150">
-                  {amendmentRentalType === "Location nue" ? (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
-                      <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
-                        <i className="fa-solid fa-circle-info text-amber-600"></i> Formule Location Nue
+                  {amendmentRentalType === "Location nue" && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
+                          <i className="fa-solid fa-circle-info text-amber-600"></i> Formule actuelle : Location Nue
+                        </div>
+                        <p className="mt-0.5 text-slate-600">
+                          Pour facturer et installer des matériels (chaises, tables, tentes, vaisselle), basculez en formule <strong>Location + logistique</strong>.
+                        </p>
                       </div>
-                      <p>
-                        En formule <strong>Location nue</strong>, les matériels et articles du catalogue ne sont pas
-                        inclus par défaut.
-                      </p>
-                      <p>
-                        Pour intégrer des packs mobilier, vaisselles ou chaises dans cet avenant, revenez à l'étape 2 et
-                        sélectionnez <strong>Location + logistique</strong>.
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setAmendmentRentalType("Location + logistique")}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs shrink-0 whitespace-nowrap"
+                      >
+                        <i className="fa-solid fa-truck-ramp-box mr-1.5"></i> Passer en Location + logistique
+                      </button>
                     </div>
-                  ) : (
-                    <>
-                      {/* Existing Lines */}
-                      <div>
-                        <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
-                          Articles actuels dans le dossier :
-                        </span>
-                        <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 max-h-48 overflow-y-auto bg-white">
-                          {draft.lines.length === 0 ? (
-                            <p className="p-4 text-xs text-slate-400 text-center">Aucun article initial</p>
-                          ) : (
-                            draft.lines.map((line) => {
-                              const currentQty =
-                                amendmentQuantities[line.id] !== undefined
-                                  ? amendmentQuantities[line.id]
-                                  : line.quantity;
-                              const unitP = Number(
-                                line.unit_rental_price ||
-                                  (line.total_price && line.quantity ? Number(line.total_price) / line.quantity : 0) ||
-                                  5000,
-                              );
-                              return (
-                                <div key={line.id} className="flex items-center justify-between p-3 text-xs gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-bold text-slate-900 truncate">
-                                        {line.inventory_item_name}
-                                      </span>
-                                      {itemKindBadge(line.inventory_item_kind)}
-                                    </div>
-                                    <span className="text-[11px] text-slate-400">
-                                      {formatMoney(unitP)} / unité · Total: {formatMoney(currentQty * unitP)}
-                                    </span>
-                                  </div>
+                  )}
 
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setAmendmentQuantities({
-                                          ...amendmentQuantities,
-                                          [line.id]: Math.max(0, currentQty - 1),
-                                        })
-                                      }
-                                      className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
-                                    >
-                                      -
-                                    </button>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={currentQty}
-                                      onChange={(e) =>
-                                        setAmendmentQuantities({
-                                          ...amendmentQuantities,
-                                          [line.id]: Math.max(0, Number(e.target.value)),
-                                        })
-                                      }
-                                      className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold text-slate-900"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setAmendmentQuantities({
-                                          ...amendmentQuantities,
-                                          [line.id]: currentQty + 1,
-                                        })
-                                      }
-                                      className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
+                  {/* Existing Lines */}
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
+                      Articles déjà prévus dans le dossier ({draft.lines.length}) :
+                    </span>
+                    <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 max-h-48 overflow-y-auto bg-white">
+                      {draft.lines.length === 0 ? (
+                        <p className="p-4 text-xs text-slate-400 text-center">Aucun article initial dans ce dossier</p>
+                      ) : (
+                        draft.lines.map((line) => {
+                          const currentQty =
+                            amendmentQuantities[line.id] !== undefined
+                              ? amendmentQuantities[line.id]
+                              : line.quantity;
+                          const unitP = Number(
+                            line.unit_rental_price ||
+                              (line.total_price && line.quantity ? Number(line.total_price) / line.quantity : 0) ||
+                              5000,
+                          );
+                          return (
+                            <div key={line.id} className="flex items-center justify-between p-3 text-xs gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-900 truncate">
+                                    {line.inventory_item_name}
+                                  </span>
+                                  {itemKindBadge(line.inventory_item_kind)}
                                 </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
+                                <span className="text-[11px] text-slate-400">
+                                  {formatMoney(unitP)} / unité · Total: {formatMoney(currentQty * unitP)}
+                                </span>
+                              </div>
 
-                      {/* Added Lines from Catalog */}
-                      <div>
-                        <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
-                          Ajouter de nouveaux articles du catalogue d'inventaire :
-                        </span>
-                        <div className="relative mb-3">
-                          <input
-                            type="text"
-                            value={catalogSearch}
-                            onChange={(e) => setCatalogSearch(e.target.value)}
-                            placeholder="Rechercher par nom d'article, table, chaise, vaisselle, pack..."
-                            className="w-full rounded-xl border border-slate-300 pl-9 pr-3 py-2 text-xs font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                          />
-                          <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                        </div>
-
-                        {filteredCatalogItems.length > 0 && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto mb-3">
-                            {filteredCatalogItems.map((catItem) => {
-                              const alreadyInDraft = draft.lines.some((l) => l.inventory_item_id === catItem.id);
-                              const alreadyAdded = amendmentAddedLines.some((l) => l.inventory_item_id === catItem.id);
-                              return (
-                                <div
-                                  key={catItem.id}
-                                  className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-xs gap-2"
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAmendmentQuantities({
+                                      ...amendmentQuantities,
+                                      [line.id]: Math.max(0, currentQty - 1),
+                                    })
+                                  }
+                                  className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
                                 >
-                                  <div className="min-w-0">
-                                    <p className="font-bold text-slate-900 truncate">{catItem.name}</p>
-                                    <span className="text-[10px] text-slate-400">
-                                      {formatMoney(catItem.rental_price || 5000)} / unité
-                                    </span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    disabled={alreadyInDraft || alreadyAdded}
-                                    onClick={() => {
-                                      setAmendmentAddedLines([
-                                        ...amendmentAddedLines,
-                                        {
-                                          inventory_item_id: catItem.id,
-                                          inventory_item_name: catItem.name,
-                                          inventory_item_kind: catItem.kind,
-                                          quantity: 1,
-                                          unit_rental_price: Number(catItem.rental_price || 5000),
-                                          notes: "",
-                                        },
-                                      ]);
-                                    }}
-                                    className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:hover:bg-indigo-50"
-                                  >
-                                    {alreadyInDraft || alreadyAdded ? "Déjà inclus" : "+ Ajouter"}
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                                  -
+                                </button>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={currentQty}
+                                  onChange={(e) =>
+                                    setAmendmentQuantities({
+                                      ...amendmentQuantities,
+                                      [line.id]: Math.max(0, parseInt(e.target.value || "0", 10)),
+                                    })
+                                  }
+                                  className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold text-slate-900 text-xs"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAmendmentQuantities({
+                                      ...amendmentQuantities,
+                                      [line.id]: currentQty + 1,
+                                    })
+                                  }
+                                  className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
 
-                        {amendmentAddedLines.length > 0 && (
-                          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
-                            <span className="text-xs font-bold text-emerald-800 uppercase block">
-                              Nouveaux articles ajoutés via cet avenant :
-                            </span>
-                            {amendmentAddedLines.map((line, idx) => (
-                              <div
-                                key={line.inventory_item_id}
-                                className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-emerald-200 text-xs gap-2"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-slate-900 truncate">{line.inventory_item_name}</p>
-                                  <span className="text-[10px] text-slate-500">
-                                    {formatMoney(line.unit_rental_price)} · Total:{" "}
-                                    {formatMoney(line.quantity * line.unit_rental_price)}
+                  {/* Added Lines from Catalog */}
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
+                      Ajouter des articles du catalogue d'inventaire :
+                    </span>
+
+                    {/* Category Filter Tabs for Catalog */}
+                    <div className="flex flex-wrap gap-1.5 mb-2.5">
+                      {[
+                        { key: "all", label: "Toutes les catégories" },
+                        { key: "furniture", label: "Mobilier & Chaises" },
+                        { key: "tableware", label: "Vaisselle & Couverts" },
+                        { key: "linen", label: "Nappes & Textiles" },
+                        { key: "tent", label: "Tentes & Chapiteaux" },
+                        { key: "pack", label: "Packs Matériels" },
+                      ].map((c) => (
+                        <button
+                          key={c.key}
+                          type="button"
+                          onClick={() => setCatalogCategoryFilter(c.key)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                            catalogCategoryFilter === c.key
+                              ? "bg-indigo-600 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {c.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="relative mb-3">
+                      <input
+                        type="text"
+                        value={catalogSearch}
+                        onChange={(e) => setCatalogSearch(e.target.value)}
+                        placeholder="Rechercher un article par nom, référence ou description (ex: Chaise Napoléon, Table ronde 8p, Pack...)"
+                        className="w-full rounded-xl border border-slate-300 pl-9 pr-3 py-2 text-xs font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    </div>
+
+                    {filteredCatalogItems.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto mb-3 pr-1">
+                        {filteredCatalogItems.map((catItem) => {
+                          const alreadyInDraft = draft.lines.some((l) => l.inventory_item_id === catItem.id);
+                          const alreadyAdded = amendmentAddedLines.some((l) => l.inventory_item_id === catItem.id);
+                          return (
+                            <div
+                              key={catItem.id}
+                              className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-xs gap-2 hover:border-indigo-200 transition-colors"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 truncate">{catItem.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] text-indigo-700 font-semibold">
+                                    {formatMoney(catItem.rental_price || 5000)} / u
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    Stock: {catItem.stock_summary?.available_stock ?? catItem.reported_inventory_quantity ?? "Dispo"}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={line.quantity}
-                                    onChange={(e) => {
-                                      const val = Math.max(1, Number(e.target.value));
-                                      const updated = [...amendmentAddedLines];
-                                      updated[idx].quantity = val;
-                                      setAmendmentAddedLines(updated);
-                                    }}
-                                    className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setAmendmentAddedLines(amendmentAddedLines.filter((_, i) => i !== idx));
-                                    }}
-                                    className="text-rose-500 hover:text-rose-700 p-1"
-                                  >
-                                    <i className="fa-solid fa-trash"></i>
-                                  </button>
-                                </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
+                              <button
+                                type="button"
+                                disabled={alreadyInDraft || alreadyAdded}
+                                onClick={() => {
+                                  setAmendmentAddedLines([
+                                    ...amendmentAddedLines,
+                                    {
+                                      inventory_item_id: catItem.id,
+                                      inventory_item_name: catItem.name,
+                                      inventory_item_kind: catItem.kind,
+                                      quantity: 1,
+                                      unit_rental_price: Number(catItem.rental_price || 5000),
+                                      notes: "",
+                                    },
+                                  ]);
+                                }}
+                                className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:hover:bg-indigo-50"
+                              >
+                                {alreadyInDraft || alreadyAdded ? "Déjà inclus" : "+ Ajouter"}
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
-                    </>
-                  )}
+                    ) : (
+                      <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-400 mb-3">
+                        Aucun article ne correspond aux filtres.
+                      </div>
+                    )}
+
+                    {amendmentAddedLines.length > 0 && (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
+                        <span className="text-xs font-bold text-emerald-800 uppercase block">
+                          Nouveaux articles ajoutés via cet avenant ({amendmentAddedLines.length}) :
+                        </span>
+                        {amendmentAddedLines.map((line, idx) => (
+                          <div
+                            key={line.inventory_item_id}
+                            className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-emerald-200 text-xs gap-2"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-slate-900 truncate">{line.inventory_item_name}</p>
+                              <span className="text-[10px] text-slate-500">
+                                {formatMoney(line.unit_rental_price)} · Total:{" "}
+                                {formatMoney(line.quantity * line.unit_rental_price)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={line.quantity}
+                                onChange={(e) => {
+                                  const val = Math.max(1, parseInt(e.target.value || "1", 10));
+                                  const updated = [...amendmentAddedLines];
+                                  updated[idx].quantity = val;
+                                  setAmendmentAddedLines(updated);
+                                }}
+                                className="w-16 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold text-xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAmendmentAddedLines(amendmentAddedLines.filter((_, i) => i !== idx));
+                                }}
+                                className="text-rose-500 hover:text-rose-700 p-1"
+                              >
+                                <i className="fa-solid fa-trash"></i>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

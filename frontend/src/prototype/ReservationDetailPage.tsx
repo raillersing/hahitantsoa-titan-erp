@@ -161,6 +161,7 @@ export default function ReservationDetailPage({
   >([]);
   const [catalogItems, setCatalogItems] = useState<InventoryItem[]>([]);
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [titanCatalogCategory, setTitanCatalogCategory] = useState("all");
   const [amendmentStep, setAmendmentStep] = useState(1);
   const [payments, setPayments] = useState<
     {
@@ -2680,28 +2681,75 @@ export default function ReservationDetailPage({
                 )}
 
                 {/* Catalog Search & Addition */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-                  <span className="text-xs font-bold text-slate-700 uppercase block">Ajouter des articles du catalogue :</span>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2.5">
+                  <span className="text-xs font-bold text-slate-700 uppercase block">Ajouter des articles du catalogue d'inventaire :</span>
+
+                  {/* Category Pills */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { key: "all", label: "Toutes les catégories" },
+                      { key: "furniture", label: "Mobilier & Chaises" },
+                      { key: "tableware", label: "Vaisselle & Couverts" },
+                      { key: "linen", label: "Nappes & Textiles" },
+                      { key: "tent", label: "Tentes & Chapiteaux" },
+                      { key: "pack", label: "Packs Matériels" },
+                    ].map((c) => (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() => setTitanCatalogCategory(c.key)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                          titanCatalogCategory === c.key
+                            ? "bg-indigo-600 text-white shadow-xs"
+                            : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <input
                     type="text"
                     value={catalogSearch}
                     onChange={(e) => setCatalogSearch(e.target.value)}
-                    placeholder="Rechercher un article Titan (ex: Chaise, Table, Tente...)..."
+                    placeholder="Rechercher un article Titan (nom, référence, catégorie)..."
                     className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
                   />
-                  {catalogSearch.trim() && (
-                    <div className="rounded-lg border border-slate-200 bg-white max-h-40 overflow-y-auto divide-y divide-slate-100">
+
+                  {catalogItems.length > 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-white max-h-48 overflow-y-auto divide-y divide-slate-100">
                       {catalogItems
-                        .filter(item => item.name.toLowerCase().includes(catalogSearch.toLowerCase()) || item.kind?.toLowerCase().includes(catalogSearch.toLowerCase()))
-                        .slice(0, 8)
+                        .filter(item => {
+                          const q = catalogSearch.trim().toLowerCase();
+                          const matchesSearch = !q || item.name.toLowerCase().includes(q) || (item.description && item.description.toLowerCase().includes(q)) || item.kind?.toLowerCase().includes(q);
+                          const itemCat = (item.section || item.kind || "").toLowerCase();
+                          const itemName = item.name.toLowerCase();
+                          let matchesCat = true;
+                          if (titanCatalogCategory === "furniture") {
+                            matchesCat = itemCat.includes("furniture") || itemCat.includes("mobilier") || item.kind === "material" || itemName.includes("table") || itemName.includes("chaise") || itemName.includes("fauteuil");
+                          } else if (titanCatalogCategory === "tableware") {
+                            matchesCat = itemCat.includes("tableware") || itemCat.includes("vaisselle") || item.kind === "article" || itemName.includes("verre") || itemName.includes("assiette") || itemName.includes("couvert");
+                          } else if (titanCatalogCategory === "linen") {
+                            matchesCat = itemCat.includes("linen") || itemCat.includes("nappe") || itemCat.includes("textile") || itemName.includes("nappe") || itemName.includes("serviette");
+                          } else if (titanCatalogCategory === "tent") {
+                            matchesCat = itemCat.includes("tent") || itemCat.includes("tente") || itemCat.includes("structure") || itemName.includes("tente") || itemName.includes("chapiteau");
+                          } else if (titanCatalogCategory === "pack") {
+                            matchesCat = item.kind === "material_pack" || itemName.includes("pack");
+                          }
+                          return matchesSearch && matchesCat;
+                        })
                         .map(item => {
                           const isAlreadyInDraft = (draft?.lines || []).some(l => l.inventory_item_id === item.id);
                           const isAlreadyAdded = amendmentAddedLines.some(l => l.inventory_item_id === item.id);
                           return (
-                            <div key={item.id} className="flex items-center justify-between p-2 text-xs hover:bg-slate-50">
-                              <div>
-                                <span className="font-bold text-slate-900 block">{item.name}</span>
-                                <span className="text-slate-400">{formatMoney(item.rental_price || 0)} / jour</span>
+                            <div key={item.id} className="flex items-center justify-between p-2.5 text-xs hover:bg-slate-50 gap-2">
+                              <div className="min-w-0">
+                                <span className="font-bold text-slate-900 block truncate">{item.name}</span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-indigo-700 font-semibold">{formatMoney(item.rental_price || 0)} / jour</span>
+                                  <span className="text-slate-400">Stock: {item.stock_summary?.available_stock ?? item.reported_inventory_quantity ?? "Dispo"}</span>
+                                </div>
                               </div>
                               <button
                                 type="button"
@@ -2718,11 +2766,10 @@ export default function ReservationDetailPage({
                                         notes: "",
                                       }
                                     ]);
-                                    setCatalogSearch("");
                                   }
                                 }}
                                 disabled={isAlreadyInDraft || isAlreadyAdded}
-                                className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold disabled:opacity-50"
+                                className="shrink-0 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold disabled:opacity-40"
                               >
                                 {isAlreadyInDraft ? "Déjà dans la liste" : isAlreadyAdded ? "Ajouté" : "+ Ajouter"}
                               </button>

@@ -606,4 +606,136 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     );
     expect(result.remainingNotes).toContain("Notes particulières: disposition spéciale");
   });
+
+  it("supports custom services, 308 guests, and 308 item quantities in amendment studio", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+    mockCreateAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-308", status: "applied", amendment_sequence: 2 },
+    });
+    mockApplyAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-308", status: "applied" },
+    });
+    mockGetInventoryItems.mockResolvedValue([
+      { id: "item-napoleon", name: "Chaise Napoléon Blanche", kind: "material", rental_price: "4500", section: "furniture" },
+    ]);
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    // Click on amendment button
+    const amendBtn = await screen.findByRole("button", { name: /demander un avenant/i });
+    fireEvent.click(amendBtn);
+
+    // Step 1: Motif
+    const reasonInput = screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i);
+    fireEvent.change(reasonInput, { target: { value: "Avenant N°2: 308 convives et gazon synthétique" } });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 2: Set 308 guests and Location + logistique
+    expect(screen.getByText("2. Formule & Local")).toBeInTheDocument();
+    const guestInput = screen.getByPlaceholderText("Ex: 250");
+    fireEvent.change(guestInput, { target: { value: "308" } });
+    expect(screen.getByText(/58 convives sup/i)).toBeInTheDocument();
+
+    const logisticsRadio = screen.getByLabelText("Location + logistique");
+    fireEvent.click(logisticsRadio);
+
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 3: Add custom service "Sol en gazon synthétique"
+    expect(screen.getByText("3. Prestations & Services")).toBeInTheDocument();
+    const customSrvBtn = screen.getByRole("button", { name: /\+ prestation sur-mesure/i });
+    fireEvent.click(customSrvBtn);
+
+    const customNameInput = screen.getByPlaceholderText(/Ex: Sol en gazon/i);
+    fireEvent.change(customNameInput, { target: { value: "Sol en gazon synthétique" } });
+
+    const addCustomBtn = screen.getByRole("button", { name: /ajouter cette prestation/i });
+    fireEvent.click(addCustomBtn);
+
+    expect(screen.getAllByText("Sol en gazon synthétique").length).toBeGreaterThan(0);
+    expect(screen.getByText("Sur-mesure")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 4: Add and set quantities to 308
+    expect(screen.getByText("4. Matériel & Articles")).toBeInTheDocument();
+
+    // Add Chaise Napoléon Blanche from catalog
+    const addChaiseBtn = await screen.findByRole("button", { name: /\+ ajouter/i });
+    fireEvent.click(addChaiseBtn);
+
+    // Change added line quantity to 308
+    const addedQtyInputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(addedQtyInputs[addedQtyInputs.length - 1], { target: { value: "308" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 5: Bilan Financier
+    expect(screen.getByText("5. Bilan & Validation")).toBeInTheDocument();
+    expect(screen.getByText(/Bilan Comparatif Financier de l'Avenant/i)).toBeInTheDocument();
+
+    // Submit
+    const submitBtn = screen.getByRole("button", { name: /valider et créer l'avenant/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockCreateAmendment).toHaveBeenCalledWith(
+        DRAFT.id,
+        expect.objectContaining({
+          reason: "Avenant N°2: 308 convives et gazon synthétique",
+          changed_guest_count: 308,
+          changed_rental_type: "logistics",
+          changed_service_notes: expect.stringContaining("Sol en gazon synthétique"),
+        }),
+      );
+      expect(mockCreateAmendmentLine).toHaveBeenCalledWith(
+        DRAFT.id,
+        "amend-308",
+        expect.objectContaining({
+          inventory_item_id: "item-napoleon",
+          quantity: 308,
+        }),
+      );
+      expect(mockApplyAmendment).toHaveBeenCalledWith(DRAFT.id, "amend-308");
+    });
+  });
+
+  it("renders sequential multiple amendments in Avenants tab with their sequence numbers and details", async () => {
+    mockGetAmendments.mockResolvedValue([
+      {
+        id: "amend-1",
+        event_draft_id: DRAFT.id,
+        status: "applied",
+        amendment_sequence: 1,
+        reason: "Ajustement horaires",
+        notes: "Formule nuit jusqu'à 03h30",
+        changed_guest_count: 250,
+        changed_space_rental_amount: "7120000.00",
+        lines: [],
+        created_at: "2026-08-05T14:00:00Z",
+      },
+      {
+        id: "amend-2",
+        event_draft_id: DRAFT.id,
+        status: "applied",
+        amendment_sequence: 2,
+        reason: "Rajout 58 convives et sol gazon",
+        notes: "Total 308 invités",
+        changed_guest_count: 308,
+        changed_space_rental_amount: "7410000.00",
+        lines: [{ id: "l-1", inventory_item_id: "item-napoleon", quantity: 308 }],
+        created_at: "2026-08-10T11:00:00Z",
+      },
+    ]);
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    // Switch to Avenants tab
+    const avenantsTabBtn = await screen.findByRole("button", { name: /^Avenants/i });
+    fireEvent.click(avenantsTabBtn);
+
+    expect(await screen.findByText(/Avenant N°1 — Ajustement horaires/i)).toBeInTheDocument();
+    expect(screen.getByText(/Avenant N°2 — Rajout 58 convives et sol gazon/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/308 invités/i).length).toBeGreaterThan(0);
+  });
 });
