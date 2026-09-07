@@ -8,12 +8,19 @@ import {
   validateCashboxCount,
   reopenCashboxSession,
   getUsers,
+  getReservationDrafts,
+  getHahitantsoaEventDrafts,
+  getPayments,
+  recordConfirmedDeposit,
 } from "../api";
 import type {
   CashboxSession,
   CashboxMovement,
   CashboxMovementDirection,
   User,
+  ReservationDraft,
+  HahitantsoaEventDraft,
+  Payment,
 } from "../types";
 import { LoadingSpinner } from "../components";
 import { useAuth } from "../AuthContext";
@@ -40,6 +47,17 @@ export interface CashboxCategory {
 
 export const CASH_IN_CATEGORIES: CashboxCategory[] = [
   {
+    id: "encaissement_reservation",
+    direction: "cash_in",
+    label: "Acompte / Règlement Réservation",
+    prefix: "[ENCAISSEMENT_RESERVATION]",
+    icon: "fa-receipt",
+    color: "text-blue-700 dark:text-blue-300",
+    bgColor: "bg-blue-50 dark:bg-blue-950/40",
+    borderColor: "border-blue-200 dark:border-blue-800",
+    description: "Acompte (50%) ou règlement de solde sur un dossier de réservation ou événement",
+  },
+  {
     id: "apport",
     direction: "cash_in",
     label: "Apport / Réapprovisionnement",
@@ -56,9 +74,9 @@ export const CASH_IN_CATEGORIES: CashboxCategory[] = [
     label: "Encaissement client direct",
     prefix: "[ENCAISSEMENT_DIRECT]",
     icon: "fa-money-bill-wave",
-    color: "text-blue-700 dark:text-blue-300",
-    bgColor: "bg-blue-50 dark:bg-blue-950/40",
-    borderColor: "border-blue-200 dark:border-blue-800",
+    color: "text-indigo-700 dark:text-indigo-300",
+    bgColor: "bg-indigo-50 dark:bg-indigo-950/40",
+    borderColor: "border-indigo-200 dark:border-indigo-800",
     description: "Paiement comptant / Vente directe sans dossier préalable",
   },
   {
@@ -177,6 +195,24 @@ export const CASH_OUT_CATEGORIES: CashboxCategory[] = [
 ];
 
 const ALL_CATEGORIES = [...CASH_IN_CATEGORIES, ...CASH_OUT_CATEGORIES];
+
+export interface UnifiedDossier {
+  id: string;
+  domain: "titan" | "hahitantsoa";
+  reference: string;
+  customerName: string;
+  customerPhone?: string;
+  customerAddress?: string;
+  eventDateLabel?: string;
+  status: string;
+  totalAmount: number;
+  paidAmount: number;
+  requiredDepositAmount: number;
+  cautionAmount: number;
+  remainingBalance: number;
+  isDepositMet: boolean;
+}
+
 
 export const DENOMINATIONS = [
   { value: 20000, label: "20 000 Ar" },
@@ -1300,7 +1336,7 @@ function OpenSessionModal({
 }
 
 // ----------------------------------------------------------------------
-// MODAL 2: New Movement (Cash In / Out with Categorized Motifs)
+// MODAL 2: New Movement (Cash In / Out with Categorized Motifs & Dossier POS)
 // ----------------------------------------------------------------------
 
 function MovementModal({
@@ -1314,7 +1350,7 @@ function MovementModal({
   onClose: () => void;
   sessionId: string;
   initialDirection: CashboxMovementDirection;
-  onSuccess: (dir: CashboxMovementDirection, amount: number) => void;
+  onSuccess: (dir: CashboxMovementDirection, amount: number, createdMovement?: CashboxMovement) => void;
 }) {
   const [direction, setDirection] = useState<CashboxMovementDirection>(initialDirection);
   const [selectedCatId, setSelectedCatId] = useState<string>(
@@ -1327,19 +1363,170 @@ function MovementModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Dossier POS state
+  const [dossiers, setDossiers] = useState<UnifiedDossier[]>([]);
+  const [loadingDossiers, setLoadingDossiers] = useState(false);
+  const [selectedDossier, setSelectedDossier] = useState<UnifiedDossier | null>(null);
+  const [dossierSearch, setDossierSearch] = useState("");
+  const [dossierScopeFilter, setDossierScopeFilter] = useState<"all" | "titan" | "hahitantsoa" | "with_balance">("all");
+
+  // Load dossiers and payments when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    setLoadingDossiers(true);
+
+    const pReservations =
+      typeof getReservationDrafts === "function"
+        ? getReservationDrafts().catch(() => [] as ReservationDraft[])
+        : Promise.resolve([] as ReservationDraft[]);
+
+    const pHahitantsoa =
+      typeof getHahitantsoaEventDrafts === "function"
+        ? getHahitantsoaEventDrafts().catch(() => [] as HahitantsoaEventDraft[])
+        : Promise.resolve([] as HahitantsoaEventDraft[]);
+
+    const pPayments =
+      typeof getPayments === "function"
+        ? getPayments().catch(() => [] as Payment[])
+        : Promise.resolve([] as Payment[]);
+
+    Promise.all([pReservations, pHahitantsoa, pPayments])
+      .then(([titanDrafts, hahitantsoaDrafts, allPayments]) => {
+        if (!isMounted) return;
+
+        // Index payments by draft ID
+        const paymentsByTitan = new Map<string, number>();
+        const paymentsByHahitantsoa = new Map<string, number>();
+
+        allPayments.forEach((p) => {
+          if (p.payment_status === "confirmed" || p.payment_status === "reconciled") {
+            const amt = Number(p.amount) || 0;
+            if (p.reservation_draft) {
+              const prev = paymentsByTitan.get(p.reservation_draft) || 0;
+              paymentsByTitan.set(p.reservation_draft, prev + amt);
+            }
+            if (p.hahitantsoa_event_draft) {
+              const prev = paymentsByHahitantsoa.get(p.hahitantsoa_event_draft) || 0;
+              paymentsByHahitantsoa.set(p.hahitantsoa_event_draft, prev + amt);
+            }
+          }
+        });
+
+        const unified: UnifiedDossier[] = [];
+
+        // Add Titan reservations
+        titanDrafts.forEach((r) => {
+          const total = Number(r.total_amount || 0);
+          const paid = paymentsByTitan.get(r.id) || 0;
+          const reqDeposit = Number(r.required_deposit_amount || Math.round(total * 0.5));
+          const remaining = Math.max(0, total - paid);
+          unified.push({
+            id: r.id,
+            domain: "titan",
+            reference: r.public_reference,
+            customerName: r.customer_display_name || "Client Titan",
+            eventDateLabel: r.start_at ? `${formatDateOnly(r.start_at)} → ${formatDateOnly(r.end_at)}` : undefined,
+            status: r.status,
+            totalAmount: total,
+            paidAmount: paid,
+            requiredDepositAmount: reqDeposit,
+            cautionAmount: Math.round(total * 0.2), // Standard 20% caution estimate
+            remainingBalance: remaining,
+            isDepositMet: paid >= reqDeposit && reqDeposit > 0,
+          });
+        });
+
+        // Add Hahitantsoa events
+        hahitantsoaDrafts.forEach((ev) => {
+          const total = Number(ev.space_rental_amount || 0);
+          const paid = paymentsByHahitantsoa.get(ev.id) || 0;
+          const reqDeposit = Number(ev.required_deposit_amount || Math.round(total * 0.5));
+          const remaining = Math.max(0, total - paid);
+          unified.push({
+            id: ev.id,
+            domain: "hahitantsoa",
+            reference: ev.public_reference,
+            customerName: ev.customer_display_name || ev.event_name || "Client Hahitantsoa",
+            eventDateLabel: ev.start_at ? `${formatDateOnly(ev.start_at)} → ${formatDateOnly(ev.end_at)}` : undefined,
+            status: ev.status,
+            totalAmount: total,
+            paidAmount: paid,
+            requiredDepositAmount: reqDeposit,
+            cautionAmount: 500000,
+            remainingBalance: remaining,
+            isDepositMet: paid >= reqDeposit && reqDeposit > 0,
+          });
+        });
+
+        setDossiers(unified);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingDossiers(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const currentCategories = direction === "cash_in" ? CASH_IN_CATEGORIES : CASH_OUT_CATEGORIES;
   const activeCategory = currentCategories.find((c) => c.id === selectedCatId) || currentCategories[0];
 
+  const isDossierLinkedCategory =
+    selectedCatId === "encaissement_reservation" ||
+    selectedCatId === "caution_recue" ||
+    selectedCatId === "restitution_caution";
+
   const handleDirectionSwitch = (dir: CashboxMovementDirection) => {
     setDirection(dir);
     setSelectedCatId(dir === "cash_in" ? CASH_IN_CATEGORIES[0].id : CASH_OUT_CATEGORIES[0].id);
+    setSelectedDossier(null);
   };
+
+  const handleSelectDossier = (d: UnifiedDossier) => {
+    setSelectedDossier(d);
+    setBeneficiary(d.customerName);
+    setReference(d.reference);
+
+    // Default amount suggestion: remaining deposit shortfall or remaining balance
+    if (selectedCatId === "encaissement_reservation") {
+      if (!d.isDepositMet) {
+        const depositShortfall = Math.max(0, d.requiredDepositAmount - d.paidAmount);
+        setAmount(depositShortfall > 0 ? String(depositShortfall) : String(d.remainingBalance));
+      } else {
+        setAmount(String(d.remainingBalance));
+      }
+    } else if (selectedCatId === "caution_recue" || selectedCatId === "restitution_caution") {
+      setAmount(String(d.cautionAmount));
+    }
+  };
+
+  // Filter dossiers
+  const filteredDossiers = dossiers.filter((d) => {
+    if (dossierScopeFilter === "titan" && d.domain !== "titan") return false;
+    if (dossierScopeFilter === "hahitantsoa" && d.domain !== "hahitantsoa") return false;
+    if (dossierScopeFilter === "with_balance" && d.remainingBalance <= 0) return false;
+
+    if (dossierSearch.trim()) {
+      const q = dossierSearch.toLowerCase();
+      const matchRef = d.reference.toLowerCase().includes(q);
+      const matchName = d.customerName.toLowerCase().includes(q);
+      const matchPhone = d.customerPhone?.toLowerCase().includes(q);
+      const matchDate = d.eventDateLabel?.toLowerCase().includes(q);
+      if (!matchRef && !matchName && !matchPhone && !matchDate) return false;
+    }
+
+    return true;
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || Number(amount) <= 0) {
+    const numAmt = Number(amount);
+    if (!amount || numAmt <= 0) {
       setError("Veuillez saisir un montant positif valide.");
       return;
     }
@@ -1360,12 +1547,36 @@ function MovementModal({
     }
 
     try {
-      await createCashboxMovement(sessionId, {
-        direction,
-        amount: Number(amount),
-        note: constructedNote.trim(),
-      });
-      onSuccess(direction, Number(amount));
+      let createdMovement: CashboxMovement | undefined = undefined;
+
+      if (selectedDossier && selectedCatId === "encaissement_reservation") {
+        // 1. Atomically record confirmed deposit on the reservation/event draft
+        const depositResult = await recordConfirmedDeposit({
+          reservation_draft: selectedDossier.domain === "titan" ? selectedDossier.id : null,
+          hahitantsoa_event_draft: selectedDossier.domain === "hahitantsoa" ? selectedDossier.id : null,
+          payment_method: "cash",
+          amount: numAmt.toFixed(2),
+          notes: constructedNote.trim(),
+          idempotency_key: crypto.randomUUID(),
+        });
+
+        // 2. Create linked cashbox movement with payment FK
+        createdMovement = await createCashboxMovement(sessionId, {
+          direction: "cash_in",
+          amount: numAmt,
+          payment: depositResult.payment.id,
+          note: constructedNote.trim(),
+        });
+      } else {
+        // Standard unlinked or custom movement
+        createdMovement = await createCashboxMovement(sessionId, {
+          direction,
+          amount: numAmt,
+          note: constructedNote.trim(),
+        });
+      }
+
+      onSuccess(direction, numAmt, createdMovement);
     } catch (err: unknown) {
       setError((err as Error).message || "Échec de l'enregistrement du mouvement.");
     } finally {
@@ -1379,7 +1590,7 @@ function MovementModal({
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 dark:border-slate-800 animate-scale-up my-8"
+        className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 dark:border-slate-800 animate-scale-up my-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -1393,7 +1604,7 @@ function MovementModal({
               {direction === "cash_in" ? "Nouvelle Entrée de Caisse" : "Nouvelle Sortie de Caisse"}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Sélectionnez la catégorie et renseignez les détails de l'opération.
+              Sélectionnez la catégorie, le dossier commercial le cas échéant, et renseignez les détails de l'opération.
             </p>
           </div>
           <button
@@ -1406,9 +1617,9 @@ function MovementModal({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 text-xs">
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl font-semibold">
-              <i className="fa-solid fa-triangle-exclamation mr-1.5"></i>
-              {error}
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl font-semibold flex items-center gap-2">
+              <i className="fa-solid fa-triangle-exclamation shrink-0"></i>
+              <span>{error}</span>
             </div>
           )}
 
@@ -1428,7 +1639,7 @@ function MovementModal({
                 }`}
               >
                 <i className="fa-solid fa-arrow-down text-emerald-600"></i>
-                Entrée (Ajout de fonds)
+                Entrée (Ajout / Encaissement)
               </button>
               <button
                 type="button"
@@ -1440,7 +1651,7 @@ function MovementModal({
                 }`}
               >
                 <i className="fa-solid fa-arrow-up text-rose-600"></i>
-                Sortie (Décaissement)
+                Sortie (Décaissement / Restitution)
               </button>
             </div>
           </div>
@@ -1450,21 +1661,21 @@ function MovementModal({
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
               Motif / Catégorie d'opération :
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
               {currentCategories.map((cat) => {
                 const isSelected = cat.id === activeCategory.id;
                 return (
                   <div
                     key={cat.id}
                     onClick={() => setSelectedCatId(cat.id)}
-                    className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-2.5 ${
+                    className={`p-2.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-2.5 ${
                       isSelected
                         ? `${cat.borderColor} ${cat.bgColor} ring-2 ring-indigo-500/20`
                         : "border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800"
                     }`}
                   >
                     <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 ${
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs shrink-0 ${
                         isSelected ? cat.bgColor : "bg-slate-100 dark:bg-slate-700"
                       }`}
                     >
@@ -1484,10 +1695,255 @@ function MovementModal({
             </div>
           </div>
 
-          {/* Amount */}
+          {/* POS Dossier Selector Section (if applicable) */}
+          {isDossierLinkedCategory && (
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <label className="font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <i className="fa-solid fa-folder-open text-blue-600"></i>
+                  Liaison Dossier Commercial (Réservation / Événement) :
+                </label>
+                {selectedDossier && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDossier(null)}
+                    className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <i className="fa-solid fa-rotate-left"></i>
+                    Changer de dossier
+                  </button>
+                )}
+              </div>
+
+              {!selectedDossier ? (
+                /* Dossier Search & Pick List */
+                <div className="space-y-2">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={dossierSearch}
+                      onChange={(e) => setDossierSearch(e.target.value)}
+                      placeholder="Rechercher par N° dossier (RES-..., EVT-...), client ou téléphone..."
+                      className="w-full p-2.5 pl-8 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    {dossierSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setDossierSearch("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <i className="fa-solid fa-xmark"></i>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Scope filter tabs */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { id: "all", label: `Tous (${dossiers.length})` },
+                      {
+                        id: "titan",
+                        label: `Titan Location (${dossiers.filter((d) => d.domain === "titan").length})`,
+                      },
+                      {
+                        id: "hahitantsoa",
+                        label: `Hahitantsoa (${dossiers.filter((d) => d.domain === "hahitantsoa").length})`,
+                      },
+                      {
+                        id: "with_balance",
+                        label: `Avec Solde Dû (${dossiers.filter((d) => d.remainingBalance > 0).length})`,
+                      },
+                    ].map((f) => (
+                      <button
+                        type="button"
+                        key={f.id}
+                        onClick={() => setDossierScopeFilter(f.id as any)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          dossierScopeFilter === f.id
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* List of Dossiers */}
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                    {loadingDossiers ? (
+                      <div className="p-4 text-center text-slate-400">
+                        <i className="fa-solid fa-spinner fa-spin mr-2"></i>
+                        Chargement des dossiers commerciaux...
+                      </div>
+                    ) : filteredDossiers.length === 0 ? (
+                      <div className="p-4 text-center text-slate-400 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                        Aucun dossier trouvé correspondant à votre recherche.
+                      </div>
+                    ) : (
+                      filteredDossiers.slice(0, 15).map((d) => (
+                        <div
+                          key={d.id}
+                          onClick={() => handleSelectDossier(d)}
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-xs cursor-pointer transition-all flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span
+                              className={`px-2 py-0.5 rounded-md font-mono text-[9px] font-black uppercase ${
+                                d.domain === "titan"
+                                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                  : "bg-purple-50 text-purple-700 border border-purple-200"
+                              }`}
+                            >
+                              {d.domain === "titan" ? "Titan" : "Hahitantsoa"}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                                <span>{d.reference}</span>
+                                <span className="text-slate-400 font-normal">·</span>
+                                <span className="text-slate-700 dark:text-slate-300 font-semibold">{d.customerName}</span>
+                              </p>
+                              {d.eventDateLabel && (
+                                <p className="text-[10px] text-slate-400">{d.eventDateLabel}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <p className="font-black text-slate-900 dark:text-white text-[11px]">
+                              {formatAmount(d.totalAmount)} Ar
+                            </p>
+                            <p
+                              className={`text-[10px] font-bold ${
+                                d.remainingBalance > 0 ? "text-amber-600" : "text-emerald-600"
+                              }`}
+                            >
+                              {d.remainingBalance > 0
+                                ? `Reste : ${formatAmount(d.remainingBalance)} Ar`
+                                : "Intégralement réglé"}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Selected Dossier Summary Card */
+                <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800 border-2 border-blue-400 dark:border-blue-600 shadow-sm space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-black uppercase ${
+                          selectedDossier.domain === "titan"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-purple-100 text-purple-800"
+                        }`}
+                      >
+                        {selectedDossier.domain === "titan" ? "Titan Location" : "Domaine Hahitantsoa"}
+                      </span>
+                      <h4 className="font-black text-slate-900 dark:text-white text-sm">
+                        {selectedDossier.reference}
+                      </h4>
+                      <span className="text-slate-400 font-normal">·</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        {selectedDossier.customerName}
+                      </span>
+                    </div>
+
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        selectedDossier.status === "confirmed"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-amber-50 text-amber-700 border border-amber-200"
+                      }`}
+                    >
+                      {selectedDossier.status === "confirmed" ? "Confirmé" : "Brouillon Devis"}
+                    </span>
+                  </div>
+
+                  {/* Financial KPI Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 dark:border-slate-700 text-center">
+                    <div className="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Devis Total TTC</p>
+                      <p className="font-black text-slate-900 dark:text-white text-xs mt-0.5">
+                        {formatAmount(selectedDossier.totalAmount)} Ar
+                      </p>
+                    </div>
+
+                    <div className="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Déjà Réglé</p>
+                      <p className="font-black text-emerald-600 text-xs mt-0.5">
+                        {formatAmount(selectedDossier.paidAmount)} Ar
+                      </p>
+                    </div>
+
+                    <div className="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Acompte 50%</p>
+                      <p className="font-black text-blue-600 text-xs mt-0.5">
+                        {formatAmount(selectedDossier.requiredDepositAmount)} Ar
+                      </p>
+                    </div>
+
+                    <div className="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Solde Restant</p>
+                      <p className="font-black text-rose-600 text-xs mt-0.5">
+                        {formatAmount(selectedDossier.remainingBalance)} Ar
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quick Fill Buttons */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Remplissage rapide :</span>
+                    {!selectedDossier.isDepositMet && selectedDossier.requiredDepositAmount > selectedDossier.paidAmount && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAmount(
+                            String(Math.max(0, selectedDossier.requiredDepositAmount - selectedDossier.paidAmount)),
+                          )
+                        }
+                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-bold rounded-lg border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer"
+                      >
+                        Acompte 50% (
+                        {formatAmount(
+                          Math.max(0, selectedDossier.requiredDepositAmount - selectedDossier.paidAmount),
+                        )}{" "}
+                        Ar)
+                      </button>
+                    )}
+
+                    {selectedDossier.remainingBalance > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAmount(String(selectedDossier.remainingBalance))}
+                        className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors cursor-pointer"
+                      >
+                        Tout Solder ({formatAmount(selectedDossier.remainingBalance)} Ar)
+                      </button>
+                    )}
+
+                    {selectedDossier.cautionAmount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setAmount(String(selectedDossier.cautionAmount))}
+                        className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold rounded-lg border border-purple-200 dark:border-purple-800 transition-colors cursor-pointer"
+                      >
+                        Caution ({formatAmount(selectedDossier.cautionAmount)} Ar)
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Amount Input */}
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Montant (en Ariary MGA) :
+              Montant à encaisser / décaisser (en Ariary MGA) :
             </label>
             <div className="relative">
               <input
@@ -1510,11 +1966,11 @@ function MovementModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Bénéficiaire / Tiers (optionnel) :
+                Bénéficiaire / Client / Tiers :
               </label>
               <input
                 type="text"
-                placeholder="Ex: Station Total, Jean..."
+                placeholder="Ex: Jean Dupont, Station Total..."
                 value={beneficiary}
                 onChange={(e) => setBeneficiary(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none"
@@ -1523,11 +1979,11 @@ function MovementModal({
 
             <div>
               <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Réf. Pièce / Facturette (optionnel) :
+                Réf. Dossier / Pièce / Facturette :
               </label>
               <input
                 type="text"
-                placeholder="Ex: Facture #1245, Ticket..."
+                placeholder="Ex: RES-2026-001, Facture #1245..."
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none"
@@ -1544,7 +2000,7 @@ function MovementModal({
               rows={2}
               value={userNote}
               onChange={(e) => setUserNote(e.target.value)}
-              placeholder="Ex: Achat fournitures bureau..."
+              placeholder="Ex: Versement acompte 50% de réservation..."
               className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none resize-none"
             />
           </div>
