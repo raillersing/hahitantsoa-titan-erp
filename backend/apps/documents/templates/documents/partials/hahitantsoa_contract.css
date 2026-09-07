@@ -5,99 +5,140 @@
 @page landscape-page { size: A4 landscape; margin: 0; }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; width: 210mm; background: #ffffff; color: #111111; font-family: "Times New Roman", "Liberation Serif", serif; font-size: 10pt; line-height: 1.42; -webkit-print-color-adjust: exact; }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 210mm;
+  background: #ffffff;
+  color: #111111;
+  font-family: "Times New Roman", "Liberation Serif", serif;
+  font-size: 9.5pt;
+  line-height: 1.32;
+  -webkit-print-color-adjust: exact;
+}
 .contract-document { width: 210mm; margin: 0 auto; background: #ffffff; }
 
 .contract-page {
   width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
   min-height: 297mm;
-  padding: 14mm 16mm 24mm;
+  padding: 10mm 16mm 20mm;
   margin: 0 auto;
   background: #ffffff;
+  page-break-inside: avoid;
+  break-inside: avoid;
   page-break-after: always;
+  break-after: page;
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
 }
-.contract-page:last-child { page-break-after: auto; }
+.contract-page:last-child,
+.contract-page:last-of-type,
+.contract-page.last-page {
+  page-break-after: avoid !important;
+  break-after: avoid !important;
+}
 
 .contract-page.landscape {
   width: 297mm;
   min-height: 210mm;
   height: 210mm;
-  padding: 10mm 15mm 24mm;
+  max-height: 210mm;
+  padding: 8mm 14mm 18mm;
   page: landscape-page;
 }
 
 /* ========================================================================= */
 /* 2. EN-TÊTE DU CONTRAT : LOGOS ERGON GROUP & HAHITANTSOA                   */
 /* ========================================================================= */
-.contract-header { display: flex; justify-content: space-between; gap: 20mm; align-items: flex-start; margin-bottom: 8mm; font-family: Arial, sans-serif; position: relative; z-index: 1; }
-.brand-block { width: 48%; text-align: center; font-size: 8.5pt; line-height: 1.35; }
+.contract-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 15mm;
+  align-items: flex-start;
+  margin-bottom: 3.5mm;
+  font-family: Arial, sans-serif;
+  position: relative;
+  z-index: 1;
+}
+.brand-block { width: 48%; text-align: center; font-size: 8pt; line-height: 1.25; }
 .brand-block--right { text-align: center; }
 
-/* Dimensions des logos de l'en-tête (agrandis de 60%) */
+/* Dimensions des logos de l'en-tête */
 .brand-block img {
-  width: 60mm;             /* Largeur du logo agrandi de 60% */
-  height: 40mm;            /* Hauteur du logo agrandi de 60% */
+  width: 48mm;
+  height: 32mm;
   object-fit: contain;
 }
-.brand-block p { margin: 2mm 0 0; }
+.brand-block p { margin: 1mm 0 0; }
 
-/* En-tête des pages suivantes avec logo Hahitantsoa centré et agrandi à 75% */
-.contract-subpage-header { display: flex; justify-content: center; align-items: center; margin-bottom: 4mm; height: 26mm; position: relative; z-index: 1; }
-.contract-subpage-header img { height: 26mm; width: auto; max-width: 75mm; object-fit: contain; }
-.contract-page.landscape .contract-subpage-header { height: 18mm; margin-bottom: 2mm; }
-.contract-page.landscape .contract-subpage-header img { height: 18mm; max-width: 60mm; }
+/* En-tête des pages suivantes avec logo Hahitantsoa centré */
+.contract-subpage-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2mm;
+  height: 18mm;
+  position: relative;
+  z-index: 1;
+}
+.contract-subpage-header img { height: 18mm; width: auto; max-width: 60mm; object-fit: contain; }
+.contract-page.landscape .contract-subpage-header { height: 15mm; margin-bottom: 1.5mm; }
+.contract-page.landscape .contract-subpage-header img { height: 15mm; max-width: 50mm; }
 
-/* Filigrane d'arrière-plan Ergon Group (agrandi de 75%) */
+/* Filigrane d'arrière-plan Ergon Group */
 .watermark {
   position: absolute;
   z-index: 0;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 245mm;
-  height: 245mm;
+  width: 230mm;
+  height: 230mm;
   opacity: 0.04;
   object-fit: contain;
   filter: grayscale(1);
   pointer-events: none;
 }
 .watermark--landscape {
-  width: 190mm;
-  height: 190mm;
+  width: 180mm;
+  height: 180mm;
 }
 
 /* ========================================================================= */
 /* 3. TYPOGRAPHIE & ARTICLES DU CONTRAT                                      */
 /* ========================================================================= */
 h1, h2, p, ul, table, .signatures, .plan-container, .breakage-list, .empty-note, .annex-note { position: relative; z-index: 1; }
-h1 { font-size: 14pt; text-align: center; margin: 0 0 7mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
-h2 { font-size: 10.5pt; text-decoration: underline; margin: 5mm 0 2.5mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
-p { margin: 0 0 3.5mm; }
-ul { margin: 0 0 4mm; padding-left: 8mm; }
-li { margin: 1.2mm 0; }
+h1 { font-size: 13pt; text-align: center; margin: 0 0 3.5mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
+.contract-subtitle { font-size: 11pt; text-align: center; margin: -2.5mm 0 3.5mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
+h2 { font-size: 9.5pt; text-decoration: underline; margin: 2.5mm 0 1.2mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
+p { margin: 0 0 1.8mm; }
+ul { margin: 0 0 1.8mm; padding-left: 6mm; }
+li { margin: 0.4mm 0; }
 .text-right { text-align: right; }
 .text-center { text-align: center; }
 .uppercase { text-transform: uppercase; }
-.indent { padding-left: 8mm; }
+.indent { padding-left: 6mm; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
 /* ========================================================================= */
 /* 4. SIGNATURES, ANNEXES & PLAN DE MASSE                                    */
 /* ========================================================================= */
-.signatures { display: flex; justify-content: space-around; margin-top: 6mm; text-align: center; font-size: 10pt; }
+.signatures { display: flex; justify-content: space-around; margin-top: 3.5mm; text-align: center; font-size: 9.5pt; }
 .signature-block { width: 45%; text-align: center; }
-.signature-block strong { display: block; margin-bottom: 2mm; }
-.signature-space { height: 26mm; min-height: 26mm; }
-.signature-intro { margin-top: 5mm; margin-bottom: 1.5mm; }
-.annex h2 { text-align: center; font-size: 13pt; margin: 0 0 6mm; }
+.signature-block strong { display: block; margin-bottom: 1.5mm; }
+.signature-subtitle { font-size: 8.5pt; color: #333333; }
+.signature-space { height: 20mm; min-height: 20mm; }
+.signature-intro { margin-top: 3mm; margin-bottom: 1mm; font-size: 9pt; }
+.annex h2 { text-align: center; font-size: 12pt; margin: 0 0 4mm; }
 
 /* Spécificités Page 4 pour resserrer le texte et aérer les signatures */
-.contract-page--page4 h2 { margin: 3mm 0 1.5mm; font-size: 10pt; }
-.contract-page--page4 p { margin: 0 0 1.8mm; font-size: 9.5pt; line-height: 1.32; }
-.contract-page--page4 ul { margin: 0 0 2mm; padding-left: 6mm; }
-.contract-page--page4 li { margin: 0.6mm 0; font-size: 9.5pt; }
+.contract-page--page4 h2 { margin: 2mm 0 1mm; font-size: 9.5pt; }
+.contract-page--page4 p { margin: 0 0 1.5mm; font-size: 9pt; line-height: 1.28; }
+.contract-page--page4 ul { margin: 0 0 1.5mm; padding-left: 5mm; }
+.contract-page--page4 li { margin: 0.3mm 0; font-size: 9pt; }
 
 /* Spécificités Page Avenant (1 page compacte) */
 .contract-page--amendment { padding: 6mm 16mm 6mm; }
@@ -110,11 +151,11 @@ li { margin: 1.2mm 0; }
 .contract-page--amendment .signature-intro { margin-top: 2mm; margin-bottom: 0.8mm; font-size: 8.5pt; }
 
 /* Spécificités Page Décharge de responsabilité */
-.contract-page--liability-release { padding: 12mm 16mm 24mm; }
-.contract-page--liability-release h1 { margin: 0 0 10mm; font-size: 13.5pt; }
-.contract-page--liability-release p { margin: 0 0 5mm; font-size: 10pt; line-height: 1.65; text-align: justify; }
-.contract-page--liability-release .signature-date { margin-top: 8mm; margin-bottom: 4mm; }
-.contract-page--liability-release .signature-space { height: 26mm; min-height: 26mm; }
+.contract-page--liability-release { padding: 10mm 16mm 20mm; }
+.contract-page--liability-release h1 { margin: 0 0 6mm; font-size: 13pt; }
+.contract-page--liability-release p { margin: 0 0 3.5mm; font-size: 9.5pt; line-height: 1.45; text-align: justify; }
+.contract-page--liability-release .signature-date { margin-top: 5mm; margin-bottom: 2mm; }
+.contract-page--liability-release .signature-space { height: 22mm; min-height: 22mm; }
 
 /* Options et cases à cocher pour l'avenant */
 .options { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12mm; row-gap: 0.5mm; margin: 1mm 0 1.5mm 6mm; font-size: 8pt; line-height: 1.2; position: relative; z-index: 1; }
@@ -123,20 +164,20 @@ li { margin: 1.2mm 0; }
 .box.checked::after { content: "×"; display: block; margin: -1.4mm 0 0 0.2mm; font-size: 13pt; line-height: 1; }
 
 .plan-container { width: 100%; display: flex; justify-content: center; align-items: center; margin-top: 2mm; position: relative; z-index: 1; }
-.plan-image { max-width: 250mm; max-height: 135mm; width: auto; height: auto; object-fit: contain; border: 0.25mm solid #cbd5e1; border-radius: 1mm; background: #ffffff; }
+.plan-image { max-width: 250mm; max-height: 140mm; width: auto; height: auto; object-fit: contain; border: 0.25mm solid #cbd5e1; border-radius: 1mm; background: #ffffff; }
 
-.breakage-list { list-style-type: none; padding-left: 4mm; margin: 6mm 0; font-size: 11pt; line-height: 2; }
-.breakage-list li { margin: 2.5mm 0; }
+.breakage-list { list-style-type: none; padding-left: 4mm; margin: 4mm 0; font-size: 10pt; line-height: 1.6; }
+.breakage-list li { margin: 1.5mm 0; }
 
-.breakage-table { width: 100%; border-collapse: collapse; margin: 6mm 0 6mm; font-size: 10pt; position: relative; z-index: 1; }
-.breakage-table th { padding: 3mm 2mm; font-weight: 700; font-family: "Times New Roman", "Liberation Serif", serif; border-bottom: 0.25mm solid #cbd5e1; }
-.breakage-table td { padding: 3.5mm 2mm; border-bottom: 0.15mm solid #f1f5f9; font-family: "Times New Roman", "Liberation Serif", serif; }
-.breakage-note { margin-top: 6mm; font-size: 9.5pt; color: #333333; font-style: italic; line-height: 1.45; position: relative; z-index: 1; }
+.breakage-table { width: 100%; border-collapse: collapse; margin: 4mm 0 4mm; font-size: 9pt; position: relative; z-index: 1; }
+.breakage-table th { padding: 2mm 1.5mm; font-weight: 700; font-family: "Times New Roman", "Liberation Serif", serif; border-bottom: 0.25mm solid #cbd5e1; }
+.breakage-table td { padding: 2mm 1.5mm; border-bottom: 0.15mm solid #f1f5f9; font-family: "Times New Roman", "Liberation Serif", serif; }
+.breakage-note { margin-top: 4mm; font-size: 8.5pt; color: #333333; font-style: italic; line-height: 1.35; position: relative; z-index: 1; }
 
-.empty-note { margin-top: 30mm; text-align: center; color: #666666; }
-.annex-note { margin-top: 10mm; text-align: center; color: #555555; font-style: italic; }
+.empty-note { margin-top: 20mm; text-align: center; color: #666666; font-size: 9.5pt; }
+.annex-note { margin-top: 6mm; text-align: center; color: #555555; font-style: italic; font-size: 9pt; }
 
-ul ul, .sub-list { margin: 1.5mm 0 3mm; padding-left: 6mm; }
+ul ul, .sub-list { margin: 1mm 0 2mm; padding-left: 5mm; }
 .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
 @media print { .variable { background: transparent; outline: 0; } }
 
@@ -147,22 +188,22 @@ ul ul, .sub-list { margin: 1.5mm 0 3mm; padding-left: 6mm; }
   position: absolute;
   left: 16mm;
   right: 16mm;
-  bottom: 6mm;
+  bottom: 5mm;
   display: flex;
   justify-content: space-between;
   border-top: 0.25mm solid #cbd5e1;
   border-bottom: 0.25mm solid #cbd5e1;
-  padding: 2.5mm 8mm;
+  padding: 2mm 8mm;
   font-family: Arial, sans-serif;
-  font-size: 8pt;
-  line-height: 1.35;
+  font-size: 7.5pt;
+  line-height: 1.3;
   z-index: 1;
 }
 .contract-page.landscape .contract-footer {
-  left: 15mm;
-  right: 15mm;
-  bottom: 5mm;
-  padding: 2mm 15mm;
+  left: 14mm;
+  right: 14mm;
+  bottom: 4mm;
+  padding: 1.5mm 12mm;
 }
 .contract-footer-col {
   width: 48%;
@@ -176,11 +217,53 @@ ul ul, .sub-list { margin: 1.5mm 0 3mm; padding-left: 6mm; }
 .contract-footer-meta {
   color: #666666;
   font-weight: 400;
-  margin-bottom: 1.5mm;
+  margin-bottom: 1mm;
 }
 .contract-footer-contact {
   color: #111111;
   font-weight: 700;
+}
+
+@media print {
+  html, body {
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+  .contract-document {
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .contract-page {
+    width: 210mm !important;
+    height: 296.5mm !important;
+    max-height: 296.5mm !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 10mm 16mm 20mm !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+  }
+  .contract-page.landscape {
+    width: 297mm !important;
+    height: 209mm !important;
+    max-height: 209mm !important;
+    min-height: 0 !important;
+    padding: 8mm 14mm 18mm !important;
+    page: landscape-page !important;
+  }
+  .contract-page:last-child,
+  .contract-page:last-of-type,
+  .contract-page.last-page {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
 }
 
 @media screen {
@@ -189,7 +272,7 @@ ul ul, .sub-list { margin: 1.5mm 0 3mm; padding-left: 6mm; }
   .contract-page {
     width: 210mm;
     min-height: 297mm;
-    padding: 14mm 16mm 24mm;
+    padding: 10mm 16mm 20mm;
     margin: 0 auto 8mm;
     background: #ffffff;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -199,7 +282,7 @@ ul ul, .sub-list { margin: 1.5mm 0 3mm; padding-left: 6mm; }
     width: 297mm;
     min-height: 210mm;
     height: 210mm;
-    padding: 10mm 15mm 24mm;
+    padding: 8mm 14mm 18mm;
   }
   .contract-page:last-child {
     margin-bottom: 0;
