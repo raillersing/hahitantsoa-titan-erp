@@ -21,6 +21,10 @@ import {
   markHahitantsoaEventDraftContractSigned,
   markHahitantsoaEventDraftRequiredDepositReceived,
   recordConfirmedDeposit,
+  getHahitantsoaVenues,
+  getHahitantsoaServices,
+  getHahitantsoaCommercialTerms,
+  getMaterialPackages,
 } from "../api";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreview } from "./DocumentPreview";
@@ -43,6 +47,10 @@ import type {
   LifecycleSummary,
   Payment,
   PaymentMethod,
+  HahitantsoaVenue,
+  HahitantsoaService,
+  HahitantsoaCommercialTerms,
+  MaterialPackage,
 } from "../types";
 
 type Props = {
@@ -133,6 +141,29 @@ function itemKindBadge(kind: string) {
   }
 }
 
+const HAHITANTSOA_DURATION_OPTIONS = [
+  { label: "Fête de jour : Sortie J-J à 20:00", price: 0 },
+  { label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30", price: 0 },
+  { label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30", price: 0 },
+];
+
+const HAHITANTSOA_AMENDMENT_REASONS = [
+  "Ajustement du nombre d'invités / convives",
+  "Changement de formule horaire / prolongation de nuit",
+  "Bascule du type de location (logistique / nue)",
+  "Ajout ou modification de prestations et scénographies",
+  "Ajustement des quantités de matériels & articles",
+  "Révision des conditions tarifaires négociées",
+  "Autre motif administratif / logistique",
+];
+
+const AMENDMENT_APPLICANTS = [
+  { value: "client", label: "Client (demandeur principal)" },
+  { value: "regie", label: "Régie Hahitantsoa (organisation)" },
+  { value: "direction", label: "Direction commerciale" },
+  { value: "logistique", label: "Équipe logistique & installation" },
+];
+
 export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onBack }: Props) {
   const [draft, setDraft] = useState<HahitantsoaEventDraft | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -161,22 +192,47 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [paymentKindSelection, setPaymentKindSelection] = useState<"deposit" | "installment_1" | "installment_2" | "caution">("deposit");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Amendment Studio states (5-step interactive wizard)
+  // Amendment Studio states (5-step interactive wizard following exact app parcours)
   const [showAmendmentModal, setShowAmendmentModal] = useState(false);
   const [amendmentStep, setAmendmentStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [amendmentReason, setAmendmentReason] = useState("");
+  const [amendmentReasonSelect, setAmendmentReasonSelect] = useState("");
+  const [amendmentApplicant, setAmendmentApplicant] = useState("client");
   const [amendmentNotes, setAmendmentNotes] = useState("");
-  const [amendmentStartAt, setAmendmentStartAt] = useState("");
-  const [amendmentEndAt, setAmendmentEndAt] = useState("");
-  const [amendmentEventType, setAmendmentEventType] = useState("wedding");
-  const [amendmentNightOption, setAmendmentNightOption] = useState<"day" | "night_opt1" | "night_opt2">("day");
-  const [amendmentRentalType, setAmendmentRentalType] = useState("bare");
-  const [amendmentGuestCount, setAmendmentGuestCount] = useState(100);
-  const [amendmentSpaceRentalAmount, setAmendmentSpaceRentalAmount] = useState(1500000);
-  const [amendmentVenueName, setAmendmentVenueName] = useState("Grande Salle Hahitantsoa");
+
+  // Real app data for Hahitantsoa
+  const [venues, setVenues] = useState<HahitantsoaVenue[]>([]);
+  const [services, setServices] = useState<HahitantsoaService[]>([]);
+  const [commercialTerms, setCommercialTerms] = useState<HahitantsoaCommercialTerms | null>(null);
+  const [packages, setPackages] = useState<MaterialPackage[]>([]);
+  const [catalogItems, setCatalogItems] = useState<InventoryItem[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [serviceCategoryFilter, setServiceCategoryFilter] = useState("all");
+
+  // Step 2: Formule horaire, convives, type de location, lieu, tarifs de base
+  const [amendmentDurationOption, setAmendmentDurationOption] = useState("Fête de jour : Sortie J-J à 20:00");
+  const [amendmentDurationPrice, setAmendmentDurationPrice] = useState(0);
+  const [amendmentRentalType, setAmendmentRentalType] = useState<"Location nue" | "Location + logistique">("Location nue");
+  const [amendmentGuestCount, setAmendmentGuestCount] = useState(200);
+  const [amendmentVenueName, setAmendmentVenueName] = useState("Salle des fêtes + jardin");
+  const [amendmentVenuePrice, setAmendmentVenuePrice] = useState(6500000);
+  const [amendmentLogisticsPrice, setAmendmentLogisticsPrice] = useState(500000);
   const [amendmentLocationDetails, setAmendmentLocationDetails] = useState("");
+
+  // Step 3: Prestations & Services scénographiques
+  const [amendmentSelectedServices, setAmendmentSelectedServices] = useState<
+    Array<{
+      id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      unit_label?: string;
+      category?: string;
+    }>
+  >([]);
   const [amendmentServiceNotes, setAmendmentServiceNotes] = useState("");
-  const [amendmentSelectedServices, setAmendmentSelectedServices] = useState<Record<string, boolean>>({});
+
+  // Step 4: Matériels & Articles
   const [amendmentQuantities, setAmendmentQuantities] = useState<Record<string, number>>({});
   const [amendmentAddedLines, setAmendmentAddedLines] = useState<
     Array<{
@@ -188,8 +244,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       notes: string;
     }>
   >([]);
-  const [catalogItems, setCatalogItems] = useState<InventoryItem[]>([]);
-  const [catalogSearch, setCatalogSearch] = useState("");
   const [autoApplyAmendment, setAutoApplyAmendment] = useState(true);
 
   // Operational states for logistics
@@ -459,256 +513,12 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     }
   };
 
-  const openAmendmentModal = async () => {
-    if (!draft) return;
-    setAmendmentStep(1);
-    setAmendmentReason("");
-    setAmendmentNotes("");
-    setAmendmentStartAt(draft.start_at ? draft.start_at.slice(0, 16) : "");
-    setAmendmentEndAt(draft.end_at ? draft.end_at.slice(0, 16) : "");
-    setAmendmentEventType(draft.event_type || "wedding");
-    setAmendmentNightOption(
-      draft.event_type?.includes("night_opt2")
-        ? "night_opt2"
-        : draft.event_type?.includes("night")
-          ? "night_opt1"
-          : "day",
-    );
-    setAmendmentRentalType(draft.rental_type || "bare");
-    setAmendmentGuestCount(draft.guest_count || 100);
-    setAmendmentSpaceRentalAmount(Number(draft.space_rental_amount || 1500000));
-    setAmendmentVenueName(draft.venue_name || "Grande Salle Hahitantsoa");
-    setAmendmentLocationDetails(draft.location_details || "");
-    setAmendmentServiceNotes(draft.service_notes || "");
-    setAmendmentSelectedServices({
-      sono: draft.service_notes?.toLowerCase().includes("sono") || false,
-      menage:
-        draft.service_notes?.toLowerCase().includes("m\u00e9nage") ||
-        draft.service_notes?.toLowerCase().includes("nettoyage") ||
-        false,
-      security: draft.service_notes?.toLowerCase().includes("s\u00e9curit\u00e9") || false,
-      traiteur: draft.service_notes?.toLowerCase().includes("traiteur") || false,
-      groupe_elec: draft.service_notes?.toLowerCase().includes("groupe") || false,
-      deco: draft.service_notes?.toLowerCase().includes("d\u00e9co") || false,
-    });
-    setAmendmentQuantities(Object.fromEntries(draft.lines.map((l) => [l.id, l.quantity])));
-    setAmendmentAddedLines([]);
-    setCatalogSearch("");
-    setAutoApplyAmendment(true);
-    setShowAmendmentModal(true);
-
-    if (catalogItems.length === 0) {
-      try {
-        const items = await getInventoryItems();
-        setCatalogItems(items);
-      } catch {
-        // Fallback or ignore
-      }
-    }
-  };
-
-  const filteredCatalogItems = useMemo(() => {
-    if (!catalogSearch.trim()) return catalogItems.slice(0, 8);
-    const q = catalogSearch.toLowerCase();
-    return catalogItems
-      .filter(
-        (item) =>
-          item.name.toLowerCase().includes(q) ||
-          item.description?.toLowerCase().includes(q) ||
-          item.kind.toLowerCase().includes(q),
-      )
-      .slice(0, 12);
-  }, [catalogItems, catalogSearch]);
-
-  const amendmentFinancialPreview = useMemo(() => {
-    const nightSupplement =
-      amendmentNightOption === "night_opt1"
-        ? 250000
-        : amendmentNightOption === "night_opt2"
-          ? 500000
-          : 0;
-    const newSpace = (Number(amendmentSpaceRentalAmount) || 0) + nightSupplement;
-    const oldSpace = Number(draft?.space_rental_amount || 0);
-
-    const oldLinesTotal = (draft?.lines || []).reduce((sum, l) => {
-      const p = Number(
-        l.unit_rental_price ||
-          (l.total_price && l.quantity ? Number(l.total_price) / l.quantity : 0) ||
-          5000,
-      );
-      return sum + l.quantity * p;
-    }, 0);
-
-    const newExistingLinesTotal = (draft?.lines || []).reduce((sum, l) => {
-      const p = Number(
-        l.unit_rental_price ||
-          (l.total_price && l.quantity ? Number(l.total_price) / l.quantity : 0) ||
-          5000,
-      );
-      const q =
-        amendmentQuantities[l.id] !== undefined ? amendmentQuantities[l.id] : l.quantity;
-      return sum + q * p;
-    }, 0);
-
-    const newAddedLinesTotal = amendmentAddedLines.reduce((sum, l) => {
-      return sum + l.quantity * l.unit_rental_price;
-    }, 0);
-
-    const newLinesTotal = newExistingLinesTotal + newAddedLinesTotal;
-    const oldTotal =
-      Number(draft?.payment_schedule?.total_amount) ||
-      Number(draft?.total_amount) ||
-      oldSpace + oldLinesTotal;
-    const newTotal = newSpace + newLinesTotal;
-    const delta = newTotal - oldTotal;
-
-    return {
-      oldSpace,
-      newSpace,
-      nightSupplement,
-      oldLinesTotal,
-      newLinesTotal,
-      oldTotal,
-      newTotal,
-      delta,
-    };
-  }, [
-    amendmentNightOption,
-    amendmentSpaceRentalAmount,
-    draft,
-    amendmentQuantities,
-    amendmentAddedLines,
-  ]);
-
-  const submitAmendment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!param || !draft) return;
-    if (!amendmentReason.trim()) {
-      setError("Le motif de l'avenant est obligatoire.");
-      setAmendmentStep(1);
-      return;
-    }
-    setBusy("amendment");
-    setError(null);
-    setActionNotice(null);
-    try {
-      // Build effective service notes
-      const activeServices = Object.entries(amendmentSelectedServices)
-        .filter(([, checked]) => checked)
-        .map(([key]) => {
-          switch (key) {
-            case "sono":
-              return "Sonorisation & DJ";
-            case "menage":
-              return "Ménage & Nettoyage";
-            case "security":
-              return "Sécurité & Gardiennage";
-            case "traiteur":
-              return "Espace Traiteur";
-            case "groupe_elec":
-              return "Groupe électrogène de secours";
-            case "deco":
-              return "Décoration florale";
-            default:
-              return key;
-          }
-        });
-      const combinedServiceNotes = [
-        activeServices.length > 0 ? `Services: ${activeServices.join(", ")}` : "",
-        amendmentServiceNotes.trim(),
-      ]
-        .filter(Boolean)
-        .join(" | ");
-
-      const nightSupplement =
-        amendmentNightOption === "night_opt1"
-          ? 250000
-          : amendmentNightOption === "night_opt2"
-            ? 500000
-            : 0;
-      const effectiveSpaceAmount = amendmentSpaceRentalAmount + nightSupplement;
-
-      const eventTypeWithOption =
-        amendmentNightOption !== "day"
-          ? `${amendmentEventType}_${amendmentNightOption}`
-          : amendmentEventType;
-
-      const res = await createHahitantsoaEventDraftAmendmentRequest(param, {
-        reason: amendmentReason.trim(),
-        notes: amendmentNotes.trim(),
-        changed_start_at: amendmentStartAt ? new Date(amendmentStartAt).toISOString() : null,
-        changed_end_at: amendmentEndAt ? new Date(amendmentEndAt).toISOString() : null,
-        changed_event_type: eventTypeWithOption,
-        changed_rental_type: amendmentRentalType,
-        changed_guest_count: Number(amendmentGuestCount) || 100,
-        changed_space_rental_amount: String(effectiveSpaceAmount),
-        changed_venue_name: amendmentVenueName.trim(),
-        changed_location_details: amendmentLocationDetails.trim(),
-        changed_service_notes: combinedServiceNotes,
-        changed_notes: amendmentNotes.trim(),
-      });
-
-      const amendmentId = res.amendment_request.id;
-
-      // 1. Process modified existing lines
-      for (const line of draft.lines) {
-        const qty = amendmentQuantities[line.id];
-        if (qty !== undefined && qty !== line.quantity) {
-          await createHahitantsoaEventDraftAmendmentRequestLine(param, amendmentId, {
-            inventory_item_id: line.inventory_item_id,
-            quantity: qty,
-            notes: line.notes || "",
-          });
-        }
-      }
-
-      // 2. Process added catalog lines
-      for (const added of amendmentAddedLines) {
-        if (added.quantity > 0) {
-          await createHahitantsoaEventDraftAmendmentRequestLine(param, amendmentId, {
-            inventory_item_id: added.inventory_item_id,
-            quantity: added.quantity,
-            notes: added.notes || "",
-          });
-        }
-      }
-
-      // 3. Auto-apply if requested and eligible
-      if (autoApplyAmendment) {
-        try {
-          await applyHahitantsoaEventDraftAmendmentRequest(param, amendmentId);
-          setActionNotice("Avenant officiel validé et appliqué au dossier avec succès.");
-        } catch {
-          setActionNotice("Demande d'avenant enregistrée (application différée).");
-        }
-      } else {
-        setActionNotice("La demande d'avenant a été enregistrée avec succès.");
-      }
-
-      setShowAmendmentModal(false);
-      await load();
-    } catch (err) {
-      setError(errorMessage(err, "Impossible de créer la demande d'avenant."));
-    } finally {
-      setBusy(null);
-    }
-  };
-
   // Financial calculations
-  const confirmedDepositAmount = useMemo(() => {
-    return payments
-      .filter(
-        (p) =>
-          p.payment_kind === "deposit" &&
-          (p.payment_status === "confirmed" || p.payment_status === "reconciled"),
-      )
-      .reduce((sum, p) => sum + Number(p.amount), 0);
-  }, [payments]);
-
   const totalPaidAmount = useMemo(() => {
-    return payments
-      .filter((p) => p.payment_status === "confirmed" || p.payment_status === "reconciled")
-      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const fromPayments = payments
+      .filter((p) => p.payment_status === "confirmed" || p.payment_status === "reconciled" || !p.payment_status)
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    return fromPayments > 0 ? fromPayments : 0;
   }, [payments]);
 
   const totalDossierAmount = useMemo(() => {
@@ -733,7 +543,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     return totalDossierAmount > 0 ? Math.round(totalDossierAmount * 0.5) : 0;
   }, [draft, totalDossierAmount]);
 
-  const remainingDepositAmount = Math.max(requiredDepositAmount - confirmedDepositAmount, 0);
+  const remainingDepositAmount = Math.max(requiredDepositAmount - totalPaidAmount, 0);
   const remainingTotalAmount = Math.max(totalDossierAmount - totalPaidAmount, 0);
 
   const effectiveSchedule = useMemo(() => {
@@ -765,7 +575,296 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     };
   }, [draft, totalDossierAmount]);
 
+  // Waterfall installment distribution
+  const depositTarget = Number(effectiveSchedule?.deposit_amount || requiredDepositAmount || 0);
+  const firstInstallmentTarget = Number(
+    effectiveSchedule?.first_installment_amount || (totalDossierAmount > 0 ? Math.round(totalDossierAmount * 0.25) : 0),
+  );
+  const secondInstallmentTarget = Number(
+    effectiveSchedule?.second_installment_amount ||
+      (totalDossierAmount > 0 ? Math.max(0, totalDossierAmount - depositTarget - firstInstallmentTarget) : 0),
+  );
+
+  const depositPaid = Math.min(totalPaidAmount, depositTarget);
+  const firstInstallmentPaid = Math.min(Math.max(totalPaidAmount - depositTarget, 0), firstInstallmentTarget);
+  const secondInstallmentPaid = Math.min(
+    Math.max(totalPaidAmount - depositTarget - firstInstallmentTarget, 0),
+    secondInstallmentTarget,
+  );
+  const confirmedDepositAmount = totalPaidAmount;
+
   // Caution calculation: 1 000 000 Ar standard
+
+
+  const openAmendmentModal = async () => {
+    if (!draft) return;
+    setAmendmentStep(1);
+    setAmendmentReason("");
+    setAmendmentReasonSelect("");
+    setAmendmentApplicant("client");
+    setAmendmentNotes("");
+
+    const rentalTypeStr =
+      draft.rental_type === "logistics"
+        ? "Location + logistique"
+        : "Location nue";
+    setAmendmentRentalType(rentalTypeStr);
+    setAmendmentGuestCount(draft.guest_count || 200);
+    setAmendmentVenueName(draft.venue_name || "Salle des fêtes + jardin");
+    setAmendmentVenuePrice(Number(draft.space_rental_amount) || 6500000);
+    setAmendmentLogisticsPrice(500000);
+    setAmendmentLocationDetails(draft.location_details || "");
+    setAmendmentServiceNotes(draft.service_notes || "");
+
+    if (draft.event_type?.includes("night_opt2")) {
+      setAmendmentDurationOption("Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30");
+      setAmendmentDurationPrice(620000);
+    } else if (draft.event_type?.includes("night_opt1")) {
+      setAmendmentDurationOption("Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30");
+      setAmendmentDurationPrice(420000);
+    } else {
+      setAmendmentDurationOption("Fête de jour : Sortie J-J à 20:00");
+      setAmendmentDurationPrice(0);
+    }
+
+    const quantities: Record<string, number> = {};
+    (draft.lines || []).forEach((l) => {
+      quantities[l.id] = l.quantity;
+    });
+    setAmendmentQuantities(quantities);
+    setAmendmentAddedLines([]);
+    setAmendmentSelectedServices([]);
+    setServiceCategoryFilter("all");
+    setCatalogSearch("");
+    setAutoApplyAmendment(true);
+    setShowAmendmentModal(true);
+
+    try {
+      const [apiVenues, apiServices, apiTerms, apiPacks, apiItems] = await Promise.all([
+        getHahitantsoaVenues().catch(() => []),
+        getHahitantsoaServices().catch(() => []),
+        getHahitantsoaCommercialTerms().catch(() => null),
+        getMaterialPackages().catch(() => []),
+        getInventoryItems().catch(() => []),
+      ]);
+      setVenues(apiVenues);
+      setServices(apiServices);
+      setCommercialTerms(apiTerms);
+      setPackages(apiPacks);
+      setCatalogItems(apiItems);
+
+      if (apiTerms) {
+        if (!draft.space_rental_amount) {
+          setAmendmentVenuePrice(Number(apiTerms.base_space_rental_amount) || 6500000);
+        }
+        if (draft.event_type?.includes("night_opt2")) {
+          setAmendmentDurationPrice(
+            Number(apiTerms.night_option_2_amount || 500000) + Number(apiTerms.night_security_amount || 120000)
+          );
+        } else if (draft.event_type?.includes("night_opt1")) {
+          setAmendmentDurationPrice(
+            Number(apiTerms.night_option_1_amount || 300000) + Number(apiTerms.night_security_amount || 120000)
+          );
+        }
+      }
+    } catch {
+      // Keep fallbacks
+    }
+  };
+
+  const filteredCatalogItems = useMemo(() => {
+    if (!catalogSearch.trim()) return catalogItems.slice(0, 8);
+    const q = catalogSearch.toLowerCase();
+    return catalogItems
+      .filter(
+        (item) =>
+          item.name.toLowerCase().includes(q) ||
+          item.description?.toLowerCase().includes(q) ||
+          item.kind.toLowerCase().includes(q),
+      )
+      .slice(0, 12);
+  }, [catalogItems, catalogSearch]);
+
+  const amendmentFinancialPreview = useMemo(() => {
+    const includedGuests = Number(commercialTerms?.included_guest_count ?? 250);
+    const excessGuestRate = Number(commercialTerms?.excess_guest_amount ?? 5000);
+    const excessGuestsCount = Math.max(Number(amendmentGuestCount || 0) - includedGuests, 0);
+    const excessGuestsTotal = excessGuestsCount * excessGuestRate;
+
+    const baseVenuePrice = Number(amendmentVenuePrice) || 6500000;
+    const durationTotal = Number(amendmentDurationPrice) || 0;
+    const logisticsTotal =
+      amendmentRentalType === "Location + logistique" ? Number(amendmentLogisticsPrice) || 500000 : 0;
+
+    const newSpaceTotal = baseVenuePrice + excessGuestsTotal + durationTotal + logisticsTotal;
+    const newServicesTotal = amendmentSelectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0);
+
+    let newExistingLinesTotal = 0;
+    if (amendmentRentalType === "Location + logistique") {
+      newExistingLinesTotal = (draft?.lines || []).reduce((sum, l) => {
+        const p = Number(
+          l.unit_rental_price ||
+            (l.total_price && l.quantity ? Number(l.total_price) / l.quantity : 0) ||
+            5000,
+        );
+        const q = amendmentQuantities[l.id] !== undefined ? amendmentQuantities[l.id] : l.quantity;
+        return sum + q * p;
+      }, 0);
+    }
+
+    const newAddedLinesTotal =
+      amendmentRentalType === "Location + logistique"
+        ? amendmentAddedLines.reduce((sum, l) => sum + l.quantity * l.unit_rental_price, 0)
+        : 0;
+
+    const newLinesTotal = newExistingLinesTotal + newAddedLinesTotal;
+    const newTotal = newSpaceTotal + newServicesTotal + newLinesTotal;
+    const oldTotal = totalDossierAmount;
+    const delta = newTotal - oldTotal;
+
+    const newRequiredDeposit =
+      amendmentRentalType === "Location + logistique"
+        ? Number(commercialTerms?.logistics_deposit_amount ?? 1500000)
+        : Number(commercialTerms?.bare_deposit_amount ?? 1000000);
+    const effectiveNewDeposit = Math.max(newRequiredDeposit, Math.round(newTotal * 0.5));
+    const newRemainingToPay = Math.max(newTotal - totalPaidAmount, 0);
+
+    return {
+      baseVenuePrice,
+      includedGuests,
+      excessGuestsCount,
+      excessGuestsTotal,
+      durationTotal,
+      logisticsTotal,
+      newSpaceTotal,
+      newServicesTotal,
+      newLinesTotal,
+      oldTotal,
+      newTotal,
+      delta,
+      effectiveNewDeposit,
+      newRemainingToPay,
+    };
+  }, [
+    commercialTerms,
+    amendmentGuestCount,
+    amendmentVenuePrice,
+    amendmentDurationPrice,
+    amendmentRentalType,
+    amendmentLogisticsPrice,
+    amendmentSelectedServices,
+    draft,
+    amendmentQuantities,
+    amendmentAddedLines,
+    totalDossierAmount,
+    totalPaidAmount,
+  ]);
+
+  const submitAmendment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!param || !draft) return;
+    const finalReason = (amendmentReasonSelect ? `${amendmentReasonSelect}: ` : "") + amendmentReason.trim();
+    if (!finalReason.trim()) {
+      setError("Le motif de l'avenant est obligatoire.");
+      setAmendmentStep(1);
+      return;
+    }
+    setBusy("amendment");
+    setError(null);
+    setActionNotice(null);
+    try {
+      const serviceLabels = amendmentSelectedServices.map(
+        (s) => `${s.name} (x${s.quantity} = ${formatMoney(s.price * s.quantity)})`,
+      );
+      const combinedServiceNotes = [
+        serviceLabels.length > 0 ? `Services scénographiques: ${serviceLabels.join(", ")}` : "",
+        amendmentServiceNotes.trim(),
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      const backendRentalType = amendmentRentalType === "Location + logistique" ? "logistics" : "bare";
+
+      let nightSuffix = "";
+      if (amendmentDurationOption.includes("03:30")) {
+        nightSuffix = "_night_opt2";
+      } else if (amendmentDurationOption.includes("22:30")) {
+        nightSuffix = "_night_opt1";
+      }
+      const baseEventType = (draft.event_type || "wedding").replace(/_night_opt\d/, "");
+      const changedEventType = nightSuffix ? `${baseEventType}${nightSuffix}` : baseEventType;
+
+      const applicantLabel =
+        AMENDMENT_APPLICANTS.find((a) => a.value === amendmentApplicant)?.label || amendmentApplicant;
+      const fullNotes = [
+        `[Demandeur: ${applicantLabel}]`,
+        amendmentNotes.trim(),
+        `Formule: ${amendmentDurationOption}`,
+        `Convives: ${amendmentGuestCount} (inclus: ${amendmentFinancialPreview.includedGuests}, suppl: ${amendmentFinancialPreview.excessGuestsCount})`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const res = await createHahitantsoaEventDraftAmendmentRequest(param, {
+        reason: finalReason,
+        notes: fullNotes,
+        changed_event_type: changedEventType,
+        changed_rental_type: backendRentalType,
+        changed_guest_count: Number(amendmentGuestCount) || 200,
+        changed_space_rental_amount: String(
+          amendmentFinancialPreview.newSpaceTotal + amendmentFinancialPreview.newServicesTotal,
+        ),
+        changed_venue_name: amendmentVenueName.trim(),
+        changed_location_details: amendmentLocationDetails.trim(),
+        changed_service_notes: combinedServiceNotes,
+        changed_notes: fullNotes,
+      });
+
+      const amendmentId = res.amendment_request.id;
+
+      if (amendmentRentalType === "Location + logistique") {
+        for (const line of draft.lines) {
+          const qty = amendmentQuantities[line.id];
+          if (qty !== undefined && qty !== line.quantity) {
+            await createHahitantsoaEventDraftAmendmentRequestLine(param, amendmentId, {
+              inventory_item_id: line.inventory_item_id,
+              quantity: qty,
+              notes: line.notes || "",
+            });
+          }
+        }
+
+        for (const added of amendmentAddedLines) {
+          if (added.quantity > 0) {
+            await createHahitantsoaEventDraftAmendmentRequestLine(param, amendmentId, {
+              inventory_item_id: added.inventory_item_id,
+              quantity: added.quantity,
+              notes: added.notes || "",
+            });
+          }
+        }
+      }
+
+      if (autoApplyAmendment) {
+        try {
+          await applyHahitantsoaEventDraftAmendmentRequest(param, amendmentId);
+          setActionNotice("Avenant contractuel appliqué au dossier avec succès.");
+        } catch {
+          setActionNotice("Demande d'avenant enregistrée avec succès (application en attente).");
+        }
+      } else {
+        setActionNotice("La demande d'avenant a été enregistrée avec succès.");
+      }
+
+      setShowAmendmentModal(false);
+      await load();
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de créer la demande d'avenant."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const standardCautionAmount = 1000000;
   const totalDamageCost = useMemo(() => {
     return Object.values(breakageDeductions).reduce((sum, item) => sum + item.qty * item.unitCost, 0);
@@ -1147,7 +1246,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               </div>
             </div>
 
-            {/* 3-tier multi-installment schedule boxes with progress bars */}
+            {/* 3-tier multi-installment schedule boxes with waterfall progress */}
             {effectiveSchedule && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {/* 1. Deposit */}
@@ -1155,31 +1254,42 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-indigo-700">1. Acompte Signature</span>
-                      {confirmedDepositAmount >= Number(effectiveSchedule.deposit_amount) ? (
+                      {depositPaid >= depositTarget && depositTarget > 0 ? (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Réglé</span>
-                      ) : (
+                      ) : depositPaid > 0 ? (
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">En cours</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">En attente</span>
                       )}
                     </div>
-                    <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(effectiveSchedule.deposit_amount)}</p>
+                    <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(depositTarget)}</p>
                     <span className="text-[10px] text-slate-500 block mt-0.5">À la réservation</span>
                   </div>
                   <div className="mt-2">
                     <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-indigo-600 h-full rounded-full transition-all"
-                        style={{ width: `${Math.min((confirmedDepositAmount / (Number(effectiveSchedule.deposit_amount) || 1)) * 100, 100)}%` }}
+                        style={{ width: `${depositTarget > 0 ? Math.min((depositPaid / depositTarget) * 100, 100) : (totalPaidAmount > 0 ? 100 : 0)}%` }}
                       ></div>
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Payé : {formatMoney(confirmedDepositAmount)}</span>
+                    <span className="text-[10px] text-slate-400 mt-1 block">Payé : {formatMoney(depositPaid)}</span>
                   </div>
                 </div>
 
                 {/* 2. 1st Installment */}
                 <div className="rounded-xl border border-indigo-100 bg-white/90 p-3 text-xs flex flex-col justify-between">
                   <div>
-                    <span className="font-bold text-indigo-700 block">2. 1ère Tranche (M-1)</span>
-                    <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(effectiveSchedule.first_installment_amount)}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-indigo-700">2. 1ère Tranche (M-1)</span>
+                      {firstInstallmentPaid >= firstInstallmentTarget && firstInstallmentTarget > 0 ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Réglé</span>
+                      ) : firstInstallmentPaid > 0 ? (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">En cours</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">En attente</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(firstInstallmentTarget)}</p>
                     <span className="text-[10px] text-slate-500 block mt-0.5">
                       Échéance : {formatDateFr(effectiveSchedule.first_installment_due_on)}
                     </span>
@@ -1188,18 +1298,27 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-teal-600 h-full rounded-full transition-all"
-                        style={{ width: `${Math.min((Math.max(totalPaidAmount - confirmedDepositAmount, 0) / (Number(effectiveSchedule.first_installment_amount) || 1)) * 100, 100)}%` }}
+                        style={{ width: `${firstInstallmentTarget > 0 ? Math.min((firstInstallmentPaid / firstInstallmentTarget) * 100, 100) : 0}%` }}
                       ></div>
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Payé : {formatMoney(Math.min(Math.max(totalPaidAmount - confirmedDepositAmount, 0), Number(effectiveSchedule.first_installment_amount)))}</span>
+                    <span className="text-[10px] text-slate-400 mt-1 block">Payé : {formatMoney(firstInstallmentPaid)}</span>
                   </div>
                 </div>
 
                 {/* 3. 2nd Installment */}
                 <div className="rounded-xl border border-indigo-100 bg-white/90 p-3 text-xs flex flex-col justify-between">
                   <div>
-                    <span className="font-bold text-indigo-700 block">3. Solde (J-10)</span>
-                    <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(effectiveSchedule.second_installment_amount)}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-indigo-700">3. Solde (J-10)</span>
+                      {secondInstallmentPaid >= secondInstallmentTarget && secondInstallmentTarget > 0 ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Réglé</span>
+                      ) : secondInstallmentPaid > 0 ? (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">En cours</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">En attente</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-black text-slate-900 mt-0.5">{formatMoney(secondInstallmentTarget)}</p>
                     <span className="text-[10px] text-slate-500 block mt-0.5">
                       Échéance : {formatDateFr(effectiveSchedule.second_installment_due_on)}
                     </span>
@@ -1208,10 +1327,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                       <div
                         className="bg-emerald-600 h-full rounded-full transition-all"
-                        style={{ width: `${Math.min((Math.max(totalPaidAmount - confirmedDepositAmount - Number(effectiveSchedule.first_installment_amount), 0) / (Number(effectiveSchedule.second_installment_amount) || 1)) * 100, 100)}%` }}
+                        style={{ width: `${secondInstallmentTarget > 0 ? Math.min((secondInstallmentPaid / secondInstallmentTarget) * 100, 100) : 0}%` }}
                       ></div>
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Payé : {formatMoney(Math.max(totalPaidAmount - confirmedDepositAmount - Number(effectiveSchedule.first_installment_amount), 0))}</span>
+                    <span className="text-[10px] text-slate-400 mt-1 block">Payé : {formatMoney(secondInstallmentPaid)}</span>
                   </div>
                 </div>
               </div>
@@ -2385,8 +2504,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             <div className="grid grid-cols-5 gap-2 border-b border-slate-100 pb-4 shrink-0">
               {[
                 { step: 1, label: "1. Motif & Traçabilité", icon: "fa-file-lines" },
-                { step: 2, label: "2. Dates & Formules", icon: "fa-calendar-days" },
-                { step: 3, label: "3. Espaces & Services", icon: "fa-map-location-dot" },
+                { step: 2, label: "2. Formule & Local", icon: "fa-calendar-days" },
+                { step: 3, label: "3. Prestations & Services", icon: "fa-wand-magic-sparkles" },
                 { step: 4, label: "4. Matériel & Articles", icon: "fa-boxes-stacked" },
                 { step: 5, label: "5. Bilan & Validation", icon: "fa-scale-balanced" },
               ].map((s) => (
@@ -2408,30 +2527,94 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
               ))}
             </div>
 
+            {/* Locked Immutable Elements Banner (Always visible as reference) */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-lock text-slate-400 text-xs"></i>
+                <span className="font-bold text-slate-700">Paramètres contractuels fixes :</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-semibold text-slate-800 flex items-center gap-1.5 shadow-2xs">
+                  <i className="fa-solid fa-calendar-day text-indigo-500"></i>
+                  {formatDateFr(draft.start_at)}
+                </span>
+                <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-semibold text-slate-800 flex items-center gap-1.5 shadow-2xs">
+                  <i className="fa-solid fa-champagne-glasses text-amber-500"></i>
+                  {eventTypeLabel(draft.event_type)}
+                </span>
+                <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg font-semibold text-slate-800 flex items-center gap-1.5 shadow-2xs">
+                  <i className="fa-solid fa-user text-teal-600"></i>
+                  {draft.customer_display_name}
+                </span>
+              </div>
+            </div>
+
             {/* Step Body (Scrollable) */}
             <div className="overflow-y-auto flex-1 pr-1 space-y-4">
-              {/* ── STEP 1: Motif & Justification ───────────────────────────── */}
+              {/* ── STEP 1: Motif & Traçabilité ───────────────────────────── */}
               {amendmentStep === 1 && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-in fade-in duration-150">
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 text-xs text-indigo-900 flex items-start gap-3">
                     <i className="fa-solid fa-shield-halved text-indigo-600 text-base mt-0.5"></i>
                     <div>
                       <p className="font-bold">Traçabilité légale & conformité contractuelle</p>
                       <p className="text-slate-600 mt-0.5">
-                        Cet avenant générera un acte officiel d'avenant horodaté venant amender le contrat initial. Indiquez avec précision le motif et le contexte de la demande.
+                        Cet avenant générera un acte officiel d'avenant horodaté venant amender le contrat initial du dossier. La date d'événement, le type de fête et l'identité du client demeurent fixés par le contrat d'origine.
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Motif principal de l'avenant *
+                      </label>
+                      <select
+                        value={amendmentReasonSelect}
+                        onChange={(e) => {
+                          setAmendmentReasonSelect(e.target.value);
+                          if (!amendmentReason) {
+                            setAmendmentReason(e.target.value);
+                          }
+                        }}
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white"
+                      >
+                        <option value="">Sélectionner un motif standard...</option>
+                        {HAHITANTSOA_AMENDMENT_REASONS.map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Demandeur de l'avenant
+                      </label>
+                      <select
+                        value={amendmentApplicant}
+                        onChange={(e) => setAmendmentApplicant(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 bg-white"
+                      >
+                        {AMENDMENT_APPLICANTS.map((app) => (
+                          <option key={app.value} value={app.value}>
+                            {app.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase">
-                      Motif de l'avenant *
+                      Intitulé / Libellé précis de l'avenant *
                       <input
                         type="text"
                         required
                         value={amendmentReason}
                         onChange={(e) => setAmendmentReason(e.target.value)}
-                        placeholder="Ex: Rajout de 50 chaises et extension soirée jusqu'à minuit"
+                        placeholder="Ex: Rajout de 50 convives, ciel étoilé et formule nuit jusqu'à 03h30"
                         className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                       />
                     </label>
@@ -2439,7 +2622,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase">
-                      Précisions / Justification opérationnelle
+                      Précisions / Justification opérationnelle & commerciale
                       <textarea
                         rows={3}
                         value={amendmentNotes}
@@ -2452,253 +2635,382 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 </div>
               )}
 
-              {/* ── STEP 2: Dates, Horaires, Formules & Convives ─────────────── */}
+              {/* ── STEP 2: Formule Horaire, Convives, Local & Tarifs ────────── */}
               {amendmentStep === 2 && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase">
-                        Date & Heure Début (Installation)
-                        <input
-                          type="datetime-local"
-                          value={amendmentStartAt}
-                          onChange={(e) => setAmendmentStartAt(e.target.value)}
-                          className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium"
-                        />
-                      </label>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase">
-                        Date & Heure Fin (Fin Prestation)
-                        <input
-                          type="datetime-local"
-                          value={amendmentEndAt}
-                          onChange={(e) => setAmendmentEndAt(e.target.value)}
-                          className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium"
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Formule & Option Nocturne */}
+                <div className="space-y-5 animate-in fade-in duration-150">
+                  {/* Formule Horaire 2026 */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
-                      Formule & Option Nocturne
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div
-                        onClick={() => setAmendmentNightOption("day")}
-                        className={`cursor-pointer rounded-xl border p-3.5 flex flex-col justify-between transition-all ${
-                          amendmentNightOption === "day"
-                            ? "border-amber-400 bg-amber-50/70 shadow-xs ring-1 ring-amber-400"
-                            : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                            ☀️ Fête de Jour
-                          </span>
-                          {amendmentNightOption === "day" && (
-                            <i className="fa-solid fa-circle-check text-amber-600"></i>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">Jusqu'à 18h00 / Standard</p>
-                        <span className="text-xs font-bold text-slate-700 mt-2">Tarif de base</span>
-                      </div>
-
-                      <div
-                        onClick={() => setAmendmentNightOption("night_opt1")}
-                        className={`cursor-pointer rounded-xl border p-3.5 flex flex-col justify-between transition-all ${
-                          amendmentNightOption === "night_opt1"
-                            ? "border-indigo-500 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500"
-                            : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-indigo-950 text-sm flex items-center gap-1.5">
-                            🌙 Nuit Option 1
-                          </span>
-                          {amendmentNightOption === "night_opt1" && (
-                            <i className="fa-solid fa-circle-check text-indigo-600"></i>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">Jusqu'à minuit (00h00)</p>
-                        <span className="text-xs font-bold text-indigo-600 mt-2">+ 250 000 Ar</span>
-                      </div>
-
-                      <div
-                        onClick={() => setAmendmentNightOption("night_opt2")}
-                        className={`cursor-pointer rounded-xl border p-3.5 flex flex-col justify-between transition-all ${
-                          amendmentNightOption === "night_opt2"
-                            ? "border-purple-500 bg-purple-50/70 shadow-xs ring-1 ring-purple-500"
-                            : "border-slate-200 bg-white hover:border-slate-300"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-purple-950 text-sm flex items-center gap-1.5">
-                            🌌 Nuit Option 2
-                          </span>
-                          {amendmentNightOption === "night_opt2" && (
-                            <i className="fa-solid fa-circle-check text-purple-600"></i>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">Jusqu'à 05h00 du matin</p>
-                        <span className="text-xs font-bold text-purple-600 mt-2">+ 500 000 Ar</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase">
-                        Type d'événement
-                        <select
-                          value={amendmentEventType}
-                          onChange={(e) => setAmendmentEventType(e.target.value)}
-                          className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium"
-                        >
-                          <option value="wedding">Mariage</option>
-                          <option value="engagement">Fiançailles / Vodiadidy</option>
-                          <option value="civil_wedding">Mariage civil</option>
-                          <option value="birthday">Anniversaire / Fête de famille</option>
-                          <option value="corporate">Séminaire / Entreprise</option>
-                          <option value="other">Autre événement</option>
-                        </select>
-                      </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase">
+                        Formule Horaire & Prolongation Nocturne (2026)
+                      </h4>
+                      <span className="text-[11px] text-slate-400">
+                        Sécurité nocturne obligatoire incluse dans les options de nuit
+                      </span>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase">
-                        Type de location
-                        <select
-                          value={amendmentRentalType}
-                          onChange={(e) => setAmendmentRentalType(e.target.value)}
-                          className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium"
-                        >
-                          <option value="bare">Location nue</option>
-                          <option value="logistics">Avec logistique / installation</option>
-                        </select>
-                      </label>
-                    </div>
+                    <div className="space-y-2.5">
+                      {HAHITANTSOA_DURATION_OPTIONS.map((opt) => {
+                        const isNight1 = opt.label.includes("22:30");
+                        const isNight2 = opt.label.includes("03:30");
+                        const night1Total =
+                          Number(commercialTerms?.night_option_1_amount ?? 300000) +
+                          Number(commercialTerms?.night_security_amount ?? 120000);
+                        const night2Total =
+                          Number(commercialTerms?.night_option_2_amount ?? 500000) +
+                          Number(commercialTerms?.night_security_amount ?? 120000);
+                        const suggestedPrice = isNight1 ? night1Total : isNight2 ? night2Total : 0;
+                        const isSelected = amendmentDurationOption === opt.label;
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase">
-                        Nombre de convives
-                        <div className="mt-1 flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="10"
-                            step="10"
-                            value={amendmentGuestCount}
-                            onChange={(e) => setAmendmentGuestCount(Math.max(1, Number(e.target.value)))}
-                            className="block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-bold text-center"
-                          />
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase">
-                      Tarif Location Espace de Base (Ar)
-                      <input
-                        type="number"
-                        min="0"
-                        step="50000"
-                        value={amendmentSpaceRentalAmount}
-                        onChange={(e) => setAmendmentSpaceRentalAmount(Math.max(0, Number(e.target.value)))}
-                        className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-bold"
-                      />
-                    </label>
-                    <span className="text-[11px] text-slate-400 mt-0.5 block">
-                      Hors supplément nocturne éventuel ({formatMoney(amendmentNightOption === "night_opt1" ? 250000 : amendmentNightOption === "night_opt2" ? 500000 : 0)}).
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* ── STEP 3: Espaces & Services ──────────────────────────────── */}
-              {amendmentStep === 3 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase">
-                      Lieu / Espace principal
-                      <input
-                        type="text"
-                        value={amendmentVenueName}
-                        onChange={(e) => setAmendmentVenueName(e.target.value)}
-                        placeholder="Ex: Grande Salle Hahitantsoa & Pelouse"
-                        className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium"
-                      />
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase">
-                      Détails d'implantation & Accès
-                      <input
-                        type="text"
-                        value={amendmentLocationDetails}
-                        onChange={(e) => setAmendmentLocationDetails(e.target.value)}
-                        placeholder="Ex: Chapiteau côté piscine, buffet salle haute"
-                        className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium"
-                      />
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
-                      Prestations & Services Événementiels
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {[
-                        { key: "sono", label: "Sonorisation & DJ", icon: "fa-music" },
-                        { key: "menage", label: "Ménage & Nettoyage", icon: "fa-broom" },
-                        { key: "security", label: "Sécurité & Gardiennage", icon: "fa-shield-halved" },
-                        { key: "traiteur", label: "Espace Traiteur", icon: "fa-utensils" },
-                        { key: "groupe_elec", label: "Groupe électrogène", icon: "fa-bolt" },
-                        { key: "deco", label: "Décoration florale", icon: "fa-seedling" },
-                      ].map((srv) => {
-                        const active = Boolean(amendmentSelectedServices[srv.key]);
                         return (
-                          <button
-                            key={srv.key}
-                            type="button"
-                            onClick={() =>
-                              setAmendmentSelectedServices({
-                                ...amendmentSelectedServices,
-                                [srv.key]: !active,
-                              })
-                            }
-                            className={`flex items-center gap-2.5 p-3 rounded-xl border text-xs font-bold text-left transition-all ${
-                              active
-                                ? "border-indigo-600 bg-indigo-50 text-indigo-900 shadow-2xs"
-                                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                          <div
+                            key={opt.label}
+                            className={`border p-3.5 rounded-xl transition-all ${
+                              isSelected
+                                ? "border-indigo-600 bg-indigo-50/60 shadow-xs ring-1 ring-indigo-500"
+                                : "border-slate-200 bg-white hover:border-indigo-300"
                             }`}
                           >
-                            <span
-                              className={`h-6 w-6 rounded-lg flex items-center justify-center text-xs ${
-                                active ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-400"
-                              }`}
-                            >
-                              <i className={`fa-solid ${srv.icon}`}></i>
-                            </span>
-                            <span className="flex-1 truncate">{srv.label}</span>
-                            {active && <i className="fa-solid fa-check text-indigo-600 text-xs"></i>}
-                          </button>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="amendmentDurationOption"
+                                value={opt.label}
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  setAmendmentDurationOption(e.target.value);
+                                  setAmendmentDurationPrice(suggestedPrice);
+                                }}
+                                className="w-4 h-4 mt-0.5 text-indigo-600"
+                              />
+                              <div className="flex-1">
+                                <span
+                                  className={`font-bold text-sm block ${
+                                    isSelected ? "text-indigo-900" : "text-slate-800"
+                                  }`}
+                                >
+                                  {opt.label}
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                  {isNight1
+                                    ? `+${(Number(commercialTerms?.night_option_1_amount ?? 300000)).toLocaleString(
+                                        "fr-FR",
+                                      )} Ar + Sécurité nuit obligatoire (${(Number(
+                                        commercialTerms?.night_security_amount ?? 120000,
+                                      )).toLocaleString("fr-FR")} Ar)`
+                                    : isNight2
+                                      ? `+${(Number(commercialTerms?.night_option_2_amount ?? 500000)).toLocaleString(
+                                          "fr-FR",
+                                        )} Ar + Sécurité nuit obligatoire (${(Number(
+                                          commercialTerms?.night_security_amount ?? 120000,
+                                        )).toLocaleString("fr-FR")} Ar)`
+                                      : "Inclus dans le tarif de base du domaine"}
+                                </span>
+                              </div>
+                            </label>
+
+                            {isSelected && (
+                              <div className="mt-3 ml-7 pt-2 border-t border-indigo-100 flex items-center gap-3">
+                                <label className="text-xs font-semibold text-indigo-900">
+                                  Montant facturé pour cette formule horaire :
+                                </label>
+                                <div className="flex items-center gap-1.5 max-w-xs">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="10000"
+                                    className="w-36 border border-indigo-200 rounded-lg px-2.5 py-1 text-sm font-bold bg-white text-indigo-950 text-right"
+                                    value={amendmentDurationPrice}
+                                    onChange={(e) =>
+                                      setAmendmentDurationPrice(Math.max(0, parseInt(e.target.value || "0", 10)))
+                                    }
+                                  />
+                                  <span className="text-xs font-bold text-indigo-700">Ar</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
                   </div>
 
+                  {/* Type de Location & Convives */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-2">
+                        Type de location
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {["Location nue", "Location + logistique"].map((opt) => (
+                          <label
+                            key={opt}
+                            className={`border p-3 rounded-xl flex items-center gap-2 cursor-pointer text-xs font-bold transition-all ${
+                              amendmentRentalType === opt
+                                ? "border-indigo-600 bg-indigo-50 text-indigo-900 shadow-2xs"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="amendmentRentalType"
+                              value={opt}
+                              checked={amendmentRentalType === opt}
+                              onChange={(e) =>
+                                setAmendmentRentalType(e.target.value as "Location nue" | "Location + logistique")
+                              }
+                              className="w-4 h-4 text-indigo-600"
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Nombre d'invités estimé
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="10"
+                        value={amendmentGuestCount}
+                        onChange={(e) => setAmendmentGuestCount(Math.max(1, parseInt(e.target.value || "0", 10)))}
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-bold"
+                        placeholder="Ex: 250"
+                      />
+                      <span className="text-[11px] text-slate-500 mt-1 block">
+                        Forfait standard : {amendmentFinancialPreview.includedGuests} convives inclus. Au-delà : +5 000
+                        Ar/invité (
+                        {amendmentFinancialPreview.excessGuestsCount > 0
+                          ? `+${formatMoney(amendmentFinancialPreview.excessGuestsTotal)} pour ${amendmentFinancialPreview.excessGuestsCount} convives sup.`
+                          : "aucun supplément"}
+                        )
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Local / Lieu & Tarifs de base négociés */}
+                  <div className="pt-4 border-t border-slate-100 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                          Local / Lieu Hahitantsoa
+                        </label>
+                        <select
+                          value={amendmentVenueName}
+                          onChange={(e) => setAmendmentVenueName(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium bg-white"
+                        >
+                          <option value="Salle des fêtes + jardin">Salle des fêtes + jardin (Par défaut)</option>
+                          {venues
+                            .filter((v) => v.active !== false)
+                            .map((v) => (
+                              <option key={v.id} value={v.name}>
+                                {v.name} {v.capacity ? `(${v.capacity})` : ""}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                          Prix location local (Ar)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="100000"
+                          value={amendmentVenuePrice}
+                          onChange={(e) =>
+                            setAmendmentVenuePrice(Math.max(0, parseInt(e.target.value || "0", 10)))
+                          }
+                          className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    {amendmentRentalType === "Location + logistique" && (
+                      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3.5 flex items-center justify-between gap-4">
+                        <div>
+                          <span className="text-xs font-bold text-indigo-950 block">Forfait Logistique Hahitantsoa</span>
+                          <span className="text-[11px] text-slate-500">
+                            Transport, installation, montage et démontage inclus
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="0"
+                            step="50000"
+                            value={amendmentLogisticsPrice}
+                            onChange={(e) =>
+                              setAmendmentLogisticsPrice(Math.max(0, parseInt(e.target.value || "0", 10)))
+                            }
+                            className="w-32 rounded-lg border border-indigo-200 p-1.5 text-sm font-bold text-right bg-white"
+                          />
+                          <span className="text-xs font-bold text-indigo-700">Ar</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── STEP 3: Prestations & Services Scénographiques ─────────── */}
+              {amendmentStep === 3 && (
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">Prestations & Services Hahitantsoa</h4>
+                      <p className="text-xs text-slate-500">
+                        Catalogue officiel des Prestations & Scénographies 2026.
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full self-start sm:self-auto">
+                      {amendmentSelectedServices.length} prestation(s) sélectionnée(s) (
+                      {formatMoney(amendmentFinancialPreview.newServicesTotal)})
+                    </span>
+                  </div>
+
+                  {/* Category Filter Pills */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: "all", label: "Toutes", icon: "fa-layer-group" },
+                      { key: "drapery", label: "Draperie", icon: "fa-ribbon" },
+                      { key: "starry_sky", label: "Ciels Étoilés", icon: "fa-star" },
+                      { key: "scenography", label: "Piste LED", icon: "fa-gem" },
+                      { key: "special_effects", label: "Effets Spéciaux", icon: "fa-wand-magic-sparkles" },
+                      { key: "technical_facility", label: "Technique & Sol", icon: "fa-wrench" },
+                    ].map((cat) => {
+                      const active = serviceCategoryFilter === cat.key;
+                      return (
+                        <button
+                          key={cat.key}
+                          type="button"
+                          onClick={() => setServiceCategoryFilter(cat.key)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 ${
+                            active
+                              ? "bg-indigo-600 text-white shadow-xs"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          <i className={`fa-solid ${cat.icon}`}></i> {cat.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Services Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                    {services
+                      .filter((s) => s.active !== false)
+                      .filter((s) => serviceCategoryFilter === "all" || s.category === serviceCategoryFilter)
+                      .map((srv) => {
+                        const existing = amendmentSelectedServices.find((s) => s.id === srv.id);
+                        const isSelected = Boolean(existing);
+                        const qty = existing ? existing.quantity : 1;
+                        const basePrice = Number(srv.price) || 0;
+
+                        return (
+                          <div
+                            key={srv.id}
+                            className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                              isSelected
+                                ? "border-indigo-600 bg-indigo-50/60 shadow-2xs ring-1 ring-indigo-500"
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <span className="font-bold text-xs text-slate-900 block truncate">{srv.name}</span>
+                                <span className="text-[11px] text-indigo-700 font-semibold mt-0.5 block">
+                                  {formatMoney(basePrice)} {srv.unit_label ? `/ ${srv.unit_label}` : ""}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setAmendmentSelectedServices(
+                                      amendmentSelectedServices.filter((s) => s.id !== srv.id),
+                                    );
+                                  } else {
+                                    setAmendmentSelectedServices([
+                                      ...amendmentSelectedServices,
+                                      {
+                                        id: srv.id,
+                                        name: srv.name,
+                                        price: basePrice,
+                                        quantity: 1,
+                                        unit_label: srv.unit_label || "",
+                                        category: srv.category,
+                                      },
+                                    ]);
+                                  }
+                                }}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                                  isSelected
+                                    ? "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                                    : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                }`}
+                              >
+                                {isSelected ? "Retirer" : "+ Ajouter"}
+                              </button>
+                            </div>
+
+                            {isSelected && (
+                              <div className="mt-2 pt-2 border-t border-indigo-100/80 flex items-center justify-between text-xs">
+                                <span className="text-slate-500 font-medium">Quantité :</span>
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextQty = Math.max(1, qty - 1);
+                                      setAmendmentSelectedServices(
+                                        amendmentSelectedServices.map((s) =>
+                                          s.id === srv.id ? { ...s, quantity: nextQty } : s,
+                                        ),
+                                      );
+                                    }}
+                                    className="h-6 w-6 rounded border border-slate-300 bg-white font-bold hover:bg-slate-50 flex items-center justify-center text-slate-700"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="w-8 text-center font-bold text-slate-900">{qty}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAmendmentSelectedServices(
+                                        amendmentSelectedServices.map((s) =>
+                                          s.id === srv.id ? { ...s, quantity: qty + 1 } : s,
+                                        ),
+                                      );
+                                    }}
+                                    className="h-6 w-6 rounded border border-slate-300 bg-white font-bold hover:bg-slate-50 flex items-center justify-center text-slate-700"
+                                  >
+                                    +
+                                  </button>
+                                  <span className="font-bold text-indigo-900 ml-2">
+                                    = {formatMoney(basePrice * qty)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase">
-                      Consignes particulières pour les services
+                      Consignes particulières scénographie & services
                       <textarea
                         rows={2}
                         value={amendmentServiceNotes}
                         onChange={(e) => setAmendmentServiceNotes(e.target.value)}
-                        placeholder="Ex: Branchements spécifiques sonorisation 380V..."
+                        placeholder="Ex: Emplacement de la piste LED au centre de la salle..."
                         className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium"
                       />
                     </label>
@@ -2706,251 +3018,282 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 </div>
               )}
 
-              {/* ── STEP 4: Matériel & Articles du Catalogue ─────────────────── */}
+              {/* ── STEP 4: Matériels & Articles du Catalogue ─────────────────── */}
               {amendmentStep === 4 && (
-                <div className="space-y-4">
-                  {/* Existing lines */}
-                  <div>
-                    <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
-                      Articles actuels dans le dossier :
-                    </span>
-                    <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 max-h-56 overflow-y-auto bg-white">
-                      {draft.lines.map((line) => {
-                        const currentQty =
-                          amendmentQuantities[line.id] !== undefined
-                            ? amendmentQuantities[line.id]
-                            : line.quantity;
-                        const unitP = Number(
-                          line.unit_rental_price ||
-                            (line.total_price && line.quantity
-                              ? Number(line.total_price) / line.quantity
-                              : 0) ||
-                            5000,
-                        );
-                        return (
-                          <div
-                            key={line.id}
-                            className="flex items-center justify-between p-3 text-xs gap-3"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-slate-900 truncate">
-                                  {line.inventory_item_name}
-                                </span>
-                                {itemKindBadge(line.inventory_item_kind)}
-                              </div>
-                              <span className="text-[11px] text-slate-400">
-                                {formatMoney(unitP)} / unité · Total: {formatMoney(currentQty * unitP)}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setAmendmentQuantities({
-                                    ...amendmentQuantities,
-                                    [line.id]: Math.max(0, currentQty - 1),
-                                  })
-                                }
-                                className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
-                              >
-                                -
-                              </button>
-                              <input
-                                type="number"
-                                min="0"
-                                value={currentQty}
-                                onChange={(e) =>
-                                  setAmendmentQuantities({
-                                    ...amendmentQuantities,
-                                    [line.id]: Math.max(0, Number(e.target.value)),
-                                  })
-                                }
-                                className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold text-slate-900"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setAmendmentQuantities({
-                                    ...amendmentQuantities,
-                                    [line.id]: currentQty + 1,
-                                  })
-                                }
-                                className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Added new lines from catalog */}
-                  <div>
-                    <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
-                      Ajouter de nouveaux articles du catalogue :
-                    </span>
-                    <div className="relative mb-3">
-                      <input
-                        type="text"
-                        value={catalogSearch}
-                        onChange={(e) => setCatalogSearch(e.target.value)}
-                        placeholder="Rechercher par nom d'article, table, chaise, tente, déco..."
-                        className="w-full rounded-xl border border-slate-300 pl-9 pr-3 py-2 text-xs font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                      />
-                      <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                    </div>
-
-                    {filteredCatalogItems.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto mb-3">
-                        {filteredCatalogItems.map((catItem) => {
-                          const alreadyInDraft = draft.lines.some(
-                            (l) => l.inventory_item_id === catItem.id,
-                          );
-                          const alreadyAdded = amendmentAddedLines.some(
-                            (l) => l.inventory_item_id === catItem.id,
-                          );
-                          return (
-                            <div
-                              key={catItem.id}
-                              className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-xs gap-2"
-                            >
-                              <div className="min-w-0">
-                                <p className="font-bold text-slate-900 truncate">{catItem.name}</p>
-                                <span className="text-[10px] text-slate-400">
-                                  {formatMoney(catItem.rental_price || 5000)} / unité
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                disabled={alreadyInDraft || alreadyAdded}
-                                onClick={() => {
-                                  setAmendmentAddedLines([
-                                    ...amendmentAddedLines,
-                                    {
-                                      inventory_item_id: catItem.id,
-                                      inventory_item_name: catItem.name,
-                                      inventory_item_kind: catItem.kind,
-                                      quantity: 1,
-                                      unit_rental_price: Number(catItem.rental_price || 5000),
-                                      notes: "",
-                                    },
-                                  ]);
-                                }}
-                                className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:hover:bg-indigo-50"
-                              >
-                                {alreadyInDraft || alreadyAdded ? "Déjà inclus" : "+ Ajouter"}
-                              </button>
-                            </div>
-                          );
-                        })}
+                <div className="space-y-4 animate-in fade-in duration-150">
+                  {amendmentRentalType === "Location nue" ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
+                        <i className="fa-solid fa-circle-info text-amber-600"></i> Formule Location Nue
                       </div>
-                    )}
-
-                    {amendmentAddedLines.length > 0 && (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
-                        <span className="text-xs font-bold text-emerald-800 uppercase block">
-                          Nouveaux articles ajoutés via cet avenant :
+                      <p>
+                        En formule <strong>Location nue</strong>, les matériels et articles du catalogue ne sont pas
+                        inclus par défaut.
+                      </p>
+                      <p>
+                        Pour intégrer des packs mobilier, vaisselles ou chaises dans cet avenant, revenez à l'étape 2 et
+                        sélectionnez <strong>Location + logistique</strong>.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Existing Lines */}
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
+                          Articles actuels dans le dossier :
                         </span>
-                        {amendmentAddedLines.map((line, idx) => (
-                          <div
-                            key={line.inventory_item_id}
-                            className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-emerald-200 text-xs gap-2"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-slate-900 truncate">{line.inventory_item_name}</p>
-                              <span className="text-[10px] text-slate-500">
-                                {formatMoney(line.unit_rental_price)} · Total: {formatMoney(line.quantity * line.unit_rental_price)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                min="1"
-                                value={line.quantity}
-                                onChange={(e) => {
-                                  const val = Math.max(1, Number(e.target.value));
-                                  const updated = [...amendmentAddedLines];
-                                  updated[idx].quantity = val;
-                                  setAmendmentAddedLines(updated);
-                                }}
-                                className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAmendmentAddedLines(
-                                    amendmentAddedLines.filter((_, i) => i !== idx),
-                                  );
-                                }}
-                                className="text-rose-500 hover:text-rose-700 p-1"
-                              >
-                                <i className="fa-solid fa-trash"></i>
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                        <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 max-h-48 overflow-y-auto bg-white">
+                          {draft.lines.length === 0 ? (
+                            <p className="p-4 text-xs text-slate-400 text-center">Aucun article initial</p>
+                          ) : (
+                            draft.lines.map((line) => {
+                              const currentQty =
+                                amendmentQuantities[line.id] !== undefined
+                                  ? amendmentQuantities[line.id]
+                                  : line.quantity;
+                              const unitP = Number(
+                                line.unit_rental_price ||
+                                  (line.total_price && line.quantity ? Number(line.total_price) / line.quantity : 0) ||
+                                  5000,
+                              );
+                              return (
+                                <div key={line.id} className="flex items-center justify-between p-3 text-xs gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-slate-900 truncate">
+                                        {line.inventory_item_name}
+                                      </span>
+                                      {itemKindBadge(line.inventory_item_kind)}
+                                    </div>
+                                    <span className="text-[11px] text-slate-400">
+                                      {formatMoney(unitP)} / unité · Total: {formatMoney(currentQty * unitP)}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setAmendmentQuantities({
+                                          ...amendmentQuantities,
+                                          [line.id]: Math.max(0, currentQty - 1),
+                                        })
+                                      }
+                                      className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={currentQty}
+                                      onChange={(e) =>
+                                        setAmendmentQuantities({
+                                          ...amendmentQuantities,
+                                          [line.id]: Math.max(0, Number(e.target.value)),
+                                        })
+                                      }
+                                      className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold text-slate-900"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setAmendmentQuantities({
+                                          ...amendmentQuantities,
+                                          [line.id]: currentQty + 1,
+                                        })
+                                      }
+                                      className="h-7 w-7 rounded-lg border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Added Lines from Catalog */}
+                      <div>
+                        <span className="text-xs font-bold text-slate-700 uppercase block mb-2">
+                          Ajouter de nouveaux articles du catalogue d'inventaire :
+                        </span>
+                        <div className="relative mb-3">
+                          <input
+                            type="text"
+                            value={catalogSearch}
+                            onChange={(e) => setCatalogSearch(e.target.value)}
+                            placeholder="Rechercher par nom d'article, table, chaise, vaisselle, pack..."
+                            className="w-full rounded-xl border border-slate-300 pl-9 pr-3 py-2 text-xs font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          />
+                          <i className="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                        </div>
+
+                        {filteredCatalogItems.length > 0 && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto mb-3">
+                            {filteredCatalogItems.map((catItem) => {
+                              const alreadyInDraft = draft.lines.some((l) => l.inventory_item_id === catItem.id);
+                              const alreadyAdded = amendmentAddedLines.some((l) => l.inventory_item_id === catItem.id);
+                              return (
+                                <div
+                                  key={catItem.id}
+                                  className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-white text-xs gap-2"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="font-bold text-slate-900 truncate">{catItem.name}</p>
+                                    <span className="text-[10px] text-slate-400">
+                                      {formatMoney(catItem.rental_price || 5000)} / unité
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    disabled={alreadyInDraft || alreadyAdded}
+                                    onClick={() => {
+                                      setAmendmentAddedLines([
+                                        ...amendmentAddedLines,
+                                        {
+                                          inventory_item_id: catItem.id,
+                                          inventory_item_name: catItem.name,
+                                          inventory_item_kind: catItem.kind,
+                                          quantity: 1,
+                                          unit_rental_price: Number(catItem.rental_price || 5000),
+                                          notes: "",
+                                        },
+                                      ]);
+                                    }}
+                                    className="shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 disabled:opacity-40 disabled:hover:bg-indigo-50"
+                                  >
+                                    {alreadyInDraft || alreadyAdded ? "Déjà inclus" : "+ Ajouter"}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {amendmentAddedLines.length > 0 && (
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
+                            <span className="text-xs font-bold text-emerald-800 uppercase block">
+                              Nouveaux articles ajoutés via cet avenant :
+                            </span>
+                            {amendmentAddedLines.map((line, idx) => (
+                              <div
+                                key={line.inventory_item_id}
+                                className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-emerald-200 text-xs gap-2"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-slate-900 truncate">{line.inventory_item_name}</p>
+                                  <span className="text-[10px] text-slate-500">
+                                    {formatMoney(line.unit_rental_price)} · Total:{" "}
+                                    {formatMoney(line.quantity * line.unit_rental_price)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={line.quantity}
+                                    onChange={(e) => {
+                                      const val = Math.max(1, Number(e.target.value));
+                                      const updated = [...amendmentAddedLines];
+                                      updated[idx].quantity = val;
+                                      setAmendmentAddedLines(updated);
+                                    }}
+                                    className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAmendmentAddedLines(amendmentAddedLines.filter((_, i) => i !== idx));
+                                    }}
+                                    className="text-rose-500 hover:text-rose-700 p-1"
+                                  >
+                                    <i className="fa-solid fa-trash"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
               {/* ── STEP 5: Bilan Financier & Confirmation ──────────────────── */}
               {amendmentStep === 5 && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-in fade-in duration-150">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
                     <h4 className="text-xs font-bold text-slate-700 uppercase flex items-center justify-between">
-                      <span>Bilan Comparatif Financier (Avant / Après)</span>
+                      <span>Bilan Comparatif Financier de l'Avenant</span>
                       <span className="text-indigo-600 font-mono">Dossier {draft.public_reference}</span>
                     </h4>
 
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+                    {/* Breakdown */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                       <div className="rounded-xl bg-white p-3 border border-slate-200">
                         <span className="text-slate-400 font-semibold block uppercase text-[10px]">
-                          Espace & Formule Nocturne
+                          Espace & Convives ({amendmentGuestCount})
                         </span>
-                        <div className="mt-1 flex items-baseline justify-between">
-                          <span className="text-slate-500 line-through">
-                            {formatMoney(amendmentFinancialPreview.oldSpace)}
-                          </span>
-                          <span className="font-bold text-slate-900 text-sm">
-                            {formatMoney(amendmentFinancialPreview.newSpace)}
-                          </span>
-                        </div>
+                        <span className="font-bold text-slate-900 text-sm block mt-1">
+                          {formatMoney(
+                            amendmentFinancialPreview.baseVenuePrice + amendmentFinancialPreview.excessGuestsTotal,
+                          )}
+                        </span>
                       </div>
 
                       <div className="rounded-xl bg-white p-3 border border-slate-200">
                         <span className="text-slate-400 font-semibold block uppercase text-[10px]">
-                          Matériels & Articles
+                          Formule & Logistique
                         </span>
-                        <div className="mt-1 flex items-baseline justify-between">
-                          <span className="text-slate-500 line-through">
-                            {formatMoney(amendmentFinancialPreview.oldLinesTotal)}
-                          </span>
-                          <span className="font-bold text-slate-900 text-sm">
-                            {formatMoney(amendmentFinancialPreview.newLinesTotal)}
-                          </span>
-                        </div>
+                        <span className="font-bold text-slate-900 text-sm block mt-1">
+                          {formatMoney(
+                            amendmentFinancialPreview.durationTotal + amendmentFinancialPreview.logisticsTotal,
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="rounded-xl bg-white p-3 border border-slate-200">
+                        <span className="text-slate-400 font-semibold block uppercase text-[10px]">
+                          Prestations Scéniques
+                        </span>
+                        <span className="font-bold text-slate-900 text-sm block mt-1">
+                          {formatMoney(amendmentFinancialPreview.newServicesTotal)}
+                        </span>
+                      </div>
+
+                      <div className="rounded-xl bg-white p-3 border border-slate-200 sm:col-span-3">
+                        <span className="text-slate-400 font-semibold block uppercase text-[10px]">
+                          Matériels & Articles ({amendmentRentalType})
+                        </span>
+                        <span className="font-bold text-slate-900 text-sm block mt-1">
+                          {formatMoney(amendmentFinancialPreview.newLinesTotal)}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="rounded-xl bg-indigo-900 text-white p-4 flex items-center justify-between">
+                    {/* Total comparison banner */}
+                    <div className="rounded-xl bg-indigo-900 text-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                       <div>
                         <span className="text-[10px] font-bold text-indigo-300 uppercase block">
-                          Nouveau Total Dossier TTC
+                          Nouveau Total Dossier Révisé
                         </span>
-                        <span className="text-lg font-black">{formatMoney(amendmentFinancialPreview.newTotal)}</span>
+                        <div className="flex items-baseline gap-2 mt-0.5">
+                          <span className="text-xl font-black">{formatMoney(amendmentFinancialPreview.newTotal)}</span>
+                          <span className="text-xs text-indigo-300 line-through">
+                            (Ancien: {formatMoney(amendmentFinancialPreview.oldTotal)})
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-left sm:text-right">
                         <span className="text-[10px] font-bold text-indigo-300 uppercase block">
-                          Impact Financier (Delta)
+                          Variation Nette (Δ Net)
                         </span>
                         <span
-                          className={`text-sm font-black px-2.5 py-0.5 rounded-full ${
+                          className={`inline-block text-xs font-black px-2.5 py-0.5 rounded-full mt-0.5 ${
                             amendmentFinancialPreview.delta > 0
                               ? "bg-emerald-500 text-white"
                               : amendmentFinancialPreview.delta < 0
@@ -2963,6 +3306,30 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                             : amendmentFinancialPreview.delta < 0
                               ? `- ${formatMoney(Math.abs(amendmentFinancialPreview.delta))}`
                               : "0 Ar (Inchangé)"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Schedule impact */}
+                    <div className="grid grid-cols-3 gap-2 text-xs pt-2">
+                      <div className="rounded-lg bg-white p-2.5 border border-slate-200 text-center">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase block">
+                          Nouvel Acompte (50%)
+                        </span>
+                        <span className="font-bold text-amber-600 block mt-0.5">
+                          {formatMoney(amendmentFinancialPreview.effectiveNewDeposit)}
+                        </span>
+                      </div>
+                      <div className="rounded-lg bg-white p-2.5 border border-slate-200 text-center">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase block">Total Déjà Versé</span>
+                        <span className="font-bold text-emerald-600 block mt-0.5">{formatMoney(totalPaidAmount)}</span>
+                      </div>
+                      <div className="rounded-lg bg-white p-2.5 border border-slate-200 text-center">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase block">
+                          Nouveau Reste à Payer
+                        </span>
+                        <span className="font-bold text-rose-600 block mt-0.5">
+                          {formatMoney(amendmentFinancialPreview.newRemainingToPay)}
                         </span>
                       </div>
                     </div>
@@ -2987,9 +3354,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
             {/* Footer Navigation */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-100 shrink-0">
-              <span className="text-xs text-slate-400 font-medium">
-                Étape {amendmentStep} sur 5
-              </span>
+              <span className="text-xs text-slate-400 font-medium">Étape {amendmentStep} sur 5</span>
 
               <div className="flex items-center gap-2">
                 {amendmentStep > 1 && (
@@ -3014,7 +3379,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <button
                     type="button"
                     onClick={() => {
-                      if (amendmentStep === 1 && !amendmentReason.trim()) {
+                      if (amendmentStep === 1 && !amendmentReason.trim() && !amendmentReasonSelect.trim()) {
                         setError("Le motif de l'avenant est obligatoire.");
                         return;
                       }
