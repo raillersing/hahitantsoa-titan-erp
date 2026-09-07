@@ -11,6 +11,8 @@ import * as docViewer from "./DocumentCanvasViewer";
 
 vi.mock("../api", () => ({
   recordConfirmedDeposit: vi.fn(),
+  getCashboxSessions: vi.fn().mockResolvedValue([]),
+  createCashboxMovement: vi.fn().mockResolvedValue({ id: "mov-auto-1" }),
 }));
 
 vi.mock("./DocumentCanvasViewer", () => ({
@@ -209,6 +211,77 @@ describe("PaymentRegistrationModal", () => {
         }),
       );
       expect(mockOnPaymentRecorded).toHaveBeenCalled();
+    });
+  });
+
+  it("detects active open cashbox session and registers linked cash movement when paying in cash", async () => {
+    vi.mocked(api.getCashboxSessions).mockResolvedValueOnce([
+      {
+        id: "session-active-99",
+        operator: "user-1",
+        opening_amount: 50000,
+        status: "open",
+        opened_at: "2026-09-07T08:00:00Z",
+        opened_by: "user-1",
+        closed_at: null,
+        closed_by: null,
+        opening_note: "",
+        closing_note: "",
+        net_amount: 0,
+        theoretical_amount: 50000,
+        movements: [],
+        created_at: "2026-09-07T08:00:00Z",
+        updated_at: "2026-09-07T08:00:00Z",
+      },
+    ]);
+
+    vi.mocked(api.recordConfirmedDeposit).mockResolvedValueOnce({
+      payment: {
+        id: "pay-cash-99",
+        reservation_draft: "draft-titan-123",
+        hahitantsoa_event_draft: null,
+        receipt_document: null,
+        refund_obligation: null,
+        billing_refund_obligation: null,
+        payment_kind: "deposit",
+        payment_method: "cash",
+        payment_status: "confirmed",
+        amount: "500000.00",
+        paid_at: "2026-09-07T12:00:00Z",
+        external_reference: "",
+        source_label: "",
+        notes: "Acompte en espèces",
+        confirmed_at: "2026-09-07T12:00:00Z",
+        confirmed_by: null,
+        created_at: "2026-09-07T12:00:00Z",
+        updated_at: "2026-09-07T12:00:00Z",
+      },
+      replayed: false,
+      reservation_draft_id: "draft-titan-123",
+      reservation_draft_status: "deposit_received",
+    });
+
+    render(<PaymentRegistrationModal {...defaultProps} />);
+
+    // Check cashbox badge
+    expect(await screen.findByText(/Caisse active détectée/)).toBeInTheDocument();
+
+    const amountInput = screen.getByPlaceholderText("Ex: 500000");
+    fireEvent.change(amountInput, { target: { value: "500000" } });
+
+    const submitBtn = screen.getByText("Enregistrer & Valider le versement");
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(api.recordConfirmedDeposit).toHaveBeenCalled();
+      expect(api.createCashboxMovement).toHaveBeenCalledWith(
+        "session-active-99",
+        expect.objectContaining({
+          direction: "cash_in",
+          amount: 500000,
+          payment: "pay-cash-99",
+        }),
+      );
     });
   });
 });

@@ -1,6 +1,6 @@
 import React, { useId, useMemo, useRef, useState } from "react";
-import { recordConfirmedDeposit } from "../api";
-import { DepositRecordingResult, DocumentInstance, PaymentMethod } from "../types";
+import { recordConfirmedDeposit, getCashboxSessions, createCashboxMovement } from "../api";
+import { DepositRecordingResult, DocumentInstance, PaymentMethod, CashboxSession } from "../types";
 import { printDocumentHtml } from "./DocumentCanvasViewer";
 
 export interface ExistingPaymentItem {
@@ -564,6 +564,32 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
   const [externalReference, setExternalReference] = useState<string>("");
   const [paymentNotes, setPaymentNotes] = useState<string>("");
   const [paidAt, setPaidAt] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [activeCashboxSession, setActiveCashboxSession] = useState<CashboxSession | null>(null);
+
+  // Load open cashbox sessions safely
+  React.useEffect(() => {
+    let isMounted = true;
+    if (typeof getCashboxSessions === "function") {
+      try {
+        const res = getCashboxSessions();
+        if (res && typeof res.then === "function") {
+          res
+            .then((sessions) => {
+              if (isMounted && Array.isArray(sessions)) {
+                const open = sessions.find((s) => s.status === "open") || null;
+                setActiveCashboxSession(open);
+              }
+            })
+            .catch(() => {});
+        }
+      } catch {
+        // silent catch
+      }
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Async & UI status
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -759,6 +785,23 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
 
       const result = await recordConfirmedDeposit(payload);
       depositRecordingKeyRef.current = null;
+
+      // Auto-link to open cashbox session if paid in cash
+      if (paymentMethod === "cash" && activeCashboxSession && typeof createCashboxMovement === "function") {
+        try {
+          await createCashboxMovement(activeCashboxSession.id, {
+            direction: "cash_in",
+            amount: numericAmount,
+            payment: result.payment.id,
+            note: `[ENCAISSEMENT_RESERVATION] [Tiers: ${customerName}] [Réf: ${draftReference}] ${
+              paymentNotes.trim() || `Versement ${getPaymentKindLabel(paymentKind)}`
+            }`,
+          });
+        } catch (cashErr) {
+          console.warn("Could not record linked cashbox movement:", cashErr);
+        }
+      }
+
       setSuccessMessage(
         result.replayed
           ? "Ce versement a été repris sans doublon (déjà enregistré)."
@@ -1100,7 +1143,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                       onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                       className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium focus:border-indigo-600"
                     >
-                      <option value="cash">💵 Espèces (Caisse principale)</option>
+                      <option value="cash">💵 Espèces (Caisse)</option>
                       <option value="mobile_money">📱 Mobile Money (MVola / Orange / Airtel)</option>
                       <option value="bank_transfer">🏦 Virement Bancaire (BMOI / BNI / BOA)</option>
                       <option value="cheque">📝 Chèque de banque</option>
@@ -1121,6 +1164,36 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                     />
                   </div>
                 </div>
+
+                {/* Cashbox Detection Badge */}
+                {paymentMethod === "cash" && (
+                  <div
+                    className={`p-3 rounded-2xl border text-xs flex items-center gap-2.5 transition-all ${
+                      activeCashboxSession
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        : "bg-amber-50 border-amber-200 text-amber-800"
+                    }`}
+                  >
+                    <div
+                      className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                        activeCashboxSession ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      <i className={`fa-solid ${activeCashboxSession ? "fa-cash-register" : "fa-triangle-exclamation"}`}></i>
+                    </div>
+                    <div className="flex-1">
+                      {activeCashboxSession ? (
+                        <p className="font-semibold">
+                          <strong>Caisse active détectée (#{activeCashboxSession.id.slice(0, 8)})</strong> : Ce versement en espèces sera automatiquement crédité dans votre tiroir-caisse de la session.
+                        </p>
+                      ) : (
+                        <p className="font-semibold">
+                          <strong>Information Caisse</strong> : Aucune session de caisse n'est ouverte pour votre compte. Le paiement sera enregistré au grand livre financier.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Référence transaction & Notes */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
