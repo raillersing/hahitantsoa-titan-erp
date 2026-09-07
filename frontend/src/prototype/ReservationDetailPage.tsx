@@ -7,6 +7,7 @@ import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatc
 import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
+import PaymentRegistrationModal from "./PaymentRegistrationModal";
 import {
   getReservationDraft,
   getCustomer,
@@ -160,6 +161,8 @@ export default function ReservationDetailPage({
   const [lifecycleSummary, setLifecycleSummary] = useState<LifecycleSummary | null>(null);
   const [lifecycleError, setLifecycleError] = useState(false);
   const [previewModal, setPreviewModal] = useState<PreviewModalState>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentModalInitialKind, setPaymentModalInitialKind] = useState<string>("deposit");
 
   /* ── fetch on mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -397,6 +400,39 @@ export default function ReservationDetailPage({
       );
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handlePaymentRecorded = async () => {
+    if (!draft) return;
+    try {
+      const [updatedDraft, paymentRecords, docInstances] = await Promise.all([
+        getReservationDraft(draft.id),
+        getPayments(draft.id).catch(() => []),
+        getReservationDraftDocumentInstances(draft.id).catch(() => []),
+      ]);
+      setDraft(updatedDraft);
+      await refreshLifecycle(draft.id);
+      setDocumentInstances(docInstances);
+      setPayments(
+        paymentRecords
+          .filter(
+            (payment: Payment) =>
+              payment.payment_status === "confirmed" || payment.payment_status === "reconciled",
+          )
+          .map((payment: Payment) => ({
+            id: payment.id,
+            date: payment.paid_at || payment.created_at,
+            method: payment.payment_method,
+            amount: Number(payment.amount),
+            note: payment.notes || payment.payment_kind,
+            reference: payment.external_reference || undefined,
+            receipt_document: payment.receipt_document,
+          })),
+      );
+      showToast("Versement enregistré et confirmé.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de l'actualisation du dossier.", "error");
     }
   };
 
@@ -1082,9 +1118,22 @@ export default function ReservationDetailPage({
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <i className="fa-solid fa-receipt text-indigo-600"></i> Paiements & Règlements enregistrés
             </h3>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {payments.length} versement{payments.length > 1 ? "s" : ""}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentModalInitialKind(remainingAmount > 0 ? "balance" : "deposit");
+                  setShowPaymentModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-colors cursor-pointer"
+              >
+                <i className="fa-solid fa-plus"></i>
+                <span>Enregistrer un versement</span>
+              </button>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {payments.length} versement{payments.length > 1 ? "s" : ""}
+              </span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1202,6 +1251,17 @@ export default function ReservationDetailPage({
                   <i className="fa-solid fa-money-bill-transfer mr-2"></i>
                 )}
                 Enregistrer et confirmer l'acompte
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentModalInitialKind("deposit");
+                  setShowPaymentModal(true);
+                }}
+                className="px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-bold shadow-2xs hover:bg-indigo-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <i className="fa-solid fa-calculator"></i>
+                <span>Comptabilité & Reçu en direct</span>
               </button>
             </div>
           )}
@@ -2539,6 +2599,37 @@ export default function ReservationDetailPage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Payment Registration & Real-Time Receipt Modal ───────────── */}
+      {showPaymentModal && draft && (
+        <PaymentRegistrationModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          domain="titan"
+          draftId={draft.id}
+          draftReference={draft.public_reference || `TITAN-${draft.id.slice(0, 8)}`}
+          proformaReference={
+            documentInstances.find((d) => d.document_type === "proforma")?.document_reference ||
+            draft.public_reference
+          }
+          customerName={draft.customer_display_name || displayName || "Client"}
+          customerPhone={customer?.phone}
+          customerAddress={customer?.address}
+          eventDateLabel={
+            draft.start_at && draft.end_at
+              ? `${formatDateFr(draft.start_at)} au ${formatDateFr(draft.end_at)}`
+              : undefined
+          }
+          totalAmount={safeAmount}
+          paidAmount={paidAmount}
+          requiredDepositAmount={requiredDepositAmount}
+          cautionAmount={0}
+          existingPayments={payments}
+          onPaymentRecorded={handlePaymentRecorded}
+          initialAmount={depositAmount || undefined}
+          initialPaymentKind={paymentModalInitialKind}
+        />
       )}
 
       {/* ── toast ─────────────────────────────────────────────────── */}

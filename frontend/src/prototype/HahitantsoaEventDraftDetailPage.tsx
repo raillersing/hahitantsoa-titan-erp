@@ -24,6 +24,7 @@ import { DocumentPreview } from "./DocumentPreview";
 import { printDocumentHtml } from "./DocumentCanvasViewer";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
+import PaymentRegistrationModal from "./PaymentRegistrationModal";
 import type {
   Customer,
   DocumentInstance,
@@ -1854,105 +1855,40 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       )}
 
       {/* ── Payment Recording Modal ───────────────────────────────────────── */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
-          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <i className="fa-solid fa-money-bill-transfer text-indigo-600"></i> Enregistrer un versement
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowPaymentModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              >
-                <i className="fa-solid fa-xmark text-lg"></i>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase">
-                  Tranche / Échéance associée
-                  <select
-                    value={paymentKindSelection}
-                    onChange={(e) => setPaymentKindSelection(e.target.value as any)}
-                    className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm"
-                  >
-                    <option value="deposit">Acompte Réservation</option>
-                    <option value="installment_1">1ère Tranche (M-1)</option>
-                    <option value="installment_2">2ème Tranche / Solde (J-10)</option>
-                    <option value="caution">Caution Événement</option>
-                  </select>
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase">
-                  Montant (Ar) *
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    required
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    placeholder="Montant du règlement"
-                    className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm font-bold"
-                  />
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase">
-                  Mode de règlement
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
-                    className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm"
-                  >
-                    <option value="cash">Espèces</option>
-                    <option value="mobile_money">Mobile Money (Mvola / Orange / Airtel)</option>
-                    <option value="bank_transfer">Virement Bancaire</option>
-                    <option value="cheque">Chèque</option>
-                    <option value="other">Autre</option>
-                  </select>
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase">
-                  Notes / Référence du versement
-                  <input
-                    type="text"
-                    value={paymentNotes}
-                    onChange={(e) => setPaymentNotes(e.target.value)}
-                    placeholder="Ex: Réf virement ou note interne"
-                    className="mt-1 block w-full rounded-xl border border-slate-300 p-2.5 text-sm"
-                  />
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowPaymentModal(false)}
-                  className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  disabled={busy !== null}
-                  onClick={() => void recordDeposit()}
-                  className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
-                >
-                  {busy === "deposit" ? "Enregistrement..." : "Confirmer le versement"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {showPaymentModal && draft && (
+        <PaymentRegistrationModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          domain="hahitantsoa"
+          draftId={param || draft.id}
+          draftReference={draft.public_reference || `HAH-${draft.id.slice(0, 8)}`}
+          proformaReference={draft.public_reference}
+          customerName={draft.customer_display_name || customer?.display_name || "Client"}
+          customerPhone={customer?.phone}
+          customerAddress={customer?.address}
+          eventDateLabel={draft.start_at ? formatDateFr(draft.start_at) : undefined}
+          totalAmount={totalDossierAmount}
+          paidAmount={totalPaidAmount}
+          requiredDepositAmount={requiredDepositAmount}
+          cautionAmount={0}
+          existingPayments={payments.map((p) => ({
+            id: p.id,
+            date: p.paid_at || p.created_at,
+            method: p.payment_method,
+            amount: Number(p.amount),
+            note: p.notes || p.payment_kind,
+            reference: p.external_reference || undefined,
+            receipt_document: p.receipt_document,
+            payment_status: p.payment_status,
+            payment_kind: p.payment_kind,
+          }))}
+          onPaymentRecorded={async () => {
+            await load();
+            setActionNotice("Versement enregistré et confirmé avec succès.");
+          }}
+          initialAmount={depositAmount || undefined}
+          initialPaymentKind={paymentKindSelection}
+        />
       )}
 
       {/* ── Amendment Request Modal ───────────────────────────────────────── */}
