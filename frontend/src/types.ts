@@ -438,6 +438,8 @@ export type HahitantsoaEventDraftLine = {
   inventory_item_name: string;
   inventory_item_kind: InventoryItemKind;
   quantity: number;
+  unit_rental_price?: string | null;
+  total_price?: string | null;
   notes: string;
 };
 
@@ -452,6 +454,7 @@ export type HahitantsoaEventDraft = {
   rental_type?: "bare" | "logistics";
   guest_count?: number;
   space_rental_amount?: string;
+  total_amount?: string | null;
   required_deposit_amount?: string;
   payment_schedule?: HahitantsoaPaymentSchedule;
   venue_name: string;
@@ -549,6 +552,9 @@ export type HahitantsoaEventDraftAmendmentRequest = {
   changed_end_at: string | null;
   changed_event_name: string;
   changed_event_type: string;
+  changed_rental_type?: string;
+  changed_guest_count?: number | null;
+  changed_space_rental_amount?: string | null;
   changed_venue_name: string;
   changed_location_details: string;
   changed_service_notes: string;
@@ -570,6 +576,9 @@ export type HahitantsoaEventDraftAmendmentRequestCreatePayload = {
   changed_end_at?: string | null;
   changed_event_name?: string;
   changed_event_type?: string;
+  changed_rental_type?: string;
+  changed_guest_count?: number | null;
+  changed_space_rental_amount?: string | null;
   changed_venue_name?: string;
   changed_location_details?: string;
   changed_service_notes?: string;
@@ -583,6 +592,9 @@ export type HahitantsoaEventDraftAmendmentRequestUpdatePayload = {
   changed_end_at?: string | null;
   changed_event_name?: string;
   changed_event_type?: string;
+  changed_rental_type?: string;
+  changed_guest_count?: number | null;
+  changed_space_rental_amount?: string | null;
   changed_venue_name?: string;
   changed_location_details?: string;
   changed_service_notes?: string;

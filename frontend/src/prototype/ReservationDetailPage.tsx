@@ -614,11 +614,19 @@ export default function ReservationDetailPage({
     repRole: customer?.representative_role || "Gérant(e)",
   };
 
-  const safeAmount = safeNumber(draft?.total_amount);
   const subtotalAmount = safeNumber(draft?.subtotal_amount);
   const deliveryFeeAmount = safeNumber(draft?.delivery_fee);
   const discountAmount = safeNumber(draft?.discount_amount);
   const commercialSubTotal = subtotalAmount + deliveryFeeAmount;
+  const materialsTotal = (draft?.lines || []).reduce(
+    (sum, l) => sum + safeNumber(l.unit_rental_price) * safeNumber(l.quantity, 1),
+    0,
+  );
+  const calculatedTotal = subtotalAmount + deliveryFeeAmount - discountAmount;
+  const safeAmount =
+    safeNumber(draft?.total_amount) ||
+    (calculatedTotal > 0 ? calculatedTotal : 0) ||
+    (materialsTotal > 0 ? materialsTotal : 0);
   const paidAmount = payments.reduce((total, payment) => total + payment.amount, 0);
   const remainingAmount = Math.max(0, safeAmount - paidAmount);
   const requiredDepositAmount =

@@ -18,6 +18,9 @@ const mockGetDocuments = vi.fn();
 const mockGetPayments = vi.fn();
 const mockGetAmendments = vi.fn();
 const mockCreateAmendment = vi.fn();
+const mockCreateAmendmentLine = vi.fn();
+const mockApplyAmendment = vi.fn();
+const mockGetInventoryItems = vi.fn();
 const mockMarkContractSigned = vi.fn();
 const mockMarkDepositReceived = vi.fn();
 const mockRecordConfirmedDeposit = vi.fn();
@@ -38,6 +41,9 @@ vi.mock("../api", () => ({
   getHahitantsoaEventDraftPayments: (...args: unknown[]) => mockGetPayments(...args),
   getHahitantsoaEventDraftAmendmentRequests: (...args: unknown[]) => mockGetAmendments(...args),
   createHahitantsoaEventDraftAmendmentRequest: (...args: unknown[]) => mockCreateAmendment(...args),
+  createHahitantsoaEventDraftAmendmentRequestLine: (...args: unknown[]) => mockCreateAmendmentLine(...args),
+  applyHahitantsoaEventDraftAmendmentRequest: (...args: unknown[]) => mockApplyAmendment(...args),
+  getInventoryItems: (...args: unknown[]) => mockGetInventoryItems(...args) ?? Promise.resolve([]),
   markHahitantsoaEventDraftContractSigned: (...args: unknown[]) => mockMarkContractSigned(...args),
   markHahitantsoaEventDraftRequiredDepositReceived: (...args: unknown[]) => mockMarkDepositReceived(...args),
   recordConfirmedDeposit: (...args: unknown[]) => mockRecordConfirmedDeposit(...args),
@@ -477,5 +483,96 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     fireEvent.click(closeBtn);
     expect(await screen.findByRole("alert")).toHaveTextContent("motif durable");
     expect(mockCloseDraft).not.toHaveBeenCalled();
+  });
+
+  it("opens the 5-step studio d'avenant, navigates wizard, selects night option 1, and submits", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+    mockCreateAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-1", status: "draft" },
+    });
+    mockApplyAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-1", status: "applied" },
+    });
+    mockGetInventoryItems.mockResolvedValue([
+      { id: "item-3", name: "Projecteur LED RGB", kind: "material", rental_price: "25000" },
+    ]);
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    // Click on amendment button
+    const amendBtn = await screen.findByRole("button", { name: /demander un avenant/i });
+    fireEvent.click(amendBtn);
+
+    // Studio modal is opened on Step 1
+    expect(screen.getByText("Studio d'Avenant Événementiel")).toBeInTheDocument();
+    expect(screen.getByText("1. Motif & Traçabilité")).toBeInTheDocument();
+
+    const reasonInput = screen.getByPlaceholderText(/Ex: Rajout de 50 chaises/i);
+    fireEvent.change(reasonInput, { target: { value: "Avenant soirée nocturne et sono" } });
+
+    // Step 1 -> Step 2
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 2: Select Night Option 1
+    expect(screen.getByText("2. Dates & Formules")).toBeInTheDocument();
+    const nightOpt1Card = screen.getByText(/Nuit Option 1/i);
+    fireEvent.click(nightOpt1Card);
+
+    // Step 2 -> Step 3
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 3: Select Sonorisation service
+    expect(screen.getByText("3. Espaces & Services")).toBeInTheDocument();
+    const sonoBtn = screen.getByRole("button", { name: /sonorisation & dj/i });
+    fireEvent.click(sonoBtn);
+
+    // Step 3 -> Step 4
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 4: Articles
+    expect(screen.getByText("4. Matériel & Articles")).toBeInTheDocument();
+
+    // Step 4 -> Step 5
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 5: Bilan Comparatif Financier
+    expect(screen.getByText("5. Bilan & Validation")).toBeInTheDocument();
+    expect(screen.getByText(/Bilan Comparatif Financier/i)).toBeInTheDocument();
+
+    // Submit
+    const submitBtn = screen.getByRole("button", { name: /valider et créer l'avenant/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockCreateAmendment).toHaveBeenCalledWith(
+        DRAFT.id,
+        expect.objectContaining({
+          reason: "Avenant soirée nocturne et sono",
+          changed_event_type: "wedding_night_opt1",
+          changed_space_rental_amount: "1750000", // 1 500 000 + 250 000
+        }),
+      );
+      expect(mockApplyAmendment).toHaveBeenCalledWith(DRAFT.id, "amend-1");
+    });
+  });
+
+  it("calculates real-time financial KPIs accurately even when payment_schedule is absent", async () => {
+    // Draft with space_rental_amount and lines without payment_schedule
+    currentDraft = {
+      ...DRAFT,
+      space_rental_amount: "1000000.00",
+      payment_schedule: null as any,
+    };
+    currentPayments = [
+      { id: "pay-1", payment_kind: "deposit", payment_status: "confirmed", amount: "500000.00", created_at: "2026-08-01T10:00:00Z" } as any,
+    ];
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    // Total should be calculated (1 000 000 space)
+    expect(await screen.findByText("Synthèse Financière & Échéancier")).toBeInTheDocument();
+    expect(screen.getByText("Total Dossier")).toBeInTheDocument();
+    expect(screen.getByText("Total Perçu")).toBeInTheDocument();
+    expect(screen.getAllByText(/500 000 Ar/).length).toBeGreaterThan(0);
   });
 });
