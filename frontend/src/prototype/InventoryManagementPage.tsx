@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createInventoryItem, createStockMovement, deleteInventoryItem, getInventoryItems, updateInventoryItem, ApiError } from "../api";
 import type { InventoryItem } from "../types";
 import { validateStockChange } from "./inventoryStockUtils";
+import { useTableSort, SortableHeader } from "./tableSortUtils";
 
 /** Display-friendly shape that maps from the real InventoryItem API type. */
 interface DisplayItem {
@@ -239,6 +240,30 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
 
     return matchFilter && matchSearch;
   });
+
+  type InventorySortKey =
+    | "name"
+    | "type"
+    | "category"
+    | "purchasePrice"
+    | "unitPrice"
+    | "breakagePrice"
+    | "totalStock"
+    | "availableStock"
+    | "reservedStock"
+    | "outStock"
+    | "expectedReturnStock"
+    | "brokenLostStock"
+    | "status";
+
+  const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<DisplayItem, InventorySortKey>({
+    extractors: {
+      status: (item) => (item.status === "Rupture" ? 0 : item.status === "Bas" ? 1 : 2),
+    },
+    tieBreaker: (a, b) => a.name.localeCompare(b.name, "fr", { numeric: true }),
+  });
+
+  const sortedData = useMemo(() => sortItems(filteredData), [sortItems, filteredData]);
 
   const handleOpenCreate = () => {
     setFormMode("create");
@@ -560,7 +585,20 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               )}
             </div>
           </div>
-          <div className="relative ml-4 flex gap-2">
+          <div className="relative ml-4 flex gap-2 items-center">
+            {sortConfig.key && (
+              <button
+                type="button"
+                onClick={resetSort}
+                className="px-3 py-2 border border-tit-200 bg-tit-50 text-tit-700 text-xs font-bold rounded-lg hover:bg-tit-100 flex items-center gap-1.5 whitespace-nowrap"
+                title="Réinitialiser l'ordre de tri"
+                aria-label="Réinitialiser le tri"
+              >
+                <i className="fas fa-arrow-down-a-z text-xs"></i>
+                <span>Tri actif</span>
+                <i className="fas fa-times ml-0.5 text-tit-500 hover:text-tit-800"></i>
+              </button>
+            )}
             <button type="button" onClick={() => setColumnsOpen((open) => !open)} className="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-bold rounded-lg hover:bg-slate-50 whitespace-nowrap">
               <i className="fas fa-table-columns mr-2"></i>Colonnes
             </button>
@@ -591,24 +629,24 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                 {isColumnVisible("photo") && <th className="p-4 font-bold border-b border-slate-200">Photo</th>}
-                <th className="p-4 font-bold border-b border-slate-200">Article</th>
-                {isColumnVisible("type") && <th className="p-4 font-bold border-b border-slate-200">Type</th>}
-                {isColumnVisible("category") && <th className="p-4 font-bold border-b border-slate-200">Catégorie</th>}
-                {isColumnVisible("purchase_price") && <th className="p-4 font-bold border-b border-slate-200 text-right">Prix achat</th>}
-                {isColumnVisible("rental_price") && <th className="p-4 font-bold border-b border-slate-200 text-right">Prix location</th>}
-                {isColumnVisible("breakage_price") && <th className="p-4 font-bold border-b border-slate-200 text-right">Prix casse</th>}
-                {isColumnVisible("total") && <th className="p-4 font-bold border-b border-slate-200 text-right">Stock actuel</th>}
-                {isColumnVisible("available") && <th className="p-4 font-bold border-b border-slate-200 text-right">Dispo</th>}
-                {isColumnVisible("reserved") && <th className="p-4 font-bold border-b border-slate-200 text-right">Réservé</th>}
-                {isColumnVisible("out") && <th className="p-4 font-bold border-b border-slate-200 text-right">Sorti</th>}
-                {isColumnVisible("return") && <th className="p-4 font-bold border-b border-slate-200 text-right">Retour</th>}
-                {isColumnVisible("damaged") && <th className="p-4 font-bold border-b border-slate-200 text-right">Casse/perte</th>}
-                {isColumnVisible("status") && <th className="p-4 font-bold border-b border-slate-200 text-center">Statut</th>}
+                <SortableHeader label="Article" sortKey="name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />
+                {isColumnVisible("type") && <SortableHeader label="Type" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />}
+                {isColumnVisible("category") && <SortableHeader label="Catégorie" sortKey="category" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />}
+                {isColumnVisible("purchase_price") && <SortableHeader label="Prix achat" sortKey="purchasePrice" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("rental_price") && <SortableHeader label="Prix location" sortKey="unitPrice" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("breakage_price") && <SortableHeader label="Prix casse" sortKey="breakagePrice" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("total") && <SortableHeader label="Stock actuel" sortKey="totalStock" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("available") && <SortableHeader label="Dispo" sortKey="availableStock" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("reserved") && <SortableHeader label="Réservé" sortKey="reservedStock" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("out") && <SortableHeader label="Sorti" sortKey="outStock" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("return") && <SortableHeader label="Retour" sortKey="expectedReturnStock" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("damaged") && <SortableHeader label="Casse/perte" sortKey="brokenLostStock" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />}
+                {isColumnVisible("status") && <SortableHeader label="Statut" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="center" />}
                 <th className="p-4 font-bold border-b border-slate-200 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {filteredData.map(item => (
+              {sortedData.map(item => (
                 <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                   {isColumnVisible("photo") && <td className="p-4">
                     <div className="w-10 h-10 bg-slate-200 rounded overflow-hidden flex items-center justify-center">

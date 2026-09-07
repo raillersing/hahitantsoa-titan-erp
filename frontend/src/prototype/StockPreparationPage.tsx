@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import {
   addLogisticsEventItemLine,
   createLogisticsEvent,
@@ -10,6 +10,7 @@ import {
 } from "../api";
 import { clampQuantity } from "../utils";
 import type { InventoryItem, LogisticsEvent, ReservationDraft } from "../types";
+import { useTableSort } from "./tableSortUtils";
 
 type PrepItem = {
   articleId: string;
@@ -139,6 +140,17 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
     if (filter === "Tous") return true;
     return p.status === filter;
   });
+
+  type PrepSortKey = "dossierRef" | "clientName" | "dateSortie" | "status";
+
+  const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<Preparation, PrepSortKey>({
+    extractors: {
+      status: (p) => (p.status === "Bloqué" ? 0 : p.status === "À préparer" ? 1 : p.status === "Partiel" ? 2 : 3),
+    },
+    tieBreaker: (a, b) => a.dossierRef.localeCompare(b.dossierRef, "fr", { numeric: true }),
+  });
+
+  const sortedData = useMemo(() => sortItems(filteredData), [sortItems, filteredData]);
 
   const updatePreparedQuantity = (preparationId: string, articleId: string, value: number) => {
     setPreparations((current) => current.map((preparation) => {
@@ -301,8 +313,8 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <div className="flex gap-2">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2 flex-wrap">
             {(["Tous", "À préparer", "Partiel", "Prêt", "Bloqué"] as const).map((f) => (
               <button
                 key={f}
@@ -322,10 +334,46 @@ export default function StockPreparationPage({ onNavigate }: { onNavigate: (scop
               </button>
             ))}
           </div>
+          <div className="flex items-center gap-1.5 text-xs flex-wrap">
+            <span className="text-slate-500 dark:text-slate-400 font-medium mr-1">Trier par :</span>
+            {(
+              [
+                { key: "dateSortie", label: "Date sortie" },
+                { key: "dossierRef", label: "Dossier" },
+                { key: "clientName", label: "Client" },
+                { key: "status", label: "Statut" },
+              ] as const
+            ).map((opt) => {
+              const isActive = sortConfig.key === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => handleSort(opt.key)}
+                  className={`px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1 transition ${
+                    isActive
+                      ? "bg-indigo-50 dark:bg-indigo-900/40 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  {isActive && (
+                    <i
+                      className={`fas ${
+                        sortConfig.direction === "asc"
+                          ? "fa-arrow-up-short-wide"
+                          : "fa-arrow-down-wide-short"
+                      } text-[10px]`}
+                    ></i>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="divide-y divide-slate-100">
-          {filteredData.map((prep) => (
+          {sortedData.map((prep) => (
             <div key={prep.id} className="p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>

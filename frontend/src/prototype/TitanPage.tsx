@@ -3,6 +3,7 @@ import BrandIdentity from "./BrandIdentity";
 import { LoadingSpinner, EmptyState } from "../components";
 import { deleteReservationDraft, getReservationDrafts } from "../api";
 import type { ReservationDraft } from "../types";
+import { useTableSort, SortableHeader } from "./tableSortUtils";
 
 const TITAN_KINDS = new Set(["material", "article", "material_pack"]);
 
@@ -120,6 +121,18 @@ export default function TitanPage({ onNavigate, canSensitiveWrite = false, canSu
     });
   }, [search, filter, drafts]);
 
+  type TitanSortKey = "public_reference" | "customer_display_name" | "date" | "items_count" | "status";
+
+  const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<ReservationDraft, TitanSortKey>({
+    extractors: {
+      date: (r) => (r as any).start_date || (r as any).event_date || (r as any).created_at || "",
+      items_count: (r) => r.lines?.length || 0,
+    },
+    tieBreaker: (a, b) => a.public_reference.localeCompare(b.public_reference, "fr", { numeric: true }),
+  });
+
+  const sorted = useMemo(() => sortItems(filtered), [sortItems, filtered]);
+
   const filterButtons: { key: FilterKey; label: string }[] = [
     { key: "all", label: "Toutes" },
     { key: "en_cours", label: "En cours" },
@@ -215,16 +228,16 @@ export default function TitanPage({ onNavigate, canSensitiveWrite = false, canSu
           <table className="w-full text-sm min-w-[900px]">
             <thead>
               <tr className="text-xs text-slate-500 uppercase bg-slate-50">
-                <th className="px-4 py-3 text-left font-medium rounded-tl-lg">N°</th>
-                <th className="px-4 py-3 text-left font-medium">Client</th>
-                <th className="px-4 py-3 text-left font-medium">Date location</th>
-                <th className="px-4 py-3 text-left font-medium">Articles</th>
-                <th className="px-4 py-3 text-center font-medium">Statut</th>
+                <SortableHeader label="N°" sortKey="public_reference" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium rounded-tl-lg" />
+                <SortableHeader label="Client" sortKey="customer_display_name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium" />
+                <SortableHeader label="Date location" sortKey="date" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium" />
+                <SortableHeader label="Articles" sortKey="items_count" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium" />
+                <SortableHeader label="Statut" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="center" className="px-4 py-3 font-medium" />
                 <th className="px-4 py-3 text-right font-medium rounded-tr-lg">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((r) => (
+              {sorted.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
                     <button

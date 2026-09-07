@@ -10,6 +10,7 @@ import type {
   HahitantsoaDiscoveryItem,
   HahitantsoaEventDraft,
 } from "../types";
+import { useTableSort, SortableHeader } from "./tableSortUtils";
 
 interface HahitantsoaPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -156,6 +157,18 @@ export default function HahitantsoaPage({
     });
   }, [search, filter, drafts]);
 
+  type HahitantsoaSortKey = "public_reference" | "customer_display_name" | "period" | "items_count" | "status";
+
+  const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<HahitantsoaEventDraft, HahitantsoaSortKey>({
+    extractors: {
+      period: (r) => r.start_at || (r as any).event_date || (r as any).created_at || "",
+      items_count: (r) => r.lines?.length || 0,
+    },
+    tieBreaker: (a, b) => a.public_reference.localeCompare(b.public_reference, "fr", { numeric: true }),
+  });
+
+  const sorted = useMemo(() => sortItems(filtered), [sortItems, filtered]);
+
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: drafts.length };
     for (const d of drafts) {
@@ -274,24 +287,18 @@ export default function HahitantsoaPage({
           <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="text-xs text-slate-500 uppercase bg-slate-50">
-                <th className="px-4 py-3 text-left font-medium rounded-tl-lg">
-                  Réf.
-                </th>
-                <th className="px-4 py-3 text-left font-medium">Client</th>
-                <th className="px-4 py-3 text-left font-medium">
-                  Période
-                </th>
-                <th className="px-4 py-3 text-left font-medium">Articles</th>
-                <th className="px-4 py-3 text-center font-medium">
-                  Statut
-                </th>
+                <SortableHeader label="Réf." sortKey="public_reference" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium rounded-tl-lg" />
+                <SortableHeader label="Client" sortKey="customer_display_name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium" />
+                <SortableHeader label="Période" sortKey="period" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium" />
+                <SortableHeader label="Articles" sortKey="items_count" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3 font-medium" />
+                <SortableHeader label="Statut" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="center" className="px-4 py-3 font-medium" />
                 <th className="px-4 py-3 text-center font-medium rounded-tr-lg">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((r) => {
+              {sorted.map((r) => {
                 const color = initialsColor(r.customer_display_name);
                 return (
                   <tr
