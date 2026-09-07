@@ -54,6 +54,34 @@ def test_hahitantsoa_contract_uses_canonical_html_css_pages_and_preserves_annex_
     assert "Prix de casse" in html
     assert "Annexe 2 : Plan de masse et évacuation incendie" in html
     assert "total des préjudices" not in html.lower()
+    assert "@media print" in html
+    assert "break-inside: avoid" in html
+
+
+@pytest.mark.parametrize(
+    "key",
+    (
+        "hahitantsoa.proforma.v1",
+        "titan.proforma.v1",
+        "hahitantsoa.invoice.v1",
+        "titan.invoice.v1",
+        "hahitantsoa.breakage_repair_invoice.v1",
+        "titan.breakage_repair_invoice.v1",
+    ),
+)
+def test_proforma_and_invoice_item_tables_have_flexible_compact_tbody(key: str) -> None:
+    definition = get_document_template_definition(key)
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+    assert "132mm" not in html
+    assert ".items" in html
 
 
 def test_hahitantsoa_proforma_uses_its_official_template_and_total_in_words() -> None:
