@@ -168,14 +168,19 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     }
   }, [toast]);
 
+  const totalRefs = inventory.length;
+  const dispoRefs = inventory.filter((i) => i.availableStock > 0).length;
+  const zeroStockRefs = totalRefs - dispoRefs;
+
   const kpiMetrics = {
     total: {
       units: inventory.reduce((acc, curr) => acc + curr.totalStock, 0),
-      itemsCount: inventory.length,
+      itemsCount: totalRefs,
     },
     dispo: {
       units: inventory.reduce((acc, curr) => acc + curr.availableStock, 0),
-      itemsCount: inventory.filter((i) => i.availableStock > 0).length,
+      itemsCount: dispoRefs,
+      zeroStockCount: zeroStockRefs,
     },
     reserve: {
       units: inventory.reduce((acc, curr) => acc + curr.reservedStock, 0),
@@ -443,9 +448,9 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total</p>
             <i className="fas fa-boxes text-slate-400 text-sm"></i>
           </div>
-          <p className="text-2xl font-extrabold text-slate-800 mt-1">{kpiMetrics.total.units}</p>
+          <p className="text-2xl font-extrabold text-slate-800 mt-1">{kpiMetrics.total.units.toLocaleString()}</p>
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            {kpiMetrics.total.itemsCount} {kpiMetrics.total.itemsCount <= 1 ? "article" : "articles"}
+            {kpiMetrics.total.itemsCount} {kpiMetrics.total.itemsCount <= 1 ? "référence" : "références"}
           </p>
         </div>
         <div className="bg-emerald-50 p-4 rounded-xl shadow-sm border border-emerald-100">
@@ -453,9 +458,14 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Dispo</p>
             <i className="fas fa-check-circle text-emerald-500 text-sm"></i>
           </div>
-          <p className="text-2xl font-extrabold text-emerald-700 mt-1">{kpiMetrics.dispo.units}</p>
-          <p className="text-xs text-emerald-600 mt-1 font-medium">
-            {kpiMetrics.dispo.itemsCount} {kpiMetrics.dispo.itemsCount <= 1 ? "article" : "articles"}
+          <p className="text-2xl font-extrabold text-emerald-700 mt-1">{kpiMetrics.dispo.units.toLocaleString()}</p>
+          <p className="text-xs text-emerald-700 mt-1 font-medium">
+            {kpiMetrics.dispo.itemsCount} réf. en stock
+            {kpiMetrics.dispo.zeroStockCount > 0 && (
+              <span className="text-emerald-600 font-normal ml-1">
+                ({kpiMetrics.dispo.zeroStockCount} à 0)
+              </span>
+            )}
           </p>
         </div>
         <div className="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100">
@@ -463,9 +473,9 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Réservé</p>
             <i className="fas fa-calendar-check text-blue-500 text-sm"></i>
           </div>
-          <p className="text-2xl font-extrabold text-blue-700 mt-1">{kpiMetrics.reserve.units}</p>
+          <p className="text-2xl font-extrabold text-blue-700 mt-1">{kpiMetrics.reserve.units.toLocaleString()}</p>
           <p className="text-xs text-blue-600 mt-1 font-medium">
-            {kpiMetrics.reserve.itemsCount} {kpiMetrics.reserve.itemsCount <= 1 ? "article" : "articles"}
+            {kpiMetrics.reserve.itemsCount} {kpiMetrics.reserve.itemsCount <= 1 ? "réf. réservée" : "réf. réservées"}
           </p>
         </div>
         <div className="bg-purple-50 p-4 rounded-xl shadow-sm border border-purple-100">
@@ -473,9 +483,9 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <p className="text-xs text-purple-600 font-bold uppercase tracking-wider">Sorti</p>
             <i className="fas fa-truck text-purple-500 text-sm"></i>
           </div>
-          <p className="text-2xl font-extrabold text-purple-700 mt-1">{kpiMetrics.sorti.units}</p>
+          <p className="text-2xl font-extrabold text-purple-700 mt-1">{kpiMetrics.sorti.units.toLocaleString()}</p>
           <p className="text-xs text-purple-600 mt-1 font-medium">
-            {kpiMetrics.sorti.itemsCount} {kpiMetrics.sorti.itemsCount <= 1 ? "article" : "articles"}
+            {kpiMetrics.sorti.itemsCount} {kpiMetrics.sorti.itemsCount <= 1 ? "réf. sortie" : "réf. sorties"}
           </p>
         </div>
         <div className="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-100">
@@ -483,9 +493,9 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">En retour</p>
             <i className="fas fa-undo text-amber-500 text-sm"></i>
           </div>
-          <p className="text-2xl font-extrabold text-amber-700 mt-1">{kpiMetrics.retour.units}</p>
+          <p className="text-2xl font-extrabold text-amber-700 mt-1">{kpiMetrics.retour.units.toLocaleString()}</p>
           <p className="text-xs text-amber-600 mt-1 font-medium">
-            {kpiMetrics.retour.itemsCount} {kpiMetrics.retour.itemsCount <= 1 ? "article" : "articles"}
+            {kpiMetrics.retour.itemsCount} {kpiMetrics.retour.itemsCount <= 1 ? "réf. attendue" : "réf. attendues"}
           </p>
         </div>
         <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-red-100">
@@ -493,9 +503,9 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
             <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Casse/Perte</p>
             <i className="fas fa-exclamation-triangle text-red-500 text-sm"></i>
           </div>
-          <p className="text-2xl font-extrabold text-red-700 mt-1">{kpiMetrics.casse.units}</p>
+          <p className="text-2xl font-extrabold text-red-700 mt-1">{kpiMetrics.casse.units.toLocaleString()}</p>
           <p className="text-xs text-red-600 mt-1 font-medium">
-            {kpiMetrics.casse.itemsCount} {kpiMetrics.casse.itemsCount <= 1 ? "article" : "articles"}
+            {kpiMetrics.casse.itemsCount} {kpiMetrics.casse.itemsCount <= 1 ? "réf. concernée" : "réf. concernées"}
           </p>
         </div>
       </div>
