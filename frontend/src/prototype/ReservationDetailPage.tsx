@@ -28,8 +28,9 @@ import {
   closeReservationDraft,
   getReservationDraftCloseoutSummary,
   getReservationDraftLifecycle,
+  getInventoryItems,
 } from "../api";
-import type { LifecycleSummary, ReservationCloseoutSummary, ReservationDraft, Customer, DocumentInstance, Payment } from "../types";
+import type { LifecycleSummary, ReservationCloseoutSummary, ReservationDraft, Customer, DocumentInstance, Payment, InventoryItem } from "../types";
 
 /* ── inline helpers ────────────────────────────────────────────────── */
 
@@ -148,6 +149,18 @@ export default function ReservationDetailPage({
   const [amendmentStartAt, setAmendmentStartAt] = useState("");
   const [amendmentEndAt, setAmendmentEndAt] = useState("");
   const [amendmentQuantities, setAmendmentQuantities] = useState<Record<string, number>>({});
+  const [amendmentAddedLines, setAmendmentAddedLines] = useState<
+    Array<{
+      inventory_item_id: string;
+      inventory_item_name: string;
+      inventory_item_kind: "material" | "article" | "material_pack";
+      quantity: number;
+      unit_rental_price: number;
+      notes: string;
+    }>
+  >([]);
+  const [catalogItems, setCatalogItems] = useState<InventoryItem[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const [amendmentStep, setAmendmentStep] = useState(1);
   const [payments, setPayments] = useState<
     {
@@ -293,14 +306,27 @@ export default function ReservationDetailPage({
 
   const closePreview = () => setPreviewDoc(null);
 
-  const openAmendmentWizard = () => {
+  const openAmendmentWizard = async () => {
     setAmendmentStep(1);
     setAmendmentReason("");
     setAmendmentNotes("");
     setAmendmentStartAt("");
     setAmendmentEndAt("");
-    setAmendmentQuantities({});
+    const initialQuantities: Record<string, number> = {};
+    (draft?.lines || []).forEach((l) => {
+      initialQuantities[l.id] = l.quantity;
+    });
+    setAmendmentQuantities(initialQuantities);
+    setAmendmentAddedLines([]);
+    setCatalogSearch("");
     setShowAmendmentForm(true);
+
+    try {
+      const items = await getInventoryItems();
+      setCatalogItems(items);
+    } catch {
+      // Keep empty fallback
+    }
   };
 
   const amendmentStepTitles = ["Motif", "Période", "Articles", "Résumé"];
@@ -315,24 +341,49 @@ export default function ReservationDetailPage({
     if (!draft) return;
     setActionLoading("amendment");
     try {
+      const activeExistingLines = draft.lines
+        .map((line) => ({
+          inventory_item_id: line.inventory_item_id,
+          quantity: amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity,
+          notes: line.notes || "",
+        }))
+        .filter((l) => l.quantity > 0);
+
+      const addedLines = amendmentAddedLines
+        .map((line) => ({
+          inventory_item_id: line.inventory_item_id,
+          quantity: line.quantity,
+          notes: line.notes || "",
+        }))
+        .filter((l) => l.quantity > 0);
+
+      const allLines = [...activeExistingLines, ...addedLines];
+
+      if (allLines.length === 0) {
+        showToast("L'avenant doit comporter au moins un article.", "error");
+        return;
+      }
+
       await createReservationDraftAmendment(draft.id, {
         reason: amendmentReason.trim(),
         notes: amendmentNotes.trim(),
         changed_start_at: amendmentStartAt ? new Date(amendmentStartAt).toISOString() : undefined,
         changed_end_at: amendmentEndAt ? new Date(amendmentEndAt).toISOString() : undefined,
-        changed_lines: draft.lines.map((line) => ({
-          inventory_item_id: line.inventory_item_id,
-          quantity: amendmentQuantities[line.id] ?? line.quantity,
-          notes: line.notes,
-        })),
+        changed_lines: allLines,
       });
+
       setShowAmendmentForm(false);
       setAmendmentReason("");
       setAmendmentNotes("");
       setAmendmentStartAt("");
       setAmendmentEndAt("");
       setAmendmentQuantities({});
-      showToast("Avenant Titan généré et prêt à être imprimé.", "success");
+      setAmendmentAddedLines([]);
+      showToast("Avenant Titan généré et appliqué avec succès.", "success");
+
+      const updatedDraft = await getReservationDraft(draft.id);
+      setDraft(updatedDraft);
+      await refreshLifecycle(draft.id);
       const instances = await getReservationDraftDocumentInstances(draft.id);
       setDocumentInstances(instances);
     } catch (err: any) {
@@ -2537,28 +2588,150 @@ export default function ReservationDetailPage({
               <div className="space-y-5">
                 <div>
                   <h4 className="text-lg font-bold text-slate-800">Modifier les articles loués</h4>
-                  <p className="mt-1 text-sm text-slate-500">Ajustez les quantités. La disponibilité sera revalidée lors de l’enregistrement.</p>
+                  <p className="mt-1 text-sm text-slate-500">Ajustez les quantités ou ajoutez des articles du catalogue. La disponibilité sera revalidée lors de l’enregistrement.</p>
                 </div>
-                {draft?.lines && draft.lines.length > 0 ? (
-                  <div className="space-y-2 border border-slate-200 rounded-xl p-4">
-                    {draft.lines.map((line) => (
-                      <label key={line.id} className="flex items-center justify-between gap-3 rounded-lg border-b border-slate-100 py-3 text-sm text-slate-600 last:border-0">
-                        <span>{line.inventory_item_name}<small className="ml-2 text-slate-400">(actuel : {line.quantity})</small></span>
-                        <input
-                          aria-label={`Quantité ${line.inventory_item_name}`}
-                          type="number"
-                          min="1"
-                          value={amendmentQuantities[line.id] ?? line.quantity}
-                          onChange={(event) => setAmendmentQuantities((current) => ({
-                            ...current,
-                            [line.id]: Math.max(1, Number(event.target.value) || 1),
-                          }))}
-                          className="w-24 border border-slate-300 rounded-lg p-2 text-center"
-                        />
-                      </label>
-                    ))}
+
+                {/* Existing lines */}
+                <div>
+                  <span className="text-xs font-bold uppercase text-slate-600 block mb-2">Articles actuels de la réservation :</span>
+                  {draft?.lines && draft.lines.length > 0 ? (
+                    <div className="space-y-2 border border-slate-200 rounded-xl p-3 max-h-56 overflow-y-auto bg-white">
+                      {draft.lines.map((line) => {
+                        const qty = amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity;
+                        return (
+                          <div key={line.id} className="flex items-center justify-between gap-3 rounded-lg border-b border-slate-100 py-2.5 text-sm text-slate-700 last:border-0">
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium text-slate-900 block truncate">{line.inventory_item_name}</span>
+                              <span className="text-xs text-slate-400">Actuel : {line.quantity} | Tarif : {formatMoney(line.unit_rental_price)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setAmendmentQuantities(prev => ({ ...prev, [line.id]: Math.max(0, qty - 1) }))}
+                                className="h-7 w-7 rounded border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
+                              >
+                                -
+                              </button>
+                              <input
+                                aria-label={`Quantité ${line.inventory_item_name}`}
+                                type="number"
+                                min="0"
+                                value={qty}
+                                onChange={(event) => setAmendmentQuantities((current) => ({
+                                  ...current,
+                                  [line.id]: Math.max(0, Number(event.target.value) || 0),
+                                }))}
+                                className="w-16 border border-slate-300 rounded-lg p-1 text-center font-bold text-slate-900"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setAmendmentQuantities(prev => ({ ...prev, [line.id]: qty + 1 }))}
+                                className="h-7 w-7 rounded border border-slate-300 bg-slate-50 font-bold hover:bg-slate-100 flex items-center justify-center text-slate-700"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">Aucun article actif dans cette réservation.</p>}
+                </div>
+
+                {/* Added lines */}
+                {amendmentAddedLines.length > 0 && (
+                  <div>
+                    <span className="text-xs font-bold uppercase text-slate-600 block mb-2">Nouveaux articles ajoutés :</span>
+                    <div className="space-y-2 border border-emerald-200 bg-emerald-50/40 rounded-xl p-3 max-h-48 overflow-y-auto">
+                      {amendmentAddedLines.map((added, idx) => (
+                        <div key={added.inventory_item_id} className="flex items-center justify-between gap-3 rounded-lg border-b border-emerald-100 py-2 text-sm text-slate-700 last:border-0">
+                          <div className="flex-1 min-w-0">
+                            <span className="font-semibold text-slate-900 block truncate">{added.inventory_item_name}</span>
+                            <span className="text-xs text-slate-400">{formatMoney(added.unit_rental_price)} / unité</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setAmendmentAddedLines(lines => lines.map((l, i) => i === idx ? { ...l, quantity: Math.max(1, l.quantity - 1) } : l))}
+                              className="h-7 w-7 rounded border border-slate-300 bg-white font-bold hover:bg-slate-50 flex items-center justify-center text-slate-700"
+                            >
+                              -
+                            </button>
+                            <span className="w-8 text-center font-bold text-slate-900">{added.quantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => setAmendmentAddedLines(lines => lines.map((l, i) => i === idx ? { ...l, quantity: l.quantity + 1 } : l))}
+                              className="h-7 w-7 rounded border border-slate-300 bg-white font-bold hover:bg-slate-50 flex items-center justify-center text-slate-700"
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAmendmentAddedLines(lines => lines.filter((_, i) => i !== idx))}
+                              className="ml-2 text-rose-600 hover:text-rose-800 text-xs font-bold"
+                            >
+                              <i className="fa-solid fa-trash"></i>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ) : <p className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">Aucun article actif dans cette réservation.</p>}
+                )}
+
+                {/* Catalog Search & Addition */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                  <span className="text-xs font-bold text-slate-700 uppercase block">Ajouter des articles du catalogue :</span>
+                  <input
+                    type="text"
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    placeholder="Rechercher un article Titan (ex: Chaise, Table, Tente...)..."
+                    className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
+                  />
+                  {catalogSearch.trim() && (
+                    <div className="rounded-lg border border-slate-200 bg-white max-h-40 overflow-y-auto divide-y divide-slate-100">
+                      {catalogItems
+                        .filter(item => item.name.toLowerCase().includes(catalogSearch.toLowerCase()) || item.kind?.toLowerCase().includes(catalogSearch.toLowerCase()))
+                        .slice(0, 8)
+                        .map(item => {
+                          const isAlreadyInDraft = (draft?.lines || []).some(l => l.inventory_item_id === item.id);
+                          const isAlreadyAdded = amendmentAddedLines.some(l => l.inventory_item_id === item.id);
+                          return (
+                            <div key={item.id} className="flex items-center justify-between p-2 text-xs hover:bg-slate-50">
+                              <div>
+                                <span className="font-bold text-slate-900 block">{item.name}</span>
+                                <span className="text-slate-400">{formatMoney(item.rental_price || 0)} / jour</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!isAlreadyAdded) {
+                                    setAmendmentAddedLines(prev => [
+                                      ...prev,
+                                      {
+                                        inventory_item_id: item.id,
+                                        inventory_item_name: item.name,
+                                        inventory_item_kind: (item.kind as any) || "material",
+                                        quantity: 1,
+                                        unit_rental_price: Number(item.rental_price) || 0,
+                                        notes: "",
+                                      }
+                                    ]);
+                                    setCatalogSearch("");
+                                  }
+                                }}
+                                disabled={isAlreadyInDraft || isAlreadyAdded}
+                                className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded text-xs font-bold disabled:opacity-50"
+                              >
+                                {isAlreadyInDraft ? "Déjà dans la liste" : isAlreadyAdded ? "Ajouté" : "+ Ajouter"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -2571,7 +2744,12 @@ export default function ReservationDetailPage({
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm">
                   <div><dt className="font-semibold text-slate-500">Motif</dt><dd className="text-slate-800">{amendmentReason || "Non renseigné"}</dd></div>
                   <div><dt className="font-semibold text-slate-500">Période</dt><dd className="text-slate-800">{amendmentStartAt || "Date initiale"} → {amendmentEndAt || "Date initiale"}</dd></div>
-                  <div className="sm:col-span-2"><dt className="font-semibold text-slate-500">Articles</dt><dd className="text-slate-800">{draft?.lines?.length ?? 0} ligne(s), quantités vérifiées</dd></div>
+                  <div className="sm:col-span-2">
+                    <dt className="font-semibold text-slate-500">Articles</dt>
+                    <dd className="text-slate-800">
+                      {draft?.lines?.filter(l => (amendmentQuantities[l.id] ?? l.quantity) > 0).length ?? 0} ligne(s) existante(s) + {amendmentAddedLines.length} ligne(s) ajoutée(s)
+                    </dd>
+                  </div>
                   {amendmentNotes && <div className="sm:col-span-2"><dt className="font-semibold text-slate-500">Détails</dt><dd className="whitespace-pre-wrap text-slate-800">{amendmentNotes}</dd></div>}
                 </dl>
               </div>
