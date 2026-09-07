@@ -13,6 +13,7 @@ export interface ExistingPaymentItem {
   receipt_document?: DocumentInstance | null;
   payment_status?: string;
   payment_kind?: string;
+  is_current?: boolean;
 }
 
 export interface PaymentRegistrationModalProps {
@@ -470,9 +471,9 @@ export function generateThermalReceiptHtml(params: {
             : allHistory
                 .map(
                   (item) => `
-          <tr>
-            <td>${item.date.slice(0, 10)}</td>
-            <td style="text-align: right;">${formatMoney(item.amount)}</td>
+          <tr class="${item.is_current ? "row-current" : ""}">
+            <td>${item.is_current ? "★ " : ""}${item.date.slice(0, 10)}${item.is_current ? " <strong>(Ce reçu)</strong>" : ""}</td>
+            <td style="text-align: right;">${item.is_current ? "+ " : ""}${formatMoney(item.amount)}</td>
             <td>${item.method || "—"}</td>
           </tr>`,
                 )
@@ -482,7 +483,7 @@ export function generateThermalReceiptHtml(params: {
           params.currentPaymentItem && params.currentPaymentItem.amount > 0
             ? `
           <tr class="row-current">
-            <td>${params.currentPaymentItem.date.slice(0, 10)} <em>(En cours)</em></td>
+            <td>★ ${params.currentPaymentItem.date.slice(0, 10)} <strong>(Ce reçu)</strong></td>
             <td style="text-align: right;">+ ${formatMoney(params.currentPaymentItem.amount)}</td>
             <td>${params.currentPaymentItem.methodLabel}</td>
           </tr>`
@@ -720,6 +721,12 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       transactionReference: selectedPastPayment.reference,
       paymentKindLabel: getPaymentKindLabel(selectedPastPayment.payment_kind || "deposit"),
       historyPayments: existingPayments.filter((p) => p.id !== selectedPastPayment.id),
+      currentPaymentItem: {
+        date: selectedPastPayment.date,
+        amount: selectedPastPayment.amount,
+        methodLabel: getPaymentMethodLabel(selectedPastPayment.method),
+        isDraft: false,
+      },
       totalDepositAmount: existingPayments.reduce((acc, p) => acc + (p.amount || 0), 0),
       draftReference: draftReference || proformaReference,
       proformaReference: proformaReference || draftReference,
