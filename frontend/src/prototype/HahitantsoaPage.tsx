@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import BrandIdentity from "./BrandIdentity";
 import { LoadingSpinner, EmptyState } from "../components";
 import {
@@ -6,6 +6,10 @@ import {
   getHahitantsoaEventDrafts,
   deleteHahitantsoaEventDraft,
 } from "../api";
+import {
+  DraftConflictResolutionModal,
+  type ConflictResolutionTarget,
+} from "./DraftConflictResolutionModal";
 import type {
   HahitantsoaDiscoveryItem,
   HahitantsoaEventDraft,
@@ -101,6 +105,31 @@ export default function HahitantsoaPage({
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Conflict modal state
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictModalTarget, setConflictModalTarget] = useState<ConflictResolutionTarget | null>(null);
+  const [conflictModalTab, setConflictModalTab] = useState<"reschedule" | "waitlist" | "cancel">("reschedule");
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [draftsData, discoveryData] = await Promise.all([
+        getHahitantsoaEventDrafts(),
+        getHahitantsoaDiscoveryItems(),
+      ]);
+      setDrafts(draftsData);
+      setDiscoveryItems(discoveryData.items);
+    } catch (err: any) {
+      setError(
+        err.message ||
+          "Erreur lors du chargement des réservations Hahitantsoa."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleDelete = async (draft: HahitantsoaEventDraft) => {
     if (!canSuperAdminDelete || deletingId || !window.confirm(`Supprimer la réservation de test ${draft.public_reference} ?`)) return;
     setDeletingId(draft.id);
@@ -113,35 +142,8 @@ export default function HahitantsoaPage({
   };
 
   useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadData() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [draftsData, discoveryData] = await Promise.all([
-          getHahitantsoaEventDrafts(undefined, controller.signal),
-          getHahitantsoaDiscoveryItems(controller.signal),
-        ]);
-        if (!controller.signal.aborted) {
-          setDrafts(draftsData);
-          setDiscoveryItems(discoveryData.items);
-          setLoading(false);
-        }
-      } catch (err: any) {
-        if (err.name !== "AbortError" && !controller.signal.aborted) {
-          setError(
-            err.message ||
-              "Erreur lors du chargement des réservations Hahitantsoa."
-          );
-          setLoading(false);
-        }
-      }
-    }
-
     void loadData();
-    return () => controller.abort();
-  }, []);
+  }, [loadData]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -158,6 +160,30 @@ export default function HahitantsoaPage({
   }, [search, filter, drafts]);
 
   type HahitantsoaSortKey = "public_reference" | "customer_display_name" | "period" | "items_count" | "status";
+
+  const confirmedDrafts = useMemo(() => drafts.filter((d) => d.status === "confirmed"), [drafts]);
+
+  const conflictedDraftMap = useMemo(() => {
+    const map = new Map<string, { conflictRef: string; conflictName: string }>();
+    for (const draft of drafts) {
+      if (draft.status !== "confirmed") {
+        const dVenue = (draft.venue_name || "Salle principale").trim().toLowerCase();
+        const dStart = new Date(draft.start_at);
+        const dEnd = new Date(draft.end_at);
+        const overlap = confirmedDrafts.find((conf) => {
+          if (conf.id === draft.id) return false;
+          const cVenue = (conf.venue_name || "Salle principale").trim().toLowerCase();
+          const cStart = new Date(conf.start_at);
+          const cEnd = new Date(conf.end_at);
+          return cVenue === dVenue && cStart < dEnd && cEnd > dStart;
+        });
+        if (overlap) {
+          map.set(draft.id, { conflictRef: overlap.public_reference, conflictName: overlap.event_name || "Événement" });
+        }
+      }
+    }
+    return map;
+  }, [drafts, confirmedDrafts]);
 
   const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<HahitantsoaEventDraft, HahitantsoaSortKey>({
     extractors: {
@@ -300,10 +326,11 @@ export default function HahitantsoaPage({
             <tbody className="divide-y divide-slate-100">
               {sorted.map((r) => {
                 const color = initialsColor(r.customer_display_name);
+                const isConflicted = conflictedDraftMap.has(r.id);
                 return (
                   <tr
                     key={r.id}
-                    className="hover:bg-slate-50 transition-colors"
+                    className={`hover:bg-slate-50 transition-colors ${isConflicted ? "bg-rose-50/40" : ""}`}
                   >
                     <td className="px-4 py-3">
                       <button
@@ -347,16 +374,51 @@ export default function HahitantsoaPage({
                       {r.lines.length} article(s)
                     </td>
                     <td className="px-4 py-3 text-center">
-                      {formatStatusBadge(r.status)}
+                      {isConflicted ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 text-xs font-bold">
+                          <i className="fa-solid fa-triangle-exclamation text-[10px]"></i> En conflit
+                        </span>
+                      ) : (
+                        formatStatusBadge(r.status)
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => onNavigate("reservation-detail", `hahitantsoa:${r.id}`)}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
-                      >
-                        <i className="fa-solid fa-eye text-[10px]"></i>
-                        Voir détail
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        {isConflicted && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const conf = conflictedDraftMap.get(r.id);
+                              setConflictModalTarget({
+                                id: r.id,
+                                category: "hahitantsoa",
+                                title: r.event_name || r.public_reference,
+                                customerName: r.customer_display_name,
+                                startAt: r.start_at,
+                                endAt: r.end_at,
+                                location: r.venue_name || "Salle principale",
+                                conflictingWith: conf?.conflictRef,
+                                conflictingWithEventName: conf?.conflictName,
+                                raw: r,
+                              });
+                              setConflictModalTab("reschedule");
+                              setShowConflictModal(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 transition-colors shadow-2xs cursor-pointer"
+                            title="Arbitrer et relocaliser ce devis en conflit"
+                          >
+                            <i className="fa-solid fa-bolt text-[10px]"></i>
+                            Arbitrer
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onNavigate("reservation-detail", `hahitantsoa:${r.id}`)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-600 text-xs font-medium hover:bg-indigo-100 transition-colors"
+                        >
+                          <i className="fa-solid fa-eye text-[10px]"></i>
+                          Voir détail
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -376,6 +438,15 @@ export default function HahitantsoaPage({
           </table>
         </div>
       )}
+
+      {/* ── Conflict Arbitration & Rescheduling Modal ──────────────────── */}
+      <DraftConflictResolutionModal
+        isOpen={showConflictModal}
+        onClose={() => setShowConflictModal(false)}
+        event={conflictModalTarget}
+        initialTab={conflictModalTab}
+        onResolved={loadData}
+      />
     </div>
   );
 }

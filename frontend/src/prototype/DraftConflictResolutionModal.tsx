@@ -1,16 +1,32 @@
 import React, { useState } from "react";
 import { AvailabilityDatePicker } from "../components";
 import {
+  cancelReservationDraft,
   deleteHahitantsoaEventDraft,
   updateHahitantsoaEventDraft,
   updateReservationDraft,
 } from "../api";
 import type { UnifiedPlanningEvent } from "./PlanningPage";
 
+export interface ConflictResolutionTarget {
+  id: string;
+  category: "hahitantsoa" | "titan";
+  title: string;
+  customerName: string;
+  startAt: Date | string;
+  endAt: Date | string | null;
+  location?: string;
+  reference?: string;
+  conflictingWith?: string;
+  conflictingWithEventName?: string;
+  raw?: any;
+}
+
 export interface DraftConflictResolutionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  event: UnifiedPlanningEvent | null;
+  event: ConflictResolutionTarget | UnifiedPlanningEvent | null;
+  initialTab?: "reschedule" | "waitlist" | "cancel";
   onResolved?: () => void | Promise<void>;
 }
 
@@ -18,11 +34,12 @@ export function DraftConflictResolutionModal({
   isOpen,
   onClose,
   event,
+  initialTab = "reschedule",
   onResolved,
 }: DraftConflictResolutionModalProps) {
   if (!isOpen || !event) return null;
 
-  const [activeTab, setActiveTab] = useState<"reschedule" | "waitlist" | "cancel">("reschedule");
+  const [activeTab, setActiveTab] = useState<"reschedule" | "waitlist" | "cancel">(initialTab);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -37,14 +54,16 @@ export function DraftConflictResolutionModal({
   const [newStartDate, setNewStartDate] = useState(nextWeekDate.toISOString().slice(0, 10));
   const [startTime, setStartTime] = useState(() => {
     if (!event.startAt) return "08:00";
-    const h = String(event.startAt.getHours()).padStart(2, "0");
-    const m = String(event.startAt.getMinutes()).padStart(2, "0");
+    const d = new Date(event.startAt);
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
     return `${h}:${m}`;
   });
   const [endTime, setEndTime] = useState(() => {
     if (!event.endAt) return "20:00";
-    const h = String(event.endAt.getHours()).padStart(2, "0");
-    const m = String(event.endAt.getMinutes()).padStart(2, "0");
+    const d = new Date(event.endAt);
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
     return `${h}:${m}`;
   });
 
@@ -100,6 +119,10 @@ export function DraftConflictResolutionModal({
         await updateHahitantsoaEventDraft(event.raw.id, {
           notes: `${event.raw.notes || ""} [LISTE D'ATTENTE] ${waitlistNotes}`.trim(),
         });
+      } else if (event.category === "titan" && event.raw?.id) {
+        await updateReservationDraft(event.raw.id, {
+          notes: `${event.raw.notes || ""} [LISTE D'ATTENTE] ${waitlistNotes}`.trim(),
+        });
       }
       setSuccessMessage("Le dossier a été basculé en liste d'attente.");
       setTimeout(async () => {
@@ -122,8 +145,12 @@ export function DraftConflictResolutionModal({
     try {
       if (event.category === "hahitantsoa" && event.raw?.id) {
         await deleteHahitantsoaEventDraft(event.raw.id);
+      } else if (event.category === "titan" && event.raw?.id) {
+        await cancelReservationDraft(event.raw.id, {
+          reason: cancellationReason || "Conflit planning résolu",
+        });
       }
-      setSuccessMessage("Le devis en conflit a été supprimé du planning.");
+      setSuccessMessage("Le devis en conflit a été supprimé ou annulé.");
       setTimeout(async () => {
         if (onResolved) await onResolved();
         onClose();

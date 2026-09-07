@@ -85,6 +85,9 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
     expect(eventButtons.length).toBeGreaterThan(0);
 
     fireEvent.click(eventButtons[0]);
+    const openDossierBtn = await screen.findByRole("button", { name: /Accéder au dossier/i });
+    fireEvent.click(openDossierBtn);
+
     await waitFor(() => {
       expect(onNavigate).toHaveBeenCalledWith("reservation-detail", "hahitantsoa:hah-event-123");
     });
