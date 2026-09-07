@@ -318,4 +318,104 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
       expect(cancelSpy).toHaveBeenCalledWith("visit-456");
     });
   });
+
+  it("identifies conflicting event drafts when a confirmed event overlaps on the same venue and date", async () => {
+    const monday = currentMonday();
+    const endAt = new Date(monday);
+    endAt.setHours(endAt.getHours() + 8);
+
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue([
+      {
+        id: "hah-confirmed",
+        public_reference: "H-002/2026",
+        event_name: "Mariage Ramila Confirme",
+        venue_name: "Salle des fêtes + jardin",
+        customer_display_name: "Ramila Jeany",
+        start_at: monday.toISOString(),
+        end_at: endAt.toISOString(),
+        status: "confirmed",
+        lines: [],
+      } as any,
+      {
+        id: "hah-draft-conflict",
+        public_reference: "H-003/2026",
+        event_name: "Devis Conflit Faly",
+        venue_name: "Salle des fêtes + jardin",
+        customer_display_name: "Faly Ranaivo",
+        start_at: monday.toISOString(),
+        end_at: endAt.toISOString(),
+        status: "draft",
+        lines: [],
+      } as any,
+    ]);
+
+    render(<PlanningPage />);
+
+    // Should display both
+    expect(await screen.findByText(/Mariage Ramila Confirme/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Devis Conflit Faly/i)).toBeInTheDocument();
+
+    // Should show conflict indicator and badge
+    const conflictElements = await screen.findAllByText(/En conflit/i);
+    expect(conflictElements.length).toBeGreaterThan(0);
+
+    // Clicking the conflicted event should open drawer with conflict banner and resolve button
+    fireEvent.click(screen.getByText(/Devis Conflit Faly/i));
+    const arbitrerBtns = await screen.findAllByText(/Arbitrer \/ Relocaliser/i);
+    expect(arbitrerBtns.length).toBeGreaterThan(0);
+
+    // Clicking Arbitrer opens the conflict resolution modal
+    fireEvent.click(arbitrerBtns[0]);
+    expect(await screen.findByText(/Arbitrage & Relocalisation/i)).toBeInTheDocument();
+  });
+
+  it("filters planning events by status (Confirmés, Devis, Conflits)", async () => {
+    const monday = currentMonday();
+    const endAt = new Date(monday);
+    endAt.setHours(endAt.getHours() + 4);
+
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue([
+      {
+        id: "hah-1",
+        public_reference: "H-001",
+        event_name: "Evt Confirme",
+        venue_name: "Salle A",
+        customer_display_name: "Client 1",
+        start_at: monday.toISOString(),
+        end_at: endAt.toISOString(),
+        status: "confirmed",
+        lines: [],
+      } as any,
+      {
+        id: "hah-2",
+        public_reference: "H-002",
+        event_name: "Evt Libre Devis",
+        venue_name: "Salle B",
+        customer_display_name: "Client 2",
+        start_at: monday.toISOString(),
+        end_at: endAt.toISOString(),
+        status: "draft",
+        lines: [],
+      } as any,
+    ]);
+
+    render(<PlanningPage />);
+
+    expect(await screen.findByText(/Evt Confirme/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Evt Libre Devis/i)).toBeInTheDocument();
+
+    // Filter by Confirmed only
+    const confirmedFilterBtn = screen.getByRole("button", { name: /Confirmés fermes/i });
+    fireEvent.click(confirmedFilterBtn);
+
+    expect(screen.getByText(/Evt Confirme/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Evt Libre Devis/i)).not.toBeInTheDocument();
+
+    // Filter by Devis & Options only
+    const draftFilterBtn = screen.getByRole("button", { name: /Devis \/ Options/i });
+    fireEvent.click(draftFilterBtn);
+
+    expect(screen.queryByText(/Evt Confirme/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Evt Libre Devis/i)).toBeInTheDocument();
+  });
 });

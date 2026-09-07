@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AvailabilityDatePicker, AvailabilityInspectorModal } from "../components";
+import { DraftConflictResolutionModal } from "./DraftConflictResolutionModal";
 import {
   cancelVisitAppointment,
   completeVisitAppointment,
@@ -51,7 +52,7 @@ export interface UnifiedPlanningEvent {
   startAt: Date;
   endAt: Date | null;
   status: string;
-  statusKind: "confirmed" | "draft" | "scheduled" | "completed" | "cancelled" | "due" | "warning";
+  statusKind: "confirmed" | "draft" | "conflict" | "scheduled" | "completed" | "cancelled" | "due" | "warning";
   location?: string;
   amountAriary?: number;
   resourceCount?: number;
@@ -60,6 +61,9 @@ export interface UnifiedPlanningEvent {
   targetScope?: "reservation-detail" | "customer" | "logistics-dispatch" | "agenda-visitors";
   targetParam?: string;
   isOngoing?: boolean;
+  isConflicted?: boolean;
+  conflictingWith?: string;
+  conflictingWithEventName?: string;
   raw: any;
 }
 
@@ -254,7 +258,9 @@ function statusBadgeClasses(statusKind: UnifiedPlanningEvent["statusKind"]): str
   switch (statusKind) {
     case "confirmed":
     case "completed":
-      return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
+      return "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 font-bold";
+    case "conflict":
+      return "bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700 font-black animate-pulse";
     case "due":
     case "warning":
       return "bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800";
@@ -263,8 +269,56 @@ function statusBadgeClasses(statusKind: UnifiedPlanningEvent["statusKind"]): str
     case "draft":
     case "scheduled":
     default:
-      return "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+      return "bg-amber-50/70 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-700 border-dashed";
   }
+}
+
+function getEventCardClass(event: UnifiedPlanningEvent): string {
+  if (event.statusKind === "conflict") {
+    return "bg-rose-50/90 dark:bg-rose-950/50 border-rose-300 dark:border-rose-700 border-l-4 border-l-rose-600 shadow-xs hover:border-rose-500";
+  }
+  if (event.statusKind === "confirmed") {
+    return "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 border-l-4 border-l-emerald-600 shadow-xs hover:border-emerald-500";
+  }
+  if (event.statusKind === "draft") {
+    return "bg-amber-50/30 dark:bg-amber-950/20 border-dashed border-amber-300 dark:border-amber-700 border-l-4 border-l-amber-400 hover:bg-amber-50/60";
+  }
+  const cfg = CATEGORY_CONFIG[event.category];
+  return `bg-slate-50/50 dark:bg-slate-800/40 border-l-4 ${cfg.cardAccent} ${cfg.borderBadge}`;
+}
+
+function getMonthChipStyle(event: UnifiedPlanningEvent): { chipBg: string; chipText: string; border: string; icon: string } {
+  if (event.statusKind === "conflict") {
+    return {
+      chipBg: "bg-rose-600 dark:bg-rose-700",
+      chipText: "text-white font-black",
+      border: "border-rose-700 dark:border-rose-500",
+      icon: "fa-triangle-exclamation text-rose-200",
+    };
+  }
+  if (event.statusKind === "confirmed") {
+    return {
+      chipBg: "bg-emerald-600 dark:bg-emerald-700",
+      chipText: "text-white font-bold",
+      border: "border-emerald-700 dark:border-emerald-500",
+      icon: "fa-circle-check text-emerald-200",
+    };
+  }
+  if (event.statusKind === "draft") {
+    return {
+      chipBg: "bg-amber-100 dark:bg-amber-950/80",
+      chipText: "text-amber-900 dark:text-amber-200 font-medium",
+      border: "border border-dashed border-amber-400 dark:border-amber-600",
+      icon: "fa-file-lines text-amber-600 dark:text-amber-400",
+    };
+  }
+  const cfg = CATEGORY_CONFIG[event.category];
+  return {
+    chipBg: cfg.chipBg,
+    chipText: cfg.chipText,
+    border: `border ${cfg.borderBadge}`,
+    icon: cfg.icon,
+  };
 }
 
 export default function PlanningPage({ onNavigate }: PlanningPageProps) {
@@ -275,6 +329,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [itemsState, setItemsState] = useState<ItemsState>({ status: "loading" });
   const [selectedEvent, setSelectedEvent] = useState<UnifiedPlanningEvent | null>(null);
+  const [conflictEventToResolve, setConflictEventToResolve] = useState<UnifiedPlanningEvent | null>(null);
 
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
   const [isAvailabilityInspectorOpen, setIsAvailabilityInspectorOpen] = useState(false);
@@ -349,10 +404,39 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
         }
       }
 
+      const confirmedHahitantsoa = eventDrafts.filter((d) => d.status === "confirmed");
+
       for (const draft of eventDrafts) {
         const startAt = new Date(draft.start_at);
         const endAt = new Date(draft.end_at);
-        const statusLabel = hahitantsoaPlanningStatus(draft.status);
+        let statusLabel = hahitantsoaPlanningStatus(draft.status);
+        let statusKind: UnifiedPlanningEvent["statusKind"] = draft.status === "confirmed" ? "confirmed" : "draft";
+        let isConflicted = false;
+        let conflictingWith: string | undefined = undefined;
+        let conflictingWithEventName: string | undefined = undefined;
+
+        if (draft.status !== "confirmed") {
+          const draftVenue = (draft.venue_name || "Salle principale").trim().toLowerCase();
+          const overlap = confirmedHahitantsoa.find((conf) => {
+            if (conf.id === draft.id) return false;
+            const confVenue = (conf.venue_name || "Salle principale").trim().toLowerCase();
+            const cStart = new Date(conf.start_at);
+            const cEnd = new Date(conf.end_at);
+            return confVenue === draftVenue && cStart < endAt && cEnd > startAt;
+          });
+
+          if (overlap) {
+            isConflicted = true;
+            statusKind = "conflict";
+            statusLabel = "En conflit de date";
+            conflictingWith = overlap.public_reference;
+            conflictingWithEventName = overlap.event_name;
+          } else {
+            statusLabel = "Option / Devis";
+          }
+        } else {
+          statusLabel = "✓ Confirmé (Ferme)";
+        }
 
         events.push({
           id: draft.id,
@@ -364,7 +448,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           startAt,
           endAt,
           status: statusLabel,
-          statusKind: draft.status === "confirmed" ? "confirmed" : "draft",
+          statusKind,
           location: draft.venue_name || draft.location_details,
           resourceCount: draft.lines?.length ?? 0,
           reference: draft.public_reference,
@@ -372,6 +456,9 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           targetScope: "reservation-detail",
           targetParam: `hahitantsoa:${draft.id}`,
           isOngoing: startAt < monday,
+          isConflicted,
+          conflictingWith,
+          conflictingWithEventName,
           raw: draft,
         });
 
@@ -528,6 +615,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
       result = result.filter((e) => {
         if (statusFilter === "confirmed") return e.statusKind === "confirmed" || e.statusKind === "completed";
         if (statusFilter === "draft") return e.statusKind === "draft";
+        if (statusFilter === "conflict") return e.statusKind === "conflict";
         if (statusFilter === "due") return e.statusKind === "due" || e.statusKind === "warning";
         return true;
       });
@@ -547,6 +635,15 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
 
     return result;
   }, [allEvents, categoryFilter, statusFilter, searchQuery]);
+
+  const statusCounts = useMemo(() => {
+    return {
+      all: allEvents.length,
+      confirmed: allEvents.filter((e) => e.statusKind === "confirmed" || e.statusKind === "completed").length,
+      draft: allEvents.filter((e) => e.statusKind === "draft").length,
+      conflict: allEvents.filter((e) => e.statusKind === "conflict").length,
+    };
+  }, [allEvents]);
 
   const kpis = useMemo(() => {
     const today = new Date();
@@ -806,7 +903,66 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+        {/* Status Filter Bar (Confirmés vs Devis vs Conflits) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-500 mr-1 flex items-center gap-1">
+              <i className="fa-solid fa-filter text-[10px]"></i>
+              Statut :
+            </span>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition ${
+                statusFilter === "all"
+                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+              }`}
+            >
+              Tous ({statusCounts.all})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("confirmed")}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                statusFilter === "confirmed"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100"
+              }`}
+            >
+              <i className="fa-solid fa-circle-check text-[10px]"></i>
+              <span>Confirmés fermes ({statusCounts.confirmed})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("draft")}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                statusFilter === "draft"
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border border-dashed border-amber-300 dark:border-amber-700 hover:bg-amber-100"
+              }`}
+            >
+              <i className="fa-solid fa-file-lines text-[10px]"></i>
+              <span>Devis / Options ({statusCounts.draft})</span>
+            </button>
+            {statusCounts.conflict > 0 && (
+              <button
+                type="button"
+                onClick={() => setStatusFilter("conflict")}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  statusFilter === "conflict"
+                    ? "bg-rose-600 text-white shadow-xs animate-pulse"
+                    : "bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700 hover:bg-rose-100"
+                }`}
+              >
+                <i className="fa-solid fa-triangle-exclamation text-[10px] text-rose-600 dark:text-rose-400"></i>
+                <span>En conflit ({statusCounts.conflict})</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
@@ -817,7 +973,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
                   : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
-              Tous ({allEvents.length})
+              Toutes catégories ({allEvents.length})
             </button>
 
             {(
@@ -949,6 +1105,22 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
             setSelectedEvent(null);
             handleNavigateToEvent(event);
           }}
+          onResolveConflict={(event) => {
+            setSelectedEvent(null);
+            setConflictEventToResolve(event);
+          }}
+        />
+      )}
+
+      {/* Conflict Resolution & Rescheduling Modal */}
+      {conflictEventToResolve && (
+        <DraftConflictResolutionModal
+          isOpen={!!conflictEventToResolve}
+          event={conflictEventToResolve}
+          onClose={() => setConflictEventToResolve(null)}
+          onResolved={async () => {
+            await loadData();
+          }}
         />
       )}
 
@@ -1071,17 +1243,20 @@ function MonthViewGrid({
 
               <div className="space-y-1 my-auto overflow-hidden">
                 {dayEvents.slice(0, 3).map((event) => {
-                  const cfg = CATEGORY_CONFIG[event.category];
+                  const style = getMonthChipStyle(event);
                   return (
                     <button
                       key={event.id}
                       type="button"
                       onClick={() => onSelectEvent(event)}
-                      className={`w-full text-left px-2 py-1 rounded-lg text-[11px] font-medium truncate flex items-center gap-1.5 transition ${cfg.bgBadge} ${cfg.textBadge} border ${cfg.borderBadge} hover:scale-[1.02] shadow-2xs`}
-                      title={`${event.title} - ${event.customerName}`}
+                      className={`w-full text-left px-2 py-1 rounded-lg text-[11px] font-medium truncate flex items-center gap-1.5 transition ${style.chipBg} ${style.chipText} ${style.border} hover:scale-[1.02] shadow-2xs`}
+                      title={`${event.title} - ${event.customerName} (${event.status})`}
                     >
-                      <i className={`fa-solid ${cfg.icon} text-[9px] opacity-75 shrink-0`}></i>
+                      <i className={`fa-solid ${style.icon} text-[9px] opacity-90 shrink-0`}></i>
                       <span className="truncate">{event.title}</span>
+                      {event.statusKind === "conflict" && (
+                        <span className="ml-auto text-[9px] bg-rose-900 text-white px-1 rounded">!</span>
+                      )}
                     </button>
                   );
                 })}
@@ -1181,7 +1356,7 @@ function WeekViewGrid({
                       <div
                         key={event.id}
                         onClick={() => onEventClick(event)}
-                        className={`rounded-2xl border bg-slate-50/50 dark:bg-slate-800/40 p-3 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all border-l-4 cursor-pointer ${cfg.cardAccent} ${cfg.borderBadge}`}
+                        className={`rounded-2xl border p-3 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all cursor-pointer ${getEventCardClass(event)}`}
                       >
                         <div className="flex items-center justify-between gap-1 mb-1.5">
                           <span
@@ -1197,6 +1372,13 @@ function WeekViewGrid({
                             {event.status}
                           </span>
                         </div>
+
+                        {event.statusKind === "conflict" && (
+                          <div className="mb-2 p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold flex items-center gap-1 border border-rose-300">
+                            <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                            <span className="truncate">Date occupée par {event.conflictingWith}</span>
+                          </div>
+                        )}
 
                         {/* Title button */}
                         <button
@@ -1328,8 +1510,14 @@ function DayViewTimeline({
               return (
                 <div
                   key={event.id}
-                  className={`rounded-2xl border p-3.5 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all border-l-4 ${cfg.cardAccent} ${cfg.borderBadge}`}
+                  className={`rounded-2xl border p-3.5 hover:bg-white dark:hover:bg-slate-800 hover:shadow-md transition-all ${getEventCardClass(event)}`}
                 >
+                  {event.statusKind === "conflict" && (
+                    <div className="mb-2 p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 text-[10px] font-bold flex items-center gap-1 border border-rose-300">
+                      <i className="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                      <span>Date déjà réservée par {event.conflictingWith}</span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <span
                       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold ${cfg.bgBadge} ${cfg.textBadge}`}
@@ -1615,6 +1803,7 @@ interface EventDetailDrawerProps {
   onClose: () => void;
   onNavigate: (event: UnifiedPlanningEvent) => void;
   onRefresh?: () => void | Promise<void>;
+  onResolveConflict?: (event: UnifiedPlanningEvent) => void;
 }
 
 function EventDetailDrawer({
@@ -1622,6 +1811,7 @@ function EventDetailDrawer({
   onClose,
   onNavigate,
   onRefresh,
+  onResolveConflict,
 }: EventDetailDrawerProps) {
   const cfg = CATEGORY_CONFIG[event.category];
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -1773,6 +1963,37 @@ function EventDetailDrawer({
 
           {/* Body content */}
           <div className="p-6 space-y-6 overflow-y-auto flex-1">
+            {event.statusKind === "conflict" && (
+              <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 space-y-3 shadow-xs">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <i className="fa-solid fa-triangle-exclamation"></i>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-rose-900 dark:text-rose-200">
+                      Conflit de disponibilité de salle
+                    </h4>
+                    <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">
+                      Ce devis chevauche la réservation confirmée <strong>{event.conflictingWith || "Dossier Ferme"}</strong>. Il ne peut pas être confirmé à cette date.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onResolveConflict) onResolveConflict(event);
+                    }}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs flex items-center gap-1.5 transition"
+                  >
+                    <i className="fa-solid fa-calendar-day"></i>
+                    <span>Arbitrer / Relocaliser la date</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {actionError && (
               <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-semibold">
                 <i className="fa-solid fa-circle-exclamation mr-1.5"></i>
