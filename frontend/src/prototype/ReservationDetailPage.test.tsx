@@ -64,6 +64,8 @@ const mockConfirmReservationDraft = vi.fn();
 const mockGetPayments = vi.fn();
 const mockRecordConfirmedDeposit = vi.fn();
 const mockGetLifecycle = vi.fn();
+const mockCreateReservationDraftAmendment = vi.fn();
+const mockGetInventoryItems = vi.fn();
 
 vi.mock('../api', () => ({
   getReservationDraft: (...args: any[]) => mockGetReservationDraft(...args),
@@ -74,6 +76,8 @@ vi.mock('../api', () => ({
   getPayments: (...args: any[]) => mockGetPayments(...args),
   recordConfirmedDeposit: (...args: any[]) => mockRecordConfirmedDeposit(...args),
   getReservationDraftLifecycle: (...args: any[]) => mockGetLifecycle(...args),
+  createReservationDraftAmendment: (...args: any[]) => mockCreateReservationDraftAmendment(...args),
+  getInventoryItems: (...args: any[]) => mockGetInventoryItems(...args),
 }));
 
 /* ── helper: wait for the draft page to load ────────────────────── */
@@ -323,5 +327,69 @@ describe('ReservationDetailPage', () => {
     // Click arbitration button
     fireEvent.click(screen.getByRole('button', { name: /Arbitrer \/ Déplacer la période/i }));
     expect(await screen.findByText(/Arbitrage & Relocalisation/i)).toBeInTheDocument();
+  });
+
+  it('ouvre le formulaire d avenant Titan, ajuste les articles et recharge le dossier', async () => {
+    mockCreateReservationDraftAmendment.mockResolvedValue({ id: 'amend-1' });
+    mockGetInventoryItems.mockResolvedValue([
+      { id: 'ITEM-03', name: 'Tente Blanche 3x3m', kind: 'material', rental_price: '75000.00' },
+    ]);
+
+    render(<ReservationDetailPage onNavigate={vi.fn()} param="LOC-2026-0089" />);
+    await waitForDraftLoad();
+
+    // Switch to avenants tab
+    const avenantsTab = screen.getByRole('button', { name: /Avenants/i });
+    fireEvent.click(avenantsTab);
+
+    // Click on Nouvel avenant Titan
+    const openBtn = screen.getByRole('button', { name: /Créer un avenant|Nouvel avenant/i });
+    fireEvent.click(openBtn);
+
+    expect(screen.getByRole('heading', { name: /Nouvel avenant Titan/i })).toBeInTheDocument();
+
+    // Step 1: Motif
+    const reasonInput = screen.getByLabelText(/Motif de l’avenant/i);
+    fireEvent.change(reasonInput, { target: { value: 'Ajout chaises et tente' } });
+
+    // Step 1 -> Step 2
+    fireEvent.click(screen.getByRole('button', { name: /Continuer/i }));
+    expect(await screen.findByText(/Modifier la période de location/i)).toBeInTheDocument();
+
+    // Step 2 -> Step 3
+    fireEvent.click(screen.getByRole('button', { name: /Continuer/i }));
+    expect(await screen.findByText(/Modifier les articles loués/i)).toBeInTheDocument();
+
+    // Search catalog
+    const searchInput = screen.getByPlaceholderText(/Rechercher un article Titan/i);
+    fireEvent.change(searchInput, { target: { value: 'Tente' } });
+
+    expect(await screen.findByText('Tente Blanche 3x3m')).toBeInTheDocument();
+    const addBtn = screen.getByRole('button', { name: /\+ Ajouter/i });
+    fireEvent.click(addBtn);
+
+    // Step 3 -> Step 4
+    fireEvent.click(screen.getByRole('button', { name: /Continuer/i }));
+
+    // Step 4: Resume & Submit
+    expect(screen.getByText(/Vérifier l’avenant/i)).toBeInTheDocument();
+    const submitBtn = screen.getByRole('button', { name: /Générer l’avenant/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockCreateReservationDraftAmendment).toHaveBeenCalledWith(
+        'draft-loc-089',
+        expect.objectContaining({
+          reason: 'Ajout chaises et tente',
+          changed_lines: expect.arrayContaining([
+            expect.objectContaining({ inventory_item_id: 'ITEM-01', quantity: 100 }),
+            expect.objectContaining({ inventory_item_id: 'ITEM-02', quantity: 10 }),
+            expect.objectContaining({ inventory_item_id: 'ITEM-03', quantity: 1 }),
+          ]),
+        }),
+      );
+      // Reload draft after amendment
+      expect(mockGetReservationDraft).toHaveBeenCalledTimes(2);
+    });
   });
 });

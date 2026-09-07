@@ -1,7 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import HahitantsoaEventDraftDetailPage from "./HahitantsoaEventDraftDetailPage";
+import HahitantsoaEventDraftDetailPage, { parseHahitantsoaServiceNotes } from "./HahitantsoaEventDraftDetailPage";
 import type {
   Customer,
   DocumentInstance,
@@ -579,5 +579,31 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(screen.getByText("Total Dossier")).toBeInTheDocument();
     expect(screen.getByText("Total Perçu")).toBeInTheDocument();
     expect(screen.getAllByText(/500 000 Ar/).length).toBeGreaterThan(0);
+  });
+
+  it("correctly parses formatted services and free-text notes with parseHahitantsoaServiceNotes", () => {
+    const rawNotes = `Piste de Danse Lumineuse LED 5x5m (x1) - 450000 Ar\nCiels Étoilés LED (x2) - 600000 Ar\nNotes particulières: disposition spéciale`;
+    const mockServices = [
+      { id: "srv-led", name: "Piste de Danse Lumineuse LED 5x5m", price: "450000", category: "scenography" },
+      { id: "srv-sky", name: "Ciels Étoilés LED", price: "300000", category: "starry_sky" },
+    ] as any;
+
+    const result = parseHahitantsoaServiceNotes(rawNotes, mockServices);
+    expect(result.selectedServices).toHaveLength(2);
+    expect(result.selectedServices[0]).toEqual(
+      expect.objectContaining({
+        name: "Piste de Danse Lumineuse LED 5x5m",
+        quantity: 1,
+        price: 450000,
+      }),
+    );
+    expect(result.selectedServices[1]).toEqual(
+      expect.objectContaining({
+        name: "Ciels Étoilés LED",
+        quantity: 2,
+        price: 300000,
+      }),
+    );
+    expect(result.remainingNotes).toContain("Notes particulières: disposition spéciale");
   });
 });

@@ -59,6 +59,96 @@ type Props = {
   onBack?: () => void;
 };
 
+
+export function parseHahitantsoaServiceNotes(
+  serviceNotes: string | undefined,
+  allServices: HahitantsoaService[] = [],
+): {
+  selectedServices: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    unit_label?: string;
+    category?: string;
+  }>;
+  remainingNotes: string;
+} {
+  if (!serviceNotes || !serviceNotes.trim()) {
+    return { selectedServices: [], remainingNotes: "" };
+  }
+
+  const rawEntries = serviceNotes.includes("\n")
+    ? serviceNotes.split("\n").map((e) => e.trim()).filter(Boolean)
+    : serviceNotes.split(/,\s*(?=[A-Za-zÀ-ÿ0-9])/).map((e) => e.trim()).filter(Boolean);
+
+  const selectedServices: Array<{
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+    unit_label?: string;
+    category?: string;
+  }> = [];
+  const nonServiceLines: string[] = [];
+
+  for (const entry of rawEntries) {
+    if (
+      entry.startsWith("Services scénographiques:") ||
+      entry.startsWith("[Demandeur:") ||
+      entry.startsWith("Formule:") ||
+      entry.startsWith("Convives:")
+    ) {
+      continue;
+    }
+
+    // Pattern 1: Service Name (x2) - 50 000 Ar or Service Name (x2) : 50 000
+    const m1 = entry.match(
+      /^(?<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?<qty>\d+)\)\s*[-:=]\s*(?<price>[\d\s,.]+)\s*(?:Ar|ariary)?$/i,
+    );
+    if (m1 && m1.groups) {
+      const name = m1.groups.name.trim();
+      const qty = parseInt(m1.groups.qty, 10) || 1;
+      const totPrice = parseInt(m1.groups.price.replace(/\s+/g, ""), 10) || 0;
+      const unitPrice = qty > 0 ? Math.round(totPrice / qty) : totPrice;
+      const matched = allServices.find((s) => s.name.toLowerCase() === name.toLowerCase());
+      selectedServices.push({
+        id: matched ? matched.id : `srv-${name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+        name: matched ? matched.name : name,
+        category: matched ? matched.category : "Autre",
+        quantity: qty,
+        price: unitPrice,
+        unit_label: matched?.unit_label || "",
+      });
+      continue;
+    }
+
+    // Pattern 2: Service Name - 50 000 Ar or Service Name : 50 000
+    const m2 = entry.match(/^(?<name>.+?)\s*[-:=]\s*(?<price>[\d\s,.]+)\s*(?:Ar|ariary)?$/i);
+    if (m2 && m2.groups) {
+      const name = m2.groups.name.trim();
+      const totPrice = parseInt(m2.groups.price.replace(/\s+/g, ""), 10) || 0;
+      const matched = allServices.find((s) => s.name.toLowerCase() === name.toLowerCase());
+      selectedServices.push({
+        id: matched ? matched.id : `srv-${name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+        name: matched ? matched.name : name,
+        category: matched ? matched.category : "Autre",
+        quantity: 1,
+        price: totPrice,
+        unit_label: matched?.unit_label || "",
+      });
+      continue;
+    }
+
+    nonServiceLines.push(entry);
+  }
+
+  return {
+    selectedServices,
+    remainingNotes: nonServiceLines.join("\n"),
+  };
+}
+
 export type HahitantsoaActiveTab =
   | "contrat"
   | "prep"
@@ -611,10 +701,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     setAmendmentRentalType(rentalTypeStr);
     setAmendmentGuestCount(draft.guest_count || 200);
     setAmendmentVenueName(draft.venue_name || "Salle des fêtes + jardin");
-    setAmendmentVenuePrice(Number(draft.space_rental_amount) || 6500000);
+    setAmendmentVenuePrice(6500000);
     setAmendmentLogisticsPrice(500000);
     setAmendmentLocationDetails(draft.location_details || "");
-    setAmendmentServiceNotes(draft.service_notes || "");
+    setAmendmentServiceNotes("");
 
     if (draft.event_type?.includes("night_opt2")) {
       setAmendmentDurationOption("Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30");
@@ -653,20 +743,33 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       setPackages(apiPacks);
       setCatalogItems(apiItems);
 
+      let baseVenue = 6500000;
+      const matchedVenue = apiVenues.find((v) => v.name === draft.venue_name);
+      if (matchedVenue && matchedVenue.price) {
+        baseVenue = matchedVenue.price;
+      } else if (apiTerms && apiTerms.base_space_rental_amount) {
+        baseVenue = Number(apiTerms.base_space_rental_amount);
+      }
+      setAmendmentVenuePrice(baseVenue);
+
       if (apiTerms) {
-        if (!draft.space_rental_amount) {
-          setAmendmentVenuePrice(Number(apiTerms.base_space_rental_amount) || 6500000);
-        }
         if (draft.event_type?.includes("night_opt2")) {
           setAmendmentDurationPrice(
-            Number(apiTerms.night_option_2_amount || 500000) + Number(apiTerms.night_security_amount || 120000)
+            Number(apiTerms.night_option_2_amount || 500000) + Number(apiTerms.night_security_amount || 120000),
           );
         } else if (draft.event_type?.includes("night_opt1")) {
           setAmendmentDurationPrice(
-            Number(apiTerms.night_option_1_amount || 300000) + Number(apiTerms.night_security_amount || 120000)
+            Number(apiTerms.night_option_1_amount || 300000) + Number(apiTerms.night_security_amount || 120000),
           );
         }
       }
+
+      const { selectedServices: parsedServices, remainingNotes } = parseHahitantsoaServiceNotes(
+        draft.service_notes,
+        apiServices,
+      );
+      setAmendmentSelectedServices(parsedServices);
+      setAmendmentServiceNotes(remainingNotes);
     } catch {
       // Keep fallbacks
     }
@@ -773,15 +876,20 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     setError(null);
     setActionNotice(null);
     try {
-      const serviceLabels = amendmentSelectedServices.map(
-        (s) => `${s.name} (x${s.quantity} = ${formatMoney(s.price * s.quantity)})`,
-      );
+      const formattedServices = amendmentSelectedServices
+        .map((s) => {
+          const qtyStr = s.quantity > 1 ? ` (x${s.quantity})` : "";
+          const lineTotal = s.price * s.quantity;
+          return `${s.name}${qtyStr} - ${lineTotal} Ar`;
+        })
+        .join("\n");
+
       const combinedServiceNotes = [
-        serviceLabels.length > 0 ? `Services scénographiques: ${serviceLabels.join(", ")}` : "",
+        formattedServices,
         amendmentServiceNotes.trim(),
       ]
         .filter(Boolean)
-        .join(" | ");
+        .join("\n");
 
       const backendRentalType = amendmentRentalType === "Location + logistique" ? "logistics" : "bare";
 
@@ -811,9 +919,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         changed_event_type: changedEventType,
         changed_rental_type: backendRentalType,
         changed_guest_count: Number(amendmentGuestCount) || 200,
-        changed_space_rental_amount: String(
-          amendmentFinancialPreview.newSpaceTotal + amendmentFinancialPreview.newServicesTotal,
-        ),
+        changed_space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
         changed_venue_name: amendmentVenueName.trim(),
         changed_location_details: amendmentLocationDetails.trim(),
         changed_service_notes: combinedServiceNotes,
@@ -824,8 +930,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
       if (amendmentRentalType === "Location + logistique") {
         for (const line of draft.lines) {
-          const qty = amendmentQuantities[line.id];
-          if (qty !== undefined && qty !== line.quantity) {
+          const qty = amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity;
+          if (qty > 0) {
             await createHahitantsoaEventDraftAmendmentRequestLine(param, amendmentId, {
               inventory_item_id: line.inventory_item_id,
               quantity: qty,
