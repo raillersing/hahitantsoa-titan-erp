@@ -102,14 +102,19 @@
     <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
     <h1>Reçu de paiement d'acompte</h1>
 
-    <div class="field"><span class="label">Date</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
+    <div class="field"><span class="label">N° Reçu</span><span class="value" style="font-weight: 700;">REC-{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"REC" }}-{{ context.payment.payment_id|stringformat:".8s"|upper }}</span></div>
+    <div class="field"><span class="label">Réf. Dossier</span><span class="value" style="font-weight: 700;">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
+    <div class="field"><span class="label">Date & Heure</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
     <div class="field"><span class="label">Nom Client</span><span class="value">{{ context.payment.customer_display_name|default:"—" }}</span></div>
     <div class="field"><span class="label">Date Evénement</span><span class="value">{{ context.payment.event_date_label|default:"—" }}</span></div>
-    <div class="field"><span class="label">Montant payé</span><span class="value">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
+    <div class="field"><span class="label">Montant payé</span><span class="value" style="font-weight: 700;">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
+    {% if context.payment.amount_in_words %}
+    <div class="field"><span class="label">En lettres</span><span class="value" style="font-style: italic; font-size: 8.5px;">{{ context.payment.amount_in_words }}</span></div>
+    {% endif %}
     <div class="field"><span class="label">Mode de paiement</span><span class="value">{{ context.payment.payment_method_label|default:context.payment.payment_method|default:"—" }}</span></div>
     <div class="field"><span class="label">Référence</span><span class="value">{{ context.payment.transaction_reference|default:"—" }}</span></div>
 
-    <div class="section-title">Historique des paiements</div>
+    <div class="section-title">Historique des règlements</div>
     <table class="history">
       <thead><tr><th>Date</th><th>Montant</th><th>Mode</th></tr></thead>
       <tbody>
@@ -120,14 +125,14 @@
         {% endfor %}
       </tbody>
     </table>
-    <div class="total"><span>TOTAL ACOMPTE</span><span>{{ context.payment.total_deposit_label|default:"—" }} Ar</span></div>
+    <div class="total"><span>TOTAL CUMULÉ RÉGLÉ</span><span>{{ context.payment.total_deposit_label|default:"—" }} Ar</span></div>
 
     <div class="rule"></div>
-    <div class="field"><span class="label">N° Proforma</span><span class="value">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
-    <div class="field"><span class="label">Montant Proforma</span><span class="value">{{ context.payment.proforma_amount_label|default:"—" }}{% if context.payment.proforma_amount_label %} Ar{% endif %}</span></div>
-    <div class="field"><span class="label">Reste à payer</span><span class="value">{{ context.payment.remaining_balance_label|default:"—" }}{% if context.payment.remaining_balance_label %} Ar{% endif %}</span></div>
+    <div class="field"><span class="label">Réf. Devis / Dossier</span><span class="value" style="font-weight: 700;">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
+    <div class="field"><span class="label">Montant Total Devis</span><span class="value">{{ context.payment.proforma_amount_label|default:"—" }}{% if context.payment.proforma_amount_label %} Ar{% endif %}</span></div>
+    <div class="field"><span class="label">Reste à payer</span><span class="value" style="font-weight: 700;">{{ context.payment.remaining_balance_label|default:"—" }}{% if context.payment.remaining_balance_label %} Ar{% endif %}</span></div>
 
-    <div class="footer">Document généré par Hahitantsoa</div>
+    <div class="footer">Document officiel généré par Hahitantsoa</div>
   </main>
 </body>
 </html>
