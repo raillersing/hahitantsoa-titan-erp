@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { getStockMovements, getInventoryItems } from "../api";
 import type { InventoryStockMovement, InventoryItem } from "../types";
+import { useTableSort, SortableHeader } from "./tableSortUtils";
 
 const MOVEMENT_TYPE_LABELS: Record<string, string> = {
   outbound_delivery: "Sortie",
@@ -15,6 +16,15 @@ const MOVEMENT_TYPE_LABELS: Record<string, string> = {
 function getMovementLabel(m: InventoryStockMovement): string {
   return MOVEMENT_TYPE_LABELS[m.movement_type] || m.movement_type;
 }
+
+type MovementSortKey =
+  | "created_at"
+  | "type"
+  | "inventory_item"
+  | "quantity"
+  | "notes"
+  | "reservation_draft"
+  | "validated_by";
 
 export default function StockMovementsPage({ onNavigate }: { onNavigate: (scope: any, param?: string) => void }) {
   const [movements, setMovements] = useState<InventoryStockMovement[]>([]);
@@ -65,6 +75,15 @@ export default function StockMovementsPage({ onNavigate }: { onNavigate: (scope:
     return getMovementLabel(m) === filterType;
   });
 
+  const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<InventoryStockMovement, MovementSortKey>({
+    extractors: {
+      type: (m) => getMovementLabel(m),
+      inventory_item: (m) => itemsMap.get(m.inventory_item)?.name || m.inventory_item,
+    },
+  });
+
+  const sortedData = useMemo(() => sortItems(filteredData), [sortItems, filteredData]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -110,18 +129,18 @@ export default function StockMovementsPage({ onNavigate }: { onNavigate: (scope:
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
-                <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700">Date</th>
-                <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700">Type</th>
-                <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700">Article</th>
-                <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700 text-right">Quantité</th>
-                <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700">Motif</th>
-                <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700">Dossier</th>
-                <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700">Opérateur</th>
+                <SortableHeader label="Date" sortKey="created_at" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />
+                <SortableHeader label="Type" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />
+                <SortableHeader label="Article" sortKey="inventory_item" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />
+                <SortableHeader label="Quantité" sortKey="quantity" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} align="right" />
+                <SortableHeader label="Motif" sortKey="notes" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />
+                <SortableHeader label="Dossier" sortKey="reservation_draft" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />
+                <SortableHeader label="Opérateur" sortKey="validated_by" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} />
                 <th className="p-4 font-bold border-b border-slate-200 dark:border-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
-              {filteredData.map(m => {
+              {sortedData.map(m => {
                 const label = getMovementLabel(m);
                 const article = itemsMap.get(m.inventory_item);
                 return (

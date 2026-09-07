@@ -8,6 +8,7 @@ import {
 } from "../api";
 import type { Customer as ApiCustomer, CustomerContactPoint, Client } from "../types";
 import { AvailabilityDatePicker, EmptyState, LoadingSpinner } from "../components";
+import { useTableSort, SortableHeader } from "./tableSortUtils";
 
 interface CustomersPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -247,6 +248,19 @@ export default function CustomersPage({
       return true;
     });
   }, [apiClients, searchQuery, filterType]);
+
+  type CustomerSortKey = "name" | "type" | "category" | "status" | "followUp" | "reservationCount";
+
+  const { sortConfig, handleSort, resetSort, sortItems } = useTableSort<Client, CustomerSortKey>({
+    extractors: {
+      followUp: (c) => c.prospectNextFollowUp || (c as any).lastActivity || "",
+      category: (c) => (c as any).clientCategory || (c as any).category || "",
+      reservationCount: (c) => c.reservationCount || 0,
+    },
+    tieBreaker: (a, b) => a.name.localeCompare(b.name, "fr", { numeric: true }),
+  });
+
+  const sortedClients = useMemo(() => sortItems(filteredClients), [sortItems, filteredClients]);
 
   // -------------------------------------------------------------
   // GESTION CRÉATION PROSPECT EXPRESS
@@ -1608,16 +1622,16 @@ export default function CustomersPage({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/75 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
-                <th className="text-left px-5 py-3.5">Contact / Nom</th>
-                <th className="text-left px-4 py-3.5">Type</th>
-                <th className="text-left px-4 py-3.5">Catégorie</th>
-                <th className="text-left px-4 py-3.5">Pipeline Commercial</th>
-                <th className="text-left px-4 py-3.5">Relance & Échéance</th>
-                <th className="text-left px-4 py-3.5">Dossiers liés</th>
+                <SortableHeader label="Contact / Nom" sortKey="name" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-5 py-3.5" />
+                <SortableHeader label="Type" sortKey="type" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3.5" />
+                <SortableHeader label="Catégorie" sortKey="category" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3.5" />
+                <SortableHeader label="Pipeline Commercial" sortKey="status" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3.5" />
+                <SortableHeader label="Relance & Échéance" sortKey="followUp" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3.5" />
+                <SortableHeader label="Dossiers liés" sortKey="reservationCount" currentSortKey={sortConfig.key} currentDirection={sortConfig.direction} onSort={handleSort} className="px-4 py-3.5" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredClients.length === 0 && (
+              {sortedClients.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-12">
                     <EmptyState
@@ -1627,7 +1641,7 @@ export default function CustomersPage({
                   </td>
                 </tr>
               )}
-              {filteredClients.map((client) => {
+              {sortedClients.map((client) => {
                 const isOverdue =
                   client.prospectStatus === "to_recall" &&
                   client.prospectNextFollowUp &&
