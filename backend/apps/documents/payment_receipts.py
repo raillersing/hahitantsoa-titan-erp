@@ -146,13 +146,16 @@ def build_payment_receipt_context(
     )
     from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, PaymentKind
 
-    confirmed_payments = tuple(
-        scoped_payments.filter(payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES).order_by(
-            "paid_at", "created_at", "id"
-        )
+    all_payments_list = list(
+        scoped_payments.filter(payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES)
         if scoped_payments is not None
-        else ()
+        else []
     )
+    if payment.id not in {p.id for p in all_payments_list}:
+        all_payments_list.append(payment)
+
+    all_payments_list.sort(key=lambda p: (p.paid_at or p.created_at, p.created_at, str(p.id)))
+
     history = tuple(
         {
             "date_label": _date_label(item.paid_at or item.created_at),
@@ -160,15 +163,16 @@ def build_payment_receipt_context(
             "method_label": _payment_method_label(item),
             "reference": item.external_reference or "",
             "kind": item.get_payment_kind_display(),
+            "is_current": (item.id == payment.id),
         }
-        for item in confirmed_payments
+        for item in all_payments_list
     )
     total_confirmed_payments = sum(
-        (item.amount for item in confirmed_payments),
+        (item.amount for item in all_payments_list),
         Decimal("0"),
     )
     deposit_total = sum(
-        (item.amount for item in confirmed_payments if item.payment_kind == PaymentKind.DEPOSIT),
+        (item.amount for item in all_payments_list if item.payment_kind == PaymentKind.DEPOSIT),
         Decimal("0"),
     )
     event_date = (

@@ -351,10 +351,14 @@ def apply_hahitantsoa_event_draft_amendment_request(
                 is_deleted=True, deleted_at=now, updated_by=actor, updated_at=now
             )
             for line in active_lines:
+                unit_price = getattr(line.inventory_item, "rental_price_per_day", None) or Decimal(
+                    "0.00"
+                )
                 HahitantsoaEventDraftLine.objects.create(
                     event_draft=locked_event_draft,
                     inventory_item=line.inventory_item,
                     quantity=line.quantity,
+                    unit_rental_price=unit_price,
                     notes=line.notes,
                     created_by=actor,
                     updated_by=actor,
