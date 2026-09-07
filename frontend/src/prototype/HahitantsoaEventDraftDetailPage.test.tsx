@@ -31,6 +31,10 @@ const mockGetLifecycle = vi.fn();
 const mockCreateDocumentInstance = vi.fn();
 const mockGenerateDocumentInstance = vi.fn();
 const mockGenerateDocumentInstancePdf = vi.fn();
+const mockGetVenues = vi.fn();
+const mockGetServices = vi.fn();
+const mockGetCommercialTerms = vi.fn();
+const mockGetPackages = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
@@ -54,6 +58,10 @@ vi.mock("../api", () => ({
   createHahitantsoaEventDraftDocumentInstance: (...args: unknown[]) => mockCreateDocumentInstance(...args),
   generateHahitantsoaEventDraftDocumentInstance: (...args: unknown[]) => mockGenerateDocumentInstance(...args),
   generateHahitantsoaEventDraftDocumentInstancePdf: (...args: unknown[]) => mockGenerateDocumentInstancePdf(...args),
+  getHahitantsoaVenues: (...args: unknown[]) => mockGetVenues(...args) ?? Promise.resolve([]),
+  getHahitantsoaServices: (...args: unknown[]) => mockGetServices(...args) ?? Promise.resolve([]),
+  getHahitantsoaCommercialTerms: (...args: unknown[]) => mockGetCommercialTerms(...args) ?? Promise.resolve(null),
+  getMaterialPackages: (...args: unknown[]) => mockGetPackages(...args) ?? Promise.resolve([]),
 }));
 
 vi.mock("../PaymentWhatsAppReminderButton", () => ({ default: () => null }));
@@ -507,24 +515,22 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(screen.getByText("Studio d'Avenant Événementiel")).toBeInTheDocument();
     expect(screen.getByText("1. Motif & Traçabilité")).toBeInTheDocument();
 
-    const reasonInput = screen.getByPlaceholderText(/Ex: Rajout de 50 chaises/i);
+    const reasonInput = screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i);
     fireEvent.change(reasonInput, { target: { value: "Avenant soirée nocturne et sono" } });
 
     // Step 1 -> Step 2
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
 
-    // Step 2: Select Night Option 1
-    expect(screen.getByText("2. Dates & Formules")).toBeInTheDocument();
+    // Step 2: Formule & Local
+    expect(screen.getByText("2. Formule & Local")).toBeInTheDocument();
     const nightOpt1Card = screen.getByText(/Nuit Option 1/i);
     fireEvent.click(nightOpt1Card);
 
     // Step 2 -> Step 3
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
 
-    // Step 3: Select Sonorisation service
-    expect(screen.getByText("3. Espaces & Services")).toBeInTheDocument();
-    const sonoBtn = screen.getByRole("button", { name: /sonorisation & dj/i });
-    fireEvent.click(sonoBtn);
+    // Step 3: Prestations & Services
+    expect(screen.getByText("3. Prestations & Services")).toBeInTheDocument();
 
     // Step 3 -> Step 4
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
@@ -537,7 +543,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     // Step 5: Bilan Comparatif Financier
     expect(screen.getByText("5. Bilan & Validation")).toBeInTheDocument();
-    expect(screen.getByText(/Bilan Comparatif Financier/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bilan Comparatif Financier de l'Avenant/i)).toBeInTheDocument();
 
     // Submit
     const submitBtn = screen.getByRole("button", { name: /valider et créer l'avenant/i });
@@ -549,7 +555,6 @@ describe("HahitantsoaEventDraftDetailPage", () => {
         expect.objectContaining({
           reason: "Avenant soirée nocturne et sono",
           changed_event_type: "wedding_night_opt1",
-          changed_space_rental_amount: "1750000", // 1 500 000 + 250 000
         }),
       );
       expect(mockApplyAmendment).toHaveBeenCalledWith(DRAFT.id, "amend-1");
