@@ -353,4 +353,25 @@ describe("CashboxPage", () => {
 
     expect(screen.getByText("Détail chronologique des opérations")).toBeInTheDocument();
   });
+
+  it("opens printable single operation receipt modal with amount in words", async () => {
+    render(<CashboxPage onNavigate={vi.fn()} />);
+    await screen.findByText("Gestion de Caisse");
+
+    // Click print receipt on the first movement (mov-1, 200 000 Ar, Apport de caisse)
+    const printBtns = screen.getAllByTitle("Imprimer le reçu de caisse");
+    expect(printBtns.length).toBeGreaterThanOrEqual(1);
+    fireEvent.click(printBtns[0]);
+
+    expect(await screen.findByText("Reçu d'Opération de Caisse")).toBeInTheDocument();
+    expect(screen.getAllByText(/200 000 Ar/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Deux cent mille Ariary/i)).toBeInTheDocument();
+
+    // Switch to A4
+    const a4Btn = screen.getByRole("button", { name: /Format A4/i });
+    fireEvent.click(a4Btn);
+
+    expect(screen.getByText(/Montant Total Encaissé/i)).toBeInTheDocument();
+    expect(screen.getByText(/Deux cent mille Ariary/i)).toBeInTheDocument();
+  });
 });

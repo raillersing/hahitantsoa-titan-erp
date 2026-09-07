@@ -24,6 +24,7 @@ import type {
 } from "../types";
 import { LoadingSpinner } from "../components";
 import { useAuth } from "../AuthContext";
+import { numberToFrenchWords } from "./PaymentRegistrationModal";
 
 interface CashboxPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -2692,21 +2693,47 @@ function CashboxPrintModal({
                 </>
               ) : singleMovement ? (
                 <div className="pt-2 border-t border-dashed border-slate-300 space-y-2">
-                  <p className="font-bold text-center text-xs">
-                    {singleMovement.direction === "cash_in"
-                      ? "ENCAISSEMENT D'ESPÈCES"
-                      : "DÉCAISSEMENT D'ESPÈCES"}
-                  </p>
-                  <p className="flex justify-between">
-                    <span>Montant :</span>
-                    <strong className="text-sm">
-                      {formatAmount(singleMovement.amount)} Ar
-                    </strong>
-                  </p>
-                  <p className="flex justify-between">
-                    <span>Motif :</span>
-                    <span>{cleanNoteDescription(singleMovement.note)}</span>
-                  </p>
+                  <div className="text-center">
+                    <p className="font-bold text-xs uppercase text-slate-800">
+                      {getCategoryFromNote(singleMovement.note, singleMovement.direction).label}
+                    </p>
+                    <span className="inline-block mt-0.5 text-[9px] px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700">
+                      Pièce N° #{singleMovement.id.slice(0, 8)}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 rounded bg-slate-50 border border-slate-200 text-center space-y-1">
+                    <span className="text-[9px] uppercase font-bold text-slate-500">
+                      {singleMovement.direction === "cash_in" ? "Montant Encaissé" : "Montant Décaissé"}
+                    </span>
+                    <p
+                      className={`text-base font-black ${
+                        singleMovement.direction === "cash_in" ? "text-emerald-700" : "text-rose-700"
+                      }`}
+                    >
+                      {singleMovement.direction === "cash_in" ? "+" : "−"} {formatAmount(singleMovement.amount)} Ar
+                    </p>
+                    <p className="text-[9px] italic text-slate-600">
+                      {numberToFrenchWords(
+                        typeof singleMovement.amount === "number"
+                          ? singleMovement.amount
+                          : Number.parseFloat(String(singleMovement.amount)) || 0,
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 text-[10px] pt-1">
+                    <p className="flex justify-between">
+                      <span className="text-slate-500">Date opération :</span>
+                      <span>{formatDateTime(singleMovement.moved_at)}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span className="text-slate-500">Description :</span>
+                      <span className="font-semibold text-right max-w-[160px] truncate">
+                        {cleanNoteDescription(singleMovement.note)}
+                      </span>
+                    </p>
+                  </div>
                 </div>
               ) : null}
 
@@ -2719,6 +2746,91 @@ function CashboxPrintModal({
                 <div>
                   <p className="font-bold">Visa Superviseur</p>
                   <div className="h-10 mt-1 border border-slate-200 rounded"></div>
+                </div>
+              </div>
+            </div>
+          ) : printType === "operation_receipt" && singleMovement ? (
+            /* ================= REÇU D'OPÉRATION A4 ================= */
+            <div className="bg-white text-slate-900 p-8 rounded-xl shadow-md w-full max-w-xl font-sans text-xs space-y-6 border border-slate-200">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">
+                    HAHITANTSOA & TITAN ERP
+                  </h1>
+                  <p className="text-xs text-slate-500">
+                    Système de Gestion Commerciale, Événements & Location
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="px-3 py-1 bg-slate-900 text-white font-bold rounded-lg text-xs uppercase">
+                    Reçu d'Opération de Caisse
+                  </span>
+                  <p className="text-[10px] text-slate-400 mt-1 font-mono">
+                    Pièce #{singleMovement.id.slice(0, 8)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Meta information */}
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl text-xs">
+                <div>
+                  <p className="text-slate-500">Caissier / Opérateur :</p>
+                  <p className="font-bold text-slate-900">{operatorName}</p>
+                  <p className="text-slate-500 mt-2">Date & Heure :</p>
+                  <p className="font-semibold">{formatDateTime(singleMovement.moved_at)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Session de Caisse :</p>
+                  <p className="font-bold text-slate-900 font-mono">#{session.id.slice(0, 8)}</p>
+                  <p className="text-slate-500 mt-2">Nature de l'opération :</p>
+                  <p className="font-bold text-indigo-700">
+                    {getCategoryFromNote(singleMovement.note, singleMovement.direction).label}
+                  </p>
+                </div>
+              </div>
+
+              {/* Financial Box */}
+              <div
+                className={`p-5 rounded-2xl border ${
+                  singleMovement.direction === "cash_in"
+                    ? "border-emerald-200 bg-emerald-50/60"
+                    : "border-rose-200 bg-rose-50/60"
+                } text-center space-y-2`}
+              >
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-600">
+                  {singleMovement.direction === "cash_in" ? "Montant Total Encaissé" : "Montant Total Décaissé"}
+                </p>
+                <p
+                  className={`text-2xl font-black ${
+                    singleMovement.direction === "cash_in" ? "text-emerald-700" : "text-rose-700"
+                  }`}
+                >
+                  {singleMovement.direction === "cash_in" ? "+" : "−"} {formatAmount(singleMovement.amount)} Ar
+                </p>
+                <p className="text-xs italic text-slate-700 font-medium">
+                  {numberToFrenchWords(
+                    typeof singleMovement.amount === "number"
+                      ? singleMovement.amount
+                      : Number.parseFloat(String(singleMovement.amount)) || 0,
+                  )}
+                </p>
+              </div>
+
+              {/* Operation Details */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-2 text-xs">
+                <p className="text-slate-500 font-bold uppercase text-[10px]">Motif & Références :</p>
+                <p className="font-medium text-slate-800 leading-relaxed whitespace-pre-wrap">
+                  {cleanNoteDescription(singleMovement.note)}
+                </p>
+              </div>
+
+              {/* Signatures */}
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t">
+                <div className="border border-slate-300 rounded-xl p-3 h-24 flex flex-col justify-between">
+                  <span className="font-bold text-slate-500 text-[10px]">Visa Caissier</span>
+                </div>
+                <div className="border border-slate-300 rounded-xl p-3 h-24 flex flex-col justify-between">
+                  <span className="font-bold text-slate-500 text-[10px]">Visa Client / Tiers / Superviseur</span>
                 </div>
               </div>
             </div>

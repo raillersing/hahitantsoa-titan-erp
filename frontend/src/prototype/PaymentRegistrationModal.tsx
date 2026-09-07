@@ -438,11 +438,12 @@ export function generateThermalReceiptHtml(params: {
       <span class="live-badge">OFFICIEL</span>
     </div>
 
-    <div class="field"><span class="label">N° Reçu</span><span class="value value-bold">${params.receiptNumber}</span></div>
+    <div class="field"><span class="label">N° Reçu</span><span class="value value-bold font-mono">${params.receiptNumber}</span></div>
+    <div class="field"><span class="label">Réf. Dossier</span><span class="value value-bold font-mono">${params.draftReference || params.proformaReference || "—"}</span></div>
     <div class="field"><span class="label">Date & Heure</span><span class="value">${params.paymentDate}</span></div>
     <div class="field"><span class="label">Nom Client</span><span class="value value-bold">${params.customerName || "—"}</span></div>
     ${params.customerPhone ? `<div class="field"><span class="label">Téléphone</span><span class="value">${params.customerPhone}</span></div>` : ""}
-    <div class="field"><span class="label">Dossier / Prestation</span><span class="value">${params.eventDateLabel || params.draftReference}</span></div>
+    ${params.eventDateLabel ? `<div class="field"><span class="label">Date Prestation</span><span class="value">${params.eventDateLabel}</span></div>` : ""}
     <div class="field"><span class="label">Objet / Tranche</span><span class="value">${params.paymentKindLabel}</span></div>
     <div class="field"><span class="label">Mode de règlement</span><span class="value value-bold">${params.paymentMethodLabel}</span></div>
     <div class="field"><span class="label">Réf. Transaction</span><span class="value font-mono">${params.transactionReference || "—"}</span></div>
@@ -493,7 +494,7 @@ export function generateThermalReceiptHtml(params: {
     <div class="summary-box">
       <div class="summary-row">
         <span>N° Dossier Proforma</span>
-        <span class="value-bold">${params.proformaReference || params.draftReference}</span>
+        <span class="value-bold font-mono">${params.proformaReference || params.draftReference || "—"}</span>
       </div>
       <div class="summary-row">
         <span>Montant Total Devis TTC</span>
@@ -678,6 +679,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
             }
           : undefined,
       totalDepositAmount: projectedPaid,
+      draftReference: draftReference || proformaReference,
       proformaReference: proformaReference || draftReference,
       proformaAmount: totalAmount,
       remainingBalance: projectedRemaining,
@@ -719,6 +721,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       paymentKindLabel: getPaymentKindLabel(selectedPastPayment.payment_kind || "deposit"),
       historyPayments: existingPayments.filter((p) => p.id !== selectedPastPayment.id),
       totalDepositAmount: existingPayments.reduce((acc, p) => acc + (p.amount || 0), 0),
+      draftReference: draftReference || proformaReference,
       proformaReference: proformaReference || draftReference,
       proformaAmount: totalAmount,
       remainingBalance: Math.max(

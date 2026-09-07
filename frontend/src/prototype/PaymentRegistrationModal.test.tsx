@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   PaymentRegistrationModal,
+  generateThermalReceiptHtml,
   numberToFrenchWords,
   formatMoney,
 } from "./PaymentRegistrationModal";
@@ -52,6 +53,52 @@ describe("PaymentRegistrationModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe("generateThermalReceiptHtml", () => {
+    it("generates thermal receipt with distinct dossier reference, event date, and accounting summary", () => {
+      const html = generateThermalReceiptHtml({
+        domain: "hahitantsoa",
+        receiptTitle: "Reçu de Paiement d'Acompte",
+        receiptNumber: "REC-H0122026-01",
+        paymentDate: "07/09/2026 14:30",
+        customerName: "Marie Rasoa",
+        customerPhone: "+261 34 11 222 33",
+        eventDateLabel: "20/09/2026",
+        amount: 500000,
+        amountInWords: "Cinq cent mille Ariary",
+        paymentMethodLabel: "Espèces (Caisse POS)",
+        transactionReference: "POS-CASH-001",
+        paymentKindLabel: "Acompte (50%)",
+        historyPayments: [],
+        totalDepositAmount: 500000,
+        draftReference: "H-012/2026",
+        proformaReference: "DEV-2026-012",
+        proformaAmount: 3000000,
+        remainingBalance: 2500000,
+      });
+
+      expect(html).toContain("N° Reçu");
+      expect(html).toContain("REC-H0122026-01");
+      expect(html).toContain("Réf. Dossier");
+      expect(html).toContain("H-012/2026");
+      expect(html).toContain("Date & Heure");
+      expect(html).toContain("07/09/2026 14:30");
+      expect(html).toContain("Nom Client");
+      expect(html).toContain("Marie Rasoa");
+      expect(html).toContain("Date Prestation");
+      expect(html).toContain("20/09/2026");
+      expect(html).toContain("Montant Réglé Ce Jour");
+      expect(html).toContain(formatMoney(500000));
+      expect(html).toContain("Cinq cent mille Ariary");
+      expect(html).toContain("N° Dossier Proforma");
+      expect(html).toContain("DEV-2026-012");
+      expect(html).toContain("Montant Total Devis TTC");
+      expect(html).toContain(formatMoney(3000000));
+      expect(html).toContain("TOTAL CUMULÉ RÉGLÉ");
+      expect(html).toContain("SOLDE RESTANT À PAYER");
+      expect(html).toContain(formatMoney(2500000));
+    });
   });
 
   describe("numberToFrenchWords", () => {
