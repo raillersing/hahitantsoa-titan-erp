@@ -1401,44 +1401,95 @@ export type CashboxMovement = {
   id: string;
   session: string;
   direction: CashboxMovementDirection;
-  amount: string;
+  amount: string | number;
   payment: Payment | null;
   billing_invoice: BillingInvoice | null;
   billing_refund_obligation: BillingRefundObligation | null;
   moved_at: string;
-  moved_by: string | null;
+  moved_by: string | number | null;
   note: string;
   created_at: string;
   updated_at: string;
 };
 
+export type CashboxClosureAttempt = {
+  id: string;
+  theoretical_amount: string | number;
+  actual_amount: string | number;
+  variance_amount: string | number;
+  variance_justification: string;
+  submitted_at: string;
+  submitted_by: string | number | null;
+  submission_idempotency_key: string;
+  validated_at?: string | null;
+  validated_by?: string | number | null;
+};
+
+export type CashboxReopenEvent = {
+  id: string;
+  closure_attempt: string;
+  reason: string;
+  reopened_at: string;
+  reopened_by: string | number | null;
+  idempotency_key: string;
+};
+
+export type CashboxSessionStatus =
+  | "open"
+  | "count_submitted"
+  | "validated_closed"
+  | "legacy_terminal";
+
 export type CashboxSession = {
   id: string;
-  operator: string;
+  cash_account?: string | null;
+  operator: string | number;
+  opening_amount?: string | number;
+  status?: CashboxSessionStatus;
   opened_at: string;
-  opened_by: string | null;
+  opened_by: string | number | null;
   closed_at: string | null;
-  closed_by: string | null;
+  closed_by: string | number | null;
   opening_note: string;
   closing_note: string;
-  net_amount: string;
+  net_amount: string | number;
+  theoretical_amount?: string | number;
   movements: CashboxMovement[];
+  closure_attempts?: CashboxClosureAttempt[];
+  reopen_events?: CashboxReopenEvent[];
   created_at: string;
   updated_at: string;
 };
 
 export type CashboxSessionOpenPayload = {
-  operator: string;
+  operator: string | number;
+  opening_amount?: string | number;
   opening_note?: string;
+  cash_account?: string | null;
 };
 
 export type CashboxSessionClosePayload = {
   closing_note?: string;
 };
 
+export type CashboxCountSubmitPayload = {
+  actual_amount: string | number;
+  variance_justification?: string;
+  idempotency_key: string;
+};
+
+export type CashboxCountValidatePayload = {
+  idempotency_key: string;
+};
+
+export type CashboxSessionReopenPayload = {
+  reason: string;
+  idempotency_key: string;
+};
+
 export type CashboxMovementCreatePayload = {
   direction: CashboxMovementDirection;
-  amount: string;
+  amount: string | number;
   payment?: string | null;
   billing_invoice?: string | null;
   billing_refund_obligation?: string | null;

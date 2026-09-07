@@ -15,6 +15,9 @@ import type {
   CashboxSession,
   CashboxSessionClosePayload,
   CashboxSessionOpenPayload,
+  CashboxCountSubmitPayload,
+  CashboxCountValidatePayload,
+  CashboxSessionReopenPayload,
   Customer,
   CustomerCreatePayload,
   CustomerUpdatePayload,
@@ -374,6 +377,30 @@ export function closeCashboxSession(
   signal?: AbortSignal,
 ): Promise<CashboxSession> {
   return postAuthenticatedJson(`/api/v1/cashbox/sessions/${id}/close/`, payload, signal);
+}
+
+export function submitCashboxCount(
+  id: string,
+  payload: CashboxCountSubmitPayload,
+  signal?: AbortSignal,
+): Promise<CashboxSession> {
+  return postAuthenticatedJson(`/api/v1/cashbox/sessions/${id}/submit-count/`, payload, signal);
+}
+
+export function validateCashboxCount(
+  id: string,
+  payload: CashboxCountValidatePayload,
+  signal?: AbortSignal,
+): Promise<CashboxSession> {
+  return postAuthenticatedJson(`/api/v1/cashbox/sessions/${id}/validate-count/`, payload, signal);
+}
+
+export function reopenCashboxSession(
+  id: string,
+  payload: CashboxSessionReopenPayload,
+  signal?: AbortSignal,
+): Promise<CashboxSession> {
+  return postAuthenticatedJson(`/api/v1/cashbox/sessions/${id}/reopen/`, payload, signal);
 }
 
 export function getCashboxMovements(
