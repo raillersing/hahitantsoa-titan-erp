@@ -168,13 +168,40 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     }
   }, [toast]);
 
-  const kpis = {
-    total: inventory.reduce((acc, curr) => acc + curr.totalStock, 0),
-    dispo: inventory.reduce((acc, curr) => acc + curr.availableStock, 0),
-    reserve: inventory.reduce((acc, curr) => acc + curr.reservedStock, 0),
-    sorti: inventory.reduce((acc, curr) => acc + curr.outStock, 0),
-    retour: inventory.reduce((acc, curr) => acc + curr.expectedReturnStock, 0),
-    casse: inventory.reduce((acc, curr) => acc + curr.brokenLostStock, 0),
+  const kpiMetrics = {
+    total: {
+      units: inventory.reduce((acc, curr) => acc + curr.totalStock, 0),
+      itemsCount: inventory.length,
+    },
+    dispo: {
+      units: inventory.reduce((acc, curr) => acc + curr.availableStock, 0),
+      itemsCount: inventory.filter((i) => i.availableStock > 0).length,
+    },
+    reserve: {
+      units: inventory.reduce((acc, curr) => acc + curr.reservedStock, 0),
+      itemsCount: inventory.filter((i) => i.reservedStock > 0).length,
+    },
+    sorti: {
+      units: inventory.reduce((acc, curr) => acc + curr.outStock, 0),
+      itemsCount: inventory.filter((i) => i.outStock > 0).length,
+    },
+    retour: {
+      units: inventory.reduce((acc, curr) => acc + curr.expectedReturnStock, 0),
+      itemsCount: inventory.filter((i) => i.expectedReturnStock > 0).length,
+    },
+    casse: {
+      units: inventory.reduce((acc, curr) => acc + curr.brokenLostStock, 0),
+      itemsCount: inventory.filter((i) => i.brokenLostStock > 0).length,
+    },
+  };
+
+  const filterCounts: Record<string, number> = {
+    Tous: inventory.length,
+    Disponible: inventory.filter((i) => i.availableStock > 0).length,
+    "Réservé": inventory.filter((i) => i.reservedStock > 0).length,
+    Sorti: inventory.filter((i) => i.outStock > 0).length,
+    "En retour": inventory.filter((i) => i.expectedReturnStock > 0).length,
+    Alertes: inventory.filter((i) => i.status === "Bas" || i.status === "Rupture").length,
   };
 
   const filteredData = inventory.filter(item => {
@@ -412,28 +439,64 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total</p>
-          <p className="text-2xl font-extrabold text-slate-800 mt-1">{kpis.total}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Total</p>
+            <i className="fas fa-boxes text-slate-400 text-sm"></i>
+          </div>
+          <p className="text-2xl font-extrabold text-slate-800 mt-1">{kpiMetrics.total.units}</p>
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            {kpiMetrics.total.itemsCount} {kpiMetrics.total.itemsCount <= 1 ? "article" : "articles"}
+          </p>
         </div>
         <div className="bg-emerald-50 p-4 rounded-xl shadow-sm border border-emerald-100">
-          <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Dispo</p>
-          <p className="text-2xl font-extrabold text-emerald-700 mt-1">{kpis.dispo}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Dispo</p>
+            <i className="fas fa-check-circle text-emerald-500 text-sm"></i>
+          </div>
+          <p className="text-2xl font-extrabold text-emerald-700 mt-1">{kpiMetrics.dispo.units}</p>
+          <p className="text-xs text-emerald-600 mt-1 font-medium">
+            {kpiMetrics.dispo.itemsCount} {kpiMetrics.dispo.itemsCount <= 1 ? "article" : "articles"}
+          </p>
         </div>
         <div className="bg-blue-50 p-4 rounded-xl shadow-sm border border-blue-100">
-          <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Réservé</p>
-          <p className="text-2xl font-extrabold text-blue-700 mt-1">{kpis.reserve}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Réservé</p>
+            <i className="fas fa-calendar-check text-blue-500 text-sm"></i>
+          </div>
+          <p className="text-2xl font-extrabold text-blue-700 mt-1">{kpiMetrics.reserve.units}</p>
+          <p className="text-xs text-blue-600 mt-1 font-medium">
+            {kpiMetrics.reserve.itemsCount} {kpiMetrics.reserve.itemsCount <= 1 ? "article" : "articles"}
+          </p>
         </div>
         <div className="bg-purple-50 p-4 rounded-xl shadow-sm border border-purple-100">
-          <p className="text-xs text-purple-600 font-bold uppercase tracking-wider">Sorti</p>
-          <p className="text-2xl font-extrabold text-purple-700 mt-1">{kpis.sorti}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-purple-600 font-bold uppercase tracking-wider">Sorti</p>
+            <i className="fas fa-truck text-purple-500 text-sm"></i>
+          </div>
+          <p className="text-2xl font-extrabold text-purple-700 mt-1">{kpiMetrics.sorti.units}</p>
+          <p className="text-xs text-purple-600 mt-1 font-medium">
+            {kpiMetrics.sorti.itemsCount} {kpiMetrics.sorti.itemsCount <= 1 ? "article" : "articles"}
+          </p>
         </div>
         <div className="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-100">
-          <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">En retour</p>
-          <p className="text-2xl font-extrabold text-amber-700 mt-1">{kpis.retour}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">En retour</p>
+            <i className="fas fa-undo text-amber-500 text-sm"></i>
+          </div>
+          <p className="text-2xl font-extrabold text-amber-700 mt-1">{kpiMetrics.retour.units}</p>
+          <p className="text-xs text-amber-600 mt-1 font-medium">
+            {kpiMetrics.retour.itemsCount} {kpiMetrics.retour.itemsCount <= 1 ? "article" : "articles"}
+          </p>
         </div>
         <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-red-100">
-          <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Casse/Perte</p>
-          <p className="text-2xl font-extrabold text-red-700 mt-1">{kpis.casse}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Casse/Perte</p>
+            <i className="fas fa-exclamation-triangle text-red-500 text-sm"></i>
+          </div>
+          <p className="text-2xl font-extrabold text-red-700 mt-1">{kpiMetrics.casse.units}</p>
+          <p className="text-xs text-red-600 mt-1 font-medium">
+            {kpiMetrics.casse.itemsCount} {kpiMetrics.casse.itemsCount <= 1 ? "article" : "articles"}
+          </p>
         </div>
       </div>
 
@@ -444,9 +507,20 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
               <button 
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-full ${filter === f ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                  filter === f
+                    ? "bg-slate-800 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
               >
-                {f}
+                <span>{f}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+                  filter === f
+                    ? "bg-slate-700 text-slate-200"
+                    : "bg-slate-200 text-slate-700"
+                }`}>
+                  {filterCounts[f] ?? 0}
+                </span>
               </button>
             ))}
             <div className="relative ml-2 flex-1 max-w-sm">
@@ -549,7 +623,25 @@ export default function InventoryManagementPage({ onNavigate }: { onNavigate: (s
                   {isColumnVisible("rental_price") && <td className="p-4 text-slate-800 text-right">{item.unitPrice.toLocaleString()} Ar</td>}
                   {isColumnVisible("breakage_price") && <td className="p-4 text-slate-800 text-right">{item.breakagePrice.toLocaleString()} Ar</td>}
                   {isColumnVisible("total") && <td className="p-4 text-slate-800 font-medium text-right">{item.totalStock}</td>}
-                  {isColumnVisible("available") && <td className="p-4 text-emerald-600 font-bold text-right">{item.availableStock}</td>}
+                  {isColumnVisible("available") && (
+                    <td className="p-4 text-right">
+                      <span className="text-emerald-600 font-bold">{item.availableStock}</span>
+                      {item.totalStock > 0 && (
+                        <div className="w-16 ml-auto mt-1 h-1.5 bg-slate-100 rounded-full overflow-hidden flex" title={`Disponibilité: ${item.availableStock} / ${item.totalStock} (${Math.round((item.availableStock / item.totalStock) * 100)}%)`}>
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              item.availableStock === 0
+                                ? "bg-rose-500"
+                                : item.availableStock / item.totalStock < 0.25
+                                  ? "bg-amber-500"
+                                  : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(0, (item.availableStock / item.totalStock) * 100))}%` }}
+                          />
+                        </div>
+                      )}
+                    </td>
+                  )}
                   {isColumnVisible("reserved") && <td className="p-4 text-blue-600 font-medium text-right">{item.reservedStock}</td>}
                   {isColumnVisible("out") && <td className="p-4 text-purple-600 font-medium text-right">{item.outStock}</td>}
                   {isColumnVisible("return") && <td className="p-4 text-amber-600 font-medium text-right">{item.expectedReturnStock}</td>}
