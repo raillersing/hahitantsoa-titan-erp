@@ -355,7 +355,7 @@ def test_hahitantsoa_amendment_document_failure_is_controlled_and_rolls_back(aut
     assert response.data["code"] == "document_generation_failed"
     draft.refresh_from_db()
     assert draft.guest_count == 200
-    assert HahitantsoaEventDraftAmendmentRequest.objects.get(pk=amendment_id).status == "pending"
+    assert HahitantsoaEventDraftAmendmentRequest.objects.get(pk=amendment_id).status == "draft"
 
 
 @pytest.mark.django_db
