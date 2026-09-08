@@ -174,6 +174,7 @@ export default function ReservationDetailPage({
       note: string;
       reference?: string;
       receipt_document?: DocumentInstance | null;
+      payment_kind?: string;
     }[]
   >([]);
   const depositRecordingKeyRef = useRef<string | null>(null);
@@ -246,6 +247,7 @@ export default function ReservationDetailPage({
             note: payment.notes || payment.payment_kind,
             reference: payment.external_reference || undefined,
             receipt_document: payment.receipt_document,
+            payment_kind: payment.payment_kind,
           })));
       } catch {
         // Non-fatal: payment loading failure does not hide the dossier.
@@ -484,6 +486,31 @@ export default function ReservationDetailPage({
   const handlePaymentRecorded = async () => {
     if (!draft) return;
     try {
+      // 1. Auto-generate official titan contract if missing
+      const hasContract = documentInstances.some(
+        (di) => di.template_key === "titan.contract.v1" || di.template_key === "titan.material_contract.v1",
+      );
+      if (!hasContract) {
+        try {
+          const inst = await createReservationDraftDocumentInstance(draft.id, {
+            template_key: "titan.contract.v1",
+          });
+          await generateReservationDraftDocumentInstance(draft.id, inst.id);
+        } catch (cErr) {
+          console.warn("Auto titan contract generation after payment:", cErr);
+        }
+      }
+
+      // 2. Auto-regenerate proforma to keep in sync
+      try {
+        const pf = await createReservationDraftDocumentInstance(draft.id, {
+          template_key: "titan.proforma.v1",
+        });
+        await generateReservationDraftDocumentInstance(draft.id, pf.id);
+      } catch (pErr) {
+        console.warn("Auto titan proforma sync after payment:", pErr);
+      }
+
       const [updatedDraft, paymentRecords, docInstances] = await Promise.all([
         getReservationDraft(draft.id),
         getPayments(draft.id).catch(() => []),
@@ -506,9 +533,10 @@ export default function ReservationDetailPage({
             note: payment.notes || payment.payment_kind,
             reference: payment.external_reference || undefined,
             receipt_document: payment.receipt_document,
+            payment_kind: payment.payment_kind,
           })),
       );
-      showToast("Versement enregistré et confirmé.", "success");
+      showToast("Versement enregistré et chaîne documentaire synchronisée avec succès.", "success");
     } catch (err: any) {
       showToast(err?.message || "Erreur lors de l'actualisation du dossier.", "error");
     }
@@ -696,10 +724,34 @@ export default function ReservationDetailPage({
     safeNumber(draft?.total_amount) ||
     (calculatedTotal > 0 ? calculatedTotal : 0) ||
     (materialsTotal > 0 ? materialsTotal : 0);
-  const paidAmount = payments.reduce((total, payment) => total + payment.amount, 0);
-  const remainingAmount = Math.max(0, safeAmount - paidAmount);
+
+  // Exact Article 5 deposit calculation: 25% of total amount
   const requiredDepositAmount =
     safeNumber(draft?.required_deposit_amount) || Math.round(safeAmount * 0.25);
+
+  // Exact Article 7 caution (escrow): 100 000 Ar for < 200 000 Ar, else 50%
+  const cautionAmount =
+    safeNumber((draft as any)?.caution_amount) ||
+    (safeAmount > 0 && safeAmount < 200000 ? 100000 : Math.round(safeAmount * 0.5));
+
+  const cautionPaidAmount = payments
+    .filter((p) => p.payment_kind === "caution")
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const cautionReceiptPayment = payments.find((p) => p.payment_kind === "caution");
+
+  // Total paid for rent only (excluding caution!)
+  const paidAmount = payments
+    .filter((p) => p.payment_kind !== "caution")
+    .reduce((total, payment) => total + payment.amount, 0);
+
+  const confirmedDepositAmount =
+    payments
+      .filter((p) => p.payment_kind === "deposit")
+      .reduce((sum, p) => sum + p.amount, 0) || Math.min(paidAmount, requiredDepositAmount);
+
+  const depositShortfall = Math.max(0, requiredDepositAmount - confirmedDepositAmount);
+  const remainingAmount = Math.max(0, safeAmount - paidAmount);
 
   const materials =
     draft?.lines
@@ -935,6 +987,117 @@ export default function ReservationDetailPage({
         )}
       </div>
 
+      {/* ── Unconfirmed Reservation Highlight & Confirmation Studio Banner ── */}
+      {draftStatus !== "confirmed" && (
+        <div
+          data-testid="titan-unconfirmed-highlight-banner"
+          className="rounded-3xl border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-amber-950/40 p-6 shadow-md space-y-4 mb-6 animate-in fade-in duration-200"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
+                <i className="fa-solid fa-clock-rotate-left"></i>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                    Réservation Matériel non confirmée · Devis
+                  </span>
+                </div>
+                <h2 className="text-lg font-black text-amber-950 dark:text-amber-100 mt-1">
+                  En attente de l'acompte de confirmation (25%)
+                </h2>
+                <p className="text-xs text-amber-800 dark:text-amber-200 mt-0.5 leading-relaxed max-w-3xl">
+                  Ce dossier reste un devis. La réservation Titan devient <strong>définitivement confirmée</strong> dès l'encaissement de l'acompte de <strong>25% du total</strong> ({formatMoney(requiredDepositAmount)}) conformément à l'Article 5 du Contrat Titan.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentModalInitialKind("deposit");
+                  setShowPaymentModal(true);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer"
+              >
+                <i className="fa-solid fa-money-bill-transfer"></i>
+                {confirmedDepositAmount >= requiredDepositAmount
+                  ? "Encaisser un versement"
+                  : `Encaisser l'acompte (25% = ${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
+              </button>
+            </div>
+          </div>
+
+          {/* Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/70">
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Acompte Requis (25% TTC)</span>
+              <span className="text-base font-black text-amber-950 dark:text-amber-100">{formatMoney(requiredDepositAmount)}</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Article 5 du Contrat Titan</span>
+            </div>
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Acompte Réglé à ce jour</span>
+              <span className="text-base font-black text-emerald-700 dark:text-emerald-300">{formatMoney(confirmedDepositAmount)}</span>
+              <span className="text-[10px] text-emerald-600 block mt-0.5">
+                {requiredDepositAmount > 0 ? `${Math.min(100, Math.round((confirmedDepositAmount / requiredDepositAmount) * 100))}% de l'acompte couvert` : "—"}
+              </span>
+            </div>
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Manquant pour Confirmer</span>
+              <span className={`text-base font-black ${depositShortfall > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                {depositShortfall > 0 ? formatMoney(depositShortfall) : "Seuil atteint (100%)"}
+              </span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">{depositShortfall > 0 ? "Reste à encaisser" : "Prêt pour confirmation"}</span>
+            </div>
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Caution Séquestre (Article 7)</span>
+              <span className="text-base font-black text-slate-800 dark:text-slate-100">{formatMoney(cautionAmount)}</span>
+              <span className="text-[10px] text-amber-700 dark:text-amber-300 block mt-0.5">
+                {cautionPaidAmount >= cautionAmount ? "✓ Séquestrée" : "Exigible à J-5 (hors devis)"}
+              </span>
+            </div>
+          </div>
+
+          {/* Pre-requisites & Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/70 text-xs">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className={`flex items-center gap-1.5 font-bold ${confirmedDepositAmount >= requiredDepositAmount ? "text-emerald-800 dark:text-emerald-200" : "text-amber-900 dark:text-amber-100"}`}>
+                <i className={`fa-solid ${confirmedDepositAmount >= requiredDepositAmount ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-amber-500"}`}></i>
+                1. Acompte de 25% ({confirmedDepositAmount >= requiredDepositAmount ? "Reçu" : "En attente"})
+              </span>
+              <span className={`flex items-center gap-1.5 font-bold ${draft.contract_signed_at ? "text-emerald-800 dark:text-emerald-200" : "text-slate-500"}`}>
+                <i className={`fa-solid ${draft.contract_signed_at ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-slate-400"}`}></i>
+                2. Contrat signé ({draft.contract_signed_at ? "Signé" : "En attente"})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!draft.contract_signed_at && (
+                <button
+                  type="button"
+                  disabled={actionLoading === "contract"}
+                  onClick={handleContractSigned}
+                  className="px-3 py-1.5 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 disabled:opacity-50 transition shadow-2xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-signature mr-1.5"></i> Marquer contrat signé
+                </button>
+              )}
+              {draft.contract_signed_at && draft.required_deposit_received_at && (
+                <button
+                  type="button"
+                  disabled={actionLoading === "confirm"}
+                  onClick={handleConfirm}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50 transition shadow-xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-check-double mr-1.5"></i> Confirmer la réservation
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Waitlist / Conflict Notice Banner ─────────────────────────── */}
       {draft.notes?.includes("[LISTE D'ATTENTE]") && (
         <div className="rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-5 shadow-sm mb-6">
@@ -1123,22 +1286,104 @@ export default function ReservationDetailPage({
 
             <div className="grid grid-cols-4 gap-2.5 mb-4">
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Dossier</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Devis (CA)</span>
                 <span className="text-sm font-black text-slate-900">{formatMoney(safeAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Acompte Requis</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Acompte (25%)</span>
                 <span className="text-sm font-black text-amber-600">{formatMoney(requiredDepositAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Perçu</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Perçu Loyers</span>
                 <span className="text-sm font-black text-emerald-600">{formatMoney(paidAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Reste à Régler</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Reste Dû Loyers</span>
                 <span className={`text-sm font-black ${remainingAmount > 0 ? "text-rose-600" : "text-emerald-600"}`}>
                   {formatMoney(remainingAmount)}
                 </span>
+              </div>
+            </div>
+
+            {/* ── Encart Dédié : Séquestre & Caution de Garantie Titan (Article 7) ──────── */}
+            <div data-testid="titan-caution-escrow-card" className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/60 via-white to-amber-50/30 p-4 mb-4 shadow-2xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-100 pb-2.5">
+                <div>
+                  <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide flex items-center gap-1.5">
+                    <i className="fa-solid fa-shield-halved text-amber-600"></i> Dépôt de Garantie (Caution) · Article 7
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Somme séquestrée (hors devis matériel), exigible au plus tard à J-5 avant l'enlèvement.
+                  </p>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                  cautionPaidAmount >= cautionAmount
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                    : cautionPaidAmount > 0
+                      ? "bg-amber-100 text-amber-800 border-amber-300"
+                      : "bg-rose-100 text-rose-800 border-rose-300"
+                }`}>
+                  {cautionPaidAmount >= cautionAmount
+                    ? "✓ Caution Versée & Séquestrée"
+                    : cautionPaidAmount > 0
+                      ? "Partiellement versée"
+                      : "⚠️ Caution non versée (En attente)"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Montant Exigé</span>
+                  <span className="text-xs font-black text-slate-900">{formatMoney(cautionAmount)}</span>
+                </div>
+                <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Déjà Encaissé</span>
+                  <span className="text-xs font-black text-emerald-700">{formatMoney(cautionPaidAmount)}</span>
+                </div>
+                <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Échéance Limite</span>
+                  <span className="text-xs font-black text-slate-700">
+                    {draft.start_at
+                      ? formatDateFr(new Date(new Date(draft.start_at).getTime() - 5 * 24 * 3600 * 1000).toISOString())
+                      : "J-5"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-[10px] text-slate-500 italic">
+                  Restituable lors de la remise des matériels loués après inventaire et contrôle sans casse.
+                </span>
+                <div className="flex items-center gap-2">
+                  {cautionReceiptPayment && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewModal({
+                          title: "Reçu de Dépôt de Caution",
+                          documentInstanceId: cautionReceiptPayment.receipt_document?.id || null,
+                          templateKey: "titan.payment_receipt.v1",
+                        });
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold text-[11px] transition cursor-pointer"
+                    >
+                      <i className="fa-solid fa-file-invoice mr-1 text-indigo-600"></i> Reçu Caution
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentModalInitialKind("caution");
+                      setShowPaymentModal(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
+                  >
+                    <i className="fa-solid fa-shield-halved mr-1"></i>
+                    {cautionPaidAmount >= cautionAmount
+                      ? "Encaisser complément caution"
+                      : `+ Encaisser Caution (${formatMoney(Math.max(0, cautionAmount - cautionPaidAmount))})`}
+                  </button>
+                </div>
               </div>
             </div>
 

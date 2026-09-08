@@ -317,7 +317,9 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /confirmer la réservation/i }));
+    const confirmBtns = await screen.findAllByRole("button", { name: /confirmer la réservation/i });
+    expect(confirmBtns.length).toBeGreaterThan(0);
+    fireEvent.click(confirmBtns[0]);
     await waitFor(() => expect(mockConfirmDraft).toHaveBeenCalledWith(DRAFT.id));
   });
 
@@ -579,8 +581,8 @@ describe("HahitantsoaEventDraftDetailPage", () => {
 
     // Total should be calculated (1 000 000 space)
     expect(await screen.findByText("Synthèse Financière & Échéancier")).toBeInTheDocument();
-    expect(screen.getByText("Total Dossier")).toBeInTheDocument();
-    expect(screen.getByText("Total Perçu")).toBeInTheDocument();
+    expect(screen.getByText(/Total Devis/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total Perçu Loyers/i)).toBeInTheDocument();
     expect(screen.getAllByText(/500 000 Ar/).length).toBeGreaterThan(0);
   });
 
@@ -804,5 +806,30 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     await waitFor(() => {
       expect(screen.getAllByText(/Erreur de validation de date/i).length).toBeGreaterThan(0);
     });
+  });
+
+  it("renders the unconfirmed highlight banner and dedicated caution escrow card on draft reservations", async () => {
+    mockGetDraft.mockResolvedValue(DRAFT);
+    mockGetCustomer.mockResolvedValue(CUSTOMER);
+    mockGetDocuments.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetPreflight.mockResolvedValue(preflight());
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={vi.fn()} />);
+
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    // Check unconfirmed highlight banner
+    const banner = screen.getByTestId("unconfirmed-highlight-banner");
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent("Réservation non confirmée");
+    expect(banner).toHaveTextContent("En attente de l'acompte obligatoire de confirmation");
+
+    // Check caution escrow card
+    const cautionCard = screen.getByTestId("caution-escrow-card");
+    expect(cautionCard).toBeInTheDocument();
+    expect(cautionCard).toHaveTextContent("Dépôt de Garantie (Caution)");
+    expect(cautionCard).toHaveTextContent("500 000 Ar");
   });
 });

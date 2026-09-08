@@ -172,7 +172,7 @@ describe('ReservationDetailPage', () => {
     await waitForDraftLoad();
 
     // Initially: only "Marquer contrat signé" should appear
-    const contractBtn = screen.getByRole('button', { name: /Marquer contrat signé/i });
+    const contractBtn = screen.getAllByRole('button', { name: /Marquer contrat signé/i })[0];
     expect(contractBtn).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Enregistrer et confirmer l'acompte/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Confirmer la réservation/i })).not.toBeInTheDocument();
@@ -188,7 +188,7 @@ describe('ReservationDetailPage', () => {
     fireEvent.change(screen.getByLabelText(/Montant de l'acompte/i), { target: { value: '250000' } });
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer et confirmer l'acompte/i }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Confirmer la réservation/i })).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: /Confirmer la réservation/i })[0]).toBeInTheDocument();
     });
     expect(mockRecordConfirmedDeposit).toHaveBeenCalledWith(expect.objectContaining({
       reservation_draft: 'draft-loc-089',
@@ -197,12 +197,12 @@ describe('ReservationDetailPage', () => {
     }));
 
     // Click confirm
-    fireEvent.click(screen.getByRole('button', { name: /Confirmer la réservation/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Confirmer la réservation/i })[0]);
     await waitFor(() => {
       // After confirmation, status is 'confirmed', no more action buttons
-      expect(screen.queryByRole('button', { name: /Marquer contrat signé/i })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole('button', { name: /Marquer contrat signé/i })).toHaveLength(0);
       expect(screen.queryByRole('button', { name: /Enregistrer et confirmer l'acompte/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Confirmer la réservation/i })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole('button', { name: /Confirmer la réservation/i })).toHaveLength(0);
     });
     expect(mockConfirmReservationDraft).toHaveBeenCalledWith('draft-loc-089');
   });
@@ -391,5 +391,28 @@ describe('ReservationDetailPage', () => {
       // Reload draft after amendment
       expect(mockGetReservationDraft).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("renders the Titan unconfirmed highlight banner and caution escrow card on draft reservations", async () => {
+    mockGetReservationDraft.mockResolvedValue(MOCK_DRAFT);
+    mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+
+    await waitForDraftLoad();
+
+    // Check Titan unconfirmed banner
+    const banner = screen.getByTestId("titan-unconfirmed-highlight-banner");
+    expect(banner).toBeInTheDocument();
+    expect(banner).toHaveTextContent("Réservation Matériel non confirmée");
+    expect(banner).toHaveTextContent("En attente de l'acompte de confirmation (25%)");
+
+    // Check Titan caution escrow card
+    const cautionCard = screen.getByTestId("titan-caution-escrow-card");
+    expect(cautionCard).toBeInTheDocument();
+    expect(cautionCard).toHaveTextContent("Dépôt de Garantie (Caution)");
   });
 });

@@ -615,13 +615,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   };
 
   // Financial calculations
-  const totalPaidAmount = useMemo(() => {
-    const fromPayments = payments
-      .filter((p) => p.payment_status === "confirmed" || p.payment_status === "reconciled" || !p.payment_status)
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    return fromPayments > 0 ? fromPayments : 0;
-  }, [payments]);
-
   const totalDossierAmount = useMemo(() => {
     const fromSchedule = Number(draft?.payment_schedule?.total_amount);
     if (fromSchedule && !isNaN(fromSchedule) && fromSchedule > 0) return fromSchedule;
@@ -636,14 +629,69 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     return sum > 0 ? sum : 0;
   }, [draft]);
 
+  // Exact Article 5 deposit calculation: 1 000 000 Ar for bare rental, 1 500 000 Ar for logistics rental
   const requiredDepositAmount = useMemo(() => {
     const fromSchedule = Number(draft?.payment_schedule?.deposit_amount);
     if (fromSchedule && !isNaN(fromSchedule) && fromSchedule > 0) return fromSchedule;
     const fromDraft = Number(draft?.required_deposit_amount);
     if (fromDraft && !isNaN(fromDraft) && fromDraft > 0) return fromDraft;
-    return totalDossierAmount > 0 ? Math.round(totalDossierAmount * 0.5) : 0;
-  }, [draft, totalDossierAmount]);
+    const rentalTypeStr = String(draft?.rental_type || "").toLowerCase();
+    if (rentalTypeStr.includes("logistic")) {
+      return 1500000;
+    }
+    return 1000000;
+  }, [draft]);
 
+  // Caution (Escrow guarantee deposit) - Article 7: 500 000 Ar standard
+  const cautionAmount = useMemo(() => {
+    const fromDraft = Number((draft as any)?.caution_amount);
+    if (fromDraft && !isNaN(fromDraft) && fromDraft > 0) return fromDraft;
+    return 500000;
+  }, [draft]);
+
+  const cautionPaidAmount = useMemo(() => {
+    return payments
+      .filter(
+        (p) =>
+          p.payment_kind === "caution" &&
+          (p.payment_status === "confirmed" || p.payment_status === "reconciled" || !p.payment_status),
+      )
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  }, [payments]);
+
+  const cautionReceiptPayment = useMemo(() => {
+    return payments.find(
+      (p) =>
+        p.payment_kind === "caution" &&
+        (p.payment_status === "confirmed" || p.payment_status === "reconciled" || !p.payment_status),
+    );
+  }, [payments]);
+
+  // Total paid for rent/services only (excluding caution so rent isn't artificially inflated)
+  const totalPaidAmount = useMemo(() => {
+    const fromPayments = payments
+      .filter(
+        (p) =>
+          p.payment_kind !== "caution" &&
+          (p.payment_status === "confirmed" || p.payment_status === "reconciled" || !p.payment_status),
+      )
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    return fromPayments > 0 ? fromPayments : 0;
+  }, [payments]);
+
+  const confirmedDepositAmount = useMemo(() => {
+    const depPayments = payments
+      .filter(
+        (p) =>
+          p.payment_kind === "deposit" &&
+          (p.payment_status === "confirmed" || p.payment_status === "reconciled" || !p.payment_status),
+      )
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    if (depPayments > 0) return depPayments;
+    return Math.min(totalPaidAmount, requiredDepositAmount);
+  }, [payments, totalPaidAmount, requiredDepositAmount]);
+
+  const depositShortfall = Math.max(0, requiredDepositAmount - confirmedDepositAmount);
   const remainingDepositAmount = Math.max(requiredDepositAmount - totalPaidAmount, 0);
   const remainingTotalAmount = Math.max(totalDossierAmount - totalPaidAmount, 0);
 
@@ -652,12 +700,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       return draft.payment_schedule;
     }
     if (totalDossierAmount <= 0) return null;
-    const dep = Math.round(totalDossierAmount * 0.5);
-    const inst1 = Math.round(totalDossierAmount * 0.25);
-    const inst2 = Math.max(0, totalDossierAmount - dep - inst1);
+    const dep = Math.min(requiredDepositAmount, totalDossierAmount);
+    const rem = Math.max(0, totalDossierAmount - dep);
+    const inst1 = Math.round(rem * 0.5);
+    const inst2 = Math.max(0, rem - inst1);
     return {
       space_rental_amount: String(draft?.space_rental_amount || 0),
-      logistics_amount: "0.00",
+      logistics_amount: String((draft as any)?.logistics_amount || "0.00"),
       total_amount: String(totalDossierAmount),
       deposit_amount: String(dep),
       first_installment_amount: String(inst1),
@@ -672,9 +721,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             .toISOString()
             .slice(0, 10)
         : "",
-      remaining_after_deposit: String(totalDossierAmount - dep),
+      remaining_after_deposit: String(rem),
     };
-  }, [draft, totalDossierAmount]);
+  }, [draft, totalDossierAmount, requiredDepositAmount]);
 
   // Waterfall installment distribution
   const depositTarget = Number(effectiveSchedule?.deposit_amount || requiredDepositAmount || 0);
@@ -692,7 +741,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     Math.max(totalPaidAmount - depositTarget - firstInstallmentTarget, 0),
     secondInstallmentTarget,
   );
-  const confirmedDepositAmount = totalPaidAmount;
 
   // Caution calculation: 1 000 000 Ar standard
 
@@ -1314,6 +1362,131 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         </div>
       </div>
 
+      {/* ── Unconfirmed Reservation Highlight & Confirmation Studio Banner ── */}
+      {draft.status !== "confirmed" && !conflictedWithEvent && (
+        <div
+          data-testid="unconfirmed-highlight-banner"
+          className="rounded-3xl border-2 border-amber-300 dark:border-amber-700 bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-amber-950/40 p-6 shadow-md space-y-4 animate-in fade-in duration-200"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-white flex items-center justify-center text-xl shadow-md shrink-0">
+                <i className="fa-solid fa-clock-rotate-left"></i>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                    Réservation non confirmée · Devis / Option
+                  </span>
+                </div>
+                <h2 className="text-lg font-black text-amber-950 dark:text-amber-100 mt-1">
+                  En attente de l'acompte obligatoire de confirmation
+                </h2>
+                <p className="text-xs text-amber-800 dark:text-amber-200 mt-0.5 leading-relaxed max-w-3xl">
+                  Ce dossier est actuellement une option / devis. La réservation devient <strong>définitivement confirmée</strong> dès encaissement de l'acompte contractuel (<strong>{String(draft?.rental_type || "").toLowerCase().includes("logistic") ? "1 500 000 Ar" : "1 000 000 Ar"}</strong> selon l'Article 5).
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentKindSelection("deposit");
+                  setShowPaymentModal(true);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow-sm hover:bg-amber-700 text-xs transition-all cursor-pointer"
+              >
+                <i className="fa-solid fa-money-bill-transfer"></i>
+                {confirmedDepositAmount >= requiredDepositAmount
+                  ? "Encaisser un versement"
+                  : `Encaisser l'acompte (${formatMoney(depositShortfall > 0 ? depositShortfall : requiredDepositAmount)})`}
+              </button>
+            </div>
+          </div>
+
+          {/* Metrics & Progress Bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/70">
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Acompte Requis (Article 5)</span>
+              <span className="text-base font-black text-amber-950 dark:text-amber-100">{formatMoney(requiredDepositAmount)}</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">{String(draft?.rental_type || "").toLowerCase().includes("logistic") ? "Formule Logistique" : "Formule Salle Nue"}</span>
+            </div>
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Acompte Réglé à ce jour</span>
+              <span className="text-base font-black text-emerald-700 dark:text-emerald-300">{formatMoney(confirmedDepositAmount)}</span>
+              <span className="text-[10px] text-emerald-600 block mt-0.5">
+                {requiredDepositAmount > 0 ? `${Math.min(100, Math.round((confirmedDepositAmount / requiredDepositAmount) * 100))}% de l'acompte couvert` : "—"}
+              </span>
+            </div>
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Manquant pour Confirmer</span>
+              <span className={`text-base font-black ${depositShortfall > 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                {depositShortfall > 0 ? formatMoney(depositShortfall) : "Seuil atteint (100%)"}
+              </span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">{depositShortfall > 0 ? "Reste à encaisser" : "Prêt pour confirmation"}</span>
+            </div>
+            <div className="rounded-2xl bg-white/90 dark:bg-slate-900/70 p-3.5 border border-amber-200 dark:border-amber-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Caution Séquestre (Article 7)</span>
+              <span className="text-base font-black text-slate-800 dark:text-slate-100">{formatMoney(cautionAmount)}</span>
+              <span className="text-[10px] text-amber-700 dark:text-amber-300 block mt-0.5">
+                {cautionPaidAmount >= cautionAmount ? "✓ Séquestrée" : "Exigible à J-10 (hors devis)"}
+              </span>
+            </div>
+          </div>
+
+          {/* Confirmation Pre-requisites Checklist & Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-amber-200/70 dark:border-amber-800/70 text-xs">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className={`flex items-center gap-1.5 font-bold ${confirmedDepositAmount >= requiredDepositAmount ? "text-emerald-800 dark:text-emerald-200" : "text-amber-900 dark:text-amber-100"}`}>
+                <i className={`fa-solid ${confirmedDepositAmount >= requiredDepositAmount ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-amber-500"}`}></i>
+                1. Acompte de confirmation ({confirmedDepositAmount >= requiredDepositAmount ? "Reçu" : "En attente"})
+              </span>
+              <span className={`flex items-center gap-1.5 font-bold ${contractExists ? "text-emerald-800 dark:text-emerald-200" : "text-slate-500"}`}>
+                <i className={`fa-solid ${contractExists ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-slate-400"}`}></i>
+                2. Contrat officiel ({contractExists ? "Généré" : "Non généré"})
+              </span>
+              <span className={`flex items-center gap-1.5 font-bold ${contractSigned ? "text-emerald-800 dark:text-emerald-200" : "text-slate-500"}`}>
+                <i className={`fa-solid ${contractSigned ? "fa-circle-check text-emerald-600" : "fa-circle-xmark text-slate-400"}`}></i>
+                3. Signature client ({contractSigned ? "Signé" : "En attente"})
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!contractExists && (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void generateDocument("hahitantsoa.contract.v1", "Contrat officiel")}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 disabled:opacity-50 transition shadow-2xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-file-contract mr-1.5"></i> Générer le contrat
+                </button>
+              )}
+              {contractExists && !contractSigned && (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void markContractSigned()}
+                  className="px-3 py-1.5 rounded-xl bg-teal-600 text-white font-bold hover:bg-teal-700 disabled:opacity-50 transition shadow-2xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-signature mr-1.5"></i> Marquer contrat signé
+                </button>
+              )}
+              {preflight?.can_confirm && (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void confirmDraft()}
+                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-50 transition shadow-xs cursor-pointer"
+                >
+                  <i className="fa-solid fa-check-double mr-1.5"></i> Confirmer la réservation
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Alerts & Notices ──────────────────────────────────────────────── */}
       {error && <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 flex items-center gap-3"><i className="fa-solid fa-triangle-exclamation text-lg"></i><span>{error}</span></div>}
       {actionNotice && <div aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 flex items-center gap-3"><i className="fa-solid fa-circle-check text-lg"></i><span>{actionNotice}</span></div>}
@@ -1527,22 +1700,104 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
             <div className="grid grid-cols-4 gap-2.5 mb-4">
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Dossier</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Devis (CA)</span>
                 <span className="text-sm font-black text-slate-900">{formatMoney(totalDossierAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Acompte Requis</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Acompte Confirm.</span>
                 <span className="text-sm font-black text-amber-600">{formatMoney(requiredDepositAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Perçu</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Perçu Loyers</span>
                 <span className="text-sm font-black text-emerald-600">{formatMoney(totalPaidAmount)}</span>
               </div>
               <div className="rounded-xl bg-white p-3 border border-slate-200/80 shadow-2xs">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Reste à Régler</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Reste Dû Loyers</span>
                 <span className={`text-sm font-black ${remainingTotalAmount > 0 ? "text-rose-600" : "text-emerald-600"}`}>
                   {formatMoney(remainingTotalAmount)}
                 </span>
+              </div>
+            </div>
+
+            {/* ── Encart Dédié : Séquestre & Caution de Garantie (Article 7) ──────── */}
+            <div data-testid="caution-escrow-card" className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/60 via-white to-amber-50/30 p-4 mb-4 shadow-2xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-100 pb-2.5">
+                <div>
+                  <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide flex items-center gap-1.5">
+                    <i className="fa-solid fa-shield-halved text-amber-600"></i> Dépôt de Garantie (Caution) · Article 7
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Somme séquestrée (hors devis et chiffre d'affaires), exigible au plus tard à J-10.
+                  </p>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
+                  cautionPaidAmount >= cautionAmount
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                    : cautionPaidAmount > 0
+                      ? "bg-amber-100 text-amber-800 border-amber-300"
+                      : "bg-rose-100 text-rose-800 border-rose-300"
+                }`}>
+                  {cautionPaidAmount >= cautionAmount
+                    ? "✓ Caution Versée & Séquestrée"
+                    : cautionPaidAmount > 0
+                      ? "Partiellement versée"
+                      : "⚠️ Caution non versée (En attente)"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Montant Exigé</span>
+                  <span className="text-xs font-black text-slate-900">{formatMoney(cautionAmount)}</span>
+                </div>
+                <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Déjà Encaissé</span>
+                  <span className="text-xs font-black text-emerald-700">{formatMoney(cautionPaidAmount)}</span>
+                </div>
+                <div className="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block">Échéance Limite</span>
+                  <span className="text-xs font-black text-slate-700">
+                    {draft.start_at
+                      ? formatDateFr(new Date(new Date(draft.start_at).getTime() - 10 * 24 * 3600 * 1000).toISOString())
+                      : "J-10"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span className="text-[10px] text-slate-500 italic">
+                  Restituable le jour de fin d'événement lors de l'état des lieux sans dommage.
+                </span>
+                <div className="flex items-center gap-2">
+                  {cautionReceiptPayment && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewModal({
+                          title: "Reçu de Dépôt de Caution",
+                          documentInstanceId: cautionReceiptPayment.receipt_document?.id || null,
+                          templateKey: "hahitantsoa.payment_receipt.v1",
+                        });
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold text-[11px] transition cursor-pointer"
+                    >
+                      <i className="fa-solid fa-file-invoice mr-1 text-indigo-600"></i> Reçu Caution
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPaymentKindSelection("caution");
+                      setShowPaymentModal(true);
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-2xs transition cursor-pointer"
+                  >
+                    <i className="fa-solid fa-shield-halved mr-1"></i>
+                    {cautionPaidAmount >= cautionAmount
+                      ? "Encaisser complément caution"
+                      : `+ Encaisser Caution (${formatMoney(Math.max(0, cautionAmount - cautionPaidAmount))})`}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -2855,9 +3110,49 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             payment_status: p.payment_status,
             payment_kind: p.payment_kind,
           }))}
-          onPaymentRecorded={async () => {
+          onPaymentRecorded={async (result) => {
+            if (param) {
+              // 1. Auto-generate official contract if missing
+              if (!contractExists) {
+                try {
+                  const contractInst = await createHahitantsoaEventDraftDocumentInstance(param, {
+                    template_key: "hahitantsoa.contract.v1",
+                  });
+                  await generateHahitantsoaEventDraftDocumentInstance(param, contractInst.id);
+                  await generateHahitantsoaEventDraftDocumentInstancePdf(param, contractInst.id);
+                } catch (cErr) {
+                  console.warn("Auto contract generation after payment:", cErr);
+                }
+              }
+
+              // 2. Auto-regenerate Proforma and Invoice to sync with all lines and totals
+              try {
+                const pfInst = await createHahitantsoaEventDraftDocumentInstance(param, {
+                  template_key: "hahitantsoa.proforma.v1",
+                });
+                await generateHahitantsoaEventDraftDocumentInstance(param, pfInst.id);
+                await generateHahitantsoaEventDraftDocumentInstancePdf(param, pfInst.id);
+              } catch (pErr) {
+                console.warn("Auto proforma sync after payment:", pErr);
+              }
+
+              try {
+                const invInst = await createHahitantsoaEventDraftDocumentInstance(param, {
+                  template_key: "hahitantsoa.invoice.v1",
+                });
+                await generateHahitantsoaEventDraftDocumentInstance(param, invInst.id);
+                await generateHahitantsoaEventDraftDocumentInstancePdf(param, invInst.id);
+              } catch (iErr) {
+                console.warn("Auto invoice sync after payment:", iErr);
+              }
+            }
+
             await load();
-            setActionNotice("Versement enregistré et confirmé avec succès.");
+            setActionNotice(
+              result?.replayed
+                ? "Versement repris sans doublon et chaîne documentaire actualisée."
+                : "Versement enregistré et chaîne documentaire synchronisée avec succès.",
+            );
           }}
           initialAmount={depositAmount || undefined}
           initialPaymentKind={paymentKindSelection}
