@@ -3,6 +3,7 @@ from collections.abc import Callable
 
 from django.conf import settings
 from django.db import connections
+from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
@@ -39,6 +40,16 @@ def is_database_ready() -> bool:
     return True
 
 
+def is_migration_state_ready() -> bool:
+    try:
+        connection = connections["default"]
+        executor = MigrationExecutor(connection)
+        targets = executor.loader.graph.leaf_nodes()
+        return not executor.migration_plan(targets)
+    except Exception:
+        return False
+
+
 def is_redis_ready() -> bool:
     try:
         with socket.create_connection(
@@ -72,6 +83,7 @@ def _readiness_status(check: Callable[[], bool]) -> str:
 def readyz(request):
     checks = {
         "database": _readiness_status(is_database_ready),
+        "migrations": _readiness_status(is_migration_state_ready),
         "redis": _readiness_status(is_redis_ready),
     }
     ready = all(status == "ok" for status in checks.values())

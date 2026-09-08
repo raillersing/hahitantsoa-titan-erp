@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.documents.models import DocumentInstance
+from apps.documents.pdf import DocumentPDFGenerationError
 from apps.documents.runtime import (
     HAHITANTSOA_EVENT_DRAFT_PREVIEW_TEMPLATE_KEYS,
     DocumentRuntimeGenerationError,
@@ -426,6 +427,11 @@ class HahitantsoaEventDraftAmendmentRequestApplyAPIView(APIView):
         except (ReservationLifecycleStateError, ReservationLifecycleError) as error:
             return Response(
                 {"detail": str(error), "code": getattr(error, "code", None)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (DocumentRuntimeGenerationError, DocumentPDFGenerationError) as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(
