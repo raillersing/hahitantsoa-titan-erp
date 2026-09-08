@@ -409,26 +409,38 @@ function TitanDocumentsPanel() {
                     )}
                     {inst.document_type === "proforma" && state.canWrite && (
                       <div className="instance-actions" style={{ marginTop: "4px" }}>
-                        {inst.status === "generated" && (
-                          <button
-                            type="button"
-                            className="btn-generate"
-                            onClick={() => handleConvertToContract(inst.id)}
-                            disabled={state.loading}
-                          >
-                            Convertir en contrat
-                          </button>
-                        )}
-                        {inst.status !== "voided" && (
-                          <button
-                            type="button"
-                            className="btn-generate btn-generate--secondary"
-                            style={{ marginLeft: "4px" }}
-                            onClick={() => handleVoidProforma(inst.id)}
-                            disabled={state.loading}
-                          >
-                            Annuler le proforma
-                          </button>
+                        {(state.instances || []).some(
+                          (d) =>
+                            (d.document_type === "contrat" ||
+                              d.document_type === "contract" ||
+                              d.template_key?.includes("contract")) &&
+                            d.reservation_draft === inst.reservation_draft,
+                        ) ? (
+                          <span className="badge badge--success">✓ Converti en contrat</span>
+                        ) : (
+                          <>
+                            {inst.status === "generated" && (
+                              <button
+                                type="button"
+                                className="btn-generate"
+                                onClick={() => handleConvertToContract(inst.id)}
+                                disabled={state.loading}
+                              >
+                                Convertir en contrat
+                              </button>
+                            )}
+                            {inst.status !== "voided" && (
+                              <button
+                                type="button"
+                                className="btn-generate btn-generate--secondary"
+                                style={{ marginLeft: "4px" }}
+                                onClick={() => handleVoidProforma(inst.id)}
+                                disabled={state.loading}
+                              >
+                                Annuler le proforma
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     )}

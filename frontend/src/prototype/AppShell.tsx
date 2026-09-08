@@ -280,10 +280,18 @@ export default function AppShell({
       ];
     }
   } else if (activeScope === "reservation-detail") {
-    const isTitan = activeParam && activeParam.startsWith("LOC-");
+    const brand = resolveBrandScope(activeScope, activeParam);
+    const isTitan = brand === "titan" || (!activeParam?.startsWith("hahitantsoa:") && !activeParam?.startsWith("RES-") && !activeParam?.startsWith("HE-"));
     const parentLabel = isTitan ? "Titan" : "Hahitantsoa";
     const parentScope = isTitan ? "titan" : "hahitantsoa";
-    pageTitle = activeParam || "Détail réservation";
+    const cleanRef = activeParam
+      ? activeParam.startsWith("titan:")
+        ? activeParam.slice("titan:".length)
+        : activeParam.startsWith("hahitantsoa:")
+          ? activeParam.slice("hahitantsoa:".length)
+          : activeParam
+      : "Détail réservation";
+    pageTitle = cleanRef;
     breadcrumbs = [
       { label: "Réservations", scope: parentScope, param: undefined },
       { label: parentLabel, scope: parentScope, param: undefined },

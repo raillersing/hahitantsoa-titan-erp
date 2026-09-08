@@ -280,10 +280,29 @@ describe('AppShell', () => {
   it.each([
     ['RES-2026-0142', 'hahitantsoa'],
     ['LOC-2026-0089', 'titan'],
+    ['titan:c1329252-e11f-4e79-8660-306c3d3f4c47', 'titan'],
+    ['hahitantsoa:e11f-4e79-8660', 'hahitantsoa'],
     ['UNKNOWN-001', 'ergon'],
     [undefined, 'ergon'],
   ] as const)('résout reservation-detail/%s en %s', (param, expected) => {
     expect(resolveBrandScope('reservation-detail', param)).toBe(expected);
+  });
+
+  it('génère le bon fil d’Ariane Titan pour un identifiant préfixé titan:', () => {
+    render(
+      <AppShell
+        activeScope="reservation-detail"
+        activeParam="titan:c1329252-e11f-4e79-8660-306c3d3f4c47"
+        onNavigate={mockNavigate}
+      >
+        <div>Content</div>
+      </AppShell>,
+    );
+
+    const header = screen.getByRole('banner');
+    expect(header).toHaveTextContent('Réservations');
+    expect(header).toHaveTextContent('Titan');
+    expect(header).toHaveTextContent('c1329252-e11f-4e79-8660-306c3d3f4c47');
   });
 
   it.each([
