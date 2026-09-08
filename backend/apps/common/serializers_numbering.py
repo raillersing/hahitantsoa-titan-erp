@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from apps.common.models import NumberingSequence, NumberingSequenceBrand
 from apps.common.sequences import peek_next_public_reference
+from apps.documents.models import NumberingSequence, NumberingSequenceBrand
 
 
 class NumberingSequenceSerializer(serializers.ModelSerializer):

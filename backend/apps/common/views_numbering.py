@@ -4,7 +4,6 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.models import NumberingSequence
 from apps.common.sequences import (
     configure_numbering_sequence,
     get_or_create_numbering_sequence,
@@ -15,6 +14,7 @@ from apps.common.serializers_numbering import (
     NumberingSequencePreviewSerializer,
     NumberingSequenceSerializer,
 )
+from apps.documents.models import NumberingSequence
 from apps.identity.permissions import HasReservationSensitiveAccess
 
 

@@ -5,7 +5,7 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
-from apps.common.models import NumberingSequence, NumberingSequenceBrand
+from apps.documents.models import NumberingSequence, NumberingSequenceBrand
 
 logger = logging.getLogger(__name__)
 
