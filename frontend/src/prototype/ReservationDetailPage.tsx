@@ -30,6 +30,7 @@ import {
   getReservationDraftCloseoutSummary,
   getReservationDraftLifecycle,
   getInventoryItems,
+  updateReservationDraftPublicReference,
 } from "../api";
 import type { LifecycleSummary, ReservationCloseoutSummary, ReservationDraft, Customer, DocumentInstance, Payment, InventoryItem } from "../types";
 
@@ -185,10 +186,41 @@ export default function ReservationDetailPage({
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentModalInitialKind, setPaymentModalInitialKind] = useState<string>("deposit");
 
-  // Conflict and arbitration modal states
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictModalTarget, setConflictModalTarget] = useState<ConflictResolutionTarget | null>(null);
   const [conflictModalTab, setConflictModalTab] = useState<"reschedule" | "waitlist" | "cancel">("reschedule");
+
+  // Reference modification modal states
+  const [showEditRefModal, setShowEditRefModal] = useState(false);
+  const [editRefInput, setEditRefInput] = useState("");
+  const [editRefLoading, setEditRefLoading] = useState(false);
+  const [editRefError, setEditRefError] = useState<string | null>(null);
+
+  const handleUpdateReference = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draft) return;
+    const trimmed = editRefInput.trim();
+    if (!trimmed) {
+      setEditRefError("Veuillez renseigner une référence valide.");
+      return;
+    }
+    setEditRefLoading(true);
+    setEditRefError(null);
+    try {
+      const updated = await updateReservationDraftPublicReference(draft.id, trimmed);
+      setDraft(updated);
+      setShowEditRefModal(false);
+      setToast({ message: `Numéro de dossier mis à jour : ${updated.public_reference}`, type: "success" });
+      try {
+        const instances = await getReservationDraftDocumentInstances(draft.id);
+        setDocumentInstances(instances);
+      } catch {}
+    } catch (err: any) {
+      setEditRefError(err?.message || "Erreur lors de la modification de la référence.");
+    } finally {
+      setEditRefLoading(false);
+    }
+  };
 
   const toConflictTarget = useCallback((targetDraft: ReservationDraft): ConflictResolutionTarget => {
     return {
@@ -948,9 +980,24 @@ export default function ReservationDetailPage({
                     ? "Retour aux réservations Hahitantsoa"
                     : "Retour au tableau de bord"}
           </button>
-          <h2 className="text-2xl font-bold text-slate-800">
-            Réservation {publicRef}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-slate-800">
+              Réservation {publicRef}
+            </h2>
+            <button
+              type="button"
+              onClick={() => {
+                setEditRefInput(draft?.public_reference || "");
+                setEditRefError(null);
+                setShowEditRefModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition border border-slate-200 dark:border-slate-700"
+              title="Modifier le numéro de dossier / proforma"
+            >
+              <i className="fa-solid fa-pen-to-square"></i>
+              Modifier la référence
+            </button>
+          </div>
           <p className="text-sm text-slate-500">
             État d'avancement, ressources, documents, paiements et actions
             sensibles.
@@ -3261,6 +3308,82 @@ export default function ReservationDetailPage({
         initialTab={conflictModalTab}
         onResolved={load}
       />
+
+      {/* ── Edit Reference Modal ────────────────────────────────────── */}
+      {showEditRefModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <i className="fa-solid fa-pen-to-square text-indigo-600"></i>
+                Modifier le numéro de référence
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditRefModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              La modification de la référence met à jour automatiquement l'ensemble du dossier :
+              <strong> proforma, contrat, bons de livraison et de retour, fiches de préparation, factures, reçus de paiement</strong> et <strong>journal d'audit</strong>.
+            </p>
+
+            <form onSubmit={handleUpdateReference} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
+                  Nouvelle référence (ex: 050/2026)
+                </label>
+                <input
+                  type="text"
+                  value={editRefInput}
+                  onChange={(e) => setEditRefInput(e.target.value)}
+                  placeholder="ex: 050/2026"
+                  className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-sm font-mono font-bold text-slate-900 dark:text-slate-100 focus:border-indigo-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {editRefError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700 font-medium flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation shrink-0"></i>
+                  {editRefError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditRefModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={editRefLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50"
+                >
+                  {editRefLoading ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin"></i>
+                      Mise à jour...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-check"></i>
+                      Enregistrer la référence
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

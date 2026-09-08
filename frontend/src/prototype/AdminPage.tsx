@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { AppScope } from "../App";
 import { LoadingSpinner } from "../components";
-import { getUsers, getApplicationRoles } from "../api";
-import type { User, ApplicationRole } from "../types";
+import { getUsers, getApplicationRoles, getNumberingSequences, configureNumberingSequence } from "../api";
+import type { User, ApplicationRole, NumberingSequence, NumberingSequenceBrand } from "../types";
 
 interface AdminPageProps {
   onNavigate: (scope: any, param?: string) => void;
@@ -22,6 +22,58 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [roles, setRoles] = useState<ApplicationRole[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [rolesError, setRolesError] = useState<string | null>(null);
+
+  // Numbering sequences state
+  const [sequences, setSequences] = useState<NumberingSequence[]>([]);
+  const [sequencesLoading, setSequencesLoading] = useState(false);
+  const [sequencesError, setSequencesError] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [editingBrand, setEditingBrand] = useState<NumberingSequenceBrand | null>(null);
+  const [editNextNumber, setEditNextNumber] = useState<number>(1);
+  const [editPrefix, setEditPrefix] = useState<string>("");
+  const [editPadding, setEditPadding] = useState<number>(3);
+  const [editSuffix, setEditSuffix] = useState<string>("/{year}");
+  const [savingSequence, setSavingSequence] = useState<boolean>(false);
+
+  const loadSequences = async (year: number) => {
+    try {
+      setSequencesLoading(true);
+      setSequencesError(null);
+      const data = await getNumberingSequences(undefined, year);
+      setSequences(data);
+    } catch (err: any) {
+      setSequencesError(err?.message || "Erreur lors du chargement des séquences.");
+    } finally {
+      setSequencesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "numbering") {
+      loadSequences(selectedYear);
+    }
+  }, [activeTab, selectedYear]);
+
+  const handleSaveSequence = async (brand: NumberingSequenceBrand) => {
+    try {
+      setSavingSequence(true);
+      await configureNumberingSequence({
+        brand,
+        year: selectedYear,
+        next_number: editNextNumber,
+        prefix: editPrefix,
+        padding: editPadding,
+        suffix_template: editSuffix,
+      });
+      setEditingBrand(null);
+      showToast(`Séquence ${brand === "titan" ? "Titan" : "Hahitantsoa"} ${selectedYear} enregistrée.`);
+      await loadSequences(selectedYear);
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de l'enregistrement de la séquence.");
+    } finally {
+      setSavingSequence(false);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -95,13 +147,19 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
           >
             <i className="fas fa-users mr-2"></i>Utilisateurs
           </button>
-          <button 
+          <button
             className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'roles' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => setActiveTab('roles')}
           >
             <i className="fas fa-shield-halved mr-2"></i>Rôles & Permissions
           </button>
-          <button 
+          <button
+            className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'numbering' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+            onClick={() => setActiveTab('numbering')}
+          >
+            <i className="fas fa-list-ol mr-2"></i>Numérotation & Séquences
+          </button>
+          <button
             className={`pb-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'settings' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
             onClick={() => setActiveTab('settings')}
           >
@@ -266,6 +324,219 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                       </div>
                     ))
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'numbering' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Configuration des Séquences Annuelles</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Définissez les numéros de départ (ex: 100, 500) et formats de référence pour les proformas et dossiers par marque et année.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Année :</label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => {
+                      const yr = parseInt(e.target.value, 10);
+                      setSelectedYear(yr);
+                      setEditingBrand(null);
+                    }}
+                    className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-800 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {[selectedYear - 1, selectedYear, selectedYear + 1, selectedYear + 2].filter((v, i, a) => a.indexOf(v) === i).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {sequencesLoading && <LoadingSpinner message="Chargement des séquences de numérotation…" />}
+
+              {sequencesError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  <i className="fas fa-exclamation-circle mr-2"></i>
+                  {sequencesError}
+                </div>
+              )}
+
+              {!sequencesLoading && !sequencesError && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(["titan", "hahitantsoa"] as NumberingSequenceBrand[]).map((brand) => {
+                    const seq = sequences.find((s) => s.brand === brand);
+                    const isEditing = editingBrand === brand;
+                    const brandLabel = brand === "titan" ? "Titan (Location de Matériel)" : "Hahitantsoa (Événementiel)";
+                    const currentNextNumber = seq ? seq.next_number : 1;
+                    const currentPrefix = seq ? seq.prefix : "";
+                    const currentPadding = seq ? seq.padding : 3;
+                    const currentSuffix = seq ? seq.suffix_template : "/{year}";
+                    const currentPreview = seq?.preview_next || `${currentPrefix}${String(currentNextNumber).padStart(currentPadding, "0")}/${selectedYear}`;
+
+                    // preview for edit mode
+                    const editComputedPreview = `${editPrefix}${String(editNextNumber).padStart(editPadding, "0")}${editSuffix.replace("{year}", String(selectedYear))}`;
+
+                    return (
+                      <div key={brand} className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-3 h-3 rounded-full ${brand === "titan" ? "bg-emerald-500" : "bg-indigo-500"}`}></span>
+                              <h4 className="font-bold text-slate-800 text-base">{brandLabel}</h4>
+                            </div>
+                            <span className="text-xs font-mono font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full">
+                              Année {selectedYear}
+                            </span>
+                          </div>
+
+                          {!isEditing ? (
+                            <div className="space-y-4">
+                              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                                <span className="text-xs text-slate-500 block uppercase font-bold tracking-wider mb-1">
+                                  Prochaine référence automatique
+                                </span>
+                                <span className="text-xl font-mono font-bold text-slate-900 tracking-tight">
+                                  {currentPreview}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3 text-xs">
+                                <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                  <span className="text-slate-500 block">Prochain numéro :</span>
+                                  <span className="font-mono font-bold text-slate-800 text-sm">{currentNextNumber}</span>
+                                </div>
+                                <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                  <span className="text-slate-500 block">Format / Préfixe :</span>
+                                  <span className="font-mono font-bold text-slate-800 text-sm">
+                                    {currentPrefix ? `"${currentPrefix}"` : "(aucun)"} ({currentPadding} chiffres)
+                                  </span>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-slate-500 leading-relaxed">
+                                Les nouvelles réservations et proformas recevront cette référence par défaut ou le numéro configuré s'incrémentera automatiquement en évitant les collisions.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 border-t border-slate-100 pt-4">
+                              <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                  Prochain numéro de séquence (départ / incrément) :
+                                </label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={editNextNumber}
+                                  onChange={(e) => setEditNextNumber(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                                <span className="text-[11px] text-slate-400 mt-1 block">
+                                  Ex: 100 pour démarrer à 100/{selectedYear}, ou 500 pour démarrer à 500/{selectedYear}.
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Préfixe (optionnel) :
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editPrefix}
+                                    onChange={(e) => setEditPrefix(e.target.value)}
+                                    placeholder="Ex: PRO-"
+                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Nombre de chiffres :
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="8"
+                                    value={editPadding}
+                                    onChange={(e) => setEditPadding(Math.min(8, Math.max(1, parseInt(e.target.value, 10) || 3)))}
+                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">
+                                  Modèle de suffixe :
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editSuffix}
+                                  onChange={(e) => setEditSuffix(e.target.value)}
+                                  placeholder="/{year}"
+                                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                              </div>
+
+                              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
+                                <span className="text-xs text-indigo-600 font-bold block mb-1">Aperçu du prochain proforma :</span>
+                                <span className="font-mono font-bold text-indigo-900 text-sm">
+                                  {editComputedPreview}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                          {!isEditing ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingBrand(brand);
+                                setEditNextNumber(currentNextNumber);
+                                setEditPrefix(currentPrefix);
+                                setEditPadding(currentPadding);
+                                setEditSuffix(currentSuffix);
+                              }}
+                              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5"
+                            >
+                              <i className="fas fa-sliders mr-1"></i> Configurer la séquence
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                disabled={savingSequence}
+                                onClick={() => setEditingBrand(null)}
+                                className="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                              >
+                                Annuler
+                              </button>
+                              <button
+                                type="button"
+                                disabled={savingSequence}
+                                onClick={() => handleSaveSequence(brand)}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs shadow-sm transition-colors flex items-center gap-1.5"
+                              >
+                                {savingSequence ? (
+                                  <>
+                                    <i className="fas fa-spinner fa-spin mr-1"></i> Enregistrement…
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fas fa-check mr-1"></i> Enregistrer
+                                  </>
+                                )}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

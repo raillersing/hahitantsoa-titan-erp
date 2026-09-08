@@ -207,6 +207,7 @@ vi.mock('./api', () => ({
   getReservationDrafts: vi.fn(),
   getReservationDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Titan proforma mock</body></html>'),
   getHahitantsoaEventDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Hahitantsoa proforma mock</body></html>'),
+  previewNextPublicReference: vi.fn().mockResolvedValue({ brand: 'titan', year: 2026, next_reference: '001/2026', next_number: 1, prefix: '' }),
 }));
 
 describe('ReservationNewPage', () => {
