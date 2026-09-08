@@ -3098,7 +3098,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           totalAmount={totalDossierAmount}
           paidAmount={totalPaidAmount}
           requiredDepositAmount={requiredDepositAmount}
-          cautionAmount={0}
+          cautionAmount={cautionAmount}
           existingPayments={payments.map((p) => ({
             id: p.id,
             date: p.paid_at || p.created_at,

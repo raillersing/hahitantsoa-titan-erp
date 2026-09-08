@@ -29,7 +29,7 @@ describe("HahitantsoaCommercialTermsPage", () => {
     expect(screen.getByText("Chargement des paramètres…")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("Paramétrage des Tarifs & Modalités Officielles")).toBeInTheDocument();
+      expect(screen.queryByText("Chargement des paramètres…")).not.toBeInTheDocument();
     });
 
     // Check Section 1

@@ -1546,7 +1546,7 @@ L'équipe ${relanceTarget.domainLabel}.`}
           eventDateLabel={paymentModalTarget.eventDateLabel}
           totalAmount={paymentModalTarget.totalAmount}
           paidAmount={paymentModalTarget.paidAmount}
-          requiredDepositAmount={Math.round(paymentModalTarget.totalAmount * 0.5)}
+          requiredDepositAmount={Math.round(paymentModalTarget.totalAmount * (paymentModalTarget.domain === "titan" ? 0.25 : 0.5))}
           existingPayments={paymentModalTarget.existingPayments}
           onPaymentRecorded={() => {
             setSuccessToast(`Versement enregistré avec succès pour ${paymentModalTarget.draftReference} !`);

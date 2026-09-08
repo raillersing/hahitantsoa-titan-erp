@@ -1107,4 +1107,80 @@ describe('ReservationNewPage', () => {
       });
     });
   });
+
+  it('21. permet un versement supérieur à l’acompte minimum requis jusqu’au solde total', async () => {
+    vi.mocked(recordConfirmedDeposit).mockClear();
+    vi.mocked(recordConfirmedDeposit).mockResolvedValue({ payment: { id: 'PAY-OVER' }, replayed: false } as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Commencer par le volet'));
+    fireEvent.click(screen.getByText('Titan Rental'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('client-select-CUST-001')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Détails Location (Titan)')).toBeInTheDocument();
+    });
+    const dateInputs21 = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
+    const timeInputs21 = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
+    if (dateInputs21.length >= 2) {
+      fireEvent.change(dateInputs21[0], { target: { value: '2026-08-01' } });
+      fireEvent.change(dateInputs21[1], { target: { value: '2026-08-02' } });
+    }
+    if (timeInputs21.length >= 2) {
+      fireEvent.change(timeInputs21[0], { target: { value: '08:00' } });
+      fireEvent.change(timeInputs21[1], { target: { value: '20:00' } });
+    }
+    fireEvent.click(screen.getByText('Aller au catalogue'));
+
+    const inputs = await screen.findAllByPlaceholderText('0');
+    fireEvent.change(inputs[0], { target: { value: '50' } });
+    fireEvent.click(screen.getByText('Aller à la Livraison'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Vérifier le résumé')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Vérifier le résumé'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Générer Devis/Proforma')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Générer Devis/Proforma'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Aperçu Proforma')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('Passer au paiement'));
+
+    // Payment step
+    await waitFor(() => {
+      expect(screen.getByText('Acompte / Paiement')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Acompte contractuel Titan/)).toBeInTheDocument();
+    const paymentInput = screen.getByLabelText(/Montant de ce paiement \(Ar\)/i) as HTMLInputElement;
+
+    // Enter an amount higher than the minimum required deposit (e.g., 400 000)
+    fireEvent.change(paymentInput, { target: { value: '400000' } });
+
+    const submitPaymentBtn = screen.getByRole('button', { name: /Enregistrer le versement & continuer/i });
+    expect(submitPaymentBtn).not.toBeDisabled();
+    fireEvent.click(submitPaymentBtn);
+
+    await waitFor(() => {
+      expect(recordConfirmedDeposit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: '400000.00',
+        })
+      );
+    });
+  });
 });
