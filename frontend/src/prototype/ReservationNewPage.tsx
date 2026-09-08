@@ -3526,6 +3526,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       ? hahitantsoaDeposit
       : prospectProformaEmission?.requiredDepositAmount ?? totalAmount * TITAN_DEFAULT_ADVANCE_RATE;
     const recordedPaymentAmount = recordedPayments.reduce((sum, item) => sum + item.amount, 0);
+    const totalRemainingBalance = Math.max(0, totalAmount - recordedPaymentAmount);
     const remainingRequiredPayment = Math.max(0, requiredPaymentAmount - recordedPaymentAmount);
     const currentPaymentAmount = Number(payment.amount || 0);
 
@@ -3608,21 +3609,37 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                 id="reservation-payment-amount"
                 type="number" 
                 min="1"
-                max={remainingRequiredPayment || undefined}
+                max={totalRemainingBalance || undefined}
                 className="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-bold" 
                 value={payment.amount}
-                placeholder={remainingRequiredPayment.toLocaleString('fr-FR')}
+                placeholder={(remainingRequiredPayment > 0 ? remainingRequiredPayment : totalRemainingBalance).toLocaleString('fr-FR')}
                 onChange={e => {
                   const amt = e.target.value;
                   setPayment({...payment, amount: amt});
                 }} 
               />
-              <p className="mt-1 text-xs text-slate-500">L’acompte requis est enregistré en une opération atomique et rejouable sans doublon.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {remainingRequiredPayment > 0
+                  ? `Versement minimum de ${remainingRequiredPayment.toLocaleString('fr-FR')} Ar requis pour confirmer le contrat (maximum : ${totalRemainingBalance.toLocaleString('fr-FR')} Ar).`
+                  : `Le client peut verser jusqu’au solde total restant de ${totalRemainingBalance.toLocaleString('fr-FR')} Ar.`}
+              </p>
             </div>
             <div>
-              <span className="block text-sm font-medium text-slate-700 mb-1">Reste à verser pour l’acompte requis</span>
-              <div className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2.5 text-sm font-bold text-slate-600">
-                {Math.max(0, remainingRequiredPayment - currentPaymentAmount).toLocaleString('fr-FR')} Ar
+              <div className="space-y-2">
+                <div>
+                  <span className="block text-xs font-semibold text-slate-500 uppercase">Reste pour l’acompte requis</span>
+                  <div className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-sm font-bold text-slate-700">
+                    {remainingRequiredPayment === 0
+                      ? "0 Ar (Acompte requis atteint ✓)"
+                      : `${Math.max(0, remainingRequiredPayment - currentPaymentAmount).toLocaleString('fr-FR')} Ar`}
+                  </div>
+                </div>
+                <div>
+                  <span className="block text-xs font-semibold text-slate-500 uppercase">Solde total restant après versement</span>
+                  <div className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-sm font-bold text-slate-700">
+                    {Math.max(0, totalRemainingBalance - currentPaymentAmount).toLocaleString('fr-FR')} Ar
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -3703,7 +3720,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour au proforma</button>
           <button
             className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium text-sm disabled:opacity-50 shadow-md hover:bg-green-700"
-            disabled={submitting || (remainingRequiredPayment > 0 && currentPaymentAmount <= 0)}
+            disabled={
+              submitting ||
+              (remainingRequiredPayment > 0 && currentPaymentAmount < remainingRequiredPayment) ||
+              currentPaymentAmount > totalRemainingBalance
+            }
             onClick={async () => {
               try {
                 setSubmitting(true);
@@ -3718,14 +3739,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   ? prospectProformaEmission
                   : await issueProspectProforma();
                 if (!emitted.draftId) throw new Error("Le brouillon de réservation est introuvable.");
+                const persistedTotalAmount = totalAmount;
+                const persistedTotalRemaining = Math.max(
+                  0,
+                  persistedTotalAmount - recordedPaymentAmount,
+                );
                 const persistedRequiredPayment = domain === "titan"
                   ? emitted.requiredDepositAmount ?? requiredPaymentAmount
                   : requiredPaymentAmount;
-                const persistedRemainingPayment = Math.max(
+                const persistedRemainingRequiredDeposit = Math.max(
                   0,
                   persistedRequiredPayment - recordedPaymentAmount,
                 );
-                if (persistedRemainingPayment > 0) {
+
+                if (currentPaymentAmount > 0) {
                   const method = payment.method === "Espèces"
                     ? "cash"
                     : payment.method === "Chèque"
@@ -3738,11 +3765,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   if (!Number.isFinite(currentPaymentAmount) || currentPaymentAmount <= 0) {
                     throw new Error("Saisissez un montant de paiement supérieur à zéro.");
                   }
-                  if (currentPaymentAmount > persistedRemainingPayment) {
-                    throw new Error(`Le paiement ne peut pas dépasser le reste dû de ${persistedRemainingPayment.toLocaleString('fr-FR')} Ar.`);
+                  if (persistedRemainingRequiredDeposit > 0 && currentPaymentAmount < persistedRemainingRequiredDeposit) {
+                    throw new Error(`Le paiement doit couvrir au moins l’acompte requis de ${persistedRemainingRequiredDeposit.toLocaleString('fr-FR')} Ar.`);
                   }
-                  if (currentPaymentAmount !== persistedRemainingPayment) {
-                    throw new Error(`Saisissez l’acompte requis de ${persistedRemainingPayment.toLocaleString('fr-FR')} Ar en une seule opération.`);
+                  if (currentPaymentAmount > persistedTotalRemaining) {
+                    throw new Error(`Le paiement ne peut pas dépasser le solde restant dû de ${persistedTotalRemaining.toLocaleString('fr-FR')} Ar.`);
                   }
                   const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
                   depositRecordingKeyRef.current = idempotencyKey;
@@ -3763,18 +3790,20 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   setRecordedPayments(nextRecordedPayments);
                   setPayment(current => ({ ...current, amount: "" }));
                   depositRecordingKeyRef.current = null;
-                  showToastMsg(result.replayed ? "L’acompte déjà enregistré a été repris sans doublon." : "Acompte enregistré et confirmé.", 'success');
+                  showToastMsg(result.replayed ? "Le versement déjà enregistré a été repris sans doublon." : "Versement enregistré et confirmé avec succès.", 'success');
+                } else if (persistedRemainingRequiredDeposit > 0) {
+                  throw new Error(`Saisissez un versement d’au moins ${persistedRemainingRequiredDeposit.toLocaleString('fr-FR')} Ar pour couvrir l’acompte requis.`);
                 }
                 setPaymentDone(true);
                 goNext();
               } catch (err: any) {
-                setSubmitError(err?.message || "Erreur lors de la conversion du prospect en client.");
+                setSubmitError(err?.message || "Erreur lors de l'enregistrement du paiement.");
               } finally {
                 setSubmitting(false);
               }
             }}
           >
-            {remainingRequiredPayment === 0 ? "Passer à l’aperçu du contrat" : "Enregistrer le paiement"}
+            {remainingRequiredPayment === 0 && currentPaymentAmount === 0 ? "Passer à l’aperçu du contrat" : "Enregistrer le versement & continuer"}
           </button>
         </div>
       </div>

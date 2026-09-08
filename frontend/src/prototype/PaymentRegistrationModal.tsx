@@ -167,10 +167,10 @@ export function getPaymentMethodLabel(method: string): string {
   }
 }
 
-export function getPaymentKindLabel(kind: string): string {
+export function getPaymentKindLabel(kind: string, domain?: "titan" | "hahitantsoa"): string {
   switch (kind) {
     case "deposit":
-      return "Acompte Réservation (50%)";
+      return domain === "titan" ? "Acompte Réservation (25%)" : "Acompte Réservation (50%)";
     case "installment_1":
       return "1ère Tranche (M-1)";
     case "installment_2":
@@ -690,7 +690,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       amountInWords,
       paymentMethodLabel: getPaymentMethodLabel(paymentMethod),
       transactionReference: externalReference.trim() || undefined,
-      paymentKindLabel: getPaymentKindLabel(paymentKind),
+      paymentKindLabel: getPaymentKindLabel(paymentKind, domain),
       historyPayments: existingPayments,
       currentPaymentItem:
         numericAmount > 0
@@ -741,7 +741,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       amountInWords: numberToFrenchWords(selectedPastPayment.amount),
       paymentMethodLabel: getPaymentMethodLabel(selectedPastPayment.method),
       transactionReference: selectedPastPayment.reference,
-      paymentKindLabel: getPaymentKindLabel(selectedPastPayment.payment_kind || "deposit"),
+      paymentKindLabel: getPaymentKindLabel(selectedPastPayment.payment_kind || "deposit", domain),
       historyPayments: existingPayments.filter((p) => p.id !== selectedPastPayment.id),
       currentPaymentItem: {
         date: selectedPastPayment.date,
@@ -797,6 +797,13 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       return;
     }
 
+    if (paymentKind !== "caution" && currentRemaining > 0 && numericAmount > currentRemaining) {
+      setErrorMessage(
+        `Le montant saisi (${formatMoney(numericAmount)}) ne peut pas dépasser le solde restant dû de ${formatMoney(currentRemaining)}.`,
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const idempotencyKey = depositRecordingKeyRef.current ?? crypto.randomUUID();
@@ -811,7 +818,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
         external_reference: externalReference.trim() || undefined,
         notes:
           paymentNotes.trim() ||
-          `Versement ${getPaymentKindLabel(paymentKind)} enregistré depuis le dossier ${draftReference}.`,
+          `Versement ${getPaymentKindLabel(paymentKind, domain)} enregistré depuis le dossier ${draftReference}.`,
         idempotency_key: idempotencyKey,
       };
 
@@ -826,7 +833,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
             amount: numericAmount,
             payment: result.payment.id,
             note: `[ENCAISSEMENT_RESERVATION] [Tiers: ${customerName}] [Réf: ${draftReference}] ${
-              paymentNotes.trim() || `Versement ${getPaymentKindLabel(paymentKind)}`
+              paymentNotes.trim() || `Versement ${getPaymentKindLabel(paymentKind, domain)}`
             }`,
           });
         } catch (cashErr) {
@@ -1053,7 +1060,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                         : isFullySettled
                           ? "✨ Ce versement solde intégralement le dossier (100% Réglé)"
                           : isDepositMet
-                            ? "✓ L'acompte légal de 50% est couvert — Reste solde à payer"
+                            ? (isTitan ? "✓ L'acompte requis de 25% est couvert — Reste solde à payer" : "✓ L'acompte requis de 50% est couvert — Reste solde à payer")
                             : `Acompte partiel (Reste ${formatMoney(Math.max(0, requiredDepositAmount - projectedPaid))} pour couvrir l'acompte)`}
                     </span>
                   </div>
@@ -1075,7 +1082,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { id: "deposit", label: "Acompte (50%)", icon: "fa-shield-halved" },
+                      { id: "deposit", label: isTitan ? "Acompte (25%)" : "Acompte (50%)", icon: "fa-shield-halved" },
                       { id: "installment_1", label: "1ère Tranche", icon: "fa-layer-group" },
                       { id: "balance", label: "Solde final", icon: "fa-flag-checkered" },
                       { id: "caution", label: "Caution", icon: "fa-lock" },
@@ -1089,6 +1096,14 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                             setAmountInput(depositShortfall.toString());
                           } else if (item.id === "balance" && currentRemaining > 0) {
                             setAmountInput(currentRemaining.toString());
+                          } else if (item.id === "caution" && cautionAmount && cautionAmount > 0) {
+                            const cautionPaid = existingPayments
+                              .filter((p) => p.payment_kind === "caution")
+                              .reduce((s, p) => s + (p.amount || 0), 0);
+                            const cautionShortfall = Math.max(0, cautionAmount - cautionPaid);
+                            if (cautionShortfall > 0) {
+                              setAmountInput(cautionShortfall.toString());
+                            }
                           }
                         }}
                         className={`p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
@@ -1115,7 +1130,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                       {depositShortfall > 0 && (
                         <button
                           type="button"
-                          onClick={() => setAmountInput(depositShortfall.toString())}
+                          onClick={() => {
+                            setPaymentKind("deposit");
+                            setAmountInput(depositShortfall.toString());
+                          }}
                           className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 text-[10px] font-bold border border-amber-200 cursor-pointer"
                         >
                           Acompte restant ({formatMoney(depositShortfall)})
@@ -1124,7 +1142,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                       {currentRemaining > 0 && (
                         <button
                           type="button"
-                          onClick={() => setAmountInput(currentRemaining.toString())}
+                          onClick={() => {
+                            setPaymentKind(depositShortfall > 0 ? "deposit" : "balance");
+                            setAmountInput(currentRemaining.toString());
+                          }}
                           className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-[10px] font-bold border border-emerald-200 cursor-pointer"
                         >
                           Tout solder ({formatMoney(currentRemaining)})

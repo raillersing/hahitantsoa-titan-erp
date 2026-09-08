@@ -3208,7 +3208,7 @@ export default function ReservationDetailPage({
           totalAmount={safeAmount}
           paidAmount={paidAmount}
           requiredDepositAmount={requiredDepositAmount}
-          cautionAmount={0}
+          cautionAmount={cautionAmount}
           existingPayments={payments}
           onPaymentRecorded={handlePaymentRecorded}
           initialAmount={depositAmount || undefined}

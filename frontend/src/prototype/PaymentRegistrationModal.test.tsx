@@ -172,7 +172,7 @@ describe("PaymentRegistrationModal", () => {
     expect(screen.getByText(/Cinq cent mille Ariary/i)).toBeInTheDocument();
 
     // Real-time projection badge: 500k + 500k = 1M (covers required deposit)
-    expect(screen.getByText(/L'acompte légal de 50% est couvert/)).toBeInTheDocument();
+    expect(screen.getByText(/L'acompte requis de 25% est couvert/)).toBeInTheDocument();
     expect(screen.getByText(/Nouveau solde : 1 000 000 Ar/)).toBeInTheDocument();
   });
 
