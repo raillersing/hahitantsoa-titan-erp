@@ -36,11 +36,13 @@ const mockGetVenues = vi.fn();
 const mockGetServices = vi.fn();
 const mockGetCommercialTerms = vi.fn();
 const mockGetPackages = vi.fn();
+const mockUpdateHahitantsoaEventDraftPublicReference = vi.fn();
 
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
   getHahitantsoaEventDrafts: (...args: unknown[]) => mockGetDrafts(...args) ?? Promise.resolve([]),
   updateHahitantsoaEventDraft: (...args: unknown[]) => mockUpdateDraft(...args) ?? Promise.resolve({}),
+  updateHahitantsoaEventDraftPublicReference: (...args: unknown[]) => mockUpdateHahitantsoaEventDraftPublicReference(...args),
   getCustomer: (...args: unknown[]) => mockGetCustomer(...args),
   getHahitantsoaEventDraftConfirmationPreflight: (...args: unknown[]) => mockGetPreflight(...args),
   getHahitantsoaEventDraftDocumentInstances: (...args: unknown[]) => mockGetDocuments(...args),
@@ -899,5 +901,37 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(cautionCard).toBeInTheDocument();
     expect(cautionCard).toHaveTextContent("Dépôt de Garantie (Caution)");
     expect(cautionCard).toHaveTextContent("500 000 Ar");
+  });
+
+  it("permet de modifier la référence du dossier Hahitantsoa via la modale", async () => {
+    mockGetDraft.mockResolvedValue(DRAFT);
+    mockGetCustomer.mockResolvedValue(CUSTOMER);
+    mockGetDocuments.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetPreflight.mockResolvedValue(preflight());
+    mockGetLifecycle.mockResolvedValue(null);
+    mockUpdateHahitantsoaEventDraftPublicReference.mockResolvedValue({
+      ...DRAFT,
+      public_reference: "H-500/2026",
+    });
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={vi.fn()} />);
+
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    const editBtn = screen.getByRole("button", { name: /Modifier/i });
+    expect(editBtn).toBeInTheDocument();
+    fireEvent.click(editBtn);
+
+    expect(screen.getByText("Modifier la référence du dossier")).toBeInTheDocument();
+    const input = screen.getByPlaceholderText("ex: H-050/2026");
+    fireEvent.change(input, { target: { value: "H-500/2026" } });
+
+    const saveBtn = screen.getByRole("button", { name: /Enregistrer la référence/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateHahitantsoaEventDraftPublicReference).toHaveBeenCalledWith("event-1", "H-500/2026");
+    });
   });
 });

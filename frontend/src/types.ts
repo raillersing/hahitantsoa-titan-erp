@@ -272,6 +272,7 @@ export type ReservationDraftLineInput = {
 
 export type ReservationDraftCreatePayload = {
   customer_id: string;
+  public_reference?: string;
   start_at: string;
   end_at: string;
   notes?: string;
@@ -370,6 +371,7 @@ export type HahitantsoaEventDraftLineInput = {
 
 export type HahitantsoaEventDraftCreatePayload = {
   customer_id: string;
+  public_reference?: string;
   event_name: string;
   event_type?: HahitantsoaEventType;
   rental_type?: "bare" | "logistics";
@@ -2076,3 +2078,35 @@ export type PayrollRuleSetCreatePayload = Omit<
   PayrollRuleSet,
   "id" | "status" | "field_confirmations" | "completeness_errors" | "created_at" | "updated_at"
 >;
+
+export type NumberingSequenceBrand = "titan" | "hahitantsoa";
+
+export type NumberingSequence = {
+  id: string;
+  brand: NumberingSequenceBrand;
+  year: number;
+  prefix: string;
+  next_number: number;
+  padding: number;
+  suffix_template: string;
+  preview_next?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type NumberingSequenceConfigurePayload = {
+  brand: NumberingSequenceBrand;
+  year: number;
+  next_number: number;
+  prefix?: string;
+  padding?: number;
+  suffix_template?: string;
+};
+
+export type NumberingSequencePreviewResponse = {
+  brand: string;
+  year: number;
+  next_reference: string;
+  next_number: number;
+  prefix: string;
+};

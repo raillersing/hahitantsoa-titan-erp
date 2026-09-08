@@ -57,6 +57,10 @@ import type {
   RoleAssignmentQueryParams,
   RoleQueryParams,
   UserRoleAssignment,
+  NumberingSequence,
+  NumberingSequenceBrand,
+  NumberingSequenceConfigurePayload,
+  NumberingSequencePreviewResponse,
   User,
   HahitantsoaEventDraft,
   HahitantsoaEventDraftCreatePayload,
@@ -2726,4 +2730,58 @@ export function updateBankProfile(
   signal?: AbortSignal,
 ): Promise<BankProfile> {
   return patchAuthenticatedJson(`/api/v1/finance/banks/${id}/`, payload, signal);
+}
+
+export function updateReservationDraftPublicReference(
+  draftId: string,
+  publicReference: string,
+  signal?: AbortSignal,
+): Promise<ReservationDraft> {
+  return postAuthenticatedJson(
+    `/api/v1/reservations/drafts/${draftId}/update-reference/`,
+    { public_reference: publicReference },
+    signal,
+  );
+}
+
+export function updateHahitantsoaEventDraftPublicReference(
+  draftId: string,
+  publicReference: string,
+  signal?: AbortSignal,
+): Promise<HahitantsoaEventDraft> {
+  return postAuthenticatedJson(
+    `/api/v1/hahitantsoa/event-drafts/${draftId}/update-reference/`,
+    { public_reference: publicReference },
+    signal,
+  );
+}
+
+export function getNumberingSequences(
+  brand?: NumberingSequenceBrand | string,
+  year?: number,
+  signal?: AbortSignal,
+): Promise<NumberingSequence[]> {
+  const params = new URLSearchParams();
+  if (brand) params.set("brand", brand);
+  if (year) params.set("year", String(year));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return getAuthenticatedJson(`/api/v1/numbering/sequences/${query}`, signal);
+}
+
+export function configureNumberingSequence(
+  payload: NumberingSequenceConfigurePayload,
+  signal?: AbortSignal,
+): Promise<NumberingSequence> {
+  return postAuthenticatedJson("/api/v1/numbering/sequences/", payload, signal);
+}
+
+export function previewNextPublicReference(
+  brand: string,
+  year?: number,
+  signal?: AbortSignal,
+): Promise<NumberingSequencePreviewResponse> {
+  const params = new URLSearchParams();
+  params.set("brand", brand);
+  if (year) params.set("year", String(year));
+  return getAuthenticatedJson(`/api/v1/numbering/preview/?${params.toString()}`, signal);
 }

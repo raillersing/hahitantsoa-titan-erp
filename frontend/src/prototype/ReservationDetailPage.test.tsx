@@ -66,6 +66,7 @@ const mockRecordConfirmedDeposit = vi.fn();
 const mockGetLifecycle = vi.fn();
 const mockCreateReservationDraftAmendment = vi.fn();
 const mockGetInventoryItems = vi.fn();
+const mockUpdateReservationDraftPublicReference = vi.fn();
 
 vi.mock('../api', () => ({
   getReservationDraft: (...args: any[]) => mockGetReservationDraft(...args),
@@ -78,6 +79,7 @@ vi.mock('../api', () => ({
   getReservationDraftLifecycle: (...args: any[]) => mockGetLifecycle(...args),
   createReservationDraftAmendment: (...args: any[]) => mockCreateReservationDraftAmendment(...args),
   getInventoryItems: (...args: any[]) => mockGetInventoryItems(...args),
+  updateReservationDraftPublicReference: (...args: any[]) => mockUpdateReservationDraftPublicReference(...args),
 }));
 
 /* ── helper: wait for the draft page to load ────────────────────── */
@@ -454,5 +456,30 @@ describe('ReservationDetailPage', () => {
     expect(screen.getByText("Converti en contrat officiel")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Convertir en contrat/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Annuler$/i })).not.toBeInTheDocument();
+  });
+
+  it("permet de modifier le numéro de référence du proforma/dossier Titan", async () => {
+    mockUpdateReservationDraftPublicReference.mockResolvedValue({
+      ...MOCK_DRAFT,
+      public_reference: "500/2026",
+    });
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    const editRefBtn = screen.getByRole("button", { name: /Modifier la référence/i });
+    expect(editRefBtn).toBeInTheDocument();
+    fireEvent.click(editRefBtn);
+
+    expect(screen.getByText(/Modifier le numéro de référence/i)).toBeInTheDocument();
+    const input = screen.getByPlaceholderText("ex: 050/2026");
+    fireEvent.change(input, { target: { value: "500/2026" } });
+
+    const saveBtn = screen.getByRole("button", { name: /Enregistrer la référence/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateReservationDraftPublicReference).toHaveBeenCalledWith("draft-loc-089", "500/2026");
+    });
   });
 });

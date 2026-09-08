@@ -26,6 +26,7 @@ import {
   convertProspectToClient,
   uploadAttachment,
   recordConfirmedDeposit,
+  previewNextPublicReference,
 } from "../api";
 import type {
   Customer,
@@ -582,6 +583,26 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [newClient, setNewClient] = useState<NewClientData>({ name: "", phone: "", email: "", additionalEmails: [], additionalPhones: [], type: "Particulier", notes: "", civilite: "", idType: "CIN" });
   
   const [domain, setDomain] = useState<DomainType>(null);
+
+  // Custom dossier/proforma reference states
+  const [customPublicReference, setCustomPublicReference] = useState("");
+  const [useCustomReference, setUseCustomReference] = useState(false);
+  const [previewReference, setPreviewReference] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const targetBrand = domain === "hahitantsoa" ? "hahitantsoa" : "titan";
+    previewNextPublicReference(targetBrand)
+      .then((res) => {
+        if (!cancelled && res?.next_reference) {
+          setPreviewReference(res.next_reference);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [domain]);
   
   const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "", rentalType: "Location nue", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
   const hahitantsoaBaseSpaceRental = Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL);
@@ -939,9 +960,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
     setServerDraftSaving(true);
     try {
+      const customRef = useCustomReference && customPublicReference.trim() ? customPublicReference.trim() : undefined;
       if (domain === "hahitantsoa") {
         const payload = {
           customer_id: customerId,
+          public_reference: customRef,
           event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
@@ -962,6 +985,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       } else {
         const payload = {
           customer_id: customerId,
+          public_reference: customRef,
           start_at: startAt,
           end_at: endAt,
           notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
@@ -1146,9 +1170,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       ? prospectProformaEmission
       : { domain, htmlGenerated: false };
     if (!emission.draftId) {
+      const customRef = useCustomReference && customPublicReference.trim() ? customPublicReference.trim() : undefined;
       if (isHahitantsoa) {
         const eventDraft = await createHahitantsoaEventDraft({
           customer_id: customerId,
+          public_reference: customRef,
           event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
@@ -1166,6 +1192,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       } else {
         const reservationDraft = await createReservationDraft({
           customer_id: customerId,
+          public_reference: customRef,
           start_at: startAt,
           end_at: endAt,
           notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
@@ -3126,6 +3153,56 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── Numéro de référence / proforma ── */}
+      <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 mb-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <i className="fa-solid fa-hashtag text-indigo-600"></i>
+            <h4 className="font-bold text-slate-800 text-sm uppercase">Numéro de dossier & Proforma</h4>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={useCustomReference}
+              onChange={(e) => {
+                setUseCustomReference(e.target.checked);
+                if (e.target.checked && !customPublicReference && previewReference) {
+                  setCustomPublicReference(previewReference);
+                }
+              }}
+              className="rounded text-indigo-600 focus:ring-indigo-500"
+            />
+            Personnaliser le numéro
+          </label>
+        </div>
+
+        {!useCustomReference ? (
+          <div className="flex items-center gap-3 bg-white p-3.5 rounded-xl border border-slate-200">
+            <span className="text-xs text-slate-500">Référence séquentielle automatique :</span>
+            <span className="font-mono font-bold text-sm text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+              {previewReference || (domain === "hahitantsoa" ? "H-001/2026" : "001/2026")}
+            </span>
+            <span className="text-[11px] text-slate-400 italic">(Attribuée automatiquement à la validation)</span>
+          </div>
+        ) : (
+          <div className="space-y-1.5 bg-white p-3.5 rounded-xl border border-indigo-200">
+            <label className="block text-xs font-bold text-slate-700 uppercase">
+              Référence manuelle personnalisée
+            </label>
+            <input
+              type="text"
+              value={customPublicReference}
+              onChange={(e) => setCustomPublicReference(e.target.value)}
+              placeholder={domain === "hahitantsoa" ? "ex: H-050/2026" : "ex: 050/2026"}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-mono font-bold text-slate-900 focus:border-indigo-500 focus:outline-none"
+            />
+            <p className="text-[11px] text-slate-500">
+              Ce numéro sera appliqué au proforma et se répercutera sur l'ensemble des documents du dossier (contrat, factures, bons de livraison/retour, fiches de préparation, reçus).
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl border border-slate-200 mb-6">
