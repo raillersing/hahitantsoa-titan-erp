@@ -307,17 +307,17 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [customServiceName, setCustomServiceName] = useState("");
   const [customServiceCategory, setCustomServiceCategory] = useState("technical_facility");
   const [customServiceQty, setCustomServiceQty] = useState(1);
-  const [customServicePrice, setCustomServicePrice] = useState(150000);
+  const [customServicePrice, setCustomServicePrice] = useState(0);
   const [customServiceUnitLabel, setCustomServiceUnitLabel] = useState("prestation");
 
   // Step 2: Formule horaire, convives, type de location, lieu, tarifs de base
   const [amendmentDurationOption, setAmendmentDurationOption] = useState("Fête de jour : Sortie J-J à 20:00");
   const [amendmentDurationPrice, setAmendmentDurationPrice] = useState(0);
   const [amendmentRentalType, setAmendmentRentalType] = useState<"Location nue" | "Location + logistique">("Location nue");
-  const [amendmentGuestCount, setAmendmentGuestCount] = useState(200);
-  const [amendmentVenueName, setAmendmentVenueName] = useState("Salle des fêtes + jardin");
-  const [amendmentVenuePrice, setAmendmentVenuePrice] = useState(6500000);
-  const [amendmentLogisticsPrice, setAmendmentLogisticsPrice] = useState(500000);
+  const [amendmentGuestCount, setAmendmentGuestCount] = useState(1);
+  const [amendmentVenueName, setAmendmentVenueName] = useState("");
+  const [amendmentVenuePrice, setAmendmentVenuePrice] = useState(0);
+  const [amendmentLogisticsPrice, setAmendmentLogisticsPrice] = useState(0);
   const [amendmentLocationDetails, setAmendmentLocationDetails] = useState("");
 
   // Step 3: Prestations & Services scénographiques
@@ -759,19 +759,19 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         ? "Location + logistique"
         : "Location nue";
     setAmendmentRentalType(rentalTypeStr);
-    setAmendmentGuestCount(draft.guest_count || 200);
-    setAmendmentVenueName(draft.venue_name || "Salle des fêtes + jardin");
-    setAmendmentVenuePrice(6500000);
-    setAmendmentLogisticsPrice(500000);
+    setAmendmentGuestCount(draft.guest_count ?? 1);
+    setAmendmentVenueName(draft.venue_name || "");
+    setAmendmentVenuePrice(Number(draft.space_rental_amount));
+    setAmendmentLogisticsPrice(0);
     setAmendmentLocationDetails(draft.location_details || "");
     setAmendmentServiceNotes("");
 
     if (draft.event_type?.includes("night_opt2")) {
       setAmendmentDurationOption("Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30");
-      setAmendmentDurationPrice(620000);
+      setAmendmentDurationPrice(0);
     } else if (draft.event_type?.includes("night_opt1")) {
       setAmendmentDurationOption("Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30");
-      setAmendmentDurationPrice(420000);
+      setAmendmentDurationPrice(0);
     } else {
       setAmendmentDurationOption("Fête de jour : Sortie J-J à 20:00");
       setAmendmentDurationPrice(0);
@@ -794,7 +794,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     setShowCustomServiceForm(false);
     setCustomServiceName("");
     setCustomServiceQty(1);
-    setCustomServicePrice(150000);
+    setCustomServicePrice(0);
     setAutoApplyAmendment(true);
     setShowAmendmentModal(true);
 
@@ -812,7 +812,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       setPackages(apiPacks);
       setCatalogItems(apiItems);
 
-      let baseVenue = 6500000;
+      let baseVenue = Number(draft.space_rental_amount);
       const matchedVenue = apiVenues.find((v) => v.name === draft.venue_name);
       if (matchedVenue && matchedVenue.price) {
         baseVenue = matchedVenue.price;
@@ -824,11 +824,11 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       if (apiTerms) {
         if (draft.event_type?.includes("night_opt2")) {
           setAmendmentDurationPrice(
-            Number(apiTerms.night_option_2_amount || 500000) + Number(apiTerms.night_security_amount || 120000),
+            Number(apiTerms.night_option_2_amount) + Number(apiTerms.night_security_amount),
           );
         } else if (draft.event_type?.includes("night_opt1")) {
           setAmendmentDurationPrice(
-            Number(apiTerms.night_option_1_amount || 300000) + Number(apiTerms.night_security_amount || 120000),
+            Number(apiTerms.night_option_1_amount) + Number(apiTerms.night_security_amount),
           );
         }
       }
@@ -909,15 +909,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   }, [catalogItems, catalogSearch, catalogCategoryFilter]);
 
   const amendmentFinancialPreview = useMemo(() => {
-    const includedGuests = Number(commercialTerms?.included_guest_count ?? 250);
-    const excessGuestRate = Number(commercialTerms?.excess_guest_amount ?? 5000);
+    const includedGuests = Number(commercialTerms?.included_guest_count ?? amendmentGuestCount);
+    const excessGuestRate = Number(commercialTerms?.excess_guest_amount ?? 0);
     const excessGuestsCount = Math.max(Number(amendmentGuestCount || 0) - includedGuests, 0);
     const excessGuestsTotal = excessGuestsCount * excessGuestRate;
 
-    const baseVenuePrice = Number(amendmentVenuePrice) || 6500000;
+    const baseVenuePrice = Number(amendmentVenuePrice) || 0;
     const durationTotal = Number(amendmentDurationPrice) || 0;
     const logisticsTotal =
-      amendmentRentalType === "Location + logistique" ? Number(amendmentLogisticsPrice) || 500000 : 0;
+      amendmentRentalType === "Location + logistique" ? Number(amendmentLogisticsPrice) || 0 : 0;
 
     const newSpaceTotal = baseVenuePrice + excessGuestsTotal + durationTotal + logisticsTotal;
     const newServicesTotal = amendmentSelectedServices.reduce((sum, s) => sum + s.price * s.quantity, 0);
@@ -927,8 +927,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       newExistingLinesTotal = (draft?.lines || []).reduce((sum, l) => {
         const p = Number(
           l.unit_rental_price ||
-            (l.total_price && l.quantity ? Number(l.total_price) / l.quantity : 0) ||
-            5000,
+            (l.total_price && l.quantity ? Number(l.total_price) / l.quantity : 0),
         );
         const q = amendmentQuantities[l.id] !== undefined ? amendmentQuantities[l.id] : l.quantity;
         return sum + q * p;
@@ -947,8 +946,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
     const newRequiredDeposit =
       amendmentRentalType === "Location + logistique"
-        ? Number(commercialTerms?.logistics_deposit_amount ?? 1500000)
-        : Number(commercialTerms?.bare_deposit_amount ?? 1000000);
+        ? Number(commercialTerms?.logistics_deposit_amount ?? 0)
+        : Number(commercialTerms?.bare_deposit_amount ?? 0);
     const effectiveNewDeposit = Math.max(newRequiredDeposit, Math.round(newTotal * 0.5));
     const newRemainingToPay = Math.max(newTotal - totalPaidAmount, 0);
 
@@ -1052,27 +1051,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           .filter((l) => l.quantity > 0),
       ];
 
-      const newLinesForState = [
-        ...draft.lines
-          .map((l) => ({
-            ...l,
-            quantity: amendmentQuantities[l.id] !== undefined ? amendmentQuantities[l.id] : l.quantity,
-          }))
-          .filter((l) => l.quantity > 0),
-        ...amendmentAddedLines.map((al, idx) => ({
-          id: `line-added-${Date.now()}-${idx}`,
-          inventory_item_id: al.inventory_item_id,
-          inventory_item_name: al.inventory_item_name,
-          inventory_item_kind: al.inventory_item_kind,
-          quantity: al.quantity,
-          unit_rental_price: String(al.unit_rental_price),
-          total_price: String(al.quantity * al.unit_rental_price),
-          notes: al.notes,
-        })),
-      ];
-
       let amendmentApplied = false;
       let createdAmendmentId: string | null = null;
+      const documentWarnings: string[] = [];
 
       if (draft.status === "confirmed") {
         // Confirmed reservation: contract amendment lifecycle
@@ -1082,7 +1063,12 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             await generateHahitantsoaEventDraftDocumentInstance(param, initialContract.id);
             await generateHahitantsoaEventDraftDocumentInstancePdf(param, initialContract.id);
           } catch (contractErr) {
-            console.warn("Could not pre-generate contract:", contractErr);
+            throw new Error(
+              errorMessage(
+                contractErr,
+                "Le contrat initial n'a pas pu être généré. Aucun avenant n'a été créé.",
+              ),
+            );
           }
         }
 
@@ -1091,7 +1077,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           notes: fullNotes,
           changed_event_type: changedEventType,
           changed_rental_type: backendRentalType,
-          changed_guest_count: Number(amendmentGuestCount) || 200,
+          changed_guest_count: amendmentGuestCount,
           changed_space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
           changed_venue_name: amendmentVenueName.trim(),
           changed_location_details: amendmentLocationDetails.trim(),
@@ -1102,25 +1088,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         createdAmendmentId = res?.amendment_request?.id || null;
 
         if (createdAmendmentId && amendmentRentalType === "Location + logistique") {
-          for (const line of draft.lines) {
-            const qty = amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity;
-            if (qty > 0) {
-              await createHahitantsoaEventDraftAmendmentRequestLine(param, createdAmendmentId, {
-                inventory_item_id: line.inventory_item_id,
-                quantity: qty,
-                notes: line.notes || "",
-              });
-            }
-          }
-
-          for (const added of amendmentAddedLines) {
-            if (added.quantity > 0) {
-              await createHahitantsoaEventDraftAmendmentRequestLine(param, createdAmendmentId, {
-                inventory_item_id: added.inventory_item_id,
-                quantity: added.quantity,
-                notes: added.notes || "",
-              });
-            }
+          for (const line of allLinesInput) {
+            await createHahitantsoaEventDraftAmendmentRequestLine(param, createdAmendmentId, line);
           }
         }
 
@@ -1132,7 +1101,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         // Unconfirmed draft (brouillon / devis): direct draft update
         await updateHahitantsoaEventDraft(param, {
           rental_type: backendRentalType,
-          guest_count: Number(amendmentGuestCount) || 200,
+          guest_count: amendmentGuestCount,
           space_rental_amount: amendmentFinancialPreview.newSpaceTotal,
           venue_name: amendmentVenueName.trim(),
           location_details: amendmentLocationDetails.trim(),
@@ -1143,66 +1112,42 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         amendmentApplied = true;
       }
 
-      // Auto-regenerate proforma & invoice if they exist so all commercial documents match the new amounts
-      try {
-        const newProforma = await createHahitantsoaEventDraftDocumentInstance(param, { template_key: "hahitantsoa.proforma.v1" });
-        await generateHahitantsoaEventDraftDocumentInstance(param, newProforma.id);
-        await generateHahitantsoaEventDraftDocumentInstancePdf(param, newProforma.id);
-      } catch (docErr) {
-        console.warn("Could not regenerate proforma:", docErr);
-      }
-
-      if (invoiceDoc) {
+      // Only applied changes may produce downstream commercial documents.
+      if (amendmentApplied) {
         try {
-          const newInvoice = await createHahitantsoaEventDraftDocumentInstance(param, { template_key: "hahitantsoa.invoice.v1" });
-          await generateHahitantsoaEventDraftDocumentInstance(param, newInvoice.id);
-          await generateHahitantsoaEventDraftDocumentInstancePdf(param, newInvoice.id);
-        } catch (invErr) {
-          console.warn("Could not regenerate invoice:", invErr);
+          const newProforma = await createHahitantsoaEventDraftDocumentInstance(param, {
+            template_key: "hahitantsoa.proforma.v1",
+          });
+          await generateHahitantsoaEventDraftDocumentInstance(param, newProforma.id);
+          await generateHahitantsoaEventDraftDocumentInstancePdf(param, newProforma.id);
+        } catch {
+          documentWarnings.push("le proforma");
+        }
+
+        if (invoiceDoc) {
+          try {
+            const newInvoice = await createHahitantsoaEventDraftDocumentInstance(param, {
+              template_key: "hahitantsoa.invoice.v1",
+            });
+            await generateHahitantsoaEventDraftDocumentInstance(param, newInvoice.id);
+            await generateHahitantsoaEventDraftDocumentInstancePdf(param, newInvoice.id);
+          } catch {
+            documentWarnings.push("la facture");
+          }
         }
       }
 
-      // Synchronize local draft state
-      setDraft((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          guest_count: Number(amendmentGuestCount) || 200,
-          rental_type: backendRentalType,
-          venue_name: amendmentVenueName.trim(),
-          space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
-          service_notes: combinedServiceNotes,
-          total_amount: String(amendmentFinancialPreview.newTotal),
-          lines: newLinesForState,
-        };
-      });
-
-      // If amendment ID was created, prepend it to amendments list
-      if (createdAmendmentId) {
-        const nextSeq = amendments.length > 0 ? Math.max(...amendments.map((a) => a.amendment_sequence || 1)) + 1 : 1;
-        setAmendments((prev) => [
-          {
-            id: createdAmendmentId!,
-            event_draft_id: param,
-            status: amendmentApplied ? "applied" : "pending",
-            reason: finalReason,
-            notes: fullNotes,
-            changed_guest_count: Number(amendmentGuestCount) || 200,
-            changed_venue_name: amendmentVenueName.trim(),
-            changed_rental_type: backendRentalType,
-            changed_service_notes: combinedServiceNotes,
-            changed_space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
-            amendment_sequence: nextSeq,
-            created_at: new Date().toISOString(),
-            lines: [],
-          } as any,
-          ...prev.filter((a) => a.id !== createdAmendmentId),
-        ]);
-      }
-
-      setActionNotice("Avenant et modifications appliqués au dossier et documents avec succès.");
       setShowAmendmentModal(false);
       await load();
+      if (!amendmentApplied) {
+        setActionNotice("Demande d'avenant enregistrée et en attente d'application.");
+      } else if (documentWarnings.length > 0) {
+        setError(
+          `L'avenant a bien été appliqué, mais ${documentWarnings.join(" et ")} n'a pas pu être régénéré. Le dossier enregistré reste valide.`,
+        );
+      } else {
+        setActionNotice("Avenant appliqué et documents commerciaux mis à jour avec succès.");
+      }
     } catch (err) {
       const msg = errorMessage(err, "Impossible de valider et créer l'avenant.");
       setModalError(msg);
@@ -3392,16 +3337,16 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                                 </span>
                                 <span className="text-xs text-slate-500">
                                   {isNight1
-                                    ? `+${(Number(commercialTerms?.night_option_1_amount ?? 300000)).toLocaleString(
+                                    ? `+${(Number(commercialTerms?.night_option_1_amount ?? 0)).toLocaleString(
                                         "fr-FR",
                                       )} Ar + Sécurité nuit obligatoire (${(Number(
-                                        commercialTerms?.night_security_amount ?? 120000,
+                                        commercialTerms?.night_security_amount ?? 0,
                                       )).toLocaleString("fr-FR")} Ar)`
                                     : isNight2
-                                      ? `+${(Number(commercialTerms?.night_option_2_amount ?? 500000)).toLocaleString(
+                                      ? `+${(Number(commercialTerms?.night_option_2_amount ?? 0)).toLocaleString(
                                           "fr-FR",
                                         )} Ar + Sécurité nuit obligatoire (${(Number(
-                                          commercialTerms?.night_security_amount ?? 120000,
+                                          commercialTerms?.night_security_amount ?? 0,
                                         )).toLocaleString("fr-FR")} Ar)`
                                       : "Inclus dans le tarif de base du domaine"}
                                 </span>
@@ -3480,8 +3425,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         placeholder="Ex: 250"
                       />
                       <span className="text-[11px] text-slate-500 mt-1 block">
-                        Forfait standard : {amendmentFinancialPreview.includedGuests} convives inclus. Au-delà : +5 000
-                        Ar/invité (
+                        Forfait standard : {amendmentFinancialPreview.includedGuests} convives inclus. Au-delà : +
+                        {formatMoney(Number(commercialTerms?.excess_guest_amount ?? 0))}/invité (
                         {amendmentFinancialPreview.excessGuestsCount > 0
                           ? `+${formatMoney(amendmentFinancialPreview.excessGuestsTotal)} pour ${amendmentFinancialPreview.excessGuestsCount} convives sup.`
                           : "aucun supplément"}
@@ -3502,7 +3447,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                           onChange={(e) => setAmendmentVenueName(e.target.value)}
                           className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-medium bg-white"
                         >
-                          <option value="Salle des fêtes + jardin">Salle des fêtes + jardin (Par défaut)</option>
+                          {amendmentVenueName && !venues.some((venue) => venue.name === amendmentVenueName) && (
+                            <option value={amendmentVenueName}>{amendmentVenueName} (lieu actuel)</option>
+                          )}
                           {venues
                             .filter((v) => v.active !== false)
                             .map((v) => (
@@ -4059,7 +4006,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                                 <p className="font-bold text-slate-900 truncate">{catItem.name}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <span className="text-[10px] text-indigo-700 font-semibold">
-                                    {formatMoney(catItem.rental_price || 5000)} / u
+                                    {catItem.rental_price ? `${formatMoney(catItem.rental_price)} / u` : "Tarif non renseigné"}
                                   </span>
                                   <span className="text-[10px] text-slate-400">
                                     Stock: {catItem.stock_summary?.available_stock ?? catItem.reported_inventory_quantity ?? "Dispo"}
@@ -4068,7 +4015,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                               </div>
                               <button
                                 type="button"
-                                disabled={alreadyInDraft || alreadyAdded}
+                                disabled={alreadyInDraft || alreadyAdded || !catItem.rental_price}
                                 onClick={() => {
                                   setAmendmentAddedLines([
                                     ...amendmentAddedLines,
@@ -4077,7 +4024,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                                       inventory_item_name: catItem.name,
                                       inventory_item_kind: catItem.kind,
                                       quantity: 1,
-                                      unit_rental_price: Number(catItem.rental_price || 5000),
+                                      unit_rental_price: Number(catItem.rental_price),
                                       notes: "",
                                     },
                                   ]);

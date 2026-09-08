@@ -211,6 +211,18 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     mockCreateDocumentInstance.mockResolvedValue({ id: "doc-gen-1", template_key: "hahitantsoa.contract.v1" });
     mockGenerateDocumentInstance.mockResolvedValue({ id: "doc-gen-1" });
     mockGenerateDocumentInstancePdf.mockResolvedValue({ id: "doc-gen-1" });
+    mockGetCommercialTerms.mockResolvedValue({
+      base_space_rental_amount: "1500000.00",
+      included_guest_count: 250,
+      excess_guest_amount: "5000.00",
+      bare_deposit_amount: "1000000.00",
+      logistics_deposit_amount: "1500000.00",
+      night_option_1_amount: "300000.00",
+      night_option_2_amount: "500000.00",
+      night_security_amount: "120000.00",
+      caution_amount: "1000000.00",
+      updated_at: "2026-08-01T00:00:00Z",
+    });
     mockMarkDepositReceived.mockResolvedValue({});
     mockConfirmDraft.mockResolvedValue({});
     mockGetCloseoutSummary.mockImplementation(() => Promise.resolve(closeoutSummary()));
@@ -566,6 +578,62 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     });
   });
 
+  it("keeps a non-applied amendment pending without regenerating documents or changing the dossier", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+    mockCreateAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-pending", status: "draft" },
+    });
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /demander un avenant/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i), {
+      target: { value: "Demande à valider" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.change(screen.getByPlaceholderText("Ex: 250"), { target: { value: "300" } });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByLabelText(/appliquer directement l'avenant/i));
+    fireEvent.click(screen.getByRole("button", { name: /valider et créer l'avenant/i }));
+
+    expect(await screen.findByText(/en attente d'application/i)).toBeInTheDocument();
+    expect(mockApplyAmendment).not.toHaveBeenCalled();
+    expect(mockCreateDocumentInstance).not.toHaveBeenCalled();
+    expect(mockUpdateDraft).not.toHaveBeenCalled();
+    expect(mockGetDraft).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports document regeneration failure without presenting the applied amendment as failed", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+    mockCreateAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-applied", status: "draft" },
+    });
+    mockApplyAmendment.mockResolvedValue({
+      amendment_request: { id: "amend-applied", status: "applied" },
+    });
+    mockCreateDocumentInstance.mockRejectedValueOnce(new Error("PDF indisponible"));
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /demander un avenant/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i), {
+      target: { value: "Modification appliquée" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /valider et créer l'avenant/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /avenant a bien été appliqué, mais le proforma n'a pas pu être régénéré/i,
+    );
+    expect(mockApplyAmendment).toHaveBeenCalledWith(DRAFT.id, "amend-applied");
+    expect(screen.queryByText(/Impossible de valider et créer l'avenant/i)).not.toBeInTheDocument();
+  });
+
   it("calculates real-time financial KPIs accurately even when payment_schedule is absent", async () => {
     // Draft with space_rental_amount and lines without payment_schedule
     currentDraft = {
@@ -639,7 +707,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(screen.getByText("2. Formule & Local")).toBeInTheDocument();
     const guestInput = screen.getByPlaceholderText("Ex: 250");
     fireEvent.change(guestInput, { target: { value: "308" } });
-    expect(screen.getByText(/58 convives sup/i)).toBeInTheDocument();
+    expect(await screen.findByText(/58 convives sup/i)).toBeInTheDocument();
 
     const logisticsRadio = screen.getByLabelText("Location + logistique");
     fireEvent.click(logisticsRadio);
