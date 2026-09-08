@@ -56,6 +56,35 @@ describe("PaymentRegistrationModal", () => {
   });
 
   describe("generateThermalReceiptHtml", () => {
+    it("generates a distinct caution escrow receipt with escrow guarantee legal notice", () => {
+      const html = generateThermalReceiptHtml({
+        domain: "hahitantsoa",
+        receiptTitle: "Reçu de Dépôt de Caution",
+        receiptNumber: "REC-CAUTION-001",
+        paymentDate: "08/09/2026 10:00",
+        customerName: "Jean Dupont",
+        customerPhone: "+261 34 00 000 00",
+        eventDateLabel: "20/09/2026",
+        amount: 500000,
+        amountInWords: "Cinq cent mille Ariary",
+        paymentMethodLabel: "Espèces (Caisse POS)",
+        transactionReference: "POS-CASH-99",
+        paymentKindLabel: "Dépôt de Garantie (Caution)",
+        historyPayments: [],
+        totalDepositAmount: 500000,
+        draftReference: "H-012/2026",
+        proformaReference: "DEV-2026-012",
+        proformaAmount: 3000000,
+        remainingBalance: 2500000,
+      });
+
+      expect(html).toContain("Reçu de Dépôt de Caution");
+      expect(html).toContain("DÉPÔT DE GARANTIE / CAUTION");
+      expect(html).toContain("MONTANT CAUTION VERSÉ");
+      expect(html).toContain(formatMoney(500000));
+      expect(html).toContain("Somme séquestrée (hors devis prestation)");
+    });
+
     it("generates thermal receipt with distinct dossier reference, event date, and accounting summary", () => {
       const html = generateThermalReceiptHtml({
         domain: "hahitantsoa",

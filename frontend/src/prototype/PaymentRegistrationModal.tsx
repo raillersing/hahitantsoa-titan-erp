@@ -492,6 +492,27 @@ export function generateThermalReceiptHtml(params: {
       </tbody>
     </table>
 
+    ${
+      params.receiptTitle.toLowerCase().includes("caution")
+        ? `
+    <div class="summary-box">
+      <div class="summary-row">
+        <span>N° Dossier</span>
+        <span class="value-bold font-mono">${params.proformaReference || params.draftReference || "—"}</span>
+      </div>
+      <div class="summary-row">
+        <span>Type d'encaissement</span>
+        <span class="value-bold" style="color: #b45309;">DÉPÔT DE GARANTIE / CAUTION</span>
+      </div>
+      <div class="summary-row total-paid">
+        <span>MONTANT CAUTION VERSÉ</span>
+        <span>${formatMoney(params.amount)}</span>
+      </div>
+      <div class="summary-row" style="margin-top: 1.5mm; font-size: 7.5px; color: #4b5563; font-style: italic; line-height: 1.2;">
+        <span>Nature : Somme séquestrée (hors devis prestation), restituable en fin de contrat conformément à l'article 7 après contrôle de retour sans dommage.</span>
+      </div>
+    </div>`
+        : `
     <div class="summary-box">
       <div class="summary-row">
         <span>N° Dossier Proforma</span>
@@ -509,7 +530,8 @@ export function generateThermalReceiptHtml(params: {
         <span>SOLDE RESTANT À PAYER</span>
         <span>${formatMoney(params.remainingBalance)}</span>
       </div>
-    </div>
+    </div>`
+    }
 
     <div class="signature-area">
       <div>
@@ -843,7 +865,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 p-2 sm:p-4 backdrop-blur-xs overflow-y-auto"
     >
       <div className="relative w-full max-w-6xl max-h-[94vh] flex flex-col rounded-3xl bg-white shadow-2xl overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* ─── Header ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-slate-50">
           <div className="flex items-center gap-3">
@@ -890,10 +912,10 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
 
         {/* ─── Body (Dual Panel Layout) ────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-0">
-          
+
           {/* ════ LEFT PANEL: Accounting & Form & History (7 Cols) ═════════════ */}
           <div className="lg:col-span-7 p-6 border-b lg:border-b-0 lg:border-r border-slate-100 flex flex-col space-y-5 overflow-y-auto">
-            
+
             {/* View switcher tabs */}
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <div className="flex items-center gap-2">
@@ -954,7 +976,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
                 </div>
                 <div className="bg-white rounded-xl p-3 border border-amber-100 shadow-xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-amber-700 uppercase">Acompte (50%)</span>
+                    <span className="text-[10px] font-bold text-amber-700 uppercase">Acompte Requis</span>
                     <span
                       className={`text-[9px] font-extrabold px-1 rounded ${
                         depositShortfall === 0
@@ -1045,7 +1067,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
             {/* ── Section B: Formulaire de Saisie ────────────────────────────── */}
             {activeTab === "form" && (
               <form onSubmit={handleFormSubmit} className="space-y-4">
-                
+
                 {/* Tranche / Échéance */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
@@ -1358,7 +1380,7 @@ export const PaymentRegistrationModal: React.FC<PaymentRegistrationModalProps> =
 
           {/* ════ RIGHT PANEL: Live Receipt Real-Time Preview (5 Cols) ═════════ */}
           <div className="lg:col-span-5 p-6 bg-slate-100/70 flex flex-col space-y-4">
-            
+
             {/* Live Preview Header */}
             <div className="flex items-center justify-between">
               <div>
