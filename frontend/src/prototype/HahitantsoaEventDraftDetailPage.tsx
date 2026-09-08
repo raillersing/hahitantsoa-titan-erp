@@ -7,6 +7,7 @@ import {
   generateHahitantsoaEventDraftDocumentInstancePdf,
   getHahitantsoaEventDraft,
   getHahitantsoaEventDrafts,
+  updateHahitantsoaEventDraft,
   getHahitantsoaEventDraftConfirmationPreflight,
   getHahitantsoaEventDraftCloseoutSummary,
   getHahitantsoaEventDraftLifecycle,
@@ -281,6 +282,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentKindSelection, setPaymentKindSelection] = useState<"deposit" | "installment_1" | "installment_2" | "caution">("deposit");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Amendment Studio states (5-step interactive wizard following exact app parcours)
   const [showAmendmentModal, setShowAmendmentModal] = useState(false);
@@ -697,6 +699,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
   const openAmendmentModal = async () => {
     if (!draft) return;
+    setModalError(null);
     setAmendmentStep(1);
     setAmendmentReason("");
     setAmendmentReasonSelect("");
@@ -937,11 +940,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     if (!param || !draft) return;
     const finalReason = (amendmentReasonSelect ? `${amendmentReasonSelect}: ` : "") + amendmentReason.trim();
     if (!finalReason.trim()) {
+      setModalError("Le motif de l'avenant est obligatoire.");
       setError("Le motif de l'avenant est obligatoire.");
       setAmendmentStep(1);
       return;
     }
     setBusy("amendment");
+    setModalError(null);
     setError(null);
     setActionNotice(null);
     try {
@@ -982,89 +987,178 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         .filter(Boolean)
         .join(" · ");
 
-      const res = await createHahitantsoaEventDraftAmendmentRequest(param, {
-        reason: finalReason,
-        notes: fullNotes,
-        changed_event_type: changedEventType,
-        changed_rental_type: backendRentalType,
-        changed_guest_count: Number(amendmentGuestCount) || 200,
-        changed_space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
-        changed_venue_name: amendmentVenueName.trim(),
-        changed_location_details: amendmentLocationDetails.trim(),
-        changed_service_notes: combinedServiceNotes,
-        changed_notes: fullNotes,
-      });
+      const allLinesInput = [
+        ...draft.lines
+          .map((line) => ({
+            inventory_item_id: line.inventory_item_id,
+            quantity: amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity,
+            notes: line.notes || "",
+          }))
+          .filter((l) => l.quantity > 0),
+        ...amendmentAddedLines
+          .map((added) => ({
+            inventory_item_id: added.inventory_item_id,
+            quantity: added.quantity,
+            notes: added.notes || "",
+          }))
+          .filter((l) => l.quantity > 0),
+      ];
 
-      const amendmentId = res.amendment_request.id;
+      const newLinesForState = [
+        ...draft.lines
+          .map((l) => ({
+            ...l,
+            quantity: amendmentQuantities[l.id] !== undefined ? amendmentQuantities[l.id] : l.quantity,
+          }))
+          .filter((l) => l.quantity > 0),
+        ...amendmentAddedLines.map((al, idx) => ({
+          id: `line-added-${Date.now()}-${idx}`,
+          inventory_item_id: al.inventory_item_id,
+          inventory_item_name: al.inventory_item_name,
+          inventory_item_kind: al.inventory_item_kind,
+          quantity: al.quantity,
+          unit_rental_price: String(al.unit_rental_price),
+          total_price: String(al.quantity * al.unit_rental_price),
+          notes: al.notes,
+        })),
+      ];
 
-      if (amendmentRentalType === "Location + logistique") {
-        for (const line of draft.lines) {
-          const qty = amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity;
-          if (qty > 0) {
-            await createHahitantsoaEventDraftAmendmentRequestLine(param, amendmentId, {
-              inventory_item_id: line.inventory_item_id,
-              quantity: qty,
-              notes: line.notes || "",
-            });
+      let amendmentApplied = false;
+      let createdAmendmentId: string | null = null;
+
+      if (draft.status === "confirmed") {
+        // Confirmed reservation: contract amendment lifecycle
+        if (!contractDoc) {
+          try {
+            const initialContract = await createHahitantsoaEventDraftDocumentInstance(param, { template_key: "hahitantsoa.contract.v1" });
+            await generateHahitantsoaEventDraftDocumentInstance(param, initialContract.id);
+            await generateHahitantsoaEventDraftDocumentInstancePdf(param, initialContract.id);
+          } catch (contractErr) {
+            console.warn("Could not pre-generate contract:", contractErr);
           }
         }
 
-        for (const added of amendmentAddedLines) {
-          if (added.quantity > 0) {
-            await createHahitantsoaEventDraftAmendmentRequestLine(param, amendmentId, {
-              inventory_item_id: added.inventory_item_id,
-              quantity: added.quantity,
-              notes: added.notes || "",
-            });
+        const res = await createHahitantsoaEventDraftAmendmentRequest(param, {
+          reason: finalReason,
+          notes: fullNotes,
+          changed_event_type: changedEventType,
+          changed_rental_type: backendRentalType,
+          changed_guest_count: Number(amendmentGuestCount) || 200,
+          changed_space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
+          changed_venue_name: amendmentVenueName.trim(),
+          changed_location_details: amendmentLocationDetails.trim(),
+          changed_service_notes: combinedServiceNotes,
+          changed_notes: fullNotes,
+        });
+
+        createdAmendmentId = res?.amendment_request?.id || null;
+
+        if (createdAmendmentId && amendmentRentalType === "Location + logistique") {
+          for (const line of draft.lines) {
+            const qty = amendmentQuantities[line.id] !== undefined ? amendmentQuantities[line.id] : line.quantity;
+            if (qty > 0) {
+              await createHahitantsoaEventDraftAmendmentRequestLine(param, createdAmendmentId, {
+                inventory_item_id: line.inventory_item_id,
+                quantity: qty,
+                notes: line.notes || "",
+              });
+            }
+          }
+
+          for (const added of amendmentAddedLines) {
+            if (added.quantity > 0) {
+              await createHahitantsoaEventDraftAmendmentRequestLine(param, createdAmendmentId, {
+                inventory_item_id: added.inventory_item_id,
+                quantity: added.quantity,
+                notes: added.notes || "",
+              });
+            }
           }
         }
-      }
 
-      if (autoApplyAmendment) {
-        try {
-          await applyHahitantsoaEventDraftAmendmentRequest(param, amendmentId);
-          setActionNotice("Avenant contractuel appliqué au dossier avec succès.");
-          setDraft((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              guest_count: Number(amendmentGuestCount) || 200,
-              rental_type: backendRentalType,
-              venue_name: amendmentVenueName.trim(),
-              space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
-              service_notes: combinedServiceNotes,
-              total_amount: String(amendmentFinancialPreview.newTotal),
-              lines: [
-                ...prev.lines
-                  .map((l) => ({
-                    ...l,
-                    quantity: amendmentQuantities[l.id] !== undefined ? amendmentQuantities[l.id] : l.quantity,
-                  }))
-                  .filter((l) => l.quantity > 0),
-                ...amendmentAddedLines.map((al, idx) => ({
-                  id: `line-added-${Date.now()}-${idx}`,
-                  inventory_item_id: al.inventory_item_id,
-                  inventory_item_name: al.inventory_item_name,
-                  inventory_item_kind: al.inventory_item_kind,
-                  quantity: al.quantity,
-                  unit_rental_price: String(al.unit_rental_price),
-                  total_price: String(al.quantity * al.unit_rental_price),
-                  notes: al.notes,
-                })),
-              ],
-            };
-          });
-        } catch {
-          setActionNotice("Demande d'avenant enregistrée avec succès (application en attente).");
+        if (createdAmendmentId && autoApplyAmendment) {
+          await applyHahitantsoaEventDraftAmendmentRequest(param, createdAmendmentId);
+          amendmentApplied = true;
         }
       } else {
-        setActionNotice("La demande d'avenant a été enregistrée avec succès.");
+        // Unconfirmed draft (brouillon / devis): direct draft update
+        await updateHahitantsoaEventDraft(param, {
+          rental_type: backendRentalType,
+          guest_count: Number(amendmentGuestCount) || 200,
+          space_rental_amount: amendmentFinancialPreview.newSpaceTotal,
+          venue_name: amendmentVenueName.trim(),
+          location_details: amendmentLocationDetails.trim(),
+          service_notes: combinedServiceNotes,
+          notes: fullNotes,
+          lines: allLinesInput,
+        });
+        amendmentApplied = true;
       }
 
+      // Auto-regenerate proforma & invoice if they exist so all commercial documents match the new amounts
+      try {
+        const newProforma = await createHahitantsoaEventDraftDocumentInstance(param, { template_key: "hahitantsoa.proforma.v1" });
+        await generateHahitantsoaEventDraftDocumentInstance(param, newProforma.id);
+        await generateHahitantsoaEventDraftDocumentInstancePdf(param, newProforma.id);
+      } catch (docErr) {
+        console.warn("Could not regenerate proforma:", docErr);
+      }
+
+      if (invoiceDoc) {
+        try {
+          const newInvoice = await createHahitantsoaEventDraftDocumentInstance(param, { template_key: "hahitantsoa.invoice.v1" });
+          await generateHahitantsoaEventDraftDocumentInstance(param, newInvoice.id);
+          await generateHahitantsoaEventDraftDocumentInstancePdf(param, newInvoice.id);
+        } catch (invErr) {
+          console.warn("Could not regenerate invoice:", invErr);
+        }
+      }
+
+      // Synchronize local draft state
+      setDraft((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          guest_count: Number(amendmentGuestCount) || 200,
+          rental_type: backendRentalType,
+          venue_name: amendmentVenueName.trim(),
+          space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
+          service_notes: combinedServiceNotes,
+          total_amount: String(amendmentFinancialPreview.newTotal),
+          lines: newLinesForState,
+        };
+      });
+
+      // If amendment ID was created, prepend it to amendments list
+      if (createdAmendmentId) {
+        const nextSeq = amendments.length > 0 ? Math.max(...amendments.map((a) => a.amendment_sequence || 1)) + 1 : 1;
+        setAmendments((prev) => [
+          {
+            id: createdAmendmentId!,
+            event_draft_id: param,
+            status: amendmentApplied ? "applied" : "pending",
+            reason: finalReason,
+            notes: fullNotes,
+            changed_guest_count: Number(amendmentGuestCount) || 200,
+            changed_venue_name: amendmentVenueName.trim(),
+            changed_rental_type: backendRentalType,
+            changed_service_notes: combinedServiceNotes,
+            changed_space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
+            amendment_sequence: nextSeq,
+            created_at: new Date().toISOString(),
+            lines: [],
+          } as any,
+          ...prev.filter((a) => a.id !== createdAmendmentId),
+        ]);
+      }
+
+      setActionNotice("Avenant et modifications appliqués au dossier et documents avec succès.");
       setShowAmendmentModal(false);
       await load();
     } catch (err) {
-      setError(errorMessage(err, "Impossible de créer la demande d'avenant."));
+      const msg = errorMessage(err, "Impossible de valider et créer l'avenant.");
+      setModalError(msg);
+      setError(msg);
     } finally {
       setBusy(null);
     }
@@ -1200,15 +1294,13 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
             </button>
           )}
 
-          {draft.status === "confirmed" && (
-            <button
-              type="button"
-              onClick={() => void openAmendmentModal()}
-              className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50 text-sm transition-all"
-            >
-              <i className="fa-solid fa-pen-to-square"></i> Demander un avenant
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => void openAmendmentModal()}
+            className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 font-semibold text-indigo-700 shadow-sm hover:bg-indigo-50 text-sm transition-all"
+          >
+            <i className="fa-solid fa-pen-to-square"></i> Demander un avenant
+          </button>
 
           <button
             type="button"
@@ -1735,6 +1827,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     >
                       <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => void generateDocument("hahitantsoa.proforma.v1", "Proforma / Devis")}
+                      disabled={busy !== null}
+                      title="Régénérer / actualiser le devis et la proforma avec les dernières modifications"
+                      className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                    >
+                      <i className="fa-solid fa-arrows-rotate text-indigo-600"></i>
+                    </button>
                   </div>
                 </div>
 
@@ -1850,6 +1951,15 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1"
                     >
                       <i className="fa-solid fa-eye text-blue-600"></i> Aperçu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void generateDocument("hahitantsoa.invoice.v1", "Facture officielle")}
+                      disabled={busy !== null}
+                      title="Régénérer / actualiser la facture avec les dernières modifications"
+                      className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                    >
+                      <i className="fa-solid fa-arrows-rotate text-blue-600"></i>
                     </button>
                   </div>
                 </div>
@@ -2780,6 +2890,19 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <i className="fa-solid fa-xmark text-lg"></i>
               </button>
             </div>
+
+            {/* Modal Error Alert */}
+            {modalError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation text-rose-600 text-sm"></i>
+                  <span>{modalError}</span>
+                </div>
+                <button type="button" onClick={() => setModalError(null)} className="text-rose-500 hover:text-rose-700">
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            )}
 
             {/* Stepper Progress Bar */}
             <div className="grid grid-cols-5 gap-2 border-b border-slate-100 pb-4 shrink-0">

@@ -21,6 +21,7 @@ import {
   convertProformaToContract,
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
+  generateReservationDraftDocumentInstancePdf,
   voidProforma,
   getPayments,
   recordConfirmedDeposit,
@@ -163,6 +164,7 @@ export default function ReservationDetailPage({
   const [catalogSearch, setCatalogSearch] = useState("");
   const [titanCatalogCategory, setTitanCatalogCategory] = useState("all");
   const [amendmentStep, setAmendmentStep] = useState(1);
+  const [amendmentError, setAmendmentError] = useState<string | null>(null);
   const [payments, setPayments] = useState<
     {
       id: string;
@@ -340,6 +342,7 @@ export default function ReservationDetailPage({
   const handleCreateTitanAmendment = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!draft) return;
+    setAmendmentError(null);
     setActionLoading("amendment");
     try {
       const activeExistingLines = draft.lines
@@ -361,6 +364,7 @@ export default function ReservationDetailPage({
       const allLines = [...activeExistingLines, ...addedLines];
 
       if (allLines.length === 0) {
+        setAmendmentError("L'avenant doit comporter au moins un article.");
         showToast("L'avenant doit comporter au moins un article.", "error");
         return;
       }
@@ -372,6 +376,17 @@ export default function ReservationDetailPage({
         changed_end_at: amendmentEndAt ? new Date(amendmentEndAt).toISOString() : undefined,
         changed_lines: allLines,
       });
+
+      // Regenerate proforma if it was previously generated to keep amounts in sync
+      if (proformaInstance) {
+        try {
+          const newProforma = await createReservationDraftDocumentInstance(draft.id, { template_key: "titan.material_proforma.v1" });
+          await generateReservationDraftDocumentInstance(draft.id, newProforma.id);
+          await generateReservationDraftDocumentInstancePdf(draft.id, newProforma.id);
+        } catch (docErr) {
+          console.warn("Could not regenerate Titan proforma:", docErr);
+        }
+      }
 
       setShowAmendmentForm(false);
       setAmendmentReason("");
@@ -388,7 +403,9 @@ export default function ReservationDetailPage({
       const instances = await getReservationDraftDocumentInstances(draft.id);
       setDocumentInstances(instances);
     } catch (err: any) {
-      showToast(err?.message || "Erreur lors de la génération de l'avenant.", "error");
+      const msg = err?.message || "Erreur lors de la génération de l'avenant.";
+      setAmendmentError(msg);
+      showToast(msg, "error");
     } finally {
       setActionLoading(null);
     }
@@ -2501,6 +2518,18 @@ export default function ReservationDetailPage({
                 <i className="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
+            {amendmentError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <i className="fa-solid fa-triangle-exclamation text-rose-600 text-sm"></i>
+                  <span>{amendmentError}</span>
+                </div>
+                <button type="button" onClick={() => setAmendmentError(null)} className="text-rose-500 hover:text-rose-700">
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center gap-2 mb-6" aria-label="Étapes de l’avenant">
               {amendmentStepTitles.map((title, index) => {
                 const stepNumber = index + 1;

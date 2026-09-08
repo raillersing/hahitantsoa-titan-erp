@@ -12,6 +12,7 @@ import type {
 
 const mockGetDraft = vi.fn();
 const mockGetDrafts = vi.fn();
+const mockUpdateDraft = vi.fn();
 const mockGetCustomer = vi.fn();
 const mockGetPreflight = vi.fn();
 const mockGetDocuments = vi.fn();
@@ -39,6 +40,7 @@ const mockGetPackages = vi.fn();
 vi.mock("../api", () => ({
   getHahitantsoaEventDraft: (...args: unknown[]) => mockGetDraft(...args),
   getHahitantsoaEventDrafts: (...args: unknown[]) => mockGetDrafts(...args) ?? Promise.resolve([]),
+  updateHahitantsoaEventDraft: (...args: unknown[]) => mockUpdateDraft(...args) ?? Promise.resolve({}),
   getCustomer: (...args: unknown[]) => mockGetCustomer(...args),
   getHahitantsoaEventDraftConfirmationPreflight: (...args: unknown[]) => mockGetPreflight(...args),
   getHahitantsoaEventDraftDocumentInstances: (...args: unknown[]) => mockGetDocuments(...args),
@@ -205,6 +207,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     mockGetDocuments.mockImplementation(() => Promise.resolve(currentDocuments));
     mockGetPayments.mockImplementation(() => Promise.resolve(currentPayments));
     mockGetAmendments.mockResolvedValue([]);
+    mockUpdateDraft.mockResolvedValue({ ...DRAFT });
     mockCreateDocumentInstance.mockResolvedValue({ id: "doc-gen-1", template_key: "hahitantsoa.contract.v1" });
     mockGenerateDocumentInstance.mockResolvedValue({ id: "doc-gen-1" });
     mockGenerateDocumentInstancePdf.mockResolvedValue({ id: "doc-gen-1" });
@@ -737,5 +740,69 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(await screen.findByText(/Avenant N°1 — Ajustement horaires/i)).toBeInTheDocument();
     expect(screen.getByText(/Avenant N°2 — Rajout 58 convives et sol gazon/i)).toBeInTheDocument();
     expect(screen.getAllByText(/308 invités/i).length).toBeGreaterThan(0);
+  });
+  it("updates unconfirmed draft directly and regenerates proforma document", async () => {
+    currentDraft = { ...DRAFT, status: "draft" };
+    mockCreateAmendment.mockRejectedValue(new Error("Hahitantsoa event draft amendment request preflight failed: draft_not_confirmed_for_amendment"));
+    mockUpdateDraft.mockResolvedValue({ ...DRAFT, guest_count: 280 });
+    mockCreateDocumentInstance.mockResolvedValue({ id: "doc-prof-2", template_key: "hahitantsoa.proforma.v1" });
+    mockGenerateDocumentInstance.mockResolvedValue({});
+    mockGenerateDocumentInstancePdf.mockResolvedValue({});
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    const amendBtn = await screen.findByRole("button", { name: /demander un avenant/i });
+    fireEvent.click(amendBtn);
+
+    const reasonInput = screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i);
+    fireEvent.change(reasonInput, { target: { value: "Modification préalable convives" } });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    // Step 2 -> Step 3 -> Step 4 -> Step 5
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    const submitBtn = screen.getByRole("button", { name: /valider et créer l'avenant/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockUpdateDraft).toHaveBeenCalledWith(
+        DRAFT.id,
+        expect.objectContaining({
+          guest_count: 250,
+          venue_name: "Grande Salle Hahitantsoa",
+        }),
+      );
+      expect(mockCreateDocumentInstance).toHaveBeenCalledWith(
+        DRAFT.id,
+        expect.objectContaining({ template_key: "hahitantsoa.proforma.v1" }),
+      );
+    });
+  });
+
+  it("displays error message inside the modal when an amendment error occurs", async () => {
+    currentDraft = { ...DRAFT, status: "confirmed" };
+    mockCreateAmendment.mockRejectedValue(new Error("Erreur de validation de date"));
+    mockUpdateDraft.mockRejectedValue(new Error("Erreur de validation de date"));
+
+    render(<HahitantsoaEventDraftDetailPage onNavigate={vi.fn()} param={DRAFT.id} />);
+
+    const amendBtn = await screen.findByRole("button", { name: /demander un avenant/i });
+    fireEvent.click(amendBtn);
+
+    const reasonInput = screen.getByPlaceholderText(/Ex: Rajout de 50 convives/i);
+    fireEvent.change(reasonInput, { target: { value: "Avenant erroné" } });
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+    fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
+
+    const submitBtn = screen.getByRole("button", { name: /valider et créer l'avenant/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Erreur de validation de date/i).length).toBeGreaterThan(0);
+    });
   });
 });
