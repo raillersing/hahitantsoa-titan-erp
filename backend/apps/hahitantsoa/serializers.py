@@ -747,7 +747,18 @@ class HahitantsoaPaymentScheduleSerializer(serializers.Serializer):
     second_installment_due_on = serializers.DateField()
 
 
+class HahitantsoaEventDraftUpdateReferenceSerializer(serializers.Serializer):
+    public_reference = serializers.CharField(max_length=32, required=True)
+
+    def validate_public_reference(self, value):
+        val = str(value).strip()
+        if not val:
+            raise serializers.ValidationError("La référence ne peut pas être vide.")
+        return val
+
+
 class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
+    public_reference = serializers.CharField(max_length=32, required=False, allow_blank=True)
     customer_id = serializers.PrimaryKeyRelatedField(
         source="customer",
         queryset=Customer.objects.filter(is_active=True, is_deleted=False),
@@ -789,13 +800,27 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
-            "public_reference",
             "status",
             "customer_display_name",
             "created_at",
             "updated_at",
             "payment_schedule",
         )
+
+    def validate_public_reference(self, value):
+        if not value:
+            return ""
+        val = str(value).strip()
+        if not val:
+            return ""
+        qs = HahitantsoaEventDraft.objects.filter(public_reference=val, is_deleted=False)
+        if self.instance is not None:
+            qs = qs.exclude(id=self.instance.id)
+        if qs.exists():
+            raise serializers.ValidationError(
+                f"La référence '{val}' est déjà utilisée par un autre événement."
+            )
+        return val
 
     def validate(self, attrs):
         start_at = attrs.get("start_at", getattr(self.instance, "start_at", None))
@@ -838,6 +863,8 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         lines_data = validated_data.pop("lines")
+        if "public_reference" in validated_data and not validated_data["public_reference"]:
+            validated_data.pop("public_reference")
         terms = get_hahitantsoa_commercial_terms()
         validated_data.setdefault(
             "space_rental_amount",

@@ -50,32 +50,12 @@ HAHITANTSOA_EVENT_DRAFT_AMENDMENT_REQUEST_STATUS_VALUES = [
 
 
 def generate_hahitantsoa_event_draft_public_reference() -> str:
-    year = timezone.now().year
-    prefix = "H-"
-    suffix = f"/{year}"
     try:
-        latest = (
-            HahitantsoaEventDraft.objects.filter(
-                public_reference__startswith=prefix,
-                public_reference__endswith=suffix,
-            )
-            .order_by("-public_reference")
-            .first()
-        )
-        if latest:
-            try:
-                num_str = latest.public_reference.split("-")[1].split("/")[0]
-                next_num = int(num_str) + 1
-            except IndexError, ValueError:
-                next_num = HahitantsoaEventDraft.objects.filter(created_at__year=year).count() + 1
-        else:
-            next_num = 1
-        while HahitantsoaEventDraft.objects.filter(
-            public_reference=f"H-{next_num:03d}/{year}"
-        ).exists():
-            next_num += 1
-        return f"H-{next_num:03d}/{year}"
+        from apps.common.sequences import generate_next_public_reference
+
+        return generate_next_public_reference("hahitantsoa")
     except Exception:
+        year = timezone.now().year
         return f"H-{uuid.uuid4().hex[:4].upper()}/{year}"
 
 

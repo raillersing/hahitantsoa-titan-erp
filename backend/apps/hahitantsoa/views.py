@@ -55,6 +55,7 @@ from apps.hahitantsoa.serializers import (
     HahitantsoaEventDraftDocumentInstanceGenerateSerializer,
     HahitantsoaEventDraftDocumentInstanceSerializer,
     HahitantsoaEventDraftSerializer,
+    HahitantsoaEventDraftUpdateReferenceSerializer,
     HahitantsoaSharedAvailabilityResponseSerializer,
     HahitantsoaVenueOccupancyRequestSerializer,
     HahitantsoaVenueOccupancyResponseSerializer,
@@ -1062,6 +1063,44 @@ class HahitantsoaEventDraftRetrieveUpdateAPIView(generics.RetrieveUpdateDestroyA
         instance.deleted_at = deleted_at
         instance.updated_by = self.request.user
         instance.save(update_fields=["is_deleted", "deleted_at", "updated_by", "updated_at"])
+
+
+class HahitantsoaEventDraftUpdateReferenceAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+    http_method_names = ["post", "head", "options"]
+
+    @extend_schema(
+        request=HahitantsoaEventDraftUpdateReferenceSerializer,
+        responses={200: HahitantsoaEventDraftSerializer},
+    )
+    def post(self, request, pk):
+        from django.core.exceptions import ValidationError
+        from django.shortcuts import get_object_or_404
+
+        from apps.hahitantsoa.reference_update import (
+            update_hahitantsoa_event_draft_public_reference,
+        )
+
+        event_draft = get_object_or_404(
+            visible_hahitantsoa_event_drafts(user=request.user),
+            pk=pk,
+        )
+        serializer = HahitantsoaEventDraftUpdateReferenceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated_event = update_hahitantsoa_event_draft_public_reference(
+                event_draft=event_draft,
+                new_public_reference=serializer.validated_data["public_reference"],
+                actor=request.user,
+            )
+        except ValidationError as error:
+            message = error.message if hasattr(error, "message") else str(error)
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            HahitantsoaEventDraftSerializer(updated_event).data, status=status.HTTP_200_OK
+        )
 
 
 class HahitantsoaVenueListCreateAPIView(generics.ListCreateAPIView):
