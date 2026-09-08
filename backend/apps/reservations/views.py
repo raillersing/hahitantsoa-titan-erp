@@ -26,6 +26,7 @@ from apps.reservations.serializers import (
     ReservationDraftAmendmentCreateSerializer,
     ReservationDraftAmendmentSerializer,
     ReservationDraftSerializer,
+    ReservationDraftUpdateReferenceSerializer,
     ReservationItemAvailabilityPreviewSerializer,
 )
 
@@ -182,6 +183,36 @@ class ReservationDraftRetrieveAPIView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return active_reservation_drafts()
+
+
+class ReservationDraftUpdateReferenceAPIView(APIView):
+    permission_classes = [HasReservationSensitiveAccess]
+    http_method_names = ["post", "head", "options"]
+
+    @extend_schema(
+        request=ReservationDraftUpdateReferenceSerializer,
+        responses={200: ReservationDraftSerializer},
+    )
+    def post(self, request, pk):
+        from django.core.exceptions import ValidationError
+
+        from apps.reservations.reference_update import update_reservation_draft_public_reference
+
+        draft = get_object_or_404(active_reservation_drafts(), pk=pk)
+        serializer = ReservationDraftUpdateReferenceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated_draft = update_reservation_draft_public_reference(
+                reservation_draft=draft,
+                new_public_reference=serializer.validated_data["public_reference"],
+                actor=request.user,
+            )
+        except ValidationError as error:
+            message = error.message if hasattr(error, "message") else str(error)
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(ReservationDraftSerializer(updated_draft).data, status=status.HTTP_200_OK)
 
 
 class ReservationDraftConfirmAPIView(APIView):

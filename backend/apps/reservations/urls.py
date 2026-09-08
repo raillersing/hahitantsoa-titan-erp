@@ -15,10 +15,16 @@ from apps.reservations.views import (
     ReservationDraftMarkRequiredDepositReceivedAPIView,
     ReservationDraftRetrieveAPIView,
     ReservationDraftSoftDeleteAPIView,
+    ReservationDraftUpdateReferenceAPIView,
     ReservationItemAvailabilityPreviewAPIView,
 )
 
 urlpatterns = [
+    path(
+        "api/v1/reservations/drafts/<uuid:pk>/update-reference/",
+        ReservationDraftUpdateReferenceAPIView.as_view(),
+        name="reservation-draft-update-reference",
+    ),
     path(
         "api/v1/reservations/drafts/<uuid:pk>/document-preview/",
         ReservationDraftDocumentPreviewAPIView.as_view(),

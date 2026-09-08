@@ -28,30 +28,12 @@ RESERVATION_DRAFT_STATUS_VALUES = [status.value for status in ReservationDraftSt
 
 
 def generate_reservation_draft_public_reference() -> str:
-    year = timezone.now().year
-    prefix = "T-"
-    suffix = f"/{year}"
     try:
-        latest = (
-            ReservationDraft.objects.filter(
-                public_reference__startswith=prefix,
-                public_reference__endswith=suffix,
-            )
-            .order_by("-public_reference")
-            .first()
-        )
-        if latest:
-            try:
-                num_str = latest.public_reference.split("-")[1].split("/")[0]
-                next_num = int(num_str) + 1
-            except IndexError, ValueError:
-                next_num = ReservationDraft.objects.filter(created_at__year=year).count() + 1
-        else:
-            next_num = 1
-        while ReservationDraft.objects.filter(public_reference=f"T-{next_num:03d}/{year}").exists():
-            next_num += 1
-        return f"T-{next_num:03d}/{year}"
+        from apps.common.sequences import generate_next_public_reference
+
+        return generate_next_public_reference("titan")
     except Exception:
+        year = timezone.now().year
         return f"T-{uuid.uuid4().hex[:4].upper()}/{year}"
 
 

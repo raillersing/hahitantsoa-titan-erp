@@ -25,6 +25,7 @@ from apps.hahitantsoa.views import (
     HahitantsoaEventDraftMarkContractSignedAPIView,
     HahitantsoaEventDraftMarkRequiredDepositReceivedAPIView,
     HahitantsoaEventDraftRetrieveUpdateAPIView,
+    HahitantsoaEventDraftUpdateReferenceAPIView,
     HahitantsoaServiceListCreateAPIView,
     HahitantsoaServiceRetrieveUpdateDestroyAPIView,
     HahitantsoaSharedAvailabilityAPIView,
@@ -34,6 +35,11 @@ from apps.hahitantsoa.views import (
 )
 
 urlpatterns = [
+    path(
+        "event-drafts/<uuid:pk>/update-reference/",
+        HahitantsoaEventDraftUpdateReferenceAPIView.as_view(),
+        name="hahitantsoa-event-draft-update-reference",
+    ),
     path(
         "event-drafts/<uuid:pk>/lifecycle/",
         HahitantsoaEventDraftLifecycleAPIView.as_view(),

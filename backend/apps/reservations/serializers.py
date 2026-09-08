@@ -268,7 +268,18 @@ class ReservationDraftLineSerializer(serializers.ModelSerializer):
         return quantity
 
 
+class ReservationDraftUpdateReferenceSerializer(serializers.Serializer):
+    public_reference = serializers.CharField(max_length=32, required=True)
+
+    def validate_public_reference(self, value):
+        val = str(value).strip()
+        if not val:
+            raise serializers.ValidationError("La référence ne peut pas être vide.")
+        return val
+
+
 class ReservationDraftSerializer(serializers.ModelSerializer):
+    public_reference = serializers.CharField(max_length=32, required=False, allow_blank=True)
     customer_id = serializers.PrimaryKeyRelatedField(
         source="customer",
         queryset=Customer.objects.filter(is_active=True, is_deleted=False),
@@ -328,7 +339,6 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
-            "public_reference",
             "status",
             "customer_display_name",
             "subtotal_amount",
@@ -345,6 +355,21 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
+    def validate_public_reference(self, value):
+        if not value:
+            return ""
+        val = str(value).strip()
+        if not val:
+            return ""
+        qs = ReservationDraft.objects.filter(public_reference=val, is_deleted=False)
+        if self.instance is not None:
+            qs = qs.exclude(id=self.instance.id)
+        if qs.exists():
+            raise serializers.ValidationError(
+                f"La référence '{val}' est déjà utilisée par une autre réservation."
+            )
+        return val
 
     def validate(self, attrs):
         start_at = attrs.get("start_at", getattr(self.instance, "start_at", None))
@@ -399,6 +424,8 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         lines_data = validated_data.pop("lines")
         actor = self._actor()
+        if "public_reference" in validated_data and not validated_data["public_reference"]:
+            validated_data.pop("public_reference")
         if validated_data.get("discount_amount", Decimal("0")):
             validated_data["discount_applied_at"] = timezone.now()
             validated_data["discount_applied_by"] = actor

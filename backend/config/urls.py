@@ -29,6 +29,7 @@ urlpatterns = [
     path("api/v1/procurement/", include("apps.procurement.urls")),
     path("api/v1/hr/", include("apps.hr_payroll.urls")),
     path("api/v1/reports/", include("apps.common.urls")),
+    path("api/v1/numbering/", include("apps.common.numbering_urls")),
     path("readyz/", readyz, name="readyz"),
     path("metrics/", metrics, name="metrics"),
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
