@@ -18,6 +18,7 @@ def test_healthz_rejects_post(client) -> None:
 
 def test_readyz_returns_ready_when_database_and_redis_are_available(client, monkeypatch) -> None:
     monkeypatch.setattr(health_module, "is_database_ready", lambda: True)
+    monkeypatch.setattr(health_module, "is_migration_state_ready", lambda: True)
     monkeypatch.setattr(health_module, "is_redis_ready", lambda: True)
 
     response = client.get("/readyz/")
@@ -25,7 +26,7 @@ def test_readyz_returns_ready_when_database_and_redis_are_available(client, monk
     assert response.status_code == 200
     assert response.json() == {
         "status": "ready",
-        "checks": {"database": "ok", "redis": "ok"},
+        "checks": {"database": "ok", "migrations": "ok", "redis": "ok"},
     }
     assert "application/json" in response["Content-Type"]
     assert response["Cache-Control"] == "no-store"
@@ -42,6 +43,7 @@ def test_readyz_returns_not_ready_when_database_is_unavailable(client, monkeypat
         raise RuntimeError("database secret details")
 
     monkeypatch.setattr(health_module, "is_database_ready", broken_database_check)
+    monkeypatch.setattr(health_module, "is_migration_state_ready", lambda: True)
     monkeypatch.setattr(health_module, "is_redis_ready", lambda: True)
 
     response = client.get("/readyz/")
@@ -49,7 +51,7 @@ def test_readyz_returns_not_ready_when_database_is_unavailable(client, monkeypat
     assert response.status_code == 503
     assert response.json() == {
         "status": "not_ready",
-        "checks": {"database": "error", "redis": "ok"},
+        "checks": {"database": "error", "migrations": "ok", "redis": "ok"},
     }
     assert "database secret details" not in response.content.decode()
     assert response["Cache-Control"] == "no-store"
@@ -60,6 +62,7 @@ def test_readyz_returns_not_ready_when_redis_is_unavailable(client, monkeypatch)
         raise RuntimeError("redis secret details")
 
     monkeypatch.setattr(health_module, "is_database_ready", lambda: True)
+    monkeypatch.setattr(health_module, "is_migration_state_ready", lambda: True)
     monkeypatch.setattr(health_module, "is_redis_ready", broken_redis_check)
 
     response = client.get("/readyz/")
@@ -67,7 +70,7 @@ def test_readyz_returns_not_ready_when_redis_is_unavailable(client, monkeypatch)
     assert response.status_code == 503
     assert response.json() == {
         "status": "not_ready",
-        "checks": {"database": "ok", "redis": "error"},
+        "checks": {"database": "ok", "migrations": "ok", "redis": "error"},
     }
     assert "redis secret details" not in response.content.decode()
     assert response["Cache-Control"] == "no-store"
@@ -78,6 +81,7 @@ def test_readyz_returns_not_ready_when_database_and_redis_are_unavailable(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(health_module, "is_database_ready", lambda: False)
+    monkeypatch.setattr(health_module, "is_migration_state_ready", lambda: False)
     monkeypatch.setattr(health_module, "is_redis_ready", lambda: False)
 
     response = client.get("/readyz/")
@@ -85,9 +89,23 @@ def test_readyz_returns_not_ready_when_database_and_redis_are_unavailable(
     assert response.status_code == 503
     assert response.json() == {
         "status": "not_ready",
-        "checks": {"database": "error", "redis": "error"},
+        "checks": {"database": "error", "migrations": "error", "redis": "error"},
     }
     assert response["Cache-Control"] == "no-store"
+
+
+def test_readyz_returns_not_ready_when_migrations_are_pending(client, monkeypatch) -> None:
+    monkeypatch.setattr(health_module, "is_database_ready", lambda: True)
+    monkeypatch.setattr(health_module, "is_migration_state_ready", lambda: False)
+    monkeypatch.setattr(health_module, "is_redis_ready", lambda: True)
+
+    response = client.get("/readyz/")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "checks": {"database": "ok", "migrations": "error", "redis": "ok"},
+    }
 
 
 def test_is_database_ready_checks_default_database(monkeypatch) -> None:

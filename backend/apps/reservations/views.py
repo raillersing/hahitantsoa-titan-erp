@@ -6,6 +6,8 @@ from rest_framework import generics, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.documents.pdf import DocumentPDFGenerationError
+from apps.documents.runtime import DocumentRuntimeGenerationError
 from apps.identity.permissions import HasReservationSensitiveAccess, HasSuperAdminAccess
 from apps.inventory.models import InventoryItem
 from apps.reservations.amendments import (
@@ -50,6 +52,11 @@ class ReservationDraftAmendmentListCreateAPIView(APIView):
                 **serializer.validated_data,
             )
         except ReservationAmendmentError as error:
+            return Response(
+                {"detail": str(error), "code": error.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (DocumentRuntimeGenerationError, DocumentPDFGenerationError) as error:
             return Response(
                 {"detail": str(error), "code": error.code},
                 status=status.HTTP_400_BAD_REQUEST,
