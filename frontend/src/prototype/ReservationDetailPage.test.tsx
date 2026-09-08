@@ -415,4 +415,44 @@ describe('ReservationDetailPage', () => {
     expect(cautionCard).toBeInTheDocument();
     expect(cautionCard).toHaveTextContent("Dépôt de Garantie (Caution)");
   });
+
+  it("affiche le badge 'Converti en contrat officiel' et masque les boutons de conversion sur dossier confirmé", async () => {
+    const confirmedDraft: ReservationDraft = {
+      ...MOCK_DRAFT,
+      status: "confirmed",
+      contract_signed_at: "2026-06-02T10:00:00Z",
+      confirmed_at: "2026-06-02T10:00:00Z",
+    };
+    mockGetReservationDraft.mockResolvedValue(confirmedDraft);
+    mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([
+      {
+        id: "doc-prof-1",
+        reservation_draft: "draft-loc-089",
+        document_type: "proforma",
+        template_key: "titan.proforma.v1",
+        status: "generated",
+        prepared_at: "2026-06-01T10:00:00Z",
+      } as any,
+      {
+        id: "doc-cont-1",
+        reservation_draft: "draft-loc-089",
+        document_type: "contrat",
+        template_key: "titan.material_contract.v1",
+        status: "generated",
+        prepared_at: "2026-06-02T10:00:00Z",
+      } as any,
+    ]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+
+    await waitForDraftLoad();
+
+    // Verify Proforma card shows converted status badge
+    expect(screen.getByText("Converti en contrat officiel")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Convertir en contrat/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Annuler$/i })).not.toBeInTheDocument();
+  });
 });

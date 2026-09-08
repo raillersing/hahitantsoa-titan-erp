@@ -1834,40 +1834,60 @@ export default function ReservationDetailPage({
                       )}
                     </div>
 
-                    {/* Convert / Void buttons */}
-                    {proformaInstance && proformaInstance.status !== "voided" && (
-                      <div className="flex gap-2 pt-2 border-t border-slate-200 mt-2">
-                        <button
-                          type="button"
-                          onClick={handleConvertToContract}
-                          disabled={
-                            actionLoading === "convert-contract" ||
-                            (proformaInstance.valid_until
-                              ? new Date(proformaInstance.valid_until) < new Date()
-                              : false)
-                          }
-                          className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1"
-                        >
-                          {actionLoading === "convert-contract" ? (
-                            <i className="fa-solid fa-spinner fa-spin"></i>
-                          ) : (
-                            <i className="fa-solid fa-file-contract"></i>
-                          )}
-                          Convertir en contrat
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleVoidProforma}
-                          disabled={actionLoading === "void-proforma"}
-                          className="px-2.5 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-xs hover:bg-red-50 disabled:opacity-50 transition-colors flex items-center gap-1"
-                        >
-                          {actionLoading === "void-proforma" ? (
-                            <i className="fa-solid fa-spinner fa-spin"></i>
-                          ) : (
-                            <i className="fa-solid fa-ban"></i>
-                          )}
-                          Annuler
-                        </button>
+                    {/* Status & actions on Proforma */}
+                    {proformaInstance && (
+                      <div className="pt-2 border-t border-slate-200 mt-2">
+                        {draft.contract_signed_at || titanContractInstance || draftStatus === "confirmed" ? (
+                          <div className="flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                              <i className="fa-solid fa-circle-check text-emerald-600"></i>
+                              Converti en contrat officiel
+                            </span>
+                            {draft.contract_signed_at && (
+                              <span className="text-[11px] text-slate-500 font-medium">
+                                Signé le {formatDateFr(draft.contract_signed_at)}
+                              </span>
+                            )}
+                          </div>
+                        ) : proformaInstance.status !== "voided" ? (
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleConvertToContract}
+                              disabled={
+                                actionLoading === "convert-contract" ||
+                                (proformaInstance.valid_until
+                                  ? new Date(proformaInstance.valid_until) < new Date()
+                                  : false)
+                              }
+                              className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              {actionLoading === "convert-contract" ? (
+                                <i className="fa-solid fa-spinner fa-spin"></i>
+                              ) : (
+                                <i className="fa-solid fa-file-contract"></i>
+                              )}
+                              Générer contrat
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleVoidProforma}
+                              disabled={actionLoading === "void-proforma"}
+                              className="px-2.5 py-1.5 bg-white text-red-600 border border-red-200 rounded-lg text-xs font-bold shadow-xs hover:bg-red-50 disabled:opacity-50 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              {actionLoading === "void-proforma" ? (
+                                <i className="fa-solid fa-spinner fa-spin"></i>
+                              ) : (
+                                <i className="fa-solid fa-ban"></i>
+                              )}
+                              Annuler le proforma
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+                            <i className="fa-solid fa-ban"></i> Proforma annulé
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
