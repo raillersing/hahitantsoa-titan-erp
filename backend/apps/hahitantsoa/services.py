@@ -280,6 +280,7 @@ def apply_hahitantsoa_event_draft_amendment_request(
                 code="amendment_venue_unavailable",
             )
 
+        target_rental_type = locked_request.changed_rental_type or locked_event_draft.rental_type
         requested_lines = list(locked_request.lines.filter(is_deleted=False))
         if requested_lines:
             item_ids = {line.inventory_item_id for line in requested_lines}
@@ -313,9 +314,10 @@ def apply_hahitantsoa_event_draft_amendment_request(
             active_lines = _locked_active_hahitantsoa_event_draft_lines(
                 event_draft=locked_event_draft
             )
-        if not active_lines:
+        if target_rental_type == "logistics" and not active_lines:
             raise ReservationLifecycleStateError(
-                "An amendment must keep at least one article.", code="empty_amendment_lines"
+                "An amendment for logistics rental must keep at least one article.",
+                code="empty_amendment_lines",
             )
 
         previous = (
@@ -350,22 +352,49 @@ def apply_hahitantsoa_event_draft_amendment_request(
 
         if requested_lines:
             now = timezone.now()
-            locked_event_draft.lines.filter(is_deleted=False).update(
-                is_deleted=True, deleted_at=now, updated_by=actor, updated_at=now
-            )
+            requested_item_ids = {line.inventory_item_id for line in active_lines}
+            locked_event_draft.lines.filter(is_deleted=False).exclude(
+                inventory_item_id__in=requested_item_ids
+            ).update(is_deleted=True, deleted_at=now, updated_by=actor, updated_at=now)
+            existing_lines_by_item_id = {
+                line.inventory_item_id: line for line in locked_event_draft.lines.all()
+            }
             for line in active_lines:
-                unit_price = getattr(line.inventory_item, "rental_price_per_day", None) or Decimal(
-                    "0.00"
+                unit_price = (
+                    getattr(line.inventory_item, "rental_price", None)
+                    or getattr(line.inventory_item, "rental_price_per_day", None)
+                    or getattr(line, "unit_rental_price", None)
+                    or Decimal("0.00")
                 )
-                HahitantsoaEventDraftLine.objects.create(
-                    event_draft=locked_event_draft,
-                    inventory_item=line.inventory_item,
-                    quantity=line.quantity,
-                    unit_rental_price=unit_price,
-                    notes=line.notes,
-                    created_by=actor,
-                    updated_by=actor,
-                )
+                existing_line = existing_lines_by_item_id.get(line.inventory_item_id)
+                if existing_line is None:
+                    HahitantsoaEventDraftLine.objects.create(
+                        event_draft=locked_event_draft,
+                        inventory_item=line.inventory_item,
+                        quantity=line.quantity,
+                        unit_rental_price=unit_price,
+                        notes=line.notes,
+                        created_by=actor,
+                        updated_by=actor,
+                    )
+                else:
+                    existing_line.quantity = line.quantity
+                    existing_line.notes = line.notes
+                    existing_line.unit_rental_price = unit_price
+                    existing_line.is_deleted = False
+                    existing_line.deleted_at = None
+                    existing_line.updated_by = actor
+                    existing_line.save(
+                        update_fields=[
+                            "quantity",
+                            "notes",
+                            "unit_rental_price",
+                            "is_deleted",
+                            "deleted_at",
+                            "updated_by",
+                            "updated_at",
+                        ]
+                    )
 
         recalculate_hahitantsoa_event_draft_totals(event_draft=locked_event_draft)
         _replace_hahitantsoa_availability_blocks(
