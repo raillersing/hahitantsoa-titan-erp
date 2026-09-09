@@ -560,8 +560,6 @@ export function HahitantsoaEventDraftsPanel({
       setEditNotes(draft.notes);
       setEditStartAt(toDateTimeLocalValue(new Date(draft.start_at)));
       setEditEndAt(toDateTimeLocalValue(new Date(draft.end_at)));
-      setNewAmendmentStartAt(toDateTimeLocalValue(new Date(draft.start_at)));
-      setNewAmendmentEndAt(toDateTimeLocalValue(new Date(draft.end_at)));
       setNewAmendmentEventName(draft.event_name);
       setNewAmendmentEventType(draft.event_type ?? "other");
       setNewAmendmentVenueName(draft.venue_name);
