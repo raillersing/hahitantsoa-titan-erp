@@ -163,7 +163,7 @@ def test_titan_amendment_updates_quantities_without_resetting_status():
     blocks = draft.inventory_availability_blocks.filter(is_deleted=False)
     assert blocks.count() == 2
     assert {block.inventory_item_id for block in blocks} == {item.id, added_item.id}
-    assert all(block.end_at == start_at + timedelta(hours=5) for block in blocks)
+    assert all(block.end_at == start_at + timedelta(hours=3) for block in blocks)
 
 
 def test_titan_amendment_is_blocked_after_logistics_dispatch():
