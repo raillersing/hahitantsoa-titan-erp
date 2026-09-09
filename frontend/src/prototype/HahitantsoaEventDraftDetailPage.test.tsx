@@ -573,7 +573,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
         DRAFT.id,
         expect.objectContaining({
           reason: "Avenant soirée nocturne et sono",
-          changed_event_type: "wedding_night_opt1",
+          changed_event_type: "wedding",
         }),
       );
       expect(mockApplyAmendment).toHaveBeenCalledWith(DRAFT.id, "amend-1");

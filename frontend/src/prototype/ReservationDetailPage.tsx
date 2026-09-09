@@ -148,8 +148,6 @@ export default function ReservationDetailPage({
   const [showAmendmentForm, setShowAmendmentForm] = useState(false);
   const [amendmentReason, setAmendmentReason] = useState("");
   const [amendmentNotes, setAmendmentNotes] = useState("");
-  const [amendmentStartAt, setAmendmentStartAt] = useState("");
-  const [amendmentEndAt, setAmendmentEndAt] = useState("");
   const [amendmentQuantities, setAmendmentQuantities] = useState<Record<string, number>>({});
   const [amendmentAddedLines, setAmendmentAddedLines] = useState<
     Array<{
@@ -406,8 +404,6 @@ export default function ReservationDetailPage({
       await createReservationDraftAmendment(draft.id, {
         reason: amendmentReason.trim(),
         notes: amendmentNotes.trim(),
-        changed_start_at: amendmentStartAt ? new Date(amendmentStartAt).toISOString() : undefined,
-        changed_end_at: amendmentEndAt ? new Date(amendmentEndAt).toISOString() : undefined,
         changed_lines: allLines,
       });
 
@@ -425,8 +421,6 @@ export default function ReservationDetailPage({
       setShowAmendmentForm(false);
       setAmendmentReason("");
       setAmendmentNotes("");
-      setAmendmentStartAt("");
-      setAmendmentEndAt("");
       setAmendmentQuantities({});
       setAmendmentAddedLines([]);
       showToast("Avenant Titan généré et appliqué avec succès.", "success");
@@ -2898,30 +2892,10 @@ export default function ReservationDetailPage({
             {amendmentStep === 2 && (
               <div className="space-y-5">
                 <div>
-                  <h4 className="text-lg font-bold text-slate-800">Modifier la période de location</h4>
-                  <p className="mt-1 text-sm text-slate-500">Les dates et heures seront contrôlées par le backend avant application.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="block text-sm font-medium text-slate-700" htmlFor="amendment-start-at">
-                    Nouvelle date et heure de début
-                    <input
-                      id="amendment-start-at"
-                      type="datetime-local"
-                      value={amendmentStartAt}
-                      onChange={(event) => setAmendmentStartAt(event.target.value)}
-                      className="mt-1 w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700" htmlFor="amendment-end-at">
-                    Nouvelle date et heure de fin
-                    <input
-                      id="amendment-end-at"
-                      type="datetime-local"
-                      value={amendmentEndAt}
-                      onChange={(event) => setAmendmentEndAt(event.target.value)}
-                      className="mt-1 w-full border border-slate-300 rounded-lg p-2.5 text-sm"
-                    />
-                  </label>
+                  <h4 className="text-lg font-bold text-slate-800">Période de location</h4>
+                  <p className="mt-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                    Les dates du dossier sont conservées par l’avenant. Les articles et les conditions commerciales peuvent être ajustés à l’étape suivante.
+                  </p>
                 </div>
               </div>
             )}
@@ -3131,7 +3105,7 @@ export default function ReservationDetailPage({
                 </div>
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm">
                   <div><dt className="font-semibold text-slate-500">Motif</dt><dd className="text-slate-800">{amendmentReason || "Non renseigné"}</dd></div>
-                  <div><dt className="font-semibold text-slate-500">Période</dt><dd className="text-slate-800">{amendmentStartAt || "Date initiale"} → {amendmentEndAt || "Date initiale"}</dd></div>
+                  <div><dt className="font-semibold text-slate-500">Période</dt><dd className="text-slate-800">Inchangée</dd></div>
                   <div className="sm:col-span-2">
                     <dt className="font-semibold text-slate-500">Articles</dt>
                     <dd className="text-slate-800">

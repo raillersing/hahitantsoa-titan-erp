@@ -239,6 +239,13 @@ const HAHITANTSOA_DURATION_OPTIONS = [
   { label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30", price: 0 },
 ];
 
+function currentHahitantsoaDurationOption(draft: HahitantsoaEventDraft): string {
+  const source = `${draft.notes || ""}\n${draft.service_notes || ""}`;
+  if (/option 2|03:30/i.test(source)) return HAHITANTSOA_DURATION_OPTIONS[2].label;
+  if (/option 1|22:30/i.test(source)) return HAHITANTSOA_DURATION_OPTIONS[1].label;
+  return HAHITANTSOA_DURATION_OPTIONS[0].label;
+}
+
 const HAHITANTSOA_AMENDMENT_REASONS = [
   "Ajustement du nombre d'invités / convives",
   "Changement de formule horaire / prolongation de nuit",
@@ -800,16 +807,8 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     setAmendmentLocationDetails(draft.location_details || "");
     setAmendmentServiceNotes("");
 
-    if (draft.event_type?.includes("night_opt2")) {
-      setAmendmentDurationOption("Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30");
-      setAmendmentDurationPrice(0);
-    } else if (draft.event_type?.includes("night_opt1")) {
-      setAmendmentDurationOption("Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30");
-      setAmendmentDurationPrice(0);
-    } else {
-      setAmendmentDurationOption("Fête de jour : Sortie J-J à 20:00");
-      setAmendmentDurationPrice(0);
-    }
+    setAmendmentDurationOption(currentHahitantsoaDurationOption(draft));
+    setAmendmentDurationPrice(0);
 
     const quantities: Record<string, number> = {};
     (draft.lines || []).forEach((l) => {
@@ -1048,14 +1047,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
       const backendRentalType = amendmentRentalType === "Location + logistique" ? "logistics" : "bare";
 
-      let nightSuffix = "";
-      if (amendmentDurationOption.includes("03:30")) {
-        nightSuffix = "_night_opt2";
-      } else if (amendmentDurationOption.includes("22:30")) {
-        nightSuffix = "_night_opt1";
-      }
       const baseEventType = (draft.event_type || "wedding").replace(/_night_opt\d/, "");
-      const changedEventType = nightSuffix ? `${baseEventType}${nightSuffix}` : baseEventType;
+      // ponytail: duration is commercial context recorded in notes, not an event-type enum value.
+      const changedEventType = baseEventType;
 
       const applicantLabel =
         AMENDMENT_APPLICANTS.find((a) => a.value === amendmentApplicant)?.label || amendmentApplicant;
@@ -3354,6 +3348,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                           Number(commercialTerms?.night_security_amount ?? 120000);
                         const suggestedPrice = isNight1 ? night1Total : isNight2 ? night2Total : 0;
                         const isSelected = amendmentDurationOption === opt.label;
+                        const isCurrent = currentHahitantsoaDurationOption(draft) === opt.label;
 
                         return (
                           <div
@@ -3383,6 +3378,11 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                                   }`}
                                 >
                                   {opt.label}
+                                  {isCurrent && (
+                                    <span className="ml-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-800">
+                                      Formule actuelle
+                                    </span>
+                                  )}
                                 </span>
                                 <span className="text-xs text-slate-500">
                                   {isNight1
@@ -3435,28 +3435,36 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         Type de location
                       </label>
                       <div className="grid grid-cols-2 gap-2">
-                        {["Location nue", "Location + logistique"].map((opt) => (
-                          <label
-                            key={opt}
-                            className={`border p-3 rounded-xl flex items-center gap-2 cursor-pointer text-xs font-bold transition-all ${
-                              amendmentRentalType === opt
-                                ? "border-indigo-600 bg-indigo-50 text-indigo-900 shadow-2xs"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="amendmentRentalType"
-                              value={opt}
-                              checked={amendmentRentalType === opt}
-                              onChange={(e) =>
-                                setAmendmentRentalType(e.target.value as "Location nue" | "Location + logistique")
-                              }
-                              className="w-4 h-4 text-indigo-600"
-                            />
-                            <span>{opt}</span>
-                          </label>
-                        ))}
+                        {["Location nue", "Location + logistique"].map((opt) => {
+                          const isCurrent = draft.rental_type === (opt === "Location nue" ? "bare" : "logistics");
+                          return (
+                            <label
+                              key={opt}
+                              className={`border p-3 rounded-xl flex items-center gap-2 cursor-pointer text-xs font-bold transition-all ${
+                                amendmentRentalType === opt
+                                  ? "border-indigo-600 bg-indigo-50 text-indigo-900 shadow-2xs"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="amendmentRentalType"
+                                value={opt}
+                                checked={amendmentRentalType === opt}
+                                onChange={(e) =>
+                                  setAmendmentRentalType(e.target.value as "Location nue" | "Location + logistique")
+                                }
+                                className="w-4 h-4 text-indigo-600"
+                              />
+                              <span>{opt}</span>
+                              {isCurrent && (
+                                <span className="ml-auto rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-800">
+                                  Actuel
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
 

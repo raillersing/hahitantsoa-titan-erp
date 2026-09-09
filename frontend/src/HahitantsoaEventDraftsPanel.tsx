@@ -166,8 +166,6 @@ export function HahitantsoaEventDraftsPanel({
   const [amendmentRequestsError, setAmendmentRequestsError] = useState("");
   const [newAmendmentReason, setNewAmendmentReason] = useState("");
   const [newAmendmentNotes, setNewAmendmentNotes] = useState("");
-  const [newAmendmentStartAt, setNewAmendmentStartAt] = useState("");
-  const [newAmendmentEndAt, setNewAmendmentEndAt] = useState("");
   const [newAmendmentEventName, setNewAmendmentEventName] = useState("");
   const [newAmendmentEventType, setNewAmendmentEventType] = useState<HahitantsoaEventType>("other");
   const [newAmendmentVenueName, setNewAmendmentVenueName] = useState("");
@@ -380,8 +378,6 @@ export function HahitantsoaEventDraftsPanel({
       await createHahitantsoaEventDraftAmendmentRequest(draftId, {
         reason: newAmendmentReason,
         notes: newAmendmentNotes,
-        changed_start_at: newAmendmentStartAt ? new Date(newAmendmentStartAt).toISOString() : null,
-        changed_end_at: newAmendmentEndAt ? new Date(newAmendmentEndAt).toISOString() : null,
         changed_event_name: newAmendmentEventName,
         changed_event_type: newAmendmentEventType,
         changed_venue_name: newAmendmentVenueName,
@@ -1666,24 +1662,6 @@ export function HahitantsoaEventDraftsPanel({
                 <fieldset className="amendment-event-fields">
                   <legend>Paramètres de l’événement à modifier</legend>
                   <div className="form-grid form-grid--two-columns">
-                    <label>
-                      Nouvelle date et heure de début
-                      <input
-                        type="datetime-local"
-                        value={newAmendmentStartAt}
-                        onChange={(e) => setNewAmendmentStartAt(e.target.value)}
-                        disabled={isDisabled}
-                      />
-                    </label>
-                    <label>
-                      Nouvelle date et heure de fin
-                      <input
-                        type="datetime-local"
-                        value={newAmendmentEndAt}
-                        onChange={(e) => setNewAmendmentEndAt(e.target.value)}
-                        disabled={isDisabled}
-                      />
-                    </label>
                     <label>
                       Nom de l’événement
                       <input

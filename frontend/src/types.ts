@@ -344,8 +344,6 @@ export type ReservationDraftAmendment = {
 export type ReservationDraftAmendmentCreatePayload = {
   reason: string;
   notes?: string;
-  changed_start_at?: string;
-  changed_end_at?: string;
   changed_lines?: Array<{
     inventory_item_id: string;
     quantity: number;
@@ -574,10 +572,8 @@ export type HahitantsoaEventDraftAmendmentRequest = {
 export type HahitantsoaEventDraftAmendmentRequestCreatePayload = {
   reason?: string;
   notes?: string;
-  changed_start_at?: string | null;
-  changed_end_at?: string | null;
   changed_event_name?: string;
-  changed_event_type?: string;
+  changed_event_type?: HahitantsoaEventType;
   changed_rental_type?: string;
   changed_guest_count?: number | null;
   changed_space_rental_amount?: string | null;
@@ -590,10 +586,8 @@ export type HahitantsoaEventDraftAmendmentRequestCreatePayload = {
 export type HahitantsoaEventDraftAmendmentRequestUpdatePayload = {
   reason?: string;
   notes?: string;
-  changed_start_at?: string | null;
-  changed_end_at?: string | null;
   changed_event_name?: string;
-  changed_event_type?: string;
+  changed_event_type?: HahitantsoaEventType;
   changed_rental_type?: string;
   changed_guest_count?: number | null;
   changed_space_rental_amount?: string | null;
