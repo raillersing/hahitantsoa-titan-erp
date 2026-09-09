@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
-
 from django.db import transaction
 from django.utils import timezone
 
@@ -108,9 +106,14 @@ def create_reservation_draft_amendment(
         )
     if not reason.strip():
         raise ReservationAmendmentError("An amendment reason is required.", code="reason_required")
+    if changed_start_at is not None or changed_end_at is not None:
+        raise ReservationAmendmentError(
+            "Les dates du dossier ne peuvent pas être modifiées par avenant.",
+            code="amendment_date_change_forbidden",
+        )
 
-    start_at = changed_start_at or locked_draft.start_at
-    end_at = changed_end_at or locked_draft.end_at
+    start_at = locked_draft.start_at
+    end_at = locked_draft.end_at
     try:
         validate_reservation_period(start_at=start_at, end_at=end_at)
     except ValueError as error:
@@ -192,25 +195,6 @@ def create_reservation_draft_amendment(
     )
     amendment.full_clean()
     amendment.save()
-    if changed_start_at is not None:
-        locked_draft.start_at = start_at
-    if changed_end_at is not None:
-        locked_draft.end_at = end_at
-    if changed_start_at is not None or changed_end_at is not None:
-        locked_draft.required_deposit_amount = (
-            locked_draft.total_amount * Decimal("0.25")
-        ).quantize(Decimal("0.01"))
-        locked_draft.full_clean()
-        locked_draft.updated_by = actor
-        locked_draft.save(
-            update_fields=[
-                "start_at",
-                "end_at",
-                "required_deposit_amount",
-                "updated_by",
-                "updated_at",
-            ]
-        )
     if changed_lines is not None:
         now = timezone.now()
         existing_by_item_id = {line.inventory_item_id: line for line in active_lines}

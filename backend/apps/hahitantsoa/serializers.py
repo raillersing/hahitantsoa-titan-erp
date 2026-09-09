@@ -23,6 +23,7 @@ from apps.hahitantsoa.models import (
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
     HahitantsoaEventDraftLine,
+    HahitantsoaEventType,
     HahitantsoaService,
     HahitantsoaVenue,
 )
@@ -600,7 +601,11 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
     changed_start_at = serializers.DateTimeField(required=False, allow_null=True)
     changed_end_at = serializers.DateTimeField(required=False, allow_null=True)
     changed_event_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
-    changed_event_type = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    changed_event_type = serializers.ChoiceField(
+        choices=HahitantsoaEventType.choices,
+        required=False,
+        allow_blank=True,
+    )
     changed_rental_type = serializers.CharField(required=False, allow_blank=True, max_length=16)
     changed_guest_count = serializers.IntegerField(required=False, allow_null=True, min_value=0)
     changed_space_rental_amount = serializers.DecimalField(
@@ -610,6 +615,13 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
     changed_location_details = serializers.CharField(required=False, allow_blank=True)
     changed_service_notes = serializers.CharField(required=False, allow_blank=True)
     changed_notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if attrs.get("changed_start_at") is not None or attrs.get("changed_end_at") is not None:
+            raise serializers.ValidationError(
+                {"date": "Les dates du dossier ne peuvent pas être modifiées par avenant."}
+            )
+        return attrs
 
     def create(self, validated_data):
         event_draft = self.context["event_draft"]
@@ -641,8 +653,6 @@ class HahitantsoaEventDraftAmendmentRequestUpdateSerializer(serializers.ModelSer
         fields = (
             "reason",
             "notes",
-            "changed_start_at",
-            "changed_end_at",
             "changed_event_name",
             "changed_event_type",
             "changed_rental_type",
