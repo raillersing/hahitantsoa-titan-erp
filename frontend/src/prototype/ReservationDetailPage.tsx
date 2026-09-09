@@ -345,8 +345,6 @@ export default function ReservationDetailPage({
     setAmendmentStep(1);
     setAmendmentReason("");
     setAmendmentNotes("");
-    setAmendmentStartAt("");
-    setAmendmentEndAt("");
     const initialQuantities: Record<string, number> = {};
     (draft?.lines || []).forEach((l) => {
       initialQuantities[l.id] = l.quantity;
