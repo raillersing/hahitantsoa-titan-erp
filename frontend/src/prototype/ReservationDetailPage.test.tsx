@@ -348,7 +348,7 @@ describe('ReservationDetailPage', () => {
     const openBtn = screen.getByRole('button', { name: /Créer un avenant|Nouvel avenant/i });
     fireEvent.click(openBtn);
 
-    expect(screen.getByRole('heading', { name: /Nouvel avenant Titan/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Nouvel avenant Titan/i })).toBeInTheDocument();
 
     // Step 1: Motif
     const reasonInput = screen.getByLabelText(/Motif de l’avenant/i);
@@ -356,7 +356,7 @@ describe('ReservationDetailPage', () => {
 
     // Step 1 -> Step 2
     fireEvent.click(screen.getByRole('button', { name: /Continuer/i }));
-    expect(await screen.findByText(/Modifier la période de location/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Les dates du dossier sont conservées par l’avenant/i)).toBeInTheDocument();
 
     // Step 2 -> Step 3
     fireEvent.click(screen.getByRole('button', { name: /Continuer/i }));
