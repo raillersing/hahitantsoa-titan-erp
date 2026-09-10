@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from dataclasses import dataclass, replace
 from decimal import Decimal
 
@@ -18,7 +17,8 @@ from apps.documents.excess_receivable import build_excess_receivable_invoice_con
 from apps.documents.formatting import (
     _format_ariary_amount,
     format_ariary_amount_in_words,
-    parse_service_price,
+    parse_hahitantsoa_service_lines,
+    parse_hahitantsoa_services_total,
 )
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.documents.payment_receipts import build_payment_receipt_context
@@ -58,109 +58,6 @@ TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
         "shared.return_note.v1",
     }
 )
-
-
-def _parse_hahitantsoa_service_lines(service_notes: str) -> list[dict[str, object]]:
-    """Parse services/prestations from service_notes into structured document lines."""
-    if not service_notes or not service_notes.strip():
-        return []
-
-    lines: list[dict[str, object]] = []
-    raw_entries = (
-        [e.strip() for e in service_notes.splitlines() if e.strip()]
-        if "\n" in service_notes
-        else [e.strip() for e in re.split(r",\s*(?=[A-Za-zÀ-ÿ0-9])", service_notes) if e.strip()]
-    )
-
-    for entry in raw_entries:
-        # Pattern 1: Service Name (x2) - 50 000 Ar or Service Name (x2) : 50 000
-        m1 = re.match(
-            r"^(?P<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?P<qty>\d+)\)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
-            entry,
-            re.IGNORECASE,
-        )
-        if m1:
-            name = m1.group("name").strip()
-            qty = max(1, int(m1.group("qty")))
-            tot_price = parse_service_price(m1.group("price"))
-            if tot_price is not None:
-                u_price = tot_price / Decimal(qty)
-                lines.append(
-                    {
-                        "inventory_item_name": name,
-                        "inventory_item_kind": "service",
-                        "quantity": qty,
-                        "notes": "",
-                        "unit_price": _format_ariary_amount(u_price),
-                        "total_price": _format_ariary_amount(tot_price),
-                        "breakage_price": None,
-                        "_raw_total_price": tot_price,
-                    }
-                )
-                continue
-
-        # Pattern 2: Service Name - 50 000 Ar or Service Name : 50 000
-        m2 = re.match(
-            r"^(?P<name>.+?)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
-            entry,
-            re.IGNORECASE,
-        )
-        if m2:
-            name = m2.group("name").strip()
-            tot_price = parse_service_price(m2.group("price"))
-            if tot_price is not None:
-                lines.append(
-                    {
-                        "inventory_item_name": name,
-                        "inventory_item_kind": "service",
-                        "quantity": 1,
-                        "notes": "",
-                        "unit_price": _format_ariary_amount(tot_price),
-                        "total_price": _format_ariary_amount(tot_price),
-                        "breakage_price": None,
-                        "_raw_total_price": tot_price,
-                    }
-                )
-                continue
-
-        # Pattern 3: Service Name (x2)
-        m3 = re.match(
-            r"^(?P<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?P<qty>\d+)\)$",
-            entry,
-            re.IGNORECASE,
-        )
-        if m3:
-            name = m3.group("name").strip()
-            qty = max(1, int(m3.group("qty")))
-            lines.append(
-                {
-                    "inventory_item_name": name,
-                    "inventory_item_kind": "service",
-                    "quantity": qty,
-                    "notes": "",
-                    "unit_price": "—",
-                    "total_price": "—",
-                    "breakage_price": None,
-                    "_raw_total_price": Decimal("0.00"),
-                }
-            )
-            continue
-
-        # Fallback: simple service name
-        lines.append(
-            {
-                "inventory_item_name": entry,
-                "inventory_item_kind": "service",
-                "quantity": 1,
-                "notes": "",
-                "unit_price": "—",
-                "total_price": "—",
-                "breakage_price": None,
-                "_raw_total_price": Decimal("0.00"),
-            }
-        )
-
-    return lines
 
 
 @dataclass(frozen=True)
@@ -294,7 +191,24 @@ def _build_hahitantsoa_contract_runtime_context(
         "breakage_price": None,
     }
 
-    service_lines = tuple(_parse_hahitantsoa_service_lines(linked_event_draft.service_notes))
+    service_lines = tuple(
+        {
+            "inventory_item_name": service["name"],
+            "inventory_item_kind": "service",
+            "quantity": service["quantity"],
+            "notes": "",
+            "unit_price": (
+                _format_ariary_amount(service["total_price"] / service["quantity"])
+                if service["priced"]
+                else "—"
+            ),
+            "total_price": (
+                _format_ariary_amount(service["total_price"]) if service["priced"] else "—"
+            ),
+            "breakage_price": None,
+        }
+        for service in parse_hahitantsoa_service_lines(linked_event_draft.service_notes)
+    )
 
     lines = (venue_line, *service_lines, *material_lines)
 
@@ -303,10 +217,7 @@ def _build_hahitantsoa_contract_runtime_context(
         (Decimal(str(line.unit_rental_price * line.quantity)) for line in event_lines),
         Decimal("0"),
     )
-    services_total = sum(
-        (Decimal(str(line.get("_raw_total_price", 0))) for line in service_lines),
-        Decimal("0"),
-    )
+    services_total = parse_hahitantsoa_services_total(linked_event_draft.service_notes)
     calculated_total = (venue_amount + materials_total + services_total).quantize(Decimal("0.01"))
     if calculated_total == Decimal("0.00") and linked_event_draft.total_amount:
         calculated_total = Decimal(str(linked_event_draft.total_amount)).quantize(Decimal("0.01"))
