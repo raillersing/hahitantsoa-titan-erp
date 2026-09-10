@@ -42,6 +42,7 @@ export type PlanningCategory =
   | "closed_day";
 
 export type ViewMode = "month" | "week" | "day" | "agenda";
+type HahitantsoaDurationFilter = "all" | HahitantsoaDurationOption;
 
 export interface UnifiedPlanningEvent {
   id: string;
@@ -354,6 +355,8 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [categoryFilter, setCategoryFilter] = useState<PlanningCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [hahitantsoaDurationFilter, setHahitantsoaDurationFilter] = useState<HahitantsoaDurationFilter>("all");
+  const [venueFilter, setVenueFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [itemsState, setItemsState] = useState<ItemsState>({ status: "loading" });
   const [selectedEvent, setSelectedEvent] = useState<UnifiedPlanningEvent | null>(null);
@@ -656,6 +659,16 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
       });
     }
 
+    if (hahitantsoaDurationFilter !== "all") {
+      result = result.filter(
+        (event) => event.category === "hahitantsoa" && event.durationOption === hahitantsoaDurationFilter,
+      );
+    }
+
+    if (venueFilter !== "all") {
+      result = result.filter((event) => event.location === venueFilter);
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -669,7 +682,19 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
     }
 
     return result;
-  }, [allEvents, categoryFilter, statusFilter, searchQuery]);
+  }, [allEvents, categoryFilter, statusFilter, hahitantsoaDurationFilter, venueFilter, searchQuery]);
+
+  const planningVenues = useMemo(
+    () => Array.from(new Set(allEvents.flatMap((event) => event.location ? [event.location] : []))).sort((a, b) => a.localeCompare(b, "fr")),
+    [allEvents],
+  );
+
+  const hasAdvancedFilters = hahitantsoaDurationFilter !== "all" || venueFilter !== "all";
+
+  const resetAdvancedFilters = () => {
+    setHahitantsoaDurationFilter("all");
+    setVenueFilter("all");
+  };
 
   const statusCounts = useMemo(() => {
     return {
@@ -1046,6 +1071,53 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 pt-3" aria-label="Filtres avancés du planning">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="planning-duration-filter" className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              Durée Hahitantsoa
+            </label>
+            <select
+              id="planning-duration-filter"
+              value={hahitantsoaDurationFilter}
+              onChange={(event) => setHahitantsoaDurationFilter(event.target.value as HahitantsoaDurationFilter)}
+              className="min-h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="all">Toutes les durées</option>
+              {Object.entries(HAHITANTSOA_DURATION_PRESENTATIONS).map(([key, duration]) => (
+                <option key={key} value={key}>{duration.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor="planning-venue-filter" className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+              Lieu
+            </label>
+            <select
+              id="planning-venue-filter"
+              value={venueFilter}
+              onChange={(event) => setVenueFilter(event.target.value)}
+              className="min-h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+            >
+              <option value="all">Tous les lieux</option>
+              {planningVenues.map((venue) => <option key={venue} value={venue}>{venue}</option>)}
+            </select>
+          </div>
+
+          {hasAdvancedFilters && (
+            <button
+              type="button"
+              onClick={resetAdvancedFilters}
+              className="min-h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            >
+              Réinitialiser les filtres avancés
+            </button>
+          )}
+          <p aria-live="polite" className="self-center text-xs font-medium text-slate-500 dark:text-slate-400">
+            {filteredEvents.length} flux affiché{filteredEvents.length > 1 ? "s" : ""}
+          </p>
         </div>
 
         <div aria-label="Légende des durées Hahitantsoa" className="flex flex-wrap items-center gap-2 pt-3 text-[10px] text-slate-600 dark:text-slate-300">
