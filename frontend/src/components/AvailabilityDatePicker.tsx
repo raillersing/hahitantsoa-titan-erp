@@ -1,12 +1,15 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 
 import {
+  getHahitantsoaEventDrafts,
   getHahitantsoaVenueOccupancy,
   getReservationAvailabilitySummary,
   getReservationAvailableItemPreviews,
   getReservationDrafts,
 } from "../api";
 import type {
+  HahitantsoaDurationOption,
+  HahitantsoaEventDraft,
   HahitantsoaVenueOccupancy,
   ReservationAvailabilitySummary,
   ReservationAvailableItemPreview,
@@ -196,6 +199,53 @@ function occupancyStatusForDay(
     : overlaps[0]?.occupancy_status;
 }
 
+type HahitantsoaDurationPresentation = {
+  key: HahitantsoaDurationOption;
+  label: string;
+  markerClass: string;
+};
+
+const HAHITANTSOA_DURATION_PRESENTATIONS: Record<
+  HahitantsoaDurationOption,
+  HahitantsoaDurationPresentation
+> = {
+  day: { key: "day", label: "Fête de jour · sortie 20:00", markerClass: "bg-emerald-500" },
+  night_1: { key: "night_1", label: "Nuit 1 · arrêt 21:00 / sortie 22:30", markerClass: "bg-blue-500" },
+  night_2: { key: "night_2", label: "Nuit 2 · arrêt 00:00 / sortie J+1 03:30", markerClass: "bg-violet-500" },
+};
+
+function hahitantsoaDurationsForDay(
+  occupancyItems: HahitantsoaVenueOccupancy[],
+  drafts: HahitantsoaEventDraft[],
+  dateStr: string,
+): HahitantsoaDurationPresentation[] {
+  const { startAt, endAt } = selectedDayPeriod(dateStr);
+  const dayStart = Date.parse(startAt);
+  const dayEnd = Date.parse(endAt);
+  const occupiedReferences = new Set(
+    occupancyItems
+      .filter((item) => Date.parse(item.start_at) < dayEnd && Date.parse(item.end_at) > dayStart)
+      .map((item) => item.public_reference),
+  );
+
+  return Array.from(
+    new Map(
+      drafts
+        .filter((draft) => draft.public_reference
+          && draft.start_at
+          && draft.end_at
+          && occupiedReferences.has(draft.public_reference)
+          && Date.parse(draft.start_at) < dayEnd
+          && Date.parse(draft.end_at) > dayStart
+          && draft.duration_option)
+        .map((draft) => {
+          const presentation = HAHITANTSOA_DURATION_PRESENTATIONS[draft.duration_option!];
+          return [presentation.key, presentation] as const;
+        }),
+    ).values(),
+  );
+}
+
 function titanReservationsForDay(
   drafts: ReservationDraft[],
   dateStr: string,
@@ -353,6 +403,7 @@ export function AvailabilityDatePicker({
   const [venueOccupancy, setVenueOccupancy] = useState<VenueOccupancyState>({ status: "idle" });
   const [venueOccupancyRetryAttempt, setVenueOccupancyRetryAttempt] = useState(0);
   const [monthTitanDrafts, setMonthTitanDrafts] = useState<ReservationDraft[]>([]);
+  const [monthHahitantsoaDrafts, setMonthHahitantsoaDrafts] = useState<HahitantsoaEventDraft[]>([]);
 
   // Keep input value in sync when external selected date changes
   useEffect(() => {
@@ -402,6 +453,7 @@ export function AvailabilityDatePicker({
     if (!showHahitantsoaVenueOccupancy) {
       setVenueOccupancy({ status: "idle" });
       setMonthTitanDrafts([]);
+      setMonthHahitantsoaDrafts([]);
       return;
     }
 
@@ -415,14 +467,19 @@ export function AvailabilityDatePicker({
         if (controller.signal.aborted) throw err;
         return [];
       }),
+      getHahitantsoaEventDrafts(undefined, controller.signal).catch((err) => {
+        if (controller.signal.aborted) throw err;
+        return [];
+      }),
     ])
-      .then(([venueResponse, titanDraftsResponse]) => {
+      .then(([venueResponse, titanDraftsResponse, hahitantsoaDraftsResponse]) => {
         if (!controller.signal.aborted) {
           setVenueOccupancy({
             status: "loaded",
             items: Array.isArray(venueResponse?.items) ? venueResponse.items : [],
           });
           setMonthTitanDrafts(Array.isArray(titanDraftsResponse) ? titanDraftsResponse : []);
+          setMonthHahitantsoaDrafts(Array.isArray(hahitantsoaDraftsResponse) ? hahitantsoaDraftsResponse : []);
         }
       })
       .catch((err: unknown) => {
@@ -616,6 +673,11 @@ export function AvailabilityDatePicker({
         venueOccupancy.status === "loaded"
           ? occupancyStatusForDay(venueOccupancy.items, dateStr)
           : undefined;
+      const hahitantsoaDurations = hahitantsoaDurationsForDay(
+        venueOccupancy.status === "loaded" ? venueOccupancy.items : [],
+        monthHahitantsoaDrafts,
+        dateStr,
+      );
       const isReserved = occupancyStatus === "reserved";
       const isUnavailable = isPast || isDisabled || (isReserved && effectiveDisableIfVenueReserved);
 
@@ -638,6 +700,9 @@ export function AvailabilityDatePicker({
           : "";
 
       const titanLabel = titanCount > 0 ? `, ${titanCount} location(s) Titan` : "";
+      const durationLabel = hahitantsoaDurations.length > 0
+        ? `, durée(s) Hahitantsoa : ${hahitantsoaDurations.map((duration) => duration.label).join(" ; ")}`
+        : "";
 
       days.push(
         <button
@@ -646,7 +711,7 @@ export function AvailabilityDatePicker({
           disabled={isUnavailable}
           onClick={() => validateAndSelectDate(dateStr)}
           aria-pressed={isSelected}
-          aria-label={`${day} ${MONTH_NAMES[currentMonth].toLowerCase()} ${currentYear}${occupancyLabel}${titanLabel}`}
+          aria-label={`${day} ${MONTH_NAMES[currentMonth].toLowerCase()} ${currentYear}${occupancyLabel}${titanLabel}${durationLabel}`}
           className={`min-h-10 sm:min-h-11 p-1 rounded-lg border text-left flex flex-col justify-between transition-all relative ${style} ${
             isCurrentDay && !isSelected ? "ring-1 ring-indigo-400 font-bold" : ""
           }`}
@@ -686,6 +751,17 @@ export function AvailabilityDatePicker({
               <span className="w-1 h-1 bg-indigo-500 rounded-full mx-auto" />
             ) : (
               <span className="h-2" />
+            )}
+            {hahitantsoaDurations.length > 0 && (
+              <span className="flex items-center gap-0.5" aria-hidden="true">
+                {hahitantsoaDurations.map((duration) => (
+                  <span
+                    key={duration.key}
+                    title={duration.label}
+                    className={`w-1.5 h-1.5 rounded-full ${duration.markerClass}`}
+                  />
+                ))}
+              </span>
             )}
           </div>
         </button>,
@@ -824,6 +900,12 @@ export function AvailabilityDatePicker({
               <span className="w-2 h-2 rounded-full bg-rose-500" />
               <span>Réservée</span>
             </div>
+            {Object.values(HAHITANTSOA_DURATION_PRESENTATIONS).map((duration) => (
+              <div key={duration.key} className="flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full ${duration.markerClass}`} />
+                <span>{duration.label}</span>
+              </div>
+            ))}
           </>
         )}
         <div className="flex items-center gap-1">

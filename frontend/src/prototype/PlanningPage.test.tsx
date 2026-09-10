@@ -71,6 +71,7 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
         event_name: "Mariage Royal",
         venue_name: "Grande Salle + Jardin",
         customer_display_name: "Famille Rakoto",
+        duration_option: "night_2",
         start_at: monday.toISOString(),
         end_at: endAt.toISOString(),
         status: "confirmed",
@@ -83,6 +84,7 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
 
     const eventButtons = await screen.findAllByRole("button", { name: /Mariage Royal/i });
     expect(eventButtons.length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Nuit 2 · arrêt 00:00 / sortie J+1 03:30").length).toBeGreaterThan(0);
 
     fireEvent.click(eventButtons[0]);
     const openDossierBtn = await screen.findByRole("button", { name: /Accéder au dossier/i });

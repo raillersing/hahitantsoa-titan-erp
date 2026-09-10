@@ -154,6 +154,56 @@ describe("MockAvailabilityCalendar", () => {
     expect(screen.getByText(/Les dates réservées sont indisponibles/)).toBeInTheDocument();
   });
 
+  it("identifies the persisted Hahitantsoa duration for an occupied venue day", async () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = Math.min(today.getDate() + 1, new Date(year, month + 1, 0).getDate());
+    const selectedDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const nextDay = new Date(Date.UTC(year, month, day + 1)).toISOString().slice(0, 10);
+    const monthName = new Intl.DateTimeFormat("fr-FR", { month: "long" }).format(today);
+
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url.includes("/api/v1/hahitantsoa/venue-occupancy/")) {
+        return Promise.resolve(jsonResponse({
+          items: [{
+            public_reference: "H-003/2026",
+            venue_name: "Salle des fêtes + jardin",
+            start_at: `${selectedDate}T00:00:00.000Z`,
+            end_at: `${nextDay}T00:00:00.000Z`,
+            occupancy_status: "reserved",
+          }],
+          count: 1,
+        }));
+      }
+      if (url.includes("/api/v1/hahitantsoa/event-drafts/")) {
+        return Promise.resolve(jsonResponse([{
+          id: "event-3",
+          public_reference: "H-003/2026",
+          venue_name: "Salle des fêtes + jardin",
+          start_at: `${selectedDate}T00:00:00.000Z`,
+          end_at: `${nextDay}T00:00:00.000Z`,
+          duration_option: "night_2",
+        }]));
+      }
+      return Promise.resolve(jsonResponse([]));
+    });
+
+    render(
+      <MockAvailabilityCalendar
+        showHahitantsoaVenueOccupancy
+        venueName="Salle des fêtes + jardin"
+      />,
+    );
+
+    const reservedDate = await screen.findByRole("button", {
+      name: `${day} ${monthName} ${year}, réservée pour cette salle, durée(s) Hahitantsoa : Nuit 2 · arrêt 00:00 / sortie J+1 03:30`,
+    });
+    expect(reservedDate).toBeDisabled();
+    expect(screen.getByText("Nuit 2 · arrêt 00:00 / sortie J+1 03:30")).toBeInTheDocument();
+  });
+
   it("keeps the venue calendar explicit and retryable when occupancy cannot be loaded", async () => {
     let occupancyCalls = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
