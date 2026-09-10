@@ -81,7 +81,7 @@ def test_titan_schedule_rejects_closed_day_and_outside_hours():
         _validate_operational_schedule(scheduled_at=too_early)
 
 
-def test_titan_amendment_updates_dates_and_quantities_without_resetting_status():
+def test_titan_amendment_updates_quantities_without_resetting_status():
     actor = get_user_model().objects.create_user(
         username="amendment-operator",
         password="test-pass",
@@ -140,7 +140,6 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
             reservation_draft=draft,
             actor=actor,
             reason="Quantité modifiée",
-            changed_end_at=start_at + timedelta(hours=5),
             changed_lines=[
                 {"inventory_item": item, "quantity": 2, "notes": "Deux unités"},
                 {"inventory_item": added_item, "quantity": 1, "notes": "Ajout"},
@@ -148,9 +147,9 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
         )
 
     draft.refresh_from_db()
-    assert result.amendment.changed_end_at == start_at + timedelta(hours=5)
+    assert result.amendment.changed_end_at is None
     assert draft.status == "confirmed"
-    assert draft.end_at == start_at + timedelta(hours=5)
+    assert draft.end_at == start_at + timedelta(hours=3)
     active_lines = draft.lines.filter(is_deleted=False).order_by("inventory_item__name")
     assert active_lines.get(inventory_item=item).quantity == 2
     assert active_lines.get(inventory_item=item).unit_rental_price == 1000
@@ -164,7 +163,7 @@ def test_titan_amendment_updates_dates_and_quantities_without_resetting_status()
     blocks = draft.inventory_availability_blocks.filter(is_deleted=False)
     assert blocks.count() == 2
     assert {block.inventory_item_id for block in blocks} == {item.id, added_item.id}
-    assert all(block.end_at == start_at + timedelta(hours=5) for block in blocks)
+    assert all(block.end_at == start_at + timedelta(hours=3) for block in blocks)
 
 
 def test_titan_amendment_is_blocked_after_logistics_dispatch():

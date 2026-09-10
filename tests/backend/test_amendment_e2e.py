@@ -359,6 +359,53 @@ def test_hahitantsoa_amendment_document_failure_is_controlled_and_rolls_back(aut
 
 
 @pytest.mark.django_db
+def test_hahitantsoa_invalid_amendment_data_is_controlled_and_rolls_back(auth_client, api_user):
+    customer = Customer.objects.create(display_name="Client Hahitantsoa", created_by=api_user)
+    start_at = timezone.now() + timedelta(days=10)
+    end_at = start_at + timedelta(hours=8)
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Réception Hahitantsoa",
+        event_type="other",
+        rental_type="bare",
+        guest_count=200,
+        space_rental_amount=Decimal("1000000.00"),
+        total_amount=Decimal("1000000.00"),
+        start_at=start_at,
+        end_at=end_at,
+        status="confirmed",
+        confirmed_at=timezone.now(),
+        confirmed_by=api_user,
+        created_by=api_user,
+    )
+    contract = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft, template_key="hahitantsoa.contract.v1", actor=api_user
+    )
+    contract = generate_hahitantsoa_event_draft_document_instance_html(
+        event_draft=draft, document_instance_id=contract.id, actor=api_user
+    )
+    generate_document_instance_pdf(document_instance=contract, actor=api_user)
+    amendment = HahitantsoaEventDraftAmendmentRequest.objects.create(
+        event_draft=draft,
+        reason="Durée prolongée",
+        changed_event_type="other_night_opt1",
+        created_by=api_user,
+    )
+
+    response = auth_client.post(
+        f"/api/v1/hahitantsoa/event-drafts/{draft.id}/amendment-requests/{amendment.id}/apply/",
+        format="json",
+    )
+
+    assert response.status_code == 400, response.data
+    assert response.data["code"] == "invalid_amendment_data"
+    draft.refresh_from_db()
+    amendment.refresh_from_db()
+    assert draft.event_type == "other"
+    assert amendment.status == "draft"
+
+
+@pytest.mark.django_db
 def test_titan_amendment_pdf_failure_is_controlled_and_rolls_back(auth_client, api_user):
     customer = Customer.objects.create(display_name="Client Titan PDF", created_by=api_user)
     item = InventoryItem.objects.create(

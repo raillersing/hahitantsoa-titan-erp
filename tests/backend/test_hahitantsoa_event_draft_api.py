@@ -62,6 +62,48 @@ def _amendment_request_line_detail_url(event_draft_id, amendment_request_id, lin
     )
 
 
+def test_amendment_request_rejects_unknown_changed_event_type(authenticated_client):
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Réception à contrôler",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=authenticated_client.test_user,
+    )
+    before_count = HahitantsoaEventDraftAmendmentRequest.objects.count()
+
+    response = authenticated_client.post(
+        _amendment_request_list_url(draft.id),
+        data={"reason": "Durée prolongée", "changed_event_type": "other_night_opt1"},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "changed_event_type" in response.json()
+    assert HahitantsoaEventDraftAmendmentRequest.objects.count() == before_count
+
+
+def test_amendment_request_rejects_date_change(authenticated_client):
+    start_at, end_at = _period()
+    draft = HahitantsoaEventDraft.objects.create(
+        customer=_customer(),
+        event_name="Réception à contrôler",
+        start_at=start_at,
+        end_at=end_at,
+        created_by=authenticated_client.test_user,
+    )
+
+    response = authenticated_client.post(
+        _amendment_request_list_url(draft.id),
+        data={"reason": "Report", "changed_start_at": (start_at + timedelta(days=1)).isoformat()},
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert "date" in response.json()
+
+
 @pytest.fixture
 def authenticated_client(django_user_model):
     client = Client()
@@ -1255,14 +1297,12 @@ def test_owner_can_apply_hahitantsoa_amendment_and_replay_is_idempotent(
     user.save(update_fields=["is_staff"])
     draft = _confirmed_draft(user=user, item=_item(kind="article"))
     _create_confirmation_truth(event_draft=draft, actor=user)
-    expected_start_at = draft.start_at + timedelta(hours=2)
-    expected_end_at = draft.end_at + timedelta(hours=3)
+    expected_start_at = draft.start_at
+    expected_end_at = draft.end_at
     request_response = authenticated_client.post(
         _amendment_request_list_url(draft.id),
         data={
-            "reason": "Client requests a new date",
-            "changed_start_at": expected_start_at.isoformat(),
-            "changed_end_at": expected_end_at.isoformat(),
+            "reason": "Client requests commercial changes",
             "changed_event_name": "Updated event name",
             "changed_event_type": "civil_wedding",
             "changed_venue_name": "Updated venue",

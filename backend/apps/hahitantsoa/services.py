@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -227,6 +228,11 @@ def apply_hahitantsoa_event_draft_amendment_request(
         )
         if locked_request.status == "applied":
             return HahitantsoaEventDraftAmendmentRequestResult(amendment_request=locked_request)
+        if locked_request.changed_start_at is not None or locked_request.changed_end_at is not None:
+            raise ReservationLifecycleStateError(
+                "Les dates du dossier ne peuvent pas être modifiées par avenant.",
+                code="amendment_date_change_forbidden",
+            )
         if (
             locked_event_draft.logistics_events.filter(
                 status__in=("dispatched", "completed")
@@ -347,7 +353,16 @@ def apply_hahitantsoa_event_draft_amendment_request(
             if value is not None and value != "":
                 setattr(locked_event_draft, field.removeprefix("changed_"), value)
         locked_event_draft.updated_by = actor
-        locked_event_draft.full_clean()
+        try:
+            locked_event_draft.full_clean()
+        except ValidationError as error:
+            field_errors = getattr(error, "message_dict", {})
+            messages = field_errors.get("event_type", error.messages)
+            message = messages[0] if messages else "Invalid amendment data."
+            raise ReservationLifecycleStateError(
+                message,
+                code="invalid_amendment_data",
+            ) from error
         locked_event_draft.save()
 
         if requested_lines:
@@ -876,6 +891,12 @@ def create_hahitantsoa_event_draft_amendment_request(
 
     with transaction.atomic():
         locked_event_draft = _get_locked_hahitantsoa_event_draft(event_draft=event_draft)
+
+        if changed_start_at is not None or changed_end_at is not None:
+            raise ReservationLifecycleStateError(
+                "Les dates du dossier ne peuvent pas être modifiées par avenant.",
+                code="amendment_date_change_forbidden",
+            )
 
         if locked_event_draft.is_deleted:
             raise ReservationLifecycleStateError(

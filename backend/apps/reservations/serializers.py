@@ -109,8 +109,6 @@ class ReservationDraftAmendmentLineSerializer(serializers.Serializer):
 class ReservationDraftAmendmentCreateSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=255, trim_whitespace=True)
     notes = serializers.CharField(required=False, allow_blank=True, default="")
-    changed_start_at = serializers.DateTimeField(required=False)
-    changed_end_at = serializers.DateTimeField(required=False)
     changed_lines = ReservationDraftAmendmentLineSerializer(many=True, required=False)
 
 
