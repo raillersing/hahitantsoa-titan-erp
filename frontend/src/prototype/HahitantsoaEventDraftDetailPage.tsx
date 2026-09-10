@@ -42,6 +42,7 @@ import type {
   Customer,
   DocumentInstance,
   HahitantsoaEventDraft,
+  HahitantsoaEventType,
   HahitantsoaEventDraftConfirmationPreflight,
   HahitantsoaEventCloseoutSummary,
   HahitantsoaEventDraftAmendmentRequest,
@@ -1049,7 +1050,11 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
 
       const baseEventType = (draft.event_type || "wedding").replace(/_night_opt\d/, "");
       // ponytail: duration is commercial context recorded in notes, not an event-type enum value.
-      const changedEventType = baseEventType;
+      const changedEventType: HahitantsoaEventType = (
+        ["wedding", "engagement", "civil_wedding", "other"] as const
+      ).includes(baseEventType as HahitantsoaEventType)
+        ? (baseEventType as HahitantsoaEventType)
+        : "other";
 
       const applicantLabel =
         AMENDMENT_APPLICANTS.find((a) => a.value === amendmentApplicant)?.label || amendmentApplicant;
