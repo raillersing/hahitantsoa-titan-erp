@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import calendar
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
+
+from django.utils import timezone
 
 from apps.hahitantsoa.models import (
     HahitantsoaCommercialTerms,
+    HahitantsoaDurationOption,
     HahitantsoaEventDraft,
     HahitantsoaRentalType,
 )
@@ -19,13 +22,52 @@ def get_hahitantsoa_commercial_terms() -> HahitantsoaCommercialTerms:
     return terms
 
 
+def calculate_duration_supplement(
+    *, terms: HahitantsoaCommercialTerms, duration_option: str
+) -> Decimal:
+    if duration_option == HahitantsoaDurationOption.NIGHT_1:
+        return terms.night_option_1_amount.quantize(MONEY_QUANTUM)
+    if duration_option == HahitantsoaDurationOption.NIGHT_2:
+        return (terms.night_option_2_amount + terms.night_security_amount).quantize(MONEY_QUANTUM)
+    return Decimal("0.00")
+
+
 def calculate_space_rental_amount(
-    *, terms: HahitantsoaCommercialTerms, guest_count: int
+    *,
+    terms: HahitantsoaCommercialTerms,
+    guest_count: int,
+    duration_option: str = HahitantsoaDurationOption.DAY,
 ) -> Decimal:
     excess_guests = max(guest_count - terms.included_guest_count, 0)
-    return (terms.base_space_rental_amount + terms.excess_guest_amount * excess_guests).quantize(
-        MONEY_QUANTUM
+    return (
+        terms.base_space_rental_amount
+        + terms.excess_guest_amount * excess_guests
+        + calculate_duration_supplement(terms=terms, duration_option=duration_option)
+    ).quantize(MONEY_QUANTUM)
+
+
+def get_hahitantsoa_event_draft_access_schedule(*, event_draft: HahitantsoaEventDraft) -> str:
+    """Return the contract access rule from confirmed prior-day venue occupancy."""
+    event_day = timezone.localtime(event_draft.start_at).date()
+    previous_day = event_day - timedelta(days=1)
+    current_timezone = timezone.get_current_timezone()
+    previous_day_start = timezone.make_aware(
+        datetime.combine(previous_day, time.min), current_timezone
     )
+    event_day_start = timezone.make_aware(datetime.combine(event_day, time.min), current_timezone)
+    prior_night_2_exists = (
+        HahitantsoaEventDraft.objects.filter(
+            status="confirmed",
+            is_deleted=False,
+            venue_key=event_draft.venue_key,
+            duration_option=HahitantsoaDurationOption.NIGHT_2,
+            start_at__gte=previous_day_start,
+            start_at__lt=event_day_start,
+        )
+        .exclude(pk=event_draft.pk)
+        .exists()
+    )
+    return "same_day" if prior_night_2_exists else "day_before"
 
 
 def default_deposit_amount(*, terms: HahitantsoaCommercialTerms, rental_type: str) -> Decimal:

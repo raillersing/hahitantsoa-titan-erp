@@ -250,6 +250,8 @@ def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
     linked_event_draft = document_instance.hahitantsoa_event_draft
+    from apps.hahitantsoa.commercial_terms import get_hahitantsoa_event_draft_access_schedule
+
     event_lines = (
         linked_event_draft.lines.filter(is_deleted=False)
         .select_related("inventory_item", "event_draft__customer")
@@ -354,6 +356,10 @@ def _build_hahitantsoa_contract_runtime_context(
             "customer_representative_role": document_instance.customer_representative_role,
             "rental_type": linked_event_draft.rental_type,
             "rental_type_display": linked_event_draft.get_rental_type_display(),
+            "duration_option": linked_event_draft.duration_option,
+            "access_schedule": get_hahitantsoa_event_draft_access_schedule(
+                event_draft=linked_event_draft
+            ),
             "guest_count": linked_event_draft.guest_count,
             "required_deposit_amount": _format_ariary_amount(
                 linked_event_draft.required_deposit_amount

@@ -19,6 +19,7 @@ from apps.hahitantsoa.commercial_terms import (
 )
 from apps.hahitantsoa.models import (
     HahitantsoaCommercialTerms,
+    HahitantsoaDurationOption,
     HahitantsoaEventDraft,
     HahitantsoaEventDraftAmendmentRequest,
     HahitantsoaEventDraftAmendmentRequestLine,
@@ -607,6 +608,9 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
         allow_blank=True,
     )
     changed_rental_type = serializers.CharField(required=False, allow_blank=True, max_length=16)
+    changed_duration_option = serializers.ChoiceField(
+        choices=HahitantsoaDurationOption.choices, required=False, allow_blank=True
+    )
     changed_guest_count = serializers.IntegerField(required=False, allow_null=True, min_value=0)
     changed_space_rental_amount = serializers.DecimalField(
         required=False, allow_null=True, max_digits=14, decimal_places=2
@@ -620,6 +624,10 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
         if attrs.get("changed_start_at") is not None or attrs.get("changed_end_at") is not None:
             raise serializers.ValidationError(
                 {"date": "Les dates du dossier ne peuvent pas être modifiées par avenant."}
+            )
+        if attrs.get("changed_guest_count") is not None:
+            raise serializers.ValidationError(
+                {"guest_count": "Le nombre de convives ne peut pas être modifié par avenant."}
             )
         return attrs
 
@@ -636,6 +644,7 @@ class HahitantsoaEventDraftAmendmentRequestCreateSerializer(serializers.Serializ
             changed_event_name=validated_data.get("changed_event_name", ""),
             changed_event_type=validated_data.get("changed_event_type", ""),
             changed_rental_type=validated_data.get("changed_rental_type", ""),
+            changed_duration_option=validated_data.get("changed_duration_option", ""),
             changed_guest_count=validated_data.get("changed_guest_count"),
             changed_space_rental_amount=validated_data.get("changed_space_rental_amount"),
             changed_venue_name=validated_data.get("changed_venue_name", ""),
@@ -656,6 +665,7 @@ class HahitantsoaEventDraftAmendmentRequestUpdateSerializer(serializers.ModelSer
             "changed_event_name",
             "changed_event_type",
             "changed_rental_type",
+            "changed_duration_option",
             "changed_guest_count",
             "changed_space_rental_amount",
             "changed_venue_name",
@@ -667,6 +677,10 @@ class HahitantsoaEventDraftAmendmentRequestUpdateSerializer(serializers.ModelSer
     def validate(self, attrs):
         if self.instance.status != "draft":
             raise serializers.ValidationError("An applied amendment request is immutable.")
+        if attrs.get("changed_guest_count") is not None:
+            raise serializers.ValidationError(
+                {"guest_count": "Le nombre de convives ne peut pas être modifié par avenant."}
+            )
         return attrs
 
 
@@ -789,6 +803,7 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             "event_name",
             "event_type",
             "rental_type",
+            "duration_option",
             "guest_count",
             "space_rental_amount",
             "logistics_amount",
@@ -876,11 +891,10 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
         if "public_reference" in validated_data and not validated_data["public_reference"]:
             validated_data.pop("public_reference")
         terms = get_hahitantsoa_commercial_terms()
-        validated_data.setdefault(
-            "space_rental_amount",
-            calculate_space_rental_amount(
-                terms=terms, guest_count=validated_data.get("guest_count", 0)
-            ),
+        validated_data["space_rental_amount"] = calculate_space_rental_amount(
+            terms=terms,
+            guest_count=validated_data.get("guest_count", 0),
+            duration_option=validated_data.get("duration_option", HahitantsoaDurationOption.DAY),
         )
         validated_data.setdefault(
             "required_deposit_amount",
@@ -936,6 +950,12 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
 
         for field, value in validated_data.items():
             setattr(instance, field, value)
+        if "duration_option" in validated_data or "guest_count" in validated_data:
+            instance.space_rental_amount = calculate_space_rental_amount(
+                terms=get_hahitantsoa_commercial_terms(),
+                guest_count=instance.guest_count,
+                duration_option=instance.duration_option,
+            )
         instance.full_clean()
         instance.save()
 

@@ -1,8 +1,10 @@
 import hashlib
 import sys
+from datetime import timedelta
 
 import pytest
 from django.core.files.storage import FileSystemStorage
+from django.utils import timezone
 from test_documents_document_instance_foundation import (
     _draft_with_line,
     _hahitantsoa_event_draft_with_line,
@@ -19,6 +21,7 @@ from apps.documents.services import (
     create_document_instance_from_hahitantsoa_event_draft,
     create_document_instance_from_reservation_draft,
 )
+from apps.hahitantsoa.models import HahitantsoaDurationOption, HahitantsoaEventDraft
 
 pytestmark = pytest.mark.django_db
 
@@ -127,6 +130,42 @@ def test_generate_hahitantsoa_contract_document_instance_html_success(
     assert draft.event_type in result.html_content
     with isolated_document_storage.open(instance.storage_path, "rb") as f:
         assert f.read() == result.html_content.encode("utf-8")
+
+
+def test_hahitantsoa_contract_uses_duration_and_prior_night_occupancy(
+    isolated_document_storage,
+) -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    event_start = timezone.localtime(draft.start_at).replace(hour=10, minute=0)
+    draft.start_at = event_start
+    draft.end_at = event_start.replace(hour=23, minute=59)
+    draft.venue_name = "Grande salle Hahitantsoa"
+    draft.duration_option = HahitantsoaDurationOption.NIGHT_2
+    draft.save()
+    HahitantsoaEventDraft.objects.create(
+        customer=draft.customer,
+        event_name="Réception de la veille",
+        start_at=event_start - timedelta(days=1),
+        end_at=event_start - timedelta(hours=7),
+        venue_name=draft.venue_name,
+        duration_option=HahitantsoaDurationOption.NIGHT_2,
+        status="confirmed",
+    )
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+
+    result = generate_document_instance_html(document_instance=instance)
+
+    assert (
+        "Les intervenants du client accèderont aux locaux le jour-J à 07 heures."
+        in result.html_content
+    )
+    assert (
+        "Utilisation de nuit Option 2 (Arrêt de fête 00:00 / Sortie J+1 à 03:30)"
+        in result.html_content
+    )
 
 
 def test_generate_hahitantsoa_checking_passation_html_success() -> None:
