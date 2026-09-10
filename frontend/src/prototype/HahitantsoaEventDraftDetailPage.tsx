@@ -53,6 +53,7 @@ import type {
   HahitantsoaVenue,
   HahitantsoaService,
   HahitantsoaCommercialTerms,
+  HahitantsoaDurationOption,
   MaterialPackage,
 } from "../types";
 
@@ -235,16 +236,13 @@ function itemKindBadge(kind: string) {
 }
 
 const HAHITANTSOA_DURATION_OPTIONS = [
-  { label: "Fête de jour : Sortie J-J à 20:00", price: 0 },
-  { label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30", price: 0 },
-  { label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30", price: 0 },
-];
+  { key: "day", label: "Fête de jour : Sortie J-J à 20:00" },
+  { key: "night_1", label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30" },
+  { key: "night_2", label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30" },
+] as const;
 
-function currentHahitantsoaDurationOption(draft: HahitantsoaEventDraft): string {
-  const source = `${draft.notes || ""}\n${draft.service_notes || ""}`;
-  if (/option 2|03:30/i.test(source)) return HAHITANTSOA_DURATION_OPTIONS[2].label;
-  if (/option 1|22:30/i.test(source)) return HAHITANTSOA_DURATION_OPTIONS[1].label;
-  return HAHITANTSOA_DURATION_OPTIONS[0].label;
+function currentHahitantsoaDurationOption(draft: HahitantsoaEventDraft): HahitantsoaDurationOption {
+  return draft.duration_option || "day";
 }
 
 const HAHITANTSOA_AMENDMENT_REASONS = [
@@ -320,8 +318,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [customServiceUnitLabel, setCustomServiceUnitLabel] = useState("prestation");
 
   // Step 2: Formule horaire, convives, type de location, lieu, tarifs de base
-  const [amendmentDurationOption, setAmendmentDurationOption] = useState("Fête de jour : Sortie J-J à 20:00");
-  const [amendmentDurationPrice, setAmendmentDurationPrice] = useState(0);
+  const [amendmentDurationOption, setAmendmentDurationOption] = useState<HahitantsoaDurationOption>("day");
   const [amendmentRentalType, setAmendmentRentalType] = useState<"Location nue" | "Location + logistique">("Location nue");
   const [amendmentGuestCount, setAmendmentGuestCount] = useState(1);
   const [amendmentVenueName, setAmendmentVenueName] = useState("");
@@ -809,7 +806,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     setAmendmentServiceNotes("");
 
     setAmendmentDurationOption(currentHahitantsoaDurationOption(draft));
-    setAmendmentDurationPrice(0);
 
     const quantities: Record<string, number> = {};
     (draft.lines || []).forEach((l) => {
@@ -854,18 +850,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         baseVenue = Number(apiTerms.base_space_rental_amount);
       }
       setAmendmentVenuePrice(baseVenue);
-
-      if (apiTerms) {
-        if (draft.event_type?.includes("night_opt2")) {
-          setAmendmentDurationPrice(
-            Number(apiTerms.night_option_2_amount) + Number(apiTerms.night_security_amount),
-          );
-        } else if (draft.event_type?.includes("night_opt1")) {
-          setAmendmentDurationPrice(
-            Number(apiTerms.night_option_1_amount) + Number(apiTerms.night_security_amount),
-          );
-        }
-      }
 
       const { selectedServices: parsedServices, remainingNotes } = parseHahitantsoaServiceNotes(
         draft.service_notes,
@@ -949,7 +933,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     const excessGuestsTotal = excessGuestsCount * excessGuestRate;
 
     const baseVenuePrice = Number(amendmentVenuePrice) || 0;
-    const durationTotal = Number(amendmentDurationPrice) || 0;
+    const durationTotal = 0;
     const logisticsTotal =
       amendmentRentalType === "Location + logistique" ? Number(amendmentLogisticsPrice) || 0 : 0;
 
@@ -1005,7 +989,6 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     commercialTerms,
     amendmentGuestCount,
     amendmentVenuePrice,
-    amendmentDurationPrice,
     amendmentRentalType,
     amendmentLogisticsPrice,
     amendmentSelectedServices,
@@ -1061,8 +1044,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       const fullNotes = [
         `[Demandeur: ${applicantLabel}]`,
         amendmentNotes.trim(),
-        `Formule: ${amendmentDurationOption}`,
-        `Convives: ${amendmentGuestCount} (inclus: ${amendmentFinancialPreview.includedGuests}, suppl: ${amendmentFinancialPreview.excessGuestsCount})`,
+        `Formule: ${HAHITANTSOA_DURATION_OPTIONS.find((option) => option.key === amendmentDurationOption)?.label}`,
       ]
         .filter(Boolean)
         .join(" · ");
@@ -1110,8 +1092,9 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           notes: fullNotes,
           changed_event_type: changedEventType,
           changed_rental_type: backendRentalType,
-          changed_guest_count: amendmentGuestCount,
-          changed_space_rental_amount: String(amendmentFinancialPreview.newSpaceTotal),
+          ...(amendmentDurationOption !== currentHahitantsoaDurationOption(draft)
+            ? { changed_duration_option: amendmentDurationOption }
+            : {}),
           changed_venue_name: amendmentVenueName.trim(),
           changed_location_details: amendmentLocationDetails.trim(),
           changed_service_notes: combinedServiceNotes,
@@ -1134,8 +1117,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         // Unconfirmed draft (brouillon / devis): direct draft update
         await updateHahitantsoaEventDraft(param, {
           rental_type: backendRentalType,
-          guest_count: amendmentGuestCount,
-          space_rental_amount: amendmentFinancialPreview.newSpaceTotal,
+          duration_option: amendmentDurationOption,
           venue_name: amendmentVenueName.trim(),
           location_details: amendmentLocationDetails.trim(),
           service_notes: combinedServiceNotes,
@@ -3337,27 +3319,20 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         Formule Horaire & Prolongation Nocturne (2026)
                       </h4>
                       <span className="text-[11px] text-slate-400">
-                        Sécurité nocturne obligatoire incluse dans les options de nuit
+                        Option 1 sans sécurité nocturne ; option 2 avec sécurité nocturne.
                       </span>
                     </div>
 
                     <div className="space-y-2.5">
                       {HAHITANTSOA_DURATION_OPTIONS.map((opt) => {
-                        const isNight1 = opt.label.includes("22:30");
-                        const isNight2 = opt.label.includes("03:30");
-                        const night1Total =
-                          Number(commercialTerms?.night_option_1_amount ?? 300000) +
-                          Number(commercialTerms?.night_security_amount ?? 120000);
-                        const night2Total =
-                          Number(commercialTerms?.night_option_2_amount ?? 500000) +
-                          Number(commercialTerms?.night_security_amount ?? 120000);
-                        const suggestedPrice = isNight1 ? night1Total : isNight2 ? night2Total : 0;
-                        const isSelected = amendmentDurationOption === opt.label;
-                        const isCurrent = currentHahitantsoaDurationOption(draft) === opt.label;
+                        const isNight1 = opt.key === "night_1";
+                        const isNight2 = opt.key === "night_2";
+                        const isSelected = amendmentDurationOption === opt.key;
+                        const isCurrent = currentHahitantsoaDurationOption(draft) === opt.key;
 
                         return (
                           <div
-                            key={opt.label}
+                            key={opt.key}
                             className={`border p-3.5 rounded-xl transition-all ${
                               isSelected
                                 ? "border-indigo-600 bg-indigo-50/60 shadow-xs ring-1 ring-indigo-500"
@@ -3368,11 +3343,10 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                               <input
                                 type="radio"
                                 name="amendmentDurationOption"
-                                value={opt.label}
+                                value={opt.key}
                                 checked={isSelected}
                                 onChange={(e) => {
-                                  setAmendmentDurationOption(e.target.value);
-                                  setAmendmentDurationPrice(suggestedPrice);
+                                  setAmendmentDurationOption(e.target.value as HahitantsoaDurationOption);
                                 }}
                                 className="w-4 h-4 mt-0.5 text-indigo-600"
                               />
@@ -3390,43 +3364,11 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                                   )}
                                 </span>
                                 <span className="text-xs text-slate-500">
-                                  {isNight1
-                                    ? `+${(Number(commercialTerms?.night_option_1_amount ?? 0)).toLocaleString(
-                                        "fr-FR",
-                                      )} Ar + Sécurité nuit obligatoire (${(Number(
-                                        commercialTerms?.night_security_amount ?? 0,
-                                      )).toLocaleString("fr-FR")} Ar)`
-                                    : isNight2
-                                      ? `+${(Number(commercialTerms?.night_option_2_amount ?? 0)).toLocaleString(
-                                          "fr-FR",
-                                        )} Ar + Sécurité nuit obligatoire (${(Number(
-                                          commercialTerms?.night_security_amount ?? 0,
-                                        )).toLocaleString("fr-FR")} Ar)`
-                                      : "Inclus dans le tarif de base du domaine"}
+                                  {isNight1 ? "Sans sécurité nocturne." : isNight2 ? "Avec sécurité nocturne." : "Sortie le jour même."}
                                 </span>
                               </div>
                             </label>
 
-                            {isSelected && (
-                              <div className="mt-3 ml-7 pt-2 border-t border-indigo-100 flex items-center gap-3">
-                                <label className="text-xs font-semibold text-indigo-900">
-                                  Montant facturé pour cette formule horaire :
-                                </label>
-                                <div className="flex items-center gap-1.5 max-w-xs">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="10000"
-                                    className="w-36 border border-indigo-200 rounded-lg px-2.5 py-1 text-sm font-bold bg-white text-indigo-950 text-right"
-                                    value={amendmentDurationPrice}
-                                    onChange={(e) =>
-                                      setAmendmentDurationPrice(Math.max(0, parseInt(e.target.value || "0", 10)))
-                                    }
-                                  />
-                                  <span className="text-xs font-bold text-indigo-700">Ar</span>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -3482,17 +3424,12 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         min="1"
                         step="10"
                         value={amendmentGuestCount}
-                        onChange={(e) => setAmendmentGuestCount(Math.max(1, parseInt(e.target.value || "0", 10)))}
-                        className="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-bold"
-                        placeholder="Ex: 250"
+                        readOnly
+                        aria-readonly="true"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold text-slate-600"
                       />
                       <span className="text-[11px] text-slate-500 mt-1 block">
-                        Forfait standard : {amendmentFinancialPreview.includedGuests} convives inclus. Au-delà : +
-                        {formatMoney(Number(commercialTerms?.excess_guest_amount ?? 0))}/invité (
-                        {amendmentFinancialPreview.excessGuestsCount > 0
-                          ? `+${formatMoney(amendmentFinancialPreview.excessGuestsTotal)} pour ${amendmentFinancialPreview.excessGuestsCount} convives sup.`
-                          : "aucun supplément"}
-                        )
+                        Valeur du dossier, non modifiable par avenant. Les montants sont recalculés par le serveur après application.
                       </span>
                     </div>
                   </div>

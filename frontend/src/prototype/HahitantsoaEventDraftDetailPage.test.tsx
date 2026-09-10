@@ -84,6 +84,7 @@ const DRAFT: HahitantsoaEventDraft = {
   event_name: "Mariage Rakoto",
   event_type: "wedding",
   rental_type: "bare",
+  duration_option: "day",
   guest_count: 250,
   space_rental_amount: "1500000.00",
   venue_name: "Grande Salle Hahitantsoa",
@@ -574,8 +575,10 @@ describe("HahitantsoaEventDraftDetailPage", () => {
         expect.objectContaining({
           reason: "Avenant soirée nocturne et sono",
           changed_event_type: "wedding",
+          changed_duration_option: "night_1",
         }),
       );
+      expect(mockCreateAmendment.mock.calls[0][1]).not.toHaveProperty("changed_guest_count");
       expect(mockApplyAmendment).toHaveBeenCalledWith(DRAFT.id, "amend-1");
     });
   });
@@ -593,7 +596,6 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       target: { value: "Demande à valider" },
     });
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
-    fireEvent.change(screen.getByPlaceholderText("Ex: 250"), { target: { value: "300" } });
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
@@ -682,7 +684,7 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     expect(result.remainingNotes).toContain("Notes particulières: disposition spéciale");
   });
 
-  it("supports custom services, 308 guests, and 308 item quantities in amendment studio", async () => {
+  it("preserves the guest count while supporting custom services and item quantities in amendment studio", async () => {
     currentDraft = { ...DRAFT, status: "confirmed" };
     mockCreateAmendment.mockResolvedValue({
       amendment_request: { id: "amend-308", status: "applied", amendment_sequence: 2 },
@@ -705,11 +707,9 @@ describe("HahitantsoaEventDraftDetailPage", () => {
     fireEvent.change(reasonInput, { target: { value: "Avenant N°2: 308 convives et gazon synthétique" } });
     fireEvent.click(screen.getByRole("button", { name: /suivant →/i }));
 
-    // Step 2: Set 308 guests and Location + logistique
+    // Step 2: guest count is preserved and the rental type remains modifiable.
     expect(screen.getByText("2. Formule & Local")).toBeInTheDocument();
-    const guestInput = screen.getByPlaceholderText("Ex: 250");
-    fireEvent.change(guestInput, { target: { value: "308" } });
-    expect(await screen.findByText(/58 convives sup/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("250")).toHaveAttribute("readonly");
 
     const logisticsRadio = screen.getByLabelText("Location + logistique");
     fireEvent.click(logisticsRadio);
@@ -758,11 +758,11 @@ describe("HahitantsoaEventDraftDetailPage", () => {
         DRAFT.id,
         expect.objectContaining({
           reason: "Avenant N°2: 308 convives et gazon synthétique",
-          changed_guest_count: 308,
           changed_rental_type: "logistics",
           changed_service_notes: expect.stringContaining("Sol en gazon synthétique"),
         }),
       );
+      expect(mockCreateAmendment.mock.calls[0][1]).not.toHaveProperty("changed_guest_count");
       expect(mockCreateAmendmentLine).toHaveBeenCalledWith(
         DRAFT.id,
         "amend-308",
@@ -842,10 +842,11 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       expect(mockUpdateDraft).toHaveBeenCalledWith(
         DRAFT.id,
         expect.objectContaining({
-          guest_count: 250,
+          duration_option: "day",
           venue_name: "Grande Salle Hahitantsoa",
         }),
       );
+      expect(mockUpdateDraft.mock.calls[0][1]).not.toHaveProperty("guest_count");
       expect(mockCreateDocumentInstance).toHaveBeenCalledWith(
         DRAFT.id,
         expect.objectContaining({ template_key: "hahitantsoa.proforma.v1" }),
