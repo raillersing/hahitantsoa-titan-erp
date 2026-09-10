@@ -39,6 +39,12 @@ class HahitantsoaRentalType(models.TextChoices):
     LOGISTICS = "logistics", "Location + logistique"
 
 
+class HahitantsoaDurationOption(models.TextChoices):
+    DAY = "day", "Fête de jour"
+    NIGHT_1 = "night_1", "Utilisation de nuit Option 1"
+    NIGHT_2 = "night_2", "Utilisation de nuit Option 2"
+
+
 class HahitantsoaEventDraftAmendmentRequestStatus(models.TextChoices):
     DRAFT = "draft", "draft"
     APPLIED = "applied", "applied"
@@ -109,6 +115,11 @@ class HahitantsoaEventDraft(UUIDModel, TimestampedModel, SoftDeleteModel, Audita
         max_length=16,
         choices=HahitantsoaRentalType.choices,
         default=HahitantsoaRentalType.BARE,
+    )
+    duration_option = models.CharField(
+        max_length=16,
+        choices=HahitantsoaDurationOption.choices,
+        default=HahitantsoaDurationOption.DAY,
     )
     guest_count = models.PositiveIntegerField(default=0)
     space_rental_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
@@ -394,6 +405,11 @@ class HahitantsoaEventDraftAmendmentRequest(UUIDModel, TimestampedModel, Auditab
     changed_event_name = models.CharField(max_length=255, blank=True)
     changed_event_type = models.CharField(max_length=32, blank=True)
     changed_rental_type = models.CharField(max_length=16, blank=True)
+    changed_duration_option = models.CharField(
+        max_length=16,
+        choices=HahitantsoaDurationOption.choices,
+        blank=True,
+    )
     changed_guest_count = models.PositiveIntegerField(null=True, blank=True)
     changed_space_rental_amount = models.DecimalField(
         max_digits=14, decimal_places=2, null=True, blank=True

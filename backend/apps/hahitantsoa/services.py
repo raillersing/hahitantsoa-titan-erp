@@ -14,7 +14,11 @@ from apps.documents.services import (
     generate_hahitantsoa_event_draft_document_instance_html,
     revise_hahitantsoa_preparation_document_for_amendment,
 )
-from apps.hahitantsoa.commercial_terms import recalculate_hahitantsoa_event_draft_totals
+from apps.hahitantsoa.commercial_terms import (
+    calculate_space_rental_amount,
+    get_hahitantsoa_commercial_terms,
+    recalculate_hahitantsoa_event_draft_totals,
+)
 from apps.hahitantsoa.models import (
     HahitantsoaEventCloseout,
     HahitantsoaEventDraft,
@@ -233,6 +237,11 @@ def apply_hahitantsoa_event_draft_amendment_request(
                 "Les dates du dossier ne peuvent pas être modifiées par avenant.",
                 code="amendment_date_change_forbidden",
             )
+        if locked_request.changed_guest_count is not None:
+            raise ReservationLifecycleStateError(
+                "Le nombre de convives ne peut pas être modifié par avenant.",
+                code="amendment_guest_count_change_forbidden",
+            )
         if (
             locked_event_draft.logistics_events.filter(
                 status__in=("dispatched", "completed")
@@ -342,8 +351,8 @@ def apply_hahitantsoa_event_draft_amendment_request(
             "changed_event_name",
             "changed_event_type",
             "changed_rental_type",
-            "changed_guest_count",
             "changed_space_rental_amount",
+            "changed_duration_option",
             "changed_venue_name",
             "changed_location_details",
             "changed_service_notes",
@@ -352,6 +361,12 @@ def apply_hahitantsoa_event_draft_amendment_request(
             value = getattr(locked_request, field, None)
             if value is not None and value != "":
                 setattr(locked_event_draft, field.removeprefix("changed_"), value)
+        if locked_request.changed_duration_option:
+            locked_event_draft.space_rental_amount = calculate_space_rental_amount(
+                terms=get_hahitantsoa_commercial_terms(),
+                guest_count=locked_event_draft.guest_count,
+                duration_option=locked_event_draft.duration_option,
+            )
         locked_event_draft.updated_by = actor
         try:
             locked_event_draft.full_clean()
@@ -880,6 +895,7 @@ def create_hahitantsoa_event_draft_amendment_request(
     changed_event_name: str = "",
     changed_event_type: str = "",
     changed_rental_type: str = "",
+    changed_duration_option: str = "",
     changed_guest_count=None,
     changed_space_rental_amount=None,
     changed_venue_name: str = "",
@@ -896,6 +912,11 @@ def create_hahitantsoa_event_draft_amendment_request(
             raise ReservationLifecycleStateError(
                 "Les dates du dossier ne peuvent pas être modifiées par avenant.",
                 code="amendment_date_change_forbidden",
+            )
+        if changed_guest_count is not None:
+            raise ReservationLifecycleStateError(
+                "Le nombre de convives ne peut pas être modifié par avenant.",
+                code="amendment_guest_count_change_forbidden",
             )
 
         if locked_event_draft.is_deleted:
@@ -921,6 +942,7 @@ def create_hahitantsoa_event_draft_amendment_request(
             changed_event_name=changed_event_name,
             changed_event_type=changed_event_type,
             changed_rental_type=changed_rental_type,
+            changed_duration_option=changed_duration_option,
             changed_guest_count=changed_guest_count,
             changed_space_rental_amount=changed_space_rental_amount,
             changed_venue_name=changed_venue_name,

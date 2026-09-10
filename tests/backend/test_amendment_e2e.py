@@ -81,10 +81,9 @@ def test_hahitantsoa_bare_amendment_on_confirmed_event(auth_client, api_user):
     resp = auth_client.post(
         f"/api/v1/hahitantsoa/event-drafts/{draft.id}/amendment-requests/",
         {
-            "reason": "Ajout convives",
-            "notes": "Passage à 308 convives",
-            "changed_guest_count": 308,
-            "changed_space_rental_amount": "1250000.00",
+            "reason": "Passage en formule de nuit",
+            "notes": "Utilisation de nuit option 1.",
+            "changed_duration_option": "night_1",
             "changed_rental_type": "bare",
         },
         format="json",
@@ -92,12 +91,23 @@ def test_hahitantsoa_bare_amendment_on_confirmed_event(auth_client, api_user):
     assert resp.status_code == 201, resp.data
     amend_id = resp.data["amendment_request"]["id"]
 
+    update_resp = auth_client.patch(
+        f"/api/v1/hahitantsoa/event-drafts/{draft.id}/amendment-requests/{amend_id}/",
+        {"changed_guest_count": 308},
+        format="json",
+    )
+    assert update_resp.status_code == 400, update_resp.data
+    assert "guest_count" in update_resp.data
+
     # Apply amendment request
     apply_resp = auth_client.post(
         f"/api/v1/hahitantsoa/event-drafts/{draft.id}/amendment-requests/{amend_id}/apply/",
         format="json",
     )
     assert apply_resp.status_code == 200, apply_resp.data
+    draft.refresh_from_db()
+    assert draft.duration_option == "night_1"
+    assert draft.space_rental_amount == Decimal("6800000.00")
 
 
 @pytest.mark.django_db
@@ -154,9 +164,8 @@ def test_hahitantsoa_logistics_amendment_on_confirmed_event(auth_client, api_use
         f"/api/v1/hahitantsoa/event-drafts/{draft.id}/amendment-requests/",
         {
             "reason": "Augmentation chaises",
-            "notes": "Passage à 308 chaises",
-            "changed_guest_count": 308,
-            "changed_space_rental_amount": "1750000.00",
+            "notes": "Ajout de chaises avec formule de nuit option 2.",
+            "changed_duration_option": "night_2",
             "changed_rental_type": "logistics",
         },
         format="json",
@@ -182,6 +191,9 @@ def test_hahitantsoa_logistics_amendment_on_confirmed_event(auth_client, api_use
         format="json",
     )
     assert apply_resp.status_code == 200, apply_resp.data
+    draft.refresh_from_db()
+    assert draft.duration_option == "night_2"
+    assert draft.space_rental_amount == Decimal("7120000.00")
 
 
 @pytest.mark.django_db
@@ -334,7 +346,7 @@ def test_hahitantsoa_amendment_document_failure_is_controlled_and_rolls_back(aut
     generate_document_instance_pdf(document_instance=contract, actor=api_user)
     response = auth_client.post(
         f"/api/v1/hahitantsoa/event-drafts/{draft.id}/amendment-requests/",
-        {"reason": "Changement", "changed_guest_count": 250},
+        {"reason": "Changement", "changed_duration_option": "night_1"},
         format="json",
     )
     assert response.status_code == 201, response.data

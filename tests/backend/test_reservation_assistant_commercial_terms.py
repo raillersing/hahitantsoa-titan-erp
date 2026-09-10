@@ -6,11 +6,40 @@ from django.utils import timezone
 
 from apps.customers.models import Customer, CustomerContactPoint
 from apps.customers.serializers import CustomerSerializer
-from apps.hahitantsoa.models import HahitantsoaEventDraft, HahitantsoaEventDraftLine
+from apps.hahitantsoa.models import (
+    HahitantsoaCommercialTerms,
+    HahitantsoaDurationOption,
+    HahitantsoaEventDraft,
+    HahitantsoaEventDraftLine,
+)
 from apps.hahitantsoa.services import get_hahitantsoa_event_draft_prerequisite_status
 from apps.inventory.models import InventoryItem
 
 pytestmark = pytest.mark.django_db
+
+
+def test_hahitantsoa_duration_supplements_exclude_security_for_night_option_1() -> None:
+    terms = HahitantsoaCommercialTerms.objects.create(
+        key="duration-test",
+        base_space_rental_amount=Decimal("1000000"),
+        included_guest_count=100,
+        excess_guest_amount=Decimal("1000"),
+        night_option_1_amount=Decimal("200000"),
+        night_option_2_amount=Decimal("300000"),
+        night_security_amount=Decimal("400000"),
+    )
+
+    from apps.hahitantsoa.commercial_terms import calculate_space_rental_amount
+
+    assert calculate_space_rental_amount(
+        terms=terms, guest_count=120, duration_option=HahitantsoaDurationOption.DAY
+    ) == Decimal("1020000.00")
+    assert calculate_space_rental_amount(
+        terms=terms, guest_count=120, duration_option=HahitantsoaDurationOption.NIGHT_1
+    ) == Decimal("1220000.00")
+    assert calculate_space_rental_amount(
+        terms=terms, guest_count=120, duration_option=HahitantsoaDurationOption.NIGHT_2
+    ) == Decimal("1720000.00")
 
 
 def test_customer_contact_points_keep_multiple_values_and_sync_legacy_fields() -> None:
