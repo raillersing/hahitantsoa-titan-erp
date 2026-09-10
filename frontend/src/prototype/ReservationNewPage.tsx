@@ -38,6 +38,7 @@ import type {
   MaterialPackage,
   TitanClosedDay,
   HahitantsoaCommercialTerms,
+  HahitantsoaDurationOption,
 } from "../types";
 
 // Business labels used by the reservation form. All selectable data comes from the API.
@@ -50,10 +51,10 @@ const HAHITANTSOA_RENTAL_TYPES = [
   "Location + logistique",
 ];
 const HAHITANTSOA_DURATION_OPTIONS = [
-  { label: "Fête de jour : Sortie J-J à 20:00", price: 0 },
-  { label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30", price: 0 },
-  { label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30", price: 0 },
-];
+  { key: "day", label: "Fête de jour : Sortie J-J à 20:00", endTime: "20:00" },
+  { key: "night_1", label: "Utilisation de nuit Option 1 : Arrêt de fête 21:00 / Sortie J-J à 22:30", endTime: "22:30" },
+  { key: "night_2", label: "Utilisation de nuit Option 2 : Arrêt de fête 00:00 / Sortie J+1 à 03:30", endTime: "03:30" },
+] as const;
 const HAHITANTSOA_DEFAULT_DEPOSIT = 1000000;
 const HAHITANTSOA_LOGISTICS_DEPOSIT = 1500000;
 const HAHITANTSOA_BASE_SPACE_RENTAL = 6500000;
@@ -273,8 +274,7 @@ interface HahitantsoaDetails {
   endDate: string;
   endTime: string;
   rentalType: string;
-  durationOption: string;
-  durationOptionPrice: number;
+  durationOption: HahitantsoaDurationOption;
   packageId?: string;
   
   mariageGroomName?: string;
@@ -427,7 +427,7 @@ export function calculateReservationTotals({
   discountIsPercentage,
 }: {
   domain: DomainType;
-  hDetails: Pick<HahitantsoaDetails, "rentalType" | "venuePrice" | "logisticsPrice" | "durationOptionPrice" | "packageMode" | "packageId">;
+  hDetails: Pick<HahitantsoaDetails, "rentalType" | "venuePrice" | "logisticsPrice" | "packageMode" | "packageId">;
   selectedMaterials: SelectedMaterial[];
   selectedServices: SelectedService[];
   packages: MaterialPackage[];
@@ -439,7 +439,7 @@ export function calculateReservationTotals({
   const servicesTotal = selectedServices.reduce((sum, service) => sum + service.price, 0);
   const parsedDeliveryFee = Number(deliveryFee);
   const deliveryTotal = domain === "titan" && Number.isFinite(parsedDeliveryFee) ? parsedDeliveryFee : 0;
-  const durationTotal = domain === "hahitantsoa" ? (hDetails.durationOptionPrice || 0) : 0;
+  const durationTotal = 0;
   const venueAndLogisticsTotal = domain === "hahitantsoa"
     ? (hDetails.venuePrice || 0) + (hDetails.rentalType === "Location + logistique" ? (hDetails.logisticsPrice || 0) : 0)
     : 0;
@@ -604,13 +604,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     };
   }, [domain]);
   
-  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "", rentalType: "Location nue", durationOption: "", durationOptionPrice: 0, venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
+  const [hDetails, setHDetails] = useState<HahitantsoaDetails>({ eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "", startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day", venuePrice: HAHITANTSOA_BASE_SPACE_RENTAL, logisticsPrice: 0 });
   const hahitantsoaBaseSpaceRental = Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL);
   const hahitantsoaIncludedGuests = Number(hahitantsoaTerms?.included_guest_count ?? 250);
   const hahitantsoaExcessGuestAmount = Number(hahitantsoaTerms?.excess_guest_amount ?? HAHITANTSOA_EXCESS_GUEST_RATE);
   const hahitantsoaSpaceRentalAmount = (hDetails.venuePrice || hahitantsoaBaseSpaceRental)
     + (hDetails.rentalType === "Location + logistique" ? (hDetails.logisticsPrice || 0) : 0)
-    + (hDetails.durationOptionPrice || 0)
     + Math.max(Number(hDetails.guests || 0) - hahitantsoaIncludedGuests, 0) * hahitantsoaExcessGuestAmount;
   const hahitantsoaDepositAmount = hDetails.rentalType === "Location + logistique"
     ? Number(hahitantsoaTerms?.logistics_deposit_amount ?? HAHITANTSOA_LOGISTICS_DEPOSIT)
@@ -972,9 +971,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" as const : "bare" as const,
+          duration_option: hDetails.durationOption,
           guest_count: Number(hDetails.guests || 0),
-          space_rental_amount: hahitantsoaSpaceRentalAmount,
-          required_deposit_amount: hahitantsoaDepositAmount,
           notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
           lines,
         };
@@ -1182,9 +1180,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
+          duration_option: hDetails.durationOption,
           guest_count: Number(hDetails.guests || 0),
-          space_rental_amount: hahitantsoaSpaceRentalAmount,
-          required_deposit_amount: hahitantsoaDepositAmount,
           notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
           lines,
         });
@@ -1219,9 +1216,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           start_at: startAt,
           end_at: endAt,
           rental_type: hDetails.rentalType === "Location + logistique" ? "logistics" : "bare",
+          duration_option: hDetails.durationOption,
           guest_count: Number(hDetails.guests || 0),
-          space_rental_amount: hahitantsoaSpaceRentalAmount,
-          required_deposit_amount: hahitantsoaDepositAmount,
           notes: `${hDetails.remarks || ""} ${hDetails.guests ? `(${hDetails.guests} pax)` : ""}`.trim() || undefined,
           lines,
         });
@@ -1906,7 +1902,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   disableIfVenueReserved={Boolean(hDetails.venue)}
                   onDateSelect={(dateStr: string) => {
                     let endDate = dateStr;
-                    if (hDetails.durationOption?.includes('03:30')) {
+                    if (hDetails.durationOption === "night_2") {
                       const dt = new Date(dateStr);
                       dt.setDate(dt.getDate() + 1);
                       endDate = dt.toISOString().split('T')[0];
@@ -1923,7 +1919,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                     <label className="block text-sm font-medium text-slate-700 mb-1">Date début</label>
                     <input type="date" min={new Date().toISOString().split('T')[0]} className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.startDate} onChange={e => {
                         let endDate = e.target.value;
-                        if (hDetails.durationOption?.includes('03:30') && e.target.value) {
+                        if (hDetails.durationOption === "night_2" && e.target.value) {
                           const dt = new Date(e.target.value);
                           dt.setDate(dt.getDate() + 1);
                           endDate = dt.toISOString().split('T')[0];
@@ -1961,58 +1957,40 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
 
             <div className="md:col-span-2 pt-4 border-t border-slate-100">
-              <h4 className="font-bold text-slate-800 mb-1">Formule Horaire & Prolongation Nocturne (2026)</h4>
-              <p className="text-xs text-slate-500 mb-4">Les options de nuit incluent automatiquement le forfait de sécurité nocturne obligatoire.</p>
+              <h4 className="font-bold text-slate-800 mb-1">Formule horaire</h4>
+              <p className="text-xs text-slate-500 mb-4">La durée et son montant sont enregistrés puis recalculés par le dossier Hahitantsoa.</p>
             </div>
             <div className="md:col-span-2 space-y-2">
               {HAHITANTSOA_DURATION_OPTIONS.map(opt => {
-                const isNight1 = opt.label.includes('22:30');
-                const isNight2 = opt.label.includes('03:30');
-                const night1Total = Number(hahitantsoaTerms?.night_option_1_amount ?? 300000) + Number(hahitantsoaTerms?.night_security_amount ?? 120000);
-                const night2Total = Number(hahitantsoaTerms?.night_option_2_amount ?? 500000) + Number(hahitantsoaTerms?.night_security_amount ?? 120000);
-                const suggestedPrice = isNight1 ? night1Total : isNight2 ? night2Total : 0;
+                const isNight1 = opt.key === "night_1";
+                const isNight2 = opt.key === "night_2";
 
                 return (
-                  <div key={opt.label} className={`border p-3 rounded-lg transition-colors ${hDetails.durationOption === opt.label ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-indigo-400'}`}>
+                  <div key={opt.key} className={`border p-3 rounded-lg transition-colors ${hDetails.durationOption === opt.key ? 'border-indigo-600 bg-indigo-50' : 'border-slate-300 hover:border-indigo-400'}`}>
                     <label className="flex items-start gap-3 cursor-pointer">
-                      <input type="radio" name="durationOption" value={opt.label} checked={hDetails.durationOption === opt.label} onChange={(e) => {
-                        const updates: any = { durationOption: e.target.value, durationOptionPrice: suggestedPrice };
+                      <input type="radio" name="durationOption" value={opt.key} checked={hDetails.durationOption === opt.key} onChange={() => {
+                        const updates: Partial<HahitantsoaDetails> = { durationOption: opt.key };
 
                         const startDate = hDetails.startDate || new Date().toISOString().split('T')[0];
                         if (!hDetails.startDate) updates.startDate = startDate;
 
                         let endDate = startDate;
-                        if (e.target.value.includes('20:00')) {
-                          updates.endTime = '20:00';
-                        } else if (e.target.value.includes('22:30')) {
-                          updates.endTime = '22:30';
-                        } else if (e.target.value.includes('03:30')) {
-                          updates.endTime = '03:30';
+                        if (opt.key === "night_2") {
+                          updates.endTime = opt.endTime;
                           const d = new Date(startDate);
                           d.setDate(d.getDate() + 1);
                           endDate = d.toISOString().split('T')[0];
-                        }
+                        } else updates.endTime = opt.endTime;
                         updates.endDate = endDate;
                         setHDetails({...hDetails, ...updates});
                       }} className="w-4 h-4 mt-0.5 text-indigo-600" />
                       <div className="flex-1">
-                        <span className={`font-medium text-sm block ${hDetails.durationOption === opt.label ? 'text-indigo-700' : 'text-slate-800'}`}>{opt.label}</span>
+                        <span className={`font-medium text-sm block ${hDetails.durationOption === opt.key ? 'text-indigo-700' : 'text-slate-800'}`}>{opt.label}</span>
                         <span className="text-xs text-slate-500">
-                          {isNight1 ? `+${Number(hahitantsoaTerms?.night_option_1_amount ?? 300000).toLocaleString('fr-FR')} Ar + Sécurité nuit obligatoire (${Number(hahitantsoaTerms?.night_security_amount ?? 120000).toLocaleString('fr-FR')} Ar)` :
-                           isNight2 ? `+${Number(hahitantsoaTerms?.night_option_2_amount ?? 500000).toLocaleString('fr-FR')} Ar + Sécurité nuit obligatoire (${Number(hahitantsoaTerms?.night_security_amount ?? 120000).toLocaleString('fr-FR')} Ar)` :
-                           'Inclus dans le tarif de base du chapiteau'}
+                          {isNight1 ? 'Sans sécurité nocturne.' : isNight2 ? 'Avec sécurité nocturne.' : 'Sortie le jour même.'}
                         </span>
                       </div>
                     </label>
-                    {hDetails.durationOption === opt.label && (
-                      <div className="mt-3 ml-7">
-                        <label className="block text-xs font-medium text-indigo-800 mb-1">Montant facturé pour cette formule horaire :</label>
-                        <div className="flex items-center gap-2 max-w-xs">
-                          <input type="number" className="flex-1 border border-indigo-200 rounded p-1.5 text-sm bg-white" value={hDetails.durationOptionPrice || ''} onChange={e => setHDetails({...hDetails, durationOptionPrice: parseInt(e.target.value || '0', 10)})} placeholder="0" />
-                          <span className="text-sm font-bold text-indigo-600">Ar</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}

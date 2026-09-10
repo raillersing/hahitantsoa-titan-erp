@@ -949,11 +949,9 @@ describe('ReservationNewPage', () => {
 
     await screen.findByText('Détails Événement (Hahitantsoa)');
     const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
-    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
     expect(screen.getByDisplayValue('08:00')).toHaveValue('08:00');
-    fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
     fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Vérifier le résumé/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Générer Devis\/Proforma/i }));
@@ -1005,7 +1003,7 @@ describe('ReservationNewPage', () => {
     expect(screen.getByText('Proforma émise avec succès')).toBeInTheDocument();
   });
 
-  it('18. Hahitantsoa applique automatiquement le tarif de prolongation nocturne et permet la sélection par catégorie', async () => {
+  it('18. Hahitantsoa envoie la formule nocturne canonique et permet la sélection par catégorie', async () => {
     render(<ReservationNewPage onNavigate={mockNavigate} />);
     await waitFor(() => {
       expect(screen.getByText('Commencer par le volet')).toBeInTheDocument();
@@ -1021,12 +1019,11 @@ describe('ReservationNewPage', () => {
     fireEvent.click(screen.getByText('Continuer'));
 
     // Details step: Select Option Nuit 1 (22h30)
-    await screen.findByText('Formule Horaire & Prolongation Nocturne (2026)');
+    await screen.findByText('Formule horaire');
     const night1Radio = screen.getByLabelText(/Option 1/i);
     fireEvent.click(night1Radio);
 
-    // Expected automated calculation: 300 000 (option) + 120 000 (securite) = 420 000 Ar
-    expect(screen.getByDisplayValue('420000')).toBeInTheDocument();
+    expect(screen.getByText('Sans sécurité nocturne.')).toBeInTheDocument();
 
     // Proceed to Services
     fireEvent.click(screen.getByText('Suivant (Services)'));
@@ -1071,10 +1068,8 @@ describe('ReservationNewPage', () => {
 
     await screen.findByText('Détails Événement (Hahitantsoa)');
     const dateInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'date');
-    const timeInputs = screen.getAllByDisplayValue('').filter((element) => element.getAttribute('type') === 'time');
     fireEvent.change(dateInputs[0], { target: { value: '2026-08-01' } });
     fireEvent.change(dateInputs[1], { target: { value: '2026-08-02' } });
-    fireEvent.change(timeInputs[0], { target: { value: '08:00' } });
 
     // Go to Services
     fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
@@ -1100,6 +1095,7 @@ describe('ReservationNewPage', () => {
         expect.objectContaining({
           customer_id: 'CUST-001',
           service_notes: 'Traiteur - 500000 Ar',
+          duration_option: 'day',
         })
       );
       expect(createHahitantsoaEventDraftDocumentInstance).toHaveBeenCalledWith('EVENT-002', {

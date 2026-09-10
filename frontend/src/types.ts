@@ -373,6 +373,7 @@ export type HahitantsoaEventDraftCreatePayload = {
   event_name: string;
   event_type?: HahitantsoaEventType;
   rental_type?: "bare" | "logistics";
+  duration_option?: HahitantsoaDurationOption;
   guest_count?: number;
   space_rental_amount?: number;
   required_deposit_amount?: number;
@@ -420,6 +421,7 @@ export type HahitantsoaEventDraftUpdatePayload = {
   event_name?: string;
   event_type?: HahitantsoaEventType;
   rental_type?: "bare" | "logistics";
+  duration_option?: HahitantsoaDurationOption;
   guest_count?: number;
   space_rental_amount?: number;
   required_deposit_amount?: number;
@@ -452,6 +454,7 @@ export type HahitantsoaEventDraft = {
   event_name: string;
   event_type?: HahitantsoaEventType;
   rental_type?: "bare" | "logistics";
+  duration_option?: HahitantsoaDurationOption;
   guest_count?: number;
   space_rental_amount?: string;
   total_amount?: string | null;
@@ -469,6 +472,8 @@ export type HahitantsoaEventDraft = {
 };
 
 export type HahitantsoaEventType = "wedding" | "engagement" | "civil_wedding" | "other";
+
+export type HahitantsoaDurationOption = "day" | "night_1" | "night_2";
 
 export type HahitantsoaEventDraftAvailabilityLinePreview = {
   event_draft_line_id: string;
@@ -553,6 +558,7 @@ export type HahitantsoaEventDraftAmendmentRequest = {
   changed_event_name: string;
   changed_event_type: string;
   changed_rental_type?: string;
+  changed_duration_option?: HahitantsoaDurationOption;
   changed_guest_count?: number | null;
   changed_space_rental_amount?: string | null;
   changed_venue_name: string;
@@ -575,6 +581,7 @@ export type HahitantsoaEventDraftAmendmentRequestCreatePayload = {
   changed_event_name?: string;
   changed_event_type?: HahitantsoaEventType;
   changed_rental_type?: string;
+  changed_duration_option?: HahitantsoaDurationOption;
   changed_guest_count?: number | null;
   changed_space_rental_amount?: string | null;
   changed_venue_name?: string;
@@ -589,6 +596,7 @@ export type HahitantsoaEventDraftAmendmentRequestUpdatePayload = {
   changed_event_name?: string;
   changed_event_type?: HahitantsoaEventType;
   changed_rental_type?: string;
+  changed_duration_option?: HahitantsoaDurationOption;
   changed_guest_count?: number | null;
   changed_space_rental_amount?: string | null;
   changed_venue_name?: string;
