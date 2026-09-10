@@ -423,4 +423,54 @@ describe("PlanningPage (Modern Enterprise Agenda)", () => {
     expect(screen.queryByText(/Evt Confirme/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Evt Libre Devis/i)).toBeInTheDocument();
   });
+
+  it("filters planning events by the persisted Hahitantsoa duration and venue", async () => {
+    const monday = currentMonday();
+    const endAt = new Date(monday);
+    endAt.setHours(endAt.getHours() + 4);
+
+    vi.spyOn(api, "getHahitantsoaEventDrafts").mockResolvedValue([
+      {
+        id: "hah-day",
+        public_reference: "H-010",
+        event_name: "Réception de jour",
+        venue_name: "Grande Salle",
+        customer_display_name: "Client Jour",
+        duration_option: "day",
+        start_at: monday.toISOString(),
+        end_at: endAt.toISOString(),
+        status: "confirmed",
+        lines: [],
+      } as any,
+      {
+        id: "hah-night",
+        public_reference: "H-011",
+        event_name: "Réception nuit deux",
+        venue_name: "Jardin",
+        customer_display_name: "Client Nuit",
+        duration_option: "night_2",
+        start_at: monday.toISOString(),
+        end_at: endAt.toISOString(),
+        status: "confirmed",
+        lines: [],
+      } as any,
+    ]);
+
+    render(<PlanningPage />);
+
+    expect(await screen.findByText("Réception de jour")).toBeInTheDocument();
+    expect(screen.getByText("Réception nuit deux")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Durée Hahitantsoa"), { target: { value: "night_2" } });
+    expect(screen.queryByText("Réception de jour")).not.toBeInTheDocument();
+    expect(screen.getByText("Réception nuit deux")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Réinitialiser les filtres avancés" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Lieu"), { target: { value: "Grande Salle" } });
+    expect(screen.queryByText("Réception nuit deux")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Réinitialiser les filtres avancés" }));
+    expect(screen.getByText("Réception de jour")).toBeInTheDocument();
+    expect(screen.getByText("Réception nuit deux")).toBeInTheDocument();
+  });
 });
