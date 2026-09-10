@@ -150,44 +150,75 @@ def parse_service_price(price_str: str) -> Decimal | None:
         return None
 
 
-def parse_hahitantsoa_services_total(service_notes: str | None) -> Decimal:
-    """Calculate the total price of all parsed services in service_notes."""
+def parse_hahitantsoa_service_lines(service_notes: str | None) -> list[dict[str, object]]:
+    """Parse Hahitantsoa service notes into canonical commercial line values."""
     if not service_notes or not service_notes.strip():
-        return Decimal("0.00")
+        return []
 
+    lines: list[dict[str, object]] = []
     raw_entries = (
-        [e.strip() for e in service_notes.splitlines() if e.strip()]
+        [entry.strip() for entry in service_notes.splitlines() if entry.strip()]
         if "\n" in service_notes
-        else [e.strip() for e in re.split(r",\s*(?=[A-Za-zÀ-ÿ0-9])", service_notes) if e.strip()]
+        else [
+            entry.strip()
+            for entry in re.split(r",\s*(?=[A-Za-zÀ-ÿ0-9])", service_notes)
+            if entry.strip()
+        ]
     )
-
-    total = Decimal("0.00")
     for entry in raw_entries:
-        # Pattern 1: Service Name (x2) - 50 000 Ar or Service Name (x2) : 50 000
-        m1 = re.match(
+        quantity = 1
+        name = entry
+        total_price = Decimal("0.00")
+        priced = False
+        quantity_match = re.match(
             r"^(?P<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?P<qty>\d+)\)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
             entry,
             re.IGNORECASE,
         )
-        if m1:
-            tot_price = parse_service_price(m1.group("price"))
-            if tot_price is not None:
-                total += tot_price
-                continue
-
-        # Pattern 2: Service Name - 50 000 Ar or Service Name : 50 000
-        m2 = re.match(
+        price_match = re.match(
             r"^(?P<name>.+?)\s*[-:]\s*(?P<price>[\d\s,.]+)\s*(?:Ar|ariary)?$",
             entry,
             re.IGNORECASE,
         )
-        if m2:
-            tot_price = parse_service_price(m2.group("price"))
-            if tot_price is not None:
-                total += tot_price
-                continue
+        quantity_only_match = re.match(
+            r"^(?P<name>.+?)\s*\((?:x\s*|qté\s*:\s*)?(?P<qty>\d+)\)$",
+            entry,
+            re.IGNORECASE,
+        )
+        if quantity_match:
+            name = quantity_match.group("name").strip()
+            quantity = max(1, int(quantity_match.group("qty")))
+            parsed_price = parse_service_price(quantity_match.group("price"))
+            if parsed_price is not None:
+                total_price = parsed_price
+                priced = True
+        elif price_match:
+            name = price_match.group("name").strip()
+            parsed_price = parse_service_price(price_match.group("price"))
+            if parsed_price is not None:
+                total_price = parsed_price
+                priced = True
+        elif quantity_only_match:
+            name = quantity_only_match.group("name").strip()
+            quantity = max(1, int(quantity_only_match.group("qty")))
 
-    return total
+        lines.append(
+            {
+                "name": name,
+                "quantity": quantity,
+                "total_price": total_price,
+                "priced": priced,
+            }
+        )
+    return lines
+
+
+def parse_hahitantsoa_services_total(service_notes: str | None) -> Decimal:
+    """Calculate the total price of all parsed services in service_notes."""
+    return sum(
+        (line["total_price"] for line in parse_hahitantsoa_service_lines(service_notes)),
+        Decimal("0.00"),
+    )
 
 
 _format_ariary_amount = format_ariary_amount

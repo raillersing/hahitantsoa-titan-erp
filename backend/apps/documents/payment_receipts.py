@@ -208,14 +208,10 @@ def build_payment_receipt_context(
                 ),
                 Decimal("0"),
             )
-            from apps.documents.runtime import _parse_hahitantsoa_service_lines
+            from apps.documents.formatting import parse_hahitantsoa_services_total
 
-            service_lines = tuple(
-                _parse_hahitantsoa_service_lines(getattr(event_draft, "service_notes", ""))
-            )
-            services_total = sum(
-                (Decimal(str(line.get("_raw_total_price", 0))) for line in service_lines),
-                Decimal("0"),
+            services_total = parse_hahitantsoa_services_total(
+                getattr(event_draft, "service_notes", "")
             )
             proforma_total = space_amt + materials_total + services_total
     elif reservation_draft is not None:
