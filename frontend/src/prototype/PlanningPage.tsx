@@ -18,6 +18,7 @@ import {
 } from "../api";
 import type {
   Customer,
+  HahitantsoaDurationOption,
   HahitantsoaEventDraft,
   LogisticsEvent,
   ReservationDraft,
@@ -64,7 +65,34 @@ export interface UnifiedPlanningEvent {
   isConflicted?: boolean;
   conflictingWith?: string;
   conflictingWithEventName?: string;
+  durationOption?: HahitantsoaDurationOption;
   raw: any;
+}
+
+type HahitantsoaDurationPresentation = {
+  label: string;
+  badgeClass: string;
+};
+
+const HAHITANTSOA_DURATION_PRESENTATIONS: Record<HahitantsoaDurationOption, HahitantsoaDurationPresentation> = {
+  day: {
+    label: "Jour · sortie J-J 20:00",
+    badgeClass: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300",
+  },
+  night_1: {
+    label: "Nuit 1 · arrêt 21:00 / sortie 22:30",
+    badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300",
+  },
+  night_2: {
+    label: "Nuit 2 · arrêt 00:00 / sortie J+1 03:30",
+    badgeClass: "bg-violet-100 text-violet-800 dark:bg-violet-950/70 dark:text-violet-300",
+  },
+};
+
+function hahitantsoaDurationPresentation(event: UnifiedPlanningEvent): HahitantsoaDurationPresentation | undefined {
+  return event.category === "hahitantsoa" && event.durationOption
+    ? HAHITANTSOA_DURATION_PRESENTATIONS[event.durationOption]
+    : undefined;
 }
 
 type ItemsState =
@@ -465,6 +493,7 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
           isConflicted,
           conflictingWith,
           conflictingWithEventName,
+          durationOption: draft.duration_option,
           raw: draft,
         });
 
@@ -1018,6 +1047,15 @@ export default function PlanningPage({ onNavigate }: PlanningPageProps) {
             />
           </div>
         </div>
+
+        <div aria-label="Légende des durées Hahitantsoa" className="flex flex-wrap items-center gap-2 pt-3 text-[10px] text-slate-600 dark:text-slate-300">
+          <span className="font-bold text-slate-500 dark:text-slate-400">Durées Hahitantsoa :</span>
+          {Object.entries(HAHITANTSOA_DURATION_PRESENTATIONS).map(([key, duration]) => (
+            <span key={key} className={`px-2 py-0.5 rounded-md font-bold ${duration.badgeClass}`}>
+              {duration.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -1255,16 +1293,22 @@ function MonthViewGrid({
               <div className="space-y-1 my-auto overflow-hidden">
                 {dayEvents.slice(0, 3).map((event) => {
                   const style = getMonthChipStyle(event);
+                  const duration = hahitantsoaDurationPresentation(event);
                   return (
                     <button
                       key={event.id}
                       type="button"
                       onClick={() => onSelectEvent(event)}
                       className={`w-full text-left px-2 py-1 rounded-lg text-[11px] font-medium truncate flex items-center gap-1.5 transition ${style.chipBg} ${style.chipText} ${style.border} hover:scale-[1.02] shadow-2xs`}
-                      title={`${event.title} - ${event.customerName} (${event.status})`}
+                      title={`${event.title} - ${event.customerName} (${event.status})${duration ? ` — ${duration.label}` : ""}`}
                     >
                       <i className={`fa-solid ${style.icon} text-[9px] opacity-90 shrink-0`}></i>
                       <span className="truncate">{event.title}</span>
+                      {duration && (
+                        <span className={`ml-auto px-1 py-0.5 rounded text-[8px] font-bold shrink-0 ${duration.badgeClass}`}>
+                          {duration.label}
+                        </span>
+                      )}
                       {event.statusKind === "conflict" && (
                         <span
                           onClick={(e) => {
@@ -1374,6 +1418,7 @@ function WeekViewGrid({
                 ) : (
                   dayEvents.map((event) => {
                     const cfg = CATEGORY_CONFIG[event.category];
+                    const duration = hahitantsoaDurationPresentation(event);
                     return (
                       <div
                         key={event.id}
@@ -1394,6 +1439,12 @@ function WeekViewGrid({
                             {event.status}
                           </span>
                         </div>
+
+                        {duration && (
+                          <span className={`inline-flex mb-2 px-2 py-0.5 rounded-md text-[10px] font-bold ${duration.badgeClass}`}>
+                            {duration.label}
+                          </span>
+                        )}
 
                         {event.statusKind === "conflict" && (
                           <div className="mb-2 space-y-1.5">

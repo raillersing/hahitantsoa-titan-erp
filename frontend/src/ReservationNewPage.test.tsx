@@ -182,6 +182,7 @@ vi.mock('./api', () => ({
   getTitanClosedDays: vi.fn(),
   getHahitantsoaVenues: vi.fn(),
   getHahitantsoaVenueOccupancy: vi.fn(),
+  getHahitantsoaEventDrafts: vi.fn().mockResolvedValue([]),
   getHahitantsoaServices: vi.fn(),
   getHahitantsoaCommercialTerms: vi.fn(),
   getInventoryItems: vi.fn(),
