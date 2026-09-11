@@ -58,6 +58,15 @@ TITAN_RESERVATION_DRAFT_PREVIEW_TEMPLATE_KEYS = frozenset(
         "shared.return_note.v1",
     }
 )
+HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS: tuple[str, ...] = (
+    "Salle",
+    "Espace vert",
+    "Estrade mariés",
+    "Estrade animation",
+    "Table mariés",
+    "Table DJ",
+    "10 Chaises pliables",
+)
 
 
 @dataclass(frozen=True)
@@ -164,6 +173,7 @@ def _build_hahitantsoa_contract_runtime_context(
                 if line.notes and line.notes.strip() != line.inventory_item.name.strip()
                 else ""
             ),
+            "sub_items": (),
             "unit_price": _format_ariary_amount(line.unit_rental_price),
             "total_price": _format_ariary_amount(line.unit_rental_price * line.quantity),
             "breakage_price": (
@@ -176,16 +186,15 @@ def _build_hahitantsoa_contract_runtime_context(
     )
 
     venue_name = linked_event_draft.venue_name or "Salle de réception Hahitantsoa"
-    venue_line_name = (
-        "Location nue de l'espace"
-        if linked_event_draft.rental_type == "bare"
-        else "Location de l'espace"
-    )
+    is_bare_rental = linked_event_draft.rental_type in {"bare", "Location nue"}
+    venue_line_name = "Location nue de l'espace" if is_bare_rental else "Location de l'espace"
+    venue_sub_items = HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS if is_bare_rental else ()
     venue_line = {
         "inventory_item_name": venue_line_name,
         "inventory_item_kind": "venue",
         "quantity": 1,
         "notes": venue_name,
+        "sub_items": venue_sub_items,
         "unit_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
         "total_price": _format_ariary_amount(linked_event_draft.space_rental_amount),
         "breakage_price": None,
@@ -197,6 +206,7 @@ def _build_hahitantsoa_contract_runtime_context(
             "inventory_item_kind": "service",
             "quantity": service["quantity"],
             "notes": "",
+            "sub_items": (),
             "unit_price": (
                 _format_ariary_amount(service["total_price"] / service["quantity"])
                 if service["priced"]
