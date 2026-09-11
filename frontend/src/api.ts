@@ -105,6 +105,8 @@ import type {
   PaymentActionPayload,
   PaymentCreatePayload,
   PaymentConfirmPayload,
+  RefundPaymentCreatePayload,
+  RefundPaymentConfirmPayload,
   HahitantsoaVenue,
   HahitantsoaVenueOccupancyResponse,
   HahitantsoaService,
@@ -1648,6 +1650,21 @@ export function reconcilePayment(
   signal?: AbortSignal,
 ): Promise<Payment> {
   return postAuthenticatedJson(`/api/v1/payments/${id}/reconcile/`, payload, signal);
+}
+
+export function createRefundPayment(
+  payload: RefundPaymentCreatePayload,
+  signal?: AbortSignal,
+): Promise<Payment> {
+  return postAuthenticatedJson('/api/v1/payments/refund/', payload, signal);
+}
+
+export function confirmRefundPayment(
+  id: string,
+  payload: RefundPaymentConfirmPayload = {},
+  signal?: AbortSignal,
+): Promise<Payment> {
+  return postAuthenticatedJson(`/api/v1/payments/${id}/refund-confirm/`, payload, signal);
 }
 // ---- Billing Invoices ----
 

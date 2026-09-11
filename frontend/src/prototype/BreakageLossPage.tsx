@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   createDamageLossSettlement,
   createDamageLossSettlementExecution,
+  createRefundPayment,
   executeDamageLossSettlementExecution,
   generateExcessReceivableInvoice,
   getDamageLossSettlementExecutions,
@@ -46,6 +47,7 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
   const [toast, setToast] = useState<{ message: string; type: "info" | "success" | "warning" | "error" } | null>(null);
   const [busySettlementId, setBusySettlementId] = useState<string | null>(null);
   const [busyInvoiceId, setBusyInvoiceId] = useState<string | null>(null);
+  const [busyRefundId, setBusyRefundId] = useState<string | null>(null);
 
   const showToast = (message: string, type: "info" | "success" | "warning" | "error" = "info") => {
     setToast({ message, type });
@@ -222,6 +224,45 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
     }
   };
 
+  const handleRefundCaution = async (execution: InventoryDamageLossSettlementExecution) => {
+    const obligation = execution.refund_obligation;
+    if (!obligation || obligation.status !== "pending" || busyRefundId) return;
+    setBusyRefundId(execution.id);
+    try {
+      const payment = await createRefundPayment({
+        refund_obligation_id: obligation.id,
+        auto_confirm: true,
+      });
+      const receiptDocId =
+        typeof payment.receipt_document === "object" && payment.receipt_document?.id
+          ? payment.receipt_document.id
+          : typeof payment.receipt_document === "string"
+            ? payment.receipt_document
+            : null;
+
+      setExecutions((current) =>
+        current.map((item) =>
+          item.id === execution.id
+            ? {
+                ...item,
+                refund_obligation: {
+                  ...obligation,
+                  status: "settled",
+                  payment_id: payment.id,
+                  receipt_document_id: receiptDocId || obligation.receipt_document_id || null,
+                },
+              }
+            : item,
+        ),
+      );
+      showToast("Caution restituée et reçu généré avec succès.", "success");
+    } catch (err: any) {
+      showToast(err?.message || "Impossible de procéder au remboursement de la caution.", "error");
+    } finally {
+      setBusyRefundId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -383,7 +424,7 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
                   </table>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`mt-4 grid grid-cols-1 ${Number(s.refund_due ?? 0) > 0 ? "md:grid-cols-4" : "md:grid-cols-3"} gap-4`}>
                   <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Caution Disponible</p>
                     <p className="text-xl font-extrabold text-slate-800 mt-1">{Number(s.caution_available ?? 0).toLocaleString()} Ar</p>
@@ -392,6 +433,12 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
                     <p className="text-xs text-red-600 font-bold uppercase tracking-wider">Montant Retenue</p>
                     <p className="text-xl font-extrabold text-red-700 mt-1">{Number(s.caution_applied ?? 0).toLocaleString()} Ar</p>
                   </div>
+                  {Number(s.refund_due ?? 0) > 0 && (
+                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 shadow-sm">
+                      <p className="text-xs text-emerald-600 font-bold uppercase tracking-wider">Caution à restituer</p>
+                      <p className="text-xl font-extrabold text-emerald-700 mt-1">{Number(s.refund_due ?? 0).toLocaleString()} Ar</p>
+                    </div>
+                  )}
                   <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 shadow-sm">
                     <p className="text-xs text-amber-600 font-bold uppercase tracking-wider">Différence à payer</p>
                     <p className="text-xl font-extrabold text-amber-700 mt-1">{Number(s.excess_due ?? 0).toLocaleString()} Ar</p>
@@ -433,6 +480,34 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
                       <i className={`fas ${busySettlementId === s.id ? "fa-spinner fa-spin" : "fa-cut"} mr-2`} />
                       {busySettlementId === s.id ? "Traitement…" : "Valider le règlement"}
                     </button>
+                  )}
+                  {execution?.refund_obligation?.status === "pending" && (
+                    <button
+                      className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition shadow-sm"
+                      disabled={busyRefundId === execution.id}
+                      onClick={() => void handleRefundCaution(execution)}
+                    >
+                      <i className={`fas ${busyRefundId === execution.id ? "fa-spinner fa-spin" : "fa-hand-holding-usd"} mr-2`} />
+                      {busyRefundId === execution.id ? "Remboursement…" : "Restituer la caution"}
+                    </button>
+                  )}
+                  {execution?.refund_obligation?.status === "settled" && (
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-semibold flex items-center gap-1.5">
+                        <i className="fas fa-check-circle text-emerald-600" />
+                        Caution restituée
+                      </span>
+                      {execution.refund_obligation.receipt_document_id && (
+                        <button
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center gap-1.5 transition"
+                          onClick={() => onNavigate("documents", execution.refund_obligation!.receipt_document_id!)}
+                          title="Consulter le reçu de restitution"
+                        >
+                          <i className="fas fa-file-invoice text-slate-500" />
+                          Voir le reçu
+                        </button>
+                      )}
+                    </div>
                   )}
                   {execution?.excess_receivable?.status === "pending_invoice" && (
                     <button
