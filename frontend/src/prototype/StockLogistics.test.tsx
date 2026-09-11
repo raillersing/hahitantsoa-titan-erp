@@ -469,5 +469,139 @@ describe('Stock & Logistics Pages', () => {
       fireEvent.click(viewInvoiceBtn);
       expect(mockNavigate).toHaveBeenCalledWith('documents', 'doc-invoice-created-999');
     });
+
+    it('executes caution refund obligation when status is pending, renders receipt link and navigates on click', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([
+        {
+          id: 'set-refund-001',
+          return_operation: 'LOC-2026-0099',
+          document_instance: null,
+          settlement_status: 'validated',
+          damage_loss_total: 20000,
+          caution_available: 50000,
+          caution_applied: 20000,
+          refund_due: 30000,
+          excess_due: 0,
+          notes: '',
+          validated_at: '2026-07-20T10:00:00Z',
+          validated_by: 'u-01',
+          lines: [],
+          created_at: '2026-07-20T10:00:00Z',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
+      vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([
+        {
+          id: 'exec-ref-001',
+          settlement: 'set-refund-001',
+          status: 'executed',
+          executed_at: '2026-07-20T10:00:00Z',
+          executed_by: 'u-01',
+          damage_loss_total_snapshot: 20000,
+          caution_available_snapshot: 50000,
+          caution_applied_snapshot: 20000,
+          refund_due_snapshot: 30000,
+          excess_due_snapshot: 0,
+          notes: '',
+          created_at: '',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+          refund_obligation: {
+            id: 'obl-001',
+            amount: 30000,
+            status: 'pending',
+          },
+          excess_receivable: null,
+        },
+      ]);
+      const refundSpy = vi.spyOn(api, 'createRefundPayment').mockResolvedValue({
+        id: 'pmt-refund-001',
+        receipt_document: { id: 'doc-receipt-refund-777' },
+      } as any);
+
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+
+      expect(await screen.findByText('Caution à restituer')).toBeDefined();
+      const refundBtn = await screen.findByRole('button', { name: 'Restituer la caution' });
+      expect(refundBtn).toBeDefined();
+
+      fireEvent.click(refundBtn);
+
+      await waitFor(() => {
+        expect(refundSpy).toHaveBeenCalledWith({
+          refund_obligation_id: 'obl-001',
+          auto_confirm: true,
+        });
+      });
+
+      expect(await screen.findByText('Caution restituée')).toBeDefined();
+      const viewReceiptBtn = await screen.findByRole('button', { name: 'Voir le reçu' });
+      expect(viewReceiptBtn).toBeDefined();
+
+      fireEvent.click(viewReceiptBtn);
+      expect(mockNavigate).toHaveBeenCalledWith('documents', 'doc-receipt-refund-777');
+    });
+
+    it('displays already settled caution refund badge and receipt button on initial load', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([
+        {
+          id: 'set-refund-settled-001',
+          return_operation: 'LOC-2026-0100',
+          document_instance: null,
+          settlement_status: 'validated',
+          damage_loss_total: 0,
+          caution_available: 50000,
+          caution_applied: 0,
+          refund_due: 50000,
+          excess_due: 0,
+          notes: '',
+          validated_at: '2026-07-20T10:00:00Z',
+          validated_by: 'u-01',
+          lines: [],
+          created_at: '2026-07-20T10:00:00Z',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
+      vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([
+        {
+          id: 'exec-ref-settled-001',
+          settlement: 'set-refund-settled-001',
+          status: 'executed',
+          executed_at: '2026-07-20T10:00:00Z',
+          executed_by: 'u-01',
+          damage_loss_total_snapshot: 0,
+          caution_available_snapshot: 50000,
+          caution_applied_snapshot: 0,
+          refund_due_snapshot: 50000,
+          excess_due_snapshot: 0,
+          notes: '',
+          created_at: '',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+          refund_obligation: {
+            id: 'obl-settled-001',
+            amount: 50000,
+            status: 'settled',
+            receipt_document_id: 'doc-receipt-refund-888',
+          },
+          excess_receivable: null,
+        },
+      ]);
+
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+
+      expect(await screen.findByText('Caution restituée')).toBeDefined();
+      const viewReceiptBtn = await screen.findByRole('button', { name: 'Voir le reçu' });
+      expect(viewReceiptBtn).toBeDefined();
+
+      fireEvent.click(viewReceiptBtn);
+      expect(mockNavigate).toHaveBeenCalledWith('documents', 'doc-receipt-refund-888');
+    });
   });
 });

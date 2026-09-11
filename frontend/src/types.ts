@@ -894,6 +894,17 @@ export type DepositRecordingPayload = {
   idempotency_key: string;
 };
 
+export type RefundPaymentCreatePayload = {
+  refund_obligation_id: string;
+  notes?: string;
+  payment_method?: PaymentMethod;
+  auto_confirm?: boolean;
+};
+
+export type RefundPaymentConfirmPayload = {
+  notes?: string;
+};
+
 export type DepositRecordingResult = {
   payment: Payment;
   replayed: boolean;
@@ -1189,7 +1200,13 @@ export type InventoryDamageLossSettlementExecution = {
   updated_at: string;
   created_by: string | null;
   updated_by: string | null;
-  refund_obligation?: { id: string; amount: number | string; status: string } | null;
+  refund_obligation?: {
+    id: string;
+    amount: number | string;
+    status: string;
+    receipt_document_id?: string | null;
+    payment_id?: string | null;
+  } | null;
   excess_receivable: InventoryDamageLossExcessReceivable | null;
 };
 
