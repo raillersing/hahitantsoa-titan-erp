@@ -150,9 +150,9 @@ Etat global:
 | `HahitantsoaDocumentsPanel.tsx` | templates, instances, HTML, PDF HAH | documents + event drafts | oui | current |
 | `PaymentWorkflowPanel.tsx` | create + confirm payment | payments | oui | current |
 | `BillingInvoicePanel.tsx` | invoices, installments, credit notes, settle/cancel/refund obligation | billing | oui | current |
-| `LogisticsDeliveryPanel.tsx` | transitions, lines add/remove, complete passation | logistics | oui | current |
-| `ReturnsHandlingPanel.tsx` | inspect + validate return operations | return operations | oui | current |
-| `BreakageLossPanel.tsx` | inspect + validate settlements | damage/loss settlements | oui | current |
+| `LogisticsDeliveryPanel.tsx` | transitions, lines add/remove, complete passation, start linked return | logistics + inventory | oui | current |
+| `LogisticsReturnsPage.tsx` | inspect + validate return operations | return operations | oui | current |
+| `BreakageLossPage.tsx` | create, validate + execute settlements | damage/loss settlements | oui | current |
 | `StockMovementLedgerPanel.tsx` | ledger stock read-only | stock movements | lecture | current |
 
 ### 4.7 Identity / audit / cashbox / caution
@@ -220,9 +220,9 @@ Etat actuel:
 | `HahitantsoaEventDraftsPanel.tsx` | oui | create/update/delete/confirm/amendment |
 | `PaymentWorkflowPanel.tsx` | oui | create/confirm payment |
 | `BillingInvoicePanel.tsx` | oui | settle/cancel/installments/credit notes/refund obligation |
-| `LogisticsDeliveryPanel.tsx` | oui | transitions, lines, passation |
-| `ReturnsHandlingPanel.tsx` | oui | validate return |
-| `BreakageLossPanel.tsx` | oui | validate settlement |
+| `LogisticsDeliveryPanel.tsx` | oui | transitions, lines, passation, start linked return |
+| `LogisticsReturnsPage.tsx` | oui | validate return |
+| `BreakageLossPage.tsx` | oui | create, validate and execute settlement |
 | `CashboxPanel.tsx` | oui | open/close sessions, create movement |
 | `AuditPanel.tsx` | oui | lecture sensible |
 | `IdentityPanel.tsx` | oui | write still partial UI-side |

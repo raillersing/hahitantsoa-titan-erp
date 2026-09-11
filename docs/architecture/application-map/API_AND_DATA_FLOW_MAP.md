@@ -73,9 +73,9 @@ Titan gap restant:
 
 | Frontend | API | Backend | Statut |
 |---|---|---|---|
-| `LogisticsDeliveryPanel.tsx` | event list, status transition, item lines add/remove, complete passation | logistics + documents + inventory | connected |
-| `ReturnsHandlingPanel.tsx` | list + validate | inventory return operations | connected |
-| `BreakageLossPanel.tsx` | list + validate | inventory damage/loss settlements | connected |
+| `LogisticsDeliveryPanel.tsx` | event list, status transition, item lines add/remove, complete passation, start linked return | logistics + documents + inventory | connected |
+| `LogisticsReturnsPage.tsx` | list, filter, inspect and validate | inventory return operations | connected |
+| `BreakageLossPage.tsx` | create, validate and execute settlements | inventory damage/loss settlements | connected |
 | `StockMovementLedgerPanel.tsx` | list ledger | inventory stock movements | connected |
 
 ### 2.8 Identity / Audit
