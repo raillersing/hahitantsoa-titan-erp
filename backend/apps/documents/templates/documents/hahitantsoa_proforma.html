@@ -131,6 +131,7 @@
     .items td:nth-child(1), .items td:nth-child(2) { text-align: left; font-family: "Century Gothic", sans-serif; }
     .items td:nth-child(5) { padding-right: 7mm; }
     .items td .sub-item { padding-left: 3mm; font-size: 8pt; color: #444; }
+    .items td .sub-item-list { padding-left: 3mm; font-size: 7.5pt; color: #555; line-height: 1.35; margin-top: 0.5mm; }
 
     /* ========================================================================= */
     /* 9. BLOC TOTAUX, REMISE & BANDEAU TOTAL A PAYER                            */
@@ -286,6 +287,13 @@
               <td>
                 {{ line.inventory_item_name }}
                 {% if line.notes and line.notes != line.inventory_item_name %}<div class="sub-item">{{ line.notes }}</div>{% endif %}
+                {% if line.sub_items %}
+                  <div class="sub-item-list">
+                    {% for sub in line.sub_items %}
+                      <div>- {{ sub }}</div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
               </td>
               <td>{{ line.unit_price|default:"0,00" }}</td>
               <td>{{ line.total_price|default:"0,00" }}</td>

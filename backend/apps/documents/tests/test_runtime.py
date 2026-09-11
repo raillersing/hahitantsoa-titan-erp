@@ -686,3 +686,73 @@ def test_titan_proforma_and_contract_includes_real_prices_and_breakage(django_us
     )
     assert "CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS" in titan_contract
     assert "240 000,00" in titan_contract
+
+
+def test_hahitantsoa_bare_space_includes_detailed_contents_in_proforma_and_invoice() -> None:
+    from apps.documents.runtime import (
+        HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS,
+        preview_hahitantsoa_event_draft_document_html,
+    )
+
+    customer = Customer.objects.create(
+        display_name="Andry & Rova",
+        lifecycle_status=CustomerLifecycleStatus.CLIENT,
+        phone="+261 34 55 666 77",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=20)
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Mariage Andry & Rova",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=10),
+        rental_type="bare",
+        venue_name="Salle de réception Hahitantsoa",
+        space_rental_amount=Decimal("5000000.00"),
+        total_amount=Decimal("5000000.00"),
+    )
+
+    # 1. Proforma
+    proforma_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.proforma.v1",
+        )
+    )
+    assert "Location nue de l'espace" in proforma_html
+    for item in HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS:
+        assert item in proforma_html
+
+    # 2. Invoice
+    invoice_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.invoice.v1",
+        )
+    )
+    assert "Location nue de l'espace" in invoice_html
+    for item in HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS:
+        assert item in invoice_html
+
+    # 3. Delivery Note
+    delivery_note_html = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.delivery_note.v1",
+        )
+    )
+    assert "Location nue de l'espace" in delivery_note_html
+    for item in HAHITANTSOA_BARE_SPACE_INCLUDED_ITEMS:
+        assert item in delivery_note_html
+
+    # 4. In logistics mode, bare space sub-items should not be attached
+    event_draft.rental_type = "logistics"
+    event_draft.save(update_fields=["rental_type"])
+
+    logistics_proforma = unescape(
+        preview_hahitantsoa_event_draft_document_html(
+            event_draft=event_draft,
+            template_key="hahitantsoa.proforma.v1",
+        )
+    )
+    assert "Location de l'espace" in logistics_proforma
+    assert "10 Chaises pliables" not in logistics_proforma

@@ -125,6 +125,7 @@
     .items th:first-child, .items td:first-child { width: 15mm; text-align: left; }
     .items td { vertical-align: top; min-height: 7mm; text-align: left; font-family: "Century Gothic", sans-serif; }
     .items .description { padding-left: 2mm; line-height: 1.45; }
+    .items td .sub-item-list { padding-left: 2mm; font-size: 8pt; color: #555; line-height: 1.35; margin-top: 0.5mm; }
 
     /* ========================================================================= */
     /* 9. RAJOUTS & PASSATION                                                    */
@@ -207,7 +208,17 @@
           {% for line in context.event_draft.lines %}
             <tr>
               <td>{{ line.quantity|stringformat:"03d" }}</td>
-              <td class="description">{{ line.inventory_item_name }}{% if line.notes and line.notes != line.inventory_item_name %}<br>{{ line.notes }}{% endif %}</td>
+              <td class="description">
+                {{ line.inventory_item_name }}
+                {% if line.notes and line.notes != line.inventory_item_name %}<br>{{ line.notes }}{% endif %}
+                {% if line.sub_items %}
+                  <div class="sub-item-list">
+                    {% for sub in line.sub_items %}
+                      <div>- {{ sub }}</div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>
