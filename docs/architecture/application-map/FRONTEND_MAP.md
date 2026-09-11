@@ -42,7 +42,7 @@ main.tsx
                     ├── LoginPanel.tsx
                     └── Shell hash-based
                         ├── #dashboard         → DashboardPanel.tsx
-                        ├── #planning          → FutureWorkspacePanel.tsx
+                        ├── #planning          → PlanningPage.tsx
                         ├── #titan             → inventory inline + AvailabilityPanel.tsx + TitanStockMovementPanel.tsx + DocumentArtifactPreviewPanel.tsx
                         ├── #hahitantsoa       → HahitantsoaDiscoveryPanel.tsx + HahitantsoaEventDraftsPanel.tsx
                         ├── #customers         → CustomerPanel.tsx
@@ -83,7 +83,7 @@ Etat global:
 | Scope | Route hash | Composant | Statut |
 |---|---|---|---|
 | Dashboard | `#dashboard` | `DashboardPanel.tsx` | current |
-| Planning | `#planning` | `PlanningPanel.tsx` | current |
+| Planning | `#planning` | `PlanningPage.tsx` | current |
 | Titan | `#titan` | inventaire inline + `AvailabilityPanel.tsx` + `TitanStockMovementPanel.tsx` + `DocumentArtifactPreviewPanel.tsx` | current |
 | Hahitantsoa | `#hahitantsoa` | `HahitantsoaDiscoveryPanel.tsx` + `HahitantsoaEventDraftsPanel.tsx` | current |
 | Customers | `#customers` | `CustomerPanel.tsx` | current |

@@ -89,7 +89,7 @@ Titan gap restant:
 
 | Frontend | API | Backend | Statut |
 |---|---|---|---|
-| `#planning` | reservation drafts, event drafts | reservations + hahitantsoa | connected via `PlanningPanel.tsx` |
+| `#planning` | reservation drafts, event drafts | reservations + hahitantsoa | connected via `PlanningPage.tsx` |
 | `#reports` | aucune action export live | non confirmé | intentional placeholder |
 | `#catalog`, `#procurement`, `#hr`, `#help` | aucune API dédiée actuelle | non confirmé ou futur | intentional placeholder |
 
@@ -172,7 +172,7 @@ Le gap n’est plus “frontend absent”, mais:
 | Logistics / returns / damage | connected |
 | Audit | connected |
 | Identity write admin | partial |
-| Planning | placeholder |
+| Planning | connected |
 | Reports / exports | placeholder |
 
 ---
