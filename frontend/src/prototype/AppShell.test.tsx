@@ -167,7 +167,7 @@ describe('AppShell', () => {
     render(<AppShell activeScope="dashboard" onNavigate={mockNavigate}><div>Content</div></AppShell>);
     expect(screen.getByText('Offres')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Catalogue/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Packs/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Sets|Packs/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Services/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Locaux & Dépôts/i })).toBeInTheDocument();
     // 'Packages' n'apparait plus comme libellé

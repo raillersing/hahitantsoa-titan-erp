@@ -1181,4 +1181,67 @@ describe('ReservationNewPage', () => {
       );
     });
   });
+
+  it('22. étape Date & disponibilité Hahitantsoa affiche le récapitulatif des choix et ne propose plus d\'input de tarif de base', async () => {
+    render(<ReservationNewPage onNavigate={mockNavigate} param="hahitantsoa" />);
+
+    // Step 2 is client selection in domain_first mode
+    await waitFor(() => {
+      expect(screen.getByText('Sélection ou création du client')).toBeInTheDocument();
+    });
+
+    // Select existing client
+    fireEvent.click(screen.getByTestId('client-select-CUST-001'));
+    fireEvent.click(screen.getByText('Continuer'));
+
+    // Step 3: Date & disponibilité
+    await waitFor(() => {
+      expect(screen.getByText('Détails Événement (Hahitantsoa)')).toBeInTheDocument();
+    });
+
+    // Verify there is NO editable input for "Tarif de base" / "Prix location local"
+    expect(screen.queryByLabelText(/Prix location local/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Tarif logistique/i)).not.toBeInTheDocument();
+
+    // Verify the recap card is present with step choices and total
+    expect(screen.getByText(/Récapitulatif des choix de l'étape :/i)).toBeInTheDocument();
+    expect(screen.getByText(/Total Espace & Formule/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tarif de base local :/i)).toBeInTheDocument();
+  });
+
+  it('23. propose le choix entre reprendre le parcours en cours et nouvelle réservation lorsqu\'un brouillon existe', async () => {
+    const draftData = {
+      path: 'domain_first',
+      step: 3,
+      maxReachedStep: 3,
+      domain: 'hahitantsoa',
+      selectedClientId: 'CUST-001',
+      hDetails: {
+        eventType: 'Mariage',
+        venue: 'Salle des fêtes + jardin',
+        startDate: '2026-11-20',
+        rentalType: 'Location nue',
+        durationOption: 'day',
+      },
+    };
+    localStorage.setItem('prototypeReservationDraft', JSON.stringify(draftData));
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param="hahitantsoa" />);
+
+    // Check prompt appears
+    expect(await screen.findByText('Parcours de réservation en cours')).toBeInTheDocument();
+    expect(screen.getByText(/Un parcours de réservation est déjà commencé pour un événement Hahitantsoa/i)).toBeInTheDocument();
+
+    // Verify both action buttons are present
+    const newReservationBtn = screen.getByRole('button', { name: /Nouvelle réservation/i });
+    const resumeDraftBtn = screen.getByRole('button', { name: /Reprendre le brouillon/i });
+    expect(newReservationBtn).toBeInTheDocument();
+    expect(resumeDraftBtn).toBeInTheDocument();
+
+    // Clicking "Nouvelle réservation" clears the draft and starts fresh
+    fireEvent.click(newReservationBtn);
+    expect(localStorage.getItem('prototypeReservationDraft')).toBeNull();
+    expect(screen.queryByText('Parcours de réservation en cours')).not.toBeInTheDocument();
+    expect(await screen.findByText('Sélection ou création du client')).toBeInTheDocument();
+  });
 });

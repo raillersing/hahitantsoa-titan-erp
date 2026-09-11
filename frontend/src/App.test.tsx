@@ -186,7 +186,7 @@ describe("App Prototype", () => {
     expect(screen.getByRole("link", { name: /Sortie \/ Livraison/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Retour \/ Restitution/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Casse & Perte/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Packs/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Sets|Packs/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Services/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Liste noire/i })).toBeInTheDocument();
   });

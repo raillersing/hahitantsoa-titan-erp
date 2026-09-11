@@ -239,8 +239,8 @@ export default function AppShell({
       pageTitle = "Catalogue";
       breadcrumbs.push({ label: "Catalogue", scope: "inventory", param: undefined });
     } else if (activeScope === "packages") {
-      pageTitle = "Packs";
-      breadcrumbs.push({ label: "Packs", scope: "packages", param: undefined });
+      pageTitle = "Sets";
+      breadcrumbs.push({ label: "Sets", scope: "packages", param: undefined });
     } else if (activeScope === "services") {
       pageTitle = "Services";
       breadcrumbs.push({ label: "Services", scope: "services", param: undefined });
@@ -367,7 +367,7 @@ export default function AppShell({
             <i className="fas fa-box-open w-5 text-center"></i><span>Catalogue</span>
           </a>
           <a href="#packages" onClick={(e) => { e.preventDefault(); onNavigate("packages"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "packages" ? "active" : ""}`}>
-            <i className="fas fa-boxes-stacked w-5 text-center"></i><span>Packs</span>
+            <i className="fas fa-boxes-stacked w-5 text-center"></i><span>Sets</span>
           </a>
           <a href="#services" onClick={(e) => { e.preventDefault(); onNavigate("services"); setIsMobileMenuOpen(false); }} className={`sidebar-link flex items-center gap-3 px-6 py-2.5 text-sm font-medium ${activeScope === "services" ? "active" : ""}`}>
             <i className="fas fa-concierge-bell w-5 text-center"></i><span>Services</span>
