@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LoadingSpinner } from '../components';
 import {
   getReservationDrafts,
@@ -6,6 +6,7 @@ import {
   getInventoryItems,
   getBillingInvoices,
   getNotifications,
+  getReturnOperations,
   ApiError,
 } from "../api";
 import type {
@@ -14,6 +15,7 @@ import type {
   InventoryItem,
   BillingInvoice,
   SystemNotification,
+  InventoryReturnOperation,
 } from "../types";
 import UpcomingEventsPanel from "./UpcomingEventsPanel";
 
@@ -145,6 +147,7 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
+  const [returnOperations, setReturnOperations] = useState<InventoryReturnOperation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [partialLoadMessage, setPartialLoadMessage] = useState<string | null>(null);
@@ -163,10 +166,18 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
           getInventoryItems(controller.signal),
           getBillingInvoices(undefined, controller.signal),
           getNotifications(false, controller.signal),
+          getReturnOperations(controller.signal),
         ]);
         if (controller.signal.aborted) return;
 
-        const [draftsResult, eventDraftsResult, inventoryResult, invoicesResult, notificationsResult] = results;
+        const [
+          draftsResult,
+          eventDraftsResult,
+          inventoryResult,
+          invoicesResult,
+          notificationsResult,
+          returnOpsResult,
+        ] = results;
         const unavailableSources: string[] = [];
         if (draftsResult.status === "fulfilled") setDrafts(draftsResult.value);
         else unavailableSources.push("les réservations Titan");
@@ -178,6 +189,8 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
         else unavailableSources.push("la facturation");
         if (notificationsResult.status === "fulfilled") setNotifications(notificationsResult.value);
         else unavailableSources.push("les notifications");
+        if (returnOpsResult.status === "fulfilled") setReturnOperations(returnOpsResult.value);
+        else unavailableSources.push("les opérations de retour");
 
         if (unavailableSources.length === results.length) {
           setError("Aucune donnée du tableau de bord n’a pu être chargée.");
@@ -204,7 +217,8 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
 
   // Compute dashboard statistics from real API data
   const activeReservations = drafts.filter((draft) => draft.status !== "cancelled").length;
-  const activeEventDrafts = eventDrafts.length; // Hahitantsoa statuses are only "draft" | "confirmed"
+  const activeEventDrafts = eventDrafts.length;
+  const pendingReturns = returnOperations.filter((r) => r.status === "draft").length;
   const totalItems = inventoryItems.length;
   const stockAlerts = notifications.filter((n) => n.notification_type === "stock").length;
   const remainingBalance = invoices.reduce((sum, inv) => {
@@ -219,11 +233,47 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
     drafts.filter((d) => d.status !== "cancelled").map((d) => d.created_at),
     activityDays,
   );
-  const hahActivity = countByDay(eventDrafts.map((d) => d.created_at), activityDays);
+  const hahActivity = countByDay(
+    eventDrafts.map((d) => d.created_at),
+    activityDays,
+  );
   const activityMax = Math.max(1, ...titanActivity, ...hahActivity);
   const activityTotal =
     titanActivity.reduce((sum, count) => sum + count, 0) +
     hahActivity.reduce((sum, count) => sum + count, 0);
+
+  // Unified recent dossiers (Titan & Hahitantsoa)
+  const recentDossiers = useMemo(() => {
+    const combined = [
+      ...drafts
+        .filter((d) => d.status !== "cancelled")
+        .map((d) => ({
+          id: d.id,
+          domain: "Titan" as const,
+          customer_display_name: d.customer_display_name || "—",
+          public_reference: d.public_reference,
+          start_at: d.start_at,
+          status: d.status,
+          line_count: d.lines?.length ?? 0,
+          created_at: d.created_at,
+          navigationParam: `titan:${d.id}`,
+        })),
+      ...eventDrafts.map((e) => ({
+        id: e.id,
+        domain: "Hahitantsoa" as const,
+        customer_display_name: e.customer_display_name || e.event_name || "—",
+        public_reference: e.public_reference,
+        start_at: e.start_at,
+        status: e.status,
+        line_count: e.lines?.length ?? 0,
+        created_at: e.created_at,
+        navigationParam: `hahitantsoa:${e.id}`,
+      })),
+    ];
+    return combined.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [drafts, eventDrafts]);
 
   // Loading skeleton
   if (loading) {
@@ -286,22 +336,44 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
           </div>
           <p className="text-2xl font-bold text-slate-800">{activeReservations}</p>
           <p className="text-sm text-slate-500">Réservations Titan en cours</p>
-          <button className="mt-3 text-xs text-hah-600 font-semibold hover:text-hah-700" onClick={() => onNavigate("hahitantsoa")}>Voir les réservations →</button>
+          <div className="mt-3 flex items-center justify-between gap-2 text-xs font-semibold">
+            <button className="text-hah-600 hover:text-hah-700" onClick={() => onNavigate("reservations")}>
+              Tous les dossiers →
+            </button>
+            <button className="text-blue-600 hover:text-blue-700" onClick={() => onNavigate("hahitantsoa")}>
+              Hahitantsoa →
+            </button>
+          </div>
         </div>
 
-        {/* Card 2: Inventory items count */}
+        {/* Card 2: Inventory items count & Returns */}
         <div className="bg-white rounded-2xl p-6 card-hover border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div className="w-12 h-12 rounded-xl bg-tit-50 flex items-center justify-center text-tit-600">
               <i className="fas fa-box text-xl"></i>
             </div>
-            <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">
-              {totalItems} articles
-            </span>
+            {pendingReturns > 0 ? (
+              <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+                {pendingReturns} retour(s) à traiter
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                {totalItems} articles
+              </span>
+            )}
           </div>
           <p className="text-2xl font-bold text-slate-800">{totalItems}</p>
           <p className="text-sm text-slate-500">Articles d'inventaire</p>
-          <button className="mt-3 text-xs text-tit-600 font-semibold hover:text-tit-700" onClick={() => onNavigate("titan")}>Voir l'inventaire →</button>
+          <div className="mt-3 flex items-center justify-between gap-2 text-xs font-semibold">
+            <button className="text-tit-600 hover:text-tit-700" onClick={() => onNavigate("titan")}>
+              Voir l'inventaire →
+            </button>
+            {pendingReturns > 0 && (
+              <button className="text-amber-600 hover:text-amber-700" onClick={() => onNavigate("breakage-loss")}>
+                Retours ({pendingReturns}) →
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Card 3: Stock alerts from real notifications */}
@@ -322,6 +394,9 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
           </div>
           <p className="text-2xl font-bold text-slate-800">{stockAlerts}</p>
           <p className="text-sm text-slate-500">Alertes de stock</p>
+          <button className="mt-3 text-xs text-amber-600 font-semibold hover:text-amber-700" onClick={() => onNavigate("stock-movements")}>
+            Mouvements de stock →
+          </button>
         </div>
 
         {/* Card 4: Remaining balance (invoices) */}
@@ -342,6 +417,9 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
           </div>
           <p className="text-2xl font-bold text-slate-800">{formatAr(remainingBalance)}</p>
           <p className="text-sm text-slate-500">Reste à payer (échéances)</p>
+          <button className="mt-3 text-xs text-blue-600 font-semibold hover:text-blue-700" onClick={() => onNavigate("commercial-ops")}>
+            Facturation & Échéances →
+          </button>
         </div>
       </div>
 
@@ -423,9 +501,19 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
 
       {/* Dossiers en cours table */}
       <div className="bg-white rounded-2xl border border-slate-100 p-6">
-        <h3 className="font-bold text-slate-800 mb-4">Dossiers en cours</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-slate-800">Dossiers en cours</h3>
+          {recentDossiers.length > 0 && (
+            <button
+              className="text-xs text-hah-600 font-semibold hover:text-hah-700 hover:underline"
+              onClick={() => onNavigate("reservations")}
+            >
+              Voir tous les dossiers ({recentDossiers.length}) →
+            </button>
+          )}
+        </div>
         <div className="overflow-x-auto">
-          {drafts.length === 0 ? (
+          {recentDossiers.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               <i className="fas fa-folder-open text-3xl mb-3"></i>
               <p className="text-sm">Aucun dossier en cours</p>
@@ -434,36 +522,50 @@ export default function DashboardPage({ onNavigate, canSensitiveWrite = false }:
             <table className="w-full text-sm">
               <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-left rounded-l-lg">Client</th>
+                  <th className="px-4 py-3 text-left rounded-l-lg">Domaine</th>
+                  <th className="px-4 py-3 text-left">Client</th>
                   <th className="px-4 py-3 text-left">Référence</th>
                   <th className="px-4 py-3 text-left">Date événement</th>
                   <th className="px-4 py-3 text-left">Statut</th>
-                  <th className="px-4 py-3 text-left">Articles</th>
+                  <th className="px-4 py-3 text-left">Éléments</th>
                   <th className="px-4 py-3 text-left rounded-r-lg">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {drafts.slice(0, 10).map((draft) => (
+                {recentDossiers.slice(0, 10).map((dossier) => (
                   <tr
-                    key={draft.id}
+                    key={`${dossier.domain}-${dossier.id}`}
                     className="hover:bg-slate-50 transition cursor-pointer"
-                    onClick={() => onNavigate("reservation-detail", draft.id)}
+                    onClick={() => onNavigate("reservation-detail", dossier.navigationParam)}
                   >
-                    <td className="px-4 py-3 font-medium text-slate-800">{draft.customer_display_name}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{draft.public_reference}</td>
-                    <td className="px-4 py-3 text-slate-600">{formatDateFr(draft.start_at)}</td>
                     <td className="px-4 py-3">
-                      {draft.status === "confirmed" && (
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+                          dossier.domain === "Titan"
+                            ? "bg-tit-100 text-tit-800"
+                            : "bg-hah-100 text-hah-800"
+                        }`}
+                      >
+                        {dossier.domain}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-slate-800">{dossier.customer_display_name}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{dossier.public_reference}</td>
+                    <td className="px-4 py-3 text-slate-600">{formatDateFr(dossier.start_at)}</td>
+                    <td className="px-4 py-3">
+                      {dossier.status === "confirmed" && (
                         <span className="px-2.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Confirmé</span>
                       )}
-                      {draft.status === "draft" && (
+                      {dossier.status === "draft" && (
                         <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">Proforma</span>
                       )}
-                      {draft.status === "cancelled" && (
+                      {dossier.status === "cancelled" && (
                         <span className="px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Annulé</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-slate-600">{draft.lines.length} article(s)</td>
+                    <td className="px-4 py-3 font-mono text-slate-600">
+                      {dossier.line_count} {dossier.domain === "Titan" ? "article(s)" : "prestation(s)"}
+                    </td>
                     <td className="px-4 py-3">
                       <button className="text-hah-600 hover:text-hah-700 text-xs font-semibold">Voir dossier →</button>
                     </td>
