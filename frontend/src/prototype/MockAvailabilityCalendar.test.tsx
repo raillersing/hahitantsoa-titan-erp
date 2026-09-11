@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
+import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
 
 function jsonResponse(payload: object): Response {
   return new Response(JSON.stringify(payload), {
@@ -9,7 +9,7 @@ function jsonResponse(payload: object): Response {
   });
 }
 
-describe("MockAvailabilityCalendar", () => {
+describe("AvailabilityDatePicker inline", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -45,14 +45,15 @@ describe("MockAvailabilityCalendar", () => {
     });
 
     const { rerender } = render(
-      <MockAvailabilityCalendar onDateSelect={onDateSelect} showAvailabilityPreview />,
+      <AvailabilityDatePicker mode="inline" onDateSelect={onDateSelect} showAvailabilityPreview />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: `${day} ${monthName} ${year}` }));
     expect(onDateSelect).toHaveBeenCalledWith(selectedDate);
 
     rerender(
-      <MockAvailabilityCalendar
+      <AvailabilityDatePicker
+        mode="inline"
         onDateSelect={onDateSelect}
         selectedDate={selectedDate}
         showAvailabilityPreview
@@ -73,7 +74,7 @@ describe("MockAvailabilityCalendar", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ detail: "Indisponible" }), { status: 500 }));
 
     render(
-      <MockAvailabilityCalendar selectedDate={selectedDate} showAvailabilityPreview />,
+      <AvailabilityDatePicker mode="inline" selectedDate={selectedDate} showAvailabilityPreview />,
     );
 
     await waitFor(() => expect(screen.getByText(/Disponibilité non vérifiée/)).toBeInTheDocument());
@@ -102,7 +103,7 @@ describe("MockAvailabilityCalendar", () => {
       }));
     });
 
-    render(<MockAvailabilityCalendar selectedDate={selectedDate} showAvailabilityPreview />);
+    render(<AvailabilityDatePicker mode="inline" selectedDate={selectedDate} showAvailabilityPreview />);
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Réessayer" })).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
@@ -133,7 +134,8 @@ describe("MockAvailabilityCalendar", () => {
     }));
 
     render(
-      <MockAvailabilityCalendar
+      <AvailabilityDatePicker
+        mode="inline"
         onDateSelect={onDateSelect}
         showHahitantsoaVenueOccupancy
         venueName="Salle des fêtes + jardin"
@@ -191,7 +193,8 @@ describe("MockAvailabilityCalendar", () => {
     });
 
     render(
-      <MockAvailabilityCalendar
+      <AvailabilityDatePicker
+        mode="inline"
         showHahitantsoaVenueOccupancy
         venueName="Salle des fêtes + jardin"
       />,
@@ -219,7 +222,8 @@ describe("MockAvailabilityCalendar", () => {
     });
 
     render(
-      <MockAvailabilityCalendar
+      <AvailabilityDatePicker
+        mode="inline"
         showHahitantsoaVenueOccupancy
         venueName="Salle des fêtes + jardin"
       />,
@@ -252,7 +256,8 @@ describe("MockAvailabilityCalendar", () => {
     }));
 
     render(
-      <MockAvailabilityCalendar
+      <AvailabilityDatePicker
+        mode="inline"
         onDateSelect={onDateSelect}
         showHahitantsoaVenueOccupancy
         venueName="Salle des fêtes + jardin"
