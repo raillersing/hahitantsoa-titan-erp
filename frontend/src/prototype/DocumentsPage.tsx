@@ -54,7 +54,14 @@ export default function DocumentsPage({ onNavigate, param }: { onNavigate: (scop
 
       {/* Content */}
       <div>
-        {activeTab === "hub" && <div id="documents-panel-hub" role="tabpanel" aria-label="Hub documentaire"><DocumentsHubPage onNavigate={onNavigate} /></div>}
+        {activeTab === "hub" && (
+          <div id="documents-panel-hub" role="tabpanel" aria-label="Hub documentaire">
+            <DocumentsHubPage
+              onNavigate={onNavigate}
+              selectedDocumentId={param && param !== "templates" && param !== "generate" ? param : undefined}
+            />
+          </div>
+        )}
         {activeTab === "templates" && <div id="documents-panel-templates" role="tabpanel" aria-label="Modèles de documents"><DocumentsTemplatesPage /></div>}
         {activeTab === "generate" && (
           <div id="documents-panel-generate" role="tabpanel" aria-label="Générer un document" className="bg-white rounded-xl border border-slate-200 p-12 text-center">

@@ -78,6 +78,29 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
     return () => { cancelled = true; controller.abort(); };
   }, []);
 
+  useEffect(() => {
+    if (returnOperations.length === 0 || inventoryItems.length === 0) return;
+    setUnitAmounts((current) => {
+      let changed = false;
+      const next = { ...current };
+      for (const op of returnOperations) {
+        if (op.status !== "validated") continue;
+        for (const line of op.lines) {
+          if (line.damaged_quantity > 0 || line.missing_quantity > 0) {
+            if (next[line.id] === undefined || next[line.id] === "") {
+              const item = inventoryItems.find((i) => i.id === line.inventory_item);
+              if (item?.breakage_price && Number(item.breakage_price) > 0) {
+                next[line.id] = String(Number(item.breakage_price));
+                changed = true;
+              }
+            }
+          }
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [returnOperations, inventoryItems]);
+
   const scopedReturnIds = new Set(returnOperations
     .filter((operation) => !param || (param.startsWith("titan:")
       ? operation.reservation_draft === param.slice("titan:".length)
@@ -180,7 +203,14 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
     if (!receivable || receivable.status !== "pending_invoice" || busyInvoiceId) return;
     setBusyInvoiceId(execution.id);
     try {
-      await generateExcessReceivableInvoice(receivable.id);
+      const doc = await generateExcessReceivableInvoice(receivable.id);
+      if (doc?.id) {
+        setData((current) =>
+          current.map((item) =>
+            item.id === execution.settlement ? { ...item, document_instance: doc.id } : item,
+          ),
+        );
+      }
       setExecutions((current) => current.map((item) => item.id === execution.id
         ? { ...item, excess_receivable: { ...receivable, status: "invoiced" } }
         : item));
@@ -384,6 +414,16 @@ export default function BreakageLossPage({ onNavigate, param }: { onNavigate: (s
                     <i className="fas fa-eye text-slate-500" />
                     <span>Modèle Détails de casse</span>
                   </button>
+                  {s.document_instance && (
+                    <button
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm flex items-center gap-1.5 transition shadow-sm"
+                      onClick={() => onNavigate("documents", String(s.document_instance))}
+                      title="Consulter la facture de casse générée"
+                    >
+                      <i className="fas fa-file-invoice text-white" />
+                      <span>Voir la facture de casse</span>
+                    </button>
+                  )}
                   {s.settlement_status === "draft" && (
                     <button
                       className="px-4 py-2 bg-tit-600 text-white font-bold rounded-lg hover:bg-tit-700"

@@ -345,5 +345,129 @@ describe('Stock & Logistics Pages', () => {
         }],
       }));
     });
+
+    it('auto-prefills unit amounts from item breakage_price on pending returns', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([]);
+      vi.spyOn(api, 'getInventoryItems').mockResolvedValue([
+        { id: 'MAT-01', name: 'Chaise Napoléon', kind: 'material', description: '', breakage_price: '50000.00' },
+      ]);
+      vi.spyOn(api, 'getReturnOperations').mockResolvedValue([
+        {
+          id: 'ret-003',
+          reservation_draft: 'rd-003',
+          hahitantsoa_event_draft: null,
+          logistics_event: 'out-003',
+          document_instance: null,
+          status: 'validated',
+          notes: '',
+          validated_at: '2026-07-20T10:00:00Z',
+          validated_by: 'u-01',
+          lines: [{
+            id: 'rline-003', inventory_item: 'MAT-01', expected_quantity: 3,
+            returned_quantity: 3, damaged_quantity: 1, missing_quantity: 0,
+            condition_status: 'mixed', notes: 'Pied cassé', intact_quantity: 2,
+            created_at: '', updated_at: '', created_by: null, updated_by: null,
+          }],
+          created_at: '', updated_at: '', created_by: null, updated_by: null,
+        },
+      ]);
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+      const amountInput = await screen.findByRole('spinbutton', { name: 'Montant unitaire Chaise Napoléon' }) as HTMLInputElement;
+      await waitFor(() => expect(amountInput.value).toBe('50000'));
+    });
+
+    it('displays "Voir la facture de casse" button when document_instance is present and navigates to documents', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([
+        {
+          id: 'set-doc-001',
+          return_operation: 'LOC-2026-0087',
+          document_instance: 'doc-uuid-12345',
+          settlement_status: 'validated',
+          damage_loss_total: 150000,
+          caution_available: 500000,
+          caution_applied: 0,
+          refund_due: 0,
+          excess_due: 150000,
+          notes: '',
+          validated_at: '2026-07-20T10:00:00Z',
+          validated_by: 'u-01',
+          lines: [],
+          created_at: '2026-07-20T10:00:00Z',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+      const viewButton = await screen.findByRole('button', { name: 'Voir la facture de casse' });
+      expect(viewButton).toBeDefined();
+      fireEvent.click(viewButton);
+      expect(mockNavigate).toHaveBeenCalledWith('documents', 'doc-uuid-12345');
+    });
+
+    it('generates excess receivable invoice, updates document_instance, and displays "Voir la facture de casse"', async () => {
+      vi.spyOn(api, 'getDamageLossSettlements').mockResolvedValue([
+        {
+          id: 'set-invoice-001',
+          return_operation: 'LOC-2026-0087',
+          document_instance: null,
+          settlement_status: 'validated',
+          damage_loss_total: 150000,
+          caution_available: 50000,
+          caution_applied: 50000,
+          refund_due: 0,
+          excess_due: 100000,
+          notes: '',
+          validated_at: '2026-07-20T10:00:00Z',
+          validated_by: 'u-01',
+          lines: [],
+          created_at: '2026-07-20T10:00:00Z',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
+      vi.spyOn(api, 'getDamageLossSettlementExecutions').mockResolvedValue([
+        {
+          id: 'exec-inv-001',
+          settlement: 'set-invoice-001',
+          status: 'executed',
+          executed_at: '2026-07-20T10:00:00Z',
+          executed_by: 'u-01',
+          damage_loss_total_snapshot: 150000,
+          caution_available_snapshot: 50000,
+          caution_applied_snapshot: 50000,
+          refund_due_snapshot: 0,
+          excess_due_snapshot: 100000,
+          notes: '',
+          created_at: '',
+          updated_at: '',
+          created_by: null,
+          updated_by: null,
+          excess_receivable: {
+            id: 'rec-001',
+            amount: 100000,
+            status: 'pending_invoice',
+            created_at: '',
+            updated_at: '',
+            created_by: null,
+            updated_by: null,
+          },
+        },
+      ]);
+      const generateInvoiceSpy = vi.spyOn(api, 'generateExcessReceivableInvoice').mockResolvedValue({
+        id: 'doc-invoice-created-999',
+      } as any);
+
+      render(<BreakageLossPage onNavigate={mockNavigate} />);
+      const createInvoiceBtn = await screen.findByRole('button', { name: 'Créer facture de différence' });
+      fireEvent.click(createInvoiceBtn);
+
+      await waitFor(() => expect(generateInvoiceSpy).toHaveBeenCalledWith('rec-001'));
+      const viewInvoiceBtn = await screen.findByRole('button', { name: 'Voir la facture de casse' });
+      expect(viewInvoiceBtn).toBeDefined();
+      fireEvent.click(viewInvoiceBtn);
+      expect(mockNavigate).toHaveBeenCalledWith('documents', 'doc-invoice-created-999');
+    });
   });
 });
