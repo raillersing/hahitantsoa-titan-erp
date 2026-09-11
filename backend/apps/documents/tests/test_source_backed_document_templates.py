@@ -50,12 +50,18 @@ def test_hahitantsoa_contract_uses_canonical_html_css_pages_and_preserves_annex_
     assert "size: A4 portrait" in html
     assert html.count('class="contract-page') == 8
     assert "CONTRAT DE LOCATION « HAHITANTSOA »" in html
+    assert "Conditions d’annulation, de report et de remboursement" in html
     assert "Carte Nationale d’Identité/Passeport" in html
     assert "Prix de casse" in html
     assert "Annexe 2 : Plan de masse et évacuation incendie" in html
+    assert "Annexe 4 : Liste des intervenants non autorisés" in html
+    assert "Cette liste a été vu avant le proforma." in html
     assert "total des préjudices" not in html.lower()
     assert "@media print" in html
     assert "break-inside: avoid" in html
+    assert "text-align: justify" in html
+    assert "text-align-last: left" in html
+    assert "dash-list" in html
 
 
 @pytest.mark.parametrize(

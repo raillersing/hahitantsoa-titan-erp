@@ -36,7 +36,7 @@
 
         {% if show_variables %}
             {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
-                <p>La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong>, dont le siège social est situé au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
+                <p class="party-metadata">La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong>, dont le siège social est situé au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
                 NIF : <span class="variable">{% templatetag openvariable %} client.nif {% templatetag closevariable %}</span><br>
                 STAT : <span class="variable">{% templatetag openvariable %} client.stat {% templatetag closevariable %}</span><br>
                 RCS : <span class="variable">{% templatetag openvariable %} client.rcs {% templatetag closevariable %}</span><br>
@@ -48,7 +48,7 @@
             {% endif %}
         {% else %}
             {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
-                <p>La société <strong>{{ customer.display_name|default:"................................" }}</strong>, dont le siège social est situé au {{ customer.address|default:"................................" }}<br>
+                <p class="party-metadata">La société <strong>{{ customer.display_name|default:"................................" }}</strong>, dont le siège social est situé au {{ customer.address|default:"................................" }}<br>
                 NIF : {{ customer.nif|default:"................................" }}<br>
                 STAT : {{ customer.stat|default:"................................" }}<br>
                 RCS : {{ customer.rcs|default:"................................" }}<br>

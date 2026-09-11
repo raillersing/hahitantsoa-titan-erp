@@ -72,7 +72,7 @@ html, body {
   height: 32mm;
   object-fit: contain;
 }
-.brand-block p { margin: 1mm 0 0; }
+.brand-block p { margin: 1mm 0 0; text-align: center !important; text-align-last: center !important; }
 
 /* En-tête des pages suivantes avec logo Hahitantsoa centré */
 .contract-subpage-header {
@@ -114,13 +114,17 @@ h1, h2, p, ul, table, .signatures, .plan-container, .breakage-list, .empty-note,
 h1 { font-size: 13pt; text-align: center; margin: 0 0 3.5mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
 .contract-subtitle { font-size: 11pt; text-align: center; margin: -2.5mm 0 3.5mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
 h2 { font-size: 9.5pt; text-decoration: underline; margin: 2.5mm 0 1.2mm; font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-weight: 700; }
-p { margin: 0 0 1.8mm; }
+p { margin: 0 0 1.8mm; text-align: justify; text-justify: inter-word; text-align-last: left; }
 ul { margin: 0 0 1.8mm; padding-left: 6mm; }
-li { margin: 0.4mm 0; }
-.text-right { text-align: right; }
-.text-center { text-align: center; }
+ul.dash-list, .dash-list { list-style-type: "- "; padding-left: 6mm; }
+ul.dash-list li, .dash-list li { padding-left: 1mm; }
+li { margin: 0.4mm 0; text-align: justify; text-justify: inter-word; text-align-last: left; }
+.text-left { text-align: left !important; text-align-last: left !important; }
+.text-right { text-align: right !important; text-align-last: right !important; }
+.text-center { text-align: center !important; text-align-last: center !important; }
+.party-metadata { text-align: left !important; text-align-last: left !important; }
 .uppercase { text-transform: uppercase; }
-.indent { padding-left: 6mm; }
+.indent { padding-left: 6mm; text-align: left !important; text-align-last: left !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
 
 /* ========================================================================= */
@@ -131,29 +135,29 @@ li { margin: 0.4mm 0; }
 .signature-block strong { display: block; margin-bottom: 1.5mm; }
 .signature-subtitle { font-size: 8.5pt; color: #333333; }
 .signature-space { height: 20mm; min-height: 20mm; }
-.signature-intro { margin-top: 3mm; margin-bottom: 1mm; font-size: 9pt; }
+.signature-intro { margin-top: 3mm; margin-bottom: 1mm; font-size: 9pt; text-align: center !important; text-align-last: center !important; }
 .annex h2 { text-align: center; font-size: 12pt; margin: 0 0 4mm; }
 
 /* Spécificités Page 4 pour resserrer le texte et aérer les signatures */
 .contract-page--page4 h2 { margin: 2mm 0 1mm; font-size: 9.5pt; }
-.contract-page--page4 p { margin: 0 0 1.5mm; font-size: 9pt; line-height: 1.28; }
+.contract-page--page4 p { margin: 0 0 1.5mm; font-size: 9pt; line-height: 1.28; text-align: justify; text-justify: inter-word; text-align-last: left; }
 .contract-page--page4 ul { margin: 0 0 1.5mm; padding-left: 5mm; }
-.contract-page--page4 li { margin: 0.3mm 0; font-size: 9pt; }
+.contract-page--page4 li { margin: 0.3mm 0; font-size: 9pt; text-align: justify; text-justify: inter-word; text-align-last: left; }
 
 /* Spécificités Page Avenant (1 page compacte) */
 .contract-page--amendment { padding: 6mm 16mm 6mm; }
 .contract-page--amendment h1 { margin: 0 0 3mm; font-size: 12pt; }
-.contract-page--amendment p { margin: 0 0 1.6mm; font-size: 8.5pt; line-height: 1.22; }
+.contract-page--amendment p { margin: 0 0 1.6mm; font-size: 8.5pt; line-height: 1.22; text-align: justify; text-justify: inter-word; text-align-last: left; }
 .contract-page--amendment ul { margin: 0 0 1.6mm; padding-left: 6mm; }
-.contract-page--amendment li { margin: 0.2mm 0; font-size: 8.5pt; }
+.contract-page--amendment li { margin: 0.2mm 0; font-size: 8.5pt; text-align: justify; text-justify: inter-word; text-align-last: left; }
 .contract-page--amendment .signatures { margin-top: 2mm; }
 .contract-page--amendment .signature-space { height: 16mm; min-height: 16mm; }
-.contract-page--amendment .signature-intro { margin-top: 2mm; margin-bottom: 0.8mm; font-size: 8.5pt; }
+.contract-page--amendment .signature-intro { margin-top: 2mm; margin-bottom: 0.8mm; font-size: 8.5pt; text-align: center !important; text-align-last: center !important; }
 
 /* Spécificités Page Décharge de responsabilité */
 .contract-page--liability-release { padding: 10mm 16mm 20mm; }
 .contract-page--liability-release h1 { margin: 0 0 6mm; font-size: 13pt; }
-.contract-page--liability-release p { margin: 0 0 3.5mm; font-size: 9.5pt; line-height: 1.45; text-align: justify; }
+.contract-page--liability-release p { margin: 0 0 3.5mm; font-size: 9.5pt; line-height: 1.45; text-align: justify; text-justify: inter-word; text-align-last: left; }
 .contract-page--liability-release .signature-date { margin-top: 5mm; margin-bottom: 2mm; }
 .contract-page--liability-release .signature-space { height: 22mm; min-height: 22mm; }
 
@@ -172,10 +176,10 @@ li { margin: 0.4mm 0; }
 .breakage-table { width: 100%; border-collapse: collapse; margin: 4mm 0 4mm; font-size: 9pt; position: relative; z-index: 1; }
 .breakage-table th { padding: 2mm 1.5mm; font-weight: 700; font-family: "Times New Roman", "Liberation Serif", serif; border-bottom: 0.25mm solid #cbd5e1; }
 .breakage-table td { padding: 2mm 1.5mm; border-bottom: 0.15mm solid #f1f5f9; font-family: "Times New Roman", "Liberation Serif", serif; }
-.breakage-note { margin-top: 4mm; font-size: 8.5pt; color: #333333; font-style: italic; line-height: 1.35; position: relative; z-index: 1; }
+.breakage-note { margin-top: 4mm; font-size: 8.5pt; color: #333333; font-style: italic; line-height: 1.35; position: relative; z-index: 1; text-align: justify; text-justify: inter-word; text-align-last: left; }
 
-.empty-note { margin-top: 20mm; text-align: center; color: #666666; font-size: 9.5pt; }
-.annex-note { margin-top: 6mm; text-align: center; color: #555555; font-style: italic; font-size: 9pt; }
+.empty-note { margin-top: 20mm; text-align: center !important; text-align-last: center !important; color: #666666; font-size: 9.5pt; }
+.annex-note { margin-top: 6mm; text-align: center !important; text-align-last: center !important; color: #555555; font-style: italic; font-size: 9pt; }
 
 ul ul, .sub-list { margin: 1mm 0 2mm; padding-left: 5mm; }
 .variable { background: #fff0b3; outline: .25mm solid #d6a700; padding: 0 .5mm; font-family: monospace; font-size: .9em; letter-spacing: 0; }
