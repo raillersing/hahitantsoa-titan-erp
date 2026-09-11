@@ -552,27 +552,35 @@ def generate_document_instance_html(
         context = _build_hahitantsoa_contract_runtime_context(document_instance=document_instance)
         template_path = "documents/hahitantsoa_preparation_sheet.html"
     elif document_instance.template_key == "titan.breakage_repair_invoice.v1":
-        if document_instance.reservation_draft is not None:
-            context = _reservation_document_context(document_instance=document_instance)
-        else:
-            from apps.inventory.models import InventoryDamageLossExcessReceivable
+        from apps.inventory.models import InventoryDamageLossExcessReceivable
 
-            excess_receivable = (
-                InventoryDamageLossExcessReceivable.objects.select_related(
-                    "settlement_execution__settlement__return_operation__reservation_draft__customer"
-                )
-                .filter(settlement_execution__settlement__document_instance=document_instance)
-                .first()
+        excess_receivable = (
+            InventoryDamageLossExcessReceivable.objects.select_related(
+                "settlement_execution__settlement__return_operation__reservation_draft__customer",
+                "settlement_execution__settlement__return_operation__hahitantsoa_event_draft__customer",
             )
-            if excess_receivable is not None:
-                context = build_excess_receivable_invoice_context(
-                    excess_receivable=excess_receivable
-                )
-            else:
-                context = _reservation_document_context(document_instance=document_instance)
+            .filter(settlement_execution__settlement__document_instance=document_instance)
+            .first()
+        )
+        if excess_receivable is not None:
+            context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
+        else:
+            context = _reservation_document_context(document_instance=document_instance)
         template_path = "documents/titan_breakage_repair_invoice.html"
     elif document_instance.template_key == "hahitantsoa.breakage_repair_invoice.v1":
-        if document_instance.hahitantsoa_event_draft is not None:
+        from apps.inventory.models import InventoryDamageLossExcessReceivable
+
+        excess_receivable = (
+            InventoryDamageLossExcessReceivable.objects.select_related(
+                "settlement_execution__settlement__return_operation__hahitantsoa_event_draft__customer",
+                "settlement_execution__settlement__return_operation__reservation_draft__customer",
+            )
+            .filter(settlement_execution__settlement__document_instance=document_instance)
+            .first()
+        )
+        if excess_receivable is not None:
+            context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
+        elif document_instance.hahitantsoa_event_draft is not None:
             context = _build_hahitantsoa_contract_runtime_context(
                 document_instance=document_instance
             )

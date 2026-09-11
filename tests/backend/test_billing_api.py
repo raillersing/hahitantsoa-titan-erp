@@ -161,7 +161,139 @@ def test_inventory_excess_receivable_generate_invoice_creates_billing_invoice(
     )
 
     assert response.status_code == 200
-    assert BillingInvoice.objects.filter(excess_receivable=result.excess_receivable).exists()
+    invoice = BillingInvoice.objects.get(excess_receivable=result.excess_receivable)
+    assert invoice.document_instance is not None
+    assert invoice.document_instance.template_key == "titan.breakage_repair_invoice.v1"
+
+    from django.core.files.storage import default_storage
+
+    content = default_storage.open(invoice.document_instance.storage_path).read().decode("utf-8")
+    assert "DETAILS DE CASSE" in content
+    assert "25 000,00" in content
+    assert "15 000,00" in content
+    assert "Quinze mille Ariary" in content
+
+
+def test_inventory_excess_receivable_generate_invoice_hahitantsoa_event(
+    sensitive_client,
+    django_user_model,
+) -> None:
+    from django.core.files.storage import default_storage
+    from django.utils import timezone
+
+    from apps.customers.models import Customer
+    from apps.hahitantsoa.models import HahitantsoaEventDraft
+    from apps.inventory.models import InventoryItem
+    from apps.inventory.services import (
+        create_inventory_damage_loss_settlement,
+        create_inventory_return_operation,
+        validate_inventory_damage_loss_settlement,
+        validate_inventory_return_operation,
+    )
+
+    actor = django_user_model.objects.create_user(
+        username="hahi-excess-user",
+        password="test-pass",
+    )
+    customer = Customer.objects.create(
+        display_name="Client Hahitantsoa Casse",
+        email="hahi-casse@example.com",
+        phone="+261340011223",
+        address="Antananarivo",
+    )
+    start_at = timezone.now().replace(microsecond=0) + timedelta(days=3)
+    event_draft = HahitantsoaEventDraft.objects.create(
+        customer=customer,
+        event_name="Mariage Casse Test",
+        start_at=start_at,
+        end_at=start_at + timedelta(hours=6),
+    )
+    item = InventoryItem.objects.create(
+        name="Assiette cassée test",
+        kind="material",
+        breakage_price=Decimal("15000.00"),
+    )
+    return_op = create_inventory_return_operation(
+        actor=actor,
+        hahitantsoa_event_draft=event_draft,
+        lines=[
+            {
+                "inventory_item": item,
+                "expected_quantity": 5,
+                "returned_quantity": 3,
+                "damaged_quantity": 2,
+                "missing_quantity": 0,
+                "condition_status": "mixed",
+                "notes": "Deux assiettes fêlées",
+            }
+        ],
+    )
+    return_result = validate_inventory_return_operation(
+        return_operation=return_op,
+        actor=actor,
+    )
+    caution_payment = create_payment(
+        actor=actor,
+        hahitantsoa_event_draft=event_draft,
+        payment_kind=PaymentKind.CAUTION,
+        payment_method=PaymentMethod.CASH,
+        payment_status=PaymentStatus.PENDING,
+        amount=Decimal("10000.00"),
+        source_label="Hahi caution",
+    )
+    confirm_payment(payment=caution_payment, actor=actor)
+
+    settlement = create_inventory_damage_loss_settlement(
+        actor=actor,
+        return_operation=return_result.return_operation,
+        lines=[
+            {
+                "return_operation_line": return_result.return_operation.lines.get(),
+                "settlement_line_kind": "damage",
+                "quantity": 2,
+                "unit_amount": Decimal("15000.00"),
+                "notes": "Deux assiettes fêlées",
+            }
+        ],
+    )
+    settlement_result = validate_inventory_damage_loss_settlement(
+        settlement=settlement,
+        actor=actor,
+    )
+    assert settlement_result.settlement.damage_loss_total == Decimal("30000.00")
+    assert settlement_result.settlement.caution_available == Decimal("10000.00")
+    assert settlement_result.settlement.caution_applied == Decimal("10000.00")
+    assert settlement_result.settlement.excess_due == Decimal("20000.00")
+
+    execution = create_inventory_damage_loss_settlement_execution(
+        actor=actor,
+        settlement=settlement_result.settlement,
+    )
+    exec_result = execute_inventory_damage_loss_settlement_execution(
+        execution=execution, actor=actor
+    )
+    assert exec_result.excess_receivable is not None
+
+    response = sensitive_client.post(
+        f"/api/v1/inventory/excess-receivables/{exec_result.excess_receivable.id}/generate-invoice/",
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+
+    invoice = BillingInvoice.objects.get(excess_receivable=exec_result.excess_receivable)
+    assert invoice.hahitantsoa_event_draft == event_draft
+    assert invoice.reservation_draft is None
+    assert invoice.amount == Decimal("20000.00")
+    assert invoice.document_instance.template_key == "hahitantsoa.breakage_repair_invoice.v1"
+
+    content = default_storage.open(invoice.document_instance.storage_path).read().decode("utf-8")
+    assert "DETAILS DE CASSE" in content
+    assert "Client Hahitantsoa Casse" in content
+    assert "Assiette cassée test" in content
+    assert "30 000,00" in content
+    assert "10 000,00" in content
+    assert "20 000,00" in content
+    assert "Vingt mille Ariary" in content
 
 
 def test_inventory_excess_receivable_generate_invoice_requires_sensitive_access(
