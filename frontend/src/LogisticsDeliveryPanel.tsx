@@ -25,7 +25,7 @@ import {
   transitionLogisticsEvent,
 } from "./api";
 import HandoverSignaturePanel from "./HandoverSignaturePanel";
-import type { HahitantsoaEventDraft, InventoryItem, InventoryReturnOperation, LogisticsEvent, LogisticsEventItemLine, ReservationDraft, TitanClosedDay } from "./types";
+import type { HahitantsoaEventDraft, InventoryItem, InventoryReturnOperation, InventoryReturnOperationLine, LogisticsEvent, LogisticsEventItemLine, ReservationDraft, TitanClosedDay } from "./types";
 
 const STATUS_LABELS: Record<LogisticsEvent["status"], string> = {
   planned: "Planifié",
@@ -112,6 +112,23 @@ type ConfirmAction =
   | { type: "remove-line"; lineId: string }
   | { type: "transition"; action: "dispatch" | "complete" | "cancel" };
 
+type ReturnInspectionLine = {
+  inventoryItem: string;
+  expectedQuantity: number;
+  intactQuantity: number;
+  damagedQuantity: number;
+  missingQuantity: number;
+  notes: string;
+};
+
+function returnConditionFor({ intactQuantity, damagedQuantity, missingQuantity }: ReturnInspectionLine): InventoryReturnOperationLine["condition_status"] {
+  const categories = [intactQuantity, damagedQuantity, missingQuantity].filter((quantity) => quantity > 0).length;
+  if (categories > 1) return "mixed";
+  if (damagedQuantity > 0) return "damaged";
+  if (missingQuantity > 0) return "missing";
+  return "intact";
+}
+
 export function LogisticsDeliveryPanel({
   businessScope = "titan",
   draftId,
@@ -140,6 +157,8 @@ export function LogisticsDeliveryPanel({
   });
   const [returnOperation, setReturnOperation] = useState<InventoryReturnOperation | null>(null);
   const [returnActionLoading, setReturnActionLoading] = useState(false);
+  const [returnInspectionOpen, setReturnInspectionOpen] = useState(false);
+  const [returnInspectionLines, setReturnInspectionLines] = useState<ReturnInspectionLine[]>([]);
   const [preparationState, setPreparationState] = useState<PreparationState>({
     documentInstanceId: null,
     loading: false,
@@ -476,6 +495,19 @@ export function LogisticsDeliveryPanel({
     }
   };
 
+  const openReturnInspection = () => {
+    setError(null);
+    setReturnInspectionLines(itemLines.map((line) => ({
+      inventoryItem: line.inventory_item,
+      expectedQuantity: line.quantity,
+      intactQuantity: line.quantity,
+      damagedQuantity: 0,
+      missingQuantity: 0,
+      notes: line.notes,
+    })));
+    setReturnInspectionOpen(true);
+  };
+
   const handleStartReturn = async () => {
     if (
       !selectedEvent ||
@@ -491,11 +523,25 @@ export function LogisticsDeliveryPanel({
     setReturnActionLoading(true);
     setError(null);
     try {
+      const invalidLine = returnInspectionLines.find((line) => (
+        !Number.isInteger(line.intactQuantity)
+        || !Number.isInteger(line.damagedQuantity)
+        || !Number.isInteger(line.missingQuantity)
+        || line.intactQuantity < 0
+        || line.damagedQuantity < 0
+        || line.missingQuantity < 0
+        || line.intactQuantity + line.damagedQuantity + line.missingQuantity !== line.expectedQuantity
+      ));
+      if (invalidLine) {
+        throw new Error(`Le constat pour ${invalidLine.inventoryItem} doit totaliser exactement ${invalidLine.expectedQuantity}.`);
+      }
+
       const existing = (await getReturnOperations()).find(
         (operation) => operation.logistics_event === selectedEvent.id,
       );
       if (existing) {
         setReturnOperation(existing);
+        setReturnInspectionOpen(false);
         return;
       }
 
@@ -511,17 +557,18 @@ export function LogisticsDeliveryPanel({
         document_instance: passationState.documentInstanceId,
         idempotency_key: `return-${selectedEvent.id}`,
         notes: `Retour initialisé depuis la sortie logistique ${selectedEvent.id}.`,
-        lines: itemLines.map((line) => ({
-          inventory_item: line.inventory_item,
-          expected_quantity: line.quantity,
-          returned_quantity: line.quantity,
-          damaged_quantity: 0,
-          missing_quantity: 0,
-          condition_status: "intact" as const,
+        lines: returnInspectionLines.map((line) => ({
+          inventory_item: line.inventoryItem,
+          expected_quantity: line.expectedQuantity,
+          returned_quantity: line.intactQuantity + line.damagedQuantity,
+          damaged_quantity: line.damagedQuantity,
+          missing_quantity: line.missingQuantity,
+          condition_status: returnConditionFor(line),
           notes: line.notes,
         })),
       });
       setReturnOperation(created);
+      setReturnInspectionOpen(false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Échec de l'initialisation du retour.");
     } finally {
@@ -994,14 +1041,56 @@ export function LogisticsDeliveryPanel({
                         <p data-testid="return-operation-created">
                           Retour {returnOperation.status === "validated" ? "validé" : "à contrôler"} — {returnOperation.id.slice(0, 8)}
                         </p>
+                      ) : returnInspectionOpen ? (
+                        <div className="mt-3 space-y-3" data-testid="return-inspection-form">
+                          <p className="ops-section-helper">Constatez chaque article avant de créer le retour. Les quantités doivent correspondre exactement à la sortie.</p>
+                          {returnInspectionLines.map((line, index) => (
+                            <fieldset className="rounded-lg border border-slate-200 p-3" key={line.inventoryItem}>
+                              <legend className="px-1 text-xs font-bold text-slate-700">{line.inventoryItem} — {line.expectedQuantity} attendu(s)</legend>
+                              <div className="grid gap-2 sm:grid-cols-3">
+                                {([
+                                  ["intactQuantity", "Intact"],
+                                  ["damagedQuantity", "Endommagé"],
+                                  ["missingQuantity", "Manquant"],
+                                ] as const).map(([field, label]) => (
+                                  <label className="text-xs font-medium text-slate-700" key={field}>
+                                    {label}
+                                    <input
+                                      aria-label={`${label} ${line.inventoryItem}`}
+                                      className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                                      min="0"
+                                      step="1"
+                                      type="number"
+                                      value={line[field]}
+                                      onChange={(event) => {
+                                        const quantity = Number(event.target.value);
+                                        setReturnInspectionLines((current) => current.map((currentLine, currentIndex) => (
+                                          currentIndex === index ? { ...currentLine, [field]: Number.isFinite(quantity) ? quantity : 0 } : currentLine
+                                        )));
+                                      }}
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            </fieldset>
+                          ))}
+                          <div className="flex flex-wrap gap-2">
+                            <button className="ops-button" type="button" disabled={returnActionLoading} onClick={() => void handleStartReturn()}>
+                              {returnActionLoading ? "Création..." : "Créer le retour contrôlé"}
+                            </button>
+                            <button className="ops-button-secondary" type="button" disabled={returnActionLoading} onClick={() => setReturnInspectionOpen(false)}>
+                              Annuler
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <button
                           className="ops-button-secondary"
                           type="button"
                           disabled={!canWrite || returnActionLoading || itemLines.length === 0}
-                          onClick={() => void handleStartReturn()}
+                          onClick={openReturnInspection}
                         >
-                          {returnActionLoading ? "Initialisation..." : "Démarrer le retour"}
+                          Démarrer le retour
                         </button>
                       )}
                       {itemLines.length === 0 ? <p className="ops-section-helper">Ajoutez les articles sortis avant de démarrer le retour.</p> : null}
