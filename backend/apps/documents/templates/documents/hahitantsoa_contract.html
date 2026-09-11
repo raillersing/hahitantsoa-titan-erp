@@ -27,7 +27,7 @@
 
         {% if show_variables %}
             {% if context.event_draft.party_type == "company" %}
-                <p>La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> domiciliée au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
+                <p class="party-metadata">La société <strong><span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span></strong> domiciliée au <span class="variable">{% templatetag openvariable %} client.address {% templatetag closevariable %}</span><br>
                 NIF : <span class="variable">{% templatetag openvariable %} client.nif {% templatetag closevariable %}</span><br>
                 STAT : <span class="variable">{% templatetag openvariable %} client.stat {% templatetag closevariable %}</span><br>
                 RCS : <span class="variable">{% templatetag openvariable %} client.rcs {% templatetag closevariable %}</span><br>
@@ -41,7 +41,7 @@
             {% endif %}
         {% else %}
             {% if context.event_draft.party_type == "company" %}
-                <p>La société <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong> domiciliée au {{ context.event_draft.customer_address|default:"................................" }}<br>
+                <p class="party-metadata">La société <strong>{{ context.event_draft.customer_display_name|default:"................................" }}</strong> domiciliée au {{ context.event_draft.customer_address|default:"................................" }}<br>
                 NIF : {{ context.event_draft.customer_nif|default:"................................" }}<br>
                 STAT : {{ context.event_draft.customer_stat|default:"................................" }}<br>
                 RCS : {{ context.event_draft.customer_rcs|default:"................................" }}<br>
@@ -66,7 +66,7 @@
 
         <h2>Article 1 : Objet du contrat</h2>
         <p>Le présent contrat est conclu entre les Parties en vue de la location du domaine Hahitantsoa, un lieu de réception situé au Lot P93M Sud Ambohipo Alasora Antananarivo comprenant :</p>
-        <ul>
+        <ul class="dash-list">
             <li>Une salle de réception de 600 m2 ;</li>
             <li>Huit toilettes attenantes ;</li>
             <li>Une cuisine équipée de réfrigérateur et congélateur ;</li>
@@ -118,8 +118,8 @@
         {% elif context.event_draft.access_schedule == "same_day" or context.event_draft.access_schedule == "day_of" %}
             <p>Les intervenants du client accèderont aux locaux le jour-J à 07 heures.</p>
         {% else %}
-            <p>Les intervenants du client peuvent accéder aux locaux selon les modalités suivantes :</p>
-            <ul>
+            <p>Les intervenants du client peuvent accéder aux locaux (veuillez rayer les mentions inutiles) :</p>
+            <ul class="dash-list">
                 <li>la veille à 15 heures 30 si aucune réception n’a lieu sur les lieux, à 23 heures 30 dans le cas contraire ;</li>
                 <li>le jour-J à 07 heures.</li>
             </ul>
@@ -160,14 +160,14 @@
             <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de <strong>{{ context.event_draft.required_deposit_amount }} Ariary</strong>.</p>
         {% else %}
             <p>La présente location est consentie et acceptée moyennant le versement d’un acompte de :</p>
-            <ul>
+            <ul class="dash-list">
                 <li>1 000 000,00 Ariary dans le cas d’une location nue ;</li>
                 <li>1 500 000,00 Ariary dans le cas d’une location nue avec logistique.</li>
             </ul>
         {% endif %}
         <p>Celui-ci devra être réglé le jour de la réservation de la salle, soit à la signature par le Client du présent contrat.</p>
         <p>Le client s’engage à verser le solde du montant de la location en deux tranches :</p>
-        <ul>
+        <ul class="dash-list">
             <li>La première tranche (50%) 1 mois avant l’évènement au plus tard ;</li>
             <li>La deuxième tranche (50%) 10 jours avant l’évènement au plus tard.</li>
         </ul>
@@ -217,13 +217,17 @@
         <p>Il s’engage à ne pas faire entrave à la jouissance du Client pendant toute la durée de la location.</p>
 
         <h2>Article 9 : Obligations du Client</h2>
-        <p>Le Client prendra les Lieux Loués dans l’état où ils se trouvent au moment de l’entrée en jouissance, sans pouvoir exiger du Prestataire aucun aménagement, aucune réparation, aucuns travaux de remise en état tels qu’ils résultent de l’état des lieux contradictoirement dressé entre les parties.</p>
-        <p>Le Client ne pourra faire aucune modification dans les Lieux Loués.</p>
-        <p>Le Client s’engage à utiliser les Lieux Loués en bon père de famille.</p>
-        <p>Le Client s’engage à respecter et à faire respecter par toutes les personnes présentes dans la salle durant la location, le présent contrat et le règlement intérieur des Lieux Loués ainsi que toutes les consignes de sécurité, d’interdiction de fumer à l’intérieur du local et de bonne utilisation du matériel. A défaut, le Client restera responsable.</p>
-        <p>Le Client s’engage à rendre les Lieux Loués vidés de leurs contenus.</p>
+        <ul class="dash-list">
+            <li>Le Client prendra les Lieux Loués dans l’état où ils se trouvent au moment de l’entrée en jouissance, sans pouvoir exiger du Prestataire aucun aménagement, aucune réparation, aucuns travaux de remise en état tels qu’ils résultent de l’état des lieux contradictoirement dressé entre les parties.</li>
+            <li>Le Client ne pourra faire aucune modification dans les Lieux Loués.</li>
+            <li>Le Client s’engage à utiliser les Lieux Loués en bon père de famille.</li>
+            <li>Le Client s’engage à respecter et à faire respecter par toutes les personnes présentes dans la salle durant la location, le présent contrat et le règlement intérieur des Lieux Loués ainsi que toutes les consignes de sécurité, d’interdiction de fumer à l’intérieur du local et de bonne utilisation du matériel. A défaut, le Client restera responsable.</li>
+            <li>Le Client s’engage à rendre les Lieux Loués vidés de leurs contenus.</li>
+        </ul>
         <p>Dans le cas où le Client fait appel aux services d’un traiteur, il s’assure que ce dernier laisse également les Lieux Loués dans l’état initial, c’est-à-dire locaux débarrassés et rangés, cuisine rangée et poubelles enlevées par ses soins.</p>
-        <p>Le Client octroie un droit de diffusion des vidéos et photographies lors de l’évènement pour usage Marketing sans porter atteinte à la personnalité tant des invités que du Client.</p>
+        <ul class="dash-list">
+            <li>Le Client octroie un droit de diffusion des vidéos et photographies lors de l’évènement pour usage Marketing sans porter atteinte à la personnalité tant des invités que du Client.</li>
+        </ul>
 
         <h2>Article 10 : Annulation</h2>
         <p>Le Client ne pourrait annuler la location sauf pour cas de force majeure, et ne peut prévaloir un droit à remboursement.</p>
@@ -349,7 +353,7 @@
             <li>Les matériels sont loués propres ; ils devront être rendus de même. Dans le cas contraire, le nettoyage sera facturé selon notre tarif en vigueur.</li>
             <li>Les poubelles doivent être enlevées par les soins des intervenants (Pour le traiteur : déchets et restes de nourriture ; pour les décorateurs : fleurs, autocollant sur piste, etc…)</li>
             <li>Pour raison de sécurité, lors des préparatifs, fermeture du portail :
-                <ul>
+                <ul class="dash-list">
                     <li>à 23h00 (si entrée des prestataires à 15h30) ;</li>
                     <li>à 01h00 (si entrée des prestataires à 23h30).</li>
                 </ul>
@@ -501,6 +505,7 @@
         </header>
 
         <h2>Annexe 4 : Liste des intervenants non autorisés</h2>
+        <p class="annex-note">Cette liste a été vu avant le proforma.</p>
         <p class="empty-note">Aucun intervenant non autorisé enregistré.</p>
         <p class="annex-note">Cette liste est consultée par le prestataire et le client lors de la passation d’entrée et de sortie.</p>
 
