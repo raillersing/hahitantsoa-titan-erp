@@ -34,6 +34,8 @@ import { printDocumentHtml } from "./DocumentCanvasViewer";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
 import PaymentRegistrationModal from "./PaymentRegistrationModal";
+import { ProformaVersionHistoryModal } from "../components/ProformaVersionHistoryModal";
+import { buildProformaVersionHistory } from "../proformaVersionHistory";
 import {
   DraftConflictResolutionModal,
   type ConflictResolutionTarget,
@@ -274,6 +276,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [lifecycleError, setLifecycleError] = useState(false);
   const [activeTab, setActiveTab] = useState<HahitantsoaActiveTab>("contrat");
   const [previewModal, setPreviewModal] = useState<PreviewModalState>(null);
+  const [showProformaHistoryModal, setShowProformaHistoryModal] = useState(false);
 
   // Conflict management states
   const [conflictedWithEvent, setConflictedWithEvent] = useState<HahitantsoaEventDraft | null>(null);
@@ -1206,6 +1209,68 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const canRecordDeposit = !depositConfirmed && (confirmedDepositAmount === 0 || confirmedDepositAmount < requiredDepositAmount);
   const canMarkExistingDeposit = !depositConfirmed && confirmedDepositAmount > 0 && confirmedDepositAmount >= requiredDepositAmount;
 
+  const proformaHistory = useMemo(() => {
+    return buildProformaVersionHistory({
+      documentInstances: documents,
+      isConfirmed:
+        draft?.status === "confirmed" ||
+        contractSigned ||
+        contractExists,
+      confirmedAt: contractDoc?.prepared_at || contractDoc?.created_at,
+      amendments,
+      publicReference: draft?.public_reference || "",
+      defaultReferencePrefix: "PF",
+    });
+  }, [
+    documents,
+    draft?.status,
+    contractSigned,
+    contractExists,
+    draft?.public_reference,
+    contractDoc,
+    amendments,
+  ]);
+
+  const proformaInstance =
+    proformaHistory.currentOfficialVersion?.instance ||
+    proformaHistory.latestVersion?.instance ||
+    proformaDoc;
+
+  const handleCreateProformaRevision = async () => {
+    if (!param || !draft) return;
+    setBusy("create-proforma-revision");
+    setError(null);
+    setActionNotice(null);
+    try {
+      const isConfirmed =
+        draft.status === "confirmed" ||
+        contractSigned ||
+        contractExists;
+      const newDoc = await createHahitantsoaEventDraftDocumentInstance(param, {
+        template_key: "hahitantsoa.proforma.v1",
+        notes: isConfirmed
+          ? "Brouillon de révision post-confirmation (en attente d'avenant)"
+          : "Révision devis proforma",
+      });
+      await generateHahitantsoaEventDraftDocumentInstance(param, newDoc.id);
+      await generateHahitantsoaEventDraftDocumentInstancePdf(param, newDoc.id);
+      setActionNotice(
+        `Nouvelle révision (v${proformaHistory.totalVersionsCount + 1}) générée avec succès.`
+      );
+      await load();
+      setPreviewModal({
+        title: `Proforma / Devis Hahitantsoa — v${proformaHistory.totalVersionsCount + 1}`,
+        documentInstanceId: newDoc.id,
+        templateKey: "hahitantsoa.proforma.v1",
+        type: "proforma",
+      });
+    } catch (err) {
+      setError(errorMessage(err, "Impossible de créer une nouvelle révision du proforma."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (loading) return <div role="status" className="page active p-8 text-slate-500">Chargement du dossier événement Hahitantsoa…</div>;
 
   if (!draft) {
@@ -2032,28 +2097,92 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-base">
-                        <i className="fa-solid fa-file-invoice"></i>
+                      <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-base">
+                          <i className="fa-solid fa-file-invoice"></i>
+                        </div>
+                        {proformaHistory.totalVersionsCount > 0 && (
+                          <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                            {proformaHistory.currentOfficialVersion
+                              ? `${proformaHistory.currentOfficialVersion.versionLabel} (Officiel)`
+                              : proformaHistory.latestVersion?.versionLabel || "v1"}
+                          </span>
+                        )}
                       </div>
                       <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800">
-                        {proformaDoc ? proformaDoc.status : "Brouillon"}
+                        {proformaInstance ? proformaInstance.status : "Brouillon"}
                       </span>
                     </div>
                     <p className="font-bold text-slate-900 text-sm">Proforma / Devis</p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {proformaDoc ? `Émis le ${formatDateFr(proformaDoc.prepared_at || proformaDoc.created_at)}` : "Disponible à l'aperçu"}
+                      {proformaInstance
+                        ? `Réf. ${proformaHistory.reference} • ${formatDateFr(proformaInstance.prepared_at || proformaInstance.created_at)}`
+                        : "Disponible à l'aperçu"}
                     </p>
+
+                    {proformaHistory.totalVersionsCount > 0 && (
+                      <div className="flex items-center justify-between mt-3 pb-2 border-b border-slate-200/80">
+                        <button
+                          type="button"
+                          onClick={() => setShowProformaHistoryModal(true)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors cursor-pointer"
+                          title="Consulter l'historique complet des versions du proforma"
+                        >
+                          <i className="fa-solid fa-clock-rotate-left"></i>
+                          Historique ({proformaHistory.totalVersionsCount} version{proformaHistory.totalVersionsCount > 1 ? "s" : ""})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleCreateProformaRevision()}
+                          disabled={busy !== null}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-indigo-600 hover:bg-slate-100 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                          title="Générer une nouvelle révision du proforma sous le même numéro"
+                        >
+                          {busy === "create-proforma-revision" ? (
+                            <i className="fa-solid fa-spinner fa-spin"></i>
+                          ) : (
+                            <i className="fa-solid fa-plus"></i>
+                          )}
+                          Nouvelle révision
+                        </button>
+                      </div>
+                    )}
+
+                    {(contractSigned || contractDoc || draft.status === "confirmed") && (
+                      <div className="pt-2 border-t border-slate-200 mt-2 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                            <i className="fa-solid fa-circle-check text-emerald-600"></i>
+                            <span>Converti en contrat officiel</span>
+                            {proformaHistory.currentOfficialVersion && (
+                              <span className="ml-0.5 opacity-90">({proformaHistory.currentOfficialVersion.versionLabel})</span>
+                            )}
+                          </span>
+                          {contractSigned && contractDoc?.prepared_at && (
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              Signé le {formatDateFr(contractDoc.prepared_at)}
+                            </span>
+                          )}
+                        </div>
+                        {proformaHistory.hasPendingAmendment && (
+                          <div className="text-[11px] font-semibold text-amber-700 flex items-center gap-1">
+                            <i className="fa-solid fa-hourglass-half"></i>
+                            <span>Révision {proformaHistory.latestVersion?.versionLabel} en attente d'avenant</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setPreviewModal({
-                        title: "Proforma / Devis Hahitantsoa",
-                        documentInstanceId: proformaDoc?.id,
+                        title: `Proforma / Devis Hahitantsoa — ${proformaHistory.currentOfficialVersion?.versionLabel || proformaHistory.latestVersion?.versionLabel || "v1"}`,
+                        documentInstanceId: proformaInstance?.id || null,
                         templateKey: "hahitantsoa.proforma.v1",
                         type: "proforma",
                       })}
-                      className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu
                     </button>
@@ -2062,7 +2191,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       onClick={() => void generateDocument("hahitantsoa.proforma.v1", "Proforma / Devis")}
                       disabled={busy !== null}
                       title="Régénérer / actualiser le devis et la proforma avec les dernières modifications"
-                      className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50"
+                      className="rounded-lg bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-50 cursor-pointer"
                     >
                       <i className="fa-solid fa-arrows-rotate text-indigo-600"></i>
                     </button>
@@ -3034,6 +3163,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 </button>
                 <button
                   type="button"
+                  aria-label="Fermer"
                   onClick={() => setPreviewModal(null)}
                   className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition-colors"
                 >
@@ -3065,7 +3195,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           domain="hahitantsoa"
           draftId={param || draft.id}
           draftReference={draft.public_reference || `HAH-${draft.id.slice(0, 8)}`}
-          proformaReference={draft.public_reference}
+          proformaReference={proformaHistory.reference || draft.public_reference || undefined}
           customerName={draft.customer_display_name || customer?.display_name || "Client"}
           customerPhone={customer?.phone}
           customerAddress={customer?.address}
@@ -4365,6 +4495,30 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
           </div>
         </div>
       )}
+
+      {/* Proforma Version History Modal */}
+      <ProformaVersionHistoryModal
+        isOpen={showProformaHistoryModal}
+        onClose={() => setShowProformaHistoryModal(false)}
+        summary={proformaHistory}
+        onPreviewVersion={(version) => {
+          setShowProformaHistoryModal(false);
+          setPreviewModal({
+            title: `Proforma / Devis Hahitantsoa — ${version.versionLabel} (${version.statusLabel})`,
+            documentInstanceId: version.id,
+            templateKey: version.instance.template_key || "hahitantsoa.proforma.v1",
+            type: "proforma",
+          });
+        }}
+        onCreateNewRevision={handleCreateProformaRevision}
+        isCreatingRevision={busy === "create-proforma-revision"}
+        isConfirmed={
+          draft?.status === "confirmed" ||
+          contractSigned ||
+          contractExists
+        }
+        domain="hahitantsoa"
+      />
     </div>
   );
 }

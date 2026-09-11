@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AppScope } from "../App";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
 import { DocumentPreview } from "./DocumentPreview";
@@ -8,6 +8,8 @@ import { ProspectConversionAssistant } from "./ProspectConversionAssistant";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
 import LifecycleTimeline from "./LifecycleTimeline";
 import PaymentRegistrationModal from "./PaymentRegistrationModal";
+import { ProformaVersionHistoryModal } from "../components/ProformaVersionHistoryModal";
+import { buildProformaVersionHistory } from "../proformaVersionHistory";
 import {
   DraftConflictResolutionModal,
   type ConflictResolutionTarget,
@@ -146,6 +148,7 @@ export default function ReservationDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showAmendmentForm, setShowAmendmentForm] = useState(false);
+  const [showProformaHistoryModal, setShowProformaHistoryModal] = useState(false);
   const [amendmentReason, setAmendmentReason] = useState("");
   const [amendmentNotes, setAmendmentNotes] = useState("");
   const [amendmentQuantities, setAmendmentQuantities] = useState<Record<string, number>>({});
@@ -617,19 +620,64 @@ export default function ReservationDetailPage({
     }, 1500);
   };
 
-  /* ── proforma action handlers ────────────────────────────────── */
-  const proformaInstance = documentInstances.find(
-    (di) =>
-      (di.document_type?.toLowerCase() === "proforma" ||
-        di.template_key?.toLowerCase().includes("proforma")) &&
-      di.status !== "voided",
-  );
   const titanContractInstance = documentInstances.find(
     (documentInstance) =>
       documentInstance.template_key === "titan.material_contract.v1" ||
       documentInstance.template_key === "titan.material_amendment.v1",
   );
   const contractWarnings = titanContractInstance?.contract_warnings ?? [];
+
+  const titanAmendments = useMemo(() => {
+    return documentInstances
+      .filter((d) => d.template_key === "titan.material_amendment.v1")
+      .map((d, i) => ({
+        amendment_sequence: d.amendment_sequence ?? i + 1,
+        applied_at: d.created_at,
+        status: "applied",
+      }));
+  }, [documentInstances]);
+
+  const proformaHistory = useMemo(() => {
+    return buildProformaVersionHistory({
+      documentInstances,
+      isConfirmed: draft?.status === "confirmed" || Boolean(draft?.contract_signed_at) || Boolean(titanContractInstance),
+      confirmedAt: draft?.contract_signed_at || titanContractInstance?.created_at,
+      amendments: titanAmendments,
+      publicReference: draft?.public_reference || "",
+      defaultReferencePrefix: "PF",
+    });
+  }, [documentInstances, draft?.status, draft?.contract_signed_at, draft?.public_reference, titanContractInstance, titanAmendments]);
+
+  const proformaInstance =
+    proformaHistory.currentOfficialVersion?.instance ||
+    proformaHistory.latestVersion?.instance ||
+    documentInstances.find(
+      (di) =>
+        (di.document_type?.toLowerCase() === "proforma" ||
+          di.template_key?.toLowerCase().includes("proforma")) &&
+        di.status !== "voided",
+    );
+
+  const handleCreateProformaRevision = async () => {
+    if (!draft) return;
+    setActionLoading("create-proforma-revision");
+    try {
+      const isConfirmed = draft.status === "confirmed" || Boolean(draft.contract_signed_at) || Boolean(titanContractInstance);
+      const newDoc = await createReservationDraftDocumentInstance(draft.id, {
+        template_key: "titan.proforma.v1",
+        notes: isConfirmed ? "Brouillon de révision post-confirmation (en attente d'avenant)" : "Révision devis proforma",
+      });
+      await generateReservationDraftDocumentInstance(draft.id, newDoc.id);
+      await generateReservationDraftDocumentInstancePdf(draft.id, newDoc.id);
+      const updatedDocs = await getReservationDraftDocumentInstances(draft.id);
+      setDocumentInstances(updatedDocs);
+      showToast(`Nouvelle révision (v${proformaHistory.totalVersionsCount + 1}) générée avec succès.`, "success");
+    } catch (err: any) {
+      showToast(err?.message || "Erreur lors de la génération de la nouvelle version du proforma.", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const previewArtifact = previewDoc
     ? documentInstances.find((documentInstance) => {
@@ -1813,10 +1861,19 @@ export default function ReservationDetailPage({
                             <i className="fa-solid fa-file-invoice"></i>
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800 text-sm">Devis / Proforma</p>
+                            <p className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                              <span>Devis / Proforma</span>
+                              {proformaHistory.totalVersionsCount > 0 && (
+                                <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                  {proformaHistory.currentOfficialVersion
+                                    ? `${proformaHistory.currentOfficialVersion.versionLabel} (Officiel)`
+                                    : proformaHistory.latestVersion?.versionLabel || "v1"}
+                                </span>
+                              )}
+                            </p>
                             <p className="text-xs text-slate-500">
                               {proformaInstance
-                                ? `Généré le ${formatDateFr(proformaInstance.prepared_at || proformaInstance.created_at)}`
+                                ? `Réf. ${proformaHistory.reference} • ${formatDateFr(proformaInstance.prepared_at || proformaInstance.created_at)}`
                                 : "Aperçu disponible"}
                             </p>
                           </div>
@@ -1825,18 +1882,47 @@ export default function ReservationDetailPage({
                           type="button"
                           onClick={() =>
                             setPreviewModal({
-                              title: "Devis / Facture Proforma Titan",
+                              title: `Devis / Facture Proforma Titan — ${proformaHistory.currentOfficialVersion?.versionLabel || proformaHistory.latestVersion?.versionLabel || "v1"}`,
                               documentInstanceId: proformaInstance?.id || null,
                               templateKey: "titan.proforma.v1",
                               type: "proforma",
                             })
                           }
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          title="Aperçu du proforma"
+                          title="Aperçu de la version officielle du proforma"
                         >
                           <i className="fa-solid fa-eye text-base"></i>
                         </button>
                       </div>
+
+                      {/* Version history button & quick info */}
+                      {proformaHistory.totalVersionsCount > 0 && (
+                        <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200/80">
+                          <button
+                            type="button"
+                            onClick={() => setShowProformaHistoryModal(true)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-semibold transition-colors cursor-pointer"
+                            title="Consulter l'historique complet des versions du proforma"
+                          >
+                            <i className="fa-solid fa-clock-rotate-left"></i>
+                            Historique ({proformaHistory.totalVersionsCount} version{proformaHistory.totalVersionsCount > 1 ? "s" : ""})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleCreateProformaRevision()}
+                            disabled={actionLoading === "create-proforma-revision"}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition-colors cursor-pointer"
+                            title="Générer une nouvelle révision du proforma sous le même numéro"
+                          >
+                            {actionLoading === "create-proforma-revision" ? (
+                              <i className="fa-solid fa-spinner fa-spin"></i>
+                            ) : (
+                              <i className="fa-solid fa-plus"></i>
+                            )}
+                            Nouvelle révision
+                          </button>
+                        </div>
+                      )}
 
                       {/* Validity status badge */}
                       {proformaInstance && (
@@ -1877,15 +1963,26 @@ export default function ReservationDetailPage({
                     {proformaInstance && (
                       <div className="pt-2 border-t border-slate-200 mt-2">
                         {draft.contract_signed_at || titanContractInstance || draftStatus === "confirmed" ? (
-                          <div className="flex items-center justify-between">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                              <i className="fa-solid fa-circle-check text-emerald-600"></i>
-                              Converti en contrat officiel
-                            </span>
-                            {draft.contract_signed_at && (
-                              <span className="text-[11px] text-slate-500 font-medium">
-                                Signé le {formatDateFr(draft.contract_signed_at)}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                <i className="fa-solid fa-circle-check text-emerald-600"></i>
+                                <span>Converti en contrat officiel</span>
+                                {proformaHistory.currentOfficialVersion && (
+                                  <span className="ml-0.5 opacity-90">({proformaHistory.currentOfficialVersion.versionLabel})</span>
+                                )}
                               </span>
+                              {draft.contract_signed_at && (
+                                <span className="text-[11px] text-slate-500 font-medium">
+                                  Signé le {formatDateFr(draft.contract_signed_at)}
+                                </span>
+                              )}
+                            </div>
+                            {proformaHistory.hasPendingAmendment && (
+                              <div className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                <i className="fa-solid fa-hourglass-half"></i>
+                                <span>Révision {proformaHistory.latestVersion?.versionLabel} en attente d'avenant</span>
+                              </div>
                             )}
                           </div>
                         ) : proformaInstance.status !== "voided" ? (
@@ -3356,6 +3453,26 @@ export default function ReservationDetailPage({
           </div>
         </div>
       )}
+
+      {/* ── Proforma Version History Modal ──────────────────────────── */}
+      <ProformaVersionHistoryModal
+        isOpen={showProformaHistoryModal}
+        onClose={() => setShowProformaHistoryModal(false)}
+        summary={proformaHistory}
+        onPreviewVersion={(version) => {
+          setShowProformaHistoryModal(false);
+          setPreviewModal({
+            title: `Devis / Facture Proforma Titan — ${version.versionLabel} (${version.reference})`,
+            documentInstanceId: version.id,
+            templateKey: version.instance.template_key || "titan.proforma.v1",
+            type: "proforma",
+          });
+        }}
+        onCreateNewRevision={handleCreateProformaRevision}
+        isCreatingRevision={actionLoading === "create-proforma-revision"}
+        isConfirmed={draft?.status === "confirmed" || Boolean(draft?.contract_signed_at) || Boolean(titanContractInstance)}
+        domain="titan"
+      />
     </div>
   );
 }
