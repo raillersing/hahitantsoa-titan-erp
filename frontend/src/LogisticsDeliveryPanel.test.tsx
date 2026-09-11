@@ -380,6 +380,11 @@ describe("LogisticsDeliveryPanel", () => {
     const startReturnButton = await screen.findByRole("button", { name: "Démarrer le retour" });
     await waitFor(() => expect(startReturnButton).toBeEnabled());
     fireEvent.click(startReturnButton);
+    expect(await screen.findByTestId("return-inspection-form")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Intact item-1" }), { target: { value: "1" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Endommagé item-1" }), { target: { value: "1" } });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Manquant item-1" }), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Créer le retour contrôlé" }));
 
     await waitFor(() => {
       expect(createReturnSpy).toHaveBeenCalledWith({
@@ -391,15 +396,35 @@ describe("LogisticsDeliveryPanel", () => {
         lines: [{
           inventory_item: "item-1",
           expected_quantity: 3,
-          returned_quantity: 3,
-          damaged_quantity: 0,
-          missing_quantity: 0,
-          condition_status: "intact",
+          returned_quantity: 2,
+          damaged_quantity: 1,
+          missing_quantity: 1,
+          condition_status: "mixed",
           notes: "Fragile",
         }],
       });
     });
     expect(await screen.findByTestId("return-operation-created")).toHaveTextContent("à contrôler");
+  });
+
+  it("blocks a return whose inspection quantities do not match the outbound quantity", async () => {
+    vi.spyOn(api, "checkEndpointPermission").mockResolvedValue(true);
+    vi.spyOn(api, "getLogisticsEvents").mockResolvedValue([
+      { ...MOCK_EVENT, status: "completed", executed_at: "2026-06-15T09:00:00Z" },
+    ]);
+    vi.spyOn(api, "getReturnOperations").mockResolvedValue([]);
+    const createReturnSpy = vi.spyOn(api, "createReturnOperation");
+
+    render(<LogisticsDeliveryPanel />);
+    const startReturnButton = await screen.findByRole("button", { name: "Démarrer le retour" });
+    await waitFor(() => expect(startReturnButton).toBeEnabled());
+    fireEvent.click(startReturnButton);
+    await screen.findByTestId("return-inspection-form");
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Intact item-1" }), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Créer le retour contrôlé" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("doit totaliser exactement 3");
+    expect(createReturnSpy).not.toHaveBeenCalled();
   });
 
   it("restores an existing delivery note when selecting an event", async () => {
