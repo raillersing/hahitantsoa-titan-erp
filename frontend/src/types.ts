@@ -752,6 +752,7 @@ export type DocumentInstance = {
   customer_representative_role?: string;
   customer_contact_points_snapshot?: DocumentInstanceCustomerContactPointSnapshot[];
   contract_warnings?: DocumentInstanceContractWarning[];
+  amendment_sequence?: number | null;
   proforma_validity_days?: number | null;
   document_date?: string | null;
   issued_at?: string | null;

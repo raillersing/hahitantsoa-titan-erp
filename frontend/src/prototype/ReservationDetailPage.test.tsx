@@ -67,6 +67,9 @@ const mockGetLifecycle = vi.fn();
 const mockCreateReservationDraftAmendment = vi.fn();
 const mockGetInventoryItems = vi.fn();
 const mockUpdateReservationDraftPublicReference = vi.fn();
+const mockCreateReservationDraftDocumentInstance = vi.fn();
+const mockGenerateReservationDraftDocumentInstance = vi.fn();
+const mockGenerateReservationDraftDocumentInstancePdf = vi.fn();
 
 vi.mock('../api', () => ({
   getReservationDraft: (...args: any[]) => mockGetReservationDraft(...args),
@@ -80,6 +83,13 @@ vi.mock('../api', () => ({
   createReservationDraftAmendment: (...args: any[]) => mockCreateReservationDraftAmendment(...args),
   getInventoryItems: (...args: any[]) => mockGetInventoryItems(...args),
   updateReservationDraftPublicReference: (...args: any[]) => mockUpdateReservationDraftPublicReference(...args),
+  createReservationDraftDocumentInstance: (...args: any[]) => mockCreateReservationDraftDocumentInstance(...args),
+  generateReservationDraftDocumentInstance: (...args: any[]) => mockGenerateReservationDraftDocumentInstance(...args),
+  generateReservationDraftDocumentInstancePdf: (...args: any[]) => mockGenerateReservationDraftDocumentInstancePdf(...args),
+}));
+
+vi.mock('../DocumentArtifactPreviewPanel', () => ({
+  default: () => <div data-testid="artifact-preview">Preview Panel</div>,
 }));
 
 /* ── helper: wait for the draft page to load ────────────────────── */
@@ -480,6 +490,87 @@ describe('ReservationDetailPage', () => {
 
     await waitFor(() => {
       expect(mockUpdateReservationDraftPublicReference).toHaveBeenCalledWith("draft-loc-089", "500/2026");
+    });
+  });
+
+  it("affiche l'historique des versions de proforma et permet d'ouvrir la modale d'historique", async () => {
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([
+      {
+        id: "doc-pf-1",
+        reservation_draft: "draft-loc-089",
+        document_type: "proforma",
+        template_key: "titan.proforma.v1",
+        document_reference: "LOC-2026-0089-PF",
+        status: "generated",
+        created_at: "2026-06-01T10:00:00Z",
+      } as any,
+      {
+        id: "doc-pf-2",
+        reservation_draft: "draft-loc-089",
+        document_type: "proforma",
+        template_key: "titan.proforma.v1",
+        document_reference: "LOC-2026-0089-PF",
+        status: "generated",
+        created_at: "2026-06-02T10:00:00Z",
+      } as any,
+    ]);
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    // Verify history button displays "Historique (2 versions)"
+    const historyBtn = screen.getByRole("button", { name: /Historique \(2 versions\)/i });
+    expect(historyBtn).toBeInTheDocument();
+
+    // Click to open history modal
+    fireEvent.click(historyBtn);
+
+    // Modal title & content
+    expect(screen.getByText(/Historique des versions du Proforma/i)).toBeInTheDocument();
+    expect(screen.getAllByText("LOC-2026-0089-PF").length).toBeGreaterThanOrEqual(1);
+
+    // Both versions exist
+    expect(screen.getByText("v1")).toBeInTheDocument();
+    expect(screen.getAllByText("v2").length).toBeGreaterThanOrEqual(1);
+
+    // Clicking preview on a specific version opens preview
+    const previewV1Btn = screen.getByRole("button", { name: /Aperçu v1/i });
+    fireEvent.click(previewV1Btn);
+
+    // Close preview
+    const closeButtons = screen.getAllByRole("button", { name: /Fermer/i });
+    expect(closeButtons.length).toBeGreaterThan(0);
+  });
+
+  it("permet de créer une nouvelle révision de proforma", async () => {
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([
+      {
+        id: "doc-pf-1",
+        reservation_draft: "draft-loc-089",
+        document_type: "proforma",
+        template_key: "titan.proforma.v1",
+        document_reference: "LOC-2026-0089-PF",
+        status: "generated",
+        created_at: "2026-06-01T10:00:00Z",
+      } as any,
+    ]);
+    mockCreateReservationDraftDocumentInstance.mockResolvedValue({ id: "doc-pf-2" });
+    mockGenerateReservationDraftDocumentInstance.mockResolvedValue({});
+    mockGenerateReservationDraftDocumentInstancePdf.mockResolvedValue({});
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    const newRevBtn = screen.getByRole("button", { name: /Nouvelle révision/i });
+    expect(newRevBtn).toBeInTheDocument();
+
+    fireEvent.click(newRevBtn);
+
+    await waitFor(() => {
+      expect(mockCreateReservationDraftDocumentInstance).toHaveBeenCalledWith("draft-loc-089", expect.objectContaining({
+        template_key: "titan.proforma.v1",
+      }));
+      expect(mockGenerateReservationDraftDocumentInstance).toHaveBeenCalledWith("draft-loc-089", "doc-pf-2");
     });
   });
 });

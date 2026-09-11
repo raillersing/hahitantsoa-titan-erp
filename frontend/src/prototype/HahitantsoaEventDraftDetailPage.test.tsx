@@ -935,4 +935,89 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       expect(mockUpdateHahitantsoaEventDraftPublicReference).toHaveBeenCalledWith("event-1", "H-500/2026");
     });
   });
+
+  it("affiche l'historique des versions de proforma et permet d'ouvrir la modale d'historique", async () => {
+    mockGetDraft.mockResolvedValue(DRAFT);
+    mockGetCustomer.mockResolvedValue(CUSTOMER);
+    mockGetDocuments.mockResolvedValue([
+      {
+        id: "doc-prof-1",
+        hahitantsoa_event_draft: "event-1",
+        document_type: "proforma",
+        template_key: "hahitantsoa.proforma.v1",
+        document_reference: "HAH-2026-0001-PF",
+        status: "generated",
+        created_at: "2026-06-01T10:00:00Z",
+      } as any,
+      {
+        id: "doc-prof-2",
+        hahitantsoa_event_draft: "event-1",
+        document_type: "proforma",
+        template_key: "hahitantsoa.proforma.v1",
+        document_reference: "HAH-2026-0001-PF",
+        status: "generated",
+        created_at: "2026-06-02T10:00:00Z",
+      } as any,
+    ]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetPreflight.mockResolvedValue(preflight());
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={vi.fn()} />);
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    const historyBtn = screen.getByRole("button", { name: /Historique \(2 versions\)/i });
+    expect(historyBtn).toBeInTheDocument();
+
+    fireEvent.click(historyBtn);
+
+    expect(screen.getByText(/Historique des versions du Proforma/i)).toBeInTheDocument();
+    expect(screen.getAllByText("HAH-2026-0001-PF").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("v1")).toBeInTheDocument();
+    expect(screen.getAllByText("v2").length).toBeGreaterThanOrEqual(1);
+
+    const previewV1Btn = screen.getByRole("button", { name: /Aperçu v1/i });
+    fireEvent.click(previewV1Btn);
+
+    expect(screen.getByText("Preview for doc-prof-1")).toBeInTheDocument();
+    const closeBtn = screen.getByRole("button", { name: /Fermer/i });
+    expect(closeBtn).toBeInTheDocument();
+  });
+
+  it("permet de générer une nouvelle révision de proforma dans le dossier Hahitantsoa", async () => {
+    mockGetDraft.mockResolvedValue(DRAFT);
+    mockGetCustomer.mockResolvedValue(CUSTOMER);
+    mockGetDocuments.mockResolvedValue([
+      {
+        id: "doc-prof-1",
+        hahitantsoa_event_draft: "event-1",
+        document_type: "proforma",
+        template_key: "hahitantsoa.proforma.v1",
+        document_reference: "HAH-2026-0001-PF",
+        status: "generated",
+        created_at: "2026-06-01T10:00:00Z",
+      } as any,
+    ]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetPreflight.mockResolvedValue(preflight());
+    mockGetLifecycle.mockResolvedValue(null);
+    mockCreateDocumentInstance.mockResolvedValue({ id: "doc-prof-2" });
+    mockGenerateDocumentInstance.mockResolvedValue({});
+    mockGenerateDocumentInstancePdf.mockResolvedValue({});
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={vi.fn()} />);
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    const newRevBtn = screen.getByRole("button", { name: /Nouvelle révision/i });
+    expect(newRevBtn).toBeInTheDocument();
+
+    fireEvent.click(newRevBtn);
+
+    await waitFor(() => {
+      expect(mockCreateDocumentInstance).toHaveBeenCalledWith("event-1", expect.objectContaining({
+        template_key: "hahitantsoa.proforma.v1",
+      }));
+      expect(mockGenerateDocumentInstance).toHaveBeenCalledWith("event-1", "doc-prof-2");
+    });
+  });
 });
