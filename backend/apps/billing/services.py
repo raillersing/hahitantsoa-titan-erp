@@ -587,6 +587,7 @@ def issue_billing_invoice_for_excess_receivable(
         "settlement_execution__settlement",
         "settlement_execution__settlement__return_operation",
         "settlement_execution__settlement__return_operation__reservation_draft",
+        "settlement_execution__settlement__return_operation__hahitantsoa_event_draft",
     ).get(pk=locked_receivable.pk)
 
     if hasattr(locked_receivable, "billing_invoice"):
@@ -606,14 +607,15 @@ def issue_billing_invoice_for_excess_receivable(
         actor=actor,
         notes=notes,
     )
-    reservation_draft = (
-        locked_receivable.settlement_execution.settlement.return_operation.reservation_draft
-    )
+    return_op = locked_receivable.settlement_execution.settlement.return_operation
+    reservation_draft = return_op.reservation_draft
+    hahitantsoa_event_draft = return_op.hahitantsoa_event_draft
     actor_id = getattr(actor, "pk", None)
     invoice = BillingInvoice.objects.create(
         excess_receivable=locked_receivable,
         document_instance=document_instance,
         reservation_draft=reservation_draft,
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
         source_kind=BillingInvoiceSourceKind.INVENTORY_DAMAGE_LOSS_EXCESS_RECEIVABLE,
         invoice_status=BillingInvoiceStatus.OPEN,
         amount=locked_receivable.amount,

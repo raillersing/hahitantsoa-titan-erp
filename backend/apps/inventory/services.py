@@ -9,10 +9,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
-from apps.documents.excess_receivable import (
-    EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY,
-    build_excess_receivable_invoice_context,
-)
+from apps.documents.excess_receivable import build_excess_receivable_invoice_context
 from apps.documents.models import DocumentInstance, DocumentInstanceStatus
 from apps.inventory.models import (
     FIXED_INVENTORY_STOCK_MOVEMENT_DIRECTIONS,
@@ -508,13 +505,17 @@ def _coerce_decimal_amount(value) -> Decimal:
 def calculate_caution_available_for_return_operation(
     return_operation: InventoryReturnOperation,
 ) -> Decimal:
-    if return_operation.reservation_draft_id is None:
+    if return_operation.reservation_draft_id is not None:
+        filters = {"reservation_draft": return_operation.reservation_draft}
+    elif return_operation.hahitantsoa_event_draft_id is not None:
+        filters = {"hahitantsoa_event_draft": return_operation.hahitantsoa_event_draft}
+    else:
         return Decimal("0.00")
 
     aggregate = Payment.objects.filter(
-        reservation_draft=return_operation.reservation_draft,
         payment_kind=PaymentKind.CAUTION,
         payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
+        **filters,
     ).aggregate(total=Sum("amount"))
     return aggregate["total"] or Decimal("0.00")
 
@@ -1206,15 +1207,22 @@ def generate_excess_receivable_invoice_document(
     # Build the context for the excess receivable invoice
     context = build_excess_receivable_invoice_context(excess_receivable=excess_receivable)
 
+    return_op = excess_receivable.settlement_execution.settlement.return_operation
+    is_hahitantsoa = return_op.hahitantsoa_event_draft_id is not None
+    reservation_draft = return_op.reservation_draft
+    hahitantsoa_event_draft = return_op.hahitantsoa_event_draft
+    customer = (
+        hahitantsoa_event_draft.customer
+        if is_hahitantsoa
+        else (reservation_draft.customer if reservation_draft is not None else None)
+    )
+
     # Create the DocumentInstance with the excess receivable invoice template
-    template_key = EXCESS_RECEIVABLE_INVOICE_TEMPLATE_KEY
+    template_key = context.template.key
     instance = DocumentInstance.objects.create(
-        reservation_draft=(
-            excess_receivable.settlement_execution.settlement.return_operation.reservation_draft
-        ),
-        customer=(
-            excess_receivable.settlement_execution.settlement.return_operation.reservation_draft.customer
-        ),
+        reservation_draft=reservation_draft,
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
+        customer=customer,
         template_key=context.template.key,
         template_version=context.template.version,
         template_label=context.template.label,
