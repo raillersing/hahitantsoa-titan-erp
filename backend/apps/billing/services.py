@@ -1313,6 +1313,7 @@ def execute_billing_refund_obligation(
     payment_notes = notes if notes is not None else locked_obligation.notes
     payment = existing_payment or Payment.objects.create(
         reservation_draft=locked_obligation.invoice.reservation_draft,
+        hahitantsoa_event_draft=locked_obligation.invoice.hahitantsoa_event_draft,
         payment_kind="refund",
         payment_method="bank_transfer",
         payment_status="pending",

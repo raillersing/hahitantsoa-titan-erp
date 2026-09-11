@@ -384,18 +384,41 @@ class InventoryDamageLossSettlementCreateSerializer(serializers.Serializer):
 
 
 class InventoryCautionRefundObligationSerializer(serializers.ModelSerializer):
+    receipt_document_id = serializers.SerializerMethodField()
+    payment_id = serializers.SerializerMethodField()
+
     class Meta:
         model = InventoryCautionRefundObligation
         fields = (
             "id",
             "amount",
             "status",
+            "receipt_document_id",
+            "payment_id",
             "created_at",
             "updated_at",
             "created_by",
             "updated_by",
         )
         read_only_fields = fields
+
+    def get_receipt_document_id(self, obj) -> str | None:
+        payments = getattr(obj, "refund_payments", None)
+        if payments is None:
+            return None
+        all_payments = payments.all()
+        payment = all_payments[0] if all_payments else None
+        if payment and payment.receipt_document_id:
+            return str(payment.receipt_document_id)
+        return None
+
+    def get_payment_id(self, obj) -> str | None:
+        payments = getattr(obj, "refund_payments", None)
+        if payments is None:
+            return None
+        all_payments = payments.all()
+        payment = all_payments[0] if all_payments else None
+        return str(payment.id) if payment else None
 
 
 class InventoryDamageLossExcessReceivableSerializer(serializers.ModelSerializer):

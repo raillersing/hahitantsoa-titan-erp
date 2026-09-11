@@ -378,6 +378,7 @@ def active_inventory_damage_loss_settlement_executions():
             "updated_by",
         )
         .select_related("refund_obligation", "excess_receivable")
+        .prefetch_related("refund_obligation__refund_payments")
         .order_by("-created_at", "id")
     )
 

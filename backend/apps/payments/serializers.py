@@ -7,7 +7,7 @@ from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.inventory.models import InventoryCautionRefundObligation
 from apps.reservations.models import ReservationDraft
 
-from .models import Payment, PaymentKind, PaymentStatus
+from .models import Payment, PaymentKind, PaymentMethod, PaymentStatus
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -185,7 +185,13 @@ class ReconciliationCommitSerializer(serializers.Serializer):
 
 class RefundPaymentCreateSerializer(serializers.Serializer):
     refund_obligation_id = serializers.UUIDField(required=True)
-    notes = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+    payment_method = serializers.ChoiceField(
+        choices=PaymentMethod.choices,
+        required=False,
+        default=PaymentMethod.BANK_TRANSFER,
+    )
+    auto_confirm = serializers.BooleanField(required=False, default=False)
 
     def validate_refund_obligation_id(self, value):
         try:
