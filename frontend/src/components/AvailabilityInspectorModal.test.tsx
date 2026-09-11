@@ -247,17 +247,20 @@ describe("AvailabilityInspectorModal Component", () => {
     });
 
     expect(screen.getByText("✓ Disponibles (1)")).toBeInTheDocument();
-    expect(screen.getByText("⛔ Déjà loués (1)")).toBeInTheDocument();
+    expect(screen.getByText("En usage (1)")).toBeInTheDocument();
+    expect(screen.getByText(/Stock disponible : 200/i)).toBeInTheDocument();
+    expect(screen.queryByText(/⛔ Déjà réservé/i)).not.toBeInTheDocument();
 
     // Click "✓ Disponibles" tab
     fireEvent.click(screen.getByText("✓ Disponibles (1)"));
     expect(screen.getByText(/Chaise Napoléon Blanche/i)).toBeInTheDocument();
     expect(screen.queryByText(/Table Ronde 180cm/i)).not.toBeInTheDocument();
 
-    // Click "⛔ Déjà loués" tab
-    fireEvent.click(screen.getByText("⛔ Déjà loués (1)"));
+    // Click "En usage" tab
+    fireEvent.click(screen.getByText("En usage (1)"));
     expect(screen.queryByText(/Chaise Napoléon Blanche/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Table Ronde 180cm/i)).toBeInTheDocument();
+    expect(screen.getByText(/En location/i)).toBeInTheDocument();
 
     // Click "Tous" tab
     fireEvent.click(screen.getByText("Tous (2)"));
@@ -292,5 +295,75 @@ describe("AvailabilityInspectorModal Component", () => {
     fireEvent.click(screen.getByRole("button", { name: /Nouveau devis Titan/i }));
     expect(onClose).toHaveBeenCalled();
     expect(onSelectDateAndNavigate).toHaveBeenCalledWith("2026-10-15", "titan");
+  });
+
+  it("affiche le stock disponible par article et les codes couleur en location et événementiel sans badge déjà réservé", async () => {
+    setupMockApis({
+      inventoryItems: [
+        {
+          id: "item-10",
+          name: "Projecteur LED 50W",
+          kind: "material",
+          code: "MAT-LED-10",
+          is_active: true,
+          is_deleted: false,
+          reported_inventory_quantity: 50,
+        },
+      ],
+      titanDrafts: [
+        {
+          id: "titan-10",
+          public_reference: "RES-TITAN-010",
+          customer_display_name: "Client Alpha",
+          start_at: "2026-10-15T00:00:00.000Z",
+          end_at: "2026-10-16T00:00:00.000Z",
+          lines: [{ inventory_item_id: "item-10", quantity: 15 }],
+        },
+      ],
+      hahDrafts: [
+        {
+          id: "hah-10",
+          public_reference: "DEV-HAH-010",
+          event_name: "Gala Annuel",
+          customer_display_name: "Entreprise Beta",
+          start_at: "2026-10-15T08:00:00.000Z",
+          end_at: "2026-10-15T23:00:00.000Z",
+          lines: [{ inventory_item_id: "item-10", quantity: 10 }],
+        },
+      ],
+      availablePreviews: [
+        {
+          inventory_item_id: "item-10",
+          inventory_item_name: "Projecteur LED 50W",
+        },
+      ],
+    });
+
+    render(
+      <AvailabilityInspectorModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialDate="2026-10-15"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Projecteur LED 50W/i)).toBeInTheDocument();
+    });
+
+    // Affiche le stock disponible (50 - 15 - 10 = 25) au lieu du stock total
+    expect(screen.getByText("Stock disponible : 25")).toBeInTheDocument();
+
+    // Vérifie le code couleur location (15 en location)
+    expect(screen.getByText("15 en location")).toBeInTheDocument();
+
+    // Vérifie le code couleur événementiel (10 en événementiel)
+    expect(screen.getByText("10 en événementiel")).toBeInTheDocument();
+
+    // Vérifie l'indication de stock disponible restant
+    expect(screen.getByText("✓ 25 dispo")).toBeInTheDocument();
+
+    // Vérifie l'absence absolue du badge "⛔ Déjà réservé"
+    expect(screen.queryByText(/⛔ Déjà réservé/i)).not.toBeInTheDocument();
   });
 });

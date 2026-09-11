@@ -248,18 +248,65 @@ export function AvailabilityInspectorModal({
     return getTitanReservationsForDay(selectedDate);
   }, [allTitanDrafts, selectedDate]);
 
-  // Material partition: Total Inventory vs Available Previews
+  // Hahitantsoa active event drafts on selected date
+  const activeHahDraftsOnSelectedDate = useMemo(() => {
+    if (!selectedDate) return [];
+    const { startAt, endAt } = selectedDayPeriod(selectedDate);
+    const dayStart = Date.parse(startAt);
+    const dayEnd = Date.parse(endAt);
+
+    return allHahDrafts.filter((draft) => {
+      if (!draft.start_at || !draft.end_at) return false;
+      const s = Date.parse(draft.start_at);
+      const e = Date.parse(draft.end_at);
+      return s < dayEnd && e > dayStart;
+    });
+  }, [allHahDrafts, selectedDate]);
+
+  const hasConfirmationsOnSelectedDate = useMemo(() => {
+    return (
+      activeTitanReservationsOnSelectedDate.length > 0 ||
+      activeHahDraftsOnSelectedDate.length > 0 ||
+      (selectedDate ? getVenueOccupancyForDay(selectedDate).status === "reserved" : false)
+    );
+  }, [activeTitanReservationsOnSelectedDate, activeHahDraftsOnSelectedDate, selectedDate, monthVenueOccupancy]);
+
+  // Material partition: Total Inventory vs Available Previews & active bookings
   const materialInventoryStatus = useMemo(() => {
     const availableItemIds = new Set(dayAvailablePreviews.map((p) => p.inventory_item_id));
 
     return inventoryItems
       .filter((item) => !item.is_deleted && item.is_active !== false)
       .map((item) => {
-        const isAvailable = availableItemIds.has(item.id);
         const totalStock =
           item.stock_summary?.reported_inventory_quantity ??
           item.reported_inventory_quantity ??
           1;
+
+        // Calcul des quantités en usage
+        const titanReservedQty = activeTitanReservationsOnSelectedDate.reduce((sum, draft) => {
+          const line = draft.lines?.find((l) => l.inventory_item_id === item.id);
+          return sum + (line ? line.quantity : 0);
+        }, 0);
+
+        const hahReservedQty = activeHahDraftsOnSelectedDate.reduce((sum, draft) => {
+          const line = draft.lines?.find((l) => l.inventory_item_id === item.id);
+          return sum + (line ? line.quantity : 0);
+        }, 0);
+
+        const totalReservedQty = titanReservedQty + hahReservedQty;
+
+        let availableStock: number;
+        if (totalReservedQty > 0) {
+          availableStock = Math.max(0, totalStock - totalReservedQty);
+        } else if (dayAvailablePreviews.length > 0 && !availableItemIds.has(item.id)) {
+          availableStock = 0;
+        } else {
+          availableStock = totalStock;
+        }
+
+        const isAvailable = availableStock > 0;
+        const isInUsage = totalReservedQty > 0 || (dayAvailablePreviews.length > 0 && !availableItemIds.has(item.id));
 
         return {
           id: item.id,
@@ -267,11 +314,15 @@ export function AvailabilityInspectorModal({
           kind: item.kind,
           code: item.code || "REF-MAT",
           totalStock,
+          availableStock,
+          titanReservedQty,
+          hahReservedQty,
+          totalReservedQty,
           isAvailable,
-          statusText: isAvailable ? "Disponible" : "Déjà loué / Réservé",
+          isInUsage,
         };
       });
-  }, [inventoryItems, dayAvailablePreviews]);
+  }, [inventoryItems, dayAvailablePreviews, activeTitanReservationsOnSelectedDate, activeHahDraftsOnSelectedDate]);
 
   // Filtered materials
   const filteredMaterials = useMemo(() => {
@@ -284,13 +335,13 @@ export function AvailabilityInspectorModal({
       if (!matchesSearch) return false;
 
       if (materialFilterTab === "available") return mat.isAvailable;
-      if (materialFilterTab === "reserved") return !mat.isAvailable;
+      if (materialFilterTab === "reserved") return mat.isInUsage || !mat.isAvailable;
       return true;
     });
   }, [materialInventoryStatus, materialFilterTab, materialSearchQuery]);
 
   const availableCount = materialInventoryStatus.filter((m) => m.isAvailable).length;
-  const reservedCount = materialInventoryStatus.filter((m) => !m.isAvailable).length;
+  const reservedCount = materialInventoryStatus.filter((m) => m.isInUsage || !m.isAvailable).length;
   const totalMaterialsCount = materialInventoryStatus.length;
 
   // Month navigation
@@ -673,11 +724,11 @@ export function AvailabilityInspectorModal({
                       onClick={() => setMaterialFilterTab("reserved")}
                       className={`px-2 py-1 rounded-md transition ${
                         materialFilterTab === "reserved"
-                          ? "bg-rose-600 text-white"
-                          : "text-rose-700 hover:bg-rose-50 dark:text-rose-400"
+                          ? "bg-indigo-600 text-white"
+                          : "text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400"
                       }`}
                     >
-                      ⛔ Déjà loués ({reservedCount})
+                      En usage ({reservedCount})
                     </button>
                   </div>
 
@@ -695,21 +746,72 @@ export function AvailabilityInspectorModal({
                       filteredMaterials.map((mat) => (
                         <div
                           key={mat.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs"
+                          className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 text-xs gap-2"
                         >
-                          <div>
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{mat.name}</span>
-                            <span className="text-[10px] text-slate-400 ml-2">Stock total : {mat.totalStock}</span>
-                          </div>
-
-                          <div>
-                            {mat.isAvailable ? (
-                              <span className="px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-700 text-[10px]">
-                                ✓ Disponible ({mat.totalStock} dispo)
+                          <div className="flex-1 min-w-0">
+                            <span className="font-bold text-slate-800 dark:text-slate-200 block sm:inline">{mat.name}</span>
+                            {hasConfirmationsOnSelectedDate ? (
+                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 sm:ml-2">
+                                Stock disponible : {mat.availableStock}
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full font-bold bg-rose-100 text-rose-700 text-[10px]">
-                                ⛔ Déjà réservé
+                              <span className="text-[10px] text-slate-400 sm:ml-2">
+                                Stock total : {mat.totalStock}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
+                            {/* Code couleur location Titan */}
+                            {mat.titanReservedQty > 0 ? (
+                              <span
+                                className="px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-[10px] border border-indigo-200 dark:border-indigo-800 flex items-center gap-1"
+                                title="Partie du stock en usage pour location Titan"
+                              >
+                                <i className="fa-solid fa-truck text-[9px]"></i>
+                                <span>{mat.titanReservedQty} en location</span>
+                              </span>
+                            ) : (mat.isInUsage && activeTitanReservationsOnSelectedDate.length > 0 && mat.hahReservedQty === 0) ? (
+                              <span
+                                className="px-2 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 text-[10px] border border-indigo-200 dark:border-indigo-800 flex items-center gap-1"
+                                title="En usage pour location Titan"
+                              >
+                                <i className="fa-solid fa-truck text-[9px]"></i>
+                                <span>En location</span>
+                              </span>
+                            ) : null}
+
+                            {/* Code couleur événementiel Hahitantsoa */}
+                            {mat.hahReservedQty > 0 ? (
+                              <span
+                                className="px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] border border-amber-200 dark:border-amber-800 flex items-center gap-1"
+                                title="Partie du stock en usage pour événement Hahitantsoa"
+                              >
+                                <i className="fa-solid fa-landmark text-[9px]"></i>
+                                <span>{mat.hahReservedQty} en événementiel</span>
+                              </span>
+                            ) : (mat.isInUsage && activeHahDraftsOnSelectedDate.length > 0 && mat.titanReservedQty === 0) ? (
+                              <span
+                                className="px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] border border-amber-200 dark:border-amber-800 flex items-center gap-1"
+                                title="En usage pour événement Hahitantsoa"
+                              >
+                                <i className="fa-solid fa-landmark text-[9px]"></i>
+                                <span>En événementiel</span>
+                              </span>
+                            ) : null}
+
+                            {/* Statut disponibilité */}
+                            {!mat.isInUsage ? (
+                              <span className="px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-700 text-[10px]">
+                                ✓ {mat.availableStock} dispo
+                              </span>
+                            ) : mat.availableStock > 0 ? (
+                              <span className="px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-[10px] border border-emerald-200 dark:border-emerald-800">
+                                ✓ {mat.availableStock} dispo
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full font-bold bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-[10px]">
+                                Épuisé
                               </span>
                             )}
                           </div>

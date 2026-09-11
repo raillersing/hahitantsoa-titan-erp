@@ -696,33 +696,23 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     return () => { cancelled = true; };
   }, [domain, hDetails.startDate, hDetails.startTime, hDetails.endDate, hDetails.endTime, tDetails.startDate, tDetails.startTime, tDetails.endDate, tDetails.endTime]);
 
-  // Init from URL param if needed
-  useEffect(() => {
-    if (param === 'hahitantsoa' || param === 'titan') {
+  const applyParamRouting = (targetParam: string | undefined) => {
+    if (targetParam === 'hahitantsoa' || targetParam === 'titan') {
       setPath('domain_first');
-      setDomain(param as DomainType);
+      setDomain(targetParam as DomainType);
       setStep(2); // Domain is known (step 1 in domain_first is domain, step 2 is client)
       setMaxReachedStep(2);
-    } else if (isReservationClientParam(param) || (param && param.startsWith('PROS-'))) {
-      const saved = localStorage.getItem("prototypeReservationDraft");
-      if (saved) {
-        const data = JSON.parse(saved);
-        if (data.selectedClientId === param && data.step >= 2) {
-          setShowDraftPrompt(true);
-          return;
-        }
-      }
-      // New reservation from customer detail: param = clientId
+    } else if (isReservationClientParam(targetParam) || (targetParam && targetParam.startsWith('PROS-'))) {
       setPath('client_first');
       setClientMode('existing');
-      setSelectedClientId(param!);
+      setSelectedClientId(targetParam!);
       setStep(2); // skip client selection, go to domain choice
       setMaxReachedStep(2);
-    } else if (param && param.startsWith('quote/')) {
-      const clientId = param.split('/')[1];
+    } else if (targetParam && targetParam.startsWith('quote/')) {
+      const clientId = targetParam.split('/')[1];
       setTimeout(() => onNavigate('customer', clientId), 0);
-    } else if (param && param.startsWith('prospect-proforma-')) {
-      const parts = param.split('/');
+    } else if (targetParam && targetParam.startsWith('prospect-proforma-')) {
+      const parts = targetParam.split('/');
       const isTitan = parts[0] === 'prospect-proforma-t';
       const clientId = parts[1];
       setPath('client_first');
@@ -731,8 +721,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setSelectedClientId(clientId);
       setStep(3); // skip client and domain choice, go directly to details
       setMaxReachedStep(3);
-    } else if (param && param.startsWith('catalog-prep|')) {
-      const payload = param.split('catalog-prep|')[1];
+    } else if (targetParam && targetParam.startsWith('catalog-prep|')) {
+      const payload = targetParam.split('catalog-prep|')[1];
       try {
         const items = JSON.parse(payload);
         setPath('domain_first');
@@ -743,7 +733,63 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       } catch (e) {
         console.error("Failed to parse catalog-prep param", e);
       }
+    } else {
+      setStep(0);
+      setMaxReachedStep(0);
     }
+  };
+
+  const resetAllWizardState = () => {
+    setSelectedMaterials([]);
+    setSelectedServices([]);
+    setSelectedClientId("");
+    setNewClient({ name: "", phone: "", email: "", additionalEmails: [], additionalPhones: [], type: "Particulier", notes: "", civilite: "", idType: "CIN" });
+    setHDetails({
+      eventType: "", eventTypeOther: "", date: "", venue: "Salle des fêtes + jardin", guests: "", remarks: "",
+      startDate: "", startTime: "08:00", endDate: "", endTime: "20:00", rentalType: "Location nue", durationOption: "day",
+      venuePrice: Number(hahitantsoaTerms?.base_space_rental_amount ?? HAHITANTSOA_BASE_SPACE_RENTAL), logisticsPrice: 0
+    });
+    setTDetails({
+      period: "", startDate: "", startTime: "08:00", endDate: "", endTime: "22:00", pickupDate: "", returnDate: "", remarks: "",
+      usageType: "Mariage", usageTypeOther: "",
+      destinationName: "", destinationAddress: "", destinationCity: "", destinationLandmark: "", destinationAccessNote: "", destinationContactName: "", destinationContactPhone: "", destinationLat: "", destinationLng: "",
+      movementMode: "Livraison par Titan", deliveryTime: "", returnTime: "", deliveryAddress: "",
+      pickupTime: "", clientReturnTime: "", vehicleType: "", transportPerson: "", advanceRate: TITAN_DEFAULT_ADVANCE_RATE
+    });
+    setDeliveryFee("");
+    setPayment({ method: "Espèces", amount: "", percent: (TITAN_DEFAULT_ADVANCE_RATE * 100).toString() });
+    setClientAttachments([]);
+    setDedicatedAttachments({});
+    setPaymentAttachments([]);
+    setRecordedPayments([]);
+    setDiscountValue(0);
+    setDiscountIsPercentage(true);
+    setDiscountReason("");
+    setProspectProformaEmission(null);
+  };
+
+  // Init from URL param if needed, or prompt to restore draft if unfinished
+  useEffect(() => {
+    if (param && param.startsWith('quote/')) {
+      const clientId = param.split('/')[1];
+      setTimeout(() => onNavigate('customer', clientId), 0);
+      return;
+    }
+
+    const saved = localStorage.getItem("prototypeReservationDraft");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data && (data.step >= 3 || data.maxReachedStep >= 3 || data.selectedClientId || data.newClient?.name?.trim() || data.selectedMaterials?.length > 0 || (data.domain && (data.hDetails?.startDate || data.tDetails?.startDate)))) {
+          setShowDraftPrompt(true);
+          return;
+        }
+      } catch {
+        localStorage.removeItem("prototypeReservationDraft");
+      }
+    }
+
+    applyParamRouting(param);
   }, [param]);
 
   const [discountValue, setDiscountValue] = useState<number>(0);
@@ -805,6 +851,16 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   // Draft persistence
+  const hasDraftContent = !showDraftPrompt && Boolean(
+    selectedClientId ||
+    newClient.name.trim() ||
+    step >= 3 ||
+    maxReachedStep >= 3 ||
+    selectedMaterials.length > 0 ||
+    selectedServices.length > 0 ||
+    (domain && (hDetails.startDate || tDetails.startDate))
+  );
+
   const saveDraft = () => {
     const draft = {
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
@@ -820,10 +876,25 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   useEffect(() => {
-    if (step >= 2 && (selectedClientId || newClient.name)) {
+    if (hasDraftContent) {
       saveDraft();
     }
-  }, [step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission]);
+  }, [hasDraftContent, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasDraftContent) {
+        saveDraft();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (hasDraftContent) {
+        saveDraft();
+      }
+    };
+  }, [hasDraftContent, step, path, maxReachedStep, clientMode, selectedClientId, newClient, domain, hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment, clientAttachments, dedicatedAttachments, paymentAttachments, recordedPayments, discountValue, discountIsPercentage, discountReason, prospectProformaEmission]);
 
   const restoreDraft = () => {
     const saved = localStorage.getItem("prototypeReservationDraft");
@@ -848,17 +919,10 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
   const clearDraft = (resetState = true) => {
     localStorage.removeItem("prototypeReservationDraft");
+    setShowDraftPrompt(false);
     if (resetState) {
-      if (isReservationClientParam(param) || (param && param.startsWith('PROS-'))) {
-        setShowDraftPrompt(false);
-        setPath('client_first');
-        setClientMode('existing');
-        setSelectedClientId(param!);
-        setStep(2); 
-        setMaxReachedStep(2);
-      } else {
-        window.location.reload();
-      }
+      resetAllWizardState();
+      applyParamRouting(param);
     }
   };
 
@@ -1861,7 +1925,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {HAHITANTSOA_RENTAL_TYPES.map(opt => (
                   <label key={opt} className={`border p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${hDetails.rentalType === opt ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-300 hover:border-indigo-400'}`}>
-                    <input type="radio" name="rentalType" value={opt} checked={hDetails.rentalType === opt} onChange={(e) => setHDetails({...hDetails, rentalType: e.target.value})} className="w-4 h-4 text-indigo-600" />
+                    <input type="radio" name="rentalType" value={opt} checked={hDetails.rentalType === opt} onChange={(e) => {
+                      const newType = e.target.value;
+                      setHDetails({
+                        ...hDetails,
+                        rentalType: newType,
+                        logisticsPrice: newType === 'Location + logistique' ? (hDetails.logisticsPrice || 1500000) : 0,
+                      });
+                    }} className="w-4 h-4 text-indigo-600" />
                     <span className="font-medium text-sm">{opt}</span>
                   </label>
                 ))}
@@ -2010,29 +2081,41 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
             </div>
           </div>
 
-          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5">
-            <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-coins text-indigo-500"></i> Tarifs de base Hahitantsoa
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Récapitulatif du total des choix faits dans cette étape */}
+          <div className="mt-6 bg-indigo-50/80 p-5 rounded-xl border border-indigo-100 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100/80 pb-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Prix location local</label>
-                <div className="flex items-center gap-2">
-                  <input type="number" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.venuePrice || ''} onChange={e => setHDetails({...hDetails, venuePrice: parseInt(e.target.value || '0', 10)})} />
-                  <span className="text-slate-600 font-medium">Ar</span>
-                </div>
+                <span className="font-bold text-indigo-950 text-sm block flex items-center gap-2">
+                  <i className="fa-solid fa-receipt text-indigo-600"></i> Récapitulatif des choix de l'étape :
+                </span>
+                <span className="text-xs text-indigo-700">
+                  {hDetails.venue || 'Local par défaut'} • {hDetails.rentalType} • {HAHITANTSOA_DURATION_OPTIONS.find(o => o.key === hDetails.durationOption)?.label || hDetails.durationOption}
+                </span>
+              </div>
+              <div className="sm:text-right">
+                <span className="text-xs text-slate-500 block">Total Espace & Formule</span>
+                <span className="text-xl font-black text-indigo-700">{hahitantsoaSpaceRentalAmount.toLocaleString('fr-FR')} Ar</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-slate-600">
+              <div className="bg-white/80 p-2.5 rounded-lg border border-indigo-50">
+                <span className="text-slate-500 block">Tarif de base local :</span>
+                <span className="font-semibold text-slate-800">{(hDetails.venuePrice || hahitantsoaBaseSpaceRental).toLocaleString('fr-FR')} Ar</span>
               </div>
               {hDetails.rentalType === 'Location + logistique' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Tarif logistique</label>
-                  <div className="flex items-center gap-2">
-                    <input type="number" className="w-full border border-slate-300 rounded-lg p-2.5 text-sm" value={hDetails.logisticsPrice || ''} onChange={e => setHDetails({...hDetails, logisticsPrice: parseInt(e.target.value || '0', 10)})} />
-                    <span className="text-slate-600 font-medium">Ar</span>
-                  </div>
+                <div className="bg-white/80 p-2.5 rounded-lg border border-indigo-50">
+                  <span className="text-slate-500 block">Option logistique :</span>
+                  <span className="font-semibold text-slate-800">{(hDetails.logisticsPrice || 1500000).toLocaleString('fr-FR')} Ar</span>
+                </div>
+              )}
+              {Number(hDetails.guests || 0) > hahitantsoaIncludedGuests && (
+                <div className="bg-white/80 p-2.5 rounded-lg border border-indigo-50">
+                  <span className="text-slate-500 block">Invités supp. ({Number(hDetails.guests) - hahitantsoaIncludedGuests}) :</span>
+                  <span className="font-semibold text-slate-800">{(Math.max(Number(hDetails.guests || 0) - hahitantsoaIncludedGuests, 0) * hahitantsoaExcessGuestAmount).toLocaleString('fr-FR')} Ar</span>
                 </div>
               )}
             </div>
-            <p className="text-xs text-slate-500 mt-3 italic">Tarifs modifiables par l'entreprise selon les négociations client.</p>
           </div>
 
           <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
@@ -3963,35 +4046,64 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   };
 
   if (showDraftPrompt) {
-    const client = param ? clients.find(c => c.id === param) : null;
+    const saved = localStorage.getItem("prototypeReservationDraft");
+    let draftInfo: any = null;
+    try {
+      if (saved) draftInfo = JSON.parse(saved);
+    } catch {}
+
+    const draftClientName = draftInfo?.selectedClientId
+      ? clients.find(c => c.id === draftInfo.selectedClientId)?.name || draftInfo.selectedClientId
+      : draftInfo?.newClient?.name;
+    const draftDomain = draftInfo?.domain;
+    const draftDate = draftDomain === "hahitantsoa" ? draftInfo?.hDetails?.startDate : draftInfo?.tDetails?.startDate;
+
     return (
-      <div className="page active max-w-2xl mx-auto mt-12 text-center">
+      <div className="page active max-w-2xl mx-auto mt-12 text-center" role="dialog" aria-modal="true" aria-labelledby="draft-prompt-title">
         <div className="bg-white rounded-2xl border border-slate-100 p-10 shadow-sm animate-fade-in">
           <div className="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
             <i className="fa-solid fa-file-signature"></i>
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-4">Brouillon de réservation en cours</h2>
-          <p className="text-slate-600 mb-8">Un brouillon de réservation existe déjà pour {client?.name}. Voulez-vous le reprendre ou recommencer à zéro ?</p>
+          <h2 id="draft-prompt-title" className="text-2xl font-bold text-slate-800 mb-4">Parcours de réservation en cours</h2>
+          <p className="text-slate-600 mb-8">
+            Un parcours de réservation est déjà commencé
+            {draftDomain === 'hahitantsoa' ? ' pour un événement Hahitantsoa' : draftDomain === 'titan' ? ' pour une location Titan' : ''}
+            {draftClientName ? ` (${draftClientName})` : ''}
+            {draftDate ? ` prévu le ${draftDate}` : ''}.
+            <br />
+            Voulez-vous reprendre là où vous vous étiez arrêté ou directement commencer une nouvelle réservation ?
+          </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button 
+              type="button"
               onClick={() => clearDraft(true)}
-              className="px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors"
+              className="px-6 py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
             >
-              Recommencer
+              <i className="fa-solid fa-plus"></i>
+              <span>Nouvelle réservation</span>
             </button>
             <button 
+              type="button"
               onClick={() => restoreDraft()}
-              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2"
             >
-              Reprendre le brouillon
+              <i className="fa-solid fa-rotate-left"></i>
+              <span>Reprendre le brouillon</span>
             </button>
           </div>
           <div className="mt-8 pt-6 border-t border-slate-100">
             <button 
-              onClick={() => onNavigate('customer', param)}
+              type="button"
+              onClick={() => {
+                if (isReservationClientParam(param) || (param && param.startsWith('PROS-'))) {
+                  onNavigate('customer', param);
+                } else {
+                  onNavigate('dashboard');
+                }
+              }}
               className="text-slate-500 hover:text-slate-700 text-sm font-medium"
             >
-              <i className="fa-solid fa-arrow-left mr-2"></i> Retour à la fiche {client?.name}
+              <i className="fa-solid fa-arrow-left mr-2"></i> Quitter sans modifier
             </button>
           </div>
         </div>
