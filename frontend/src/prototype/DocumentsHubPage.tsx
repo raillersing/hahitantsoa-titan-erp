@@ -9,6 +9,7 @@ import { LoadingSpinner, EmptyState } from "../components";
 
 interface DocumentsHubPageProps {
   onNavigate: (scope: any, param?: string) => void;
+  selectedDocumentId?: string;
 }
 
 const DOCUMENT_TYPES = [
@@ -100,7 +101,7 @@ function displayDocumentReference(doc: DocumentInstanceListItem): string {
   return doc.document_reference || doc.reservation_public_reference || "—";
 }
 
-export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) {
+export default function DocumentsHubPage({ onNavigate, selectedDocumentId }: DocumentsHubPageProps) {
   const [docs, setDocs] = useState<DocumentInstanceListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +177,14 @@ export default function DocumentsHubPage({ onNavigate }: DocumentsHubPageProps) 
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / ITEMS_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
   const paginatedDocs = filteredDocs.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (!selectedDocumentId || docs.length === 0) return;
+    const target = docs.find((d) => d.id === selectedDocumentId);
+    if (target) {
+      setPreviewDoc(target);
+    }
+  }, [selectedDocumentId, docs]);
 
   useEffect(() => {
     if (!previewDoc) {
