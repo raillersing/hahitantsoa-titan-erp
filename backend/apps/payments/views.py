@@ -397,7 +397,15 @@ class RefundPaymentCreateAPIView(APIView):
                 refund_obligation=serializer.validated_data["refund_obligation_id"],
                 actor=request.user,
                 notes=serializer.validated_data.get("notes"),
+                payment_method=serializer.validated_data.get("payment_method", "bank_transfer"),
             )
+            if serializer.validated_data.get("auto_confirm"):
+                result = confirm_refund_payment(
+                    payment=payment,
+                    actor=request.user,
+                    notes=serializer.validated_data.get("notes"),
+                )
+                payment = result.payment
         except PaymentLifecycleError as error:
             return Response(
                 {"detail": str(error), "code": error.code},

@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.services import record_audit_event_on_commit
-from apps.billing.models import BillingRefundObligationStatus
+from apps.billing.models import BillingRefundObligation, BillingRefundObligationStatus
 from apps.documents.models import DocumentInstance
 from apps.documents.payment_receipts import (
     PAYMENT_RECEIPT_TEMPLATE_KEY as SHARED_PAYMENT_RECEIPT_TEMPLATE_KEY,
@@ -405,17 +405,52 @@ def build_refund_receipt_document_instance_kwargs(
     billing_obligation = payment.billing_refund_obligation
     settlement_execution = obligation.settlement_execution if obligation is not None else None
     reservation_draft = None
+    hahitantsoa_event_draft = None
     customer = None
     if settlement_execution is not None:
-        reservation_draft = settlement_execution.settlement.return_operation.reservation_draft
-        customer = reservation_draft.customer if reservation_draft is not None else None
+        return_operation = settlement_execution.settlement.return_operation
+        reservation_draft = return_operation.reservation_draft
+        hahitantsoa_event_draft = return_operation.hahitantsoa_event_draft
+        customer = (
+            reservation_draft.customer
+            if reservation_draft is not None
+            else (hahitantsoa_event_draft.customer if hahitantsoa_event_draft is not None else None)
+        )
     elif billing_obligation is not None:
-        reservation_draft = billing_obligation.invoice.reservation_draft
-        customer = reservation_draft.customer if reservation_draft is not None else None
+        invoice = billing_obligation.invoice
+        reservation_draft = invoice.reservation_draft
+        hahitantsoa_event_draft = invoice.hahitantsoa_event_draft
+        customer = (
+            reservation_draft.customer
+            if reservation_draft is not None
+            else (hahitantsoa_event_draft.customer if hahitantsoa_event_draft is not None else None)
+        )
+    if reservation_draft is None and hahitantsoa_event_draft is None:
+        reservation_draft = payment.reservation_draft
+        hahitantsoa_event_draft = payment.hahitantsoa_event_draft
+        customer = (
+            reservation_draft.customer
+            if reservation_draft is not None
+            else (hahitantsoa_event_draft.customer if hahitantsoa_event_draft is not None else None)
+        )
+
     customer_display_name = customer.display_name if customer is not None else "Refund recipient"
+    dossier_public_reference = (
+        reservation_draft.public_reference
+        if reservation_draft is not None
+        else (
+            hahitantsoa_event_draft.public_reference if hahitantsoa_event_draft is not None else ""
+        )
+    )
+    dossier_status = (
+        reservation_draft.status
+        if reservation_draft is not None
+        else (hahitantsoa_event_draft.status if hahitantsoa_event_draft is not None else "")
+    )
 
     return {
         "reservation_draft": reservation_draft,
+        "hahitantsoa_event_draft": hahitantsoa_event_draft,
         "customer": customer,
         "template_key": template.key,
         "template_version": template.version,
@@ -429,10 +464,8 @@ def build_refund_receipt_document_instance_kwargs(
         "template_preview_path": template.preview_path,
         "template_validated_by_client": template.validated_by_client,
         "template_notes": template.notes,
-        "reservation_public_reference": (
-            reservation_draft.public_reference if reservation_draft is not None else ""
-        ),
-        "reservation_status": (reservation_draft.status if reservation_draft is not None else ""),
+        "reservation_public_reference": dossier_public_reference,
+        "reservation_status": dossier_status,
         "customer_display_name": customer_display_name,
         "customer_email": customer.email if customer is not None else "",
         "customer_phone": customer.phone if customer is not None else "",
@@ -763,25 +796,46 @@ def create_refund_payment(
     refund_obligation: InventoryCautionRefundObligation,
     actor: object | None = None,
     notes: str | None = None,
+    payment_method: str = "bank_transfer",
 ) -> Payment:
-    if refund_obligation.status != InventoryCautionRefundObligationStatus.PENDING:
+    locked_obligation = InventoryCautionRefundObligation.objects.select_for_update().get(
+        pk=refund_obligation.pk
+    )
+    if locked_obligation.status != InventoryCautionRefundObligationStatus.PENDING:
         raise PaymentLifecycleError(
             "Refund obligation must be pending to create a refund payment.",
             code=REFUND_OBLIGATION_NOT_PENDING,
         )
 
+    existing_payment = (
+        Payment.objects.select_for_update().filter(refund_obligation=locked_obligation).first()
+    )
+    if existing_payment is not None:
+        return existing_payment
+
+    reservation_draft = None
+    hahitantsoa_event_draft = None
+    if locked_obligation.settlement_execution_id:
+        return_op = locked_obligation.settlement_execution.settlement.return_operation
+        reservation_draft = return_op.reservation_draft
+        hahitantsoa_event_draft = return_op.hahitantsoa_event_draft
+
     actor_id = getattr(actor, "pk", None)
     payment = Payment.objects.create(
+        reservation_draft=reservation_draft,
+        hahitantsoa_event_draft=hahitantsoa_event_draft,
         payment_kind="refund",
-        payment_method="bank_transfer",
+        payment_method=payment_method,
         payment_status=PaymentStatus.PENDING,
-        amount=refund_obligation.amount,
-        refund_obligation=refund_obligation,
+        amount=locked_obligation.amount,
+        refund_obligation=locked_obligation,
         source_label="Caution refund",
         notes=notes or "",
         created_by_id=actor_id,
         updated_by_id=actor_id,
     )
+    payment.full_clean()
+    payment.save()
 
     record_audit_event_on_commit(
         actor=actor,
@@ -791,7 +845,7 @@ def create_refund_payment(
         metadata={
             "payment_kind": payment.payment_kind,
             "amount": str(payment.amount),
-            "refund_obligation_id": str(refund_obligation.id),
+            "refund_obligation_id": str(locked_obligation.id),
         },
     )
     return payment
@@ -805,6 +859,7 @@ def confirm_refund_payment(
     paid_at=None,
     notes: str | None = None,
 ) -> PaymentRefundResult:
+    payment = Payment.objects.select_for_update().get(pk=payment.pk)
     if payment.payment_status != PaymentStatus.PENDING:
         raise PaymentLifecycleError(
             f"Cannot confirm refund payment from status: {payment.payment_status}",
@@ -823,8 +878,20 @@ def confirm_refund_payment(
             code=REFUND_OBLIGATION_NOT_FOUND,
         )
 
-    obligation = payment.refund_obligation
-    billing_obligation = payment.billing_refund_obligation
+    obligation = (
+        InventoryCautionRefundObligation.objects.select_for_update().get(
+            pk=payment.refund_obligation_id
+        )
+        if payment.refund_obligation_id is not None
+        else None
+    )
+    billing_obligation = (
+        BillingRefundObligation.objects.select_for_update().get(
+            pk=payment.billing_refund_obligation_id
+        )
+        if payment.billing_refund_obligation_id is not None
+        else None
+    )
     if (
         obligation is not None
         and obligation.status != InventoryCautionRefundObligationStatus.PENDING

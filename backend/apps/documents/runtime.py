@@ -486,7 +486,12 @@ def generate_document_instance_html(
 
         payment = (
             Payment.objects.select_related(
-                "refund_obligation__settlement_execution__settlement__return_operation__reservation_draft__customer"
+                "refund_obligation__settlement_execution__settlement__return_operation__reservation_draft__customer",
+                "refund_obligation__settlement_execution__settlement__return_operation__hahitantsoa_event_draft__customer",
+                "billing_refund_obligation__invoice__reservation_draft__customer",
+                "billing_refund_obligation__invoice__hahitantsoa_event_draft__customer",
+                "reservation_draft__customer",
+                "hahitantsoa_event_draft__customer",
             )
             .filter(receipt_document=document_instance)
             .first()
