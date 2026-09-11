@@ -22,7 +22,7 @@ export interface AvailabilityDatePickerProps {
    */
   value?: string;
   /**
-   * Alias for value (MockAvailabilityCalendar backward-compatibility).
+   * Alias for value used by existing inline-calendar integrations.
    */
   selectedDate?: string;
   /**
@@ -30,7 +30,7 @@ export interface AvailabilityDatePickerProps {
    */
   onChange?: (dateStr: string) => void;
   /**
-   * Alias for onChange (MockAvailabilityCalendar backward-compatibility).
+   * Alias for onChange used by existing inline-calendar integrations.
    */
   onDateSelect?: (dateStr: string) => void;
   /**

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MockAvailabilityCalendar } from "./MockAvailabilityCalendar";
+import { AvailabilityDatePicker } from "../components/AvailabilityDatePicker";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
 import {
   getCustomers,
@@ -502,7 +502,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
     setTimeout(() => setToast(null), 3000);
   };
 
-  const [calendarMonth, setCalendarMonth] = useState<string>("2026-07");
   const [showVenueSelector, setShowVenueSelector] = useState(false);
 
   // ---- API-backed data ----
@@ -1946,25 +1945,23 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
                   <button type="button" onClick={() => {
                     const d = new Date();
                     setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
-                    setCalendarMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
                   }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Aujourd'hui</button>
                   <button type="button" onClick={() => {
                     const d = new Date();
                     d.setDate(d.getDate() + 1);
                     setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
-                    setCalendarMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
                   }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Demain</button>
                   <button type="button" onClick={() => {
                     const d = new Date();
                     d.setDate(d.getDate() + (6 - d.getDay()));
                     setHDetails(p => ({...p, startDate: d.toISOString().split('T')[0], endDate: d.toISOString().split('T')[0]}));
-                    setCalendarMonth(`${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`);
                   }} className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs hover:bg-slate-200 font-medium transition-colors">Ce Samedi</button>
                 </div>
               </div>
 
               <div className="mb-4">
-                <MockAvailabilityCalendar
+                <AvailabilityDatePicker
+                  mode="inline"
                   selectedDate={hDetails.startDate}
                   showHahitantsoaVenueOccupancy
                   showAvailabilityPreview
@@ -2254,7 +2251,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
               </div>
 
               <div className="mb-4">
-                <MockAvailabilityCalendar
+                <AvailabilityDatePicker
+                  mode="inline"
                   selectedDate={tDetails.startDate}
                   showAvailabilityPreview
                   showHahitantsoaVenueOccupancy
