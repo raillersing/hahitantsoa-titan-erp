@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { AppScope } from "../App";
 import { LoadingSpinner } from "../components";
-import { getUsers, getApplicationRoles, getNumberingSequences, configureNumberingSequence } from "../api";
+import {
+  getUsers,
+  getApplicationRoles,
+  createApplicationRole,
+  getNumberingSequences,
+  configureNumberingSequence,
+} from "../api";
 import type { User, ApplicationRole, NumberingSequence, NumberingSequenceBrand } from "../types";
 
 interface AdminPageProps {
@@ -22,6 +28,13 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
   const [roles, setRoles] = useState<ApplicationRole[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
   const [rolesError, setRolesError] = useState<string | null>(null);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [roleSubmitting, setRoleSubmitting] = useState(false);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleSlug, setNewRoleSlug] = useState("");
+  const [newRoleDescription, setNewRoleDescription] = useState("");
+  const [selectedRoleDetail, setSelectedRoleDetail] = useState<ApplicationRole | null>(null);
 
   // Numbering sequences state
   const [sequences, setSequences] = useState<NumberingSequence[]>([]);
@@ -75,6 +88,51 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
     }
   };
 
+  const fetchRoles = async (signal?: AbortSignal) => {
+    try {
+      setRolesLoading(true);
+      setRolesError(null);
+      const data = await getApplicationRoles(signal);
+      setRoles(data);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setRolesError(err.message || "Erreur lors du chargement des rôles.");
+      }
+    } finally {
+      setRolesLoading(false);
+    }
+  };
+
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleName.trim()) {
+      setRoleError("Le nom du rôle est obligatoire.");
+      return;
+    }
+    const computedSlug =
+      newRoleSlug.trim() ||
+      newRoleName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    setRoleSubmitting(true);
+    setRoleError(null);
+    try {
+      await createApplicationRole({
+        name: newRoleName.trim(),
+        slug: computedSlug,
+        description: newRoleDescription.trim(),
+      });
+      showToast("Nouveau rôle créé avec succès.");
+      setIsRoleModalOpen(false);
+      setNewRoleName("");
+      setNewRoleSlug("");
+      setNewRoleDescription("");
+      await fetchRoles();
+    } catch (err: any) {
+      setRoleError(err?.message || "Erreur lors de la création du rôle.");
+    } finally {
+      setRoleSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -93,23 +151,8 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
       }
     }
 
-    async function loadRoles() {
-      try {
-        setRolesLoading(true);
-        setRolesError(null);
-        const data = await getApplicationRoles(controller.signal);
-        setRoles(data);
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          setRolesError(err.message || "Erreur lors du chargement des rôles.");
-        }
-      } finally {
-        setRolesLoading(false);
-      }
-    }
-
     loadUsers();
-    loadRoles();
+    fetchRoles(controller.signal);
 
     return () => controller.abort();
   }, []);
@@ -178,12 +221,15 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                 />
-                <button 
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors"
-                  onClick={() => showToast("Fonctionnalité en cours de développement")}
+                <a
+                  href="/admin/auth/user/add/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors inline-flex items-center"
+                  title="Ajouter un utilisateur via l'administration Django"
                 >
-                  <i className="fas fa-plus mr-2"></i>Nouvel Utilisateur
-                </button>
+                  <i className="fas fa-plus mr-2"></i>Nouvel Utilisateur (Admin Django)
+                </a>
               </div>
 
               {usersLoading && (
@@ -275,7 +321,13 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
               <div className="flex justify-end mb-4">
                 <button 
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors"
-                  onClick={() => showToast("Fonctionnalité en cours de développement")}
+                  onClick={() => {
+                    setRoleError(null);
+                    setNewRoleName("");
+                    setNewRoleSlug("");
+                    setNewRoleDescription("");
+                    setIsRoleModalOpen(true);
+                  }}
                 >
                   <i className="fas fa-plus mr-2"></i>Nouveau Rôle
                 </button>
@@ -316,10 +368,11 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                           {role.description || "Aucune description disponible."}
                         </p>
                         <button
+                          type="button"
                           className="text-indigo-600 text-sm font-bold hover:underline"
-                          onClick={() => showToast("Configuration rôle (en cours de développement)")}
+                          onClick={() => setSelectedRoleDetail(role)}
                         >
-                          Gérer les permissions →
+                          Détails & Permissions →
                         </button>
                       </div>
                     ))
@@ -545,34 +598,217 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
           {activeTab === 'settings' && (
             <div className="max-w-2xl space-y-6">
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Nom de l'organisation</label>
-                  <input type="text" defaultValue="Hahitantsoa / Titan ERP" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Nom de l'organisation
+                    </label>
+                    <div className="text-base font-bold text-slate-800">
+                      Hahitantsoa / Titan ERP
+                    </div>
+                    <span className="text-xs text-slate-400">
+                      Structure d'exploitation opérationnelle unifiée.
+                    </span>
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-3">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Devise légale de référence
+                    </label>
+                    <div className="text-base font-bold text-slate-800">
+                      Ariary (Ar / MGA)
+                    </div>
+                    <span className="text-xs text-slate-400">
+                      Monnaie légale unique pour devis, facturation et encaissements à Madagascar.
+                    </span>
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-3">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Taux de TVA normal applicable
+                    </label>
+                    <div className="text-base font-bold text-slate-800">
+                      20 %
+                    </div>
+                    <span className="text-xs text-slate-400">
+                      Taux légal de la TVA conformément au Code Général des Impôts malgache.
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Devise par défaut</label>
-                  <select className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option>Ariary (Ar)</option>
-                    <option>Euro (€)</option>
-                    <option>USD ($)</option>
-                  </select>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+                  <i className="fas fa-circle-info text-blue-600 mt-0.5"></i>
+                  <div className="text-xs text-blue-900 leading-relaxed">
+                    <strong>Paramètres d'exploitation verrouillés</strong> : Ces constantes légales et financières sont appliquées à l'ensemble des devis, factures et écritures de caisse du système.
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">Taux de TVA par défaut (%)</label>
-                  <input type="number" defaultValue="20" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-                </div>
-                
-                <button 
-                  className="mt-4 px-6 py-2 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition-colors"
-                  onClick={() => showToast("Paramètres sauvegardés (en cours de développement)")}
-                >
-                  Sauvegarder les paramètres
-                </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {isRoleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-role-title">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 id="modal-role-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                Nouveau rôle applicatif
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsRoleModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            {roleError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl text-xs text-red-700 dark:text-red-300">
+                <i className="fas fa-exclamation-circle mr-1.5"></i>
+                {roleError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateRole} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Nom du rôle
+                </label>
+                <input
+                  type="text"
+                  value={newRoleName}
+                  onChange={(e) => {
+                    setNewRoleName(e.target.value);
+                    if (!newRoleSlug) {
+                      setNewRoleSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+                    }
+                  }}
+                  placeholder="Ex: Responsable Planning"
+                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Identifiant technique (slug)
+                </label>
+                <input
+                  type="text"
+                  value={newRoleSlug}
+                  onChange={(e) => setNewRoleSlug(e.target.value)}
+                  placeholder="Ex: responsable-planning"
+                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={newRoleDescription}
+                  onChange={(e) => setNewRoleDescription(e.target.value)}
+                  placeholder="Rôle et responsabilités métier..."
+                  rows={3}
+                  className="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRoleModalOpen(false)}
+                  disabled={roleSubmitting}
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={roleSubmitting}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {roleSubmitting ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin"></i> Création…
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-check"></i> Créer le rôle
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {selectedRoleDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="modal-role-detail-title">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 id="modal-role-detail-title" className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                {selectedRoleDetail.name}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedRoleDetail(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase block">Identifiant technique</span>
+                <code className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-800 dark:text-slate-200">
+                  {selectedRoleDetail.slug}
+                </code>
+              </div>
+
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase block">Type de rôle</span>
+                <span className={`inline-block mt-0.5 text-xs font-bold px-2 py-0.5 rounded ${
+                  selectedRoleDetail.is_system_managed
+                    ? "bg-slate-100 text-slate-700"
+                    : "bg-indigo-50 text-indigo-700"
+                }`}>
+                  {selectedRoleDetail.is_system_managed ? "Rôle système managé" : "Rôle personnalisé"}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase block">Description</span>
+                <p className="text-slate-700 dark:text-slate-300 text-xs mt-0.5">
+                  {selectedRoleDetail.description || "Aucune description renseignée."}
+                </p>
+              </div>
+
+              <div className="p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                {selectedRoleDetail.is_system_managed
+                  ? "Les habilitations de ce rôle système sont définies directement par la politique RBAC du serveur d'application."
+                  : "Rôle personnalisé administrable. Ses attributions sont gérées au niveau des profils utilisateurs."}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setSelectedRoleDetail(null)}
+                className="px-4 py-2 bg-slate-900 text-white font-bold rounded-lg text-xs hover:bg-slate-800 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="fixed bottom-6 right-6 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-lg font-medium text-sm z-50 flex items-center gap-3 animate-fade-in">

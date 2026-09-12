@@ -11,6 +11,7 @@ export default function MobileTabletPage({ onNavigate }: MobileTabletPageProps) 
       icon: "fa-barcode",
       color: "blue",
       status: "Actif",
+      targetScope: "stock-preparation",
       description: "Scan rapide des articles par QR code lors des sorties et retours de stock.",
       features: ["Scan QR code articles", "Vérification BS/BL", "Contrôle retour photos"],
     },
@@ -19,6 +20,7 @@ export default function MobileTabletPage({ onNavigate }: MobileTabletPageProps) 
       icon: "fa-tablet-screen-button",
       color: "purple",
       status: "Actif",
+      targetScope: "agenda-visitors",
       description: "Agenda interactif pour la gestion des rendez-vous et la création de proformas.",
       features: ["Agenda jour/semaine", "Création proforma", "Recherche client"],
     },
@@ -26,7 +28,8 @@ export default function MobileTabletPage({ onNavigate }: MobileTabletPageProps) 
       title: "Livreur",
       icon: "fa-truck",
       color: "green",
-      status: "En développement",
+      status: "Actif",
+      targetScope: "logistics-dispatch",
       description: "Suivi des livraisons et retours en temps réel pour les chauffeurs.",
       features: ["Navigation livraison", "Confirmation livraison", "Photo retour"],
     },
@@ -37,7 +40,7 @@ export default function MobileTabletPage({ onNavigate }: MobileTabletPageProps) 
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
           <i className="fa-solid fa-mobile-screen-button text-indigo-600 mr-2" />
-          Applications mobiles
+          Applications mobiles & tablettes
         </h2>
       </div>
 
@@ -57,13 +60,7 @@ export default function MobileTabletPage({ onNavigate }: MobileTabletPageProps) 
                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                   {app.title}
                 </h3>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                    app.status === "Actif"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}
-                >
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                   {app.status}
                 </span>
               </div>
@@ -80,24 +77,25 @@ export default function MobileTabletPage({ onNavigate }: MobileTabletPageProps) 
               ))}
             </ul>
             <button
-              className={`w-full px-4 py-2 bg-${app.color}-600 hover:bg-${app.color}-700 text-white rounded-lg text-sm font-medium transition-colors`}
+              type="button"
+              onClick={() => onNavigate?.(app.targetScope)}
+              className={`w-full px-4 py-2 bg-${app.color}-600 hover:bg-${app.color}-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5`}
             >
               <i className="fa-solid fa-arrow-right mr-1" />
-              Ouvrir
+              Ouvrir le module
             </button>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800 p-4 flex items-start gap-3">
-        <i className="fa-solid fa-info-circle text-amber-600 mt-0.5" />
+      <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-200 dark:border-blue-800 p-4 flex items-start gap-3">
+        <i className="fa-solid fa-circle-info text-blue-600 mt-0.5" />
         <div>
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-            Applications en développement
+          <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+            Accès direct aux modules opérationnels
           </p>
-          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-            Les applications mobiles seront disponibles prochainement. Le scan QR code et l'agenda
-            tablette sont en phase de test.
+          <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+            Les interfaces tablettes et mobiles sont directement connectées aux données en temps réel de l'agence : préparation magasinier, agenda des visites et expéditions logistiques.
           </p>
         </div>
       </div>

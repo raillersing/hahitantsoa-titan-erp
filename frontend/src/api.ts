@@ -2113,6 +2113,13 @@ export function getApplicationRoles(
   return getRoles(undefined, signal);
 }
 
+export function createApplicationRole(
+  payload: { name: string; slug: string; description?: string; is_active?: boolean },
+  signal?: AbortSignal,
+): Promise<ApplicationRole> {
+  return postAuthenticatedJson("/api/v1/identity/roles/", payload, signal);
+}
+
 function buildAuditQuery(params?: AuditEventQueryParams): string {
   if (!params) return "";
   const qs = new URLSearchParams();
