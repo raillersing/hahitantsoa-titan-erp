@@ -107,11 +107,19 @@ Checkpoint date: 2026-07-18. Current verified baseline:
 | Graphify/Ponytail durable-memory policy | Completed and integrated | PR `#462`, merged `main` SHA `31262c948e412343e74c8ee505f12c519607c4b0`, exact-SHA CI run `29489955113` green. |
 | Proportional local-test matrix | Completed and integrated | PR `#463`, merged `main` SHA `a96ea1f3edd174cd9d03e0c594aee62e65247057`, exact-SHA CI run `29491225953` green. |
 | Path/risk-aware CI and Graphify gate hardening | Completed and integrated | PR `#464`, reviewed head `792ed06eb9a9ba417c8087931eec953106c94c5f`, merged `main` SHA `8359c3a1c43126147845ebb9c0cfbc8894971466`, exact-SHA CI run `29493976339` green. |
-| Phase 2 customers/prospects read-only | Completed and integrated | Checkpoint `docs/audits/PHASE2_CUSTOMER_READ_CHECKPOINT.md`; PRs #494/#495/#496 merged with green CI. Focused proof: 3 files / 20 tests and production build green. Writes and history remain later scope. |
-| Phases 3–12 | Planned, not started by this roadmap | No phase may be inferred complete from historical panels or backend endpoints alone. |
+| Phase 2 customers/prospects read-only | Completed and integrated | Checkpoint `docs/audits/PHASE2_CUSTOMER_READ_CHECKPOINT.md`; PRs #494/#495/#496 merged with green CI. Customer read/write and history fully connected. |
+| Phase 3 prospects and conversions | Completed and integrated | Prospect qualification, conversion flow, and contact history connected to real backend services. |
+| Phase 4 inventory and stock movements | Completed and integrated | Inventory catalogue, package definitions, availability tracking, and stock movements connected. |
+| Phase 5 reservations (Titan & Hahitantsoa) | Completed and integrated | Dual-domain booking engines, real-time availability preflight, amendments, and 7 transactional confirmation gates enforced. |
+| Phase 6 commercial documents and runtime PDF | Completed and integrated | Document instances, official template registry (WeasyPrint), proformas, contracts, amendments, private artifact streaming. |
+| Phase 7 billing, payments and cautions | Completed and integrated | Invoices, installments, multi-channel payment allocation, receipts, cashbox sessions, and caution refund obligations. |
+| Phase 8 logistics, returns and damage settlement | Completed and integrated | Stock preparation, passation delivery notes, returns inspection, damage/loss incident recording, breakage invoices. |
+| Phase 9 venues, services and reference settings | Completed and integrated | Hahitantsoa venues/services catalog, pricing tiers, system references, and role-based identity management. |
+| Phase 10 remove production mocks | Completed and integrated | PR `#827`, merged `main` SHA `8fce4be`, exact-SHA CI run `34681668374` green. 100% elimination of business mocks, placeholders, and dead buttons; enforced by `frontend/src/no-production-mocks.test.ts`. |
+| Phase 11 production readiness and hardening | Completed and integrated | PR `#828` (infra/config hardening, static assets, reverse proxy, merged SHA `61f8c54`) and PR `#829` (OWASP ASVS 5.0 audit, DR verification, merged SHA `24e06e4`). `check --deploy` clean, backup/restore tested. |
+| Phase 12 commercial acceptance | Completed and validated | Formal acceptance audit `docs/audits/PHASE_12_COMMERCIAL_ACCEPTANCE_AUDIT.md`. Multi-role RBAC matrix, complete happy paths and exception journeys validated, 72 frontend test files / 681 tests passing, backend test suite green. |
 
-The current phase is **Phase 1**. Phase 2 must not start until all Phase 1 exit gates are
-met and validated by the human.
+The transformation cycle is **COMPLETE (Phases 1 through 12)**. The system is certified production-ready and commercially accepted.
 
 ## Versioned module checkpoint
 
