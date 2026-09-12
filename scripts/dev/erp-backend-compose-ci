@@ -12,6 +12,18 @@ if ! [[ "$INSTANCE_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   echo "ERROR: ERP_AGENT_CI_INSTANCE must contain only letters, digits, underscores, or hyphens." >&2
   exit 2
 fi
+BACKEND_PORT="${ERP_AGENT_BACKEND_PORT:-8000}"
+if ! [[ "$BACKEND_PORT" =~ ^[0-9]+$ ]] || [ "$BACKEND_PORT" -lt 1024 ] || [ "$BACKEND_PORT" -gt 65535 ]; then
+  echo "ERROR: ERP_AGENT_BACKEND_PORT must be a TCP port between 1024 and 65535." >&2
+  exit 2
+fi
+DJANGO_DEBUG_VALUE="${ERP_AGENT_DJANGO_DEBUG:-0}"
+if [ "$DJANGO_DEBUG_VALUE" != "0" ] && [ "$DJANGO_DEBUG_VALUE" != "1" ]; then
+  echo "ERROR: ERP_AGENT_DJANGO_DEBUG must be 0 or 1." >&2
+  exit 2
+fi
+export ERP_AGENT_BACKEND_PORT="$BACKEND_PORT"
+export ERP_AGENT_DJANGO_DEBUG="$DJANGO_DEBUG_VALUE"
 INSTANCE_FINGERPRINT="$(printf '%s' "$INSTANCE_NAME" | sha256sum | cut -c1-8)"
 COMPOSE_PROJECT="hahitantsoa_titan_erp_agent_ci_${WORKTREE_FINGERPRINT}_${INSTANCE_FINGERPRINT}"
 # Share the dependency image across worktrees while keeping their containers,
@@ -46,6 +58,8 @@ Notes:
   dependency manifest are identical.
   ERP_AGENT_CI_INSTANCE may select an additional isolated Compose project inside
   one worktree, for example when local test shards run concurrently.
+  ERP_AGENT_BACKEND_PORT may select the loopback host port for the backend
+  service; it defaults to 8000. ERP_AGENT_DJANGO_DEBUG accepts only 0 or 1.
   It injects only versioned non-secret CI/dev values.
   It is intended for agent-safe local backend validation.
 USAGE
