@@ -109,6 +109,14 @@ const EVENT_TYPE_LABELS: Record<HahitantsoaEventType, string> = {
   wedding: "Mariage",
   engagement: "Fiançailles",
   civil_wedding: "Mariage civil",
+  baptism: "Baptême",
+  birthday: "Anniversaire",
+  reception: "Réception privée",
+  seminar: "Séminaire",
+  corporate: "Corporate",
+  conference: "Conférence",
+  workshop: "Atelier / Formation",
+  family: "Fête familiale",
   other: "Autre",
 };
 

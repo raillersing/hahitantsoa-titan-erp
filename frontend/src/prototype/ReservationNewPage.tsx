@@ -39,7 +39,48 @@ import type {
   TitanClosedDay,
   HahitantsoaCommercialTerms,
   HahitantsoaDurationOption,
+  HahitantsoaEventType,
 } from "../types";
+
+export const HAHITANTSOA_EVENT_TYPE_TO_CHOICE: Record<string, HahitantsoaEventType> = {
+  "Mariage": "wedding",
+  "Fiançailles": "engagement",
+  "Mariage civil": "civil_wedding",
+  "Baptême": "baptism",
+  "Anniversaire": "birthday",
+  "Réception privée": "reception",
+  "Séminaire": "seminar",
+  "Corporate": "corporate",
+  "Conférence": "conference",
+  "Atelier / Formation": "workshop",
+  "Fête familiale": "family",
+  "Autre": "other",
+};
+
+export function toHahitantsoaEventType(eventType?: string): HahitantsoaEventType | undefined {
+  if (!eventType) return undefined;
+  if (eventType in HAHITANTSOA_EVENT_TYPE_TO_CHOICE) {
+    return HAHITANTSOA_EVENT_TYPE_TO_CHOICE[eventType];
+  }
+  const validChoices: HahitantsoaEventType[] = [
+    "wedding",
+    "engagement",
+    "civil_wedding",
+    "baptism",
+    "birthday",
+    "reception",
+    "seminar",
+    "corporate",
+    "conference",
+    "workshop",
+    "family",
+    "other",
+  ];
+  if (validChoices.includes(eventType as HahitantsoaEventType)) {
+    return eventType as HahitantsoaEventType;
+  }
+  return "other";
+}
 
 // Business labels used by the reservation form. All selectable data comes from the API.
 const HAHITANTSOA_EVENT_TYPES = [
@@ -326,6 +367,34 @@ interface TitanDetails {
   vehicleType: string;
   transportPerson: string;
   advanceRate: number;
+}
+
+export function resolveHahitantsoaEventName(
+  details: HahitantsoaDetails,
+  fallbackCustomerName?: string,
+): string {
+  if (details.eventType === "Mariage") {
+    const groom = details.mariageGroomName?.trim();
+    const bride = details.mariageBrideName?.trim();
+    if (groom && bride) return `${groom} & ${bride}`;
+    if (groom) return groom;
+    if (bride) return bride;
+  } else if (details.eventType === "Fiançailles") {
+    const p1 = details.fiancaillesPerson1?.trim();
+    const p2 = details.fiancaillesPerson2?.trim();
+    if (p1 && p2) return `${p1} & ${p2}`;
+    if (p1) return p1;
+    if (p2) return p2;
+  } else if (details.eventType === "Baptême") {
+    const child = details.baptemeChildName?.trim();
+    if (child) return child;
+  }
+  const otherRef = details.otherReferentName?.trim();
+  if (otherRef) return otherRef;
+  const eventTypeOther = details.eventTypeOther?.trim();
+  if (eventTypeOther) return eventTypeOther;
+  if (fallbackCustomerName?.trim()) return fallbackCustomerName.trim();
+  return details.eventType?.trim() || "Événement Hahitantsoa";
 }
 
 interface PaymentData {
@@ -1027,7 +1096,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         const payload = {
           customer_id: customerId,
           public_reference: customRef,
-          event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
+          event_type: toHahitantsoaEventType(hDetails.eventType),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1236,7 +1306,8 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         const eventDraft = await createHahitantsoaEventDraft({
           customer_id: customerId,
           public_reference: customRef,
-          event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
+          event_type: toHahitantsoaEventType(hDetails.eventType),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1269,10 +1340,13 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       }
       setProspectProformaEmission(emission);
     } else {
+      const customRef = useCustomReference && customPublicReference.trim() ? customPublicReference.trim() : undefined;
       if (isHahitantsoa) {
         await updateHahitantsoaEventDraft(emission.draftId, {
           customer_id: customerId,
-          event_name: hDetails.eventTypeOther || hDetails.eventType || "Événement Hahitantsoa",
+          public_reference: customRef,
+          event_type: toHahitantsoaEventType(hDetails.eventType),
+          event_name: resolveHahitantsoaEventName(hDetails, activeClient?.name),
           venue_name: hDetails.venue || undefined,
           location_details: hDetails.venue || undefined,
           service_notes: formatHahitantsoaServiceNotes(selectedServices),
@@ -1287,6 +1361,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       } else {
         await updateReservationDraft(emission.draftId, {
           customer_id: customerId,
+          public_reference: customRef,
           start_at: startAt,
           end_at: endAt,
           notes: `${tDetails.usageTypeOther || tDetails.usageType} - ${tDetails.destinationName || ""} - ${tDetails.destinationAddress || ""}`,
