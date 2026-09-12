@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
+
+INSTANCE_NAME="${ERP_BROWSER_ACCEPTANCE_INSTANCE:-browser-lifecycle}"
+BACKEND_PORT="${ERP_BROWSER_ACCEPTANCE_BACKEND_PORT:-18000}"
+FRONTEND_PORT="${ERP_BROWSER_ACCEPTANCE_FRONTEND_PORT:-5174}"
+
+print_usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/dev/erp-browser-lifecycle-acceptance
+
+Purpose:
+  Run the persisted Titan reservation browser journey against a dedicated local
+  Compose project. It never uses the application's mounted database, backend,
+  or Vite process.
+
+Environment overrides:
+  ERP_BROWSER_ACCEPTANCE_INSTANCE       Compose instance name (default: browser-lifecycle)
+  ERP_BROWSER_ACCEPTANCE_BACKEND_PORT   Loopback backend port (default: 18000)
+  ERP_BROWSER_ACCEPTANCE_FRONTEND_PORT  Loopback Vite port (default: 5174)
+
+The command migrates and flushes only its dedicated Compose database, provisions
+the approved browser fixtures, runs the Titan lifecycle test, then stops its
+containers while preserving their volumes for diagnosis. It does not read, source,
+or modify .env files.
+USAGE
+}
+
+if [ "$#" -gt 0 ]; then
+  case "$1" in
+    --help|-h|help)
+      print_usage
+      exit 0
+      ;;
+    *)
+      echo "ERROR: unexpected argument: $1" >&2
+      print_usage >&2
+      exit 2
+      ;;
+  esac
+fi
+
+require_instance_name() {
+  if ! [[ "$INSTANCE_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "ERROR: ERP_BROWSER_ACCEPTANCE_INSTANCE must contain only letters, digits, underscores, or hyphens." >&2
+    exit 2
+  fi
+}
+
+require_port() {
+  local variable_name="$1"
+  local value="$2"
+  if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1024 ] || [ "$value" -gt 65535 ]; then
+    echo "ERROR: $variable_name must be a TCP port between 1024 and 65535." >&2
+    exit 2
+  fi
+}
+
+require_instance_name
+require_port "ERP_BROWSER_ACCEPTANCE_BACKEND_PORT" "$BACKEND_PORT"
+require_port "ERP_BROWSER_ACCEPTANCE_FRONTEND_PORT" "$FRONTEND_PORT"
+
+if [ "$BACKEND_PORT" = "$FRONTEND_PORT" ]; then
+  echo "ERROR: backend and frontend ports must differ." >&2
+  exit 2
+fi
+
+if [ ! -x "$SCRIPT_DIR/erp-backend-compose-ci" ]; then
+  echo "ERROR: missing executable backend Compose wrapper." >&2
+  exit 1
+fi
+if [ ! -x "$REPO_ROOT/frontend/node_modules/.bin/playwright" ]; then
+  echo "ERROR: Playwright is not installed for this worktree. Run npm --prefix frontend ci first." >&2
+  exit 1
+fi
+
+export ERP_AGENT_CI_INSTANCE="$INSTANCE_NAME"
+export ERP_AGENT_BACKEND_PORT="$BACKEND_PORT"
+export ERP_AGENT_DJANGO_DEBUG="1"
+
+cleanup() {
+  local result=$?
+  "$SCRIPT_DIR/erp-backend-compose-ci" down --remove-orphans || true
+  exit "$result"
+}
+trap cleanup EXIT
+
+cd "$REPO_ROOT"
+
+"$SCRIPT_DIR/erp-backend-compose-ci" up -d db redis backend
+"$SCRIPT_DIR/erp-backend-compose-ci" exec -T backend python backend/manage.py migrate --noinput
+"$SCRIPT_DIR/erp-backend-compose-ci" exec -T backend python backend/manage.py flush --noinput
+"$SCRIPT_DIR/erp-backend-compose-ci" exec -T backend python backend/manage.py seed_all_demo
+"$SCRIPT_DIR/erp-backend-compose-ci" exec -T backend python backend/manage.py seed_browser_acceptance_titan_fixture
+"$SCRIPT_DIR/erp-backend-compose-ci" exec -T backend python backend/manage.py seed_dev_admin
+
+cd "$REPO_ROOT/frontend"
+VITE_BACKEND_ORIGIN="http://127.0.0.1:${BACKEND_PORT}" \
+PLAYWRIGHT_FRONTEND_PORT="$FRONTEND_PORT" \
+npm exec playwright -- test e2e/lifecycle-write-titan.spec.ts --project='Desktop Chrome' --timeout=90000
