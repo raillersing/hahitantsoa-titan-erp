@@ -758,3 +758,149 @@ def test_hahitantsoa_contract_annexe3_breakage_table() -> None:
 
     # 3. Informative note at the bottom
     assert "Note : le local ou les matériels qui ne figurent pas dans la liste" in html
+
+
+@pytest.mark.parametrize(
+    "template_key,expected_logo,expected_date_label",
+    (
+        ("hahitantsoa.payment_receipt.v1", "hahitantsoa-logo.png", "Date Evénement"),
+        ("titan.payment_receipt.v1", "titan-rental-logo.png", "Date Location"),
+    ),
+)
+def test_payment_receipt_matches_official_source_model(
+    template_key: str, expected_logo: str, expected_date_label: str
+) -> None:
+    definition = get_document_template_definition(template_key)
+    assert definition is not None
+    template_path = _resolve_preview_template_path(definition.key)
+    context = _build_mock_preview_context(definition)
+
+    html = render_to_string(
+        template_path,
+        {"context": context, "bank": _build_preview_bank(definition), "show_variables": False},
+    )
+
+    # 1. Geometry & Logo
+    assert "size: 80mm" in html
+    assert expected_logo in html
+
+    # 2. Title
+    assert "Reçu de paiement d'acompte" in html
+
+    # 3. Block 1 - General Info
+    assert ">Date<" in html
+    assert f">{expected_date_label}<" in html
+    assert ">Nom Client<" in html
+
+    # 4. Block 2 - Payment Details & Words
+    assert ">Montant payé<" in html
+    assert ">En lettres<" in html
+    assert ">Mode de paiement<" in html
+    assert ">Référence<" in html
+
+    # 5. Block 3 - History & Totals
+    assert "<u>Historique des paiements</u>" in html
+    assert "<th>Date</th>" not in html
+    assert "TOTAL ACOMPTE" in html
+
+    # 6. Block 4 - Proforma & Balance
+    assert ">N° Proforma<" in html
+    assert ">Montant Proforma<" in html
+    assert ">Reste à payer<" in html
+
+    # 7. Clean receipt without unwanted elements
+    assert "Document officiel généré" not in html
+    assert 'class="rule"' not in html
+
+
+def test_payment_receipt_handles_solde_balance_kind() -> None:
+    definition = get_document_template_definition("hahitantsoa.payment_receipt.v1")
+    assert definition is not None
+    template_path = _resolve_preview_template_path(definition.key)
+    context = _build_mock_preview_context(definition)
+
+    # Balance payment
+    context["payment"]["payment_kind"] = "balance"
+    html_balance = render_to_string(
+        template_path,
+        {"context": context, "bank": _build_preview_bank(definition), "show_variables": False},
+    )
+    assert "Reçu de paiement du solde" in html_balance
+    assert "TOTAL RÉGLÉ" in html_balance
+
+    # Deposit payment
+    context["payment"]["payment_kind"] = "deposit"
+    html_deposit = render_to_string(
+        template_path,
+        {"context": context, "bank": _build_preview_bank(definition), "show_variables": False},
+    )
+    assert "Reçu de paiement d'acompte" in html_deposit
+    assert "TOTAL ACOMPTE" in html_deposit
+
+
+def test_payment_receipt_source_fidelity_with_official_mamitiana_scenario() -> None:
+    """Validate exact layout and values matching official source model
+    docs/references/source/templates/recu hahitantsoa.jpeg.
+    """
+    definition = get_document_template_definition("hahitantsoa.payment_receipt.v1")
+    assert definition is not None
+    template_path = _resolve_preview_template_path(definition.key)
+
+    context = {
+        "template": {
+            "label": definition.label,
+            "key": definition.key,
+            "business_scope": "hahitantsoa",
+        },
+        "payment": {
+            "payment_id": "pay-001",
+            "receipt_reference": "HAH-2026-0001-REC-04",
+            "payment_kind": "deposit",
+            "payment_date_label": "28/07/2026",
+            "customer_display_name": "RANDRIANARIMALALA Mamitiana",
+            "event_date_label": "01/08/2026",
+            "amount_label": "710 000",
+            "amount_in_words": format_ariary_amount_in_words("710000"),
+            "payment_method_label": "Mvola",
+            "transaction_reference": "4485796407",
+            "history": [
+                {"date_label": "01/09/2025", "amount_label": "1 500 000"},
+                {"date_label": "02/07/2026", "amount_label": "3 650 250"},
+                {"date_label": "22/07/2026", "amount_label": "3 650 250"},
+                {"date_label": "28/07/2026", "amount_label": "710 000"},
+            ],
+            "total_deposit_label": "9 510 500",
+            "proforma_reference": "118/026",
+            "proforma_amount_label": "9 510 500",
+            "remaining_balance_label": "0",
+            "receipt_page_height_mm": 120,
+        },
+    }
+
+    html = render_to_string(
+        template_path,
+        {"context": context, "bank": _build_preview_bank(definition), "show_variables": False},
+    )
+
+    # Bounded verification of the exact source model
+    assert "hahitantsoa-logo.png" in html
+    assert "Reçu de paiement d'acompte" in html
+    assert "28/07/2026" in html
+    assert "HAH-2026-0001-REC-04" in html
+    assert "RANDRIANARIMALALA Mamitiana" in html
+    assert "01/08/2026" in html
+    assert "710 000 Ar" in html
+    assert "Sept cent dix mille Ariary" in html
+    assert "Mvola" in html
+    assert "4485796407" in html
+    assert "<u>Historique des paiements</u>" in html
+    assert "01/09/2025" in html
+    assert "1 500 000 Ar" in html
+    assert "02/07/2026" in html
+    assert "3 650 250 Ar" in html
+    assert "22/07/2026" in html
+    assert "TOTAL ACOMPTE" in html
+    assert "9 510 500 Ar" in html
+    assert "118/026" in html
+    assert "Reste à payer" in html
+    assert "0 Ar" in html

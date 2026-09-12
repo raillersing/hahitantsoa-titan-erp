@@ -12,15 +12,15 @@
     html, body { width: 80mm; margin: 0; padding: 0; background: #ffffff; }
     body {
       color: #111111;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: Arial, Helvetica, "DejaVu Sans", sans-serif;
       font-size: 10px;
-      line-height: 1.22;
+      line-height: 1.25;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
     .receipt {
       width: 80mm;
-      padding: 4mm 3.5mm 5mm;
+      padding: 4mm 4mm 5mm;
       overflow-wrap: anywhere;
     }
 
@@ -29,16 +29,16 @@
     /* ========================================================================= */
     .brand {
       display: block;
-      width: 31mm;             /* Largeur du logo */
+      width: 28mm;             /* Largeur du logo */
       height: auto;
-      max-height: 19mm;        /* Hauteur max du logo */
+      max-height: 18mm;        /* Hauteur max du logo */
       object-fit: contain;
       margin: 0 auto 3mm;      /* Centrage horizontal */
     }
     h1 {
-      margin: 0 0 4mm;
+      margin: 0 0 3.5mm;
       text-align: center;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
       letter-spacing: 0.35px;
       text-transform: uppercase;
@@ -49,49 +49,76 @@
     /* ========================================================================= */
     .field {
       display: grid;
-      grid-template-columns: 31mm minmax(0, 1fr);
-      gap: 2mm;
-      margin: 1.25mm 0;
+      grid-template-columns: 32mm minmax(0, 1fr);
+      gap: 1.5mm;
+      margin: 1.2mm 0;
     }
     .label { font-weight: 700; }
     .value { min-width: 0; }
-    .section-title {
-      margin: 4mm 0 1.5mm;
-      font-weight: 700;
-      font-size: 10px;
+    .value-bold { font-weight: 700; }
+    .words-field {
+      margin: 0.5mm 0 1.2mm;
+    }
+    .words-value {
+      font-style: italic;
+      font-size: 8.5px;
+      line-height: 1.2;
+    }
+    .block-gap {
+      height: 3mm;
     }
 
     /* ========================================================================= */
-    /* 4. TABLEAU HISTORIQUE & TOTAUX                                            */
+    /* 4. HISTORIQUE DES PAIEMENTS & TOTAUX                                      */
     /* ========================================================================= */
+    .section-title {
+      text-align: center;
+      margin: 3.5mm 0 2mm;
+      font-weight: 700;
+      font-size: 10px;
+    }
+    .section-title u {
+      text-underline-offset: 2px;
+    }
     .history {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      font-size: 9px;
+      font-size: 9.5px;
+      margin-bottom: 2mm;
     }
-    .history th,
     .history td {
-      padding: 1mm 0;
+      padding: 0.8mm 0;
       vertical-align: top;
-      text-align: left;
     }
-    .history th { font-weight: 700; }
-    .history th:nth-child(1), .history td:nth-child(1) { width: 25mm; }
-    .history th:nth-child(2), .history td:nth-child(2) { width: 22mm; text-align: right; }
-    .history th:nth-child(3), .history td:nth-child(3) { padding-left: 2mm; }
-    .total {
+    .history-date {
+      text-align: left;
+      padding-left: 12mm;
+      width: 32mm;
+    }
+    .history-amount {
+      text-align: right;
+      padding-right: 4mm;
+      white-space: nowrap;
+    }
+    .history-empty {
+      text-align: center;
+      color: #6b7280;
+      padding: 2mm 0;
+    }
+    .total-row {
       display: flex;
       justify-content: space-between;
       gap: 2mm;
-      margin-top: 2mm;
-      padding-top: 1.5mm;
-      border-top: 1px solid #111111;
+      margin: 2.5mm 0 3.5mm;
       font-weight: 700;
+      font-size: 10px;
     }
-    .total span:last-child { text-align: right; white-space: nowrap; }
-    .rule { border-top: 1px solid #111111; margin: 4mm 0 2mm; }
-    .footer { margin-top: 3mm; text-align: center; font-size: 8px; }
+    .total-row span:last-child {
+      text-align: right;
+      white-space: nowrap;
+    }
+
     @media screen {
       body { margin: 0 auto; }
     }
@@ -100,43 +127,46 @@
 <body>
   <main class="receipt">
     <img class="brand" src="/brand/titan-rental-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/titan-rental-logo.png';}" alt="Titan Rental">
-    <h1>Reçu de paiement d'acompte</h1>
+    <h1>{% if context.payment.payment_kind == "balance" %}Reçu de paiement du solde{% elif context.payment.payment_kind == "caution" %}Reçu de paiement de caution{% else %}Reçu de paiement d'acompte{% endif %}</h1>
 
-    <div class="field"><span class="label">N° Reçu</span><span class="value" style="font-weight: 700;">REC-{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"REC" }}-{{ context.payment.payment_id|stringformat:".8s"|upper }}</span></div>
-    <div class="field"><span class="label">Réf. Dossier</span><span class="value" style="font-weight: 700;">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
-    <div class="field"><span class="label">Date & Heure</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
-    <div class="field"><span class="label">Nom Client</span><span class="value">{{ context.payment.customer_display_name|default:"—" }}</span></div>
-    <div class="field"><span class="label">Date Location</span><span class="value">{{ context.payment.event_date_label|default:"—" }}</span></div>
-    <div class="field"><span class="label">Montant payé</span><span class="value" style="font-weight: 700;">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
-    {% if context.payment.amount_in_words %}
-    <div class="field"><span class="label">En lettres</span><span class="value" style="font-style: italic; font-size: 8.5px;">{{ context.payment.amount_in_words }}</span></div>
+    <div class="field"><span class="label">Date</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
+    {% if context.payment.receipt_reference %}
+    <div class="field"><span class="label">N° Reçu</span><span class="value value-bold">{{ context.payment.receipt_reference }}</span></div>
     {% endif %}
-    <div class="field"><span class="label">Mode de paiement</span><span class="value">{{ context.payment.payment_method_label|default:context.payment.payment_method|default:"—" }}</span></div>
+    <div class="field"><span class="label">Nom Client</span><span class="value value-bold">{{ context.payment.customer_display_name|default:"—" }}</span></div>
+    <div class="field"><span class="label">Date Location</span><span class="value">{{ context.payment.event_date_label|default:"—" }}</span></div>
+
+    <div class="block-gap"></div>
+
+    <div class="field"><span class="label">Montant payé</span><span class="value value-bold">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
+    {% if context.payment.amount_in_words %}
+    <div class="field words-field"><span class="label">En lettres</span><span class="value words-value">{{ context.payment.amount_in_words }}</span></div>
+    {% endif %}
+    <div class="field"><span class="label">Mode de paiement</span><span class="value">{{ context.payment.payment_method_label|default:"—" }}</span></div>
     <div class="field"><span class="label">Référence</span><span class="value">{{ context.payment.transaction_reference|default:"—" }}</span></div>
 
-    <div class="section-title">Historique des règlements</div>
+    <div class="section-title"><u>Historique des paiements</u></div>
     <table class="history">
-      <thead><tr><th>Date</th><th>Montant</th><th>Mode</th></tr></thead>
       <tbody>
         {% for item in context.payment.history %}
-        <tr{% if item.is_current %} style="font-weight: 700; background: #f8fafc;"{% endif %}>
-          <td>{% if item.is_current %}★ {% endif %}{{ item.date_label|default:"—" }}</td>
-          <td>{{ item.amount_label|default:"—" }} Ar</td>
-          <td>{{ item.method_label|default:"—" }}{% if item.is_current %} <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase;">(Ce reçu)</span>{% endif %}</td>
+        <tr>
+          <td class="history-date">{{ item.date_label|default:"—" }}</td>
+          <td class="history-amount">{{ item.amount_label|default:"—" }} Ar</td>
         </tr>
         {% empty %}
-        <tr><td colspan="3">Aucun paiement confirmé.</td></tr>
+        <tr>
+          <td colspan="2" class="history-empty">Aucun paiement confirmé.</td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
-    <div class="total"><span>TOTAL CUMULÉ RÉGLÉ</span><span>{{ context.payment.total_deposit_label|default:"—" }} Ar</span></div>
+    <div class="total-row"><span>{% if context.payment.payment_kind == "balance" %}TOTAL RÉGLÉ{% else %}TOTAL ACOMPTE{% endif %}</span><span>{{ context.payment.total_deposit_label|default:"—" }} Ar</span></div>
 
-    <div class="rule"></div>
-    <div class="field"><span class="label">Réf. Devis / Dossier</span><span class="value" style="font-weight: 700;">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
-    <div class="field"><span class="label">Montant Total Devis</span><span class="value">{{ context.payment.proforma_amount_label|default:"—" }}{% if context.payment.proforma_amount_label %} Ar{% endif %}</span></div>
-    <div class="field"><span class="label">Reste à payer</span><span class="value" style="font-weight: 700;">{{ context.payment.remaining_balance_label|default:"—" }}{% if context.payment.remaining_balance_label %} Ar{% endif %}</span></div>
+    <div class="block-gap"></div>
 
-    <div class="footer">Document officiel généré par Titan Rental</div>
+    <div class="field"><span class="label">N° Proforma</span><span class="value">{{ context.payment.proforma_reference|default:"—" }}</span></div>
+    <div class="field"><span class="label">Montant Proforma</span><span class="value">{{ context.payment.proforma_amount_label|default:"—" }}{% if context.payment.proforma_amount_label %} Ar{% endif %}</span></div>
+    <div class="field"><span class="label">Reste à payer</span><span class="value value-bold">{{ context.payment.remaining_balance_label|default:"0" }}{% if context.payment.remaining_balance_label %} Ar{% else %}0 Ar{% endif %}</span></div>
   </main>
 </body>
 </html>
