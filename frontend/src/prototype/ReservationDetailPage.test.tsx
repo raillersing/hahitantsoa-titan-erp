@@ -612,4 +612,35 @@ describe('ReservationDetailPage', () => {
       expect(modal).toHaveAttribute("data-template", "shared.preparation_sheet.v1");
     });
   });
+
+  it("affiche le bouton 'Modifier le devis' sur un brouillon Titan et redirige vers l'assistant en mode édition", async () => {
+    const mockNav = vi.fn();
+    mockGetReservationDraft.mockResolvedValue(MOCK_DRAFT);
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={mockNav} />);
+    await waitForDraftLoad();
+
+    const editDevisBtn = screen.getByRole("button", { name: /Modifier le devis/i });
+    expect(editDevisBtn).toBeInTheDocument();
+    fireEvent.click(editDevisBtn);
+
+    expect(mockNav).toHaveBeenCalledWith("reservation-new", "edit-titan/draft-loc-089");
+  });
+
+  it("masque le bouton 'Modifier le devis' sur un dossier Titan confirmé", async () => {
+    mockGetReservationDraft.mockReset();
+    mockGetReservationDraft.mockResolvedValue({
+      ...MOCK_DRAFT,
+      status: "confirmed",
+      contract_signed_at: "2026-06-01T12:00:00Z",
+    });
+    mockGetCustomer.mockResolvedValue(MOCK_CUSTOMER);
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    expect(screen.queryByRole("button", { name: /Modifier le devis/i })).not.toBeInTheDocument();
+  });
 });

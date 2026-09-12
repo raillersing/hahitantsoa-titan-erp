@@ -1063,4 +1063,41 @@ describe("HahitantsoaEventDraftDetailPage", () => {
       expect(modal).toHaveAttribute("data-template", "hahitantsoa.preparation_sheet.v1");
     });
   });
+
+  it("affiche le bouton 'Éditer le devis' sur un brouillon Hahitantsoa et redirige vers l'assistant en mode édition", async () => {
+    const mockNav = vi.fn();
+    mockGetDraft.mockResolvedValue(DRAFT);
+    mockGetCustomer.mockResolvedValue(CUSTOMER);
+    mockGetDocuments.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetPreflight.mockResolvedValue(preflight());
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={mockNav} />);
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    const editDevisBtn = screen.getByRole("button", { name: /Éditer le devis/i });
+    expect(editDevisBtn).toBeInTheDocument();
+    fireEvent.click(editDevisBtn);
+
+    expect(mockNav).toHaveBeenCalledWith("reservation-new", "edit-hahitantsoa/event-1");
+  });
+
+  it("masque le bouton 'Éditer le devis' sur un dossier Hahitantsoa confirmé", async () => {
+    mockGetDraft.mockResolvedValue({
+      ...DRAFT,
+      status: "confirmed",
+      contract_signed: true,
+    });
+    mockGetCustomer.mockResolvedValue(CUSTOMER);
+    mockGetDocuments.mockResolvedValue([]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetPreflight.mockResolvedValue(preflight());
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={vi.fn()} />);
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    expect(screen.queryByRole("button", { name: /Éditer le devis/i })).not.toBeInTheDocument();
+  });
 });

@@ -2236,6 +2236,17 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                     >
                       <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu
                     </button>
+                    {!contractSigned && draft.status !== "confirmed" && (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("reservation-new", `edit-hahitantsoa/${draft.id}`)}
+                        className="rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="Éditer le contenu du devis (articles, dates, services, remises) dans l'assistant"
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i>
+                        <span>Éditer le devis</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => void generateDocument("hahitantsoa.proforma.v1", "Proforma / Devis")}
@@ -3231,6 +3242,21 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <i className="fa-solid fa-file-lines text-indigo-600"></i> {previewModal.title}
               </h3>
               <div className="flex items-center gap-2">
+                {((previewModal.type === "proforma" || previewModal.templateKey === "hahitantsoa.proforma.v1") &&
+                  !contractSigned &&
+                  draft.status !== "confirmed") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewModal(null);
+                      onNavigate("reservation-new", `edit-hahitantsoa/${draft.id}`);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <i className="fa-solid fa-pen-to-square"></i>
+                    <span>Modifier le devis</span>
+                  </button>
+                )}
                 {(previewModal.templateKey === "hahitantsoa.preparation_sheet.v1" ||
                   previewModal.templateKey === "shared.preparation_sheet.v1") && (
                   <button
