@@ -53,4 +53,5 @@ line-ending = "lf"
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py", "tests.py"]
 testpaths = ["tests"]
+pythonpath = ["backend"]
 addopts = "-ra"

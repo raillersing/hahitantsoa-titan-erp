@@ -41,6 +41,7 @@ frontend/dist/
 .aider*
 /documents/
 /backend/media/
+/backend/staticfiles/
 ~$*.xlsx
 ~$*.docx
 

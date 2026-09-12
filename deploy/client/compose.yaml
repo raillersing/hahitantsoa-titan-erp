@@ -35,12 +35,14 @@ services:
       context: ../..
       dockerfile: deploy/client/Dockerfile.backend
     env_file: .env.client
-    command: ["python", "backend/manage.py", "migrate", "--noinput"]
+    command: ["sh", "-c", "python backend/manage.py migrate --noinput && python backend/manage.py collectstatic --noinput"]
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - client_static_data:/app/backend/staticfiles
     networks: [client_internal]
 
   backend:
@@ -55,6 +57,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - client_media_data:/app/backend/media
+      - client_static_data:/app/backend/staticfiles
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import json, urllib.request; response = urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=2); data = json.loads(response.read().decode()); raise SystemExit(0 if response.status == 200 and data.get('status') == 'ok' else 1)\""]
       interval: 10s
@@ -71,6 +74,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    volumes:
+      - client_static_data:/usr/share/nginx/html/static:ro
     ports:
       - "127.0.0.1:${CLIENT_APP_PORT:-5173}:80"
     restart: unless-stopped
@@ -80,6 +85,7 @@ volumes:
   client_postgres_data:
   client_redis_data:
   client_media_data:
+  client_static_data:
 
 networks:
   client_internal:
