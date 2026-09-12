@@ -69,6 +69,7 @@ class PaymentReceiptPaymentContext:
     proforma_amount_label: str
     remaining_balance_label: str
     receipt_page_height_mm: int
+    receipt_reference: str = ""
 
 
 @dataclass(frozen=True)
@@ -235,10 +236,24 @@ def build_payment_receipt_context(
         else (event_draft.public_reference if event_draft is not None else "")
     )
     proforma_reference = (
-        proforma_document.reservation_public_reference
-        if (proforma_document and proforma_document.reservation_public_reference)
-        else dossier_public_reference
+        proforma_document.document_reference
+        if (proforma_document and proforma_document.document_reference)
+        else (
+            proforma_document.reservation_public_reference
+            if (proforma_document and proforma_document.reservation_public_reference)
+            else dossier_public_reference
+        )
     )
+
+    receipt_doc = getattr(payment, "receipt_document", None)
+    if receipt_doc is not None and receipt_doc.document_reference:
+        receipt_reference = receipt_doc.document_reference
+    elif dossier_public_reference:
+        receipt_reference = f"{dossier_public_reference}-REC-01"
+    elif payment.id:
+        receipt_reference = f"REC-{str(payment.id)[:8].upper()}"
+    else:
+        receipt_reference = ""
 
     customer_display_name = (
         customer.display_name
@@ -288,5 +303,6 @@ def build_payment_receipt_context(
             if proforma_total > Decimal("0")
             else "",
             receipt_page_height_mm=receipt_page_height_mm,
+            receipt_reference=receipt_reference,
         ),
     )

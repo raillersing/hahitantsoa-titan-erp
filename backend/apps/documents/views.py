@@ -388,8 +388,11 @@ def _build_mock_preview_context(template_definition, *, party_type: str = "indiv
         "payment": {
             "id": "................",
             "payment_id": "................",
+            "receipt_reference": "................",
             "external_reference": "................",
             "amount": "................",
+            "amount_label": "................",
+            "amount_in_words": "................................",
             "currency": "........",
             "payment_kind": "................",
             "payment_method": "................",
