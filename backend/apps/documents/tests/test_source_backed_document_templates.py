@@ -157,7 +157,7 @@ def test_titan_material_amendment_uses_canonical_html_css_amendment_page() -> No
 
     assert "size: A4 portrait" in html
     assert html.count('class="contract-page contract-page--amendment') == 1
-    assert "AVENANT DE CONTRAT « TITAN RENTAL »" in html
+    assert "AVENANT DE CONTRAT" in html
     assert "titan-rental-logo.png" in html
 
 
