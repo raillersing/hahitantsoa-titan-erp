@@ -3,8 +3,10 @@ from django.urls import path
 from apps.documents.views import (
     DocumentInstanceConvertToContractAPIView,
     DocumentInstanceListAPIView,
+    DocumentInstanceOverrideContentAPIView,
     DocumentInstancePDFRetrieveAPIView,
     DocumentInstancePrivateArtifactAPIView,
+    DocumentInstanceRetrieveAPIView,
     DocumentInstanceVoidAPIView,
     DocumentTemplateCRUDDestroyAPIView,
     DocumentTemplateCRUDListCreateAPIView,
@@ -69,6 +71,16 @@ urlpatterns = [
         "instances/<uuid:id>/artifact/",
         DocumentInstancePrivateArtifactAPIView.as_view(),
         name="document-instance-private-artifact",
+    ),
+    path(
+        "instances/<uuid:id>/override-content/",
+        DocumentInstanceOverrideContentAPIView.as_view(),
+        name="document-instance-override-content",
+    ),
+    path(
+        "instances/<uuid:id>/",
+        DocumentInstanceRetrieveAPIView.as_view(),
+        name="document-instance-retrieve",
     ),
     path(
         "instances/",

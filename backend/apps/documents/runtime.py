@@ -495,7 +495,8 @@ def store_document_html_artifact(
     Uses UTF-8 encoding.
     """
     path = build_document_artifact_storage_path(document_instance, content_checksum)
-    default_storage.save(path, ContentFile(html_content.encode("utf-8")))
+    if not default_storage.exists(path):
+        default_storage.save(path, ContentFile(html_content.encode("utf-8")))
     return path
 
 

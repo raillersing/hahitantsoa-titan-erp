@@ -1122,7 +1122,8 @@ def generate_document_instance_pdf(
             code="unsafe_pdf_storage_path",
         )
 
-    default_storage.save(pdf_path, ContentFile(pdf_bytes))
+    if not default_storage.exists(pdf_path):
+        default_storage.save(pdf_path, ContentFile(pdf_bytes))
 
     issued_at = timezone.now()
     locked_instance.pdf_storage_path = pdf_path
@@ -1147,6 +1148,98 @@ def generate_document_instance_pdf(
             "template_key": locked_instance.template_key,
             "pdf_storage_path": pdf_path,
             "pdf_content_checksum": checksum,
+        },
+    )
+    return locked_instance
+
+
+ALLOWED_OVERRIDE_TEMPLATE_KEYS = frozenset(
+    {
+        "hahitantsoa.preparation_sheet.v1",
+        "shared.preparation_sheet.v1",
+    }
+)
+
+
+@transaction.atomic
+def override_document_instance_content(
+    *,
+    document_instance_id,
+    html_content: str,
+    actor: object | None = None,
+) -> DocumentInstance:
+    """Persist directly edited HTML content for a preparation sheet instance.
+
+    Validates:
+    - the document instance exists and is not voided
+    - the template_key is in ALLOWED_OVERRIDE_TEMPLATE_KEYS
+    - the HTML content is non-empty string
+
+    Stores the HTML artifact, updates checksum/size/status, regenerates the synchronized PDF,
+    and records an audit event on commit.
+    """
+    from apps.documents.runtime import (
+        DocumentRuntimeGenerationError,
+        calculate_document_html_checksum,
+        store_document_html_artifact,
+    )
+
+    locked_instance = _get_locked_document_instance(document_instance_id=document_instance_id)
+
+    if locked_instance.status == DocumentInstanceStatus.VOIDED:
+        raise DocumentRuntimeGenerationError(
+            "Cannot override content of a voided document.",
+            code="document_instance_voided",
+        )
+
+    if locked_instance.template_key not in ALLOWED_OVERRIDE_TEMPLATE_KEYS:
+        msg = (
+            "Direct content override is not permitted for template "
+            f"'{locked_instance.template_key}'."
+        )
+        raise DocumentRuntimeGenerationError(
+            msg,
+            code="document_content_override_not_allowed",
+        )
+
+    if not isinstance(html_content, str) or not html_content.strip():
+        raise DocumentRuntimeGenerationError(
+            "Overridden HTML content cannot be empty.",
+            code="empty_html_content",
+        )
+
+    checksum = calculate_document_html_checksum(html_content)
+    size_bytes = len(html_content.encode("utf-8"))
+    storage_path = store_document_html_artifact(locked_instance, html_content, checksum)
+
+    if locked_instance.status == DocumentInstanceStatus.PREPARED:
+        locked_instance.status = DocumentInstanceStatus.GENERATED
+
+    locked_instance.content_checksum = checksum
+    locked_instance.generated_content_size_bytes = size_bytes
+    locked_instance.storage_path = storage_path
+    locked_instance.save(
+        update_fields=[
+            "status",
+            "content_checksum",
+            "generated_content_size_bytes",
+            "storage_path",
+            "updated_at",
+        ]
+    )
+
+    # Regenerate synchronized PDF from updated HTML
+    generate_document_instance_pdf(document_instance=locked_instance, actor=actor)
+
+    record_audit_event_on_commit(
+        actor=actor,
+        action="document.instance_content_overridden",
+        target_type="document_instance",
+        target_id=str(locked_instance.id),
+        metadata={
+            "template_key": locked_instance.template_key,
+            "content_checksum": checksum,
+            "storage_path": storage_path,
         },
     )
     return locked_instance
