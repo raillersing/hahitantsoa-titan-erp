@@ -92,6 +92,16 @@ vi.mock('../DocumentArtifactPreviewPanel', () => ({
   default: () => <div data-testid="artifact-preview">Preview Panel</div>,
 }));
 
+vi.mock('../DocumentLiveEditorModal', () => ({
+  default: ({ isOpen, onClose, title, templateKey, documentInstanceId }: any) =>
+    isOpen ? (
+      <div data-testid="live-editor-modal" data-doc-id={documentInstanceId} data-template={templateKey}>
+        <h3>{title}</h3>
+        <button onClick={onClose}>Fermer éditeur</button>
+      </div>
+    ) : null,
+}));
+
 /* ── helper: wait for the draft page to load ────────────────────── */
 
 async function waitForDraftLoad() {
@@ -571,6 +581,35 @@ describe('ReservationDetailPage', () => {
         template_key: "titan.proforma.v1",
       }));
       expect(mockGenerateReservationDraftDocumentInstance).toHaveBeenCalledWith("draft-loc-089", "doc-pf-2");
+    });
+  });
+
+  it("ouvre l'éditeur en direct du bon de préparation matériel", async () => {
+    mockGetReservationDraftDocumentInstances.mockResolvedValue([
+      {
+        id: "doc-prep-1",
+        reservation_draft: "draft-loc-089",
+        document_type: "fiche_preparation",
+        template_key: "shared.preparation_sheet.v1",
+        document_reference: "LOC-2026-0089-PREP",
+        status: "generated",
+        created_at: "2026-06-01T10:00:00Z",
+      } as any,
+    ]);
+
+    render(<ReservationDetailPage param="draft-loc-089" onNavigate={vi.fn()} />);
+    await waitForDraftLoad();
+
+    const liveEditButtons = screen.getAllByTitle("Modifier en direct (Google Docs style)");
+    expect(liveEditButtons.length).toBeGreaterThan(0);
+
+    fireEvent.click(liveEditButtons[0]);
+
+    await waitFor(() => {
+      const modal = screen.getByTestId("live-editor-modal");
+      expect(modal).toBeInTheDocument();
+      expect(modal).toHaveAttribute("data-doc-id", "doc-prep-1");
+      expect(modal).toHaveAttribute("data-template", "shared.preparation_sheet.v1");
     });
   });
 });

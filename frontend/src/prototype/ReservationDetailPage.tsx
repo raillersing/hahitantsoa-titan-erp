@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AppScope } from "../App";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
+import DocumentLiveEditorModal from "../DocumentLiveEditorModal";
 import { DocumentPreview } from "./DocumentPreview";
 import { printDocumentHtml } from "./DocumentCanvasViewer";
 import { DocumentPreviewDispatcher } from "../documents/document-preview-dispatcher";
@@ -186,6 +187,47 @@ export default function ReservationDetailPage({
   const [previewModal, setPreviewModal] = useState<PreviewModalState>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentModalInitialKind, setPaymentModalInitialKind] = useState<string>("deposit");
+
+  const [liveEditorState, setLiveEditorState] = useState<{
+    isOpen: boolean;
+    documentInstanceId: string;
+    title: string;
+    templateKey: string;
+  } | null>(null);
+
+  const handleOpenLiveEditor = async (templateKey: string, title: string) => {
+    if (!draft) return;
+    let targetInstance = documentInstances.find(
+      (d) => d.template_key === templateKey && d.status !== "voided",
+    );
+    if (!targetInstance) {
+      try {
+        setActionLoading(`prep-live-editor-${templateKey}`);
+        targetInstance = await createReservationDraftDocumentInstance(draft.id, {
+          template_key: templateKey,
+        });
+        await generateReservationDraftDocumentInstance(draft.id, targetInstance.id);
+        await generateReservationDraftDocumentInstancePdf(draft.id, targetInstance.id);
+        const docs = await getReservationDraftDocumentInstances(draft.id);
+        setDocumentInstances(docs);
+      } catch (err: any) {
+        showToast(
+          err?.message || "Erreur lors de la préparation du document pour modification.",
+          "error",
+        );
+        return;
+      } finally {
+        setActionLoading(null);
+      }
+    }
+
+    setLiveEditorState({
+      isOpen: true,
+      documentInstanceId: targetInstance.id,
+      title,
+      templateKey,
+    });
+  };
 
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictModalTarget, setConflictModalTarget] = useState<ConflictResolutionTarget | null>(null);
@@ -2114,20 +2156,30 @@ export default function ReservationDetailPage({
                             <p className="text-xs text-slate-500">Magasin & préparation stock</p>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreviewModal({
-                              title: "Bon de préparation matériel",
-                              templateKey: "shared.preparation_sheet.v1",
-                              type: "fiche_preparation",
-                            })
-                          }
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="Aperçu du bon de préparation"
-                        >
-                          <i className="fa-solid fa-eye text-base"></i>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => void handleOpenLiveEditor("shared.preparation_sheet.v1", "Bon de préparation matériel")}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            title="Modifier en direct (Google Docs style)"
+                          >
+                            <i className="fa-solid fa-file-pen text-base"></i>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewModal({
+                                title: "Bon de préparation matériel",
+                                templateKey: "shared.preparation_sheet.v1",
+                                type: "fiche_preparation",
+                              })
+                            }
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            title="Aperçu du bon de préparation"
+                          >
+                            <i className="fa-solid fa-eye text-base"></i>
+                          </button>
+                        </div>
                       </div>
                       <p className="text-xs text-slate-600">
                         Fiche de préparation magasinier avec quantités à rassembler et vérifier.
@@ -2345,6 +2397,15 @@ export default function ReservationDetailPage({
                     <p className="text-xs text-slate-500">Rassemblement et contrôle avant expédition</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenLiveEditor("shared.preparation_sheet.v1", "Bon de préparation matériel (Magasin)")}
+                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      title="Modifier en direct (Google Docs style)"
+                    >
+                      <i className="fa-solid fa-file-pen"></i>
+                      <span>Modifier en direct</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() =>
@@ -3274,6 +3335,21 @@ export default function ReservationDetailPage({
                 </span>
               </h3>
               <div className="flex items-center gap-2">
+                {previewModal?.templateKey === "shared.preparation_sheet.v1" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tKey = previewModal.templateKey!;
+                      const tTitle = previewModal.title || "Bon de préparation matériel";
+                      setPreviewModal(null);
+                      void handleOpenLiveEditor(tKey, tTitle);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <i className="fa-solid fa-file-pen"></i>
+                    <span>Modifier en direct</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -3473,6 +3549,23 @@ export default function ReservationDetailPage({
         isConfirmed={draft?.status === "confirmed" || Boolean(draft?.contract_signed_at) || Boolean(titanContractInstance)}
         domain="titan"
       />
+
+      {/* ── Document Live Editor Modal ───────────────────────────────── */}
+      {liveEditorState && (
+        <DocumentLiveEditorModal
+          isOpen={liveEditorState.isOpen}
+          onClose={() => setLiveEditorState(null)}
+          documentInstanceId={liveEditorState.documentInstanceId}
+          title={liveEditorState.title}
+          templateKey={liveEditorState.templateKey}
+          onSaved={(updated) => {
+            setDocumentInstances((prev) =>
+              prev.map((d) => (d.id === updated.id ? updated : d)),
+            );
+            showToast("Document modifié et PDF synchronisé avec succès.", "success");
+          }}
+        />
+      )}
     </div>
   );
 }
