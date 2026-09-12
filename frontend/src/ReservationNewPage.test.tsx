@@ -5,6 +5,7 @@ import ReservationNewPage, {
   calculateHahitantsoaPaymentSchedule,
   calculateReservationTotals,
   formatHahitantsoaServiceNotes,
+  resolveHahitantsoaEventName,
 } from './prototype/ReservationNewPage';
 import {
   getCustomers,
@@ -1243,5 +1244,131 @@ describe('ReservationNewPage', () => {
     expect(localStorage.getItem('prototypeReservationDraft')).toBeNull();
     expect(screen.queryByText('Parcours de réservation en cours')).not.toBeInTheDocument();
     expect(await screen.findByText('Sélection ou création du client')).toBeInTheDocument();
+  });
+
+  it('24. resolveHahitantsoaEventName résout correctement les personnes concernées selon le type d’événement', () => {
+    // Wedding with both names
+    expect(
+      resolveHahitantsoaEventName({
+        eventType: 'Mariage',
+        mariageGroomName: 'Jean',
+        mariageBrideName: 'Jeanne',
+        date: '',
+        venue: '',
+        guests: '',
+        remarks: '',
+        startDate: '',
+        startTime: '',
+        endDate: '',
+        endTime: '',
+        rentalType: '',
+        durationOption: 'day',
+        venuePrice: 0,
+        logisticsPrice: 0,
+      })
+    ).toBe('Jean & Jeanne');
+
+    // Wedding with only groom
+    expect(
+      resolveHahitantsoaEventName({
+        eventType: 'Mariage',
+        mariageGroomName: 'Jean',
+        date: '',
+        venue: '',
+        guests: '',
+        remarks: '',
+        startDate: '',
+        startTime: '',
+        endDate: '',
+        endTime: '',
+        rentalType: '',
+        durationOption: 'day',
+        venuePrice: 0,
+        logisticsPrice: 0,
+      })
+    ).toBe('Jean');
+
+    // Engagement
+    expect(
+      resolveHahitantsoaEventName({
+        eventType: 'Fiançailles',
+        fiancaillesPerson1: 'Paul',
+        fiancaillesPerson2: 'Marie',
+        date: '',
+        venue: '',
+        guests: '',
+        remarks: '',
+        startDate: '',
+        startTime: '',
+        endDate: '',
+        endTime: '',
+        rentalType: '',
+        durationOption: 'day',
+        venuePrice: 0,
+        logisticsPrice: 0,
+      })
+    ).toBe('Paul & Marie');
+
+    // Baptism
+    expect(
+      resolveHahitantsoaEventName({
+        eventType: 'Baptême',
+        baptemeChildName: 'Lucas',
+        date: '',
+        venue: '',
+        guests: '',
+        remarks: '',
+        startDate: '',
+        startTime: '',
+        endDate: '',
+        endTime: '',
+        rentalType: '',
+        durationOption: 'day',
+        venuePrice: 0,
+        logisticsPrice: 0,
+      })
+    ).toBe('Lucas');
+
+    // Other with referent
+    expect(
+      resolveHahitantsoaEventName({
+        eventType: 'Anniversaire',
+        otherReferentName: 'Fête de Sophie',
+        date: '',
+        venue: '',
+        guests: '',
+        remarks: '',
+        startDate: '',
+        startTime: '',
+        endDate: '',
+        endTime: '',
+        rentalType: '',
+        durationOption: 'day',
+        venuePrice: 0,
+        logisticsPrice: 0,
+      })
+    ).toBe('Fête de Sophie');
+
+    // Fallback to customer name
+    expect(
+      resolveHahitantsoaEventName(
+        {
+          eventType: 'Anniversaire',
+          date: '',
+          venue: '',
+          guests: '',
+          remarks: '',
+          startDate: '',
+          startTime: '',
+          endDate: '',
+          endTime: '',
+          rentalType: '',
+          durationOption: 'day',
+          venuePrice: 0,
+          logisticsPrice: 0,
+        },
+        'Société ABC'
+      )
+    ).toBe('Société ABC');
   });
 });

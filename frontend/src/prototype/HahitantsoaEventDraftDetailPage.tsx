@@ -1037,7 +1037,20 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
       const baseEventType = (draft.event_type || "wedding").replace(/_night_opt\d/, "");
       // ponytail: duration is commercial context recorded in notes, not an event-type enum value.
       const changedEventType: HahitantsoaEventType = (
-        ["wedding", "engagement", "civil_wedding", "other"] as const
+        [
+          "wedding",
+          "engagement",
+          "civil_wedding",
+          "baptism",
+          "birthday",
+          "reception",
+          "seminar",
+          "corporate",
+          "conference",
+          "workshop",
+          "family",
+          "other",
+        ] as const
       ).includes(baseEventType as HahitantsoaEventType)
         ? (baseEventType as HahitantsoaEventType)
         : "other";

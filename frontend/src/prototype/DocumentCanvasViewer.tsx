@@ -25,6 +25,46 @@ export function detectPageCount(html: string): number {
   return Math.max(1, pageMarkers?.length ?? 1);
 }
 
+export function detectLandscapeCount(html: string): number {
+  const matches = html.match(/class=["'][^"']*\blandscape\b[^"']*["']/g);
+  return matches?.length ?? 0;
+}
+
+const LANDSCAPE_SCREEN_STYLE = `<style id="canvas-landscape-preview-override">
+@media screen {
+  html, body {
+    width: 297mm !important;
+    max-width: 297mm !important;
+    min-width: 297mm !important;
+    margin: 0 auto !important;
+  }
+  .contract-document {
+    width: 297mm !important;
+    max-width: 297mm !important;
+    margin: 0 auto !important;
+  }
+  .contract-page:not(.landscape) {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .contract-page.landscape {
+    width: 297mm !important;
+    max-width: 297mm !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+</style>`;
+
+export function injectLandscapePreviewStyles(html: string): string {
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `${LANDSCAPE_SCREEN_STYLE}</head>`);
+  }
+  return `${LANDSCAPE_SCREEN_STYLE}${html}`;
+}
+
 export function printDocumentHtml(html: string) {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   const printFrame = document.createElement("iframe");
@@ -81,14 +121,24 @@ export function DocumentCanvasViewer({
   const [scale, setScale] = useState(1);
   const paperSize = initialPaperSize || detectPaperSize(html);
   const pageCount = detectPageCount(html);
+  const landscapeCount = detectLandscapeCount(html);
+  const isLandscapeDocument = paperSize === "A4" && landscapeCount > 0;
   const dimensions = PAPER_DIMENSIONS[paperSize];
+
+  const contentWidth = isLandscapeDocument ? PAPER_DIMENSIONS.A4.height : dimensions.width;
+  const portraitCount = Math.max(0, pageCount - landscapeCount);
+  const contentHeight = isLandscapeDocument
+    ? portraitCount * dimensions.height + landscapeCount * dimensions.width
+    : dimensions.height * pageCount;
+
+  const resolvedHtml = isLandscapeDocument ? injectLandscapePreviewStyles(html) : html;
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const updateScale = () => {
-      const computedScale = Math.min(1, container.clientWidth / dimensions.width);
+      const computedScale = Math.min(1, container.clientWidth / contentWidth);
       // When scale is close to 1 (>= 0.98), snap to 1 to avoid bilinear downsampling blur
       // and allow the browser to use native crisp vector font antialiasing.
       setScale(computedScale >= 0.98 ? 1 : computedScale);
@@ -99,14 +149,14 @@ export function DocumentCanvasViewer({
     const observer = new ResizeObserver(updateScale);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [html, dimensions.width]);
+  }, [contentWidth]);
 
   const isNativeScale = scale >= 0.99;
 
   return (
     <div className="flex flex-col items-center w-full">
       {showPrintButton && (
-        <div className="w-full flex justify-end mb-3" style={{ maxWidth: `${dimensions.width}px` }}>
+        <div className="w-full flex justify-end mb-3" style={{ maxWidth: `${contentWidth}px` }}>
           <button
             type="button"
             onClick={() => printDocumentHtml(html)}
@@ -122,22 +172,23 @@ export function DocumentCanvasViewer({
         data-testid="document-canvas-container"
         data-paper-size={paperSize}
         data-page-count={pageCount}
+        data-landscape-count={landscapeCount}
         className={`relative mx-auto flex justify-center overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-2xl transition-all ${className}`}
         style={{
           width: "100%",
-          maxWidth: `${dimensions.width}px`,
-          height: `${Math.round(dimensions.height * pageCount * scale)}px`,
+          maxWidth: `${contentWidth}px`,
+          height: `${Math.round(contentHeight * scale)}px`,
         }}
       >
         <iframe
           title={title}
-          srcDoc={html}
+          srcDoc={resolvedHtml}
           loading="lazy"
           sandbox={sandbox}
           className="block border-0 bg-white shrink-0"
           style={{
-            width: `${dimensions.width}px`,
-            height: `${dimensions.height * pageCount}px`,
+            width: `${contentWidth}px`,
+            height: `${contentHeight}px`,
             transform: isNativeScale ? "none" : `scale(${scale})`,
             transformOrigin: "top left",
             WebkitFontSmoothing: "antialiased",

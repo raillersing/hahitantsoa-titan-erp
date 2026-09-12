@@ -284,6 +284,7 @@ export type ReservationDraftCreatePayload = {
 
 export type ReservationDraftUpdatePayload = {
   customer_id?: string;
+  public_reference?: string;
   start_at?: string;
   end_at?: string;
   notes?: string;
@@ -418,6 +419,7 @@ export type HahitantsoaPaymentSchedule = {
 
 export type HahitantsoaEventDraftUpdatePayload = {
   customer_id?: string;
+  public_reference?: string;
   event_name?: string;
   event_type?: HahitantsoaEventType;
   rental_type?: "bare" | "logistics";
@@ -471,7 +473,19 @@ export type HahitantsoaEventDraft = {
   updated_at: string;
 };
 
-export type HahitantsoaEventType = "wedding" | "engagement" | "civil_wedding" | "other";
+export type HahitantsoaEventType =
+  | "wedding"
+  | "engagement"
+  | "civil_wedding"
+  | "baptism"
+  | "birthday"
+  | "reception"
+  | "seminar"
+  | "corporate"
+  | "conference"
+  | "workshop"
+  | "family"
+  | "other";
 
 export type HahitantsoaDurationOption = "day" | "night_1" | "night_2";
 
