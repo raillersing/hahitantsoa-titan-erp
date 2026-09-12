@@ -60,7 +60,7 @@
 
         <p class="text-right">Ci-après dénommée « Le client »</p>
         <p class="text-right"><strong><u>D'AUTRE PART,</u></strong></p>
-        <p>Pour le {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.type {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.event_type|default:"................" }}{% endif %} de : {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.event_name|default:"................" }}{% endif %}</p>
+        <p>Pour le {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.type {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.event_type|default:"................" }}{% endif %} de : {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.name {% templatetag closevariable %}</span>{% else %}{% if context.event_draft.event_name and context.event_draft.event_name != context.event_draft.event_type and context.event_draft.event_name != "Événement Hahitantsoa" %}{{ context.event_draft.event_name }}{% else %}{{ context.event_draft.customer_display_name|default:"................" }}{% endif %}{% endif %}</p>
         <p>Le Client et le Prestataire étant dénommés ci-après les « Parties »</p>
         <p class="uppercase"><strong>IL A ETE CONVENU CE QUI SUIT :</strong></p>
 
@@ -290,7 +290,7 @@
         <ul>
             <li>Règlement intérieur</li>
             <li>Plan de masse et évacuation incendie</li>
-            <li>Proforma</li>
+            <li>Prix de casse</li>
             <li>Liste des intervenants non autorisés</li>
         </ul>
 
@@ -507,7 +507,6 @@
         <h2>Annexe 4 : Liste des intervenants non autorisés</h2>
         <p class="annex-note">Cette liste a été vu avant le proforma.</p>
         <p class="empty-note">Aucun intervenant non autorisé enregistré.</p>
-        <p class="annex-note">Cette liste est consultée par le prestataire et le client lors de la passation d’entrée et de sortie.</p>
 
         <footer class="contract-footer">
             <div class="contract-footer-col contract-footer-col--left">

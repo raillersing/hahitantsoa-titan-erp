@@ -152,6 +152,60 @@ def _document_contact_displays(*, document_instance: DocumentInstance) -> tuple[
     )
 
 
+def _resolve_proforma_reference(document_instance: DocumentInstance) -> str:
+    """Resolve the authoritative proforma reference for a document instance."""
+    template_key = getattr(document_instance, "template_key", "")
+    if template_key in {"titan.proforma.v1", "hahitantsoa.proforma.v1"}:
+        return document_instance.document_reference or (
+            f"{document_instance.reservation_public_reference}-PF"
+            if document_instance.reservation_public_reference
+            else ""
+        )
+
+    if getattr(document_instance, "reservation_draft_id", None):
+        pf_doc = (
+            DocumentInstance.objects.filter(
+                reservation_draft_id=document_instance.reservation_draft_id,
+                template_key="titan.proforma.v1",
+            )
+            .exclude(status="voided")
+            .order_by("-created_at")
+            .first()
+        )
+        if pf_doc and pf_doc.document_reference:
+            return pf_doc.document_reference
+    elif getattr(document_instance, "hahitantsoa_event_draft_id", None):
+        pf_doc = (
+            DocumentInstance.objects.filter(
+                hahitantsoa_event_draft_id=document_instance.hahitantsoa_event_draft_id,
+                template_key="hahitantsoa.proforma.v1",
+            )
+            .exclude(status="voided")
+            .order_by("-created_at")
+            .first()
+        )
+        if pf_doc and pf_doc.document_reference:
+            return pf_doc.document_reference
+
+    pub_ref = (
+        getattr(document_instance, "reservation_public_reference", "")
+        or getattr(getattr(document_instance, "reservation_draft", None), "public_reference", "")
+        or getattr(
+            getattr(document_instance, "hahitantsoa_event_draft", None), "public_reference", ""
+        )
+    )
+    if pub_ref:
+        return pub_ref if pub_ref.endswith("-PF") else f"{pub_ref}-PF"
+
+    doc_ref = getattr(document_instance, "document_reference", "") or ""
+    if doc_ref.endswith("-PF"):
+        return doc_ref
+    for suffix in ("-CT", "-BL", "-BR", "-FA", "-FC", "-FP", "-DR", "-AV"):
+        if doc_ref.endswith(suffix):
+            return f"{doc_ref[: -len(suffix)]}-PF"
+    return f"{doc_ref}-PF" if doc_ref else ""
+
+
 def _build_hahitantsoa_contract_runtime_context(
     *, document_instance: DocumentInstance
 ) -> dict[str, object]:
@@ -245,7 +299,12 @@ def _build_hahitantsoa_contract_runtime_context(
             "public_reference": linked_event_draft.public_reference,
             "party_type": document_instance.customer_party_type,
             "event_name": linked_event_draft.event_name,
-            "event_type": linked_event_draft.event_type,
+            "event_type": (
+                linked_event_draft.get_event_type_display()
+                if hasattr(linked_event_draft, "get_event_type_display")
+                else (linked_event_draft.event_type or "Autre")
+            ),
+            "event_type_raw": linked_event_draft.event_type,
             "venue_name": linked_event_draft.venue_name,
             "location_details": linked_event_draft.location_details,
             "service_notes": linked_event_draft.service_notes,
@@ -290,7 +349,7 @@ def _build_hahitantsoa_contract_runtime_context(
             "sub_total": _format_ariary_amount(calculated_total),
             "discount": "0,00",
             "total_amount_in_words": format_ariary_amount_in_words(calculated_total),
-            "proforma_reference": linked_event_draft.public_reference,
+            "proforma_reference": _resolve_proforma_reference(document_instance),
             "lines": lines,
         },
     }
@@ -339,7 +398,11 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
             "document": {
                 "date": preview_instance.document_date,
                 "reference": preview_instance.document_reference,
-                "proforma_reference": event_draft.public_reference + "-PF",
+                "proforma_reference": (
+                    event_draft.public_reference
+                    if str(event_draft.public_reference).endswith("-PF")
+                    else f"{event_draft.public_reference}-PF"
+                ),
             },
         },
     )
@@ -397,7 +460,11 @@ def preview_reservation_draft_document_html(*, reservation_draft, template_key: 
         "document": {
             "date": preview_instance.document_date,
             "reference": preview_instance.document_reference or reservation_draft.public_reference,
-            "proforma_reference": reservation_draft.public_reference + "-PF",
+            "proforma_reference": (
+                reservation_draft.public_reference
+                if str(reservation_draft.public_reference).endswith("-PF")
+                else f"{reservation_draft.public_reference}-PF"
+            ),
         },
     }
     html_content = render_to_string(template_path, render_context)
@@ -626,11 +693,7 @@ def generate_document_instance_html(
         "document": {
             "date": document_instance.document_date,
             "reference": document_instance.document_reference,
-            "proforma_reference": (
-                document_instance.document_reference.rsplit("-", 1)[0] + "-PF"
-                if document_instance.document_reference
-                else document_instance.reservation_public_reference
-            ),
+            "proforma_reference": _resolve_proforma_reference(document_instance),
         },
     }
     # ponytail: the registry owns the single approved renderer for each workflow document.

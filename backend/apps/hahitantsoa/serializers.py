@@ -791,6 +791,11 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     lines = HahitantsoaEventDraftLineSerializer(many=True)
     prerequisite_status = serializers.SerializerMethodField()
     payment_schedule = serializers.SerializerMethodField()
+    event_type = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default=HahitantsoaEventType.OTHER,
+    )
 
     class Meta:
         model = HahitantsoaEventDraft
@@ -846,6 +851,15 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
                 f"La référence '{val}' est déjà utilisée par un autre événement."
             )
         return val
+
+    def validate_event_type(self, value):
+        if not value:
+            return HahitantsoaEventType.OTHER
+        val = str(value).strip().lower()
+        for choice_key, choice_label in HahitantsoaEventType.choices:
+            if val == choice_key.lower() or val == choice_label.lower():
+                return choice_key
+        return HahitantsoaEventType.OTHER
 
     def validate(self, attrs):
         start_at = attrs.get("start_at", getattr(self.instance, "start_at", None))
@@ -947,6 +961,8 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         lines_data = validated_data.pop("lines", None)
+        new_reference = validated_data.pop("public_reference", None)
+        old_reference = instance.public_reference
 
         for field, value in validated_data.items():
             setattr(instance, field, value)
@@ -958,6 +974,17 @@ class HahitantsoaEventDraftSerializer(serializers.ModelSerializer):
             )
         instance.full_clean()
         instance.save()
+
+        if new_reference and new_reference != old_reference:
+            from apps.hahitantsoa.reference_update import (
+                update_hahitantsoa_event_draft_public_reference,
+            )
+
+            update_hahitantsoa_event_draft_public_reference(
+                event_draft=instance,
+                new_public_reference=new_reference,
+                actor=instance.updated_by,
+            )
 
         if lines_data is not None:
             event_draft_lines = HahitantsoaEventDraftLine.objects.filter(event_draft=instance)
