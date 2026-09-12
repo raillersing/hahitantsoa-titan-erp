@@ -174,7 +174,7 @@ li { margin: 0.4mm 0; text-align: justify; text-justify: inter-word; text-align-
 .breakage-list li { margin: 1.5mm 0; }
 
 .breakage-table { width: 100%; border-collapse: collapse; margin: 4mm 0 4mm; font-size: 9pt; position: relative; z-index: 1; }
-.breakage-table th { padding: 2mm 1.5mm; font-weight: 700; font-family: "Times New Roman", "Liberation Serif", serif; border-bottom: 0.25mm solid #cbd5e1; }
+.breakage-table th { padding: 2mm 1.5mm; font-weight: 700; font-family: "Times New Roman", "Liberation Serif", serif; }
 .breakage-table td { padding: 2mm 1.5mm; border-bottom: 0.15mm solid #f1f5f9; font-family: "Times New Roman", "Liberation Serif", serif; }
 .breakage-note { margin-top: 4mm; font-size: 8.5pt; color: #333333; font-style: italic; line-height: 1.35; position: relative; z-index: 1; text-align: justify; text-justify: inter-word; text-align-last: left; }
 

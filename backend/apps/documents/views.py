@@ -37,6 +37,7 @@ from apps.documents.serializers import (
     DocumentInstanceCreateSerializer,
     DocumentInstanceGenerateSerializer,
     DocumentInstanceListSerializer,
+    DocumentInstanceOverrideContentSerializer,
     DocumentInstancePDFSerializer,
     DocumentInstanceSerializer,
     DocumentTemplateDefinitionSerializer,
@@ -50,6 +51,7 @@ from apps.documents.services import (
     generate_reservation_draft_document_instance_html,
     get_reservation_draft_document_instance_or_404,
     get_titan_proforma_draft_preview_payload_service,
+    override_document_instance_content,
     prepare_contract_from_proforma,
     void_proforma,
 )
@@ -1028,6 +1030,60 @@ class DocumentInstanceVoidAPIView(APIView):
         except ProformaActionError as error:
             return Response(
                 {"detail": str(error), "code": error.code}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)
+
+
+class DocumentInstanceRetrieveAPIView(APIView):
+    """Retrieve a document instance by its UUID."""
+
+    http_method_names = ["get", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(responses={200: DocumentInstanceSerializer})
+    def get(self, request, id):
+        instance = get_document_instance_by_id(document_instance_id=id)
+        if instance is None:
+            raise Http404("Document instance not found.")
+        return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)
+
+
+class DocumentInstanceOverrideContentAPIView(APIView):
+    """Save directly edited HTML content for a preparation sheet document instance."""
+
+    http_method_names = ["post", "head", "options"]
+    permission_classes = [HasReservationSensitiveAccess]
+
+    @extend_schema(
+        request=DocumentInstanceOverrideContentSerializer,
+        responses={
+            200: DocumentInstanceSerializer,
+            400: OpenApiResponse(
+                description="Invalid HTML content or override not allowed for this document."
+            ),
+        },
+    )
+    def post(self, request, id):
+        serializer = DocumentInstanceOverrideContentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        html_content = serializer.validated_data["html_content"]
+
+        try:
+            instance = override_document_instance_content(
+                document_instance_id=id,
+                html_content=html_content,
+                actor=request.user,
+            )
+        except DocumentInstance.DoesNotExist:
+            raise Http404("Document instance not found.")
+        except DocumentRuntimeGenerationError as error:
+            return Response(
+                {
+                    "detail": str(error),
+                    "code": getattr(error, "code", "document_content_override_failed"),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         return Response(DocumentInstanceSerializer(instance).data, status=status.HTTP_200_OK)

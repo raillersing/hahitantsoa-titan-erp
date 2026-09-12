@@ -116,7 +116,7 @@ body { color: #202020; font-family: Arial, "DejaVu Sans", sans-serif; font-size:
 /* 7. TABLEAU DES ARTICLES / MATÉRIELS                                       */
 /* ========================================================================= */
 .document-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 5mm 0 7mm; }
-.document-table th { height: 8mm; padding: 1mm; border-bottom: 0.35mm solid #555555; color: #333333; font-size: 7pt; letter-spacing: 0.55mm; text-align: left; text-transform: uppercase; }
+.document-table th { height: 8mm; padding: 1mm; color: #333333; font-size: 7pt; letter-spacing: 0.55mm; text-align: left; text-transform: uppercase; }
 .document-table td { min-height: 7mm; padding: 1.5mm 1mm; border-bottom: 0.2mm solid #aaaaaa; vertical-align: top; font-size: 7.5pt; }
 .document-table th, .document-table td, .document-table .right { text-align: center; }
 .document-table-excluded th:nth-child(1), .document-table-excluded td:nth-child(1) { text-align: center; }

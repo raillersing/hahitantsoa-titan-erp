@@ -383,6 +383,14 @@ class DocumentInstancePDFSerializer(serializers.Serializer):
     valid_until = serializers.DateTimeField(required=False, allow_null=True)
 
 
+class DocumentInstanceOverrideContentSerializer(serializers.Serializer):
+    html_content = serializers.CharField(
+        required=True,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+
+
 class DocumentTemplateCRUDSerializer(serializers.ModelSerializer):
     class Meta:
         model = DocumentTemplate
