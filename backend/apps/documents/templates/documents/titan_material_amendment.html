@@ -21,7 +21,7 @@
             </div>
         </header>
 
-        <h1>AVENANT DE CONTRAT « TITAN RENTAL »</h1>
+        <h1>AVENANT DE CONTRAT</h1>
 
         <p>Entre les soussignés :</p>
         <p><strong>La société ERGON GROUP</strong>, ci-après dénommée « Le prestataire », et</p>
@@ -34,9 +34,9 @@
             {% endif %}
         {% else %}
             {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
-                <p>La société <strong>{{ customer.display_name|default:"................................" }}</strong>, dont le siège social est situé au {{ customer.address|default:"................................" }}, ci-après dénommée « Le client », représentée par {{ customer.representative_name|default:"................................" }}, {{ customer.representative_role|default:"Gérant(e)" }}. Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{{ customer.phone|default:customer.email|default:"................................" }}{% endfor %}</p>
+                <p>La société <strong>{{ customer.display_name|default:"................................" }}</strong>, dont le siège social est situé au {{ customer.address|default:"................................" }}, ci-après dénommée « Le client », représentée par {{ customer.representative_name|default:"................................" }}, {{ customer.representative_role|default:"Gérant(e)" }}. Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{% if customer.phone %}{{ customer.phone }}{% elif customer.email %}{{ customer.email }}{% else %}................................{% endif %}{% endfor %}</p>
             {% else %}
-                <p>{{ customer.civilite|default:"Madame/Monsieur" }} <strong>{{ customer.display_name|default:"................................" }}</strong>, demeurant au {{ customer.address|default:"................................" }}, ci-après dénommé(e) « Le client ». Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{{ customer.phone|default:customer.email|default:"................................" }}{% endfor %}</p>
+                <p>{{ customer.civilite|default:"Madame/Monsieur" }} <strong>{{ customer.display_name|default:"................................" }}</strong>, demeurant au {{ customer.address|default:"................................" }}, ci-après dénommé(e) « Le client ». Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{% if customer.phone %}{{ customer.phone }}{% elif customer.email %}{{ customer.email }}{% else %}................................{% endif %}{% endfor %}</p>
             {% endif %}
         {% endif %}
 
@@ -48,11 +48,11 @@
 
         <p>Le contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
         {% if show_variables %}
-            <ul>
+            <ul class="dash-list">
                 <li><span class="variable">{% templatetag openvariable %} lines.quantity {% templatetag closevariable %} x {% templatetag openvariable %} lines.designation {% templatetag closevariable %}</span></li>
             </ul>
         {% else %}
-            <ul>
+            <ul class="dash-list">
                 {% for line in draft.lines %}
                     <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes and line.notes != line.inventory_item_name %} — {{ line.notes }}{% endif %}</li>
                 {% empty %}
@@ -61,20 +61,22 @@
             </ul>
         {% endif %}
 
-        <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% else %}<strong>{{ draft.total_amount|default:"………………………………" }}</strong>{% endif %} Ariary TTC.</p>
+        <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% elif draft.total_amount_formatted %}<strong>{{ draft.total_amount_formatted }}</strong>{% else %}<strong>{{ draft.total_amount|default:"………………………………" }}</strong>{% endif %} Ariary TTC.</p>
         <p class="indent">
-            N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ draft.proforma_reference|default:draft.public_reference|default:"………" }}{% endif %}
+            N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ draft.proforma_reference|default:draft.public_reference|default:"………" }}{% endif %}{% if context.document.reference and context.document.reference != draft.proforma_reference and context.document.reference != draft.public_reference %}<br>Réf. Avenant : {{ context.document.reference }}{% endif %}
         </p>
 
         <p class="text-center signature-intro">Fait en trois exemplaires originaux</p>
-        <p class="text-right">A Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</p>
+        <p class="text-right">A Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% elif context.document.date %}{{ context.document.date|date:"d/m/Y" }}{% else %}{% now "d/m/Y" %}{% endif %}</p>
         <div class="signatures">
             <div class="signature-block">
                 <strong>Le Prestataire,</strong>
                 <div class="signature-space"></div>
             </div>
             <div class="signature-block">
-                {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                {% if show_variables %}
+                    <strong>Le Client,</strong>
+                {% elif customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
                     <strong>Pour la société {{ customer.display_name|default:"" }},</strong><br>
                     <span class="signature-subtitle">{{ customer.representative_name|default:"Le représentant légal" }}</span>
                 {% else %}
