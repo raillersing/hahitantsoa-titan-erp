@@ -35,6 +35,8 @@ import {
   getDocumentArtifactHtml,
   getDocumentTemplatePreview,
   getReservationDrafts,
+  getReservationDraft,
+  getHahitantsoaEventDraft,
   getHahitantsoaEventDraftDocumentPreview,
 } from './api';
 
@@ -207,6 +209,8 @@ vi.mock('./api', () => ({
   getDocumentArtifactHtml: vi.fn(),
   getDocumentTemplatePreview: vi.fn(),
   getReservationDrafts: vi.fn(),
+  getReservationDraft: vi.fn(),
+  getHahitantsoaEventDraft: vi.fn(),
   getReservationDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Titan proforma mock</body></html>'),
   getHahitantsoaEventDraftDocumentPreview: vi.fn().mockResolvedValue('<html><body>Hahitantsoa proforma mock</body></html>'),
   previewNextPublicReference: vi.fn().mockResolvedValue({ brand: 'titan', year: 2026, next_reference: '001/2026', next_number: 1, prefix: '' }),
@@ -1370,5 +1374,159 @@ describe('ReservationNewPage', () => {
         'Société ABC'
       )
     ).toBe('Société ABC');
+  });
+
+  it('25. charge un brouillon Titan existant via edit-titan/:id, pré-remplit les matériels et dates, et stoppe à l\'étape Proforma', async () => {
+    vi.mocked(getReservationDraft).mockResolvedValue({
+      id: 'DRAFT-TITAN-100',
+      customer_id: 'CUST-001',
+      public_reference: 'T-100/2026',
+      status: 'draft',
+      start_at: '2026-08-10T08:00:00Z',
+      end_at: '2026-08-12T20:00:00Z',
+      notes: 'Usage standard - Destination 1',
+      delivery_fee: '50000.00',
+      discount_amount: '20000.00',
+      discount_reason: 'Geste commercial',
+      lines: [
+        {
+          inventory_item_id: 'MAT-01',
+          inventory_item_name: 'Chaise Napoléon transparente',
+          quantity: 20,
+          unit_rental_price: '10000.00',
+        },
+      ],
+    } as any);
+
+    vi.mocked(updateReservationDraft).mockResolvedValue({
+      id: 'DRAFT-TITAN-100',
+      status: 'draft',
+    } as any);
+
+    vi.mocked(createReservationDraftDocumentInstance).mockResolvedValue({
+      id: 'DOC-TITAN-REV2',
+      document_reference: 'T-100/2026-rev2',
+    } as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param="edit-titan/DRAFT-TITAN-100" />);
+
+    // Breadcrumb and header in edit mode
+    expect(await screen.findByText('Modification du devis / proforma')).toBeInTheDocument();
+    expect(screen.getByText('Mode modification du devis proforma')).toBeInTheDocument();
+    expect(screen.getByText('Vérification & Proforma')).toBeInTheDocument();
+
+    // Verify dates pre-filled at Step 3
+    expect(screen.getByDisplayValue('2026-08-10')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2026-08-12')).toBeInTheDocument();
+
+    // Advance to step 4 (Catalog/Materials)
+    fireEvent.click(screen.getByRole('button', { name: /Aller au catalogue/i }));
+    await screen.findAllByPlaceholderText('0');
+    // Pre-filled quantity 20 for Chaise Napoléon
+    expect(screen.getByDisplayValue('20')).toBeInTheDocument();
+
+    // Advance to step 5 (Logistics)
+    fireEvent.click(screen.getByRole('button', { name: /Aller à la Livraison/i }));
+    expect(await screen.findByDisplayValue('50000')).toBeInTheDocument();
+
+    // Advance to step 6 (Summary)
+    fireEvent.click(screen.getByRole('button', { name: /Vérifier le résumé/i }));
+    // Step 6 has 'Continuer vers le Proforma' button
+    const toProformaBtn = await screen.findByRole('button', { name: /Continuer vers le Proforma/i });
+    expect(toProformaBtn).toBeInTheDocument();
+    fireEvent.click(toProformaBtn);
+
+    // Step 7: Proforma
+    expect(await screen.findByText('Enregistrement & émission de la nouvelle révision')).toBeInTheDocument();
+    const emitRevBtn = screen.getByRole('button', { name: /Émettre la nouvelle révision/i });
+    expect(emitRevBtn).toBeInTheDocument();
+    fireEvent.click(emitRevBtn);
+
+    // After emission, revision card is shown with return button
+    expect(await screen.findByText(/Nouvelle révision du proforma émise avec succès/i)).toBeInTheDocument();
+    const returnDossierBtn = screen.getByRole('button', { name: /Valider et retourner au dossier/i });
+    expect(returnDossierBtn).toBeInTheDocument();
+    fireEvent.click(returnDossierBtn);
+
+    expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'DRAFT-TITAN-100');
+  });
+
+  it('26. charge un brouillon Hahitantsoa existant via edit-hahitantsoa/:id avec prestations, émet une révision et propose le retour au dossier', async () => {
+    vi.mocked(getHahitantsoaEventDraft).mockResolvedValue({
+      id: 'EVENT-HAH-200',
+      customer_id: 'CUST-001',
+      public_reference: 'HAH-200/2026',
+      status: 'draft',
+      start_at: '2026-09-01T13:00:00Z',
+      end_at: '2026-09-01T23:00:00Z',
+      event_type: 'wedding',
+      venue_name: 'Salle des fêtes + jardin',
+      guest_count: 150,
+      rental_type: 'bare',
+      duration_option: 'day',
+      service_notes: 'PRESTATIONS PARTICULIÈRES :\n- Traiteur : 150 pax (total : 75 000 000 Ar)\n- Guinguette linéaire : 5 ligne(s) (total : 500 000 Ar)',
+      lines: [
+        {
+          inventory_item_id: 'MAT-02',
+          inventory_item_name: 'Table rectangulaire',
+          quantity: 15,
+          unit_rental_price: '20000.00',
+        },
+      ],
+    } as any);
+
+    vi.mocked(updateHahitantsoaEventDraft).mockResolvedValue({
+      id: 'EVENT-HAH-200',
+      status: 'draft',
+    } as any);
+
+    vi.mocked(createHahitantsoaEventDraftDocumentInstance).mockResolvedValue({
+      id: 'DOC-HAH-REV2',
+      document_reference: 'HAH-200/2026-rev2',
+    } as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param="edit-hahitantsoa/EVENT-HAH-200" />);
+
+    expect(await screen.findByText('Modification du devis / proforma')).toBeInTheDocument();
+    expect(screen.getByText('Dossier HAH-200/2026')).toBeInTheDocument();
+
+    // Step 3 (Hahitantsoa dates)
+    expect(screen.getAllByDisplayValue('2026-09-01').length).toBeGreaterThanOrEqual(1);
+
+    // Advance to step 5 (Services - Location nue skips catalog)
+    fireEvent.click(screen.getByRole('button', { name: /Suivant \(Services\)/i }));
+    expect(await screen.findByText('Services Hahitantsoa')).toBeInTheDocument();
+
+    // Advance to step 6 (Summary)
+    fireEvent.click(screen.getByRole('button', { name: /Vérifier le résumé/i }));
+    const toProformaBtn = await screen.findByRole('button', { name: /Continuer vers le Proforma/i });
+    fireEvent.click(toProformaBtn);
+
+    // Step 7: Emit revision
+    const emitRevBtn = await screen.findByRole('button', { name: /Émettre la nouvelle révision/i });
+    fireEvent.click(emitRevBtn);
+
+    expect(await screen.findByText(/Nouvelle révision du proforma émise avec succès/i)).toBeInTheDocument();
+    const returnDossierBtn = screen.getByRole('button', { name: /Valider et retourner au dossier/i });
+    fireEvent.click(returnDossierBtn);
+
+    expect(mockNavigate).toHaveBeenCalledWith('reservation-detail', 'hahitantsoa:EVENT-HAH-200');
+  });
+
+  it('27. refuse la modification d\'un brouillon Titan déjà confirmé', async () => {
+    vi.mocked(getReservationDraft).mockResolvedValue({
+      id: 'DRAFT-TITAN-CONFIRMED',
+      customer_id: 'CUST-001',
+      public_reference: 'T-CONFIRMED/2026',
+      status: 'confirmed',
+      contract_signed_at: '2026-08-01T10:00:00Z',
+      lines: [],
+    } as any);
+
+    render(<ReservationNewPage onNavigate={mockNavigate} param="edit-titan/DRAFT-TITAN-CONFIRMED" />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Ce dossier Titan est déjà confirmé/i
+    );
   });
 });

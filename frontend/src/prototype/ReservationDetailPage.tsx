@@ -2028,7 +2028,16 @@ export default function ReservationDetailPage({
                             )}
                           </div>
                         ) : proformaInstance.status !== "voided" ? (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onNavigate("reservation-new", `edit-titan/${draft.id}`)}
+                              className="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                              title="Modifier le contenu du devis (articles, dates, remises) dans l'assistant"
+                            >
+                              <i className="fa-solid fa-pen-to-square"></i>
+                              Modifier le devis
+                            </button>
                             <button
                               type="button"
                               onClick={handleConvertToContract}
@@ -2066,6 +2075,19 @@ export default function ReservationDetailPage({
                             <i className="fa-solid fa-ban"></i> Proforma annulé
                           </span>
                         )}
+                      </div>
+                    )}
+                    {!proformaInstance && !draft.contract_signed_at && !titanContractInstance && draftStatus !== "confirmed" && (
+                      <div className="pt-2 border-t border-slate-200 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => onNavigate("reservation-new", `edit-titan/${draft.id}`)}
+                          className="px-2.5 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-xs font-bold shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                          title="Modifier le contenu du devis (articles, dates, remises) dans l'assistant"
+                        >
+                          <i className="fa-solid fa-pen-to-square"></i>
+                          Modifier le devis
+                        </button>
                       </div>
                     )}
                   </div>
@@ -3335,6 +3357,23 @@ export default function ReservationDetailPage({
                 </span>
               </h3>
               <div className="flex items-center gap-2">
+                {((previewModal?.type === "proforma" || previewDoc === "proforma") &&
+                  !draft.contract_signed_at &&
+                  !titanContractInstance &&
+                  draftStatus !== "confirmed") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewModal(null);
+                      setPreviewDoc(null);
+                      onNavigate("reservation-new", `edit-titan/${draft.id}`);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <i className="fa-solid fa-pen-to-square"></i>
+                    <span>Modifier le devis</span>
+                  </button>
+                )}
                 {previewModal?.templateKey === "shared.preparation_sheet.v1" && (
                   <button
                     type="button"

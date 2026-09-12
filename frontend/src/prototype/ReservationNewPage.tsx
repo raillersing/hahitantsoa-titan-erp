@@ -12,11 +12,13 @@ import {
   getReservationAvailableItemPreviews,
   createReservationDraft,
   updateReservationDraft,
+  getReservationDraft,
   createReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstance,
   generateReservationDraftDocumentInstancePdf,
   createHahitantsoaEventDraft,
   updateHahitantsoaEventDraft,
+  getHahitantsoaEventDraft,
   createHahitantsoaEventDraftDocumentInstance,
   getHahitantsoaEventDraftDocumentInstances,
   generateHahitantsoaEventDraftDocumentInstance,
@@ -266,7 +268,13 @@ type DomainType = "hahitantsoa" | "titan" | null;
 
 function isReservationClientParam(param?: string): boolean {
   if (!param || param === "hahitantsoa" || param === "titan") return false;
-  return !param.startsWith("quote/") && !param.startsWith("prospect-proforma-") && !param.startsWith("catalog-prep|");
+  return (
+    !param.startsWith("quote/") &&
+    !param.startsWith("prospect-proforma-") &&
+    !param.startsWith("catalog-prep|") &&
+    !param.startsWith("edit-titan/") &&
+    !param.startsWith("edit-hahitantsoa/")
+  );
 }
 
 type ProspectProformaEmission = {
@@ -470,6 +478,45 @@ export function formatHahitantsoaServiceNotes(services: SelectedService[]): stri
     .join("\n");
 }
 
+export function parseHahitantsoaServiceNotes(notes: string | undefined): SelectedService[] {
+  if (!notes || !notes.trim()) return [];
+  return notes
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line, idx) => {
+      let name = line;
+      let qty = 1;
+      let price = 0;
+      const priceMatch = name.match(/-\s*([0-9\s.,]+)\s*Ar$/i);
+      if (priceMatch) {
+        price = Number(priceMatch[1].replace(/\s/g, "").replace(",", ".")) || 0;
+        name = name.slice(0, priceMatch.index).trim();
+      }
+      const qtyMatch = name.match(/\(x(\d+)\)$/i);
+      if (qtyMatch) {
+        qty = parseInt(qtyMatch[1], 10) || 1;
+        name = name.slice(0, qtyMatch.index).trim();
+      }
+      return {
+        id: `parsed-service-${idx}`,
+        name,
+        price,
+        quantity: qty,
+      };
+    });
+}
+
+export interface EditingDraftContext {
+  isEditing: boolean;
+  draftId: string;
+  domain: DomainType;
+  publicReference: string;
+  loading: boolean;
+  error: string | null;
+}
+
+
 export interface ReservationTotals {
   venueAndLogisticsTotal: number;
   packageTotal: number;
@@ -597,6 +644,18 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   const [prospectProformaEmission, setProspectProformaEmission] = useState<ProspectProformaEmission | null>(null);
   const [documentReference, setDocumentReference] = useState("");
   const [serverDraftSaving, setServerDraftSaving] = useState(false);
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountIsPercentage, setDiscountIsPercentage] = useState<boolean>(true);
+  const [discountReason, setDiscountReason] = useState<string>("");
+  const [editingDraftContext, setEditingDraftContext] = useState<EditingDraftContext>({
+    isEditing: false,
+    draftId: "",
+    domain: null,
+    publicReference: "",
+    loading: false,
+    error: null,
+  });
+
 
   // Derived: mapped clients (API Customer → local Client format)
   const clients: Client[] = apiCustomers.map(mapCustomerToClient);
@@ -765,7 +824,159 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   }, [domain, hDetails.startDate, hDetails.startTime, hDetails.endDate, hDetails.endTime, tDetails.startDate, tDetails.startTime, tDetails.endDate, tDetails.endTime]);
 
   const applyParamRouting = (targetParam: string | undefined) => {
-    if (targetParam === 'hahitantsoa' || targetParam === 'titan') {
+    if (targetParam && (targetParam.startsWith('edit-titan/') || targetParam.startsWith('edit-hahitantsoa/'))) {
+      const isTitan = targetParam.startsWith('edit-titan/');
+      const draftId = targetParam.split('/')[1];
+      const targetDomain: DomainType = isTitan ? 'titan' : 'hahitantsoa';
+
+      setEditingDraftContext({
+        isEditing: true,
+        draftId,
+        domain: targetDomain,
+        publicReference: '',
+        loading: true,
+        error: null,
+      });
+
+      setPath('client_first');
+      setDomain(targetDomain);
+      setClientMode('existing');
+
+      if (isTitan) {
+        getReservationDraft(draftId)
+          .then((draft) => {
+            if (draft.status === 'confirmed' || draft.contract_signed_at) {
+              const errMsg = "Ce dossier Titan est déjà confirmé et son contrat est validé. Les modifications directes sont interdites : veuillez utiliser un avenant officiel.";
+              setEditingDraftContext(prev => ({ ...prev, loading: false, error: errMsg }));
+              showToastMsg(errMsg, 'error');
+              return;
+            }
+            setSelectedClientId(draft.customer_id);
+            const sDate = draft.start_at ? draft.start_at.slice(0, 10) : "";
+            const sTime = draft.start_at && draft.start_at.includes("T") ? draft.start_at.split("T")[1].slice(0, 5) : "08:00";
+            const eDate = draft.end_at ? draft.end_at.slice(0, 10) : "";
+            const eTime = draft.end_at && draft.end_at.includes("T") ? draft.end_at.split("T")[1].slice(0, 5) : "22:00";
+
+            setTDetails(prev => ({
+              ...prev,
+              startDate: sDate,
+              startTime: sTime,
+              endDate: eDate,
+              endTime: eTime,
+              period: sDate && eDate ? `${sDate} au ${eDate}` : "",
+              remarks: draft.notes || "",
+            }));
+
+            if (draft.delivery_fee) {
+              setDeliveryFee(String(Math.round(Number(draft.delivery_fee))));
+            }
+
+            if (draft.discount_amount && Number(draft.discount_amount) > 0) {
+              setDiscountValue(Number(draft.discount_amount));
+              setDiscountIsPercentage(false);
+              setDiscountReason(draft.discount_reason || "");
+            }
+
+            const materials: SelectedMaterial[] = (draft.lines || []).map(line => ({
+              id: line.inventory_item_id,
+              name: line.inventory_item_name,
+              price: Number(line.unit_rental_price || 0),
+              quantity: line.quantity,
+            }));
+            setSelectedMaterials(materials);
+
+            setProspectProformaEmission({
+              domain: 'titan',
+              draftId: draft.id,
+              htmlGenerated: false,
+            });
+            setDocumentReference(draft.public_reference);
+
+            setEditingDraftContext({
+              isEditing: true,
+              draftId: draft.id,
+              domain: 'titan',
+              publicReference: draft.public_reference,
+              loading: false,
+              error: null,
+            });
+
+            setStep(3);
+            setMaxReachedStep(7);
+          })
+          .catch((err) => {
+            const msg = err?.message || "Impossible de charger le dossier Titan.";
+            setEditingDraftContext(prev => ({ ...prev, loading: false, error: msg }));
+            showToastMsg(msg, 'error');
+          });
+      } else {
+        getHahitantsoaEventDraft(draftId)
+          .then((draft) => {
+            if (draft.status === 'confirmed') {
+              const errMsg = "Cet événement Hahitantsoa est déjà confirmé et validé. Les modifications directes sont interdites : veuillez utiliser un avenant officiel.";
+              setEditingDraftContext(prev => ({ ...prev, loading: false, error: errMsg }));
+              showToastMsg(errMsg, 'error');
+              return;
+            }
+            setSelectedClientId(draft.customer_id);
+            const sDate = draft.start_at ? draft.start_at.slice(0, 10) : "";
+            const sTime = draft.start_at && draft.start_at.includes("T") ? draft.start_at.split("T")[1].slice(0, 5) : "08:00";
+            const eDate = draft.end_at ? draft.end_at.slice(0, 10) : "";
+            const eTime = draft.end_at && draft.end_at.includes("T") ? draft.end_at.split("T")[1].slice(0, 5) : "20:00";
+
+            setHDetails(prev => ({
+              ...prev,
+              startDate: sDate,
+              startTime: sTime,
+              endDate: eDate,
+              endTime: eTime,
+              date: sDate,
+              eventType: draft.event_type || prev.eventType,
+              venue: draft.venue_name || prev.venue,
+              guests: draft.guest_count ? String(draft.guest_count) : prev.guests,
+              remarks: draft.notes || "",
+              rentalType: draft.rental_type === "logistics" ? "Location + logistique" : "Location nue",
+              durationOption: draft.duration_option || prev.durationOption,
+              venuePrice: Number(draft.space_rental_amount || prev.venuePrice),
+            }));
+
+            const services = parseHahitantsoaServiceNotes(draft.service_notes);
+            setSelectedServices(services);
+
+            const materials: SelectedMaterial[] = (draft.lines || []).map(line => ({
+              id: line.inventory_item_id,
+              name: line.inventory_item_name,
+              price: Number(line.unit_rental_price || 0),
+              quantity: line.quantity,
+            }));
+            setSelectedMaterials(materials);
+
+            setProspectProformaEmission({
+              domain: 'hahitantsoa',
+              draftId: draft.id,
+              htmlGenerated: false,
+            });
+            setDocumentReference(draft.public_reference);
+
+            setEditingDraftContext({
+              isEditing: true,
+              draftId: draft.id,
+              domain: 'hahitantsoa',
+              publicReference: draft.public_reference,
+              loading: false,
+              error: null,
+            });
+
+            setStep(3);
+            setMaxReachedStep(7);
+          })
+          .catch((err) => {
+            const msg = err?.message || "Impossible de charger l'événement Hahitantsoa.";
+            setEditingDraftContext(prev => ({ ...prev, loading: false, error: msg }));
+            showToastMsg(msg, 'error');
+          });
+      }
+    } else if (targetParam === 'hahitantsoa' || targetParam === 'titan') {
       setPath('domain_first');
       setDomain(targetParam as DomainType);
       setStep(2); // Domain is known (step 1 in domain_first is domain, step 2 is client)
@@ -844,6 +1055,11 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       return;
     }
 
+    if (param && (param.startsWith('edit-titan/') || param.startsWith('edit-hahitantsoa/'))) {
+      applyParamRouting(param);
+      return;
+    }
+
     const saved = localStorage.getItem("prototypeReservationDraft");
     if (saved) {
       try {
@@ -859,10 +1075,6 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
     applyParamRouting(param);
   }, [param]);
-
-  const [discountValue, setDiscountValue] = useState<number>(0);
-  const [discountIsPercentage, setDiscountIsPercentage] = useState<boolean>(true);
-  const [discountReason, setDiscountReason] = useState<string>("");
 
   useEffect(() => {
     if (domain === 'titan' && tDetails.startDate && tDetails.endDate) {
@@ -930,6 +1142,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   );
 
   const saveDraft = () => {
+    if (editingDraftContext.isEditing) return;
     const draft = {
       path, step, maxReachedStep, clientMode, selectedClientId, newClient, domain,
       hDetails, tDetails, selectedMaterials, selectedServices, deliveryFee, payment,
@@ -1385,10 +1598,12 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
         : { reservationDraftId: draftId }),
     });
 
-    if (!emission.documentId) {
+    let documentId = emission.documentId;
+    if (!documentId) {
       const document = isHahitantsoa
         ? await createHahitantsoaEventDraftDocumentInstance(draftId, documentPayload)
         : await createReservationDraftDocumentInstance(draftId, documentPayload);
+      documentId = document.id;
       emission = { ...emission, documentId: document.id };
       setDocumentReference(
         document.document_reference || document.reservation_public_reference || draftId,
@@ -1396,10 +1611,9 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       setProspectProformaEmission(emission);
     }
 
-    if (!emission.documentId) {
+    if (!documentId) {
       throw new Error("Le document proforma n’a pas pu être identifié.");
     }
-    const documentId = emission.documentId;
 
     if (!emission.htmlGenerated) {
       if (isHahitantsoa) {
@@ -1484,7 +1698,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       { label: "Client & volet", steps: [1, 2] },
       { label: "Date & disponibilité", steps: [3] },
       { label: "Offre & logistique", steps: [4, 5] },
-      { label: "Vérification & documents", steps: [6, 7, 8, 9] },
+      { label: editingDraftContext.isEditing ? "Vérification & Proforma" : "Vérification & documents", steps: editingDraftContext.isEditing ? [6, 7] : [6, 7, 8, 9] },
     ];
     return (
       <div className="flex items-center justify-between mb-8 overflow-x-auto pb-4 text-sm scrollbar-hide">
@@ -3529,7 +3743,7 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
 
       <div className="flex justify-between mt-8 pt-4 border-t border-slate-100">
         <button className="px-4 py-2 text-slate-500 hover:text-slate-700 font-medium text-sm" onClick={goBack}>Retour</button>
-        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>Générer Devis/Proforma</button>
+        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm" onClick={goNext}>{editingDraftContext.isEditing ? "Continuer vers le Proforma" : "Générer Devis/Proforma"}</button>
       </div>
     </div>
   );
@@ -3541,12 +3755,14 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       </div>
       <h3 className="text-2xl font-bold text-slate-800 mb-2">Aperçu Proforma</h3>
       <div className="flex items-center gap-3 mb-6">
-         {isProspectProforma ? (
+         {editingDraftContext.isEditing ? (
+            <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Mode modification de devis</span>
+         ) : isProspectProforma ? (
             <span className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Proforma prospect - non confirmée</span>
          ) : (
             <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Valide</span>
          )}
-         <span className="text-sm text-slate-500">Réf : {documentReference || "Brouillon en préparation"}</span>
+         <span className="text-sm text-slate-500">Réf : {documentReference || editingDraftContext.publicReference || "Brouillon en préparation"}</span>
          <span className="text-sm text-slate-500">Émise le : {new Date().toLocaleDateString('fr-FR')}</span>
       </div>
       
@@ -3587,116 +3803,178 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       </div>
 
       {/* Decision Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className={`p-5 rounded-2xl border transition-all ${
-          issuedProspectProformaId ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-        }`}>
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-file-invoice text-lg"></i>
-            </div>
+      {editingDraftContext.isEditing ? (
+        <div className="bg-indigo-50/50 border border-indigo-200 rounded-2xl p-6 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h4 className="font-bold text-slate-900 text-sm">Option 1 : Émettre le Proforma (Prospect)</h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Le contact demande un devis à emporter pour réflexion. Génère la facture proforma PDF officielle et enregistre le contact comme prospect qualifié.
+              <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <i className="fa-solid fa-file-invoice text-indigo-600"></i>
+                <span>Enregistrement & émission de la nouvelle révision</span>
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed max-w-xl">
+                Enregistre l'ensemble des modifications de contenu (dates, matériels, quantités, remises) sur le dossier <strong className="font-mono">{editingDraftContext.publicReference || editingDraftContext.draftId}</strong> et génère la nouvelle révision officielle du proforma.
               </p>
             </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-500">Statut : {issuedProspectProformaId ? "Émis ✓" : "En attente"}</span>
-            <button
-              type="button"
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
-              disabled={submitting || Boolean(issuedProspectProformaId)}
-              onClick={async () => {
-                setSubmitting(true);
-                setSubmitError(null);
-                try {
-                  const issued = await issueProspectProforma();
-                  setIssuedProspectProformaId(issued.documentId);
-                  setProformaGenerated(true);
-                  clearDraft(false);
-                  showToastMsg("Proforma prospect émise et PDF généré.", 'success');
-                } catch (err: unknown) {
-                  const message = err instanceof Error ? err.message : "Erreur lors de l’émission du proforma";
-                  setSubmitError(message);
-                  showToastMsg(`Erreur lors de l’émission : ${message}`, 'error');
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
-            >
-              {submitting ? (
-                <><i className="fa-solid fa-spinner fa-spin"></i><span>Émission...</span></>
-              ) : issuedProspectProformaId ? (
-                <><i className="fa-solid fa-check"></i><span>Proforma émise</span></>
-              ) : (
-                <><i className="fa-solid fa-file-pdf"></i><span>Émettre le proforma</span></>
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl border border-indigo-100 bg-indigo-50/40 hover:border-indigo-200 transition-all flex flex-col justify-between">
-          <div className="flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-file-signature text-lg"></i>
-            </div>
-            <div className="space-y-1">
-              <h4 className="font-bold text-indigo-950 text-sm">Option 2 : Poursuivre vers la Confirmation (Client)</h4>
-              <p className="text-xs text-indigo-900/70 leading-relaxed">
-                Le client valide immédiatement l'offre. Passe à la signature du contrat et au versement de l'acompte pour confirmer fermement la réservation.
-              </p>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                disabled={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  setSubmitError(null);
+                  try {
+                    const issued = await issueProspectProforma();
+                    setIssuedProspectProformaId(issued.documentId);
+                    setProformaGenerated(true);
+                    showToastMsg("Nouvelle révision du proforma émise avec succès.", 'success');
+                  } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : "Erreur lors de l’émission du proforma";
+                    setSubmitError(message);
+                    showToastMsg(`Erreur : ${message}`, 'error');
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+              >
+                {submitting ? (
+                  <><i className="fa-solid fa-spinner fa-spin"></i><span>Émission en cours...</span></>
+                ) : issuedProspectProformaId ? (
+                  <><i className="fa-solid fa-check"></i><span>Révision émise ✓</span></>
+                ) : (
+                  <><i className="fa-solid fa-file-invoice"></i><span>Émettre la nouvelle révision</span></>
+                )}
+              </button>
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-indigo-200/50 flex items-center justify-end">
-            <button
-              type="button"
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5"
-              disabled={submitting}
-              onClick={async () => {
-                setSubmitting(true);
-                setSubmitError(null);
-                try {
-                  await issueProspectProforma();
-                  setProformaGenerated(true);
-                  goNext();
-                } catch (err: unknown) {
-                  const message = err instanceof Error ? err.message : "Erreur lors de la préparation du proforma";
-                  setSubmitError(message);
-                  showToastMsg(`Erreur lors de la préparation : ${message}`, "error");
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
-            >
-              <span>Passer au paiement</span>
-              <i className="fa-solid fa-arrow-right text-[10px]"></i>
-            </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className={`p-5 rounded-2xl border transition-all ${
+            issuedProspectProformaId ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+          }`}>
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-file-invoice text-lg"></i>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-bold text-slate-900 text-sm">Option 1 : Émettre le Proforma (Prospect)</h4>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Le contact demande un devis à emporter pour réflexion. Génère la facture proforma PDF officielle et enregistre le contact comme prospect qualifié.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-slate-500">Statut : {issuedProspectProformaId ? "Émis ✓" : "En attente"}</span>
+              <button
+                type="button"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                disabled={submitting || Boolean(issuedProspectProformaId)}
+                onClick={async () => {
+                  setSubmitting(true);
+                  setSubmitError(null);
+                  try {
+                    const issued = await issueProspectProforma();
+                    setIssuedProspectProformaId(issued.documentId);
+                    setProformaGenerated(true);
+                    clearDraft(false);
+                    showToastMsg("Proforma prospect émise et PDF généré.", 'success');
+                  } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : "Erreur lors de l’émission du proforma";
+                    setSubmitError(message);
+                    showToastMsg(`Erreur lors de l’émission : ${message}`, 'error');
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+              >
+                {submitting ? (
+                  <><i className="fa-solid fa-spinner fa-spin"></i><span>Émission...</span></>
+                ) : issuedProspectProformaId ? (
+                  <><i className="fa-solid fa-check"></i><span>Proforma émise</span></>
+                ) : (
+                  <><i className="fa-solid fa-file-pdf"></i><span>Émettre le proforma</span></>
+                )}
+              </button>
+            </div>
+          </div>
 
+          <div className="p-5 rounded-2xl border border-indigo-100 bg-indigo-50/40 hover:border-indigo-200 transition-all flex flex-col justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0">
+                <i className="fa-solid fa-file-signature text-lg"></i>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-bold text-indigo-950 text-sm">Option 2 : Poursuivre vers la Confirmation (Client)</h4>
+                <p className="text-xs text-indigo-900/70 leading-relaxed">
+                  Le client valide immédiatement l'offre. Passe à la signature du contrat et au versement de l'acompte pour confirmer fermement la réservation.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-indigo-200/50 flex items-center justify-end">
+              <button
+                type="button"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+                disabled={submitting}
+                onClick={async () => {
+                  setSubmitting(true);
+                  setSubmitError(null);
+                  try {
+                    await issueProspectProforma();
+                    setProformaGenerated(true);
+                    goNext();
+                  } catch (err: unknown) {
+                    const message = err instanceof Error ? err.message : "Erreur lors de la préparation du proforma";
+                    setSubmitError(message);
+                    showToastMsg(`Erreur lors de la préparation : ${message}`, "error");
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+              >
+                <span>Passer au paiement</span>
+                <i className="fa-solid fa-arrow-right text-[10px]"></i>
+              </button>
+
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {issuedProspectProformaId && (
         <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-sm text-emerald-900 shadow-xs" role="status" aria-live="polite">
           <div className="flex items-center gap-2 font-bold text-emerald-800">
             <i className="fa-solid fa-circle-check text-emerald-600 text-base"></i>
-            <span>Proforma émise avec succès</span>
+            <span>{editingDraftContext.isEditing ? "Nouvelle révision du proforma émise avec succès" : "Proforma émise avec succès"}</span>
           </div>
-          <p className="mt-1 text-xs text-emerald-700">Le document officiel a été généré avec une durée de validité de {proformaValidity} jours. Le contact est enregistré comme prospect qualifié.</p>
+          <p className="mt-1 text-xs text-emerald-700">
+            {editingDraftContext.isEditing
+              ? `Le dossier ${editingDraftContext.publicReference || editingDraftContext.draftId} a été mis à jour avec le nouveau contenu. La nouvelle révision officielle est prête.`
+              : `Le document officiel a été généré avec une durée de validité de ${proformaValidity} jours. Le contact est enregistré comme prospect qualifié.`}
+          </p>
           <div className="mt-4 flex flex-wrap gap-2">
+            {editingDraftContext.isEditing ? (
+              <button
+                type="button"
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                onClick={() => onNavigate("reservation-detail", editingDraftContext.domain === "hahitantsoa" ? `hahitantsoa:${editingDraftContext.draftId}` : editingDraftContext.draftId)}
+              >
+                <i className="fa-solid fa-arrow-left"></i>
+                <span>Valider et retourner au dossier</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs transition flex items-center gap-1.5"
+                onClick={() => onNavigate("customer", selectedClientId)}
+              >
+                <i className="fa-solid fa-user"></i>
+                <span>Voir le dossier client / prospect</span>
+              </button>
+            )}
             <button
               type="button"
-              className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 shadow-xs transition flex items-center gap-1.5"
-              onClick={() => onNavigate("customer", selectedClientId)}
-            >
-              <i className="fa-solid fa-user"></i>
-              <span>Voir le dossier client / prospect</span>
-            </button>
-            <button
-              type="button"
-              className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition flex items-center gap-1.5"
+              className="rounded-xl border border-emerald-300 bg-white px-4 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-50 transition flex items-center gap-1.5 cursor-pointer"
               onClick={() => onNavigate("documents")}
             >
               <i className="fa-solid fa-folder-open"></i>
@@ -3707,21 +3985,40 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
       )}
 
       <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
-        <button className="px-4 py-2 text-indigo-600 hover:text-indigo-800 font-medium text-sm" onClick={() => jumpTo(4)}>
+        <button
+          className="px-4 py-2 text-indigo-600 hover:text-indigo-800 font-medium text-sm cursor-pointer"
+          onClick={() => {
+            if (editingDraftContext.isEditing) {
+              setIssuedProspectProformaId(null);
+              setProspectProformaEmission(prev => prev ? { ...prev, documentId: undefined, htmlGenerated: false, documentPdfGenerated: false } : null);
+            }
+            jumpTo(4);
+          }}
+        >
           <i className="fa-solid fa-arrow-left mr-1.5 text-xs"></i>Modifier lignes
         </button>
         <div className="flex items-center gap-3">
-          <button 
-            type="button"
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition"
-            onClick={() => { 
-               setProformaGenerated(true);
-               saveDraft();
-               showToastMsg("Brouillon sauvegardé avec succès.", 'success');
-            }}
-          >
-            <i className="fa-solid fa-floppy-disk mr-1.5"></i>Sauvegarder brouillon
-          </button>
+          {editingDraftContext.isEditing ? (
+            <button
+              type="button"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition cursor-pointer"
+              onClick={() => onNavigate("reservation-detail", editingDraftContext.domain === "hahitantsoa" ? `hahitantsoa:${editingDraftContext.draftId}` : editingDraftContext.draftId)}
+            >
+              <i className="fa-solid fa-arrow-left mr-1.5"></i>Retourner au dossier
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition"
+              onClick={() => {
+                 setProformaGenerated(true);
+                 saveDraft();
+                 showToastMsg("Brouillon sauvegardé avec succès.", 'success');
+              }}
+            >
+              <i className="fa-solid fa-floppy-disk mr-1.5"></i>Sauvegarder brouillon
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -4205,7 +4502,38 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
   return (
     <div className="page active space-y-6 max-w-4xl mx-auto">
       <div className="mb-6">
-        {isReservationClientParam(param) ? (
+        {editingDraftContext.isEditing ? (
+          <>
+            <div className="text-sm font-medium text-slate-500 mb-2">
+              <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate(editingDraftContext.domain === "hahitantsoa" ? "hahitantsoa" : "titan")}>
+                {editingDraftContext.domain === "hahitantsoa" ? "Événements Hahitantsoa" : "Réservations Titan"}
+              </span>
+              <span className="mx-2">/</span>
+              <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('reservation-detail', editingDraftContext.domain === "hahitantsoa" ? `hahitantsoa:${editingDraftContext.draftId}` : editingDraftContext.draftId)}>
+                Dossier {editingDraftContext.publicReference || editingDraftContext.draftId}
+              </span>
+              <span className="mx-2">/</span>
+              <span className="text-slate-800 font-bold">Modification du devis</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">
+                  Modification du devis / proforma
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Dossier <span className="font-mono font-bold text-indigo-700">{editingDraftContext.publicReference || editingDraftContext.draftId}</span> ({editingDraftContext.domain === "hahitantsoa" ? "Hahitantsoa" : "Titan"})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate('reservation-detail', editingDraftContext.domain === "hahitantsoa" ? `hahitantsoa:${editingDraftContext.draftId}` : editingDraftContext.draftId)}
+                className="text-slate-600 hover:text-slate-900 text-sm font-medium border border-slate-200 bg-white px-3.5 py-2 rounded-xl hover:bg-slate-50 transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
+              >
+                <i className="fa-solid fa-arrow-left"></i> Retour au dossier
+              </button>
+            </div>
+          </>
+        ) : isReservationClientParam(param) ? (
           <>
             <div className="text-sm font-medium text-slate-500 mb-2">
               <span className="hover:text-indigo-600 cursor-pointer transition-colors" onClick={() => onNavigate('customers')}>Clients & Prospects</span>
@@ -4231,6 +4559,40 @@ export default function ReservationNewPage({ onNavigate, param }: ReservationNew
           </>
         )}
       </div>
+
+      {editingDraftContext.isEditing && (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50/90 p-4 text-amber-900 shadow-xs flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-pen-to-square text-lg"></i>
+            </div>
+            <div>
+              <p className="font-bold text-sm">Mode modification du devis proforma</p>
+              <p className="text-xs text-amber-800/80">
+                Vous modifiez le contenu du devis proforma pour le dossier <strong>{editingDraftContext.publicReference || editingDraftContext.draftId}</strong>.
+                Ajustez les détails, matériels ou remises, puis émettez la nouvelle révision à l'étape 7.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate('reservation-detail', editingDraftContext.domain === "hahitantsoa" ? `hahitantsoa:${editingDraftContext.draftId}` : editingDraftContext.draftId)}
+            className="text-xs font-bold text-amber-900 hover:text-amber-950 underline px-2 py-1 shrink-0 cursor-pointer"
+          >
+            Abandonner
+          </button>
+        </div>
+      )}
+      {editingDraftContext.loading && (
+        <div className="bg-blue-50 text-blue-700 p-4 rounded-xl text-sm flex items-center gap-2 mb-6">
+          <i className="fa-solid fa-spinner fa-spin"></i> Chargement des données du dossier à modifier...
+        </div>
+      )}
+      {editingDraftContext.error && (
+        <div className="bg-rose-50 text-rose-700 p-4 rounded-xl text-sm flex items-center gap-2 mb-6" role="alert">
+          <i className="fa-solid fa-triangle-exclamation"></i> {editingDraftContext.error}
+        </div>
+      )}
 
       {/* Loading / Error banners for API data */}
       {loadingClients && <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm flex items-center gap-2"><i className="fa-solid fa-spinner fa-spin"></i> Chargement des clients...</div>}
