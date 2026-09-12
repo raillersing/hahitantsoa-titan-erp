@@ -376,6 +376,71 @@ def test_checking_preview_exposes_two_source_pages_without_internal_overflow() -
     assert html.count('class="page document-page"') == 2
 
 
+def test_checking_passation_matches_official_source_model() -> None:
+    definition = get_document_template_definition("hahitantsoa.preparation_sheet.v1")
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": False,
+        },
+    )
+
+    # 1. Official categories in exact order from checking passation.docx
+    expected_categories = [
+        "Cuisine",
+        "Toilettes prestataires",
+        "Groupe",
+        "Salle",
+        "Jardin",
+        "Toilettes invités",
+        "Petit salon",
+        "Salle d’eau mariés",
+    ]
+    for category in expected_categories:
+        assert f'<div class="category">{category}</div>' in html
+
+    # Verify Porte/serrure is inside Cuisine, not a separate category
+    assert '<div class="category">Porte/serrure</div>' not in html
+
+    # Verify category positions respect exact source sequence
+    positions = [html.index(f'<div class="category">{c}</div>') for c in expected_categories]
+    assert positions == sorted(positions)
+
+    # 2. Source fidelity of specific items
+    assert "Porte/serrure" in html
+    assert "Carburant :" in html
+    assert "4 cuvettes femmes (mihetsika ny lunettes)" in html
+    assert "5 Pissoirs" in html
+    assert "2 cuvettes hommes (mihetsika ny lunettes)" in html
+    assert "Portes/serrure" in html
+    assert "1 table d’appoint" in html
+    assert "Colonne de douche" in html
+
+    # 3. Contradictory passation signatures on Page 2
+    assert "Passation contradictoire" in html
+    assert "Remise des clés (Entrée)" in html
+    assert "Restitution des lieux (Sortie)" in html
+    assert "Le Responsable Domaine" in html
+    assert "Le Client" in html
+
+    # 4. Variable rendering mode
+    html_vars = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": True,
+        },
+    )
+    assert "{{ checklist.fuelLevel }}" in html_vars
+    assert "{{ dossier.ref }}" in html_vars
+    assert "{{ client.name }}" in html_vars
+    assert "{{ event.date }}" in html_vars
+
+
 def test_catalog_preview_context_is_blank_and_supports_party_variants() -> None:
     definition = get_document_template_definition("hahitantsoa.contract_amendment.v1")
     assert definition is not None

@@ -11,25 +11,42 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; color: #111111; }
     body { font-family: "Century Gothic", "DejaVu Sans", sans-serif; font-size: 11pt; line-height: 1.55; background: #e5e7eb; -webkit-print-color-adjust: exact; }
-    .page { width: 210mm; min-height: 297mm; padding: 7.5mm 10mm; margin: 0 auto; background: #ffffff; page-break-after: always; }
+    .page { width: 210mm; min-height: 297mm; padding: 7.5mm 15mm; margin: 0 auto; background: #ffffff; page-break-after: always; }
     .page:last-child { page-break-after: auto; }
 
     /* ========================================================================= */
-    /* 2. TITRES ET CATÉGORIES DE PASSATION                                      */
+    /* 2. EN-TÊTE ET TITRES DE CATÉGORIES                                        */
     /* ========================================================================= */
-    h1 { margin: 0 0 7mm; font-size: 11pt; font-weight: 400; text-decoration: underline; }
-    .category { margin-top: 5mm; margin-bottom: 1mm; font-size: 11pt; font-weight: 400; text-decoration: underline; }
+    h1 { margin: 0 0 2mm; font-size: 12pt; font-weight: 400; text-decoration: underline; }
+    .meta-row { display: flex; gap: 8mm; font-size: 9.5pt; color: #444444; margin-bottom: 4mm; padding-bottom: 2mm; border-bottom: 0.3mm solid #cccccc; }
+    .meta-row span { white-space: nowrap; }
+    .category { margin-top: 4mm; margin-bottom: 1mm; font-size: 11pt; font-weight: 400; text-decoration: underline; }
 
     /* ========================================================================= */
     /* 3. LISTES ET CASES À COCHER                                               */
     /* ========================================================================= */
-    ul { margin: 0 0 2mm 8mm; padding-left: 6mm; list-style-type: square; }
-    li { padding-left: 1mm; min-height: 6mm; }
-    .check { display: inline-block; width: 4mm; height: 4mm; margin-right: 2mm; border: 0.3mm solid #222222; vertical-align: -0.4mm; }
+    ul { margin: 0 0 2mm 4mm; padding-left: 0; list-style: none; }
+    li { padding-left: 0; min-height: 5.5mm; font-size: 10.5pt; }
+    .check { display: inline-block; width: 3.8mm; height: 3.8mm; margin-right: 2.5mm; border: 0.3mm solid #222222; vertical-align: -0.3mm; }
     .variable { background: #fff0b3; outline: 0.25mm solid #d6a700; padding: 0 0.5mm; font-family: monospace; font-size: 0.9em; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    /* ========================================================================= */
+    /* 4. BLOC DE PASSATION CONTRADICTOIRE (PAGE 2)                              */
+    /* ========================================================================= */
+    .passation-block { margin-top: 10mm; border-top: 0.4mm solid #333333; padding-top: 4mm; }
+    .passation-title { font-size: 11pt; font-weight: 700; text-decoration: underline; margin-bottom: 4mm; }
+    .passation-signatures { display: flex; gap: 8mm; justify-content: space-between; }
+    .signature-card { flex: 1; border: 0.3mm solid #777777; border-radius: 2mm; padding: 3mm 4mm; font-size: 9pt; }
+    .sig-badge { font-weight: 700; font-size: 9.5pt; margin-bottom: 2mm; color: #222222; text-decoration: underline; }
+    .sig-date { margin-bottom: 2mm; color: #333333; }
+    .sig-obs { margin-bottom: 3mm; color: #555555; }
+    .sig-duo { display: flex; gap: 4mm; margin-top: 3mm; }
+    .sig-box { flex: 1; border: 0.25mm dashed #888888; height: 18mm; padding: 1.5mm; font-size: 8pt; color: #666666; }
+
     @media print {
       body { background: #ffffff; }
+      .page { box-shadow: none; margin: 0; }
       .variable { background: transparent; outline: 0; }
     }
   </style>
@@ -37,25 +54,104 @@
 <body>
   <section class="page document-page">
     <h1>Checking de passation <span class="sr-only">Référence : {{ context.event_draft.public_reference }}{% for line in context.event_draft.lines %} Matériel : {{ line.inventory_item_name }}{% endfor %}</span></h1>
+    <div class="meta-row">
+      <span><strong>Dossier :</strong> {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.public_reference|default:"................" }}{% endif %}</span>
+      <span><strong>Client :</strong> {% if show_variables %}<span class="variable">{% templatetag openvariable %} client.name {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.customer_display_name|default:"........................" }}{% endif %}</span>
+      <span><strong>Date :</strong> {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.date {% templatetag closevariable %}</span>{% else %}{{ context.event_draft.start_at|date:"d/m/Y"|default:"../../...." }}{% endif %}</span>
+    </div>
     <div class="category">Cuisine</div>
-    <ul><li><span class="check"></span>2 prises intérieures</li><li><span class="check"></span>1 interrupteur intérieure</li><li><span class="check"></span>1 évier</li><li><span class="check"></span>1 évier en inox (bas cabossé)</li><li><span class="check"></span>1 réfrigérateur (avec 4 plateaux)</li><li><span class="check"></span>1 congélateur (3 bacs)</li><li><span class="check"></span>4 poubelles (1 couvercle détachée)</li><li><span class="check"></span>1 bassin extérieur</li><li><span class="check"></span>1 interrupteur extérieure</li><li><span class="check"></span>2 serpillères</li><li><span class="check"></span>2 balais pour extérieur</li><li><span class="check"></span>1 balai brosse</li><li><span class="check"></span>1 raclette</li><li><span class="check"></span>1 pelle à ordure</li></ul>
-    <div class="category">Porte/serrure</div>
+    <ul>
+      <li><span class="check"></span>2 prises intérieures</li>
+      <li><span class="check"></span>1 interrupteur intérieure</li>
+      <li><span class="check"></span>1 évier</li>
+      <li><span class="check"></span>1 évier en inox (bas cabossé)</li>
+      <li><span class="check"></span>1 réfrigérateur (avec 4 plateaux)</li>
+      <li><span class="check"></span>1 congélateur (3 bacs)</li>
+      <li><span class="check"></span>4 poubelles (1 couvercle détachée)</li>
+      <li><span class="check"></span>1 bassin extérieur</li>
+      <li><span class="check"></span>1 interrupteur extérieure</li>
+      <li><span class="check"></span>2 serpillères</li>
+      <li><span class="check"></span>2 balais pour extérieur</li>
+      <li><span class="check"></span>1 balai brosse</li>
+      <li><span class="check"></span>1 raclette</li>
+      <li><span class="check"></span>1 pelle à ordure</li>
+      <li><span class="check"></span>Porte/serrure</li>
+    </ul>
     <div class="category">Toilettes prestataires</div>
-    <ul><li><span class="check"></span>Cuvette</li><li><span class="check"></span>Porte</li><li><span class="check"></span>Groupe</li><li><span class="check"></span>Carburant : <span class="variable">{% templatetag openvariable %} checklist.fuelLevel {% templatetag closevariable %}</span> %</li></ul>
+    <ul>
+      <li><span class="check"></span>Cuvette</li>
+      <li><span class="check"></span>Porte</li>
+    </ul>
+    <div class="category">Groupe</div>
+    <ul>
+      <li><span class="check"></span>Carburant : {% if show_variables %}<span class="variable">{% templatetag openvariable %} checklist.fuelLevel {% templatetag closevariable %}</span>{% else %}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{% endif %} %</li>
+    </ul>
     <div class="category">Salle</div>
-    <ul><li><span class="check"></span>Vitrage</li><li><span class="check"></span>4 prises (1 HS)</li></ul>
+    <ul>
+      <li><span class="check"></span>Vitrage</li>
+      <li><span class="check"></span>4 prises (1 HS)</li>
+    </ul>
     <div class="category">Jardin</div>
-    <ul><li><span class="check"></span>4 prises</li></ul>
+    <ul>
+      <li><span class="check"></span>4 prises</li>
+    </ul>
     <div class="category">Toilettes invités</div>
-    <ul><li><span class="check"></span>3 lavabos</li><li><span class="check"></span>1 prise</li><li><span class="check"></span>4 cuvettes femmes (mihetsikany lunettes)</li><li><span class="check"></span>5 pissoirs</li><li><span class="check"></span>2 cuvettes hommes (mihetsikany lunettes)</li><li><span class="check"></span>Portes/serrure</li></ul>
-    <div class="category">Petit salon</div>
-    <ul><li><span class="check"></span>2 fauteuils avec coussins</li><li><span class="check"></span>1 tapis</li></ul>
+    <ul>
+      <li><span class="check"></span>3 lavabos</li>
+      <li><span class="check"></span>1 prise</li>
+      <li><span class="check"></span>4 cuvettes femmes (mihetsika ny lunettes)</li>
+      <li><span class="check"></span>5 Pissoirs</li>
+      <li><span class="check"></span>2 cuvettes hommes (mihetsika ny lunettes)</li>
+      <li><span class="check"></span>Portes/serrure</li>
+    </ul>
   </section>
   <section class="page document-page">
     <div class="category">Petit salon</div>
-    <ul><li><span class="check"></span>1 table d’appoint</li><li><span class="check"></span>1 miroir</li><li><span class="check"></span>1 penderie</li><li><span class="check"></span>2 prises</li><li><span class="check"></span>Rideaux</li><li><span class="check"></span>Volet roulant</li><li><span class="check"></span>1 interrupteur</li><li><span class="check"></span>Porte / serrure</li></ul>
+    <ul>
+      <li><span class="check"></span>2 fauteuils avec coussins</li>
+      <li><span class="check"></span>1 tapis</li>
+      <li><span class="check"></span>1 table d’appoint</li>
+      <li><span class="check"></span>1 miroir</li>
+      <li><span class="check"></span>1 penderie</li>
+      <li><span class="check"></span>2 prises</li>
+      <li><span class="check"></span>Rideaux</li>
+      <li><span class="check"></span>Volet roulant</li>
+      <li><span class="check"></span>1 interrupteur</li>
+      <li><span class="check"></span>Porte / serrure</li>
+    </ul>
     <div class="category">Salle d’eau mariés</div>
-    <ul><li><span class="check"></span>Lavabo</li><li><span class="check"></span>Cuvette</li><li><span class="check"></span>2 serviettes</li><li><span class="check"></span>1 interrupteur</li><li><span class="check"></span>1 prise</li><li><span class="check"></span>Colonne de douche</li><li><span class="check"></span>Porte / serrure</li></ul>
+    <ul>
+      <li><span class="check"></span>Lavabo</li>
+      <li><span class="check"></span>Cuvette</li>
+      <li><span class="check"></span>2 serviettes</li>
+      <li><span class="check"></span>1 interrupteur</li>
+      <li><span class="check"></span>1 prise</li>
+      <li><span class="check"></span>Colonne de douche</li>
+      <li><span class="check"></span>Porte / serrure</li>
+    </ul>
+    <div class="passation-block">
+      <div class="passation-title">Passation contradictoire des lieux et équipements</div>
+      <div class="passation-signatures">
+        <div class="signature-card">
+          <div class="sig-badge">1. Remise des clés (Entrée)</div>
+          <div class="sig-date">Date : ................................ Heure : ........h........</div>
+          <div class="sig-obs">Observations entrée : ....................................................</div>
+          <div class="sig-duo">
+            <div class="sig-box">Le Responsable Domaine</div>
+            <div class="sig-box">Le Client</div>
+          </div>
+        </div>
+        <div class="signature-card">
+          <div class="sig-badge">2. Restitution des lieux (Sortie)</div>
+          <div class="sig-date">Date : ................................ Heure : ........h........</div>
+          <div class="sig-obs">Observations sortie : ....................................................</div>
+          <div class="sig-duo">
+            <div class="sig-box">Le Responsable Domaine</div>
+            <div class="sig-box">Le Client</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </section>
 </body>
 </html>
