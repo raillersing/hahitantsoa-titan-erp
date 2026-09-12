@@ -30,7 +30,7 @@
         <p>Entre les soussignés :</p>
         <p><strong>La société ERGON GROUP</strong>, dont le siège social se situe au Lot P93M Sud Ambohipo Alasora Antananarivo 10301, représentée par RASOAMANANA Narindra en sa qualité de Gérante</p>
         <p class="text-right">Ci-après dénommée « Le prestataire »</p>
-        <p class="text-right"><strong><u>D'UNE PART,</u></strong></p>
+        <p class="text-right"><strong><u>D’UNE PART,</u></strong></p>
 
         <span class="sr-only">Contrat materiel Titan ({{ draft.public_reference }}). Contract generated from reservation-linked backend truth.</span>
 
@@ -53,15 +53,15 @@
                 STAT : {{ customer.stat|default:"................................" }}<br>
                 RCS : {{ customer.rcs|default:"................................" }}<br>
                 Représentée par {{ customer.representative_name|default:"................................" }} en sa qualité de {{ customer.representative_role|default:"Gérant(e)" }}<br>
-                Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{{ customer.phone|default:customer.email|default:"................................" }}{% endfor %}</p>
+                Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{% if customer.phone %}{{ customer.phone }}{% elif customer.email %}{{ customer.email }}{% else %}................................{% endif %}{% endfor %}</p>
             {% else %}
                 <p>{% if customer.civilite == "Madame" or customer.civilite == "Mme" %}Madame <strong>{{ customer.display_name|default:"................................" }}</strong> née le{% elif customer.civilite == "Monsieur" or customer.civilite == "M." %}Monsieur <strong>{{ customer.display_name|default:"................................" }}</strong> né le{% else %}{{ customer.civilite|default:"Madame/Monsieur" }} <strong>{{ customer.display_name|default:"................................" }}</strong> né(e) le{% endif %} {{ customer.birth_date|date:"d/m/Y"|default:"........" }} à {{ customer.birth_place|default:"........" }}, {% if customer.id_type == "Passeport" or customer.id_type == "passport" or customer.id_type == "PASSEPORT" %}titulaire du Passeport{% elif customer.id_type == "CIN" or customer.id_type == "Carte Nationale d’Identité" or customer.id_type == "Carte d’Identité Nationale" or customer.id_type == "Carte Nationale d'Identité" %}titulaire de la Carte Nationale d’Identité{% else %}titulaire de la {{ customer.id_type|default:"Carte Nationale d’Identité/Passeport" }}{% endif %} N° {{ customer.id_number|default:"................................" }} Délivrée le {{ customer.id_issue_date|date:"d/m/Y"|default:"........" }} à {{ customer.id_issue_place|default:"........" }} {% if customer.id_duplicata_date %}duplicata du {{ customer.id_duplicata_date|date:"d/m/Y" }} à {{ customer.id_duplicata_place }}{% endif %} demeurant au {{ customer.address|default:"................................" }}<br>
-                Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{{ customer.phone|default:customer.email|default:"................................" }}{% endfor %}</p>
+                Contacts : {% for contact in customer.contact_points %}{{ contact.value }}{% if contact.label %} ({{ contact.label }}){% endif %}{% if not forloop.last %} · {% endif %}{% empty %}{% if customer.phone %}{{ customer.phone }}{% elif customer.email %}{{ customer.email }}{% else %}................................{% endif %}{% endfor %}</p>
             {% endif %}
         {% endif %}
 
         <p class="text-right">Ci-après dénommée « Le client »</p>
-        <p class="text-right"><strong><u>D'AUTRE PART,</u></strong></p>
+        <p class="text-right"><strong><u>D’AUTRE PART,</u></strong></p>
 
         <p>Le Client et le Prestataire étant dénommés ci-après les « Parties »</p>
         <p class="uppercase"><strong>IL A ETE CONVENU CE QUI SUIT :</strong></p>
@@ -69,11 +69,11 @@
         <h2>Article 1 : Objet du contrat</h2>
         <p>Le présent contrat est conclu entre les Parties en vue de la location de matériels évènementiels comprenant :</p>
         {% if show_variables %}
-            <ul>
+            <ul class="dash-list">
                 <li><span class="variable">{% templatetag openvariable %} lines.quantity {% templatetag closevariable %} x {% templatetag openvariable %} lines.designation {% templatetag closevariable %}</span></li>
             </ul>
         {% else %}
-            <ul>
+            <ul class="dash-list">
                 {% for line in draft.lines %}
                     <li>{{ line.quantity }} x {{ line.inventory_item_name }}{% if line.notes and line.notes != line.inventory_item_name %} — {{ line.notes }}{% endif %}</li>
                 {% empty %}
@@ -127,8 +127,8 @@
         <p>Il sera alors convenu un prélèvement des matériels du {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.pickupDate {% templatetag closevariable %}</span>{% else %}{{ draft.pickup_at|date:"d/m/Y"|default:draft.start_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.pickupTime {% templatetag closevariable %}</span>{% else %}{{ draft.pickup_at|date:"H:i"|default:"09:00" }}{% endif %} heures, pour une restitution au {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.returnDate {% templatetag closevariable %}</span>{% else %}{{ draft.return_at|date:"d/m/Y"|default:draft.end_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} logistics.returnTime {% templatetag closevariable %}</span>{% else %}{{ draft.return_at|date:"H:i"|default:"09:00" }}{% endif %} heures.</p>
 
         <h2>Article 4 : Tarifs</h2>
-        <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% else %}<strong>{{ draft.total_amount_formatted|default:draft.total_amount|default:"...................." }}</strong>{% endif %} Ariary TTC.</p>
-        <p class="indent">N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ document.proforma_reference|default:draft.proforma_reference|default:draft.public_reference|default:"................" }}{% endif %}</p>
+        <p>La présente location est consentie et acceptée moyennant le prix de {% if show_variables %}<strong><span class="variable">{% templatetag openvariable %} finance.totalAmount {% templatetag closevariable %}</span></strong>{% elif draft.total_amount_formatted %}<strong>{{ draft.total_amount_formatted }}</strong>{% else %}<strong>{{ draft.total_amount|default:"...................." }}</strong>{% endif %} Ariary TTC.</p>
+        <p class="indent">N° Proforma : {% if show_variables %}<span class="variable">{% templatetag openvariable %} dossier.ref {% templatetag closevariable %}</span>{% else %}{{ document.proforma_reference|default:draft.proforma_reference|default:draft.public_reference|default:"................" }}{% endif %}{% if context.document.reference and context.document.reference != draft.proforma_reference and context.document.reference != draft.public_reference %}<br>Réf. Contrat : {{ context.document.reference }}{% elif document.reference and document.reference != draft.proforma_reference and document.reference != draft.public_reference %}<br>Réf. Contrat : {{ document.reference }}{% endif %}</p>
         <p>Une facture sera établie après la réception de la totalité du règlement.</p>
         <p>Un reçu sera établi lors de la réception des fonds pour acompte.</p>
         <p>Dans le cas où le client n’aurait pas rendu les Matériels loués aux date et heure indiquées à l’article 3, le Client devra payer la somme supplémentaire de 50 % du montant total de la facture par jour de non remise des Matériels Loués.</p>
@@ -143,11 +143,13 @@
         <p>Un état des Matériels sera établi à l’enlèvement à contrario d’un état dressé à la remise des dits matériels à la fin du contrat. Le client est tenu de rester le temps nécessaire pour procéder à l’état des Matériels. Chaque article devra être restitué à l’état lors de la prise de possession.</p>
 
         <h2>Article 7 : Dépôt de garantie</h2>
-        {% if draft.caution_amount and draft.caution_amount != "0,00" and draft.caution_amount != "0" %}
+        {% if show_variables %}
+            <p>Le client verse au Prestataire à titre de dépôt de garantie la somme de <strong><span class="variable">{% templatetag openvariable %} caution.amount {% templatetag closevariable %}</span> Ariary</strong>.</p>
+        {% elif draft.caution_amount and draft.caution_amount != "0,00" and draft.caution_amount != "0" %}
             <p>Le client verse au Prestataire à titre de dépôt de garantie la somme de <strong>{{ draft.caution_amount }} Ariary</strong>.</p>
         {% else %}
             <p>Le client verse au Prestataire à titre de dépôt de garantie :</p>
-            <ul>
+            <ul class="dash-list">
                 <li>100 000,00 Ariary (Cent mille Ariary) pour les locations de moins de 200 000,00 Ariary (Deux cent mille Ariary) ;</li>
                 <li>50% du montant total pour les locations de plus de 200 000,00 Ariary.</li>
             </ul>
@@ -196,7 +198,7 @@
         <p>Il s’engage à ne pas faire entrave à la jouissance du Client pendant toute la durée de la location.</p>
 
         <h2>Article 9 : Obligations du Client</h2>
-        <ul>
+        <ul class="dash-list">
             <li>Le Client prendra les Matériels Loués dans l’état où ils se trouvent au moment de l’entrée en jouissance, sans pouvoir exiger du Prestataire toute forme de modifications en sus ;</li>
             <li>Le Client ne pourra faire aucune modification sur les Matériels Loués ;</li>
             <li>Le Client s’engage à utiliser les Matériels Loués en bon père de famille ;</li>
@@ -217,7 +219,7 @@
         <p>Un véhicule fourgon est exigé pour le transport des matériels.</p>
 
         <p class="text-center signature-intro">Fait en trois exemplaires originaux</p>
-        <p class="text-right">A Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% else %}{% now "d/m/Y" %}{% endif %}</p>
+        <p class="text-right">A Antananarivo, le {% if show_variables %}<span class="variable">{% templatetag openvariable %} document.date {% templatetag closevariable %}</span>{% elif context.document.date %}{{ context.document.date|date:"d/m/Y" }}{% elif document.date %}{{ document.date|date:"d/m/Y" }}{% else %}{% now "d/m/Y" %}{% endif %}</p>
 
         <div class="signatures">
             <div class="signature-block">
@@ -225,7 +227,9 @@
                 <div class="signature-space"></div>
             </div>
             <div class="signature-block">
-                {% if customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
+                {% if show_variables %}
+                    <strong>Le Client,</strong>
+                {% elif customer.party_type == "company" or customer.party_type.value == "company" or draft.party_type == "company" or customer.nif or customer.stat or customer.rcs %}
                     <strong>Pour la société {{ customer.display_name|default:"" }},</strong><br>
                     <span class="signature-subtitle">{{ customer.representative_name|default:"Le représentant légal" }}</span>
                 {% else %}

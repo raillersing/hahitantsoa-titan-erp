@@ -137,10 +137,35 @@ def test_titan_material_contract_uses_canonical_html_css_pages() -> None:
     assert html.count('class="contract-page') == 3
     assert "CONTRAT DE LOCATION DE MATERIELS EVENEMENTIELS" in html
     assert "« TITAN RENTAL »" in html
+    assert "D’UNE PART," in html
+    assert "D’AUTRE PART," in html
     assert "Carte Nationale d’Identité/Passeport" in html
-    assert "Article 1 : Objet du contrat" in html
+    assert 'class="dash-list"' in html
+    for i in range(1, 13):
+        assert f"Article {i} :" in html
     assert "Article 12 : Transport" in html
     assert "titan-rental-logo.png" in html
+
+
+def test_titan_material_contract_variable_preview_mode() -> None:
+    definition = get_document_template_definition("titan.material_contract.v1")
+    assert definition is not None
+    html = render_to_string(
+        _resolve_preview_template_path(definition.key),
+        {
+            "context": _build_mock_preview_context(definition),
+            "bank": _build_preview_bank(definition),
+            "show_variables": True,
+        },
+    )
+
+    assert "{{ caution.amount }}" in html
+    assert "{{ finance.totalAmount }}" in html
+    assert "{{ dossier.ref }}" in html
+    assert "{{ lines.quantity }}" in html
+    assert "{{ lines.designation }}" in html
+    assert "{{ document.date }}" in html
+    assert "Le Client," in html
 
 
 def test_titan_material_amendment_uses_canonical_html_css_amendment_page() -> None:
@@ -610,6 +635,19 @@ def test_titan_material_contract_smart_caution_amount() -> None:
     )
     assert "dépôt de garantie la somme de <strong>450 000,00 Ariary</strong>." in html
     assert "pour les locations de moins de 200 000,00 Ariary" not in html
+
+    context_zero = _build_mock_preview_context(definition)
+    context_zero["reservation_draft"]["caution_amount"] = "0,00"
+    html_zero = render_to_string(
+        template_path,
+        {"context": context_zero, "bank": bank, "show_variables": False},
+    )
+    assert '<ul class="dash-list">' in html_zero
+    assert (
+        "100 000,00 Ariary (Cent mille Ariary) pour les locations de moins de 200 000,00 Ariary"
+        in html_zero
+    )
+    assert "50% du montant total pour les locations de plus de 200 000,00 Ariary." in html_zero
 
 
 def test_hahitantsoa_amendment_smart_options_rendering() -> None:
