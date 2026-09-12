@@ -7,7 +7,7 @@ const username = 'admin';
 const password = 'admin';
 
 async function login(page: Page) {
-  await page.goto('/#reservation-new');
+  await page.goto('/#reservation-new', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Connexion opérateur' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Nom d’utilisateur' }).fill(username);
   await page.getByLabel('Mot de passe').fill(password);
@@ -77,7 +77,7 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
     && new URL(response.url()).pathname === '/api/v1/payments/deposits/record/'
     && response.ok(),
   );
-  await page.getByRole('button', { name: 'Enregistrer le paiement' }).click();
+  await page.getByRole('button', { name: 'Enregistrer le versement & continuer' }).click();
   await depositRecorded;
   await expect(page.getByRole('heading', { name: 'Aperçu Contrat' })).toBeVisible();
 
@@ -91,23 +91,25 @@ test('Titan : l’assistant émet les documents, enregistre l’acompte et persi
   await expect(page.getByRole('heading', { name: 'Titan', exact: true })).toBeVisible();
 
   await page.goto(`/#reservation-detail/${encodeURIComponent(`titan:${persistedDraft.id}`)}`);
-  await expect(page.getByRole('button', { name: 'Marquer contrat signé' })).toBeVisible();
+  const markContractSigned = page.getByRole('button', { name: 'Marquer contrat signé' }).first();
+  await expect(markContractSigned).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Marquer contrat signé' })).toBeVisible();
+  await expect(markContractSigned).toBeVisible();
 
   const contractSigned = page.waitForResponse((response) =>
     response.request().method() === 'POST'
     && /\/api\/v1\/reservations\/drafts\/[^/]+\/contract-signed\/$/.test(new URL(response.url()).pathname)
     && response.ok(),
   );
-  await page.getByRole('button', { name: 'Marquer contrat signé' }).click();
+  await markContractSigned.click();
   await contractSigned;
   const confirmation = page.waitForResponse((response) =>
     response.request().method() === 'POST'
     && /\/api\/v1\/reservations\/drafts\/[^/]+\/confirm\/$/.test(new URL(response.url()).pathname)
     && response.ok(),
   );
-  await page.getByRole('button', { name: 'Confirmer la réservation' }).click();
+  const confirmButton = page.getByRole('button', { name: 'Confirmer la réservation' }).first();
+  await confirmButton.click();
   await confirmation;
   await expect(page.getByText('Confirmée', { exact: true }).first()).toBeVisible();
   await page.reload();
