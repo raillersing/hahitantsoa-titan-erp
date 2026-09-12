@@ -29,6 +29,7 @@ import {
   updateHahitantsoaEventDraftPublicReference,
 } from "../api";
 import DocumentArtifactPreviewPanel from "../DocumentArtifactPreviewPanel";
+import DocumentLiveEditorModal from "../DocumentLiveEditorModal";
 import { DocumentPreview } from "./DocumentPreview";
 import { printDocumentHtml } from "./DocumentCanvasViewer";
 import PaymentWhatsAppReminderButton from "../PaymentWhatsAppReminderButton";
@@ -277,6 +278,12 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
   const [activeTab, setActiveTab] = useState<HahitantsoaActiveTab>("contrat");
   const [previewModal, setPreviewModal] = useState<PreviewModalState>(null);
   const [showProformaHistoryModal, setShowProformaHistoryModal] = useState(false);
+  const [liveEditorState, setLiveEditorState] = useState<{
+    isOpen: boolean;
+    documentInstanceId: string;
+    title: string;
+    templateKey: string;
+  } | null>(null);
 
   // Conflict management states
   const [conflictedWithEvent, setConflictedWithEvent] = useState<HahitantsoaEventDraft | null>(null);
@@ -654,6 +661,36 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
     } finally {
       setBusy(null);
     }
+  };
+
+  const handleOpenLiveEditor = async (templateKey: string, label: string) => {
+    if (!param) return;
+    let targetInstance = docMap.get(templateKey);
+    if (!targetInstance || (targetInstance.status !== "generated" && targetInstance.status !== "issued")) {
+      setBusy(`generate-${templateKey}`);
+      setError(null);
+      setActionNotice(null);
+      try {
+        const doc = await createHahitantsoaEventDraftDocumentInstance(param, { template_key: templateKey });
+        await generateHahitantsoaEventDraftDocumentInstance(param, doc.id);
+        await generateHahitantsoaEventDraftDocumentInstancePdf(param, doc.id);
+        setActionNotice(`${label} généré avec succès.`);
+        await load();
+        targetInstance = doc;
+      } catch (err) {
+        setError(errorMessage(err, `Impossible de générer ${label}.`));
+        return;
+      } finally {
+        setBusy(null);
+      }
+    }
+
+    setLiveEditorState({
+      isOpen: true,
+      documentInstanceId: targetInstance.id,
+      title: label,
+      templateKey,
+    });
   };
 
   // Financial calculations
@@ -2355,13 +2392,22 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
                     <button
                       type="button"
+                      aria-label="Éditer en direct le bon de préparation"
+                      onClick={() => void handleOpenLiveEditor("shared.preparation_sheet.v1", "Bon de préparation interne")}
+                      className="rounded-lg bg-indigo-50 border border-indigo-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      title="Éditer en direct (Google Docs style)"
+                    >
+                      <i className="fa-solid fa-file-pen"></i> Éditer
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setPreviewModal({
                         title: "Bon de Préparation Interne (Logistique & Magasin)",
                         documentInstanceId: internalPrepDoc?.id,
                         templateKey: "shared.preparation_sheet.v1",
                         type: "bon_preparation",
                       })}
-                      className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <i className="fa-solid fa-eye text-indigo-600"></i> Aperçu
                     </button>
@@ -2370,7 +2416,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         type="button"
                         onClick={() => void generateDocument("shared.preparation_sheet.v1", "Bon de préparation interne")}
                         disabled={busy !== null}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
+                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
                       >
                         Générer
                       </button>
@@ -2397,13 +2443,22 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
                     <button
                       type="button"
+                      aria-label="Éditer en direct la passation"
+                      onClick={() => void handleOpenLiveEditor("hahitantsoa.preparation_sheet.v1", "Checking de passation")}
+                      className="rounded-lg bg-purple-50 border border-purple-200 px-2.5 py-1.5 text-xs font-bold text-purple-700 hover:bg-purple-100 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      title="Éditer en direct (Google Docs style)"
+                    >
+                      <i className="fa-solid fa-file-pen"></i> Éditer
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setPreviewModal({
                         title: "Checking de Passation Hahitantsoa",
                         documentInstanceId: prepSheetDoc?.id,
                         templateKey: "hahitantsoa.preparation_sheet.v1",
                         type: "fiche_preparation",
                       })}
-                      className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 rounded-lg bg-white border border-slate-200 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <i className="fa-solid fa-eye text-purple-600"></i> Aperçu
                     </button>
@@ -2412,7 +2467,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                         type="button"
                         onClick={() => void generateDocument("hahitantsoa.preparation_sheet.v1", "Checking de passation")}
                         disabled={busy !== null}
-                        className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-50"
+                        className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-700 disabled:opacity-50 cursor-pointer"
                       >
                         Générer
                       </button>
@@ -2539,13 +2594,22 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   {/* Bon de préparation interne */}
                   <button
                     type="button"
+                    aria-label="Éditer en direct le bon de préparation"
+                    onClick={() => void handleOpenLiveEditor("shared.preparation_sheet.v1", "Bon de préparation interne")}
+                    className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 font-bold text-indigo-700 hover:bg-indigo-100 text-xs shadow-2xs transition-colors cursor-pointer"
+                    title="Éditer en direct (Google Docs style)"
+                  >
+                    <i className="fa-solid fa-file-pen text-indigo-600"></i> Éditer en direct
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPreviewModal({
                       title: "Bon de Préparation Interne (Logistique & Magasin)",
                       documentInstanceId: internalPrepDoc?.id,
                       templateKey: "shared.preparation_sheet.v1",
                       type: "bon_preparation",
                     })}
-                    className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-2 font-bold text-indigo-700 hover:bg-indigo-50 text-xs shadow-2xs transition-colors"
+                    className="flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-2 font-bold text-indigo-700 hover:bg-indigo-50 text-xs shadow-2xs transition-colors cursor-pointer"
                   >
                     <i className="fa-solid fa-boxes-packing text-indigo-600"></i> Aperçu Bon Préparation
                   </button>
@@ -2554,7 +2618,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       type="button"
                       disabled={busy !== null}
                       onClick={() => void generateDocument("shared.preparation_sheet.v1", "Bon de préparation interne")}
-                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 text-xs shadow-sm transition-colors cursor-pointer"
                     >
                       <i className="fa-solid fa-plus"></i> Générer Bon Interne
                     </button>
@@ -2563,13 +2627,22 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                   {/* Checking de passation */}
                   <button
                     type="button"
+                    aria-label="Éditer en direct la passation"
+                    onClick={() => void handleOpenLiveEditor("hahitantsoa.preparation_sheet.v1", "Checking de passation")}
+                    className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 font-bold text-purple-700 hover:bg-purple-100 text-xs shadow-2xs transition-colors cursor-pointer"
+                    title="Éditer en direct (Google Docs style)"
+                  >
+                    <i className="fa-solid fa-file-pen text-purple-600"></i> Éditer en direct
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setPreviewModal({
                       title: "Checking de Passation Hahitantsoa",
                       documentInstanceId: prepSheetDoc?.id,
                       templateKey: "hahitantsoa.preparation_sheet.v1",
                       type: "fiche_preparation",
                     })}
-                    className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3 py-2 font-bold text-purple-700 hover:bg-purple-50 text-xs shadow-2xs transition-colors"
+                    className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3 py-2 font-bold text-purple-700 hover:bg-purple-50 text-xs shadow-2xs transition-colors cursor-pointer"
                   >
                     <i className="fa-solid fa-clipboard-check text-purple-600"></i> Aperçu Checking Passation
                   </button>
@@ -2578,7 +2651,7 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                       type="button"
                       disabled={busy !== null}
                       onClick={() => void generateDocument("hahitantsoa.preparation_sheet.v1", "Checking de passation")}
-                      className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-2 font-bold text-white hover:bg-purple-700 disabled:opacity-50 text-xs shadow-sm transition-colors"
+                      className="flex items-center gap-1.5 rounded-xl bg-purple-600 px-3.5 py-2 font-bold text-white hover:bg-purple-700 disabled:opacity-50 text-xs shadow-sm transition-colors cursor-pointer"
                     >
                       <i className="fa-solid fa-plus"></i> Générer Passation
                     </button>
@@ -3158,6 +3231,22 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
                 <i className="fa-solid fa-file-lines text-indigo-600"></i> {previewModal.title}
               </h3>
               <div className="flex items-center gap-2">
+                {(previewModal.templateKey === "hahitantsoa.preparation_sheet.v1" ||
+                  previewModal.templateKey === "shared.preparation_sheet.v1") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tKey = previewModal.templateKey!;
+                      const tTitle = previewModal.title || "Document";
+                      setPreviewModal(null);
+                      void handleOpenLiveEditor(tKey, tTitle);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
+                  >
+                    <i className="fa-solid fa-file-pen"></i>
+                    <span>Modifier en direct</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -4532,6 +4621,21 @@ export default function HahitantsoaEventDraftDetailPage({ onNavigate, param, onB
         }
         domain="hahitantsoa"
       />
+
+      {/* ── Document Live Editor Modal ───────────────────────────────── */}
+      {liveEditorState && (
+        <DocumentLiveEditorModal
+          isOpen={liveEditorState.isOpen}
+          onClose={() => setLiveEditorState(null)}
+          documentInstanceId={liveEditorState.documentInstanceId}
+          title={liveEditorState.title}
+          templateKey={liveEditorState.templateKey}
+          onSaved={async () => {
+            await load();
+            setActionNotice("Document modifié et PDF synchronisé avec succès.");
+          }}
+        />
+      )}
     </div>
   );
 }

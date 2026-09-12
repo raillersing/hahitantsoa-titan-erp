@@ -74,6 +74,15 @@ vi.mock("../DocumentArtifactPreviewPanel", () => ({
     <div data-testid="artifact-preview">Preview for {documentInstanceId}</div>
   ),
 }));
+vi.mock("../DocumentLiveEditorModal", () => ({
+  default: ({ isOpen, onClose, title, templateKey, documentInstanceId }: any) =>
+    isOpen ? (
+      <div data-testid="live-editor-modal" data-doc-id={documentInstanceId} data-template={templateKey}>
+        <h3>{title}</h3>
+        <button onClick={onClose}>Fermer éditeur</button>
+      </div>
+    ) : null,
+}));
 
 const DRAFT: HahitantsoaEventDraft = {
   id: "event-1",
@@ -1018,6 +1027,40 @@ describe("HahitantsoaEventDraftDetailPage", () => {
         template_key: "hahitantsoa.proforma.v1",
       }));
       expect(mockGenerateDocumentInstance).toHaveBeenCalledWith("event-1", "doc-prof-2");
+    });
+  });
+
+  it("ouvre l'éditeur en direct pour le checking de passation", async () => {
+    mockGetDraft.mockResolvedValue(DRAFT);
+    mockGetCustomer.mockResolvedValue(CUSTOMER);
+    mockGetDocuments.mockResolvedValue([
+      {
+        id: "doc-prep-1",
+        hahitantsoa_event_draft: "event-1",
+        document_type: "fiche_preparation",
+        template_key: "hahitantsoa.preparation_sheet.v1",
+        document_reference: "HAH-2026-0001-PASS",
+        status: "generated",
+        created_at: "2026-06-01T10:00:00Z",
+      } as any,
+    ]);
+    mockGetPayments.mockResolvedValue([]);
+    mockGetPreflight.mockResolvedValue(preflight());
+    mockGetLifecycle.mockResolvedValue(null);
+
+    render(<HahitantsoaEventDraftDetailPage param="event-1" onNavigate={vi.fn()} />);
+    expect(await screen.findByText("HAH-2026-0001")).toBeInTheDocument();
+
+    const passationEditBtn = screen.getByRole("button", { name: "Éditer en direct la passation" });
+    expect(passationEditBtn).toBeInTheDocument();
+
+    fireEvent.click(passationEditBtn);
+
+    await waitFor(() => {
+      const modal = screen.getByTestId("live-editor-modal");
+      expect(modal).toBeInTheDocument();
+      expect(modal).toHaveAttribute("data-doc-id", "doc-prep-1");
+      expect(modal).toHaveAttribute("data-template", "hahitantsoa.preparation_sheet.v1");
     });
   });
 });

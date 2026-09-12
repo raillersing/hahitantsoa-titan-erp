@@ -1501,6 +1501,18 @@ export function voidProforma(
   );
 }
 
+export function overrideDocumentInstanceContent(
+  documentInstanceId: string,
+  htmlContent: string,
+  signal?: AbortSignal,
+): Promise<DocumentInstance> {
+  return postAuthenticatedJson(
+    `/api/v1/documents/instances/${documentInstanceId}/override-content/`,
+    { html_content: htmlContent },
+    signal,
+  );
+}
+
 // ---- Hahitantsoa Event Draft Documents ----
 
 export function getHahitantsoaEventDraftDocumentInstances(
