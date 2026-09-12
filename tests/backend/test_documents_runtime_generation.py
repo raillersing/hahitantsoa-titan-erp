@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 from django.core.files.storage import FileSystemStorage
+from django.test import RequestFactory
 from django.utils import timezone
 from test_documents_document_instance_foundation import (
     _draft_with_line,
@@ -127,7 +128,14 @@ def test_generate_hahitantsoa_contract_document_instance_html_success(
     assert "Contrat Hahitantsoa" in result.html_content
     assert draft.public_reference in result.html_content
     assert draft.event_name in result.html_content
-    assert draft.event_type in result.html_content
+    assert "Autre" in result.html_content
+    assert "<li>Prix de casse</li>" in result.html_content
+    assert "<li>Proforma</li>" not in result.html_content
+    removed_note = (
+        "Cette liste est consultée par le prestataire et le client"
+        " lors de la passation d’entrée et de sortie."
+    )
+    assert removed_note not in result.html_content
     with isolated_document_storage.open(instance.storage_path, "rb") as f:
         assert f.read() == result.html_content.encode("utf-8")
 
@@ -336,3 +344,134 @@ def test_generate_document_instance_html_unsafe_storage_path(monkeypatch) -> Non
     with pytest.raises(DocumentRuntimeGenerationError) as exc_info:
         generate_document_instance_html(document_instance=instance)
     assert exc_info.value.code == "unsafe_storage_path"
+
+
+def test_hahitantsoa_contract_renders_french_event_type_and_parties(
+    isolated_document_storage,
+) -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    draft.event_type = "wedding"
+    draft.event_name = "Jean & Jeanne"
+    draft.save()
+
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+    result = generate_document_instance_html(document_instance=instance)
+    assert (
+        "Pour le Mariage de : Jean &amp; Jeanne" in result.html_content
+        or "Pour le Mariage de : Jean & Jeanne" in result.html_content
+    )
+
+    # Fallback to customer name if event_name is empty or identical to event_type
+    draft.event_name = "Mariage"
+    draft.save()
+    instance2 = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+    result2 = generate_document_instance_html(document_instance=instance2)
+    assert f"Pour le Mariage de : {draft.customer.display_name}" in result2.html_content
+
+
+def test_proforma_reference_preserves_prefix_and_does_not_truncate_to_h_pf(
+    isolated_document_storage,
+) -> None:
+    draft = _hahitantsoa_event_draft_with_line()
+    draft.public_reference = "H-001/2026"
+    draft.save()
+
+    instance = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+    result = generate_document_instance_html(document_instance=instance)
+    assert "N° Proforma : H-001/2026-PF" in result.html_content
+    assert "H-PF" not in result.html_content
+
+
+def test_titan_contract_renders_destination_notes(isolated_document_storage) -> None:
+    draft = _draft_with_line()
+    draft.notes = "Réception privée au Domaine des Fleurs"
+    draft.save()
+
+    instance = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.material_contract.v1",
+    )
+    result = generate_document_instance_html(document_instance=instance)
+    assert "Destination / Précision :" in result.html_content
+    assert "Réception privée au Domaine des Fleurs" in result.html_content
+
+
+def test_hahitantsoa_draft_serializer_update_cascades_public_reference_to_documents(
+    django_user_model,
+) -> None:
+    from apps.hahitantsoa.serializers import HahitantsoaEventDraftSerializer
+
+    actor = django_user_model.objects.create_user(username="cascade-actor", password="password")
+    draft = _hahitantsoa_event_draft_with_line()
+    draft.public_reference = "H-INIT/2026"
+    draft.updated_by = actor
+    draft.save()
+
+    doc = create_document_instance_from_hahitantsoa_event_draft(
+        event_draft=draft,
+        template_key="hahitantsoa.contract.v1",
+    )
+    assert doc.reservation_public_reference == "H-INIT/2026"
+    assert doc.document_reference == "H-INIT/2026-CT"
+
+    factory = RequestFactory()
+    request = factory.patch("/")
+    request.user = actor
+
+    serializer = HahitantsoaEventDraftSerializer(
+        instance=draft,
+        data={"public_reference": "H-NEW42/2026"},
+        partial=True,
+        context={"request": request},
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    doc.refresh_from_db()
+    assert doc.reservation_public_reference == "H-NEW42/2026"
+    assert doc.document_reference == "H-NEW42/2026-CT"
+
+
+def test_titan_draft_serializer_update_cascades_public_reference_to_documents(
+    django_user_model,
+) -> None:
+    from apps.reservations.serializers import ReservationDraftSerializer
+
+    actor = django_user_model.objects.create_user(username="titan-actor", password="password")
+    draft = _draft_with_line()
+    draft.public_reference = "001/2026"
+    draft.updated_by = actor
+    draft.save()
+
+    doc = create_document_instance_from_reservation_draft(
+        reservation_draft=draft,
+        template_key="titan.material_contract.v1",
+    )
+    assert doc.reservation_public_reference == "001/2026"
+    assert doc.document_reference == "001/2026-CT"
+
+    factory = RequestFactory()
+    request = factory.patch("/")
+    request.user = actor
+
+    serializer = ReservationDraftSerializer(
+        instance=draft,
+        data={"public_reference": "042/2026"},
+        partial=True,
+        context={"request": request},
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    doc.refresh_from_db()
+    assert doc.reservation_public_reference == "042/2026"
+    assert doc.document_reference == "042/2026-CT"

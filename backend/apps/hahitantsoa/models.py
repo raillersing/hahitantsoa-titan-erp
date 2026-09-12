@@ -31,6 +31,14 @@ class HahitantsoaEventType(models.TextChoices):
     WEDDING = "wedding", "Mariage"
     ENGAGEMENT = "engagement", "Fiançailles"
     CIVIL_WEDDING = "civil_wedding", "Mariage civil"
+    BAPTISM = "baptism", "Baptême"
+    BIRTHDAY = "birthday", "Anniversaire"
+    RECEPTION = "reception", "Réception privée"
+    SEMINAR = "seminar", "Séminaire"
+    CORPORATE = "corporate", "Corporate"
+    CONFERENCE = "conference", "Conférence"
+    WORKSHOP = "workshop", "Atelier / Formation"
+    FAMILY = "family", "Fête familiale"
     OTHER = "other", "Autre"
 
 

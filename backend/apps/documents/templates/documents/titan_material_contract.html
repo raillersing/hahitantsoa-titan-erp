@@ -120,7 +120,7 @@
         <h2>Article 2 : Destination</h2>
         <p>Les matériels loués sont destinés à usage dans le cadre des évènements suivants : mariages, anniversaires, réceptions privées, séminaires.</p>
         <p>Toute autre activité en sus non mentionnée doit faire l’objet d’une annexe à titre d’avenant conclu entre les parties.</p>
-        <p>Le lieu de destination devant être mentionné par le Client.</p>
+        <p>Le lieu de destination devant être mentionné par le Client.{% if draft.notes and draft.notes != "None" %}<br><strong>Destination / Précision :</strong> {{ draft.notes }}{% endif %}</p>
 
         <h2>Article 3 : Durée</h2>
         <p>La présente location est consentie et acceptée du {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startDate {% templatetag closevariable %}</span>{% else %}{{ draft.start_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.startTime {% templatetag closevariable %}</span>{% else %}{{ draft.start_at|date:"H:i"|default:"……" }}{% endif %} heures au {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endDate {% templatetag closevariable %}</span>{% else %}{{ draft.end_at|date:"d/m/Y"|default:"__/__/____" }}{% endif %} à {% if show_variables %}<span class="variable">{% templatetag openvariable %} event.endTime {% templatetag closevariable %}</span>{% else %}{{ draft.end_at|date:"H:i"|default:"……" }}{% endif %} heures.</p>

@@ -471,8 +471,10 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
             )
 
         lines_data = validated_data.pop("lines", None)
+        new_reference = validated_data.pop("public_reference", None)
         actor = self._actor()
         discount_changed = bool({"discount_amount", "discount_reason"} & validated_data.keys())
+        old_reference = instance.public_reference
 
         for field, value in validated_data.items():
             setattr(instance, field, value)
@@ -505,5 +507,16 @@ class ReservationDraftSerializer(serializers.ModelSerializer):
                 )
 
         recalculate_reservation_draft_totals(reservation_draft=instance)
+
+        if new_reference and new_reference != old_reference:
+            from apps.reservations.reference_update import (
+                update_reservation_draft_public_reference,
+            )
+
+            update_reservation_draft_public_reference(
+                reservation_draft=instance,
+                new_public_reference=new_reference,
+                actor=actor,
+            )
 
         return instance
