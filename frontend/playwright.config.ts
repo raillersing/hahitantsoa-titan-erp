@@ -1,5 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const configuredFrontendPort = process.env.PLAYWRIGHT_FRONTEND_PORT ?? '5173';
+
+if (!/^\d+$/.test(configuredFrontendPort) || Number(configuredFrontendPort) < 1024 || Number(configuredFrontendPort) > 65535) {
+  throw new Error('PLAYWRIGHT_FRONTEND_PORT must be a TCP port between 1024 and 65535.');
+}
+
+const frontendPort = Number(configuredFrontendPort);
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${frontendPort}`;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -12,7 +21,7 @@ export default defineConfig({
   ],
   outputDir: '../reports/6g-r6b-browser-validation/test-results',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -34,8 +43,8 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 5173 --strictPort',
-    url: 'http://127.0.0.1:5173',
+    command: `npm run dev -- --host 127.0.0.1 --port ${frontendPort} --strictPort`,
+    url: baseURL,
     reuseExistingServer: false,
     timeout: 30000,
   },
