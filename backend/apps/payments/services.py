@@ -122,7 +122,12 @@ def _payment_finance_account(*, payment: Payment, actor) -> FinanceAccount:
 
     account_kind_by_method = {
         PaymentMethod.BANK_TRANSFER: FinanceAccountKind.BANK,
+        PaymentMethod.VIREMENT: FinanceAccountKind.BANK,
+        PaymentMethod.VERSEMENT: FinanceAccountKind.BANK,
         PaymentMethod.MOBILE_MONEY: FinanceAccountKind.MOBILE_MONEY,
+        PaymentMethod.MVOLA: FinanceAccountKind.MOBILE_MONEY,
+        PaymentMethod.ORANGE_MONEY: FinanceAccountKind.MOBILE_MONEY,
+        PaymentMethod.TAPTAP_SEND: FinanceAccountKind.MOBILE_MONEY,
         PaymentMethod.CHEQUE: FinanceAccountKind.CHEQUE,
     }
     account_kind = account_kind_by_method.get(payment.payment_method)
@@ -212,12 +217,17 @@ def _assert_matching_deposit_recording(
     amount: Decimal,
     external_reference: str,
     notes: str,
+    payment_kind: str = PaymentKind.DEPOSIT,
+    bank_name: str = "",
+    check_number: str = "",
 ) -> None:
     if (
-        payment.payment_kind != PaymentKind.DEPOSIT
+        payment.payment_kind != payment_kind
         or payment.payment_method != payment_method
         or payment.amount != amount
         or payment.external_reference != external_reference
+        or (bank_name and payment.bank_name != bank_name)
+        or (check_number and payment.check_number != check_number)
         or payment.notes != notes
     ):
         raise PaymentLifecycleError(
@@ -518,6 +528,8 @@ def confirm_payment(
     actor: object | None = None,
     paid_at=None,
     external_reference: str | None = None,
+    bank_name: str | None = None,
+    check_number: str | None = None,
     notes: str | None = None,
 ) -> PaymentConfirmationResult:
     payment = Payment.objects.select_for_update().get(pk=payment.pk)
@@ -528,6 +540,16 @@ def confirm_payment(
         )
 
     actor_id = getattr(actor, "pk", None)
+    if external_reference is not None:
+        payment.external_reference = external_reference
+    if bank_name is not None:
+        payment.bank_name = bank_name
+    if check_number is not None:
+        payment.check_number = check_number
+    if notes is not None:
+        payment.notes = notes
+    payment.paid_at = paid_at or timezone.now()
+
     receipt_document = DocumentInstance.objects.create(
         **build_payment_receipt_document_instance_kwargs(
             payment=payment,
@@ -536,16 +558,21 @@ def confirm_payment(
     )
     payment.receipt_document = receipt_document
     payment.updated_by_id = actor_id
-    payment.save(update_fields=["receipt_document", "updated_by", "updated_at"])
+    payment.save(
+        update_fields=[
+            "receipt_document",
+            "paid_at",
+            "external_reference",
+            "bank_name",
+            "check_number",
+            "notes",
+            "updated_by",
+            "updated_at",
+        ]
+    )
     generate_document_instance_html(document_instance=receipt_document, actor=actor)
 
     payment.payment_status = PaymentStatus.CONFIRMED
-    payment.paid_at = paid_at or timezone.now()
-    if external_reference is not None:
-        payment.external_reference = external_reference
-    if notes is not None:
-        payment.notes = notes
-    payment.receipt_document = receipt_document
     payment.confirmed_at = timezone.now()
     payment.confirmed_by_id = actor_id
     payment.updated_by_id = actor_id
@@ -594,8 +621,11 @@ def record_confirmed_deposit(
     idempotency_key: str,
     reservation_draft: ReservationDraft | None = None,
     hahitantsoa_event_draft: HahitantsoaEventDraft | None = None,
+    payment_kind: str = PaymentKind.DEPOSIT,
     paid_at=None,
     external_reference: str = "",
+    bank_name: str = "",
+    check_number: str = "",
     notes: str = "",
 ) -> DepositRecordingResult:
     """Create, confirm and record one deposit as one replay-safe transaction."""
@@ -628,11 +658,13 @@ def record_confirmed_deposit(
             payment = create_payment(
                 actor=actor,
                 reservation_draft=locked_reservation_draft,
-                payment_kind=PaymentKind.DEPOSIT,
+                payment_kind=payment_kind,
                 payment_method=payment_method,
                 payment_status=PaymentStatus.PENDING,
                 amount=amount,
                 external_reference=external_reference,
+                bank_name=bank_name,
+                check_number=check_number,
                 notes=notes,
                 deposit_recording_idempotency_key=normalized_key,
             )
@@ -643,20 +675,32 @@ def record_confirmed_deposit(
                 amount=amount,
                 external_reference=external_reference,
                 notes=notes,
+                payment_kind=payment_kind,
+                bank_name=bank_name,
+                check_number=check_number,
             )
 
         if payment.payment_status == PaymentStatus.PENDING:
-            payment = confirm_payment(payment=payment, actor=actor, paid_at=paid_at).payment
+            payment = confirm_payment(
+                payment=payment,
+                actor=actor,
+                paid_at=paid_at,
+                bank_name=bank_name,
+                check_number=check_number,
+            ).payment
         elif payment.payment_status not in {PaymentStatus.CONFIRMED, PaymentStatus.RECONCILED}:
             raise PaymentLifecycleError(
                 "A deposit recording cannot resume a cancelled or failed payment.",
                 code=DEPOSIT_RECORDING_INVALID_STATE,
             )
 
-        marked_reservation_draft = _record_reservation_draft_deposit_marker(
-            reservation_draft=locked_reservation_draft,
-            actor=actor,
-        )
+        if payment_kind == PaymentKind.DEPOSIT:
+            marked_reservation_draft = _record_reservation_draft_deposit_marker(
+                reservation_draft=locked_reservation_draft,
+                actor=actor,
+            )
+        else:
+            marked_reservation_draft = locked_reservation_draft
         return DepositRecordingResult(
             payment=payment,
             reservation_draft=marked_reservation_draft,
@@ -680,11 +724,13 @@ def record_confirmed_deposit(
         payment = create_payment(
             actor=actor,
             hahitantsoa_event_draft=locked_hahitantsoa_event_draft,
-            payment_kind=PaymentKind.DEPOSIT,
+            payment_kind=payment_kind,
             payment_method=payment_method,
             payment_status=PaymentStatus.PENDING,
             amount=amount,
             external_reference=external_reference,
+            bank_name=bank_name,
+            check_number=check_number,
             notes=notes,
             deposit_recording_idempotency_key=normalized_key,
         )
@@ -695,20 +741,32 @@ def record_confirmed_deposit(
             amount=amount,
             external_reference=external_reference,
             notes=notes,
+            payment_kind=payment_kind,
+            bank_name=bank_name,
+            check_number=check_number,
         )
 
     if payment.payment_status == PaymentStatus.PENDING:
-        payment = confirm_payment(payment=payment, actor=actor, paid_at=paid_at).payment
+        payment = confirm_payment(
+            payment=payment,
+            actor=actor,
+            paid_at=paid_at,
+            bank_name=bank_name,
+            check_number=check_number,
+        ).payment
     elif payment.payment_status not in {PaymentStatus.CONFIRMED, PaymentStatus.RECONCILED}:
         raise PaymentLifecycleError(
             "A deposit recording cannot resume a cancelled or failed payment.",
             code=DEPOSIT_RECORDING_INVALID_STATE,
         )
 
-    marked_hahitantsoa_event_draft = _record_hahitantsoa_event_draft_deposit_marker(
-        hahitantsoa_event_draft=locked_hahitantsoa_event_draft,
-        actor=actor,
-    )
+    if payment_kind == PaymentKind.DEPOSIT:
+        marked_hahitantsoa_event_draft = _record_hahitantsoa_event_draft_deposit_marker(
+            hahitantsoa_event_draft=locked_hahitantsoa_event_draft,
+            actor=actor,
+        )
+    else:
+        marked_hahitantsoa_event_draft = locked_hahitantsoa_event_draft
     return DepositRecordingResult(
         payment=payment,
         reservation_draft=None,
@@ -1082,7 +1140,12 @@ def process_gateway_callback(
             code="gateway_callback_reference_ambiguous",
         )
 
-    if payment.payment_method != PaymentMethod.MOBILE_MONEY:
+    if payment.payment_method not in {
+        PaymentMethod.MOBILE_MONEY,
+        PaymentMethod.MVOLA,
+        PaymentMethod.ORANGE_MONEY,
+        PaymentMethod.TAPTAP_SEND,
+    }:
         raise PaymentGatewayError(
             "Callback payment method does not match mobile money.",
             code="gateway_callback_method_mismatch",
@@ -1328,7 +1391,15 @@ def commit_reconciliation_import(
                 amount <= 0
                 or payment.payment_status != PaymentStatus.CONFIRMED
                 or payment.payment_method
-                not in {PaymentMethod.BANK_TRANSFER, PaymentMethod.MOBILE_MONEY}
+                not in {
+                    PaymentMethod.BANK_TRANSFER,
+                    PaymentMethod.VIREMENT,
+                    PaymentMethod.VERSEMENT,
+                    PaymentMethod.MOBILE_MONEY,
+                    PaymentMethod.MVOLA,
+                    PaymentMethod.ORANGE_MONEY,
+                    PaymentMethod.TAPTAP_SEND,
+                }
             ):
                 raise PaymentReconciliationError(
                     "Only confirmed bank-transfer or mobile-money payments may be allocated."
