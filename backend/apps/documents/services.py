@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Q
@@ -29,30 +28,6 @@ from apps.finance.models import FinanceBankProfile
 from apps.finance.services import get_default_finance_bank_profile
 from apps.hahitantsoa.models import HahitantsoaEventDraft
 from apps.reservations.models import ReservationDraft
-
-
-def get_confirmed_rental_payments_total(draft: ReservationDraft | HahitantsoaEventDraft) -> Decimal:
-    """Return the confirmed non-caution payment sum for a reservation or event draft."""
-    from apps.payments.models import CONFIRMED_PAYMENT_STATUS_VALUES, PaymentKind
-
-    if draft is not None and hasattr(draft, "payments"):
-        payments = draft.payments.filter(
-            payment_status__in=CONFIRMED_PAYMENT_STATUS_VALUES,
-        ).exclude(payment_kind=PaymentKind.CAUTION)
-        return sum((p.amount for p in payments), Decimal("0.00"))
-    return Decimal("0.00")
-
-
-def is_draft_fully_paid(draft: ReservationDraft | HahitantsoaEventDraft) -> bool:
-    """True when total_amount > 0 and confirmed payments cover 100% of total_amount."""
-    if draft is None:
-        return False
-    total_amount = Decimal(str(getattr(draft, "total_amount", 0) or 0))
-    if total_amount <= Decimal("0.00"):
-        return False
-    paid = get_confirmed_rental_payments_total(draft)
-    return paid >= total_amount
-
 
 TITAN_PROFORMA_TEMPLATE_KEY = "titan.proforma.v1"
 HAHITANTSOA_PROFORMA_TEMPLATE_KEY = "hahitantsoa.proforma.v1"
@@ -674,12 +649,6 @@ def create_document_instance_from_reservation_draft(
     validate_supported_reservation_draft_document_template_key(template_key)
     document_reference = None
     if context.template.document_type == "invoice":
-        if not is_draft_fully_paid(reservation_draft):
-            raise CommercialDocumentContextError(
-                "La facture définitive ne peut être générée tant que le devis n'est pas "
-                "intégralement réglé.",
-                code="invoice_payment_incomplete",
-            )
         existing_invoice = (
             reservation_draft.document_instances.filter(document_type="invoice")
             .exclude(status=DocumentInstanceStatus.VOIDED)
@@ -811,12 +780,6 @@ def create_document_instance_from_hahitantsoa_event_draft(
     document_reference = None
 
     if doc_type == "invoice":
-        if not is_draft_fully_paid(event_draft):
-            raise CommercialDocumentContextError(
-                "La facture définitive ne peut être générée tant que le devis n'est pas "
-                "intégralement réglé.",
-                code="invoice_payment_incomplete",
-            )
         existing_invoice = (
             event_draft.document_instances.filter(document_type="invoice")
             .exclude(status=DocumentInstanceStatus.VOIDED)

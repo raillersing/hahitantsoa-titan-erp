@@ -421,7 +421,6 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
 
     from apps.common.sequences import peek_next_public_reference
     from apps.documents.models import NumberingSequenceType
-    from apps.documents.services import is_draft_fully_paid
 
     doc_date = preview_instance.document_date
     doc_ref = preview_instance.document_reference
@@ -443,10 +442,7 @@ def preview_hahitantsoa_event_draft_document_html(*, event_draft, template_key: 
             doc_ref = peek_next_public_reference(
                 brand="hahitantsoa", sequence_type=NumberingSequenceType.INVOICE
             )
-            if is_draft_fully_paid(event_draft):
-                doc_date = timezone.localdate()
-            else:
-                doc_date = None
+            doc_date = timezone.localdate()
     elif template_key == "hahitantsoa.delivery_note.v1":
         existing_bl = (
             event_draft.document_instances.filter(document_type="delivery_note")
@@ -539,7 +535,6 @@ def preview_reservation_draft_document_html(*, reservation_draft, template_key: 
 
     from apps.common.sequences import peek_next_public_reference
     from apps.documents.models import NumberingSequenceType
-    from apps.documents.services import is_draft_fully_paid
 
     doc_date = preview_instance.document_date
     doc_ref = preview_instance.document_reference or reservation_draft.public_reference
@@ -561,10 +556,7 @@ def preview_reservation_draft_document_html(*, reservation_draft, template_key: 
             doc_ref = peek_next_public_reference(
                 brand="titan", sequence_type=NumberingSequenceType.INVOICE
             )
-            if is_draft_fully_paid(reservation_draft):
-                doc_date = timezone.localdate()
-            else:
-                doc_date = None
+            doc_date = timezone.localdate()
     elif template_key == "titan.delivery_note.v1":
         existing_bl = (
             reservation_draft.document_instances.filter(document_type="delivery_note")
@@ -650,15 +642,6 @@ def generate_document_instance_html(
         "titan.invoice.v1",
         "hahitantsoa.invoice.v1",
     }:
-        from apps.documents.services import is_draft_fully_paid
-
-        draft = document_instance.reservation_draft or document_instance.hahitantsoa_event_draft
-        if draft and not is_draft_fully_paid(draft):
-            raise DocumentRuntimeGenerationError(
-                "La facture définitive ne peut être générée tant que le devis n'est pas "
-                "intégralement réglé.",
-                code="invoice_payment_incomplete",
-            )
         if document_instance.document_date is None:
             document_instance.document_date = timezone.localdate()
             document_instance.save(update_fields=["document_date", "updated_at"])
