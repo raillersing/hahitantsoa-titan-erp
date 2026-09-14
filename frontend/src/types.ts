@@ -854,7 +854,17 @@ export type PaymentKind =
 
 export type PaymentCreateKind = Exclude<PaymentKind, 'refund'>;
 
-export type PaymentMethod = 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'other';
+export type PaymentMethod =
+  | 'cash'
+  | 'bank_transfer'
+  | 'mobile_money'
+  | 'cheque'
+  | 'virement'
+  | 'mvola'
+  | 'orange_money'
+  | 'taptap_send'
+  | 'versement'
+  | 'other';
 
 export type PaymentStatus = 'pending' | 'confirmed' | 'failed' | 'cancelled' | 'reconciled';
 
@@ -871,6 +881,8 @@ export type Payment = {
   amount: string;
   paid_at: string | null;
   external_reference: string;
+  bank_name?: string;
+  check_number?: string;
   source_label: string;
   notes: string;
   confirmed_at: string | null;
@@ -887,6 +899,8 @@ export type PaymentCreatePayload = {
   payment_status?: PaymentStatus;
   amount: string;
   external_reference?: string;
+  bank_name?: string;
+  check_number?: string;
   source_label?: string;
   notes?: string;
 };
@@ -894,6 +908,8 @@ export type PaymentCreatePayload = {
 export type PaymentConfirmPayload = {
   paid_at?: string;
   external_reference?: string;
+  bank_name?: string;
+  check_number?: string;
   notes?: string;
 };
 
@@ -901,9 +917,12 @@ export type DepositRecordingPayload = {
   reservation_draft?: string | null;
   hahitantsoa_event_draft?: string | null;
   payment_method: PaymentMethod;
+  payment_kind?: PaymentKind;
   amount: string;
   paid_at?: string;
   external_reference?: string;
+  bank_name?: string;
+  check_number?: string;
   notes?: string;
   idempotency_key: string;
 };

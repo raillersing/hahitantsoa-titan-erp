@@ -59,9 +59,14 @@ const PAYMENT_KINDS: PaymentCreateKind[] = [
 ];
 const PAYMENT_METHODS: PaymentMethod[] = [
   'cash',
+  'cheque',
+  'virement',
+  'mvola',
+  'orange_money',
+  'taptap_send',
+  'versement',
   'bank_transfer',
   'mobile_money',
-  'cheque',
   'other',
 ];
 const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
@@ -76,9 +81,14 @@ const PAYMENT_KIND_LABELS: Record<PaymentKind, string> = {
 };
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: 'Espèces',
-  bank_transfer: 'Virement',
-  mobile_money: 'Mobile Money',
   cheque: 'Chèque',
+  virement: 'Virement',
+  mvola: 'Mvola',
+  orange_money: 'Orange Money',
+  taptap_send: 'TapTap Send',
+  versement: 'Versement',
+  bank_transfer: 'Virement (Bancaire)',
+  mobile_money: 'Mobile Money',
   other: 'Autre',
 };
 
