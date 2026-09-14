@@ -313,7 +313,12 @@ def validate_reservation_closeable(*, reservation_draft: ReservationDraft) -> li
 
     external_payment_methods = {
         PaymentMethod.BANK_TRANSFER,
+        PaymentMethod.VIREMENT,
+        PaymentMethod.VERSEMENT,
         PaymentMethod.MOBILE_MONEY,
+        PaymentMethod.MVOLA,
+        PaymentMethod.ORANGE_MONEY,
+        PaymentMethod.TAPTAP_SEND,
         PaymentMethod.CHEQUE,
     }
     unreconciled_external_payments = reservation_draft.payments.filter(

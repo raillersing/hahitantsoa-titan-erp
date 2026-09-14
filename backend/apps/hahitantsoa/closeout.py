@@ -102,7 +102,12 @@ def get_hahitantsoa_closeout_summary(*, event_draft_id: str) -> HahitantsoaClose
 
     external_methods = {
         PaymentMethod.BANK_TRANSFER,
+        PaymentMethod.VIREMENT,
+        PaymentMethod.VERSEMENT,
         PaymentMethod.MOBILE_MONEY,
+        PaymentMethod.MVOLA,
+        PaymentMethod.ORANGE_MONEY,
+        PaymentMethod.TAPTAP_SEND,
         PaymentMethod.CHEQUE,
     }
     unreconciled_external_payment_count = sum(
@@ -215,7 +220,12 @@ def validate_hahitantsoa_event_closeable(
 
     external_methods = {
         PaymentMethod.BANK_TRANSFER,
+        PaymentMethod.VIREMENT,
+        PaymentMethod.VERSEMENT,
         PaymentMethod.MOBILE_MONEY,
+        PaymentMethod.MVOLA,
+        PaymentMethod.ORANGE_MONEY,
+        PaymentMethod.TAPTAP_SEND,
         PaymentMethod.CHEQUE,
     }
     unreconciled = event_draft.payments.filter(

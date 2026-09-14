@@ -28,6 +28,8 @@ class PaymentSerializer(serializers.ModelSerializer):
             "amount",
             "paid_at",
             "external_reference",
+            "bank_name",
+            "check_number",
             "source_label",
             "notes",
             "confirmed_at",
@@ -67,6 +69,8 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
             "payment_status",
             "amount",
             "external_reference",
+            "bank_name",
+            "check_number",
             "source_label",
             "notes",
         )
@@ -118,6 +122,10 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
 class PaymentConfirmSerializer(serializers.Serializer):
     paid_at = serializers.DateTimeField(required=False)
     external_reference = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    bank_name = serializers.CharField(required=False, allow_blank=True, max_length=255, default="")
+    check_number = serializers.CharField(
+        required=False, allow_blank=True, max_length=128, default=""
+    )
     notes = serializers.CharField(required=False, allow_blank=True)
 
 
@@ -135,10 +143,21 @@ class DepositRecordingSerializer(serializers.Serializer):
     payment_method = serializers.ChoiceField(
         choices=Payment._meta.get_field("payment_method").choices
     )
+    payment_kind = serializers.ChoiceField(
+        choices=PaymentKind.choices,
+        required=False,
+        default=PaymentKind.DEPOSIT,
+    )
     amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
     paid_at = serializers.DateTimeField(required=False)
-    external_reference = serializers.CharField(required=False, allow_blank=True, max_length=255)
-    notes = serializers.CharField(required=False, allow_blank=True)
+    external_reference = serializers.CharField(
+        required=False, allow_blank=True, max_length=255, default=""
+    )
+    bank_name = serializers.CharField(required=False, allow_blank=True, max_length=255, default="")
+    check_number = serializers.CharField(
+        required=False, allow_blank=True, max_length=128, default=""
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
     idempotency_key = serializers.CharField(max_length=128)
 
     def validate(self, attrs):

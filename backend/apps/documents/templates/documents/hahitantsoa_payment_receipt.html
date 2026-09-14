@@ -11,7 +11,7 @@
     * { box-sizing: border-box; }
     html, body { width: 80mm; margin: 0; padding: 0; background: #ffffff; }
     body {
-      color: #111111;
+      color: #000000;
       font-family: Arial, Helvetica, "DejaVu Sans", sans-serif;
       font-size: 10px;
       line-height: 1.25;
@@ -103,7 +103,8 @@
     }
     .history-empty {
       text-align: center;
-      color: #6b7280;
+      color: #000000;
+      font-style: italic;
       padding: 2mm 0;
     }
     .total-row {
@@ -113,6 +114,9 @@
       margin: 2.5mm 0 3.5mm;
       font-weight: 700;
       font-size: 10px;
+      color: #000000;
+      border-top: 1px dashed #000000;
+      padding-top: 1.5mm;
     }
     .total-row span:last-child {
       text-align: right;
@@ -127,7 +131,7 @@
 <body>
   <main class="receipt">
     <img class="brand" src="/brand/hahitantsoa-logo.png" onerror="if(!this.dataset.retry){this.dataset.retry=1;this.src='../../static/brand/hahitantsoa-logo.png';}" alt="Hahitantsoa">
-    <h1>{% if context.payment.payment_kind == "balance" %}Reçu de paiement du solde{% elif context.payment.payment_kind == "caution" %}Reçu de paiement de caution{% else %}Reçu de paiement d'acompte{% endif %}</h1>
+    <h1>{% if context.payment.payment_kind == "balance" %}Reçu de paiement du solde{% elif context.payment.payment_kind == "caution" %}Reçu de dépôt de garantie{% else %}Reçu de paiement d'acompte{% endif %}</h1>
 
     <div class="field"><span class="label">Date</span><span class="value">{{ context.payment.payment_date_label|default:"—" }}</span></div>
     {% if context.payment.receipt_reference %}
@@ -138,13 +142,38 @@
 
     <div class="block-gap"></div>
 
-    <div class="field"><span class="label">Montant payé</span><span class="value value-bold">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
+    <div class="field"><span class="label">{% if context.payment.payment_kind == "caution" %}Montant caution{% else %}Montant payé{% endif %}</span><span class="value value-bold">{{ context.payment.amount_label|default:"—" }} Ar</span></div>
     {% if context.payment.amount_in_words %}
     <div class="field words-field"><span class="label">En lettres</span><span class="value words-value">{{ context.payment.amount_in_words }}</span></div>
     {% endif %}
     <div class="field"><span class="label">Mode de paiement</span><span class="value">{{ context.payment.payment_method_label|default:"—" }}</span></div>
-    <div class="field"><span class="label">Référence</span><span class="value">{{ context.payment.transaction_reference|default:"—" }}</span></div>
+    {% if context.payment.payment_method == "cheque" %}
+      {% if context.payment.bank_name %}
+      <div class="field"><span class="label">Nom de la banque</span><span class="value">{{ context.payment.bank_name }}</span></div>
+      {% endif %}
+      <div class="field"><span class="label">N° Chèque</span><span class="value value-bold">{{ context.payment.check_number|default:context.payment.transaction_reference|default:"—" }}</span></div>
+    {% elif context.payment.payment_method == "bank_transfer" or context.payment.payment_method == "virement" %}
+      {% if context.payment.bank_name %}
+      <div class="field"><span class="label">Nom de la banque</span><span class="value">{{ context.payment.bank_name }}</span></div>
+      {% endif %}
+      <div class="field"><span class="label">Référence</span><span class="value value-bold">{{ context.payment.transaction_reference|default:"—" }}</span></div>
+    {% elif context.payment.payment_method == "cash" %}
+      {# Espèces : pas d'information supplémentaire #}
+    {% else %}
+      {% if context.payment.transaction_reference %}
+      <div class="field"><span class="label">Réf. Paiement</span><span class="value value-bold">{{ context.payment.transaction_reference }}</span></div>
+      {% endif %}
+      {% if context.payment.payment_method == "versement" and context.payment.bank_name %}
+      <div class="field"><span class="label">Nom de la banque</span><span class="value">{{ context.payment.bank_name }}</span></div>
+      {% endif %}
+    {% endif %}
 
+    {% if context.payment.payment_kind == "caution" %}
+    <div class="block-gap"></div>
+    <div class="field"><span class="label">N° Dossier</span><span class="value value-bold">{{ context.payment.proforma_reference|default:context.payment.reservation_public_reference|default:"—" }}</span></div>
+    <div class="field"><span class="label">Nature</span><span class="value">Dépôt de garantie (Caution)</span></div>
+    <div class="field"><span class="label">Statut</span><span class="value value-bold">Caution versée</span></div>
+    {% else %}
     <div class="section-title"><u>Historique des paiements</u></div>
     <table class="history">
       <tbody>
@@ -166,7 +195,8 @@
 
     <div class="field"><span class="label">N° Proforma</span><span class="value">{{ context.payment.proforma_reference|default:"—" }}</span></div>
     <div class="field"><span class="label">Montant Proforma</span><span class="value">{{ context.payment.proforma_amount_label|default:"—" }}{% if context.payment.proforma_amount_label %} Ar{% endif %}</span></div>
-    <div class="field"><span class="label">Reste à payer</span><span class="value value-bold">{{ context.payment.remaining_balance_label|default:"0" }}{% if context.payment.remaining_balance_label %} Ar{% else %}0 Ar{% endif %}</span></div>
+    <div class="field"><span class="label">Reste à payer</span><span class="value value-bold">{% if context.payment.payment_kind == "balance" or context.payment.remaining_balance_label == "0" %}0 Ar (Dossier soldé){% else %}{{ context.payment.remaining_balance_label|default:"0" }} Ar{% endif %}</span></div>
+    {% endif %}
   </main>
 </body>
 </html>

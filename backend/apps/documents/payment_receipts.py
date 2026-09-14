@@ -21,7 +21,12 @@ UNKNOWN_PAYMENT_RECEIPT_TEMPLATE_KEY = "unknown_payment_receipt_template_key"
 PAYMENT_METHOD_LABELS = {
     "cash": "Espèces",
     "bank_transfer": "Virement",
+    "virement": "Virement",
     "mobile_money": "Mvola",
+    "mvola": "Mvola",
+    "orange_money": "Orange Money",
+    "taptap_send": "Taptap Send",
+    "versement": "Versement",
     "cheque": "Chèque",
     "other": "Autre",
 }
@@ -70,6 +75,8 @@ class PaymentReceiptPaymentContext:
     remaining_balance_label: str
     receipt_page_height_mm: int
     receipt_reference: str = ""
+    bank_name: str = ""
+    check_number: str = ""
 
 
 @dataclass(frozen=True)
@@ -157,6 +164,12 @@ def build_payment_receipt_context(
 
     all_payments_list.sort(key=lambda p: (p.paid_at or p.created_at, p.created_at, str(p.id)))
 
+    is_caution = payment.payment_kind == PaymentKind.CAUTION
+    if is_caution:
+        relevant_payments = [p for p in all_payments_list if p.payment_kind == PaymentKind.CAUTION]
+    else:
+        relevant_payments = [p for p in all_payments_list if p.payment_kind != PaymentKind.CAUTION]
+
     history = tuple(
         {
             "date_label": _date_label(item.paid_at or item.created_at),
@@ -166,14 +179,14 @@ def build_payment_receipt_context(
             "kind": item.get_payment_kind_display(),
             "is_current": (item.id == payment.id),
         }
-        for item in all_payments_list
+        for item in relevant_payments
     )
     total_confirmed_payments = sum(
-        (item.amount for item in all_payments_list),
+        (item.amount for item in relevant_payments),
         Decimal("0"),
     )
     deposit_total = sum(
-        (item.amount for item in all_payments_list if item.payment_kind == PaymentKind.DEPOSIT),
+        (item.amount for item in relevant_payments if item.payment_kind == PaymentKind.DEPOSIT),
         Decimal("0"),
     )
     event_date = (
@@ -226,7 +239,7 @@ def build_payment_receipt_context(
 
     remaining_balance = (
         max(Decimal("0.00"), proforma_total - total_confirmed_payments)
-        if proforma_total > Decimal("0.00")
+        if proforma_total > Decimal("0.00") and not is_caution
         else Decimal("0.00")
     )
 
@@ -263,9 +276,14 @@ def build_payment_receipt_context(
     # Thermal PDF engines need a concrete page height; ``auto`` falls back to
     # A4 in WeasyPrint. Keep the source receipt height for four history rows and
     # grow only for data that genuinely needs additional lines.
-    history_extra_rows = max(0, len(history) - 4)
+    history_extra_rows = max(0, len(history) - 4) if not is_caution else 0
     customer_extra_lines = max(0, ceil(len(customer_display_name) / 26) - 1)
-    receipt_page_height_mm = 120 + (history_extra_rows * 5) + (customer_extra_lines * 4)
+    base_height = 100 if is_caution else 120
+    receipt_page_height_mm = base_height + (history_extra_rows * 5) + (customer_extra_lines * 4)
+
+    bank_name = getattr(payment, "bank_name", "") or ""
+    check_number = getattr(payment, "check_number", "") or ""
+    transaction_ref = payment.external_reference or check_number
 
     return PaymentReceiptContext(
         template=_template_context(template_definition),
@@ -288,21 +306,31 @@ def build_payment_receipt_context(
             event_date_label=_date_label(event_date),
             payment_date_label=_date_label(payment.paid_at or payment.created_at),
             payment_method_label=_payment_method_label(payment),
-            transaction_reference=payment.external_reference or "",
+            transaction_reference=transaction_ref,
             history=history,
-            total_deposit_label=_format_amount(
-                total_confirmed_payments
-                if total_confirmed_payments > Decimal("0")
-                else deposit_total
+            total_deposit_label=(
+                _format_amount(
+                    total_confirmed_payments
+                    if total_confirmed_payments > Decimal("0")
+                    else deposit_total
+                )
+                if not is_caution
+                else ""
             ),
             proforma_reference=proforma_reference,
-            proforma_amount_label=_format_amount(proforma_total)
-            if proforma_total > Decimal("0")
-            else "",
-            remaining_balance_label=_format_amount(remaining_balance)
-            if proforma_total > Decimal("0")
-            else "",
+            proforma_amount_label=(
+                _format_amount(proforma_total)
+                if proforma_total > Decimal("0") and not is_caution
+                else ""
+            ),
+            remaining_balance_label=(
+                _format_amount(remaining_balance)
+                if proforma_total > Decimal("0") and not is_caution
+                else ""
+            ),
             receipt_page_height_mm=receipt_page_height_mm,
             receipt_reference=receipt_reference,
+            bank_name=bank_name,
+            check_number=check_number,
         ),
     )

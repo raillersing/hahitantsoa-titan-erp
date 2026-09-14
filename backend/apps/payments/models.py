@@ -28,7 +28,12 @@ class PaymentKind(models.TextChoices):
 class PaymentMethod(models.TextChoices):
     CASH = "cash", "cash"
     BANK_TRANSFER = "bank_transfer", "bank_transfer"
+    VIREMENT = "virement", "virement"
     MOBILE_MONEY = "mobile_money", "mobile_money"
+    MVOLA = "mvola", "mvola"
+    ORANGE_MONEY = "orange_money", "orange_money"
+    TAPTAP_SEND = "taptap_send", "taptap_send"
+    VERSEMENT = "versement", "versement"
     CHEQUE = "cheque", "cheque"
     OTHER = "other", "other"
 
@@ -103,6 +108,8 @@ class Payment(UUIDModel, TimestampedModel, AuditableModel):
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     paid_at = models.DateTimeField(null=True, blank=True)
     external_reference = models.CharField(max_length=255, blank=True)
+    bank_name = models.CharField(max_length=255, blank=True, default="")
+    check_number = models.CharField(max_length=128, blank=True, default="")
     source_label = models.CharField(max_length=255, blank=True)
     notes = models.TextField(blank=True)
     deposit_recording_idempotency_key = models.CharField(max_length=128, blank=True)
